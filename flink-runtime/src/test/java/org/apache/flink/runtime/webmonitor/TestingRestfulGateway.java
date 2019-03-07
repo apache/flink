@@ -78,9 +78,9 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 	protected Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
 
-	protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
+	protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServiceAddressesSupplier;
 
-	protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
+	protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceAddressesSupplier;
 
 	protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
 
@@ -113,8 +113,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
 			Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
 			Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier,
-			Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier,
-			Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier,
+			Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServiceAddressesSupplier,
+			Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceAddressesSupplier,
 			BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
 			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction) {
 		this.address = address;
@@ -126,8 +126,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.requestJobStatusFunction = requestJobStatusFunction;
 		this.requestMultipleJobDetailsSupplier = requestMultipleJobDetailsSupplier;
 		this.requestClusterOverviewSupplier = requestClusterOverviewSupplier;
-		this.requestMetricQueryServicePathsSupplier = requestMetricQueryServicePathsSupplier;
-		this.requestTaskManagerMetricQueryServicePathsSupplier = requestTaskManagerMetricQueryServicePathsSupplier;
+		this.requestMetricQueryServiceAddressesSupplier = requestMetricQueryServiceAddressesSupplier;
+		this.requestTaskManagerMetricQueryServiceAddressesSupplier = requestTaskManagerMetricQueryServiceAddressesSupplier;
 		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
 		this.triggerSavepointFunction = triggerSavepointFunction;
 	}
@@ -168,13 +168,13 @@ public class TestingRestfulGateway implements RestfulGateway {
 	}
 
 	@Override
-	public CompletableFuture<Collection<String>> requestMetricQueryServicePaths(Time timeout) {
-		return requestMetricQueryServicePathsSupplier.get();
+	public CompletableFuture<Collection<String>> requestMetricQueryServiceAddresses(Time timeout) {
+		return requestMetricQueryServiceAddressesSupplier.get();
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		return requestTaskManagerMetricQueryServicePathsSupplier.get();
+	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+		return requestTaskManagerMetricQueryServiceAddressesSupplier.get();
 	}
 
 	@Override
@@ -215,8 +215,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 		protected Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
 		protected Supplier<CompletableFuture<JobsOverview>> requestOverviewForAllJobsSupplier;
-		protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
-		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
+		protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServiceGatewaysSupplier;
+		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceGatewaysSupplier;
 		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
 		protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
 
@@ -228,8 +228,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			requestJobStatusFunction = DEFAULT_REQUEST_JOB_STATUS_FUNCTION;
 			requestMultipleJobDetailsSupplier = DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER;
 			requestClusterOverviewSupplier = DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER;
-			requestMetricQueryServicePathsSupplier = DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
-			requestTaskManagerMetricQueryServicePathsSupplier = DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
+			requestMetricQueryServiceGatewaysSupplier = DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
+			requestTaskManagerMetricQueryServiceGatewaysSupplier = DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
 			requestOperatorBackPressureStatsFunction = DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER;
 			triggerSavepointFunction = DEFAULT_TRIGGER_SAVEPOINT_FUNCTION;
 		}
@@ -269,13 +269,13 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return this;
 		}
 
-		public Builder setRequestMetricQueryServicePathsSupplier(Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier) {
-			this.requestMetricQueryServicePathsSupplier = requestMetricQueryServicePathsSupplier;
+		public Builder setRequestMetricQueryServiceGatewaysSupplier(Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServiceGatewaysSupplier) {
+			this.requestMetricQueryServiceGatewaysSupplier = requestMetricQueryServiceGatewaysSupplier;
 			return this;
 		}
 
-		public Builder setRequestTaskManagerMetricQueryServicePathsSupplier(Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier) {
-			this.requestTaskManagerMetricQueryServicePathsSupplier = requestTaskManagerMetricQueryServicePathsSupplier;
+		public Builder setRequestTaskManagerMetricQueryServiceGatewaysSupplier(Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceGatewaysSupplier) {
+			this.requestTaskManagerMetricQueryServiceGatewaysSupplier = requestTaskManagerMetricQueryServiceGatewaysSupplier;
 			return this;
 		}
 
@@ -310,8 +310,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 				requestJobStatusFunction,
 				requestMultipleJobDetailsSupplier,
 				requestClusterOverviewSupplier,
-				requestMetricQueryServicePathsSupplier,
-				requestTaskManagerMetricQueryServicePathsSupplier,
+				requestMetricQueryServiceGatewaysSupplier,
+				requestTaskManagerMetricQueryServiceGatewaysSupplier,
 				requestOperatorBackPressureStatsFunction,
 				triggerSavepointFunction);
 		}

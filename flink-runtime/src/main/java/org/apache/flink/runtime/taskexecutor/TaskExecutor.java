@@ -156,9 +156,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final BlobCacheService blobCacheService;
 
-	/** The path to metric query service on this Task Manager. */
+	/** The address to metric query service on this Task Manager. */
 	@Nullable
-	private final String metricQueryServicePath;
+	private final String metricQueryServiceAddress;
 
 	// --------- TaskManager services --------
 
@@ -219,7 +219,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			@Nullable String metricQueryServicePath,
+			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler) {
 
@@ -233,7 +233,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.blobCacheService = checkNotNull(blobCacheService);
-		this.metricQueryServicePath = metricQueryServicePath;
+		this.metricQueryServiceAddress = metricQueryServiceAddress;
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
@@ -857,7 +857,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(Time timeout) {
-		return CompletableFuture.completedFuture(SerializableOptional.ofNullable(metricQueryServicePath));
+		return CompletableFuture.completedFuture(SerializableOptional.ofNullable(metricQueryServiceAddress));
 	}
 
 	// ----------------------------------------------------------------------

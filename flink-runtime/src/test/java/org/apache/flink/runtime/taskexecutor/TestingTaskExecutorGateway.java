@@ -174,7 +174,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(Time timeout) {
-		return CompletableFuture.completedFuture(SerializableOptional.of(address));
+		return CompletableFuture.completedFuture(SerializableOptional.empty());
 	}
 
 	@Override

@@ -45,7 +45,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				JobManagerMetricGroup jobManagerMetricGroup,
-				@Nullable String metricQueryServicePath,
+				@Nullable String metricQueryServiceAddress,
 				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				FatalErrorHandler fatalErrorHandler,
 				HistoryServerArchivist historyServerArchivist) throws Exception {
@@ -59,7 +59,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
-			metricQueryServicePath,
+			metricQueryServiceAddress,
 			archivedExecutionGraphStore,
 			DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,

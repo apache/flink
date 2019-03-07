@@ -103,20 +103,20 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<ClusterOverview> requestClusterOverview(@RpcTimeout Time timeout);
 
 	/**
-	 * Requests the paths for the {@link MetricQueryService} to query.
+	 * Requests the addresses of the {@link MetricQueryService} to query.
 	 *
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the collection of metric query service paths to query
+	 * @return Future containing the collection of metric query service addresses to query
 	 */
-	CompletableFuture<Collection<String>> requestMetricQueryServicePaths(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<String>> requestMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
 	/**
-	 * Requests the paths for the TaskManager's {@link MetricQueryService} to query.
+	 * Requests the addresses for the TaskManagers' {@link MetricQueryService} to query.
 	 *
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the collection of instance ids and the corresponding metric query service path
+	 * @return Future containing the collection of instance ids and the corresponding metric query service address
 	 */
-	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
 	/**
 	 * Triggers a savepoint with the given savepoint directory as a target.

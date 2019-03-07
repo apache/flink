@@ -23,6 +23,8 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -31,6 +33,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -42,7 +45,7 @@ public class MetricUtilsTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtilsTest.class);
 
 	/**
-	 * Tests that the {@link MetricUtils#startMetricsActorSystem(Configuration, String, Logger)} respects
+	 * Tests that the {@link MetricUtils#startMetricsRpcService(Configuration, String)} respects
 	 * the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
 	 */
 	@Test
@@ -50,7 +53,11 @@ public class MetricUtilsTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		final int expectedThreadPriority = 3;
 		configuration.setInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
-		final ActorSystem actorSystem = MetricUtils.startMetricsActorSystem(configuration, "localhost", LOG);
+
+		final RpcService rpcService = MetricUtils.startMetricsRpcService(configuration, "localhost");
+		assertThat(rpcService, instanceOf(AkkaRpcService.class));
+
+		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
 
 		try {
 			final int threadPriority = actorSystem.settings().config().getInt("akka.actor.default-dispatcher.thread-priority");

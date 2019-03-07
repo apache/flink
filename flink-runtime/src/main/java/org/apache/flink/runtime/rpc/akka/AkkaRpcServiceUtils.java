@@ -103,6 +103,36 @@ public class AkkaRpcServiceUtils {
 		return instantiateAkkaRpcService(configuration, actorSystem);
 	}
 
+	/**
+	 * Utility method to create RPC service from configuration and hostname, port.
+	 *
+	 * @param hostname The hostname/address that describes the TaskManager's data location.
+	 * @param portRangeDefinition The port range to start TaskManager on.
+	 * @param configuration The configuration for the TaskManager.
+	 * @param actorSystemName The actor system name of the RpcService.
+	 * @param actorSystemExecutorConfiguration The configuration of the executor of the actor system.
+	 * @return The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
+	 * @throws IOException Thrown, if the actor system can not bind to the address
+	 * @throws Exception Thrown is some other error occurs while creating akka actor system
+	 */
+	public static RpcService createRpcService(
+		String hostname,
+		String portRangeDefinition,
+		Configuration configuration,
+		String actorSystemName,
+		@Nonnull BootstrapTools.ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+
+		final ActorSystem actorSystem = BootstrapTools.startActorSystem(
+			configuration,
+			actorSystemName,
+			hostname,
+			portRangeDefinition,
+			LOG,
+			actorSystemExecutorConfiguration);
+
+		return instantiateAkkaRpcService(configuration, actorSystem);
+	}
+
 	@Nonnull
 	private static RpcService instantiateAkkaRpcService(Configuration configuration, ActorSystem actorSystem) {
 		return new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.fromConfiguration(configuration));

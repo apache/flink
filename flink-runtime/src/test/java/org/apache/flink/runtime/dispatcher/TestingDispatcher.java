@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -53,7 +54,7 @@ class TestingDispatcher extends Dispatcher {
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
+		@Nullable String metricQueryServiceAddress,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		JobManagerRunnerFactory jobManagerRunnerFactory,
 		FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -67,7 +68,7 @@ class TestingDispatcher extends Dispatcher {
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
-			metricQueryServicePath,
+			metricQueryServiceAddress,
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,

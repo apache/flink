@@ -1848,8 +1848,6 @@ object TaskManager {
     val metricRegistry = new MetricRegistryImpl(
       MetricRegistryConfiguration.fromConfiguration(configuration))
 
-    metricRegistry.startQueryService(taskManagerSystem, resourceID)
-
     // start all the TaskManager services (network stack,  library cache, ...)
     // and the TaskManager actor
     try {

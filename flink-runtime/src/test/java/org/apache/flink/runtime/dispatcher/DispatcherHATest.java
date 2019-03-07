@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -352,7 +353,7 @@ public class DispatcherHATest extends TestLogger {
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				JobManagerMetricGroup jobManagerMetricGroup,
-				@Nullable String metricQueryServicePath,
+				@Nullable String metricQueryServiceAddress,
 				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				JobManagerRunnerFactory jobManagerRunnerFactory,
 				FatalErrorHandler fatalErrorHandler,
@@ -366,7 +367,7 @@ public class DispatcherHATest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,
-				metricQueryServicePath,
+				metricQueryServiceAddress,
 				archivedExecutionGraphStore,
 				jobManagerRunnerFactory,
 				fatalErrorHandler);

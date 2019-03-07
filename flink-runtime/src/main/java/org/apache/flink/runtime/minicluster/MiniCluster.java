@@ -26,7 +26,6 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -70,8 +69,8 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -142,9 +141,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private final Collection<RpcService> rpcServices;
-
-	@GuardedBy("lock")
-	private ActorSystem metricQueryServiceActorSystem;
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
@@ -291,12 +287,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					taskManagerRpcServiceFactory = new DedicatedRpcServiceFactory(akkaRpcServiceConfig, taskManagerBindAddress);
 				}
 
-				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
-				metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(
+				RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(
 					configuration,
-					commonRpcService.getAddress(),
-					LOG);
-				metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
+					commonRpcService.getAddress());
+				metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 				ioExecutor = Executors.newFixedThreadPool(
 					Hardware.getNumberCPUCores(),
@@ -314,9 +308,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				startTaskManagers();
 
-				MetricQueryServiceRetriever metricQueryServiceRetriever = new AkkaQueryServiceRetriever(
-					metricQueryServiceActorSystem,
-					Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT)));
+				MetricQueryServiceRetriever metricQueryServiceRetriever = new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService());
 
 				dispatcherResourceManagerComponents.addAll(createDispatcherResourceManagerComponents(
 					configuration,
@@ -474,10 +466,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			if (metricRegistry != null) {
 				terminationFutures.add(metricRegistry.shutdown());
 				metricRegistry = null;
-			}
-
-			if (metricQueryServiceActorSystem != null) {
-				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
 			}
 
 			return FutureUtils.completeAll(terminationFutures);
