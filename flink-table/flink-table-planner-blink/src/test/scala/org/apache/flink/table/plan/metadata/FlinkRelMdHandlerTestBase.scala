@@ -46,7 +46,7 @@ class FlinkRelMdHandlerTestBase {
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(frameworkConfig.getTypeSystem)
   val catalogReader: FlinkCalciteCatalogReader =
     MetadataTestUtil.createCatalogReader(rootSchema, typeFactory)
-  val mq: RelMetadataQuery = RelMetadataQuery.instance()
+  val mq: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
 
   var relBuilder: FlinkRelBuilder = _
   var rexBuilder: RexBuilder = _

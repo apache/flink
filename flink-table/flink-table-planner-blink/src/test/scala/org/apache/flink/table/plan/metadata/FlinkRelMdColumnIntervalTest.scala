@@ -18,30 +18,24 @@
 
 package org.apache.flink.table.plan.metadata
 
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.rel.metadata._
+import org.apache.flink.table.plan.stats.ValueInterval
 
-object FlinkDefaultRelMetadataProvider {
+import org.junit.Assert._
+import org.junit.Test
 
-  val INSTANCE: RelMetadataProvider = ChainedRelMetadataProvider.of(
-    ImmutableList.of(
-      FlinkRelMdPercentageOriginalRows.SOURCE,
-      FlinkRelMdNonCumulativeCost.SOURCE,
-      FlinkRelMdCumulativeCost.SOURCE,
-      FlinkRelMdRowCount.SOURCE,
-      FlinkRelMdSize.SOURCE,
-      FlinkRelMdSelectivity.SOURCE,
-      FlinkRelMdDistinctRowCount.SOURCE,
-      FlinkRelMdColumnInterval.SOURCE,
-      FlinkRelMdPopulationSize.SOURCE,
-      FlinkRelMdColumnUniqueness.SOURCE,
-      FlinkRelMdUniqueKeys.SOURCE,
-      RelMdColumnOrigins.SOURCE,
-      RelMdMaxRowCount.SOURCE,
-      RelMdMinRowCount.SOURCE,
-      RelMdPredicates.SOURCE,
-      RelMdCollation.SOURCE,
-      RelMdExplainVisibility.SOURCE
-    )
-  )
+class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
+
+  @Test(expected = classOf[RelMdMethodNotImplementedException])
+  def testGetColumnIntervalOnRelNode(): Unit = {
+    mq.getColumnInterval(testRel, 0)
+  }
+
+  @Test
+  def testGetColumnIntervalOnTableScan(): Unit = {
+    Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
+      assertEquals(ValueInterval(0, 60), mq.getColumnInterval(scan, 0))
+
+    }
+  }
+
 }
