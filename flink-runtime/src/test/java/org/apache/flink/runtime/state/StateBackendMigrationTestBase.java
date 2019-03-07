@@ -1153,8 +1153,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 	private CheckpointStreamFactory createStreamFactory() throws Exception {
 		if (checkpointStorageLocation == null) {
-			checkpointStorageLocation = getStateBackend()
-				.createCheckpointStorage(new JobID())
+			CheckpointStorage checkpointStorage = getStateBackend()
+				.createCheckpointStorage(new JobID());
+			checkpointStorage.initializeBaseLocations();
+			checkpointStorageLocation = checkpointStorage
 				.initializeLocationForCheckpoint(1L);
 		}
 		return checkpointStorageLocation;
