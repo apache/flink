@@ -19,13 +19,13 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.table.`type`.{ArrayType, DecimalType, InternalType, InternalTypes, MapType, RowType}
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.schema.{ArrayRelDataType, MapRelDataType, RowRelDataType, RowSchema}
+import org.apache.flink.table.api.{TableException, TableSchema}
+import org.apache.flink.table.plan.schema.{ArrayRelDataType, MapRelDataType, RowRelDataType, RowSchema, TimeIndicatorRelDataType}
 
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 
 import java.util
 
@@ -92,6 +92,19 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   }
 
   /**
+    * Creates a indicator type for event-time, but with similar properties as SQL timestamp.
+    */
+  def createRowtimeIndicatorType(): RelDataType = {
+    val originalType = createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = false)
+    canonize(
+      new TimeIndicatorRelDataType(
+        getTypeSystem,
+        originalType.asInstanceOf[BasicSqlType],
+        isEventTime = true)
+    )
+  }
+
+  /**
     * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
     *
     * @param fieldNames field names
@@ -127,6 +140,49 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         logicalRowTypeBuilder.add(fieldName, createTypeFromInternalType(fieldType, fieldNullable))
     }
     logicalRowTypeBuilder.build
+  }
+
+  /**
+    * Created a struct type with the input table schema using FlinkTypeFactory
+    * @param tableSchema  the table schema
+    * @return a struct type with the input fieldNames, input fieldTypes, and system fields
+    */
+  def buildLogicalRowType(tableSchema: TableSchema, isStreaming: Option[Boolean]): RelDataType = {
+    buildRelDataType(
+      tableSchema.getFieldNames.toSeq,
+      tableSchema.getFieldTypes map {
+        case InternalTypes.PROCTIME_INDICATOR if isStreaming.isDefined && !isStreaming.get =>
+          InternalTypes.TIMESTAMP
+        case InternalTypes.ROWTIME_INDICATOR if isStreaming.isDefined && !isStreaming.get =>
+          InternalTypes.TIMESTAMP
+        case tpe: InternalType => tpe
+      })
+  }
+
+  def buildRelDataType(
+      fieldNames: Seq[String],
+      fieldTypes: Seq[InternalType]): RelDataType = {
+    buildRelDataType(
+      fieldNames,
+      fieldTypes,
+      fieldTypes.map(!FlinkTypeFactory.isTimeIndicatorType(_)))
+  }
+
+  def buildRelDataType(
+      fieldNames: Seq[String],
+      fieldTypes: Seq[InternalType],
+      fieldNullables: Seq[Boolean]): RelDataType = {
+    val b = builder
+    val fields = fieldNames.zip(fieldTypes).zip(fieldNullables)
+    fields foreach {
+      case ((fieldName, fieldType), fieldNullable) =>
+        if (FlinkTypeFactory.isTimeIndicatorType(fieldType) && fieldNullable) {
+          throw new TableException(
+            s"$fieldName can not be nullable because it is TimeIndicatorType!")
+        }
+        b.add(fieldName, createTypeFromInternalType(fieldType, fieldNullable))
+    }
+    b.build
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -220,6 +276,11 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 }
 
 object FlinkTypeFactory {
+
+  def isTimeIndicatorType(t: InternalType): Boolean = t match {
+    case InternalTypes.ROWTIME_INDICATOR | InternalTypes.PROCTIME_INDICATOR => true
+    case _ => false
+  }
 
   def toInternalType(relDataType: RelDataType): InternalType = relDataType.getSqlTypeName match {
     case BOOLEAN => InternalTypes.BOOLEAN

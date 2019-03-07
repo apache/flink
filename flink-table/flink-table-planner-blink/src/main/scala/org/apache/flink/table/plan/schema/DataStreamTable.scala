@@ -21,6 +21,9 @@ package org.apache.flink.table.plan.schema
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.plan.stats.FlinkStatistic
 
+/**
+  * The class that wraps [[DataStream]] as a Calcite Table.
+  */
 class DataStreamTable[T](
     val dataStream: DataStream[T],
     val producesUpdates: Boolean,

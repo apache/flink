@@ -23,22 +23,42 @@ package org.apache.flink.table.type;
  */
 public class TimestampType implements AtomicType {
 
-	public static final TimestampType INSTANCE = new TimestampType();
+	public static final TimestampType INSTANCE = new TimestampType(0, "TimestampType");
+	public static final TimestampType INTERVAL_MILLIS =
+			new TimestampType(1, "IntervalMillis");
+	public static final TimestampType ROWTIME_INDICATOR =
+			new TimestampType(2, "RowTimeIndicator");
+	public static final TimestampType PROCTIME_INDICATOR =
+			new TimestampType(3, "ProctimeTimeIndicator");
 
-	private TimestampType() {}
+	private int id;
+	private String name;
+
+	private TimestampType(int id, String name) {
+		this.id = id;
+		this.name = name;
+	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o != null && getClass() == o.getClass();
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		return id == ((TimestampType) o).id;
 	}
 
 	@Override
 	public int hashCode() {
-		return getClass().hashCode();
+		int result = getClass().hashCode();
+		result = 31 * result + name.hashCode();
+		return result;
 	}
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName();
+		return name;
 	}
 }

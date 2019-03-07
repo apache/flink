@@ -53,6 +53,10 @@ public class InternalTypes {
 
 	public static final DecimalType SYSTEM_DEFAULT_DECIMAL = DecimalType.SYSTEM_DEFAULT;
 
+	public static final TimestampType ROWTIME_INDICATOR = TimestampType.ROWTIME_INDICATOR;
+
+	public static final TimestampType PROCTIME_INDICATOR = TimestampType.PROCTIME_INDICATOR;
+
 	public static ArrayType createArrayType(InternalType elementType) {
 		return new ArrayType(elementType);
 	}
