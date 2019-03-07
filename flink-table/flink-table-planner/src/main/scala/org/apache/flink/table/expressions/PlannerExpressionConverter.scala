@@ -31,22 +31,49 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   override def visitCall(call: CallExpression): PlannerExpression = {
     val func = call.getFunctionDefinition
+    val children = call.getChildren.asScala
 
-    // special case: casting requires a type literal
-    if (func.equals(CAST)) {
-      assert(call.getChildren.size() == 2)
-      return Cast(
-        call.getChildren.get(0).accept(this),
-        call.getChildren.get(1).asInstanceOf[TypeLiteralExpression].getType)
+    // special case: requires individual handling of child expressions
+    func match {
+      case CAST =>
+        assert(children.size == 2)
+        return Cast(
+          children.head.accept(this),
+          children(1).asInstanceOf[TypeLiteralExpression].getType)
+
+      case WINDOW_START =>
+        assert(children.size == 1)
+        val windowReference = translateWindowReference(children.head)
+        return WindowStart(windowReference)
+
+      case WINDOW_END =>
+        assert(children.size == 1)
+        val windowReference = translateWindowReference(children.head)
+        return WindowEnd(windowReference)
+
+      case PROCTIME =>
+        assert(children.size == 1)
+        val windowReference = translateWindowReference(children.head)
+        return ProctimeAttribute(windowReference)
+
+      case ROWTIME =>
+        assert(children.size == 1)
+        val windowReference = translateWindowReference(children.head)
+        return RowtimeAttribute(windowReference)
+
+      case _ =>
     }
 
-    val args = call.getChildren.asScala.map(_.accept(this))
+    val args = children.map(_.accept(this))
 
     func match {
       case sfd: ScalarFunctionDefinition =>
-        PlannerScalarFunctionCall(
+        val call = PlannerScalarFunctionCall(
           sfd.getScalarFunction,
           args)
+        //it configures underlying state
+        call.validateInput()
+        call
 
       case tfd: TableFunctionDefinition =>
         PlannerTableFunctionCall(
@@ -79,7 +106,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
           case GET =>
             assert(args.size == 2)
-            GetCompositeField(args.head, getValue(args.last))
+            val expr = GetCompositeField(args.head, getValue(args.last))
+            //it configures underlying state
+            expr.validateInput()
+            expr
 
           case AND =>
             assert(args.size == 2)
@@ -569,14 +599,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           case ROW =>
             RowConstructor(args)
 
-          case WINDOW_START =>
-            assert(args.size == 1)
-            WindowStart(args.head)
-
-          case WINDOW_END =>
-            assert(args.size == 1)
-            WindowEnd(args.head)
-
           case ORDER_ASC =>
             assert(args.size == 1)
             Asc(args.head)
@@ -613,19 +635,14 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 2)
             Sha2(args.head, args.last)
 
-          case PROCTIME =>
-            assert(args.size == 1)
-            ProctimeAttribute(args.head)
-
-          case ROWTIME =>
-            assert(args.size == 1)
-            RowtimeAttribute(args.head)
-
           case OVER =>
-            assert(args.size == 2)
-            UnresolvedOverCall(
+            assert(args.size >= 4)
+            OverCall(
               args.head,
-              args.last
+              args.slice(4, args.size),
+              args(1),
+              args(2),
+              args(3)
             )
 
           case UNBOUNDED_RANGE =>
@@ -715,6 +732,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     )
   }
 
+  override def visitLocalReference(localReference: LocalReferenceExpression): PlannerExpression =
+    throw new TableException(
+      "Local reference should be handled individually by a call: " + localReference)
+
   override def visitLookupCall(lookupCall: LookupCallExpression): PlannerExpression =
     throw new TableException("Unsupported function call: " + lookupCall)
 
@@ -736,6 +757,16 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     if (!condition) {
       throw new ValidationException("Invalid number of arguments for function.")
     }
+  }
+
+  private def translateWindowReference(reference: Expression): PlannerExpression = reference match {
+    case expr : LocalReferenceExpression =>
+      WindowReference(expr.getName, Some(expr.getResultType))
+    //just because how the datastream is converted to table
+    case expr: UnresolvedReferenceExpression =>
+      UnresolvedFieldReference(expr.getName)
+    case _ =>
+      throw new ValidationException(s"Expected LocalReferenceExpression. Got: $reference")
   }
 }
 

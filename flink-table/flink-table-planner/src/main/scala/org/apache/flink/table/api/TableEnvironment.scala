@@ -53,7 +53,7 @@ import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.plan.OperationTreeBuilder
+import org.apache.flink.table.operations.OperationTreeBuilder
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -1093,7 +1093,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       case p: PojoTypeInfo[A] =>
         exprs flatMap {
-          case (UnresolvedFieldReference(name: String)) =>
+          case UnresolvedFieldReference(name: String) =>
             referenceByName(name, p).map((_, name))
           case Alias(UnresolvedFieldReference(origName), name: String, _) =>
             referenceByName(origName, p).map((_, name))

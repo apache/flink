@@ -973,8 +973,7 @@ public interface Table {
 	Table renameColumns(Expression... fields);
 
 	/**
-	 * Drops existing columns. The field expressions
-	 * should be field reference expressions, and only existing fields can be dropped.
+	 * Drops existing columns. The field expressions should be field reference expressions.
 	 *
 	 * <p>Example:
 	 *
@@ -987,8 +986,7 @@ public interface Table {
 	Table dropColumns(String fields);
 
 	/**
-	 * Drops existing columns. The field expressions
-	 * should be field reference expressions, and only existing fields can be dropped.
+	 * Drops existing columns. The field expressions should be field reference expressions.
 	 *
 	 * <p>Scala Example:
 	 * <pre>

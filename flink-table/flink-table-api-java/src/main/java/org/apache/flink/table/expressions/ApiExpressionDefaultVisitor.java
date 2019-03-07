@@ -52,6 +52,11 @@ public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisito
 	}
 
 	@Override
+	public T visitLocalReference(LocalReferenceExpression localReference) {
+		return defaultMethod(localReference);
+	}
+
+	@Override
 	public T visitTypeLiteral(TypeLiteralExpression typeLiteral) {
 		return defaultMethod(typeLiteral);
 	}

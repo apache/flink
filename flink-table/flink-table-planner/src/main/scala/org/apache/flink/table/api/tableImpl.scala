@@ -25,9 +25,7 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.expressions.ApiExpressionUtils.{extractAggregationsAndProperties, extractFieldReferences, replaceAggregationsAndProperties}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.OperationTreeBuilder
-import org.apache.flink.table.plan.ProjectionTranslator.getLeadingNonAliasExpr
+import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
@@ -125,15 +123,13 @@ class TableImpl(
       timeAttribute: Expression,
       primaryKey: Expression)
     : TemporalTableFunction = {
-    val temporalTable = operationTreeBuilder.createTemporalTable(
-      timeAttribute,
-      primaryKey,
-      operationTree)
+    val resolvedTimeAttribute = operationTreeBuilder.resolveExpression(timeAttribute, operationTree)
+    val resolvedPrimaryKey = operationTreeBuilder.resolveExpression(primaryKey, operationTree)
 
     TemporalTableFunctionImpl.create(
       operationTree,
-      temporalTable.timeAttribute,
-      temporalTable.primaryKey)
+      resolvedTimeAttribute,
+      resolvedPrimaryKey)
   }
 
   override def as(fields: String): Table = {
@@ -157,8 +153,7 @@ class TableImpl(
   }
 
   private def filterInternal(predicate: Expression): Table = {
-    val resolvedCallPredicate = predicate.accept(callResolver)
-    new TableImpl(tableEnv, operationTreeBuilder.filter(resolvedCallPredicate, operationTree))
+    new TableImpl(tableEnv, operationTreeBuilder.filter(predicate, operationTree))
   }
 
   override def where(predicate: String): Table = {
@@ -299,10 +294,10 @@ class TableImpl(
     }
     wrap(operationTreeBuilder.joinLateral(
         operationTree,
-        callExpr.accept(callResolver),
+        callExpr,
         joinType,
-        toJava(joinPredicate.map(_.accept(callResolver))
-      )))
+        toJava(joinPredicate)
+      ))
   }
 
   override def minus(right: Table): Table = {
@@ -377,7 +372,7 @@ class TableImpl(
   }
 
   private def orderByInternal(fields: Seq[Expression]): Table = {
-    wrap(operationTreeBuilder.sort(fields.map(_.accept(callResolver)).asJava, operationTree))
+    wrap(operationTreeBuilder.sort(fields.asJava, operationTree))
   }
 
   override def offset(offset: Int): Table = {
@@ -417,7 +412,7 @@ class TableImpl(
   }
 
   override def addColumns(fields: String): Table = {
-    addColumns(ExpressionParser.parseExpressionList(fields): _*);
+    addColumns(ExpressionParser.parseExpressionList(fields): _*)
   }
 
   override def addColumns(fields: Expression*): Table = {
@@ -441,7 +436,7 @@ class TableImpl(
     val aggNames = extracted.getAggregations
 
     if(aggNames.nonEmpty){
-      throw new TableException(
+      throw new ValidationException(
         s"The added field expression cannot be an aggregation, found [${aggNames.head}].")
     }
 
@@ -470,15 +465,7 @@ class TableImpl(
   }
 
   override def map(mapFunction: Expression): Table = {
-    val resolvedMapFunction = mapFunction.accept(callResolver)
-    getLeadingNonAliasExpr(resolvedMapFunction) match {
-      case callExpr: CallExpression if callExpr.getFunctionDefinition.getType ==
-        FunctionDefinition.Type.SCALAR_FUNCTION =>
-      case _ =>
-        throw new ValidationException("Only ScalarFunction can be used in the map operator.")
-    }
-
-    wrap(operationTreeBuilder.map(resolvedMapFunction, operationTree))
+    wrap(operationTreeBuilder.map(mapFunction, operationTree))
   }
 
   /**
@@ -653,12 +640,11 @@ class OverWindowedTableImpl(
     fields: Seq[Expression],
     logicalOverWindows: Seq[OverWindow])
   : Table = {
-    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver))
 
     new TableImpl(
       tableImpl.tableEnv,
       tableImpl.operationTreeBuilder
-        .project(expressionsWithResolvedCalls.asJava,
+        .project(fields.asJava,
           tableImpl.operationTree,
           logicalOverWindows.asJava)
     )

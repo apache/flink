@@ -28,6 +28,8 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
 	public abstract R visitTableReference(TableReferenceExpression tableReference);
 
+	public abstract R visitLocalReference(LocalReferenceExpression localReference);
+
 	public abstract R visitLookupCall(LookupCallExpression lookupCall);
 
 	public abstract R visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference);
@@ -35,6 +37,8 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 	public final R visit(Expression other) {
 		if (other instanceof TableReferenceExpression) {
 			return visitTableReference((TableReferenceExpression) other);
+		} else if (other instanceof LocalReferenceExpression) {
+			return visitLocalReference((LocalReferenceExpression) other);
 		} else if (other instanceof LookupCallExpression) {
 			return visitLookupCall((LookupCallExpression) other);
 		} else if (other instanceof UnresolvedReferenceExpression) {

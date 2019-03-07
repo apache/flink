@@ -48,67 +48,67 @@ class CalcValidationTest extends TableTestBase {
     .select('w.end.rowtime, 'int.count as 'int) // no rowtime on non-window reference
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testAddColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.addColumns('a.sum)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testAddOrReplaceColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.addOrReplaceColumns('a.sum)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRenameColumnsWithAgg(): Unit = {
       val util = streamTestUtil()
       val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       tab.renameColumns('a.sum)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRenameColumnsWithoutAlias(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.renameColumns('a)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRenameColumnsWithFunctallCall(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.renameColumns('a + 1  as 'a2)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRenameColumnsNotExist(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.renameColumns('e as 'e2)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testDropColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.dropColumns('a.sum)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testDropColumnsNotExist(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     tab.dropColumns('e)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testDropColumnsWithValueLiteral(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    tab.dropColumns("'last'")
+    tab.dropColumns("'a'")
   }
 
   @Test(expected = classOf[ValidationException])

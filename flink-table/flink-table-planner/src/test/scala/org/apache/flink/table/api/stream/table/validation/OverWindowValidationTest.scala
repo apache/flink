@@ -148,6 +148,6 @@ class OverWindowValidationTest extends TableTestBase {
 
     table
     .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
-    .select('c, 'a.count over 'w, 'w.start, 'w.end)
+    .select('c, 'a.count over 'w, 'w.start + 1, 'w.end)
   }
 }

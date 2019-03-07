@@ -16,26 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.lookups;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.TableReferenceExpression;
+
+import java.util.Optional;
 
 /**
- * The visitor definition of {@link Expression}. An expression visitor transforms an
- * expression to instances of {@code R}.
+ * Provides a way to look up table reference by the name of the table.
  */
-@PublicEvolving
-public interface ExpressionVisitor<R> {
+@Internal
+public interface TableReferenceLookup {
 
-	R visitCall(CallExpression call);
-
-	R visitSymbol(SymbolExpression symbolExpression);
-
-	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
-
-	R visitFieldReference(FieldReferenceExpression fieldReference);
-
-	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
-
-	R visit(Expression other);
+	/**
+	 * Tries to resolve given name to {@link TableReferenceExpression}.
+	 *
+	 * @param name name of table to look for
+	 * @return resolved field reference or empty if could not find table with given name.
+	 */
+	Optional<TableReferenceExpression> lookupTable(String name);
 }

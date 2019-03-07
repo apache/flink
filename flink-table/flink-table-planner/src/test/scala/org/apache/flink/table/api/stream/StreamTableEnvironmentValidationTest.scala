@@ -22,7 +22,7 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.TimestampWithEqualWatermark
 import org.apache.flink.table.utils.TableTestBase
@@ -41,21 +41,21 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
     util.addTable[(Long, Int, String, Int, Long)]('a.rowtime as 'b, 'b, 'c, 'd, 'e)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testInvalidRowtimeAttributesByPosition(): Unit = {
     val util = streamTestUtil()
     // table definition makes no sense
     util.addTable[(Long, Int, String, Int, Long)]('a.rowtime.rowtime, 'b, 'c, 'd, 'e)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testInvalidProctimeAttributesByPosition(): Unit = {
     val util = streamTestUtil()
     // table definition makes no sense
     util.addTable[(Long, Int, String, Int, Long)]('a.proctime.proctime, 'b, 'c, 'd, 'e)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testInvalidTimeAttributesByPosition(): Unit = {
     val util = streamTestUtil()
     // table definition makes no sense
@@ -160,7 +160,7 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
     util.addTable[(Long, Int, String, Int, Long)]('x, '_1)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testInvalidAliasWithProctimeAttribute(): Unit = {
     val util = streamTestUtil()
     // alias in proctime not allowed

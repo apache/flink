@@ -16,26 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.rules;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LookupCallResolver;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * The visitor definition of {@link Expression}. An expression visitor transforms an
- * expression to instances of {@code R}.
+ * Resolves {@link org.apache.flink.table.expressions.LookupCallExpression} to
+ * a corresponding {@link org.apache.flink.table.expressions.FunctionDefinition}.
  */
-@PublicEvolving
-public interface ExpressionVisitor<R> {
-
-	R visitCall(CallExpression call);
-
-	R visitSymbol(SymbolExpression symbolExpression);
-
-	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
-
-	R visitFieldReference(FieldReferenceExpression fieldReference);
-
-	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
-
-	R visit(Expression other);
+@Internal
+final class LookupCallByNameRule implements ResolverRule {
+	@Override
+	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+		LookupCallResolver lookupCallResolver = new LookupCallResolver(context.functionDefinitionLookup());
+		return expression.stream().map(expr -> expr.accept(lookupCallResolver)).collect(Collectors.toList());
+	}
 }

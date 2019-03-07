@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.rules;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.rules.ResolverRule.ResolutionContext;
 
 /**
- * The visitor definition of {@link Expression}. An expression visitor transforms an
- * expression to instances of {@code R}.
+ * Utility class for {@link ResolverRule} specific visitor that unifies access to
+ * {@link ResolutionContext}.
  */
-@PublicEvolving
-public interface ExpressionVisitor<R> {
+@Internal
+abstract class RuleExpressionVisitor<T> extends ApiExpressionDefaultVisitor<T> {
 
-	R visitCall(CallExpression call);
+	protected final ResolutionContext resolutionContext;
 
-	R visitSymbol(SymbolExpression symbolExpression);
-
-	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
-
-	R visitFieldReference(FieldReferenceExpression fieldReference);
-
-	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
-
-	R visit(Expression other);
+	RuleExpressionVisitor(ResolutionContext resolutionContext) {
+		this.resolutionContext = resolutionContext;
+	}
 }
