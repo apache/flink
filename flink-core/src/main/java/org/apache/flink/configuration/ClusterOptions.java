@@ -45,4 +45,9 @@ public class ClusterOptions {
 		.key("cluster.registration.refused-registration-delay")
 		.defaultValue(30000L)
 		.withDescription("The pause made after the registration attempt was refused in milliseconds.");
+
+	public static final ConfigOption<Long> CLUSTER_SERVICES_SHUTDOWN_TIMEOUT = ConfigOptions
+		.key("cluster.services.shutdown-timeout")
+		.defaultValue(30000L)
+		.withDescription("The shutdown timeout for cluster services like executors in milliseconds.");
 }
