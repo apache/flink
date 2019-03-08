@@ -29,8 +29,6 @@ import java.io.IOException;
  */
 public abstract class AbstractChannelWriterOutputView extends AbstractPagedOutputView {
 
-//	private final FileIOChannel writer;
-
 	public AbstractChannelWriterOutputView(int segmentSize, int headerLength) {
 		super(segmentSize, headerLength);
 	}
