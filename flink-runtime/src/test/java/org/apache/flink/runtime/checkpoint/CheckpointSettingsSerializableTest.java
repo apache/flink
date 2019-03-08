@@ -114,7 +114,6 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			timeout,
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			10,
 			VoidBlobWriter.getInstance(),
 			timeout,
 			log);
