@@ -161,6 +161,11 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	}
 
 	/**
+	 * This method will run after advance(). Override it if you want to use it.
+	 */
+	protected void afterAdvance() {}
+
+	/**
 	 * Sets the internal state of the view such that the next bytes will be read from the given memory segment,
 	 * starting at the given position. The memory segment will provide bytes up to the given limit position.
 	 *
