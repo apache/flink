@@ -25,6 +25,8 @@ import net.jpountz.util.SafeUtils;
 
 import java.nio.ByteBuffer;
 
+import static org.apache.flink.table.runtime.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
+
 /**
  * Decode data written with {@link Lz4BlockCompressor}.
  * It reads from and writes to byte arrays provided from the outside, thus reducing copy time.
@@ -53,14 +55,14 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
 			throw new InsufficientBufferException("Buffer length too small");
 		}
 
-		if (src.limit() - prevSrcOff - Lz4BlockCompressionFactory.HEADER_LENGTH < compressedLen) {
+		if (src.limit() - prevSrcOff - HEADER_LENGTH < compressedLen) {
 			throw new DataCorruptionException("Source data is not integral for decompression.");
 		}
 
 		try {
 			final int compressedLen2 = decompressor.decompress(
 					src,
-					prevSrcOff + Lz4BlockCompressionFactory.HEADER_LENGTH,
+					prevSrcOff + HEADER_LENGTH,
 					dst,
 					prevDstOff,
 					originalLen
@@ -69,7 +71,7 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
 				throw new DataCorruptionException(
 						"Input is corrupted, unexpected compressed length.");
 			}
-			src.position(prevSrcOff + compressedLen + Lz4BlockCompressionFactory.HEADER_LENGTH);
+			src.position(prevSrcOff + compressedLen + HEADER_LENGTH);
 			dst.position(prevDstOff + originalLen);
 		}
 		catch (LZ4Exception e) {
@@ -90,14 +92,14 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
 			throw new InsufficientBufferException("Buffer length too small");
 		}
 
-		if (src.length - srcOff - Lz4BlockCompressionFactory.HEADER_LENGTH < compressedLen) {
+		if (src.length - srcOff - HEADER_LENGTH < compressedLen) {
 			throw new DataCorruptionException("Source data is not integral for decompression.");
 		}
 
 		try {
 			final int compressedLen2 = decompressor.decompress(
 					src,
-					srcOff + Lz4BlockCompressionFactory.HEADER_LENGTH,
+					srcOff + HEADER_LENGTH,
 					dst,
 					dstOff,
 					originalLen

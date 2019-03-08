@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.runtime.compression;
 
+import org.junit.Assert;
 import org.junit.Test;
 import sun.misc.Cleaner;
 import sun.nio.ch.DirectBuffer;
 
 import java.nio.ByteBuffer;
 
+import static org.apache.flink.table.runtime.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -54,6 +56,15 @@ public class BlockCompressionTest {
 		}
 
 		int compressedOff = 32;
+
+		// 1. test compress with insufficient target
+		byte[] insufficientArray = new byte[compressedOff + HEADER_LENGTH + 1];
+		try {
+			compressor.compress(data, originalOff, originalLen, insufficientArray, compressedOff);
+			Assert.fail("expect exception here");
+		} catch (InsufficientBufferException ex) {}
+
+		// 2. test normal compress
 		byte[] compressedData =
 				new byte[compressedOff + compressor.getMaxCompressedSize(originalLen)];
 		int compressedLen = compressor.compress(
@@ -65,6 +76,21 @@ public class BlockCompressionTest {
 		);
 
 		int decompressedOff = 16;
+
+		// 3. test decompress with insufficient target
+		insufficientArray = new byte[decompressedOff + originalLen - 1];
+		try {
+			decompressor.decompress(
+					compressedData,
+					compressedOff,
+					compressedLen,
+					insufficientArray,
+					decompressedOff
+			);
+			Assert.fail("expect exception here");
+		} catch (InsufficientBufferException ex) {}
+
+		// 4. test normal decompress
 		byte[] decompressedData = new byte[decompressedOff + originalLen];
 		int decompressedLen = decompressor.decompress(
 				compressedData,

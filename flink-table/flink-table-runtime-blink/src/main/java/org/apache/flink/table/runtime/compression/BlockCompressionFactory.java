@@ -18,15 +18,11 @@
 
 package org.apache.flink.table.runtime.compression;
 
-import org.apache.flink.configuration.Configuration;
-
 /**
  * Each compression codec has a implementation of {@link BlockCompressionFactory}
  * to create compressors and decompressors.
  */
 public interface BlockCompressionFactory {
-
-	void setConfiguration(Configuration configuration);
 
 	BlockCompressor getCompressor();
 

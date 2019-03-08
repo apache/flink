@@ -33,9 +33,6 @@ public class Lz4BlockCompressionFactory implements BlockCompressionFactory {
 	static final int HEADER_LENGTH = 8;
 
 	@Override
-	public void setConfiguration(Configuration configuration) {}
-
-	@Override
 	public BlockCompressor getCompressor() {
 		return new Lz4BlockCompressor();
 	}
