@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.runtime.compression;
 
-import org.apache.flink.configuration.Configuration;
-
 /**
  * Implementation of {@link BlockCompressionFactory} for Lz4 codec.
  */
