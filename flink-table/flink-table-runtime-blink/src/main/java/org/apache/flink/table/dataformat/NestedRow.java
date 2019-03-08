@@ -64,7 +64,7 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 
 	@Override
 	public byte getHeader() {
-		return SegmentsUtil.getByte(segments, offset);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

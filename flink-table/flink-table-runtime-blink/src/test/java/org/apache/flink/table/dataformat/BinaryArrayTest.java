@@ -477,13 +477,13 @@ public class BinaryArrayTest {
 	public void testGeneric() {
 		BinaryArray array = new BinaryArray();
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-		writer.writeGeneric(0, new BinaryGeneric<>("hahah"), StringSerializer.INSTANCE);
+		BinaryGeneric<String> generic = new BinaryGeneric<>("hahah", StringSerializer.INSTANCE);
+		writer.writeGeneric(0, generic);
 		writer.setNullAt(1);
 		writer.complete();
 
-		BinaryGeneric generic = array.getGeneric(0);
-		generic.ensureJavaObject(StringSerializer.INSTANCE);
-		assertEquals("hahah", generic.getJavaObject());
+		BinaryGeneric newGeneric = array.getGeneric(0);
+		assertEquals(generic, newGeneric);
 		assertTrue(array.isNullAt(1));
 	}
 

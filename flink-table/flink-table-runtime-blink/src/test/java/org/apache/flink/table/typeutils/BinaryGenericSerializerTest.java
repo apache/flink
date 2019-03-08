@@ -20,6 +20,7 @@ package org.apache.flink.table.typeutils;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.type.GenericType;
 
@@ -46,11 +47,11 @@ public class BinaryGenericSerializerTest extends SerializerTestBase<BinaryGeneri
 	@Override
 	protected BinaryGeneric[] getTestData() {
 		return new BinaryGeneric[] {
-				new BinaryGeneric("1"),
-				new BinaryGeneric("2"),
-				new BinaryGeneric("3"),
-				new BinaryGeneric("4"),
-				new BinaryGeneric("5")
+				new BinaryGeneric<>("1", StringSerializer.INSTANCE),
+				new BinaryGeneric<>("2", StringSerializer.INSTANCE),
+				new BinaryGeneric<>("3", StringSerializer.INSTANCE),
+				new BinaryGeneric<>("4", StringSerializer.INSTANCE),
+				new BinaryGeneric<>("5", StringSerializer.INSTANCE)
 		};
 	}
 }

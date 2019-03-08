@@ -57,12 +57,11 @@ public final class BinaryGenericSerializer<T> extends TypeSerializer<BinaryGener
 
 	@Override
 	public BinaryGeneric<T> createInstance() {
-		return new BinaryGeneric<>();
+		return new BinaryGeneric<>(type.getSerializer().createInstance(), type.getSerializer());
 	}
 
 	@Override
 	public BinaryGeneric<T> copy(BinaryGeneric<T> from) {
-		from.ensureMaterialized(type.getSerializer());
 		return from.copy();
 	}
 
@@ -78,7 +77,6 @@ public final class BinaryGenericSerializer<T> extends TypeSerializer<BinaryGener
 
 	@Override
 	public void serialize(BinaryGeneric<T> record, DataOutputView target) throws IOException {
-		record.ensureMaterialized(type.getSerializer());
 		target.writeInt(record.getSizeInBytes());
 		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
 	}
@@ -88,7 +86,9 @@ public final class BinaryGenericSerializer<T> extends TypeSerializer<BinaryGener
 		int length = source.readInt();
 		byte[] bytes = new byte[length];
 		source.readFully(bytes);
-		return new BinaryGeneric<>(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+		return new BinaryGeneric<>(
+				new MemorySegment[] {MemorySegmentFactory.wrap(bytes)},
+				0, bytes.length, type.getSerializer());
 	}
 
 	@Override

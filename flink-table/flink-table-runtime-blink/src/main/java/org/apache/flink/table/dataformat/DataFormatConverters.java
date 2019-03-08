@@ -44,8 +44,11 @@ import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.util.SegmentsUtil;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -480,12 +483,19 @@ public class DataFormatConverters {
 
 		@Override
 		BinaryGeneric<T> toInternalImpl(T value) {
-			return new BinaryGeneric<>(value);
+			return new BinaryGeneric<>(value, serializer);
 		}
 
 		@Override
 		T toExternalImpl(BinaryGeneric<T> value) {
-			value.ensureJavaObject(serializer);
+			if (value.getJavaObject() == null) {
+				try {
+					value.setJavaObject(InstantiationUtil.deserializeFromByteArray(serializer,
+							SegmentsUtil.copyToBytes(value.getSegments(), value.getOffset(), value.getSizeInBytes())));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
 			return value.getJavaObject();
 		}
 
@@ -807,13 +817,7 @@ public class DataFormatConverters {
 
 		@Override
 		T[] toExternalImpl(BinaryArray value) {
-			if (value.getJavaObject() != null && value.getJavaObject().getClass() == arrayClass) {
-				return (T[]) value.getJavaObject();
-			} else {
-				T[] array = binaryArrayToJavaArray(value, elementType, componentClass, elementConverter);
-				value.setJavaObject(array);
-				return array;
-			}
+			return binaryArrayToJavaArray(value, elementType, componentClass, elementConverter);
 		}
 
 		@Override
@@ -895,16 +899,13 @@ public class DataFormatConverters {
 
 		@Override
 		Map toExternalImpl(BinaryMap value) {
-			if (value.getJavaObject() == null) {
-				Map<Object, Object> map = new HashMap<>();
-				Object[] keys = binaryArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
-				Object[] values = binaryArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);
-				for (int i = 0; i < value.numElements(); i++) {
-					map.put(keys[i], values[i]);
-				}
-				value.setJavaObject(map);
+			Map<Object, Object> map = new HashMap<>();
+			Object[] keys = binaryArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
+			Object[] values = binaryArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);
+			for (int i = 0; i < value.numElements(); i++) {
+				map.put(keys[i], values[i]);
 			}
-			return value.getJavaObject();
+			return map;
 		}
 
 		@Override

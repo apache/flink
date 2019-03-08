@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.type.ArrayType;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.GenericType;
@@ -71,7 +70,7 @@ public interface BinaryWriter {
 
 	void writeRow(int pos, BaseRow value, BaseRowSerializer serializer);
 
-	void writeGeneric(int pos, BinaryGeneric value, TypeSerializer serializer);
+	void writeGeneric(int pos, BinaryGeneric value);
 
 	/**
 	 * Finally, complete write to set real size to binary.
@@ -114,8 +113,7 @@ public interface BinaryWriter {
 			RowType rowType = (RowType) type;
 			writer.writeRow(pos, (BaseRow) o, rowType.getBaseRowSerializer());
 		}  else if (type instanceof GenericType) {
-			GenericType genericType = (GenericType) type;
-			writer.writeGeneric(pos, (BinaryGeneric) o, genericType.getSerializer());
+			writer.writeGeneric(pos, (BinaryGeneric) o);
 		} else {
 			throw new RuntimeException("Not support type: " + type);
 		}

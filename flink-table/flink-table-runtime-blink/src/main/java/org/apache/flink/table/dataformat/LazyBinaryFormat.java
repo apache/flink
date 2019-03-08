@@ -52,6 +52,10 @@ public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 		this(segments, offset, sizeInBytes, null);
 	}
 
+	public LazyBinaryFormat(T javaObject) {
+		this(null, -1, -1, javaObject);
+	}
+
 	public T getJavaObject() {
 		return javaObject;
 	}
@@ -60,6 +64,56 @@ public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 		this.javaObject = javaObject;
 	}
 
-	// method ensureMaterialized to ensure it have binary forms.
-	// method ensureJavaObject to ensure javaObject is not null.
+	@Override
+	public MemorySegment[] getSegments() {
+		ensureMaterialized();
+		return segments;
+	}
+
+	@Override
+	public int getOffset() {
+		ensureMaterialized();
+		return offset;
+	}
+
+	@Override
+	public int getSizeInBytes() {
+		ensureMaterialized();
+		return sizeInBytes;
+	}
+
+	/**
+	 * Ensure we have materialized binary format.
+	 */
+	public void ensureMaterialized() {
+		if (segments == null) {
+			materialize();
+		}
+	}
+
+	/**
+	 * Materialize java object to binary format.
+	 * Inherited classes need to hold the information they need.
+	 * (For example, BinaryGeneric needs javaObjectSerializer).
+	 */
+	public abstract void materialize();
+
+	@Override
+	public boolean equals(Object o) {
+		if (o != null && o instanceof LazyBinaryFormat) {
+			LazyBinaryFormat other = (LazyBinaryFormat) o;
+
+			ensureMaterialized();
+			other.ensureMaterialized();
+			return binaryEquals(other);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		ensureMaterialized();
+		return super.hashCode();
+	}
 }

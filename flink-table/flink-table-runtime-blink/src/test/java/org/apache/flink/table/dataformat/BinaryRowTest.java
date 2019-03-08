@@ -344,20 +344,18 @@ public class BinaryRowTest {
 	public void testGeneric() {
 		BinaryRow row = new BinaryRow(3);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
-		BinaryGeneric<String> hahah = new BinaryGeneric<>("hahah");
-		writer.writeGeneric(0, hahah, StringSerializer.INSTANCE);
+		BinaryGeneric<String> hahah = new BinaryGeneric<>("hahah", StringSerializer.INSTANCE);
+		writer.writeGeneric(0, hahah);
 		writer.setNullAt(1);
-		hahah.ensureMaterialized(StringSerializer.INSTANCE);
-		writer.writeGeneric(2, hahah, StringSerializer.INSTANCE);
+		hahah.ensureMaterialized();
+		writer.writeGeneric(2, hahah);
 		writer.complete();
 
 		BinaryGeneric<String> generic0 = row.getGeneric(0);
-		generic0.ensureJavaObject(StringSerializer.INSTANCE);
-		assertEquals("hahah", generic0.getJavaObject());
+		assertEquals(hahah, generic0);
 		assertTrue(row.isNullAt(1));
 		BinaryGeneric<String> generic2 = row.getGeneric(2);
-		generic2.ensureJavaObject(StringSerializer.INSTANCE);
-		assertEquals("hahah", generic2.getJavaObject());
+		assertEquals(hahah, generic2);
 	}
 
 	@Test

@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -112,11 +111,11 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	}
 
 	@Override
-	public void writeGeneric(int pos, BinaryGeneric input, TypeSerializer serializer) {
+	public void writeGeneric(int pos, BinaryGeneric input) {
 		if (input.getSegments() == null) {
 			int beforeCursor = cursor;
 			try {
-				serializer.serialize(input.getJavaObject(), getOutputView());
+				input.getJavaObjectSerializer().serialize(input.getJavaObject(), getOutputView());
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}

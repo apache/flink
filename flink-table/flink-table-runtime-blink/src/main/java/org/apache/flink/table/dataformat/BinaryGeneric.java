@@ -31,59 +31,52 @@ import java.io.IOException;
  */
 public class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 
-	public BinaryGeneric() {}
+	private final TypeSerializer<T> javaObjectSer;
 
-	public BinaryGeneric(T javaObject) {
-		super(null, -1, -1, javaObject);
+	public BinaryGeneric(T javaObject, TypeSerializer<T> javaObjectSer) {
+		super(javaObject);
+		this.javaObjectSer = javaObjectSer;
 	}
 
-	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes) {
-		super(segments, offset, sizeInBytes, null);
+	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes,
+			TypeSerializer<T> javaObjectSer) {
+		super(segments, offset, sizeInBytes);
+		this.javaObjectSer = javaObjectSer;
 	}
 
-	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
+	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject,
+			TypeSerializer<T> javaObjectSer) {
 		super(segments, offset, sizeInBytes, javaObject);
+		this.javaObjectSer = javaObjectSer;
 	}
 
-	public void ensureMaterialized(TypeSerializer<T> serializer) {
-		if (segments == null) {
-			materialize(serializer);
-		}
+	public TypeSerializer<T> getJavaObjectSerializer() {
+		return javaObjectSer;
 	}
 
-	public void ensureJavaObject(TypeSerializer<T> serializer) {
-		if (javaObject == null) {
-			makeJavaObject(serializer);
-		}
-	}
-
-	public void materialize(TypeSerializer<T> serializer) {
+	@Override
+	public void materialize() {
 		try {
-			byte[] bytes = InstantiationUtil.serializeToByteArray(serializer, javaObject);
+			byte[] bytes = InstantiationUtil.serializeToByteArray(javaObjectSer, javaObject);
 			pointTo(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	public void makeJavaObject(TypeSerializer<T> serializer) {
-		try {
-			javaObject = InstantiationUtil.deserializeFromByteArray(
-					serializer, SegmentsUtil.copyToBytes(segments, offset, sizeInBytes));
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
 	public BinaryGeneric<T> copy() {
+		ensureMaterialized();
 		byte[] bytes = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
-		return new BinaryGeneric<>(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, sizeInBytes);
+		T newJavaObject = javaObject == null ? null : javaObjectSer.copy(javaObject);
+		return new BinaryGeneric<>(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, sizeInBytes,
+				newJavaObject,
+				javaObjectSer);
 	}
 
 	static <T> BinaryGeneric<T> readBinaryGenericFieldFromSegments(
 			MemorySegment[] segments, int baseOffset, long offsetAndSize) {
 		final int size = ((int) offsetAndSize);
 		int offset = (int) (offsetAndSize >> 32);
-		return new BinaryGeneric<>(segments, offset + baseOffset, size);
+		return new BinaryGeneric<>(segments, offset + baseOffset, size, null);
 	}
 }

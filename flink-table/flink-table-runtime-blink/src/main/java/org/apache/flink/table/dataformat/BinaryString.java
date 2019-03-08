@@ -38,11 +38,11 @@ public class BinaryString extends LazyBinaryFormat<String> {
 	public static final BinaryString EMPTY_UTF8 = BinaryString.fromBytes("".getBytes());
 
 	public BinaryString(MemorySegment[] segments, int offset, int sizeInBytes) {
-		this(segments, offset, sizeInBytes, null);
+		super(segments, offset, sizeInBytes);
 	}
 
 	public BinaryString(String javaObject) {
-		this(null, -1, -1, javaObject);
+		super(javaObject);
 	}
 
 	public BinaryString(MemorySegment[] segments, int offset, int sizeInBytes, String javaObject) {
@@ -79,12 +79,6 @@ public class BinaryString extends LazyBinaryFormat<String> {
 	}
 
 	@Override
-	public int hashCode() {
-		ensureMaterialized();
-		return super.hashCode();
-	}
-
-	@Override
 	public String toString() {
 		if (javaObject == null) {
 			byte[] bytes = SegmentsUtil.allocateReuseBytes(sizeInBytes);
@@ -94,12 +88,7 @@ public class BinaryString extends LazyBinaryFormat<String> {
 		return javaObject;
 	}
 
-	public void ensureMaterialized() {
-		if (segments == null) {
-			materialize();
-		}
-	}
-
+	@Override
 	public void materialize() {
 		byte[] bytes = javaObject.getBytes();
 		segments = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};

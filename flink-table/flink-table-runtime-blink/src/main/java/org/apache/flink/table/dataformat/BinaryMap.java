@@ -22,8 +22,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.util.SegmentsUtil;
 
-import java.util.Map;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -31,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>{@code BinaryMap} are influenced by Apache Spark UnsafeMapData.
  */
-public class BinaryMap extends LazyBinaryFormat<Map> {
+public class BinaryMap extends BinaryFormat {
 
 	private final BinaryArray keys;
 	private final BinaryArray values;
