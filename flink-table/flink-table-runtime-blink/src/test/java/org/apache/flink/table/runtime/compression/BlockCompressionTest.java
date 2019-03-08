@@ -26,6 +26,9 @@ import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for block compression.
+ */
 public class BlockCompressionTest {
 
 	@Test
@@ -39,7 +42,6 @@ public class BlockCompressionTest {
 		runByteBufferTest(factory, true, 32768);
 		runByteBufferTest(factory, true, 16);
 	}
-
 
 	private void runArrayTest(BlockCompressionFactory factory, int originalLen) {
 		BlockCompressor compressor = factory.getCompressor();

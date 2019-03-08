@@ -28,8 +28,8 @@ import java.nio.ByteBuffer;
 /**
  * Encode data into LZ4 format (not compatible with the LZ4 Frame format).
  * It reads from and writes to byte arrays provided from the outside, thus reducing copy time.
- * <p>
- * This class is copied and modified from {@link net.jpountz.lz4.LZ4BlockOutputStream}.
+ *
+ * <p>This class is copied and modified from {@link net.jpountz.lz4.LZ4BlockOutputStream}.
  */
 public class Lz4BlockCompressor implements BlockCompressor {
 

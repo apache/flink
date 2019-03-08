@@ -28,8 +28,8 @@ import java.nio.ByteBuffer;
 /**
  * Decode data written with {@link Lz4BlockCompressor}.
  * It reads from and writes to byte arrays provided from the outside, thus reducing copy time.
- * <p>
- * This class is copied and modified from {@link net.jpountz.lz4.LZ4BlockInputStream}.
+ *
+ * <p>This class is copied and modified from {@link net.jpountz.lz4.LZ4BlockInputStream}.
  */
 public class Lz4BlockDecompressor implements BlockDecompressor {
 
@@ -115,12 +115,10 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
 
 	private void validateLength(int compressedLen, int originalLen) throws DataCorruptionException {
 		if (originalLen < 0
-		    || compressedLen < 0
-		    || (originalLen == 0 && compressedLen != 0)
-		    || (originalLen != 0 && compressedLen == 0)) {
+			|| compressedLen < 0
+			|| (originalLen == 0 && compressedLen != 0)
+			|| (originalLen != 0 && compressedLen == 0)) {
 			throw new DataCorruptionException("Input is corrupted, invalid length.");
 		}
 	}
-
-
 }

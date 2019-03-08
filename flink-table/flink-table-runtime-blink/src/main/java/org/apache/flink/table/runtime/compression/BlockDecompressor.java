@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.compression;
 
 import java.nio.ByteBuffer;
 
+/**
+ * A decompressor which decompresses a block each time.
+ */
 public interface BlockDecompressor {
 
 	/**

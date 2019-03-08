@@ -25,8 +25,9 @@ import java.nio.ByteBuffer;
  * It will read from and write to byte arrays given from the outside, reducing copy time.
  */
 public interface BlockCompressor {
+
 	/**
-	 * Get the max compressed size for a given original size
+	 * Get the max compressed size for a given original size.
 	 */
 	int getMaxCompressedSize(int srcSize);
 
