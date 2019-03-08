@@ -28,6 +28,8 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.memory.AbstractPagedInputView;
+import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
@@ -44,7 +46,7 @@ import java.util.Arrays;
 /**
  * Serializer for BaseRow.
  */
-public class BaseRowSerializer extends TypeSerializer<BaseRow> {
+public class BaseRowSerializer extends PagedTypeSerializer<BaseRow> {
 
 	private BinaryRowSerializer binarySerializer;
 	private final InternalType[] types;
@@ -168,6 +170,38 @@ public class BaseRowSerializer extends TypeSerializer<BaseRow> {
 			return binarySerializer.deserialize((BinaryRow) reuse, source);
 		} else {
 			return binarySerializer.deserialize(source);
+		}
+	}
+
+	@Override
+	public int serializeToPages(BaseRow row, AbstractPagedOutputView target) throws IOException {
+		return binarySerializer.serializeToPages(baseRowToBinary(row), target);
+	}
+
+	@Override
+	public BaseRow deserializeFromPages(AbstractPagedInputView source) throws IOException {
+		throw new UnsupportedOperationException("Not support!");
+	}
+
+	@Override
+	public BaseRow deserializeFromPages(BaseRow reuse,
+			AbstractPagedInputView source) throws IOException {
+		throw new UnsupportedOperationException("Not support!");
+	}
+
+	@Override
+	public BaseRow mapFromPages(AbstractPagedInputView source) throws IOException {
+		//noinspection unchecked
+		return binarySerializer.mapFromPages(source);
+	}
+
+	@Override
+	public BaseRow mapFromPages(BaseRow reuse,
+			AbstractPagedInputView source) throws IOException {
+		if (reuse instanceof BinaryRow) {
+			return binarySerializer.mapFromPages((BinaryRow) reuse, source);
+		} else {
+			throw new UnsupportedOperationException("Not support!");
 		}
 	}
 

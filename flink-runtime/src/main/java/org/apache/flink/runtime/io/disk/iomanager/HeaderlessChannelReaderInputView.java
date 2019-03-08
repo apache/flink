@@ -119,7 +119,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView {
 	}
 
 	@Override
-	protected void advance() throws IOException {
+	public void advance() throws IOException {
 		doAdvance();
 		if (isFirstBlock && offset > 0) {
 			seekInput(getCurrentSegment(), (int) offset, getCurrentSegmentLimit());
