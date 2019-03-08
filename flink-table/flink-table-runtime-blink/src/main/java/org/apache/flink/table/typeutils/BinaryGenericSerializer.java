@@ -29,7 +29,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.util.SegmentsUtil;
 import org.apache.flink.util.InstantiationUtil;
@@ -37,7 +36,7 @@ import org.apache.flink.util.InstantiationUtil;
 import java.io.IOException;
 
 /**
- * Serializer for {@link Decimal}.
+ * Serializer for {@link BinaryGeneric}.
  */
 @Internal
 public final class BinaryGenericSerializer<T> extends TypeSerializer<BinaryGeneric<T>> {

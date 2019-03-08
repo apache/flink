@@ -25,7 +25,7 @@ import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.type.GenericType;
 
 /**
- * TypeInfo for BaseArray.
+ * TypeInfo for {@link BinaryGeneric}.
  */
 public class BinaryGenericTypeInfo<T> extends TypeInformation<BinaryGeneric<T>> {
 
