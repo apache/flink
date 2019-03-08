@@ -61,6 +61,13 @@ under the License.
 			<version>${janino.version}</version>
 		</dependency>
 
+		<!-- Lz4 compression library -->
+		<dependency>
+			<groupId>org.lz4</groupId>
+			<artifactId>lz4-java</artifactId>
+			<version>1.5.0</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
