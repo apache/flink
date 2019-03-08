@@ -73,10 +73,9 @@ public class StateTtlConfig implements Serializable {
 	}
 
 	/**
-	 * @deprecated use {@link TtlTimeCharacteristic} to avoid class name clash
-	 * with <code>org.apache.flink.streaming.api.TimeCharacteristic</code>.
-	 *
 	 * This option configures time scale to use for ttl.
+	 *
+	 * @deprecated will be removed in a future version in favor of {@link TtlTimeCharacteristic}
 	 */
 	@Deprecated
 	public enum TimeCharacteristic {
@@ -94,27 +93,9 @@ public class StateTtlConfig implements Serializable {
 
 	private final UpdateType updateType;
 	private final StateVisibility stateVisibility;
-	@Deprecated
-	private TimeCharacteristic timeCharacteristic;
 	private TtlTimeCharacteristic ttlTimeCharacteristic;
 	private final Time ttl;
 	private final CleanupStrategies cleanupStrategies;
-
-	@Deprecated
-	private StateTtlConfig(
-		UpdateType updateType,
-		StateVisibility stateVisibility,
-		TimeCharacteristic timeCharacteristic,
-		Time ttl,
-		CleanupStrategies cleanupStrategies) {
-
-		/**
-		 * We just support <code>TimeCharacteristic.ProcessingTime</code> only,
-		 * so transfer to <code>TtlTimeCharacteristic.ProcessingTime</code> directly.
-		 */
-		this(updateType, stateVisibility, ProcessingTime, ttl, cleanupStrategies);
-		this.timeCharacteristic = checkNotNull(timeCharacteristic);
-	}
 
 	private StateTtlConfig(
 		UpdateType updateType,
@@ -143,12 +124,6 @@ public class StateTtlConfig implements Serializable {
 	@Nonnull
 	public Time getTtl() {
 		return ttl;
-	}
-
-	@Deprecated
-	@Nonnull
-	public TimeCharacteristic getTimeCharacteristic() {
-		return timeCharacteristic;
 	}
 
 	public TtlTimeCharacteristic getTtlTimeCharacteristic() {
@@ -186,12 +161,6 @@ public class StateTtlConfig implements Serializable {
 
 		private UpdateType updateType = OnCreateAndWrite;
 		private StateVisibility stateVisibility = NeverReturnExpired;
-		/**
-		 * Set default value to null, in {@link #build()} use the default value to test
-		 * whether user has set timeCharacteristic ever.
-		 */
-		@Deprecated
-		private TimeCharacteristic timeCharacteristic = null;
 		private TtlTimeCharacteristic ttlTimeCharacteristic = ProcessingTime;
 		private Time ttl;
 		private CleanupStrategies cleanupStrategies = new CleanupStrategies();
@@ -246,11 +215,16 @@ public class StateTtlConfig implements Serializable {
 		 * Sets the time characteristic.
 		 *
 		 * @param timeCharacteristic The time characteristic configures time scale to use for ttl.
+		 *
+		 * @deprecated will be removed in a future version in favor of {@link #setTtlTimeCharacteristic}
 		 */
 		@Deprecated
 		@Nonnull
 		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
-			this.timeCharacteristic = timeCharacteristic;
+			/**
+			 * We only support ProcessingTime now, so transfer to {@link TtlTimeCharacteristic.ProcessingTime} directly.
+			 */
+			setTtlTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
 			return this;
 		}
 
@@ -362,21 +336,12 @@ public class StateTtlConfig implements Serializable {
 
 		@Nonnull
 		public StateTtlConfig build() {
-			if (timeCharacteristic != null) {
-				return new StateTtlConfig(
-					updateType,
-					stateVisibility,
-					timeCharacteristic,
-					ttl,
-					cleanupStrategies);
-			} else {
-				return new StateTtlConfig(
-					updateType,
-					stateVisibility,
-					ttlTimeCharacteristic,
-					ttl,
-					cleanupStrategies);
-			}
+			return new StateTtlConfig(
+				updateType,
+				stateVisibility,
+				ttlTimeCharacteristic,
+				ttl,
+				cleanupStrategies);
 		}
 	}
 
