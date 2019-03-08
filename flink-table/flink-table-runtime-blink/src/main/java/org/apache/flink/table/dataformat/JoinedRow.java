@@ -281,23 +281,13 @@ public final class JoinedRow implements BaseRow {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || !(o instanceof JoinedRow)) {
-			return false;
-		}
-
-		JoinedRow row = (JoinedRow) o;
-
-		return this.header == row.header &&
-			row1.equals(row.row1) &&
-			row2.equals(row.row2);
+		throw new UnsupportedOperationException(
+				"JoinedRow do not support equals, please compare fields one by one!");
 	}
 
 	@Override
 	public int hashCode() {
-		int res = 31 * Byte.hashCode(header) + row1.hashCode();
-		return 31 * res + row2.hashCode();
+		throw new UnsupportedOperationException(
+				"JoinedRow do not support hashCode, please hash fields one by one!");
 	}
 }

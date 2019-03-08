@@ -25,7 +25,7 @@ import static org.apache.flink.table.dataformat.BinaryRow.calculateBitSetWidthIn
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Its memory storage structure and BinaryRow exactly the same, the only different is it supports
+ * Its memory storage structure and {@link BinaryRow} exactly the same, the only different is it supports
  * all bytes in variable MemorySegments.
  */
 public final class NestedRow extends BinaryFormat implements BaseRow {
@@ -64,12 +64,12 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 
 	@Override
 	public byte getHeader() {
-		throw new UnsupportedOperationException();
+		return SegmentsUtil.getByte(segments, offset);
 	}
 
 	@Override
 	public void setHeader(byte header) {
-		throw new UnsupportedOperationException();
+		SegmentsUtil.setByte(segments, offset, header);
 	}
 
 	private void setNotNullAt(int i) {

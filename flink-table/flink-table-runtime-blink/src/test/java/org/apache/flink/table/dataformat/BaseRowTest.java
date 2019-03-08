@@ -78,7 +78,7 @@ public class BaseRowTest {
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeRow(0, getBinaryRow(), null);
 		writer.complete();
-		testGetAndSet(row.getRow(0, 15));
+		testAll(row.getRow(0, 15));
 	}
 
 	private BinaryRow getBinaryRow() {
@@ -169,15 +169,12 @@ public class BaseRowTest {
 	}
 
 	private void testAll(BaseRow row) {
+		assertEquals(15, row.getArity());
+
 		// test header
 		assertEquals(0, row.getHeader());
 		row.setHeader((byte) 1);
 		assertEquals(1, row.getHeader());
-		testGetAndSet(row);
-	}
-
-	private void testGetAndSet(BaseRow row) {
-		assertEquals(15, row.getArity());
 
 		// test get
 		assertTrue(row.getBoolean(0));
