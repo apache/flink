@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.CalcUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.convert.ConverterRule
@@ -46,15 +46,14 @@ class FlinkLogicalCalc(
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    CalcUtil.computeCost(calcProgram, planner, mq, this)
+    RelNodeUtil.computeCalcCost(this, planner, mq)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val (conditionStr, projectStr) = RelNodeUtil.programToString(calcProgram, getExpressionString)
     pw.input("input", getInput)
-      .item("select", CalcUtil.selectionToString(calcProgram, getExpressionString))
-      .itemIf("where",
-        CalcUtil.conditionToString(calcProgram, getExpressionString),
-        calcProgram.getCondition != null)
+      .item("select", projectStr)
+      .itemIf("where", conditionStr, calcProgram.getCondition != null)
   }
 
 }

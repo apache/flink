@@ -23,10 +23,9 @@ import org.apache.flink.table.functions.UserDefinedFunction
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.rel.core.Aggregate
 
 /**
   * Batch physical RelNode for aggregate.
@@ -47,11 +46,11 @@ abstract class BatchExecGroupAggregateBase(
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-    rowRelDataType: RelDataType,
-    inputRelDataType: RelDataType,
+    outputRowType: RelDataType,
+    inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     val isMerge: Boolean,
     val isFinal: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
@@ -61,7 +60,7 @@ abstract class BatchExecGroupAggregateBase(
     throw new TableException("auxGrouping should be empty if grouping is emtpy.")
   }
 
-  override def deriveRowType(): RelDataType = rowRelDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   def getGrouping: Array[Int] = grouping
 

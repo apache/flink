@@ -30,8 +30,8 @@ import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 import scala.collection.JavaConverters._
 
 /**
-  * This RelNode represents a change of partitioning of the input elements.
-  **/
+  * Base class for physical [[Exchange]].
+  */
 abstract class CommonExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

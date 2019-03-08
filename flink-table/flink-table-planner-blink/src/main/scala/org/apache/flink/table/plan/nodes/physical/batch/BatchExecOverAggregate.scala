@@ -22,7 +22,7 @@ import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
-import org.apache.flink.table.plan.util.OverAggregateUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -45,10 +45,10 @@ class BatchExecOverAggregate(
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
+    outputRowType: RelDataType,
+    inputRowType: RelDataType,
     windowGroupToAggCallToAggFunction: Seq[
       (Window.Group, Seq[(AggregateCall, UserDefinedFunction)])],
-    rowRelDataType: RelDataType,
-    inputRelDataType: RelDataType,
     grouping: Array[Int],
     orderKeyIndices: Array[Int],
     orders: Array[Boolean],
@@ -66,7 +66,7 @@ class BatchExecOverAggregate(
 
   def getGrouping: Array[Int] = grouping
 
-  override def deriveRowType: RelDataType = rowRelDataType
+  override def deriveRowType: RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchExecOverAggregate(
@@ -74,9 +74,9 @@ class BatchExecOverAggregate(
       relBuilder,
       traitSet,
       inputs.get(0),
+      outputRowType,
+      inputRowType,
       windowGroupToAggCallToAggFunction,
-      getRowType,
-      inputRelDataType,
       grouping,
       orderKeyIndices,
       orders,
@@ -104,24 +104,24 @@ class BatchExecOverAggregate(
     val constants: Seq[RexLiteral] = logicWindow.constants
 
     val writer = super.explainTerms(pw)
-      .itemIf("partitionBy", OverAggregateUtil.partitionToString(rowRelDataType, partitionKeys),
+      .itemIf("partitionBy", RelNodeUtil.fieldToString(partitionKeys, outputRowType),
         partitionKeys.nonEmpty)
-      .itemIf("orderBy", OverAggregateUtil.orderingToString(
-        rowRelDataType, groups.head.orderKeys.getFieldCollations),
+      .itemIf("orderBy",
+        RelNodeUtil.orderingToString(groups.head.orderKeys.getFieldCollations, outputRowType),
         orderKeyIndices.nonEmpty)
 
-    var offset = inputRelDataType.getFieldCount
+    var offset = inputRowType.getFieldCount
     groups.zipWithIndex.foreach { case (group, index) =>
       val namedAggregates = generateNamedAggregates(group)
-      val select = OverAggregateUtil.aggregationToString(
-        inputRelDataType,
+      val select = RelNodeUtil.overAggregationToString(
+        inputRowType,
+        outputRowType,
         constants,
-        rowRelDataType,
         namedAggregates,
         outputInputName = false,
         rowTypeOffset = offset)
       offset += namedAggregates.size
-      val windowRange = OverAggregateUtil.windowRangeToString(logicWindow, group)
+      val windowRange = RelNodeUtil.windowRangeToString(logicWindow, group)
       writer.item("window#" + index, select + windowRange)
     }
     writer.item("select", getRowType.getFieldNames.mkString(", "))

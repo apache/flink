@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.AggregateUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -38,21 +38,21 @@ class BatchExecLocalSortAggregate(
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-    rowRelDataType: RelDataType,
-    inputRelDataType: RelDataType,
+    outputRowType: RelDataType,
+    inputRowType: RelDataType,
     grouping: Array[Int],
-    auxGrouping: Array[Int])
+    auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)])
   extends BatchExecSortAggregateBase(
     cluster,
     relBuilder,
     traitSet,
     inputRel,
-    aggCallToAggFunction,
-    rowRelDataType,
-    inputRelDataType,
+    outputRowType,
+    inputRowType,
     grouping,
     auxGrouping,
+    aggCallToAggFunction,
     isMerge = false,
     isFinal = false) {
 
@@ -62,26 +62,25 @@ class BatchExecLocalSortAggregate(
       relBuilder,
       traitSet,
       inputs.get(0),
-      aggCallToAggFunction,
-      getRowType,
-      inputRelDataType,
+      outputRowType,
+      inputRowType,
       grouping,
-      auxGrouping)
+      auxGrouping,
+      aggCallToAggFunction)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("groupBy",
-        AggregateUtil.groupingToString(inputRelDataType, grouping), grouping.nonEmpty)
+        RelNodeUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .itemIf("auxGrouping",
-        AggregateUtil.groupingToString(inputRelDataType, auxGrouping), auxGrouping.nonEmpty)
-      .item("select", AggregateUtil.aggregationToString(
-        inputRelDataType,
+        RelNodeUtil.fieldToString(auxGrouping, inputRowType), auxGrouping.nonEmpty)
+      .item("select", RelNodeUtil.groupAggregationToString(
+        inputRowType,
+        outputRowType,
         grouping,
         auxGrouping,
-        rowRelDataType,
-        aggCallToAggFunction.map(_._1),
-        aggCallToAggFunction.map(_._2),
+        aggCallToAggFunction,
         isMerge = false,
         isGlobal = false))
   }

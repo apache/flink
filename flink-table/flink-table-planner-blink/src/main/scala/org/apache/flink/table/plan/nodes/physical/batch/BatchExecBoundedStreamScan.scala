@@ -37,13 +37,13 @@ class BatchExecBoundedStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    rowRelDataType: RelDataType)
+    outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with BatchPhysicalRel {
 
   val boundedStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
-  override def deriveRowType(): RelDataType = rowRelDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchExecBoundedStreamScan(cluster, traitSet, getTable, getRowType)

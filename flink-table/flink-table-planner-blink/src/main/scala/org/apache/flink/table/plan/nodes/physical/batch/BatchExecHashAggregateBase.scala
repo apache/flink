@@ -39,11 +39,11 @@ abstract class BatchExecHashAggregateBase(
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-    rowRelDataType: RelDataType,
-    inputRelDataType: RelDataType,
+    outputRowType: RelDataType,
+    inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     isMerge: Boolean,
     isFinal: Boolean)
   extends BatchExecGroupAggregateBase(
@@ -51,11 +51,11 @@ abstract class BatchExecHashAggregateBase(
     relBuilder,
     traitSet,
     inputRel,
-    aggCallToAggFunction,
-    rowRelDataType,
-    inputRelDataType,
+    outputRowType,
+    inputRowType,
     grouping,
     auxGrouping,
+    aggCallToAggFunction,
     isMerge,
     isFinal) {
 

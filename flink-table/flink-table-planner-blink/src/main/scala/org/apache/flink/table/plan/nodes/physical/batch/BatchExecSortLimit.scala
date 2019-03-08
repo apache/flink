@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.SortUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -40,14 +40,14 @@ class BatchExecSortLimit(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     collations: RelCollation,
-    sortOffset: RexNode,
-    limit: RexNode,
+    offset: RexNode,
+    fetch: RexNode,
     isGlobal: Boolean)
-  extends Sort(cluster, traitSet, inputRel, collations, sortOffset, limit)
+  extends Sort(cluster, traitSet, inputRel, collations, offset, fetch)
   with BatchPhysicalRel {
 
-  private val limitStart: Long = SortUtil.getFetchLimitStart(offset)
-  private val limitEnd: Long = SortUtil.getFetchLimitEnd(limit, offset)
+  private val limitStart: Long = RelNodeUtil.getLimitStart(offset)
+  private val limitEnd: Long = RelNodeUtil.getLimitEnd(offset, fetch)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -60,9 +60,10 @@ class BatchExecSortLimit(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
-      .item("orderBy", SortUtil.sortFieldsToString(collations, getRowType))
-      .item("offset", SortUtil.offsetToString(offset))
-      .item("limit", SortUtil.limitToString(fetch))
+      .item("orderBy",
+        RelNodeUtil.orderingToString(collations.getFieldCollations, getRowType))
+      .item("offset", limitStart)
+      .item("fetch", RelNodeUtil.fetchToString(fetch))
       .item("global", isGlobal)
   }
 
@@ -72,8 +73,8 @@ class BatchExecSortLimit(
       inputRows
     } else {
       val rowCount = (inputRows - limitStart).max(1.0)
-      if (limit != null) {
-        rowCount.min(RexLiteral.intValue(limit))
+      if (fetch != null) {
+        rowCount.min(RexLiteral.intValue(fetch))
       } else {
         rowCount
       }

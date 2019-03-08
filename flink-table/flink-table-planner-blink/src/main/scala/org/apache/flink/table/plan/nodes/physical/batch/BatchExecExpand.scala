@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.nodes.calcite.Expand
-import org.apache.flink.table.plan.util.ExpandUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -53,7 +53,7 @@ class BatchExecExpand(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("projects", ExpandUtil.projectsToString(projects, input.getRowType, getRowType))
+      .item("projects", RelNodeUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 
 }

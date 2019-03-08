@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.util.CalcUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -34,26 +34,26 @@ class BatchExecCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    rowRelDataType: RelDataType,
-    calcProgram: RexProgram)
+    calcProgram: RexProgram,
+    outputRowType: RelDataType)
   extends Calc(cluster, traitSet, inputRel, calcProgram)
   with BatchPhysicalRel {
 
-  override def deriveRowType(): RelDataType = rowRelDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
-    new BatchExecCalc(cluster, traitSet, child, getRowType, program)
+    new BatchExecCalc(cluster, traitSet, child, program, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val (conditionStr, projectStr) = RelNodeUtil.programToString(calcProgram, getExpressionString)
     pw.input("input", getInput)
-      .item("select", CalcUtil.selectionToString(calcProgram, getExpressionString))
-      .itemIf("where", CalcUtil.conditionToString(calcProgram, getExpressionString),
-        calcProgram.getCondition != null)
+      .item("select", projectStr)
+      .itemIf("where", conditionStr, calcProgram.getCondition != null)
   }
 
-  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-    CalcUtil.computeCost(calcProgram, planner, metadata, this)
+  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
+    RelNodeUtil.computeCalcCost(this, planner, mq)
   }
 
 }

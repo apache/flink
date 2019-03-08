@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.SortUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -52,7 +52,8 @@ class BatchExecSort(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
-      .item("orderBy", SortUtil.sortFieldsToString(collations, getRowType))
+      .item("orderBy",
+        RelNodeUtil.orderingToString(collations.getFieldCollations, getRowType))
   }
 
   override def estimateRowCount(mq: RelMetadataQuery): Double = mq.getRowCount(getInput)
@@ -65,7 +66,7 @@ class BatchExecSort(
     val numOfSortKeys = collations.getFieldCollations.size()
     val cpuCost = FlinkCost.COMPARE_CPU_COST * numOfSortKeys *
       rowCount * Math.max(Math.log(rowCount), 1.0)
-    val memCost = SortUtil.calcNeedMemoryForSort(mq, getInput)
+    val memCost = RelNodeUtil.computeSortMemory(mq, getInput)
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }

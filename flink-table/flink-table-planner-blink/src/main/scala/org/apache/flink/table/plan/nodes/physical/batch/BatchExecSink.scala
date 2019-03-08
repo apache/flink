@@ -32,10 +32,10 @@ import java.util
 class BatchExecSink[T](
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    input: RelNode,
+    inputRel: RelNode,
     sink: TableSink[T],
     sinkName: String)
-  extends Sink(cluster, traitSet, input, sink, sinkName)
+  extends Sink(cluster, traitSet, inputRel, sink, sinkName)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {

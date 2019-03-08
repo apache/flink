@@ -35,15 +35,15 @@ import scala.collection.JavaConversions._
 class BatchExecValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    rowRelDataType: RelDataType,
-    tuples: ImmutableList[ImmutableList[RexLiteral]])
-  extends Values(cluster, rowRelDataType, tuples, traitSet)
+    tuples: ImmutableList[ImmutableList[RexLiteral]],
+    outputRowType: RelDataType)
+  extends Values(cluster, outputRowType, tuples, traitSet)
   with BatchPhysicalRel {
 
-  override def deriveRowType(): RelDataType = rowRelDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecValues(cluster, traitSet, rowRelDataType, getTuples)
+    new BatchExecValues(cluster, traitSet, getTuples, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

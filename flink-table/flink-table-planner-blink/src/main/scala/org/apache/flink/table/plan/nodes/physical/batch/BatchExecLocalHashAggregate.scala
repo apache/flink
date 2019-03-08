@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.AggregateUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -38,40 +38,23 @@ class BatchExecLocalHashAggregate(
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-    rowRelDataType: RelDataType,
-    inputRelDataType: RelDataType,
+    outputRowType: RelDataType,
+    inputRowType: RelDataType,
     grouping: Array[Int],
-    auxGrouping: Array[Int])
+    auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)])
   extends BatchExecHashAggregateBase(
     cluster,
     relBuilder,
     traitSet,
     inputRel,
-    aggCallToAggFunction,
-    rowRelDataType,
-    inputRelDataType,
+    outputRowType,
+    inputRowType,
     grouping,
     auxGrouping,
+    aggCallToAggFunction,
     isMerge = false,
     isFinal = false) {
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .itemIf("groupBy",
-        AggregateUtil.groupingToString(inputRelDataType, grouping), grouping.nonEmpty)
-      .itemIf("auxGrouping",
-        AggregateUtil.groupingToString(inputRelDataType, auxGrouping), auxGrouping.nonEmpty)
-      .item("select", AggregateUtil.aggregationToString(
-        inputRelDataType,
-        grouping,
-        auxGrouping,
-        rowRelDataType,
-        aggCallToAggFunction.map(_._1),
-        aggCallToAggFunction.map(_._2),
-        isMerge = false,
-        isGlobal = false))
-  }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLocalHashAggregate(
@@ -79,11 +62,26 @@ class BatchExecLocalHashAggregate(
       relBuilder,
       traitSet,
       inputs.get(0),
-      aggCallToAggFunction,
-      getRowType,
-      inputRelDataType,
+      outputRowType,
+      inputRowType,
       grouping,
-      auxGrouping)
+      auxGrouping,
+      aggCallToAggFunction)
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+      .itemIf("groupBy", RelNodeUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
+      .itemIf("auxGrouping", RelNodeUtil.fieldToString(auxGrouping, inputRowType),
+        auxGrouping.nonEmpty)
+      .item("select", RelNodeUtil.groupAggregationToString(
+        inputRowType,
+        outputRowType,
+        grouping,
+        auxGrouping,
+        aggCallToAggFunction,
+        isMerge = false,
+        isGlobal = false))
   }
 
 }

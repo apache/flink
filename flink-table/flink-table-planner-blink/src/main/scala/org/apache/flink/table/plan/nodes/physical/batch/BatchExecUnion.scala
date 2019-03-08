@@ -34,16 +34,16 @@ class BatchExecUnion(
     traitSet: RelTraitSet,
     inputRels: util.List[RelNode],
     all: Boolean,
-    rowRelDataType: RelDataType)
+    outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
   with BatchPhysicalRel {
 
   require(all, "Only support union all now")
 
-  override def deriveRowType(): RelDataType = rowRelDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode], all: Boolean): SetOp = {
-    new BatchExecUnion(cluster, traitSet, inputs, all, rowRelDataType)
+    new BatchExecUnion(cluster, traitSet, inputs, all, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

@@ -19,13 +19,11 @@
 package org.apache.flink.table.plan.nodes.calcite
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
+import org.apache.calcite.rex.RexNode
 
 import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Sub-class of [[Expand]] that is a relational expression
@@ -45,18 +43,6 @@ final class LogicalExpand(
     new LogicalExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val names = outputRowType.getFieldNames
-    val terms = projects.map {
-      project =>
-        project.zipWithIndex.map {
-          case (r: RexInputRef, i: Int) => s"${names.get(i)}=[${r.getName}]"
-          case (l: RexLiteral, i: Int) => s"${names.get(i)}=[${l.getValue3}]"
-          case (o, _) => s"$o"
-        }.mkString("{", ", ", "}")
-    }.mkString(", ")
-    super.explainTerms(pw).item("projects", terms)
-  }
 }
 
 object LogicalExpand {

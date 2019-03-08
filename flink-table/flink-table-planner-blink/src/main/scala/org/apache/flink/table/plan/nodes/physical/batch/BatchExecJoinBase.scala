@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.FlinkJoinRelType
-import org.apache.flink.table.plan.util.JoinUtil
+import org.apache.flink.table.plan.util.RelNodeUtil
 
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -46,7 +46,7 @@ trait BatchExecJoinBase extends Join with BatchPhysicalRel {
     case _ => throw new IllegalArgumentException(s"Illegal join node: ${this.getRelTypeName}")
   }
 
-  lazy val inputDataType: RelDataType = this match {
+  lazy val inputRowType: RelDataType = this match {
     case sj: SemiJoin =>
       // Combines inputs' RowType, the result is different from SemiJoin's RowType.
       SqlValidatorUtil.deriveJoinRowType(
@@ -63,8 +63,8 @@ trait BatchExecJoinBase extends Join with BatchPhysicalRel {
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
-    JoinUtil.joinExplainTerms(
-      pw, inputDataType, getCondition, flinkJoinType, getRowType, getExpressionString)
+    RelNodeUtil.joinExplainTerms(
+      pw, getCondition, flinkJoinType, inputRowType, getRowType, getExpressionString)
   }
 
 }
