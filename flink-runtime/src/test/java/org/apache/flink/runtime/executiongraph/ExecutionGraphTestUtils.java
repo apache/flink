@@ -460,7 +460,6 @@ public class ExecutionGraphTestUtils {
 			timeout,
 			restartStrategy,
 			new UnregisteredMetricsGroup(),
-			1,
 			VoidBlobWriter.getInstance(),
 			timeout,
 			TEST_LOGGER);
