@@ -16,36 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.sort;
+package org.apache.flink.table.generated;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.runtime.util.MemorySegmentPool;
-
-import java.util.List;
+import org.apache.flink.table.dataformat.BaseRow;
 
 /**
- * Test pool.
+ * Interface for code generated projection, which will map a BaseRow to another one.
  */
-public class TestMemorySegmentPool implements MemorySegmentPool {
+public interface Projection<IN extends BaseRow, OUT extends BaseRow> {
 
-	private int pageSize;
+	OUT apply(IN row);
 
-	public TestMemorySegmentPool(int pageSize) {
-		this.pageSize = pageSize;
-	}
-
-	@Override
-	public int pageSize() {
-		return pageSize;
-	}
-
-	@Override
-	public void returnAll(List<MemorySegment> memory) {
-	}
-
-	@Override
-	public MemorySegment nextSegment() {
-		return MemorySegmentFactory.wrap(new byte[pageSize]);
-	}
 }

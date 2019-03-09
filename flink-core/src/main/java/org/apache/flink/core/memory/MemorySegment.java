@@ -1426,4 +1426,12 @@ public abstract class MemorySegment {
 
 		return true;
 	}
+
+	/**
+	 * Get the heap byte array object.
+	 * @return Return non-null if the memory is on the heap, and return null if the memory if off the heap.
+	 */
+	public byte[] getHeapMemory() {
+		return heapMemory;
+	}
 }

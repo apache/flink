@@ -21,25 +21,26 @@ package org.apache.flink.table.runtime.util;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
- * MemorySegment pool.
+ * MemorySegment pool to hold pages in memory.
  */
 public interface MemorySegmentPool extends MemorySegmentSource {
 
+	/**
+	 * Get the page size of each page this pool holds.
+	 *
+	 * @return the page size
+	 */
 	int pageSize();
 
+	/**
+	 * Return all pages back into this pool.
+	 *
+	 * @param memory the pages which want to be returned.
+	 */
 	void returnAll(List<MemorySegment> memory);
 
-	default void returnAll(MemorySegment[] memory) {
-		returnAll(Arrays.asList(memory));
-	}
-
-	void clear();
-
-	default int remainBuffers() {
-		throw new UnsupportedOperationException();
-	}
 }
+

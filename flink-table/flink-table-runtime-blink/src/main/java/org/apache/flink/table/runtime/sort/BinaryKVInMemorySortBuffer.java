@@ -82,8 +82,7 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 		}
 	}
 
-	private void load(long numElements,
-			RandomAccessInputView recordInputView) throws IOException {
+	private void load(long numElements, RandomAccessInputView recordInputView) throws IOException {
 		for (int index = 0; index < numElements; index++) {
 			serializer.checkSkipReadForFixLengthPart(recordInputView);
 			long pointer = recordInputView.getReadPosition();
