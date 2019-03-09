@@ -152,7 +152,11 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	 * @see #nextSegment(MemorySegment)
 	 * @see #getLimitForSegment(MemorySegment)
 	 */
-	protected final void advance() throws IOException {
+	protected void advance() throws IOException {
+		doAdvance();
+	}
+
+	protected void doAdvance() throws IOException {
 		// note: this code ensures that in case of EOF, we stay at the same position such that
 		// EOF is reproducible (if nextSegment throws a reproducible EOFException)
 		this.currentSegment = nextSegment(this.currentSegment);
