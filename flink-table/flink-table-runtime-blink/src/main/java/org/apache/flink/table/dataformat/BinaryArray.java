@@ -347,6 +347,16 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		return values;
 	}
 
+	public BinaryArray copy() {
+		return copy(new BinaryArray());
+	}
+
+	public BinaryArray copy(BinaryArray reuse) {
+		byte[] bytes = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
+		reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
+		return reuse;
+	}
+
 	private static BinaryArray fromPrimitiveArray(
 			Object arr, int offset, int length, int elementSize) {
 		final long headerInBytes = calculateHeaderInBytes(length);

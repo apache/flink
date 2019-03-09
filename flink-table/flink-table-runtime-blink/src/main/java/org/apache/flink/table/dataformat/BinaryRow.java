@@ -59,6 +59,10 @@ public final class BinaryRow extends BinaryFormat<Object> implements BaseRow {
 		return ((arity + 63 + HEADER_SIZE_IN_BITS) / 64) * 8;
 	}
 
+	public static int calculateFixPartSizeInBytes(int arity) {
+		return calculateBitSetWidthInBytes(arity) + 8 * arity;
+	}
+
 	private final int arity;
 	private final int nullBitsSizeInBytes;
 
@@ -287,8 +291,8 @@ public final class BinaryRow extends BinaryFormat<Object> implements BaseRow {
 		return copy(new BinaryRow(arity));
 	}
 
-	public BinaryRow copy(BaseRow reuse) {
-		return copyInternal((BinaryRow) reuse);
+	public BinaryRow copy(BinaryRow reuse) {
+		return copyInternal(reuse);
 	}
 
 	private BinaryRow copyInternal(BinaryRow reuse) {

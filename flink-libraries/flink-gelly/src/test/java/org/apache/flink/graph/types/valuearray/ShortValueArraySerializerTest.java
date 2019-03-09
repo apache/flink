@@ -19,7 +19,6 @@
 
 package org.apache.flink.graph.types.valuearray;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.ShortValue;
 
@@ -28,7 +27,7 @@ import java.util.Random;
 /**
  * A test for the {@link ShortValueArraySerializer}.
  */
-public class ShortValueArraySerializerTest extends SerializerTestBase<ShortValueArray> {
+public class ShortValueArraySerializerTest extends ValueArraySerializerTestBase<ShortValueArray> {
 
 	@Override
 	protected TypeSerializer<ShortValueArray> createSerializer() {

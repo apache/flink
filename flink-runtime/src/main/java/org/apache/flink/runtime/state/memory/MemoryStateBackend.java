@@ -23,24 +23,28 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
-import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -316,22 +320,26 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		Collection<KeyedStateHandle> stateHandles) {
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =
 			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
-		return new HeapKeyedStateBackend<>(
-				kvStateRegistry,
-				keySerializer,
-				env.getUserClassLoader(),
-				numberOfKeyGroups,
-				keyGroupRange,
-				isUsingAsynchronousSnapshots(),
-				env.getExecutionConfig(),
-				taskStateManager.createLocalRecoveryConfig(),
-				priorityQueueSetFactory,
-				ttlTimeProvider);
+		return new HeapKeyedStateBackendBuilder<>(
+			kvStateRegistry,
+			keySerializer,
+			env.getUserClassLoader(),
+			numberOfKeyGroups,
+			keyGroupRange,
+			env.getExecutionConfig(),
+			ttlTimeProvider,
+			stateHandles,
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			taskStateManager.createLocalRecoveryConfig(),
+			priorityQueueSetFactory,
+			isUsingAsynchronousSnapshots(),
+			cancelStreamRegistry).build();
 	}
 
 	// ------------------------------------------------------------------------

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -39,7 +40,9 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /** mack state backend. */
@@ -123,8 +126,9 @@ public class MockStateBackend extends AbstractStateBackend {
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		Collection<KeyedStateHandle> stateHandles) {
-		return new MockKeyedStateBackend<>(
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) {
+		return new MockKeyedStateBackendBuilder<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
 			env.getUserClassLoader(),
@@ -132,7 +136,9 @@ public class MockStateBackend extends AbstractStateBackend {
 			keyGroupRange,
 			env.getExecutionConfig(),
 			ttlTimeProvider,
-			metricGroup);
+			stateHandles,
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			cancelStreamRegistry).build();
 	}
 
 	@Override

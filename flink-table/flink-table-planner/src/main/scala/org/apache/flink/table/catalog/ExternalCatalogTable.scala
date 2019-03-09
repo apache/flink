@@ -27,8 +27,6 @@ import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 
-import scala.collection.JavaConverters._
-
 /**
   * Defines a table in an [[ExternalCatalog]]. External catalog tables describe table sources
   * and/or sinks for both batch and stream environments.
@@ -69,7 +67,7 @@ class ExternalCatalogTable(
     rowCount match {
       case Some(cnt) =>
         val columnStats = readColumnStats(normalizedProps, STATISTICS_COLUMNS)
-        Some(TableStats(cnt, columnStats.asJava))
+        Some(new TableStats(cnt, columnStats))
       case None =>
         None
     }

@@ -128,7 +128,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		StreamCompressionDecorator keyGroupCompressionDecorator) {
+		StreamCompressionDecorator keyGroupCompressionDecorator,
+		CloseableRegistry cancelStreamRegistry) {
 
 		super(
 			kvStateRegistry,
@@ -139,8 +140,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			executionConfig,
 			ttlTimeProvider,
 			stateHandles,
-			keyGroupCompressionDecorator
-		);
+			keyGroupCompressionDecorator,
+			cancelStreamRegistry);
 
 		this.operatorIdentifier = operatorIdentifier;
 		this.priorityQueueStateType = priorityQueueStateType;
@@ -175,7 +176,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		StreamCompressionDecorator keyGroupCompressionDecorator,
 		RocksDB injectedTestDB,
-		ColumnFamilyHandle injectedDefaultColumnFamilyHandle) {
+		ColumnFamilyHandle injectedDefaultColumnFamilyHandle,
+		CloseableRegistry cancelStreamRegistry) {
 		this(
 			operatorIdentifier,
 			userCodeClassLoader,
@@ -192,7 +194,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			ttlTimeProvider,
 			metricGroup,
 			stateHandles,
-			keyGroupCompressionDecorator
+			keyGroupCompressionDecorator,
+			cancelStreamRegistry
 		);
 		this.injectedTestDB = injectedTestDB;
 		this.injectedDefaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
@@ -232,7 +235,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		RocksDBWriteBatchWrapper writeBatchWrapper = null;
 		ColumnFamilyHandle defaultColumnFamilyHandle = null;
 		RocksDBNativeMetricMonitor nativeMetricMonitor = null;
-		CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+		CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
 		//The write options to use in the states. We disable write ahead logging.
 		WriteOptions writeOptions = new WriteOptions().setDisableWAL(true);
 		LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation = new LinkedHashMap<>();
@@ -281,7 +284,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				keyGroupPrefixBytes,
 				32);
 			// init snapshot strategy after db is assured to be initialized
-			snapshotStrategy = initializeSavepointAndCheckpointStrategies(cancelStreamRegistry, rocksDBResourceGuard,
+			snapshotStrategy = initializeSavepointAndCheckpointStrategies(cancelStreamRegistryForBackend, rocksDBResourceGuard,
 				kvStateInformation, keyGroupPrefixBytes, db, backendUID, materializedSstFiles, lastCompletedCheckpointId);
 			// init priority queue factory
 			priorityQueueFactory = initPriorityQueueFactory(keyGroupPrefixBytes, kvStateInformation, db,
@@ -289,7 +292,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		} catch (Throwable e) {
 			// Do clean up
 			List<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(kvStateInformation.values().size());
-			IOUtils.closeQuietly(cancelStreamRegistry);
+			IOUtils.closeQuietly(cancelStreamRegistryForBackend);
 			IOUtils.closeQuietly(writeBatchWrapper);
 			RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(columnFamilyOptions, defaultColumnFamilyHandle);
 			IOUtils.closeQuietly(defaultColumnFamilyHandle);
@@ -336,7 +339,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			db,
 			kvStateInformation,
 			keyGroupPrefixBytes,
-			cancelStreamRegistry,
+			cancelStreamRegistryForBackend,
 			this.keyGroupCompressionDecorator,
 			rocksDBResourceGuard,
 			snapshotStrategy.checkpointSnapshotStrategy,

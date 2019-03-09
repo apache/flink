@@ -26,7 +26,6 @@ import org.apache.flink.table.sinks.{BatchTableSink, StreamTableSink}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.util.Logging
 
-
 /**
   * The utility class is used to convert [[ExternalCatalogTable]] to [[TableSourceSinkTable]].
   *

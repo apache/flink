@@ -66,13 +66,7 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
             val extraNames = args
               .drop(2)
               .map(e => e.asInstanceOf[ValueLiteralExpression].getValue.asInstanceOf[String])
-            val plannerExpression = args.head
-            plannerExpression match {
-              case tfc: TableFunctionCall =>
-                tfc.setAliases(name +: extraNames)
-              case _ =>
-                Alias(plannerExpression, name, extraNames)
-            }
+            Alias(args.head, name, extraNames)
 
           case FLATTEN =>
             assert(args.size == 1)

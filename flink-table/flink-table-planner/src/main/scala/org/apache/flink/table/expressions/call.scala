@@ -29,11 +29,10 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions._
-import org.apache.flink.table.plan.logical.{LogicalNode, LogicalTableFunctionCall}
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -316,67 +315,7 @@ case class TableFunctionCall(
     resultType: TypeInformation[_])
   extends PlannerExpression {
 
-  private var aliases: Option[Seq[String]] = None
-
   override private[flink] def children: Seq[Expression] = parameters
-
-  /**
-    * Assigns an alias for this table function's returned fields that the following operator
-    * can refer to.
-    *
-    * @param aliasList alias for this table function's returned fields
-    * @return this table function call
-    */
-  private[flink] def setAliases(aliasList: Seq[String]): TableFunctionCall = {
-    this.aliases = Some(aliasList)
-    this
-  }
-
-  /**
-    * Specifies the field names for a join with a table function.
-    *
-    * @param name name for one field
-    * @param extraNames additional names if the expression expands to multiple fields
-    * @return field with an alias
-    */
-  def as(name: Symbol, extraNames: Symbol*): TableFunctionCall = {
-    // NOTE: this method is only a temporary solution until we
-    // remove the deprecated table constructor. Otherwise Scala would be confused
-    // about Table.as() and Expression.as(). In the future, we can rely on Expression.as() only.
-    this.aliases = Some(name.name +: extraNames.map(_.name))
-    this
-  }
-
-  /**
-    * Converts an API class to a logical node for planning.
-    */
-  private[flink] def toLogicalTableFunctionCall(child: LogicalNode): LogicalTableFunctionCall = {
-    val originNames = getFieldInfo(resultType)._1
-
-    // determine the final field names
-    val fieldNames = if (aliases.isDefined) {
-      val aliasList = aliases.get
-      if (aliasList.length != originNames.length) {
-        throw new ValidationException(
-          s"List of column aliases must have same degree as table; " +
-            s"the returned table of function '$functionName' has ${originNames.length} " +
-            s"columns (${originNames.mkString(",")}), " +
-            s"whereas alias list has ${aliasList.length} columns")
-      } else {
-        aliasList.toArray
-      }
-    } else {
-      originNames
-    }
-
-    LogicalTableFunctionCall(
-      functionName,
-      tableFunction,
-      parameters,
-      resultType,
-      fieldNames,
-      child)
-  }
 
   override def toString =
     s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"

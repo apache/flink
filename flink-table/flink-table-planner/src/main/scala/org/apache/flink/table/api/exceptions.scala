@@ -29,18 +29,6 @@ import _root_.scala.collection.JavaConverters._
 case class ExpressionParserException(msg: String) extends RuntimeException(msg)
 
 /**
-  * Exception for all errors occurring during sql parsing.
-  */
-case class SqlParserException(
-    msg: String,
-    cause: Throwable)
-  extends RuntimeException(msg, cause) {
-
-  def this(msg: String) = this(msg, null)
-
-}
-
-/**
   * Exception for unwanted method calling on unresolved expression.
   */
 case class UnresolvedException(msg: String) extends RuntimeException(msg)

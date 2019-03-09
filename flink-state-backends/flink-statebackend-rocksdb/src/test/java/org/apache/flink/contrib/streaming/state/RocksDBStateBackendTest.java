@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -212,10 +214,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			TtlTimeProvider.DEFAULT,
 			new UnregisteredMetricsGroup(),
 			Collections.emptyList(),
-			RocksDBStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
 			spy(db),
-			defaultCFHandle
-		).build();
+			defaultCFHandle,
+			new CloseableRegistry()).build();
 
 		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
@@ -289,10 +291,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				TtlTimeProvider.DEFAULT,
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
-				RocksDBStateBackend.getCompressionDecorator(executionConfig),
+				AbstractStateBackend.getCompressionDecorator(executionConfig),
 				db,
-				defaultCFHandle
-			).build();
+				defaultCFHandle,
+				new CloseableRegistry()).build();
 			ValueStateDescriptor<String> stubState1 =
 				new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
 			test.createInternalState(StringSerializer.INSTANCE, stubState1);

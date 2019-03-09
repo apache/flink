@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -38,10 +39,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
@@ -473,7 +472,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles) throws IOException {
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -510,20 +510,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			ttlTimeProvider,
 			metricGroup,
 			stateHandles,
-			keyGroupCompressionDecorator
+			keyGroupCompressionDecorator,
+			cancelStreamRegistry
 		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())
 			.setNativeMetricOptions(getMemoryWatcherOptions());
 		return builder.build();
-	}
-
-	public static StreamCompressionDecorator getCompressionDecorator(ExecutionConfig executionConfig) {
-		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
-			return SnappyStreamCompressionDecorator.INSTANCE;
-		} else {
-			return UncompressedStreamCompressionDecorator.INSTANCE;
-		}
 	}
 
 	@Override

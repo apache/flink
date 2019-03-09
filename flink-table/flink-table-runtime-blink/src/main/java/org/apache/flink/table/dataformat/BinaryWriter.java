@@ -17,6 +17,11 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.type.MapType;
+
 /**
  * Writer to write a composite data format, like row, array.
  * 1. Invoke {@link #reset()}.
@@ -61,4 +66,38 @@ public interface BinaryWriter {
 	 * Finally, complete write to set real size to binary.
 	 */
 	void complete();
+
+	static void write(BinaryWriter writer, int pos, Object o, InternalType type) {
+		if (type.equals(InternalTypes.BOOLEAN)) {
+			writer.writeBoolean(pos, (boolean) o);
+		} else if (type.equals(InternalTypes.BYTE)) {
+			writer.writeByte(pos, (byte) o);
+		} else if (type.equals(InternalTypes.SHORT)) {
+			writer.writeShort(pos, (short) o);
+		} else if (type.equals(InternalTypes.INT)) {
+			writer.writeInt(pos, (int) o);
+		} else if (type.equals(InternalTypes.LONG)) {
+			writer.writeLong(pos, (long) o);
+		} else if (type.equals(InternalTypes.FLOAT)) {
+			writer.writeFloat(pos, (float) o);
+		} else if (type.equals(InternalTypes.DOUBLE)) {
+			writer.writeDouble(pos, (double) o);
+		} else if (type.equals(InternalTypes.STRING)) {
+			writer.writeString(pos, (BinaryString) o);
+		} else if (type.equals(InternalTypes.CHAR)) {
+			writer.writeChar(pos, (char) o);
+		} else if (type.equals(InternalTypes.DATE)) {
+			writer.writeInt(pos, (int) o);
+		} else if (type.equals(InternalTypes.TIME)) {
+			writer.writeInt(pos, (int) o);
+		} else if (type.equals(InternalTypes.TIMESTAMP)) {
+			writer.writeLong(pos, (long) o);
+		} else if (type instanceof ArrayType) {
+			writer.writeArray(pos, (BinaryArray) o);
+		} else if (type instanceof MapType) {
+			writer.writeMap(pos, (BinaryMap) o);
+		} else {
+			throw new RuntimeException("Not support type: " + type);
+		}
+	}
 }

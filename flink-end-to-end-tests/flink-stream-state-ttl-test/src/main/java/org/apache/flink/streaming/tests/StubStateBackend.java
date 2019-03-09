@@ -20,6 +20,7 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -31,6 +32,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -75,7 +78,8 @@ final class StubStateBackend implements StateBackend {
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		Collection<KeyedStateHandle> stateHandles) throws Exception {
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception {
 
 		return backend.createKeyedStateBackend(
 			env,
@@ -87,7 +91,8 @@ final class StubStateBackend implements StateBackend {
 			kvStateRegistry,
 			this.ttlTimeProvider,
 			metricGroup,
-			stateHandles);
+			stateHandles,
+			cancelStreamRegistry);
 	}
 
 	@Override

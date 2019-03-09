@@ -27,10 +27,12 @@ import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -87,7 +89,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 				TtlTimeProvider.DEFAULT,
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
-				RocksDBStateBackend.getCompressionDecorator(executionConfig)
+				AbstractStateBackend.getCompressionDecorator(executionConfig),
+				new CloseableRegistry()
 			).build();
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
@@ -130,7 +133,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 				TtlTimeProvider.DEFAULT,
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
-				RocksDBStateBackend.getCompressionDecorator(executionConfig)
+				AbstractStateBackend.getCompressionDecorator(executionConfig),
+				new CloseableRegistry()
 			).build();
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

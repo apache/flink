@@ -234,7 +234,7 @@ public class DataStream<T> {
 	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
 	 *            for directing the tuples.
 	 * @return The {@link SplitStream}
-	 * @deprecated Please use side ouput instead.
+	 * @deprecated Please use side output instead.
 	 */
 	@Deprecated
 	public SplitStream<T> split(OutputSelector<T> outputSelector) {
@@ -349,7 +349,7 @@ public class DataStream<T> {
 	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param field The field index on which the DataStream is to partitioned.
+	 * @param field The field index on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
@@ -364,7 +364,7 @@ public class DataStream<T> {
 	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param field The expression for the field on which the DataStream is to partitioned.
+	 * @param field The expression for the field on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
@@ -405,7 +405,7 @@ public class DataStream<T> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output elements
-	 * are broadcast to every parallel instance of the next operation.
+	 * are broadcasted to every parallel instance of the next operation.
 	 *
 	 * @return The DataStream with broadcast partitioning set.
 	 */
@@ -797,10 +797,10 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Windows this data stream to a {@code KeyedTriggerWindowDataStream}, which evaluates windows
-	 * over a key grouped stream. Elements are put into windows by a
+	 * Windows this data stream to a {@code AllWindowedStream}, which evaluates windows
+	 * over a non key grouped stream. Elements are put into windows by a
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. The grouping of
-	 * elements is done both by key and by window.
+	 * elements is done by window.
 	 *
 	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
 	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}

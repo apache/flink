@@ -49,11 +49,26 @@ public class BinaryString extends BinaryFormat<String> {
 		}
 	}
 
+	public static BinaryString fromBytes(byte[] bytes) {
+		return new BinaryString(
+				new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+	}
+
+	public static BinaryString fromBytes(byte[] bytes, int offset, int numBytes) {
+		return new BinaryString(
+				new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
+	}
+
 	@Override
 	public String toString() {
 		byte[] bytes = BinaryStringUtil.allocateReuseBytes(sizeInBytes);
 		SegmentsUtil.copyToBytes(segments, offset, bytes, 0, sizeInBytes);
 		return new String(bytes, 0, sizeInBytes);
+	}
+
+	public BinaryString copy() {
+		byte[] copy = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
+		return BinaryString.fromBytes(copy, 0, copy.length);
 	}
 
 	/**
