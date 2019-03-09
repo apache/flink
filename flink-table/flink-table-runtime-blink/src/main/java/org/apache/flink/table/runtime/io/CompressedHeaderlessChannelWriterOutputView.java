@@ -32,7 +32,9 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Compressed output view, it use {@link BufferFileWriter} to compress and io.
+ * A {@link org.apache.flink.core.memory.DataOutputView} that is backed by a {@link FileIOChannel},
+ * making it effectively a data output stream. The view will compress its data before writing it
+ * in blocks to the underlying channel.
  */
 public final class CompressedHeaderlessChannelWriterOutputView
 		extends AbstractChannelWriterOutputView implements BufferRecycler {

@@ -42,17 +42,14 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Compressed block channel reader provides a scenario where MemorySegment must be maintained.
  */
-public class CompressedBlockChannelReader implements BlockChannelReader<MemorySegment>,
-		RequestDoneCallback<Buffer>,
-		BufferRecycler {
+public class CompressedBlockChannelReader
+		implements BlockChannelReader<MemorySegment>, RequestDoneCallback<Buffer>, BufferRecycler {
 
 	private final LinkedBlockingQueue<MemorySegment> blockQueue;
-
 	private final boolean copyCompress;
 	private final BlockDecompressor decompressor;
 	private final BufferFileReader reader;
 	private final AtomicReference<IOException> cause;
-
 	private final LinkedBlockingQueue<Buffer> retBuffers = new LinkedBlockingQueue<>();
 
 	private byte[] buf;
@@ -61,9 +58,12 @@ public class CompressedBlockChannelReader implements BlockChannelReader<MemorySe
 	private int len;
 
 	public CompressedBlockChannelReader(
-			IOManager ioManager, ID channel,
+			IOManager ioManager,
+			ID channel,
 			LinkedBlockingQueue<MemorySegment> blockQueue,
-			BlockCompressionFactory codecFactory, int preferBlockSize, int segmentSize) throws IOException {
+			BlockCompressionFactory codecFactory,
+			int preferBlockSize,
+			int segmentSize) throws IOException {
 		this.reader = ioManager.createBufferFileReader(channel, this);
 		this.blockQueue = blockQueue;
 		copyCompress = preferBlockSize > segmentSize * 2;
@@ -120,7 +120,7 @@ public class CompressedBlockChannelReader implements BlockChannelReader<MemorySe
 	private int decompressBuffer(ByteBuffer toRead) throws IOException {
 		try {
 			Buffer buffer;
-			while ((buffer = retBuffers.poll(1, TimeUnit.SECONDS)) == null) {
+			while ((buffer = retBuffers.poll(11000, TimeUnit.MILLISECONDS)) == null) {
 				if (cause.get() != null) {
 					throw cause.get();
 				}

@@ -38,12 +38,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * Compressed block channel writer provides a scenario where MemorySegment must be maintained.
  */
-public class CompressedBlockChannelWriter implements BlockChannelWriter<MemorySegment>,
-		BufferRecycler {
+public class CompressedBlockChannelWriter
+		implements BlockChannelWriter<MemorySegment>, BufferRecycler {
 
 	private final LinkedBlockingQueue<MemorySegment> blockQueue;
 	private final LinkedBlockingQueue<MemorySegment> compressedBuffers = new LinkedBlockingQueue<>();
-
 	private final BufferFileWriter writer;
 	private final boolean copyCompress;
 	private final BlockCompressor compressor;
