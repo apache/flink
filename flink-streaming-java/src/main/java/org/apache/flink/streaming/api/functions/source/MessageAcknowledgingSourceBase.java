@@ -152,7 +152,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 			List<Map<Long, Set<UId>>> retrievedStates = new ArrayList<>();
 			for (SerializedCheckpointData[] entry : this.checkpointedState.get()) {
-				retrievedStates.add(SerializedCheckpointData.toDeque(entry, idSerializer));
+				retrievedStates.add(SerializedCheckpointData.toMap(entry, idSerializer));
 			}
 			pendingCheckpoints = SerializedCheckpointData.combine(retrievedStates);
 

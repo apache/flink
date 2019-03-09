@@ -26,11 +26,11 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -155,11 +155,11 @@ class SerializedCheckpointData implements java.io.Serializable {
 	 *
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> Map<Long, Set<T>> toDeque(
+	public static <T> Map<Long, Set<T>> toMap(
 			SerializedCheckpointData[] data,
 			TypeSerializer<T> serializer) throws IOException {
 
-		Map<Long, Set<T>> map = new HashMap<>(data.length);
+		Map<Long, Set<T>> map = new TreeMap<>();
 		DataInputDeserializer deser = null;
 
 		for (SerializedCheckpointData checkpoint : data) {
@@ -193,7 +193,7 @@ class SerializedCheckpointData implements java.io.Serializable {
 	 * @return An ArrayDeque of combined element checkpoints.
 	 */
 	public static <T> ArrayDeque<Tuple2<Long, Set<T>>> combine(List<Map<Long, Set<T>>> data) {
-		Map<Long, Set<T>> accumulator = new HashMap<>();
+		Map<Long, Set<T>> accumulator = new TreeMap<>();
 		for (Map<Long, Set<T>> element : data) {
 			accumulator = combine(accumulator, element);
 		}
