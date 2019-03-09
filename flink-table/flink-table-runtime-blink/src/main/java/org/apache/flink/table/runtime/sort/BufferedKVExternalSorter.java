@@ -43,8 +43,13 @@ import java.util.List;
 
 /**
  * Sorter for buffered input in the form of Key-Value Style.
- * First, sort and spill buffered inputs.
+ * First, sort and spill buffered inputs (without data copy, just write index and normalized key).
  * Second, merge disk outputs and return iterator.
+ *
+ * <p>For Hash Aggregation：We store the data in MemorySegmentHashTable in KeyValue format.
+ * When memory is not enough, we spill all the data in memory onto disk and degenerate it into
+ * Sort Aggregation. So we need a BufferedKVExternalSorter to write the data that already in
+ * memory to disk, and then carry out SortMerge.
  */
 public class BufferedKVExternalSorter {
 

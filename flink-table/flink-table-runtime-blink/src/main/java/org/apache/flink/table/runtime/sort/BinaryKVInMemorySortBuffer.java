@@ -82,7 +82,7 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 		}
 	}
 
-	public boolean load(long numElements,
+	private void load(long numElements,
 			RandomAccessInputView recordInputView) throws IOException {
 		for (int index = 0; index < numElements; index++) {
 			serializer.checkSkipReadForFixLengthPart(recordInputView);
@@ -94,6 +94,5 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 			checkArgument(success);
 			writeIndexAndNormalizedKey(row, pointer);
 		}
-		return true;
 	}
 }
