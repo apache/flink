@@ -68,6 +68,8 @@ streamExecEnv.addSource(source);
 </div>
 </div>
 
+Currently the source functions pulls messages from PubSub, [push endpoints](https://cloud.google.com/pubsub/docs/push) are not supported.
+
 ### PubSub Sink
 
 The class `PubSubSink` has a builder to create PubSubSinks. `PubSubSink.newBuilder(...)`
