@@ -96,7 +96,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		this.deduplicateMessages = getRuntimeContext().getNumberOfParallelSubtasks() == 1;
 		this.isRunning = true;
 		this.pullRequest = PullRequest.newBuilder()
-										.setMaxMessages(100)
+										.setMaxMessages(maxMessagesPerPull)
 										.setReturnImmediately(false)
 										.setSubscription(projectSubscriptionName)
 										.build();
@@ -122,10 +122,15 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
+		messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
 		while (isRunning) {
-			messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
 			try {
-				processMessage(sourceContext, messagesFuture.get().getReceivedMessagesList());
+				List<ReceivedMessage> messages = messagesFuture.get().getReceivedMessagesList();
+
+				// start the next pull while processing the current response.
+				messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
+
+				processMessage(sourceContext, messages);
 			} catch (InterruptedException | CancellationException e) {
 				awaitSubscriberTermination();
 				return;
