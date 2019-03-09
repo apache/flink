@@ -77,6 +77,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
+import org.apache.flink.util.StringUtils;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -958,8 +959,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The data stream that represents the data read from the given file as text lines
 	 */
 	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-		Preconditions.checkNotNull(filePath, "The file path must not be null.");
-		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(filePath), "The file path must not be null or blank.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
@@ -1156,8 +1156,7 @@ public abstract class StreamExecutionEnvironment {
 												TypeInformation<OUT> typeInformation) {
 
 		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
-		Preconditions.checkNotNull(filePath, "The file path must not be null.");
-		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(filePath), "The file path must not be null or blank.");
 
 		inputFormat.setFilePath(filePath);
 		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, interval);
