@@ -286,7 +286,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
+		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jid);
 
 		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPool);
 

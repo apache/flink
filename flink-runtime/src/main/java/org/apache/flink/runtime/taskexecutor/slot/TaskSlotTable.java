@@ -205,13 +205,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 			timerService.registerTimeout(allocationId, slotTimeout.getSize(), slotTimeout.getUnit());
 
 			// add this slot to the set of job slots
-			Set<AllocationID> slots = slotsPerJob.get(jobId);
-
-			if (slots == null) {
-				slots = new HashSet<>(4);
-				slotsPerJob.put(jobId, slots);
-			}
-
+			Set<AllocationID> slots = slotsPerJob.computeIfAbsent(jobId, k -> new HashSet<>(4));
 			slots.add(allocationId);
 		}
 
