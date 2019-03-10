@@ -22,19 +22,29 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
  */
+@RunWith(Parameterized.class)
 public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
 
-	@Override
-	protected MemoryStateBackend getStateBackend() throws Exception {
-		return new MemoryStateBackend(useAsyncMode());
+	@Parameterized.Parameters(name = "useAsyncmode")
+	public static List<Boolean> modes() {
+		return Arrays.asList(true, false);
 	}
 
-	protected boolean useAsyncMode() {
-		return false;
+	@Parameterized.Parameter
+	public boolean useAsyncmode;
+
+	@Override
+	protected MemoryStateBackend getStateBackend() {
+		return new MemoryStateBackend(useAsyncmode);
 	}
 
 	@Override
