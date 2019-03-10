@@ -31,6 +31,8 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -58,6 +60,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -393,27 +396,219 @@ public class CheckpointCoordinatorMasterHooksTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testSerializationFailsOnTrigger() {
+	public void testSerializationFailsOnTrigger() throws Exception {
+		final String id1 = "id1";
+
+		final MasterTriggerRestoreHook<String> hook1 = mockGeneric(MasterTriggerRestoreHook.class);
+		when(hook1.getIdentifier()).thenReturn(id1);
+		when(hook1.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class)))
+			.thenReturn(CompletableFuture.completedFuture("state"));
+
+		ExceptionSerializer serializer = new ExceptionSerializer();
+		when(hook1.createCheckpointDataSerializer()).thenReturn(serializer);
+
+		// create the checkpoint coordinator
+		final JobID jid = new JobID();
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		cc.addMasterHook(hook1);
+
+		assertFalse(cc.triggerCheckpoint(System.currentTimeMillis(), false));
 	}
 
 	@Test
-	public void testHookCallFailsOnTrigger() {
+	public void testHookCallFailsOnTrigger() throws Exception {
+		final String id1 = "id1";
+
+		final MasterTriggerRestoreHook<String> hook1 = mockGeneric(MasterTriggerRestoreHook.class);
+		when(hook1.getIdentifier()).thenReturn(id1);
+		when(hook1.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class)))
+			.thenThrow(new IOException("exception."));
+
+		// create the checkpoint coordinator
+		final JobID jid = new JobID();
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		cc.addMasterHook(hook1);
+
+		assertFalse(cc.triggerCheckpoint(System.currentTimeMillis(), false));
 	}
 
 	@Test
-	public void testDeserializationFailsOnRestore() {
+	public void testDeserializationFailsOnRestore() throws Exception {
+		final String id1 = "id1";
+
+		final String state1 = "the-test-string-state";
+		final byte[] state1serialized = new StringSerializer().serialize(state1);
+
+		final List<MasterState> masterHookStates = Arrays.asList(
+			new MasterState(id1, state1serialized, StringSerializer.VERSION));
+
+		final MasterTriggerRestoreHook<String> statefulHook1 = mockGeneric(MasterTriggerRestoreHook.class);
+		when(statefulHook1.getIdentifier()).thenReturn(id1);
+		when(statefulHook1.createCheckpointDataSerializer()).thenReturn(new ExceptionSerializer());
+
+		final JobID jid = new JobID();
+		final long checkpointId = 13L;
+
+		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
+			jid, checkpointId, 123L, 125L,
+			Collections.<OperatorID, OperatorState>emptyMap(),
+			masterHookStates,
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			new TestCompletedCheckpointStorageLocation());
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		cc.addMasterHook(statefulHook1);
+
+		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		try {
+			cc.restoreLatestCheckpointedState(
+				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				true,
+				false);
+			fail();
+		} catch (Exception e) {
+			Throwable t = ExceptionUtils.stripException(e, FlinkException.class);
+			String expectedMessage = "ExceptionSerializer.";
+			assertTrue(t instanceof IOException);
+			assertEquals(expectedMessage, t.getMessage());
+		}
 	}
 
 	@Test
-	public void testHookCallFailsOnRestore() {
+	public void testHookCallFailsOnRestore() throws Exception {
+		final String id1 = "id1";
+
+		final String state1 = "the-test-string-state";
+		final byte[] state1serialized = new StringSerializer().serialize(state1);
+
+		final List<MasterState> masterHookStates = Arrays.asList(
+			new MasterState(id1, state1serialized, StringSerializer.VERSION));
+
+		final MasterTriggerRestoreHook<String> statefulHook1 = mockGeneric(MasterTriggerRestoreHook.class);
+		when(statefulHook1.getIdentifier()).thenReturn(id1);
+		when(statefulHook1.createCheckpointDataSerializer()).thenReturn(new StringSerializer());
+		doThrow(new IOException("restore exception.")).when(statefulHook1).restoreCheckpoint(anyLong(), any(String.class));
+
+		final JobID jid = new JobID();
+		final long checkpointId = 13L;
+
+		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
+			jid, checkpointId, 123L, 125L,
+			Collections.<OperatorID, OperatorState>emptyMap(),
+			masterHookStates,
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			new TestCompletedCheckpointStorageLocation());
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		cc.addMasterHook(statefulHook1);
+
+		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		try {
+			cc.restoreLatestCheckpointedState(
+				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				true,
+				false);
+			fail();
+		} catch (Exception e) {
+			Throwable t = ExceptionUtils.stripException(e, FlinkException.class);
+			assertTrue(t instanceof IOException);
+			String expectedMessage = "restore exception.";
+			assertEquals(expectedMessage, t.getMessage());
+		}
 	}
 
 	@Test
-	public void testTypeIncompatibleWithSerializerOnStore() {
+	public void testTypeIncompatibleWithSerializerOnReStore() throws Exception {
+		final String id1 = "id1";
+
+		final byte[] state1serialized = new StringSerializer().serialize("state_value");
+
+		final List<MasterState> masterHookStates = Arrays.asList(
+			new MasterState(id1, state1serialized, StringSerializer.VERSION));
+
+		final MasterTriggerRestoreHook<Long> statefulHook1 = mockGeneric(MasterTriggerRestoreHook.class);
+		when(statefulHook1.getIdentifier()).thenReturn(id1);
+		when(statefulHook1.createCheckpointDataSerializer()).thenReturn(new LongSerializer());
+
+		final JobID jid = new JobID();
+		final long checkpointId = 13L;
+
+		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
+			jid, checkpointId, 123L, 125L,
+			Collections.<OperatorID, OperatorState>emptyMap(),
+			masterHookStates,
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			new TestCompletedCheckpointStorageLocation());
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		cc.addMasterHook(statefulHook1);
+
+		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		try {
+			cc.restoreLatestCheckpointedState(
+				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				true,
+				false);
+			fail();
+		} catch (Exception e) {
+			Throwable t = ExceptionUtils.stripException(e, FlinkException.class);
+			String expectedMessage = "expected:<5> but was:<77>";
+			assertTrue(t instanceof AssertionError);
+			assertEquals(expectedMessage, t.getMessage());
+		}
 	}
 
 	@Test
-	public void testTypeIncompatibleWithHookOnRestore() {
+	public void testTypeIncompatibleWithHookOnRestore() throws Exception {
+		final String id1 = "id1";
+		final String differentId = "id2";
+
+		final byte[] state1serialized = new StringSerializer().serialize("state_value");
+
+		final List<MasterState> masterHookStates = Arrays.asList(
+			new MasterState(id1, state1serialized, StringSerializer.VERSION));
+
+		final MasterTriggerRestoreHook<String> statefulHook1 = mockGeneric(MasterTriggerRestoreHook.class);
+		when(statefulHook1.getIdentifier()).thenReturn(differentId);
+		when(statefulHook1.createCheckpointDataSerializer()).thenReturn(new StringSerializer());
+
+		final JobID jid = new JobID();
+		final long checkpointId = 13L;
+
+		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
+			jid, checkpointId, 123L, 125L,
+			Collections.<OperatorID, OperatorState>emptyMap(),
+			masterHookStates,
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			new TestCompletedCheckpointStorageLocation());
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		cc.addMasterHook(statefulHook1);
+
+		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		try {
+			cc.restoreLatestCheckpointedState(
+				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				true,
+				false);
+			fail();
+		} catch (Exception e) {
+			assertTrue(e instanceof IllegalStateException);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -469,6 +664,24 @@ public class CheckpointCoordinatorMasterHooksTest {
 		}
 	}
 
+	private static final class ExceptionSerializer implements SimpleVersionedSerializer<String> {
+		static final int VERSION = 77;
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+
+		@Override
+		public byte[] serialize(String checkpointData) throws IOException {
+			throw new IOException("ExceptionSerializer.");
+		}
+
+		@Override
+		public String deserialize(int version, byte[] serialized) throws IOException {
+			throw new IOException("ExceptionSerializer.");
+		}
+	}
 	// ------------------------------------------------------------------------
 
 	private static final class LongSerializer implements SimpleVersionedSerializer<Long> {
