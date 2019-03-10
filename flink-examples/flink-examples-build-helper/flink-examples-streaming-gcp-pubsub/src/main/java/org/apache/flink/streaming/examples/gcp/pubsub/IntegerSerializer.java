@@ -17,9 +17,11 @@
 
 package org.apache.flink.streaming.examples.gcp.pubsub;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
+
+import com.google.pubsub.v1.PubsubMessage;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -28,11 +30,11 @@ import java.math.BigInteger;
  * Deserialization schema to deserialize messages produced by {@link PubSubPublisher}.
  * The byte[] received by this schema must contain a single Integer.
  */
-class IntegerSerializer implements DeserializationSchema<Integer>, SerializationSchema<Integer> {
+class IntegerSerializer implements PubSubDeserializationSchema<Integer>, SerializationSchema<Integer> {
 
 	@Override
-	public Integer deserialize(byte[] bytes) throws IOException {
-		return new BigInteger(bytes).intValue();
+	public Integer deserialize(PubsubMessage message) throws IOException {
+		return new BigInteger(message.getData().toByteArray()).intValue();
 	}
 
 	@Override

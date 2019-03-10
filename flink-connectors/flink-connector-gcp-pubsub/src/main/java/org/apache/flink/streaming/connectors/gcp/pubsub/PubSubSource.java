@@ -19,13 +19,13 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.StoppableFunction;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.util.Preconditions;
 
@@ -58,7 +58,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
 public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, String>
 		implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, StoppableFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
-	protected final DeserializationSchema<OUT> deserializationSchema;
+	protected final PubSubDeserializationSchema<OUT> deserializationSchema;
 	protected final PubSubSubscriberFactory pubSubSubscriberFactory;
 	protected final Credentials credentials;
 	protected final String projectSubscriptionName;
@@ -72,7 +72,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	protected transient volatile boolean isRunning;
 	protected transient volatile ApiFuture<PullResponse> messagesFuture;
 
-	PubSubSource(DeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull) {
+	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull) {
 		super(String.class);
 		this.deserializationSchema = deserializationSchema;
 		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
@@ -140,7 +140,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		awaitSubscriberTermination();
 	}
 
-	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws IOException {
+	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws Exception {
 		synchronized (sourceContext.getCheckpointLock()) {
 			for (ReceivedMessage message : messages) {
 				sessionIds.add(message.getAckId());
@@ -151,7 +151,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 					return;
 				}
 
-				OUT deserializedMessage = deserializeMessage(pubsubMessage);
+				OUT deserializedMessage = deserializationSchema.deserialize(pubsubMessage);
 				if (deserializationSchema.isEndOfStream(deserializedMessage)) {
 					stop();
 					return;
@@ -190,10 +190,6 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 	}
 
-	private OUT deserializeMessage(PubsubMessage message) throws IOException {
-		return deserializationSchema.deserialize(message.getData().toByteArray());
-	}
-
 	@Override
 	public TypeInformation<OUT> getProducedType() {
 		return deserializationSchema.getProducedType();
@@ -215,7 +211,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 	}
 
-	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 		Preconditions.checkNotNull(deserializationSchema);
 		Preconditions.checkNotNull(projectName);
 		Preconditions.checkNotNull(subscriptionName);
@@ -228,7 +224,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	 * @param <OUT> The type of objects which will be read
 	 */
 	public static class PubSubSourceBuilder<OUT> {
-		private final DeserializationSchema<OUT> deserializationSchema;
+		private final PubSubDeserializationSchema<OUT> deserializationSchema;
 		private final String projectName;
 		private final String subscriptionName;
 
@@ -236,7 +232,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		private Credentials credentials;
 		private int maxMessagesPerPull = 100;
 
-		protected PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+		protected PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 			this.deserializationSchema = deserializationSchema;
 			this.projectName = projectName;
 			this.subscriptionName = subscriptionName;

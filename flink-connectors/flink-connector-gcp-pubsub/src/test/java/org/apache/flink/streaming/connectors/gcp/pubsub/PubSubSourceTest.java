@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
 import com.google.api.gax.rpc.UnaryCallable;
@@ -66,7 +66,7 @@ public class PubSubSourceTest {
 	@Mock
 	private org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext<String> sourceContext;
 	@Mock
-	private DeserializationSchema<String> deserializationSchema;
+	private PubSubDeserializationSchema<String> deserializationSchema;
 	@Mock
 	private StreamingRuntimeContext streamingRuntimeContext;
 	@Mock
@@ -123,8 +123,8 @@ public class PubSubSourceTest {
 	@Test
 	public void testProcessMessage() throws Exception {
 		when(deserializationSchema.isEndOfStream(any())).thenReturn(false).thenReturn(false);
-		when(deserializationSchema.deserialize(FIRST_MESSAGE.getBytes())).thenReturn(FIRST_MESSAGE);
-		when(deserializationSchema.deserialize(SECOND_MESSAGE.getBytes())).thenReturn(SECOND_MESSAGE);
+		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
+		when(deserializationSchema.deserialize(pubSubMessage(SECOND_MESSAGE))).thenReturn(SECOND_MESSAGE);
 		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
 
 		pubSubSource.open(null);
@@ -134,11 +134,11 @@ public class PubSubSourceTest {
 		//verify handling messages
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
-		verify(deserializationSchema, times(1)).deserialize(FIRST_MESSAGE.getBytes());
+		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(FIRST_MESSAGE));
 		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
 
 		verify(deserializationSchema, times(1)).isEndOfStream(SECOND_MESSAGE);
-		verify(deserializationSchema, times(1)).deserialize(SECOND_MESSAGE.getBytes());
+		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(SECOND_MESSAGE));
 		verify(sourceContext, times(1)).collect(SECOND_MESSAGE);
 	}
 
@@ -181,7 +181,7 @@ public class PubSubSourceTest {
 		ReceivedMessage message = receivedMessage("ackId", pubSubMessage(FIRST_MESSAGE));
 
 		//Process first message
-		when(deserializationSchema.deserialize(FIRST_MESSAGE.getBytes())).thenReturn(FIRST_MESSAGE);
+		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
 		pubSubSource.processMessage(sourceContext, singletonList(message));
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
@@ -202,7 +202,7 @@ public class PubSubSourceTest {
 		ReceivedMessage message = receivedMessage("ackId", pubSubMessage(FIRST_MESSAGE));
 
 		//Process first message
-		when(deserializationSchema.deserialize(FIRST_MESSAGE.getBytes())).thenReturn(FIRST_MESSAGE);
+		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
 		pubSubSource.processMessage(sourceContext, singletonList(message));
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
@@ -227,7 +227,7 @@ public class PubSubSourceTest {
 
 	@Test
 	public void testStoppingConnectorWhenDeserializationSchemaIndicatesEndOfStream() throws Exception {
-		when(deserializationSchema.deserialize(FIRST_MESSAGE.getBytes())).thenReturn(FIRST_MESSAGE);
+		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
 		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
 		pubSubSource.open(null);
 

@@ -18,10 +18,12 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
 
@@ -32,6 +34,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -107,7 +110,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		}
 	}
 
-	private static class BoundedStringDeserializer extends SimpleStringSchema {
+	private static class BoundedStringDeserializer implements PubSubDeserializationSchema<String> {
 		private final int maxMessage;
 		private int counter;
 
@@ -120,6 +123,16 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		public boolean isEndOfStream(String message) {
 			counter++;
 			return counter > maxMessage;
+		}
+
+		@Override
+		public String deserialize(PubsubMessage message) throws Exception {
+			return message.getData().toString(StandardCharsets.UTF_8);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return Types.STRING;
 		}
 	}
 }
