@@ -65,7 +65,7 @@ import static org.hamcrest.Matchers.isOneOf;
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
-public class JobMasterTriggerSavepointIT extends AbstractTestBase {
+public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
 	private static CountDownLatch invokeLatch;
 
@@ -206,7 +206,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 	/**
 	 * Invokable which calls {@link CountDownLatch#countDown()} on
-	 * {@link JobMasterTriggerSavepointIT#invokeLatch}, and then blocks afterwards.
+	 * {@link JobMasterTriggerSavepointITCase#invokeLatch}, and then blocks afterwards.
 	 */
 	public static class NoOpBlockingInvokable extends AbstractInvokable {
 
