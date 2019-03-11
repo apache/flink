@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import java.io.{ObjectInputStream, ObjectOutputStream}
+import java.io.ObjectInputStream
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
@@ -44,17 +44,10 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
   protected def legacyCbfCode: String = null
 
   def compileCbf(code: String): CanBuildFrom[T, E, T] = {
-
-    import scala.reflect.runtime.universe._
-    import scala.tools.reflect.ToolBox
-
-    val tb = runtimeMirror(Thread.currentThread().getContextClassLoader).mkToolBox()
-    val tree = tb.parse(code)
-    val compiled = tb.compile(tree)
-    val cbf = compiled()
-    cbf.asInstanceOf[CanBuildFrom[T, E, T]]
+    val cl = Thread.currentThread().getContextClassLoader
+    TraversableSerializer.compileCbf(cl, code)
   }
-
+  
   override def duplicate = {
     val duplicateElementSerializer = elementSerializer.duplicate()
     if (duplicateElementSerializer eq elementSerializer) {
@@ -172,4 +165,23 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
   override def snapshotConfiguration(): TraversableSerializerSnapshot[T, E] = {
     new TraversableSerializerSnapshot[T, E](this)
   }
+}
+
+object TraversableSerializer {
+  
+  def compileCbf[T, E](classLoader: ClassLoader, code: String): CanBuildFrom[T, E, T] = {
+    compileCbfInternal(classLoader, code)
+  }
+
+  private def compileCbfInternal[T, E](classLoader: ClassLoader, code: String): CanBuildFrom[T, E, T] = {
+    import scala.reflect.runtime.universe._
+    import scala.tools.reflect.ToolBox
+
+    val tb = runtimeMirror(classLoader).mkToolBox()
+    val tree = tb.parse(code)
+    val compiled = tb.compile(tree)
+    val cbf = compiled()
+    cbf.asInstanceOf[CanBuildFrom[T, E, T]]
+  }
+  
 }
