@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestBase
-import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializer}
-import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest.SimpleCaseClass
+import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerTest.SimpleCaseClass
 
 /**
   * Test [[ScalaCaseClassSerializer]].
@@ -28,29 +29,22 @@ import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTe
 class ScalaCaseClassSerializerTest
     extends SerializerTestBase[SimpleCaseClass] {
 
-  override protected def createSerializer() =
-    new ScalaCaseClassSerializer[SimpleCaseClass](
-      classOf[SimpleCaseClass],
-      Array(StringSerializer.INSTANCE, IntSerializer.INSTANCE)
-    )
+  val serializer = createTypeInformation[SimpleCaseClass]
+    .createSerializer(new ExecutionConfig)
+
+  override protected def createSerializer() = serializer
 
   override protected def getLength = -1
 
   override protected def getTypeClass = classOf[SimpleCaseClass]
 
   override protected def getTestData = Array(
-    SimpleCaseClass("a", 1),
-    SimpleCaseClass("b", -1),
-    SimpleCaseClass("c", 5)
+    SimpleCaseClass("a", 1, Map("a" -> 15)),
+    SimpleCaseClass("b", -1, Map("c" -> "C")),
+    SimpleCaseClass("c", 5, Map("e" -> "f"))
   )
 }
 
 object ScalaCaseClassSerializerTest {
-
-  case class SimpleCaseClass(name: String, var age: Int) {
-
-    def this(name: String) = this(name, 0)
-
-  }
-
+  case class SimpleCaseClass(name: String, var age: Int, genericField: Map[String, Any])
 }
