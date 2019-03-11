@@ -40,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 
 	private static final long serialVersionUID = 1L;
+	public static final int LENGTH_SIZE_IN_BYTES = 4;
 
 	private final int numFields;
 	private final int fixedLengthPartSize;

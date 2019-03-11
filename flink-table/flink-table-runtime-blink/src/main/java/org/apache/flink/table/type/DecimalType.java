@@ -29,6 +29,8 @@ public class DecimalType implements AtomicType {
 
 	public static final int MAX_PRECISION = 38;
 
+	public static final int MAX_COMPACT_PRECISION = 18;
+
 	private final int precision;
 	private final int scale;
 

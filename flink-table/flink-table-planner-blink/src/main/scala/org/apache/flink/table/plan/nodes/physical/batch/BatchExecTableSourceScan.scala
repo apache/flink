@@ -18,46 +18,39 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
+import org.apache.flink.table.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.sources.BatchTableSource
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 
-import scala.collection.JavaConverters._
+import java.util
 
 /**
-  * Flink RelNode which matches along with StreamTransformation.
-  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
-  * the plan translation.
+  * Batch physical RelNode to read data from an external source defined by a [[BatchTableSource]].
   */
-class BatchExecBoundedStreamScan(
+class BatchExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    outputRowType: RelDataType)
-  extends TableScan(cluster, traitSet, table)
-  with BatchPhysicalRel {
+    relOptTable: FlinkRelOptTable)
+  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
+   with BatchPhysicalRel {
 
-  val boundedStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
-
-  override def deriveRowType(): RelDataType = outputRowType
-
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new BatchExecBoundedStreamScan(cluster, traitSet, getTable, getRowType)
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+    new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val rowCnt = mq.getRowCount(this)
+    if (rowCnt == null) {
+      return null
+    }
+    val cpu = 0
     val rowSize = mq.getAverageRowSize(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
+    val size = rowCnt * rowSize
+    planner.getCostFactory.makeCost(rowCnt, cpu, size)
   }
 
 }

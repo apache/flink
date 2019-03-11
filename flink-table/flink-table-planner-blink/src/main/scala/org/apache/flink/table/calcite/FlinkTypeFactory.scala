@@ -327,4 +327,14 @@ object FlinkTypeFactory {
     case _@t =>
       throw new TableException(s"Type is not supported: $t")
   }
+
+  def toInternalRowType(logicalRowType: RelDataType): RowType = {
+    // convert to InternalType
+    val logicalFieldTypes = logicalRowType.getFieldList.asScala map {
+      relDataType => FlinkTypeFactory.toInternalType(relDataType.getType)
+    }
+    // field names
+    val logicalFieldNames = logicalRowType.getFieldNames.asScala
+    new RowType(logicalFieldTypes.toArray[InternalType], logicalFieldNames.toArray)
+  }
 }

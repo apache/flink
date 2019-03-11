@@ -16,44 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.dataview
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
- * Sql date type.
- */
-public class DateType implements AtomicType {
-
-	public static final DateType DATE = new DateType(0, "DateType");
-	public static final DateType INTERVAL_MONTHS = new DateType(1, "IntervalMonths");
-
-	private int id;
-	private String name;
-
-	private DateType(int id, String name) {
-		this.id = id;
-		this.name = name;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		return id == ((DateType) o).id;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = getClass().hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return name;
-	}
+  * Data view specification.
+  */
+trait DataViewSpec {
+  def stateId: String
+  def fieldIndex: Int
+  def dataViewTypeInfo: TypeInformation[_]
+  def getStateDataViewClass(hasNamespace: Boolean): Class[_]
+  def getCreateStateViewCall: String
 }
+
+// TODO port more sub-classes of DataViewSpec

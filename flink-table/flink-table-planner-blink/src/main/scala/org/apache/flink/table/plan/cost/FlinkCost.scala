@@ -302,4 +302,53 @@ object FlinkCost {
   // The ratio to convert network cost into CPU cost.
   val NETWORK_TO_CPU_RATIO = 4.0
 
+  val BASE_CPU_COST: Int = 1
+
+  /**
+    * Hash cpu cost per field (for now we don't distinguish between fields of different types)
+    * involves the cost of the following operations:
+    * compute hash value, probe hash table, walk hash chain and compare with each element,
+    * add to the end of hash chain if no match found
+    */
+  val HASH_CPU_COST: Int = 8 * BASE_CPU_COST
+
+  /**
+    * Serialize and deserialize cost, note it's a very expensive operation
+    */
+  val SERIALIZE_DESERIALIZE_CPU_COST: Int = 160 * BASE_CPU_COST
+
+  /**
+    * Cpu cost of random partition.
+    */
+  val RANDOM_CPU_COST: Int = 1 * BASE_CPU_COST
+
+  /**
+    * Cpu cost of singleton exchange
+    */
+  val SINGLETON_CPU_COST: Int = 1 * BASE_CPU_COST
+
+  /**
+    * Cpu cost of comparing one field with another (ignoring data types for now)
+    */
+  val COMPARE_CPU_COST: Int = 4 * BASE_CPU_COST
+
+  /**
+    * Cpu cost for a function evaluation
+    */
+  val FUNC_CPU_COST: Int = 12 * BASE_CPU_COST
+
+  /**
+    * Cpu cost of range partition, including cost of sample and cost of assign range index
+    */
+  val RANGE_PARTITION_CPU_COST: Int = 12 * BASE_CPU_COST
+
+  /**
+    * Default data size of a worker to process.
+    * Note: only used in estimates cost of RelNode.
+    * It is irrelevant to decides the parallelism of operators.
+    */
+  val SQL_DEFAULT_PARALLELISM_WORKER_PROCESS_SIZE: Int = 1024 * 1024 * 1024
+
+  // we aim for a 200% utilization of the bucket table.
+  val HASH_COLLISION_WEIGHT = 2
 }

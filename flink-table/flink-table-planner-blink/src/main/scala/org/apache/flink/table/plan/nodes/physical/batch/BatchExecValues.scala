@@ -18,46 +18,38 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.schema.DataStreamTable
-
-import org.apache.calcite.plan._
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rex.RexLiteral
 
-import scala.collection.JavaConverters._
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
-  * Flink RelNode which matches along with StreamTransformation.
-  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
-  * the plan translation.
+  * Batch physical RelNode for [[Values]].
   */
-class BatchExecBoundedStreamScan(
+class BatchExecValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
+    tuples: ImmutableList[ImmutableList[RexLiteral]],
     outputRowType: RelDataType)
-  extends TableScan(cluster, traitSet, table)
+  extends Values(cluster, outputRowType, tuples, traitSet)
   with BatchPhysicalRel {
-
-  val boundedStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
   override def deriveRowType(): RelDataType = outputRowType
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new BatchExecBoundedStreamScan(cluster, traitSet, getTable, getRowType)
-  }
-
-  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    val rowCnt = mq.getRowCount(this)
-    val rowSize = mq.getAverageRowSize(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+    new BatchExecValues(cluster, traitSet, getTuples, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
+      .item("values", getRowType.getFieldNames.toList.mkString(", "))
   }
 
 }
+

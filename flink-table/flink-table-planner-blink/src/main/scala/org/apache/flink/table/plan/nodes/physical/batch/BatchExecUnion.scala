@@ -15,49 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.schema.DataStreamTable
-
-import org.apache.calcite.plan._
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 
-import scala.collection.JavaConverters._
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
-  * Flink RelNode which matches along with StreamTransformation.
-  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
-  * the plan translation.
+  * Batch physical RelNode for [[Union]].
   */
-class BatchExecBoundedStreamScan(
+class BatchExecUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
+    inputRels: util.List[RelNode],
+    all: Boolean,
     outputRowType: RelDataType)
-  extends TableScan(cluster, traitSet, table)
+  extends Union(cluster, traitSet, inputRels, all)
   with BatchPhysicalRel {
 
-  val boundedStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
+  require(all, "Only support union all now")
 
   override def deriveRowType(): RelDataType = outputRowType
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new BatchExecBoundedStreamScan(cluster, traitSet, getTable, getRowType)
-  }
-
-  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    val rowCnt = mq.getRowCount(this)
-    val rowSize = mq.getAverageRowSize(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode], all: Boolean): SetOp = {
+    new BatchExecUnion(cluster, traitSet, inputs, all, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
+      .item("union", getRowType.getFieldNames.mkString(", "))
   }
 
 }

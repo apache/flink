@@ -15,23 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink
 
-package org.apache.flink.table.plan.util
+package object table {
 
-import org.apache.flink.api.common.operators.Order
+  type CalcitePair[T, R] = org.apache.calcite.util.Pair[T, R]
 
-import org.apache.calcite.rel.RelFieldCollation.Direction
-
-/**
-  * Common methods for Flink sort operators.
-  */
-object SortUtil {
-
-  def directionToOrder(direction: Direction): Order = {
-    direction match {
-      case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
-      case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
-      case _ => throw new IllegalArgumentException("Unsupported direction.")
-    }
-  }
 }

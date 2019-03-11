@@ -30,6 +30,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
 
 import java.util
+
 import scala.collection.JavaConversions._
 
 /**
@@ -171,7 +172,7 @@ case class VariableRankRange(rankEndIndex: Int) extends RankRange {
 object Rank {
   def sortFieldsToString(collationSort: RelCollation): String = {
     val fieldCollations = collationSort.getFieldCollations
-      .map(c => (c.getFieldIndex, SortUtil.directionToOrder(c.getDirection)))
+      .map(c => (c.getFieldIndex, FlinkRelOptUtil.directionToOrder(c.getDirection)))
 
     fieldCollations.map {
       case (index, order) => s"$$$index ${order.getShortName}"
@@ -180,7 +181,7 @@ object Rank {
 
   def sortFieldsToString(collationSort: RelCollation, inputType: RelDataType): String = {
     val fieldCollations = collationSort.getFieldCollations
-      .map(c => (c.getFieldIndex, SortUtil.directionToOrder(c.getDirection)))
+      .map(c => (c.getFieldIndex, FlinkRelOptUtil.directionToOrder(c.getDirection)))
     val inputFieldNames = inputType.getFieldNames
 
     fieldCollations.map {

@@ -19,9 +19,16 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.type.DecimalType;
+import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.util.SegmentsUtil;
 
 import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -55,12 +62,49 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
 	public static final int HEADER_SIZE_IN_BITS = 8;
 
+	private static final Set<InternalType> MUTABLE_FIELD_TYPES;
+
+	static {
+		MUTABLE_FIELD_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+				InternalTypes.BOOLEAN,
+				InternalTypes.BYTE,
+				InternalTypes.SHORT,
+				InternalTypes.INT,
+				InternalTypes.LONG,
+				InternalTypes.FLOAT,
+				InternalTypes.DOUBLE,
+				InternalTypes.CHAR,
+				InternalTypes.TIMESTAMP,
+				InternalTypes.DATE,
+				InternalTypes.TIME,
+				InternalTypes.INTERVAL_MONTHS,
+				InternalTypes.INTERVAL_MILLIS,
+				InternalTypes.ROWTIME_INDICATOR,
+				InternalTypes.PROCTIME_INDICATOR)));
+	}
+
 	public static int calculateBitSetWidthInBytes(int arity) {
 		return ((arity + 63 + HEADER_SIZE_IN_BITS) / 64) * 8;
 	}
 
 	public static int calculateFixPartSizeInBytes(int arity) {
 		return calculateBitSetWidthInBytes(arity) + 8 * arity;
+	}
+
+	/**
+	 * If it is a fixed-length field, we can call this BinaryRow's setXX method for in-place updates.
+	 * If it is variable-length field, can't use this method, because the underlying data is stored continuously.
+	 */
+	public static boolean isInFixedLengthPart(InternalType type) {
+		if (type instanceof DecimalType) {
+			return ((DecimalType) type).precision() <= DecimalType.MAX_COMPACT_PRECISION;
+		} else {
+			return MUTABLE_FIELD_TYPES.contains(type);
+		}
+	}
+
+	public static boolean isMutable(InternalType type) {
+		return MUTABLE_FIELD_TYPES.contains(type) || type instanceof DecimalType;
 	}
 
 	private final int arity;

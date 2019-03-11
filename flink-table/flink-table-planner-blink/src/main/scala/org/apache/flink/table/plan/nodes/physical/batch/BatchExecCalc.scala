@@ -18,12 +18,30 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
+import org.apache.flink.table.plan.nodes.common.CommonCalc
+
+import org.apache.calcite.plan._
+import org.apache.calcite.rel._
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Calc
+import org.apache.calcite.rex.RexProgram
 
 /**
-  * Base class for batch physical relational expression.
+  * Batch physical RelNode for [[Calc]].
   */
-trait BatchPhysicalRel extends FlinkPhysicalRel {
+class BatchExecCalc(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    inputRel: RelNode,
+    calcProgram: RexProgram,
+    outputRowType: RelDataType)
+  extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
+  with BatchPhysicalRel {
+
+  override def deriveRowType(): RelDataType = outputRowType
+
+  override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
+    new BatchExecCalc(cluster, traitSet, child, program, outputRowType)
+  }
 
 }
-

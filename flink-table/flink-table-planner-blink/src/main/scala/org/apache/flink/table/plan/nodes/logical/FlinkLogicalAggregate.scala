@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.AggregateUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -61,7 +61,7 @@ class FlinkLogicalAggregate(
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    if (getGroupSets.size > 1 || AggregateUtil.getGroupIdExprIndexes(getAggCallList).nonEmpty) {
+    if (getGroupSets.size > 1 || FlinkRelOptUtil.getGroupIdExprIndexes(getAggCallList).nonEmpty) {
       planner.getCostFactory.makeInfiniteCost()
     } else {
       val child = this.getInput
@@ -96,7 +96,7 @@ private class FlinkLogicalAggregateBatchConverter
       case _ => true
     }
 
-    val hasAccurateDistinctCall = AggregateUtil.containsAccurateDistinctCall(agg.getAggCallList)
+    val hasAccurateDistinctCall = FlinkRelOptUtil.containsAccurateDistinctCall(agg.getAggCallList)
 
     !hasAccurateDistinctCall && supported
   }
