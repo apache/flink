@@ -28,8 +28,8 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
-import org.apache.flink.table.typeutils.PagedTypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.After;
@@ -130,7 +130,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 1f);
 		sorter.startThreads();
@@ -164,7 +164,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
@@ -194,7 +194,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				new IntNormalizedKeyComputer() {
 					@Override
 					public boolean isKeyFullyDetermines() {
@@ -236,7 +236,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
@@ -268,7 +268,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				new IntNormalizedKeyComputer() {
 					@Override
 					public boolean invertKey() {
@@ -319,7 +319,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
@@ -351,7 +351,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (PagedTypeSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();

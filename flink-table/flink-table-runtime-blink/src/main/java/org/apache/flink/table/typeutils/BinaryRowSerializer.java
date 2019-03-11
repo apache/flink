@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Serializer for {@link BinaryRow}.
  */
-public class BinaryRowSerializer extends PagedTypeSerializer<BinaryRow> {
+public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -90,6 +90,11 @@ public class BinaryRowSerializer extends PagedTypeSerializer<BinaryRow> {
 	@Override
 	public int getLength() {
 		return -1;
+	}
+
+	@Override
+	public BinaryRow baseRowToBinary(BinaryRow baseRow) throws IOException {
+		return baseRow;
 	}
 
 	@Override

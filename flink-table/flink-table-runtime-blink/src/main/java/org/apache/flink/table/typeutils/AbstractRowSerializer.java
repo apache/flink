@@ -21,13 +21,20 @@ package org.apache.flink.table.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.dataformat.BinaryRow;
 
 import java.io.IOException;
 
 /**
- * Paged serializer, provide paged method.
+ * Row serializer, provided paged serialize paged method.
  */
-public abstract class PagedTypeSerializer<T> extends TypeSerializer<T> {
+public abstract class AbstractRowSerializer<T extends BaseRow> extends TypeSerializer<T> {
+
+	/**
+	 * Convert a {@link BaseRow} to a {@link BinaryRow}.
+	 */
+	public abstract BinaryRow baseRowToBinary(T baseRow) throws IOException;
 
 	/**
 	 * Serializes the given record to the given target paged output view. Make specific implementers decide whether

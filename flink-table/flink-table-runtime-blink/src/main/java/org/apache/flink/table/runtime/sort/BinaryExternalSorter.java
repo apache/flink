@@ -38,8 +38,8 @@ import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
+import org.apache.flink.table.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
-import org.apache.flink.table.typeutils.PagedTypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.slf4j.Logger;
@@ -194,7 +194,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 	public BinaryExternalSorter(
 			final Object owner, MemoryManager memoryManager, long reservedMemorySize,
-			IOManager ioManager, PagedTypeSerializer<BaseRow> inputSerializer,
+			IOManager ioManager, AbstractRowSerializer<BaseRow> inputSerializer,
 			BinaryRowSerializer serializer, NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf) throws IOException {
 		this(owner, memoryManager, reservedMemorySize, ioManager,
@@ -204,7 +204,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 	public BinaryExternalSorter(
 			final Object owner, MemoryManager memoryManager, long reservedMemorySize,
-			IOManager ioManager, PagedTypeSerializer<BaseRow> inputSerializer,
+			IOManager ioManager, AbstractRowSerializer<BaseRow> inputSerializer,
 			BinaryRowSerializer serializer,
 			NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf,

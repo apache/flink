@@ -23,8 +23,8 @@ import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
+import org.apache.flink.table.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
-import org.apache.flink.table.typeutils.PagedTypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.EOFException;
@@ -41,7 +41,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 
-	private PagedTypeSerializer<BaseRow> inputSerializer;
+	private AbstractRowSerializer<BaseRow> inputSerializer;
 	private final ArrayList<MemorySegment> recordBufferSegments;
 	private final SimpleCollectingOutputView recordCollector;
 	private final int totalNumBuffers;
@@ -54,7 +54,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 	 */
 	public static BinaryInMemorySortBuffer createBuffer(
 			NormalizedKeyComputer normalizedKeyComputer,
-			PagedTypeSerializer<BaseRow> inputSerializer,
+			AbstractRowSerializer<BaseRow> inputSerializer,
 			BinaryRowSerializer serializer,
 			RecordComparator comparator,
 			List<MemorySegment> memory) throws IOException {
@@ -70,7 +70,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 
 	private BinaryInMemorySortBuffer(
 			NormalizedKeyComputer normalizedKeyComputer,
-			PagedTypeSerializer<BaseRow> inputSerializer,
+			AbstractRowSerializer<BaseRow> inputSerializer,
 			BinaryRowSerializer serializer,
 			RecordComparator comparator,
 			ArrayList<MemorySegment> recordBufferSegments,

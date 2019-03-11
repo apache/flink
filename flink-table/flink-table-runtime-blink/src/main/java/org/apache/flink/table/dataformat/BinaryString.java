@@ -21,6 +21,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.util.SegmentsUtil;
 
+import java.util.Arrays;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -51,6 +53,14 @@ public class BinaryString extends LazyBinaryFormat<String> implements Comparable
 		super(segments, offset, sizeInBytes, javaObject);
 	}
 
+	/**
+	 * Creates an BinaryString from given address (base and offset) and length.
+	 */
+	public static BinaryString fromAddress(
+			MemorySegment[] segments, int offset, int numBytes) {
+		return new BinaryString(segments, offset, numBytes);
+	}
+
 	public static BinaryString fromString(String str) {
 		if (str == null) {
 			return null;
@@ -62,6 +72,15 @@ public class BinaryString extends LazyBinaryFormat<String> implements Comparable
 	public static BinaryString fromBytes(byte[] bytes) {
 		return new BinaryString(
 				new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+	}
+
+	/**
+	 * Creates an BinaryString that contains `length` spaces.
+	 */
+	public static BinaryString blankString(int length) {
+		byte[] spaces = new byte[length];
+		Arrays.fill(spaces, (byte) ' ');
+		return fromBytes(spaces);
 	}
 
 	public byte getByte(int i) {
@@ -116,6 +135,9 @@ public class BinaryString extends LazyBinaryFormat<String> implements Comparable
 				offset, sizeInBytes, javaObject);
 	}
 
+	/**
+	 * UTF-8 supports bytes comparison.
+	 */
 	@Override
 	public int compareTo(BinaryString other) {
 
@@ -141,13 +163,13 @@ public class BinaryString extends LazyBinaryFormat<String> implements Comparable
 		}
 
 		// if there are multi segments.
-		return compareComplex(other);
+		return compareMultiSegments(other);
 	}
 
 	/**
 	 * Find the boundaries of segments, and then compare MemorySegment.
 	 */
-	private int compareComplex(BinaryString other) {
+	private int compareMultiSegments(BinaryString other) {
 
 		if (sizeInBytes == 0 || other.sizeInBytes == 0) {
 			return sizeInBytes - other.sizeInBytes;

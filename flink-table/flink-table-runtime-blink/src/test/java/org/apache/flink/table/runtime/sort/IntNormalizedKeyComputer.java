@@ -31,7 +31,7 @@ public class IntNormalizedKeyComputer extends org.apache.flink.table.runtime.sor
 
 	@Override
 	public void putKey(BaseRow record, MemorySegment target, int offset) {
-
+		// write first null byte.
 		if (record.isNullAt(0)) {
 			DataFormatUtil.minNormalizedKey(target, offset, 5);
 		} else {
@@ -39,23 +39,22 @@ public class IntNormalizedKeyComputer extends org.apache.flink.table.runtime.sor
 			DataFormatUtil.putIntNormalizedKey(record.getInt(0), target, offset + 1, 4);
 		}
 
+		// revert 4 bytes to compare easier.
 		target.putInt(offset, Integer.reverseBytes(target.getInt(offset)));
-
 	}
 
 	@Override
 	public int compareKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ) {
-
 		int int1 = segI.getInt(offsetI);
 		int int2 = segJ.getInt(offsetJ);
 		if (int1 != int2) {
-			return ((int1 < int2) ^ (int1 < 0) ^ (int2 < 0) ? -1 : 1);
+			return (int1 < int2) ^ (int1 < 0) ^ (int2 < 0) ? -1 : 1;
 		}
 
 		byte byte1 = segI.get(offsetI + 4);
 		byte byte2 = segJ.get(offsetJ + 4);
 		if (byte1 != byte2) {
-			return ((byte1 < byte2) ^ (byte1 < 0) ^ (byte2 < 0) ? -1 : 1);
+			return (byte1 < byte2) ^ (byte1 < 0) ^ (byte2 < 0) ? -1 : 1;
 		}
 		return 0;
 	}

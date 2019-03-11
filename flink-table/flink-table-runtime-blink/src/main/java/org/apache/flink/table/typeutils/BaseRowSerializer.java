@@ -46,7 +46,7 @@ import java.util.Arrays;
 /**
  * Serializer for BaseRow.
  */
-public class BaseRowSerializer extends PagedTypeSerializer<BaseRow> {
+public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 
 	private BinaryRowSerializer binarySerializer;
 	private final InternalType[] types;
@@ -137,6 +137,7 @@ public class BaseRowSerializer extends PagedTypeSerializer<BaseRow> {
 	 * Convert base row to binary row.
 	 * TODO modify it to code gen, and reuse BinaryRow&BinaryRowWriter.
 	 */
+	@Override
 	public BinaryRow baseRowToBinary(BaseRow row) {
 		if (row instanceof BinaryRow) {
 			return (BinaryRow) row;
