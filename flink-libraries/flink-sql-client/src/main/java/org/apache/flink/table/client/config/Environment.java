@@ -258,6 +258,8 @@ public class Environment {
 
 		// enrich deployment properties
 		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
+		
+		enrichedEnv.catalogs = new HashMap<>(env.catalogs);
 
 		validateEnvironment(enrichedEnv);
 
