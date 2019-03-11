@@ -120,7 +120,7 @@ public class CompressedBlockChannelReader
 	private int decompressBuffer(ByteBuffer toRead) throws IOException {
 		try {
 			Buffer buffer;
-			while ((buffer = retBuffers.poll(11000, TimeUnit.MILLISECONDS)) == null) {
+			while ((buffer = retBuffers.poll(1000, TimeUnit.MILLISECONDS)) == null) {
 				if (cause.get() != null) {
 					throw cause.get();
 				}

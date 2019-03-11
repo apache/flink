@@ -22,14 +22,18 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.disk.RandomAccessInputView;
+import org.apache.flink.runtime.io.disk.RandomAccessOutputView;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
+import org.apache.flink.table.typeutils.BinaryRowSerializer;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -156,6 +160,79 @@ public class BinaryRowTest {
 
 			assertEquals(str, row.getString(0).toString());
 			assertEquals(str, row.getString(1).toString());
+		}
+	}
+
+	@Test
+	public void testPagesSer() throws IOException {
+		MemorySegment[] memorySegments = new MemorySegment[5];
+		ArrayList<MemorySegment> memorySegmentList = new ArrayList<>();
+		for (int i = 0; i < 5; i++) {
+			memorySegments[i] = MemorySegmentFactory.wrap(new byte[64]);
+			memorySegmentList.add(memorySegments[i]);
+		}
+
+		{
+			// multi memorySegments
+			String str = "啦啦啦啦啦我是快乐的粉刷匠，啦啦啦啦啦我是快乐的粉刷匠，" +
+					"啦啦啦啦啦我是快乐的粉刷匠。";
+			BinaryRow row = new BinaryRow(1);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeString(0, BinaryString.fromString(str));
+			writer.complete();
+
+			RandomAccessOutputView out = new RandomAccessOutputView(memorySegments, 64);
+			BinaryRowSerializer serializer = new BinaryRowSerializer(1);
+			serializer.serializeToPages(row, out);
+
+			BinaryRow mapRow = serializer.mapFromPages(new RandomAccessInputView(memorySegmentList, 64));
+			writer.reset();
+			writer.writeString(0, mapRow.getString(0));
+			writer.complete();
+			assertEquals(str, row.getString(0).toString());
+
+			BinaryRow deserRow = serializer.deserializeFromPages(new RandomAccessInputView(memorySegmentList, 64));
+			writer.reset();
+			writer.writeString(0, deserRow.getString(0));
+			writer.complete();
+			assertEquals(str, row.getString(0).toString());
+		}
+
+		{
+			// multi memorySegments
+			String str1 = "啦啦啦啦啦我是快乐的粉刷匠，啦啦啦啦啦我是快乐的粉刷匠，" +
+					"啦啦啦啦啦我是快乐的粉刷匠。";
+			String str2 = "啦啦啦啦啦我是快乐的粉刷匠。";
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeString(0, BinaryString.fromString(str1));
+			writer.writeString(1, BinaryString.fromString(str2));
+			writer.complete();
+
+			RandomAccessOutputView out = new RandomAccessOutputView(memorySegments, 64);
+			out.skipBytesToWrite(40);
+			BinaryRowSerializer serializer = new BinaryRowSerializer(2);
+			serializer.serializeToPages(row, out);
+
+			RandomAccessInputView in = new RandomAccessInputView(memorySegmentList, 64);
+			in.skipBytesToRead(40);
+			BinaryRow mapRow = serializer.mapFromPages(in);
+			writer.reset();
+			writer.writeString(0, mapRow.getString(0));
+			writer.writeString(1, mapRow.getString(1));
+			writer.complete();
+			assertEquals(str1, row.getString(0).toString());
+			assertEquals(str2, row.getString(1).toString());
+
+			in = new RandomAccessInputView(memorySegmentList, 64);
+			in.skipBytesToRead(40);
+			BinaryRow deserRow = serializer.deserializeFromPages(in);
+			writer.reset();
+			writer.writeString(0, deserRow.getString(0));
+			writer.writeString(1, deserRow.getString(1));
+			writer.complete();
+			assertEquals(str1, row.getString(0).toString());
+			assertEquals(str2, row.getString(1).toString());
 		}
 	}
 
