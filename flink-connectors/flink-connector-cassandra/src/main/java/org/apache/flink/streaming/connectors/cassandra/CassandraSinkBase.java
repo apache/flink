@@ -67,21 +67,29 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		ClosureCleaner.clean(builder, true);
 	}
 
+	CassandraSinkBase(ClusterBuilder builder, CassandraSinkBaseConfig config, CassandraFailureHandler failureHandler, FutureCallback<V> customCallback) {
+		this(builder, config, failureHandler);
+		Preconditions.checkNotNull(customCallback, "Callback cannot be null");
+		this.callback = customCallback;
+	}
+
 	@Override
 	public void open(Configuration configuration) {
-		this.callback = new FutureCallback<V>() {
-			@Override
-			public void onSuccess(V ignored) {
-				semaphore.release();
-			}
+		if (this.callback == null) {
+			this.callback = new FutureCallback<V>() {
+				@Override
+				public void onSuccess(V ignored) {
+					semaphore.release();
+				}
 
-			@Override
-			public void onFailure(Throwable t) {
-				throwable.compareAndSet(null, t);
-				log.error("Error while sending value.", t);
-				semaphore.release();
-			}
-		};
+				@Override
+				public void onFailure(Throwable t) {
+					throwable.compareAndSet(null, t);
+					log.error("Error while sending value.", t);
+					semaphore.release();
+				}
+			};
+		}
 		this.cluster = builder.getCluster();
 		this.session = createSession();
 
