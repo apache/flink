@@ -504,7 +504,9 @@ public class CoGroupedStreams<T1, T2> {
 		}
 	}
 
-	private static class UnionSerializer<T1, T2> extends TypeSerializer<TaggedUnion<T1, T2>> {
+	@VisibleForTesting
+	@Internal
+	static class UnionSerializer<T1, T2> extends TypeSerializer<TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
 		private final TypeSerializer<T1> oneSerializer;
@@ -522,12 +524,22 @@ public class CoGroupedStreams<T1, T2> {
 
 		@Override
 		public TypeSerializer<TaggedUnion<T1, T2>> duplicate() {
-			return this;
+			TypeSerializer<T1> duplicateOne = oneSerializer.duplicate();
+			TypeSerializer<T2> duplicateTwo = twoSerializer.duplicate();
+
+			// compare reference of nested serializers, if same instances returned, we can reuse
+			// this instance as well
+			if (duplicateOne != oneSerializer || duplicateTwo != twoSerializer) {
+				return new UnionSerializer<>(duplicateOne, duplicateTwo);
+			} else {
+				return this;
+			}
 		}
 
 		@Override
 		public TaggedUnion<T1, T2> createInstance() {
-			return null;
+			//we arbitrarily always create instance of one
+			return TaggedUnion.one(oneSerializer.createInstance());
 		}
 
 		@Override
