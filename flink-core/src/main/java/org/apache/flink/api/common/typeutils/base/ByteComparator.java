@@ -60,7 +60,7 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 
 	@Override
 	public void putNormalizedKey(Byte value, MemorySegment target, int offset, int numBytes) {
-		ComparatorUtil.putByteNormalizedKey(value, target, offset, numBytes);
+		NormalizedKeyUtil.putByteNormalizedKey(value, target, offset, numBytes);
 	}
 
 	@Override

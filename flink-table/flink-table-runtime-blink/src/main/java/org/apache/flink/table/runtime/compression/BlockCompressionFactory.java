@@ -36,7 +36,7 @@ public interface BlockCompressionFactory {
 	 * Name of {@link BlockCompressionFactory}.
 	 */
 	enum CompressionFactoryName {
-		LZ4, BZIP2, GZIP
+		LZ4
 	}
 
 	/**

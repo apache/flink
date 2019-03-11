@@ -59,7 +59,7 @@ public final class ShortComparator extends BasicTypeComparator<Short> {
 
 	@Override
 	public void putNormalizedKey(Short value, MemorySegment target, int offset, int numBytes) {
-		ComparatorUtil.putShortNormalizedKey(value, target, offset, numBytes);
+		NormalizedKeyUtil.putShortNormalizedKey(value, target, offset, numBytes);
 	}
 
 	@Override

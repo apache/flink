@@ -25,7 +25,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * Utilities related to {@link TypeComparator}.
  */
 @Internal
-public class ComparatorUtil {
+public class NormalizedKeyUtil {
 
 	public static void putByteNormalizedKey(byte value, MemorySegment target, int offset, int numBytes) {
 		if (numBytes == 1) {

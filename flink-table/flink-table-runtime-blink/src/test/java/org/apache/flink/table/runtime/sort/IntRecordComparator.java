@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatUtil;
 
 /**
  * Example String {@link RecordComparator}.
@@ -34,7 +33,7 @@ public class IntRecordComparator extends RecordComparator {
 		boolean null0At1 = o1.isNullAt(0);
 		boolean null0At2 = o2.isNullAt(0);
 		int cmp0 = null0At1 && null0At2 ? 0 :
-				(null0At1 ? -1 : (null0At2 ? 1 : DataFormatUtil.compareInt(o1.getInt(0), o2.getInt(0))));
+				(null0At1 ? -1 : (null0At2 ? 1 : Integer.compare(o1.getInt(0), o2.getInt(0))));
 		if (cmp0 != 0) {
 			return cmp0;
 		}

@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.dataformat;
+package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.Decimal;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,9 +31,9 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * Test for {@link DataFormatUtil}.
+ * Test for {@link SortUtil}.
  */
-public class DataFormatUtilTest {
+public class SortUtilTest {
 
 	@Test
 	public void testNormalizedKey() {
@@ -45,8 +47,8 @@ public class DataFormatUtilTest {
 		}
 
 		{
-			DataFormatUtil.minNormalizedKey(segments[0], 0, 20);
-			DataFormatUtil.maxNormalizedKey(segments[1], 0, 20);
+			SortUtil.minNormalizedKey(segments[0], 0, 20);
+			SortUtil.maxNormalizedKey(segments[1], 0, 20);
 			for (int i = 0; i < len; i++) {
 				byte[] rndBytes = new byte[20];
 				random.nextBytes(rndBytes);
@@ -60,11 +62,11 @@ public class DataFormatUtilTest {
 			Decimal[] arr = new Decimal[len];
 			for (int i = 0; i < len; i++) {
 				arr[i] = Decimal.fromBigDecimal(new BigDecimal(random.nextInt()), 18, 0);
-				DataFormatUtil.putDecimalNormalizedKey(arr[i], segments[i], 0, 8);
+				SortUtil.putDecimalNormalizedKey(arr[i], segments[i], 0, 8);
 			}
 			Arrays.sort(arr, Decimal::compareTo);
 			for (int i = 0; i < len; i++) {
-				DataFormatUtil.putDecimalNormalizedKey(arr[i], compareSegs[i], 0, 8);
+				SortUtil.putDecimalNormalizedKey(arr[i], compareSegs[i], 0, 8);
 			}
 
 			Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));
@@ -77,12 +79,12 @@ public class DataFormatUtilTest {
 			Float[] arr = new Float[len];
 			for (int i = 0; i < len; i++) {
 				arr[i] = random.nextFloat();
-				DataFormatUtil.putFloatNormalizedKey(arr[i], segments[i], 0, 4);
+				SortUtil.putFloatNormalizedKey(arr[i], segments[i], 0, 4);
 			}
 
 			Arrays.sort(arr, Float::compareTo);
 			for (int i = 0; i < len; i++) {
-				DataFormatUtil.putFloatNormalizedKey(arr[i], compareSegs[i], 0, 4);
+				SortUtil.putFloatNormalizedKey(arr[i], compareSegs[i], 0, 4);
 			}
 
 			Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 4));
@@ -95,12 +97,12 @@ public class DataFormatUtilTest {
 			Double[] arr = new Double[len];
 			for (int i = 0; i < len; i++) {
 				arr[i] = random.nextDouble();
-				DataFormatUtil.putDoubleNormalizedKey(arr[i], segments[i], 0, 8);
+				SortUtil.putDoubleNormalizedKey(arr[i], segments[i], 0, 8);
 			}
 
 			Arrays.sort(arr, Double::compareTo);
 			for (int i = 0; i < len; i++) {
-				DataFormatUtil.putDoubleNormalizedKey(arr[i], compareSegs[i], 0, 8);
+				SortUtil.putDoubleNormalizedKey(arr[i], compareSegs[i], 0, 8);
 			}
 
 			Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));
@@ -113,12 +115,12 @@ public class DataFormatUtilTest {
 			BinaryString[] arr = new BinaryString[len];
 			for (int i = 0; i < len; i++) {
 				arr[i] = BinaryString.fromString(String.valueOf(random.nextLong()));
-				DataFormatUtil.putBinaryStringNormalizedKey(arr[i], segments[i], 0, 8);
+				SortUtil.putBinaryStringNormalizedKey(arr[i], segments[i], 0, 8);
 			}
 
 			Arrays.sort(arr, BinaryString::compareTo);
 			for (int i = 0; i < len; i++) {
-				DataFormatUtil.putBinaryStringNormalizedKey(arr[i], compareSegs[i], 0, 8);
+				SortUtil.putBinaryStringNormalizedKey(arr[i], compareSegs[i], 0, 8);
 			}
 
 			Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));

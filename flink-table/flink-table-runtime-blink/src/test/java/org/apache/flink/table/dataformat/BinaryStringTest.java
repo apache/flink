@@ -19,6 +19,7 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.runtime.sort.SortUtil;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -165,10 +166,10 @@ public class BinaryStringTest {
 
 		MemorySegment segment1 = MemorySegmentFactory.allocateUnpooledSegment(1024);
 		MemorySegment segment2 = MemorySegmentFactory.allocateUnpooledSegment(1024);
-		DataFormatUtil.putBinaryStringNormalizedKey(fromString("abcabcabc"), segment1, 0, 9);
-		DataFormatUtil.putBinaryStringNormalizedKey(fromString("abcabcabC"), segment2, 0, 9);
+		SortUtil.putBinaryStringNormalizedKey(fromString("abcabcabc"), segment1, 0, 9);
+		SortUtil.putBinaryStringNormalizedKey(fromString("abcabcabC"), segment2, 0, 9);
 		assertTrue(segment1.compare(segment2, 0, 0, 9) > 0);
-		DataFormatUtil.putBinaryStringNormalizedKey(fromString("abcab"), segment1, 0, 9);
+		SortUtil.putBinaryStringNormalizedKey(fromString("abcab"), segment1, 0, 9);
 		assertTrue(segment1.compare(segment2, 0, 0, 9) < 0);
 	}
 

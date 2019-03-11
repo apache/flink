@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatUtil;
 
 /**
  * Example for int {@link NormalizedKeyComputer}.
@@ -33,10 +32,10 @@ public class IntNormalizedKeyComputer extends org.apache.flink.table.runtime.sor
 	public void putKey(BaseRow record, MemorySegment target, int offset) {
 		// write first null byte.
 		if (record.isNullAt(0)) {
-			DataFormatUtil.minNormalizedKey(target, offset, 5);
+			SortUtil.minNormalizedKey(target, offset, 5);
 		} else {
 			target.put(offset, (byte) 1);
-			DataFormatUtil.putIntNormalizedKey(record.getInt(0), target, offset + 1, 4);
+			SortUtil.putIntNormalizedKey(record.getInt(0), target, offset + 1, 4);
 		}
 
 		// revert 4 bytes to compare easier.
