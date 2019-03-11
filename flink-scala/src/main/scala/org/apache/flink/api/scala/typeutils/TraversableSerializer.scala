@@ -18,16 +18,19 @@
 package org.apache.flink.api.scala.typeutils
 
 import java.io.ObjectInputStream
+import java.util.concurrent.Callable
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.shaded.guava18.com.google.common.cache.{Cache, CacheBuilder}
 
 import scala.collection.generic.CanBuildFrom
+import scala.ref.WeakReference
 
 /**
- * Serializer for Scala Collections.
- */
+  * Serializer for Scala Collections.
+  */
 @Internal
 @SerialVersionUID(7522917416391312410L)
 class TraversableSerializer[T <: TraversableOnce[E], E](
@@ -47,7 +50,7 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
     val cl = Thread.currentThread().getContextClassLoader
     TraversableSerializer.compileCbf(cl, code)
   }
-  
+
   override def duplicate = {
     val duplicateElementSerializer = elementSerializer.duplicate()
     if (duplicateElementSerializer eq elementSerializer) {
@@ -168,20 +171,67 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
 }
 
 object TraversableSerializer {
-  
-  def compileCbf[T, E](classLoader: ClassLoader, code: String): CanBuildFrom[T, E, T] = {
-    compileCbfInternal(classLoader, code)
+
+  private val CACHE: Cache[Key, CanBuildFrom[_, _, _]] = CacheBuilder.newBuilder()
+    .weakValues()
+    .maximumSize(128)
+    .build()
+
+  def compileCbf[T, E](classLoader: ClassLoader, cbfCode: String): CanBuildFrom[T, E, T] = {
+    val key = Key(classLoader, cbfCode)
+
+    CACHE
+      .get(key, LazyRuntimeCompiler(classLoader, cbfCode))
+      .asInstanceOf[CanBuildFrom[T, E, T]]
   }
 
-  private def compileCbfInternal[T, E](classLoader: ClassLoader, code: String): CanBuildFrom[T, E, T] = {
-    import scala.reflect.runtime.universe._
-    import scala.tools.reflect.ToolBox
+  object Key {
 
-    val tb = runtimeMirror(classLoader).mkToolBox()
-    val tree = tb.parse(code)
-    val compiled = tb.compile(tree)
-    val cbf = compiled()
-    cbf.asInstanceOf[CanBuildFrom[T, E, T]]
+    def apply(classLoader: ClassLoader, cbfCode: String): Key = {
+      val hashCode = System.identityHashCode(classLoader)
+      val weakReference = WeakReference(classLoader)
+      Key(hashCode, weakReference, cbfCode)
+    }
   }
-  
+
+  case class Key(classLoaderHash: Int,
+                 classLoaderRef: WeakReference[ClassLoader],
+                 cbfCode: String) {
+
+    override def hashCode(): Int = classLoaderHash * 37 + cbfCode.hashCode
+
+    override def equals(obj: Any): Boolean = {
+      obj match {
+        case Key(thatHashCode, thatClassLoaderRef, thatCbfCode) => 
+          (this.classLoaderHash == thatHashCode) && 
+          (this.classLoaderRef.get == thatClassLoaderRef.get) &&
+          (this.cbfCode == thatCbfCode)
+        
+        case _ =>
+          false
+      }
+    }
+  }
+
+  private case class LazyRuntimeCompiler[T, E](classLoader: ClassLoader,
+                                               code: String)
+    extends Callable[CanBuildFrom[T, E, T]] {
+
+    override def call(): CanBuildFrom[T, E, T] = compileCbfInternal(classLoader, code)
+
+    private def compileCbfInternal(classLoader: ClassLoader, code: String):
+    CanBuildFrom[T, E, T] = {
+
+      import scala.reflect.runtime.universe._
+      import scala.tools.reflect.ToolBox
+
+      val tb = runtimeMirror(classLoader).mkToolBox()
+      val tree = tb.parse(code)
+      val compiled = tb.compile(tree)
+      val cbf = compiled()
+      cbf.asInstanceOf[CanBuildFrom[T, E, T]]
+    }
+  }
+
 }
+
