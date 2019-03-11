@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
+import org.apache.flink.table.plan.util.FlinkRelMdUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -77,7 +78,7 @@ abstract class BatchExecHashAggregateBase(
       // TODO use BytesHashMap.BUCKET_SIZE instead of 16
       val bucketSize = ndvOfGroupKey * 16 / HASH_COLLISION_WEIGHT
       // TODO use BytesHashMap.RECORD_EXTRA_LENGTH instead of 8
-      val recordSize = ndvOfGroupKey * (BatchPhysicalRel.binaryRowAverageSize(this) + 8)
+      val recordSize = ndvOfGroupKey * (FlinkRelMdUtil.binaryRowAverageSize(this) + 8)
       bucketSize + recordSize
     }
     val cpuCost = hashCpuCost + aggFunctionCpuCost

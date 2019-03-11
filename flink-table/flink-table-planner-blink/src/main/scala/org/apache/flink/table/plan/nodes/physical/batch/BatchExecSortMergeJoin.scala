@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -96,10 +96,10 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
     // assume memory is big enough, so sort process and mergeJoin process will not spill to disk.
     var sortMemCost = 0D
     if (!leftSorted) {
-      sortMemCost += BatchPhysicalRel.computeSortMemory(mq, getLeft)
+      sortMemCost += FlinkRelMdUtil.computeSortMemory(mq, getLeft)
     }
     if (!rightSorted) {
-      sortMemCost += BatchPhysicalRel.computeSortMemory(mq, getRight)
+      sortMemCost += FlinkRelMdUtil.computeSortMemory(mq, getRight)
     }
     val rowCount = mq.getRowCount(this)
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)

@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
 import org.apache.flink.table.typeutils.BinaryRowSerializer
 
 import org.apache.calcite.plan._
@@ -67,9 +67,9 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
     // count in network cost of Exchange node before build size child here
     val cpuCost = FlinkCost.HASH_CPU_COST * (leftRowCnt + rightRowCnt)
     val (buildRowCount, buildRowSize) = if (leftIsBuild) {
-      (leftRowCnt, BatchPhysicalRel.binaryRowAverageSize(getLeft))
+      (leftRowCnt, FlinkRelMdUtil.binaryRowAverageSize(getLeft))
     } else {
-      (rightRowCnt,  BatchPhysicalRel.binaryRowAverageSize(getRight))
+      (rightRowCnt,  FlinkRelMdUtil.binaryRowAverageSize(getRight))
     }
     // We aim for a 200% utilization of the bucket table when all the partition buffers are full.
     // TODO use BinaryHashBucketArea.RECORD_BYTES instead of 8

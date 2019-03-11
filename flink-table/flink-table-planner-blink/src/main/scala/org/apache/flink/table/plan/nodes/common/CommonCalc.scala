@@ -40,7 +40,6 @@ abstract class CommonCalc(
   extends Calc(cluster, traitSet, input, calcProgram)
   with FlinkRelNode {
 
-
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val calcProgram = getProgram
     // compute number of expressions that do not access a field or literal, i.e. computations,

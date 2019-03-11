@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -66,7 +66,7 @@ class BatchExecSort(
     val numOfSortKeys = collations.getFieldCollations.size()
     val cpuCost = FlinkCost.COMPARE_CPU_COST * numOfSortKeys *
       rowCount * Math.max(Math.log(rowCount), 1.0)
-    val memCost = BatchPhysicalRel.computeSortMemory(mq, getInput)
+    val memCost = FlinkRelMdUtil.computeSortMemory(mq, getInput)
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
