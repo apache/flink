@@ -22,7 +22,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 
 /**
-  * A over-window specification.
+  * An over window specification.
   *
   * Similar to SQL, over window aggregates compute an aggregate for each input row over a range
   * of its neighboring rows.
@@ -62,11 +62,11 @@ class OverWindowPartitioned(partitionBy: Seq[Expression]) {
     *
     * For batch tables, refer to a timestamp or long attribute.
     *
-    * @param orderByExpr field reference
+    * @param orderBy field reference
     * @return an over window with defined order
     */
-  def orderBy(orderByExpr: String): OverWindowPartitionedOrdered = {
-    orderBy(ExpressionParser.parseExpression(orderByExpr))
+  def orderBy(orderBy: String): OverWindowPartitionedOrdered = {
+    this.orderBy(ExpressionParser.parseExpression(orderBy))
   }
 
   /**
@@ -93,11 +93,11 @@ class OverWindowPartitionedOrdered(partitionBy: Seq[Expression], orderBy: Expres
   /**
     * Set the preceding offset (based on time or row-count intervals) for over window.
     *
-    * @param precedingExpr preceding offset relative to the current row.
+    * @param preceding preceding offset relative to the current row.
     * @return an over window with defined preceding
     */
-  def preceding(precedingExpr: String): OverWindowPartitionedOrderedPreceding = {
-    preceding(ExpressionParser.parseExpression(precedingExpr))
+  def preceding(preceding: String): OverWindowPartitionedOrderedPreceding = {
+    this.preceding(ExpressionParser.parseExpression(preceding))
   }
 
   /**
@@ -160,11 +160,11 @@ class OverWindowPartitionedOrderedPreceding(
   /**
     * Set the following offset (based on time or row-count intervals) for over window.
     *
-    * @param followingExpr following offset that relative to the current row.
+    * @param following following offset that relative to the current row.
     * @return an over window with defined following
     */
-  def following(followingExpr: String): OverWindowPartitionedOrderedPreceding = {
-    following(ExpressionParser.parseExpression(followingExpr))
+  def following(following: String): OverWindowPartitionedOrderedPreceding = {
+    this.following(ExpressionParser.parseExpression(following))
   }
 
   /**
@@ -184,16 +184,16 @@ class OverWindowPartitionedOrderedPreceding(
 // ------------------------------------------------------------------------------------------------
 
 /**
-  * A group-window specification.
+  * A group window specification.
   *
-  * Group-windows group rows based on time or row-count intervals and is therefore essentially a
-  * special type of groupBy. Just like groupBy, group-windows allow to compute aggregates
+  * Group windows group rows based on time or row-count intervals and is therefore essentially a
+  * special type of groupBy. Just like groupBy, group windows allow to compute aggregates
   * on groups of elements.
   *
   * Infinite streaming tables can only be grouped into time or row intervals. Hence window grouping
   * is required to apply aggregations on streaming tables.
   *
-  * For finite batch tables, group-windows provide shortcuts for time-based groupBy.
+  * For finite batch tables, group windows provide shortcuts for time-based groupBy.
   */
 abstract class Window(val alias: Expression, val timeField: Expression) {
 

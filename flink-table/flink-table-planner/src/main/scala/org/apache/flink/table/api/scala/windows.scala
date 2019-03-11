@@ -102,7 +102,7 @@ object Over {
     * @return an over window with defined order
     */
   def orderBy(orderBy: Expression): OverWindowPartitionedOrdered = {
-    new OverWindowPartitionedOrdered(Seq[Expression](), orderBy)
+    new OverWindowPartitionedOrdered(Seq(), orderBy)
   }
 
   /**
