@@ -21,8 +21,11 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
+import org.apache.flink.table.runtime.sort.BinaryIndexedSortable
+import org.apache.flink.table.typeutils.BinaryRowSerializer
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import scala.collection.JavaConversions._
 
@@ -43,7 +46,7 @@ object BatchPhysicalRel {
     var length = 0d
     columnSizes.zip(binaryType.getFieldTypes).foreach {
       case (columnSize, internalType) =>
-        if (BinaryRow.isFixedLength(internalType)) {
+        if (BinaryRow.isInFixedLengthPart(internalType)) {
           length += 8
         } else {
           if (columnSize == null) {
@@ -58,5 +61,16 @@ object BatchPhysicalRel {
     }
     length += BinaryRow.calculateBitSetWidthInBytes(columnSizes.size())
     length
+  }
+
+  def computeSortMemory(mq: RelMetadataQuery, inputOfSort: RelNode): Double = {
+    //TODO It's hard to make sure that the normalized key's length is accurate in optimized stage.
+    // use SortCodeGenerator.MAX_NORMALIZED_KEY_LEN instead of 16
+    val normalizedKeyBytes = 16
+    val rowCount = mq.getRowCount(inputOfSort)
+    val averageRowSize = BatchPhysicalRel.binaryRowAverageSize(inputOfSort)
+    val recordAreaInBytes = rowCount * (averageRowSize + BinaryRowSerializer.LENGTH_SIZE_IN_BYTES)
+    val indexAreaInBytes = rowCount * (normalizedKeyBytes + BinaryIndexedSortable.OFFSET_LEN)
+    recordAreaInBytes + indexAreaInBytes
   }
 }

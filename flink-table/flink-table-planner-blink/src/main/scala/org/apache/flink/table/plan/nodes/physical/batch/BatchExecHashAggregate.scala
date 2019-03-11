@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -74,10 +74,10 @@ class BatchExecHashAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("isMerge", isMerge)
-      .itemIf("groupBy", RelNodeUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .itemIf("auxGrouping", RelNodeUtil.fieldToString(auxGrouping, inputRowType),
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
+      .itemIf("auxGrouping", RelExplainUtil.fieldToString(auxGrouping, inputRowType),
         auxGrouping.nonEmpty)
-      .item("select", RelNodeUtil.groupAggregationToString(
+      .item("select", RelExplainUtil.groupAggregationToString(
         inputRowType,
         getRowType,
         grouping,

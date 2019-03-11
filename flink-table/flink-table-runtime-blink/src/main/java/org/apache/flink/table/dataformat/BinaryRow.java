@@ -95,7 +95,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	 * If it is a fixed-length field, we can call this BinaryRow's setXX method for in-place updates.
 	 * If it is variable-length field, can't use this method, because the underlying data is stored continuously.
 	 */
-	public static boolean isFixedLength(InternalType type) {
+	public static boolean isInFixedLengthPart(InternalType type) {
 		if (type instanceof DecimalType) {
 			return ((DecimalType) type).precision() <= DecimalType.MAX_COMPACT_PRECISION;
 		} else {

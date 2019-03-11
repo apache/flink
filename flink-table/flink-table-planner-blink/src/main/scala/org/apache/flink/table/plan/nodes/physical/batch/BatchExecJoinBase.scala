@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.FlinkJoinRelType
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -63,8 +63,10 @@ trait BatchExecJoinBase extends Join with BatchPhysicalRel {
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
-    RelNodeUtil.joinExplainTerms(
-      pw, getCondition, flinkJoinType, inputRowType, getRowType, getExpressionString)
+      .item("where",
+        RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
+      .item("join", getRowType.getFieldNames.mkString(", "))
+      .item("joinType", RelExplainUtil.joinTypeToString(flinkJoinType))
   }
 
 }

@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -39,9 +39,8 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
   // true if RHS is sorted by right join key, else false
   val rightSorted: Boolean
 
-
   protected lazy val (leftAllKey, rightAllKey) =
-    RelNodeUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
+    FlinkRelOptUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
 
   protected def isMergeJoinSupportedType(joinRelType: FlinkJoinRelType): Boolean = {
     joinRelType == FlinkJoinRelType.INNER ||
@@ -97,10 +96,10 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
     // assume memory is big enough, so sort process and mergeJoin process will not spill to disk.
     var sortMemCost = 0D
     if (!leftSorted) {
-      sortMemCost += RelNodeUtil.computeSortMemory(mq, getLeft)
+      sortMemCost += BatchPhysicalRel.computeSortMemory(mq, getLeft)
     }
     if (!rightSorted) {
-      sortMemCost += RelNodeUtil.computeSortMemory(mq, getRight)
+      sortMemCost += BatchPhysicalRel.computeSortMemory(mq, getRight)
     }
     val rowCount = mq.getRowCount(this)
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)

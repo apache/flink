@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel._
@@ -48,8 +48,8 @@ class BatchExecLimit(
     fetch)
   with BatchPhysicalRel {
 
-  private lazy val limitStart: Long = RelNodeUtil.getLimitStart(offset)
-  private lazy val limitEnd: Long = RelNodeUtil.getLimitEnd(offset, fetch)
+  private lazy val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
+  private lazy val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -63,7 +63,7 @@ class BatchExecLimit(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
       .item("offset", limitStart)
-      .item("fetch", RelNodeUtil.fetchToString(fetch))
+      .item("fetch", RelExplainUtil.fetchToString(fetch))
       .item("global", isGlobal)
   }
 

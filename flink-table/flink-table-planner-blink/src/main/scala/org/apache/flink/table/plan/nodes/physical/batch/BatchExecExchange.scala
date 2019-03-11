@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.nodes.physical.common.CommonExchange
+import org.apache.flink.table.plan.nodes.common.CommonExchange
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}

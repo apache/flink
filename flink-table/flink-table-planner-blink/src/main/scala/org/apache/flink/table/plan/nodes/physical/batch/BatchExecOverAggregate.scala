@@ -22,7 +22,7 @@ import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -104,16 +104,16 @@ class BatchExecOverAggregate(
     val constants: Seq[RexLiteral] = logicWindow.constants
 
     val writer = super.explainTerms(pw)
-      .itemIf("partitionBy", RelNodeUtil.fieldToString(partitionKeys, outputRowType),
+      .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, outputRowType),
         partitionKeys.nonEmpty)
       .itemIf("orderBy",
-        RelNodeUtil.orderingToString(groups.head.orderKeys.getFieldCollations, outputRowType),
+        RelExplainUtil.orderingToString(groups.head.orderKeys.getFieldCollations, outputRowType),
         orderKeyIndices.nonEmpty)
 
     var offset = inputRowType.getFieldCount
     groups.zipWithIndex.foreach { case (group, index) =>
       val namedAggregates = generateNamedAggregates(group)
-      val select = RelNodeUtil.overAggregationToString(
+      val select = RelExplainUtil.overAggregationToString(
         inputRowType,
         outputRowType,
         constants,
@@ -121,7 +121,7 @@ class BatchExecOverAggregate(
         outputInputName = false,
         rowTypeOffset = offset)
       offset += namedAggregates.size
-      val windowRange = RelNodeUtil.windowRangeToString(logicWindow, group)
+      val windowRange = RelExplainUtil.windowRangeToString(logicWindow, group)
       writer.item("window#" + index, select + windowRange)
     }
     writer.item("select", getRowType.getFieldNames.mkString(", "))

@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.nodes.common.CommonCalc
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexProgram
 
 /**
@@ -36,24 +35,13 @@ class BatchExecCalc(
     inputRel: RelNode,
     calcProgram: RexProgram,
     outputRowType: RelDataType)
-  extends Calc(cluster, traitSet, inputRel, calcProgram)
+  extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
   with BatchPhysicalRel {
 
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new BatchExecCalc(cluster, traitSet, child, program, outputRowType)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val (conditionStr, projectStr) = RelNodeUtil.programToString(calcProgram, getExpressionString)
-    pw.input("input", getInput)
-      .item("select", projectStr)
-      .itemIf("where", conditionStr, calcProgram.getCondition != null)
-  }
-
-  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    RelNodeUtil.computeCalcCost(this, planner, mq)
   }
 
 }

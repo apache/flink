@@ -19,14 +19,13 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.RelNodeUtil
+import org.apache.flink.table.plan.nodes.common.CommonCalc
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexProgram
 
 /**
@@ -38,22 +37,11 @@ class FlinkLogicalCalc(
     traitSet: RelTraitSet,
     input: RelNode,
     calcProgram: RexProgram)
-  extends Calc(cluster, traitSet, input, calcProgram)
+  extends CommonCalc(cluster, traitSet, input, calcProgram)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new FlinkLogicalCalc(cluster, traitSet, child, program)
-  }
-
-  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    RelNodeUtil.computeCalcCost(this, planner, mq)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val (conditionStr, projectStr) = RelNodeUtil.programToString(calcProgram, getExpressionString)
-    pw.input("input", getInput)
-      .item("select", projectStr)
-      .itemIf("where", conditionStr, calcProgram.getCondition != null)
   }
 
 }
