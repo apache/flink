@@ -21,9 +21,9 @@ package org.apache.flink.fs.gcs.common.writer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,14 +37,11 @@ import static org.junit.Assert.assertEquals;
  */
 public class GcsRecoverableFsDataOutputStreamTest {
 
-	private Storage storage;
+	private GoogleHadoopFileSystem ghfs;
 
 	@Before
 	public void beforeTest() throws IOException {
-		this.storage = StorageOptions
-			.newBuilder()
-			.build()
-			.getService();
+		ghfs = new GoogleHadoopFileSystem();
 	}
 
 	@Test
@@ -55,10 +52,10 @@ public class GcsRecoverableFsDataOutputStreamTest {
 		final String payload = "hello world";
 
 		final GcsRecoverableFsDataOutputStream streamUnderTest =
-			new GcsRecoverableFsDataOutputStream(storage, new GcsRecoverable(new Path(path)));
+			new GcsRecoverableFsDataOutputStream(this.ghfs, new GcsRecoverable(new Path(path)));
 		streamUnderTest.write(bytesOf(payload));
 
-		RecoverableFsDataOutputStream.Committer committer = streamUnderTest.closeForCommit();
+		final RecoverableFsDataOutputStream.Committer committer = streamUnderTest.closeForCommit();
 		committer.commit();
 
 		assertEquals(readBucketToEnd(bucket, object), payload);
@@ -68,9 +65,11 @@ public class GcsRecoverableFsDataOutputStreamTest {
 	// Utils
 	// ------------------------------------------------------------------------------------------------------------
 
-	private String readBucketToEnd(String bucket, String object) {
-		Blob blob = storage.get(bucket, object);
-		return new String(blob.getContent(), StandardCharsets.UTF_8);
+	private String readBucketToEnd(String bucket, String object) throws IOException {
+		org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(String.format("gs://%s/%s", bucket, object));
+		try (FSDataInputStream inputStream = ghfs.open(path)) {
+			return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+		}
 	}
 
 	private static byte[] bytesOf(String str) {

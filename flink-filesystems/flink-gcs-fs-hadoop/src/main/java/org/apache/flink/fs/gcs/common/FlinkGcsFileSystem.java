@@ -22,14 +22,10 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gcs.common.writer.GcsRecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 
 /**
@@ -38,22 +34,22 @@ import java.io.IOException;
 public class FlinkGcsFileSystem extends HadoopFileSystem {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkGcsFileSystem.class);
 
-	private final Storage storage;
+	// ------------------- Recoverable Writer Parameters -------------------
+
+	/** The minimum size of a part in the multipart upload, except for the last part: 64 MIBytes. */
+	public static final long GCS_MULTIPART_MIN_PART_SIZE = 64L << 20;
+
+	private final FileSystem hadoopFileSystem;
 
 	FlinkGcsFileSystem(FileSystem hadoopFileSystem) throws IOException {
 		super(hadoopFileSystem);
 
-		this.storage = StorageOptions
-			.newBuilder()
-			.setCredentials(GoogleCredentials.fromStream(new
-				FileInputStream("/Users/fdriesprong/Downloads/bigdata-evaluation-37ca861e9307.json")))
-			.build()
-			.getService();
+		this.hadoopFileSystem = hadoopFileSystem;
 	}
 
 	@Override
 	public RecoverableWriter createRecoverableWriter() {
-		return new GcsRecoverableWriter(this.storage);
+		return new GcsRecoverableWriter(this.hadoopFileSystem);
 	}
 
 }

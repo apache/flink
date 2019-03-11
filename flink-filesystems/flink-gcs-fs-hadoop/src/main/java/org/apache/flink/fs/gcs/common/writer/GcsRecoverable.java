@@ -21,6 +21,7 @@ package org.apache.flink.fs.gcs.common.writer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,27 @@ public class GcsRecoverable implements RecoverableWriter.ResumeRecoverable {
 
 	public int getPos() {
 		return this.pos;
+	}
+
+	public org.apache.hadoop.fs.Path getChunkPath() {
+		return new org.apache.hadoop.fs.Path(
+			String.format(
+				"%s://%s/%s.in-progress.%s",
+				GoogleCloudStorageFileSystem.SCHEME,
+				this.bucketName,
+				this.objectName,
+				this.pos
+			));
+	}
+
+	public org.apache.hadoop.fs.Path getCommitPath() {
+		return new org.apache.hadoop.fs.Path(
+			String.format(
+				"%s://%s/%s",
+				GoogleCloudStorageFileSystem.SCHEME,
+				this.bucketName,
+				this.objectName
+			));
 	}
 
 	@Override

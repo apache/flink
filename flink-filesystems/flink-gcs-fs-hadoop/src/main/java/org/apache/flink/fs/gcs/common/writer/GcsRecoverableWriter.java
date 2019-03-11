@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import com.google.cloud.storage.Storage;
+import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +46,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class GcsRecoverableWriter implements RecoverableWriter {
 	private static final Logger LOG = LoggerFactory.getLogger(GcsRecoverableWriter.class);
 
-	private final Storage storage;
+	private final FileSystem fileSystem;
 
 	@VisibleForTesting
-	public GcsRecoverableWriter(final Storage storage) {
-		this.storage = checkNotNull(storage);
+	public GcsRecoverableWriter(final FileSystem hadoopFileSystem) {
+		this.fileSystem = checkNotNull(hadoopFileSystem);
 	}
 
 	private static GcsRecoverable castToGcsRecoverable(CommitRecoverable recoverable) {
@@ -73,7 +73,7 @@ public class GcsRecoverableWriter implements RecoverableWriter {
 	@Override
 	public RecoverableFsDataOutputStream open(Path path) throws IOException {
 		LOG.info("Open {}", path.toString());
-		return new GcsRecoverableFsDataOutputStream(this.storage, new GcsRecoverable(path));
+		return new GcsRecoverableFsDataOutputStream(this.fileSystem, new GcsRecoverable(path));
 	}
 
 	/**
@@ -94,7 +94,7 @@ public class GcsRecoverableWriter implements RecoverableWriter {
 		LOG.info("Recover {}", resumable.toString());
 
 		return new GcsRecoverableFsDataOutputStream(
-			this.storage,
+			this.fileSystem,
 			castToGcsRecoverable(resumable)
 		);
 	}

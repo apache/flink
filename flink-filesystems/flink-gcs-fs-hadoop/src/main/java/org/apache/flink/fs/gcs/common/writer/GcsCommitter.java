@@ -21,10 +21,14 @@ package org.apache.flink.fs.gcs.common.writer;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
 
@@ -33,8 +37,10 @@ public class GcsCommitter implements RecoverableFsDataOutputStream.Committer {
 	private static final Logger LOG = LoggerFactory.getLogger(GcsCommitter.class);
 
 	private final GcsRecoverable recoverable;
+	private final FileSystem fileSystem;
 
-	public GcsCommitter(GcsRecoverable recoverable) {
+	public GcsCommitter(FileSystem fileSystem, GcsRecoverable recoverable) {
+		this.fileSystem = fileSystem;
 		this.recoverable = recoverable;
 	}
 
@@ -43,8 +49,17 @@ public class GcsCommitter implements RecoverableFsDataOutputStream.Committer {
 	 * as when the committer was created.
 	 */
 	@Override
-	public void commit() {
+	public void commit() throws IOException {
 		LOG.info("Commit: {}", recoverable.toString());
+
+		// Get all the chunks
+		final Path[] parts = IntStream.range(0, this.recoverable.getPos())
+			.mapToObj(pos -> new GcsRecoverable(this.recoverable, pos).getChunkPath())
+			.toArray(Path[]::new);
+
+		LOG.info("Compose on: {} to create {}", Arrays.toString(parts), this.recoverable.getCommitPath());
+
+		this.fileSystem.concat(this.recoverable.getCommitPath(), parts);
 	}
 
 	/**

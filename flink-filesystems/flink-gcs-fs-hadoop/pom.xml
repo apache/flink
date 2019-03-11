@@ -32,11 +32,10 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.gcs.version>1.64.0</fs.gcs.version>
+		<fs.gcs.connector.version>hadoop2-1.9.16</fs.gcs.connector.version>
 	</properties>
 
 	<dependencies>
-
 		<!-- Flink's file system abstraction (only compiled against, not bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -61,55 +60,9 @@ under the License.
 
 		<!-- GCS dependencies (bundled) -->
 		<dependency>
-			<groupId>com.google.cloud</groupId>
-			<artifactId>google-cloud-storage</artifactId>
-			<version>${fs.gcs.version}</version>
-		</dependency>
-
-		<dependency>
 			<groupId>com.google.cloud.bigdataoss</groupId>
 			<artifactId>gcs-connector</artifactId>
-			<version>hadoop2-1.9.16</version>
-		</dependency>
-
-		<!-- for the behavior test suite -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<!-- for the settings that make unshaded tests run -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-fs-hadoop-shaded</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-fs</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
+			<version>${fs.gcs.connector.version}</version>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<!-- this is merely an intermediate build artifact and should not be -->
-			<!-- deployed to maven central                                       -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-deploy-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>
