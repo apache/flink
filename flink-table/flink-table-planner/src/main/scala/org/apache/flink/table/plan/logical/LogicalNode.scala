@@ -87,8 +87,8 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
         // give helpful error message for null literals
         if (a.name == "null") {
           failValidation(s"Cannot resolve field [${a.name}] given input [$from]. If you want to " +
-            s"express a null literal, use 'Null(TYPE)' for typed null expressions. " +
-            s"For example: Null(INT)")
+            s"express a null literal, use 'nullOf(TYPE)' for typed null expressions. " +
+            s"For example: nullOf(INT)")
         } else {
           failValidation(s"Cannot resolve field [${a.name}] given input [$from].")
         }
