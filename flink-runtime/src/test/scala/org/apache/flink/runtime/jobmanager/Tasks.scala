@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter
+import org.apache.flink.runtime.io.network.api.writer.{RecordWriter, RecordWriterBuilder}
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.types.IntValue
 
@@ -35,7 +35,8 @@ object Tasks {
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
       
-      val writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
+      val writer = new RecordWriterBuilder().build(
+        getEnvironment.getWriter(0)).asInstanceOf[RecordWriter[IntValue]]
 
       try {
         while (true) {

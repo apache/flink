@@ -45,6 +45,7 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -2093,7 +2094,7 @@ public class TaskManagerTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			final Object o = new Object();
-			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<IntValue> recordWriter = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
 
 			for (int i = 0; i < 1024; i++) {
 				recordWriter.emit(new IntValue(42));
