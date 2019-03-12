@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.types.IntValue;
 
@@ -44,7 +45,7 @@ public class TestingAbstractInvokables {
 
 		@Override
 		public void invoke() throws Exception {
-			final RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			final RecordWriter<IntValue> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
 
 			try {
 				writer.emit(new IntValue(42));

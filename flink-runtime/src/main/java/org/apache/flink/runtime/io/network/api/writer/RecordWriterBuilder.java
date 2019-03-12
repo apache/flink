@@ -18,30 +18,37 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.core.io.IOReadableWritable;
-
-import java.io.IOException;
-
 /**
- * A special record-oriented runtime result writer only for broadcast mode.
- *
- * <p>The BroadcastRecordWriter extends the {@link RecordWriter} and handles {@link #emit(IOReadableWritable)}
- * operation via {@link #broadcastEmit(IOReadableWritable)} directly in a more efficient way.
- *
- * @param <T> the type of the record that can be emitted with this record writer
+ * Utility class to encapsulate the logic of building a {@link RecordWriter} instance.
  */
-public class BroadcastRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
+public class RecordWriterBuilder {
 
-	BroadcastRecordWriter(
-			ResultPartitionWriter writer,
-			ChannelSelector<T> channelSelector,
-			long timeout,
-			String taskName) {
-		super(writer, channelSelector, timeout, taskName);
+	private ChannelSelector selector = new RoundRobinChannelSelector();
+
+	private long timeout = -1;
+
+	private String taskName = "test";
+
+	public RecordWriterBuilder setChannelSelector(ChannelSelector selector) {
+		this.selector = selector;
+		return this;
 	}
 
-	@Override
-	public void emit(T record) throws IOException, InterruptedException {
-		broadcastEmit(record);
+	public RecordWriterBuilder setTimeout(long timeout) {
+		this.timeout = timeout;
+		return this;
+	}
+
+	public RecordWriterBuilder setTaskName(String taskName) {
+		this.taskName = taskName;
+		return this;
+	}
+
+	public RecordWriter build(ResultPartitionWriter writer) {
+		if (selector.isBroadcast()) {
+			return new BroadcastRecordWriter(writer, selector, timeout, taskName);
+		} else {
+			return new RecordWriter(writer, selector, timeout, taskName);
+		}
 	}
 }

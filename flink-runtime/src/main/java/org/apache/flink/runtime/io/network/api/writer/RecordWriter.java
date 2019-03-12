@@ -87,15 +87,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	/** To avoid synchronization overhead on the critical path, best-effort error tracking is enough here.*/
 	private Throwable flusherException;
 
-	public RecordWriter(ResultPartitionWriter writer) {
-		this(writer, new RoundRobinChannelSelector<T>(), -1, null);
-	}
-
-	public RecordWriter(
-			ResultPartitionWriter writer,
-			ChannelSelector<T> channelSelector,
-			long timeout,
-			String taskName) {
+	RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, long timeout, String taskName) {
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
 		this.numberOfChannels = writer.getNumberOfSubpartitions();
@@ -310,27 +302,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
-	public static RecordWriter createRecordWriter(
-			ResultPartitionWriter writer,
-			ChannelSelector channelSelector,
-			long timeout,
-			String taskName) {
-		if (channelSelector.isBroadcast()) {
-			return new BroadcastRecordWriter<>(writer, channelSelector, timeout, taskName);
-		} else {
-			return new RecordWriter<>(writer, channelSelector, timeout, taskName);
-		}
-	}
-
-	public static RecordWriter createRecordWriter(
-			ResultPartitionWriter writer,
-			ChannelSelector channelSelector,
-			String taskName) {
-		return createRecordWriter(writer, channelSelector, -1, taskName);
-	}
-
 	// ------------------------------------------------------------------------
-
 
 	/**
 	 * A dedicated thread that periodically flushes the output buffers, to set upper latency bounds.
