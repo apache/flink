@@ -84,6 +84,29 @@ public class CliClientTest extends TestLogger {
 		verifySqlCompletion("show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
 	}
 
+	@Test
+	public void testParseMultiLineStatement() throws Exception {
+		String actual = "CREATE   VIEW    MyTable  |        \n AS     SELECT 1+1 FROM y";
+		String expected = "CREATE   VIEW    MyTable   AS     SELECT 1+1 FROM y";
+		verifySqlCombination(actual, expected);
+
+		actual = "CREATE   VIEW    MyTable  |\n AS     SELECT 1+1 FROM y";
+		expected = "CREATE   VIEW    MyTable   AS     SELECT 1+1 FROM y";
+		verifySqlCombination(actual, expected);
+
+		actual = "CREATE   VIEW    MyTable  |\n;";
+		expected = "CREATE   VIEW    MyTable  ;";
+		verifySqlCombination(actual, expected);
+
+		actual = "|\n;";
+		expected = ";";
+		verifySqlCombination(actual, expected);
+
+		actual = "| \n CREATE   VIEW    MyTable  |\n AS     SELECT 1+1 FROM y";
+		expected = " CREATE   VIEW    MyTable   AS     SELECT 1+1 FROM y";
+		verifySqlCombination(actual, expected);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) {
@@ -136,6 +159,37 @@ public class CliClientTest extends TestLogger {
 			results.retainAll(notExpectedHints);
 			assertEquals(0, results.size());
 		}
+	}
+
+	private void verifySqlCombination(String actual, String expected) throws Exception {
+		String[] paritials = actual.split("\n");
+		StringBuilder lineAppender = new StringBuilder();
+
+		int i = 0;
+		while (paritials.length > i) {
+			final String line = paritials[i];
+			i++;
+
+			if (line == null) {
+				continue;
+			}
+
+			boolean waitingNextLine = line.trim().endsWith("|");
+			if (!waitingNextLine) {
+				lineAppender.append(line);
+				assertEquals(expected, lineAppender.toString());
+				lineAppender = new StringBuilder();
+			} else {
+				int idx = line.lastIndexOf("|");
+				if (idx == 0) {
+					continue;
+				} else {
+					String preprocessedLine = line.substring(0, line.lastIndexOf("|"));
+					lineAppender.append(preprocessedLine);
+				}
+			}
+		}
+
 	}
 
 	// --------------------------------------------------------------------------------------------

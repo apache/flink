@@ -64,7 +64,16 @@ Once the CLI has been started, you can use the `HELP` command to list all availa
 SELECT 'Hello World';
 {% endhighlight %}
 
-This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
+This query requires no table source and produces a single row result.
+
+If a single statement is too long such as DDL, the CLI supports splitting it into multi-line mode using "|". E.g:
+
+{% highlight sql %}
+CREATE VIEW MyTable AS |
+SELECT 1+1 FROM y;
+{% endhighlight %}
+
+The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
 
 The CLI supports **two modes** for maintaining and visualizing results.
 

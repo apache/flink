@@ -78,6 +78,8 @@ public class CliClient {
 
 	private static final int SOURCE_MAX_SIZE = 50_000;
 
+	private static final String MULTI_LINE_PIPE_IDENTIFIER = "|";
+
 	/**
 	 * Creates a CLI instance with a custom terminal. Make sure to close the CLI instance
 	 * afterwards using {@link #close()}.
@@ -175,6 +177,8 @@ public class CliClient {
 		// print welcome
 		terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
+		StringBuilder lineAppender = new StringBuilder();
+
 		// begin reading loop
 		while (isRunning) {
 			// make some space to previous command
@@ -196,8 +200,22 @@ public class CliClient {
 			if (line == null) {
 				continue;
 			}
-			final Optional<SqlCommandCall> cmdCall = parseCommand(line);
-			cmdCall.ifPresent(this::callCommand);
+
+			boolean waitingNextLine = line.trim().endsWith(MULTI_LINE_PIPE_IDENTIFIER);
+			if (!waitingNextLine) {
+				lineAppender.append(line);
+				final Optional<SqlCommandCall> cmdCall = parseCommand(lineAppender.toString());
+				cmdCall.ifPresent(this::callCommand);
+				lineAppender = new StringBuilder();
+			} else {
+				int idx = line.lastIndexOf("|");
+				if (idx == 0) {
+					continue;
+				} else {
+					String preprocessedLine = line.substring(0, line.lastIndexOf(MULTI_LINE_PIPE_IDENTIFIER));
+					lineAppender.append(preprocessedLine);
+				}
+			}
 		}
 	}
 
