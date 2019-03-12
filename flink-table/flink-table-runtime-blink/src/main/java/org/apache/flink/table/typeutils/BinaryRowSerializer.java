@@ -70,19 +70,6 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 		return copy(from, new BinaryRow(numFields));
 	}
 
-	/**
-	 * Copy a page binaryRow to output view.
-	 * @param source source paged input view.
-	 * @param target output view.
-	 */
-	public void copyFromPagesToView(
-			AbstractPagedInputView source, DataOutputView target) throws IOException {
-		checkSkipReadForFixLengthPart(source);
-		int length = source.readInt();
-		target.writeInt(length);
-		target.write(source, length);
-	}
-
 	@Override
 	public BinaryRow copy(BinaryRow from, BinaryRow reuse) {
 		return from.copy(reuse);
@@ -94,14 +81,14 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow baseRowToBinary(BinaryRow baseRow) throws IOException {
-		return baseRow;
-	}
-
-	@Override
 	public void serialize(BinaryRow record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
+		SegmentsUtil.copyBytesToView(
+				record.getSegments(),
+				record.getOffset(),
+				record.getSizeInBytes(),
+				target
+		);
 	}
 
 	@Override
@@ -122,17 +109,29 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 
 		int length = source.readInt();
 		if (segments == null || segments[0].size() < length) {
-			segments = new MemorySegment[] {MemorySegmentFactory.wrap(new byte[length])};
+			segments = new MemorySegment[]{MemorySegmentFactory.wrap(new byte[length])};
 		}
 		source.readFully(segments[0].getArray(), 0, length);
 		reuse.pointTo(segments, 0, length);
 		return reuse;
 	}
 
-	// ============================ Pages serializers ===================================
+	@Override
+	public int getArity() {
+		return numFields;
+	}
 
 	@Override
-	public int serializeToPages(BinaryRow record, AbstractPagedOutputView headerLessView) throws IOException {
+	public BinaryRow baseRowToBinary(BinaryRow baseRow) throws IOException {
+		return baseRow;
+	}
+
+	// ============================ Page related operations ===================================
+
+	@Override
+	public int serializeToPages(
+			BinaryRow record,
+			AbstractPagedOutputView headerLessView) throws IOException {
 		checkArgument(headerLessView.getHeaderLength() == 0);
 		int skip = checkSkipWriteForFixLengthPart(headerLessView);
 		serialize(record, headerLessView);
@@ -140,12 +139,15 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow deserializeFromPages(AbstractPagedInputView headerLessView) throws IOException {
+	public BinaryRow deserializeFromPages(
+			AbstractPagedInputView headerLessView) throws IOException {
 		return deserializeFromPages(createInstance(), headerLessView);
 	}
 
 	@Override
-	public BinaryRow deserializeFromPages(BinaryRow reuse, AbstractPagedInputView headerLessView) throws IOException {
+	public BinaryRow deserializeFromPages(
+			BinaryRow reuse,
+			AbstractPagedInputView headerLessView) throws IOException {
 		checkArgument(headerLessView.getHeaderLength() == 0);
 		checkSkipReadForFixLengthPart(headerLessView);
 		return deserialize(reuse, headerLessView);
@@ -157,7 +159,9 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow mapFromPages(BinaryRow reuse, AbstractPagedInputView headerLessView) throws IOException {
+	public BinaryRow mapFromPages(
+			BinaryRow reuse,
+			AbstractPagedInputView headerLessView) throws IOException {
 		checkArgument(headerLessView.getHeaderLength() == 0);
 		checkSkipReadForFixLengthPart(headerLessView);
 		pointTo(headerLessView.readInt(), reuse, headerLessView);
@@ -165,21 +169,39 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	}
 
 	/**
+	 * Copy a binaryRow which stored in paged input view to output view.
+	 *
+	 * @param source source paged input view where the binary row stored
+	 * @param target the target output view.
+	 */
+	public void copyFromPagesToView(
+			AbstractPagedInputView source, DataOutputView target) throws IOException {
+		checkSkipReadForFixLengthPart(source);
+		int length = source.readInt();
+		target.writeInt(length);
+		target.write(source, length);
+	}
+
+	/**
 	 * Point row to memory segments with offset(in the AbstractPagedInputView) and length.
 	 *
-	 * @param length row length.
-	 * @param reuse reuse BinaryRow object.
+	 * @param length         row length.
+	 * @param reuse          reuse BinaryRow object.
 	 * @param headerLessView source memory segments container.
 	 */
-	public void pointTo(int length, BinaryRow reuse, AbstractPagedInputView headerLessView) throws IOException {
+	public void pointTo(int length, BinaryRow reuse, AbstractPagedInputView headerLessView)
+			throws IOException {
 		checkArgument(headerLessView.getHeaderLength() == 0);
 		if (length < 0) {
 			throw new IOException(String.format(
 					"Read unexpected bytes in source of positionInSegment[%d] and limitInSegment[%d]",
-					headerLessView.getCurrentPositionInSegment(), headerLessView.getCurrentSegmentLimit()));
+					headerLessView.getCurrentPositionInSegment(),
+					headerLessView.getCurrentSegmentLimit()
+			));
 		}
 
-		int remainInSegment = headerLessView.getCurrentSegmentLimit() - headerLessView.getCurrentPositionInSegment();
+		int remainInSegment = headerLessView.getCurrentSegmentLimit()
+				- headerLessView.getCurrentPositionInSegment();
 		MemorySegment currSeg = headerLessView.getCurrentSegment();
 		int currPosInSeg = headerLessView.getCurrentPositionInSegment();
 		if (remainInSegment >= length) {
@@ -187,7 +209,14 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 			reuse.pointTo(currSeg, currPosInSeg, length);
 			headerLessView.skipBytesToRead(length);
 		} else {
-			pointToMultiSegments(reuse, headerLessView, length, length - remainInSegment, currSeg, currPosInSeg);
+			pointToMultiSegments(
+					reuse,
+					headerLessView,
+					length,
+					length - remainInSegment,
+					currSeg,
+					currPosInSeg
+			);
 		}
 	}
 
@@ -232,8 +261,7 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 
 	/**
 	 * We need skip bytes to read when the remain bytes of current segment is not
-	 * enough to write binary row fixed part.
-	 * See {@link BinaryRow}.
+	 * enough to write binary row fixed part. See {@link BinaryRow}.
 	 */
 	public void checkSkipReadForFixLengthPart(AbstractPagedInputView source) throws IOException {
 		// skip if there is no enough size.
@@ -248,7 +276,7 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	 * Return fixed part length to serialize one row.
 	 */
 	public int getSerializedRowFixedPartLength() {
-		return getFixedLengthPartSize() + 4; // ADD 4 size length.
+		return getFixedLengthPartSize() + LENGTH_SIZE_IN_BYTES;
 	}
 
 	public int getFixedLengthPartSize() {
@@ -281,7 +309,8 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	/**
 	 * {@link TypeSerializerSnapshot} for {@link BinaryRowSerializer}.
 	 */
-	public static final class BinaryRowSerializerSnapshot implements TypeSerializerSnapshot<BinaryRow> {
+	public static final class BinaryRowSerializerSnapshot
+			implements TypeSerializerSnapshot<BinaryRow> {
 		private static final int CURRENT_VERSION = 3;
 
 		private int previousNumFields;
@@ -306,7 +335,8 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 		}
 
 		@Override
-		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+				throws IOException {
 			this.previousNumFields = in.readInt();
 		}
 
@@ -316,7 +346,8 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 		}
 
 		@Override
-		public TypeSerializerSchemaCompatibility<BinaryRow> resolveSchemaCompatibility(TypeSerializer<BinaryRow> newSerializer) {
+		public TypeSerializerSchemaCompatibility<BinaryRow> resolveSchemaCompatibility(
+				TypeSerializer<BinaryRow> newSerializer) {
 			if (!(newSerializer instanceof BinaryRowSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}

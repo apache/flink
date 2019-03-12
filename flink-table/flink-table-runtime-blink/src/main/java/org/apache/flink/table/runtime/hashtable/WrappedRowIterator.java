@@ -16,36 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.sort;
+package org.apache.flink.table.runtime.hashtable;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.runtime.util.MemorySegmentPool;
+import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.util.RowIterator;
+import org.apache.flink.util.MutableObjectIterator;
 
-import java.util.List;
+import java.io.IOException;
 
 /**
- * Test pool.
+ * Wrap {@link MutableObjectIterator} to java {@link RowIterator}.
  */
-public class TestMemorySegmentPool implements MemorySegmentPool {
+public class WrappedRowIterator<T extends BaseRow> implements RowIterator<T> {
 
-	private int pageSize;
+	private final MutableObjectIterator<T> iterator;
+	private final T reuse;
+	private T instance;
 
-	public TestMemorySegmentPool(int pageSize) {
-		this.pageSize = pageSize;
+	public WrappedRowIterator(MutableObjectIterator<T> iterator, T reuse) {
+		this.iterator = iterator;
+		this.reuse = reuse;
 	}
 
 	@Override
-	public int pageSize() {
-		return pageSize;
+	public boolean advanceNext() {
+		try {
+			this.instance = iterator.next(reuse);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return this.instance != null;
 	}
 
 	@Override
-	public void returnAll(List<MemorySegment> memory) {
-	}
-
-	@Override
-	public MemorySegment nextSegment() {
-		return MemorySegmentFactory.wrap(new byte[pageSize]);
+	public T getRow() {
+		return instance;
 	}
 }

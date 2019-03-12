@@ -16,36 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.sort;
+package org.apache.flink.table.generated;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.runtime.util.MemorySegmentPool;
-
-import java.util.List;
+import org.apache.flink.table.dataformat.BaseRow;
 
 /**
- * Test pool.
+ * Interface for code generated condition function for [[org.apache.calcite.rel.core.Join]].
  */
-public class TestMemorySegmentPool implements MemorySegmentPool {
+public interface JoinCondition {
 
-	private int pageSize;
+	/**
+	 * @return true if the join condition stays true for the joined row (in1, in2)
+	 */
+	boolean apply(BaseRow in1, BaseRow in2);
 
-	public TestMemorySegmentPool(int pageSize) {
-		this.pageSize = pageSize;
-	}
-
-	@Override
-	public int pageSize() {
-		return pageSize;
-	}
-
-	@Override
-	public void returnAll(List<MemorySegment> memory) {
-	}
-
-	@Override
-	public MemorySegment nextSegment() {
-		return MemorySegmentFactory.wrap(new byte[pageSize]);
-	}
 }

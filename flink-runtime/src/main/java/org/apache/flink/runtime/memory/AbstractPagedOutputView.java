@@ -415,4 +415,35 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 			advance();
 		}
 	}
+
+	public void write(MemorySegment segment, int off, int len) throws IOException {
+		int remaining = this.segmentSize - this.positionInSegment;
+		if (remaining >= len) {
+			segment.copyTo(off, currentSegment, positionInSegment, len);
+			this.positionInSegment += len;
+		} else {
+
+			if (remaining == 0) {
+				advance();
+				remaining = this.segmentSize - this.positionInSegment;
+			}
+
+			while (true) {
+				int toPut = Math.min(remaining, len);
+				segment.copyTo(off, currentSegment, positionInSegment, toPut);
+				off += toPut;
+				len -= toPut;
+
+				if (len > 0) {
+					this.positionInSegment = this.segmentSize;
+					advance();
+					remaining = this.segmentSize - this.positionInSegment;
+				}
+				else {
+					this.positionInSegment += toPut;
+					break;
+				}
+			}
+		}
+	}
 }

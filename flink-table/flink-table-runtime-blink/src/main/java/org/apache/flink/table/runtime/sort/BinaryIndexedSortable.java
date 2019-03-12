@@ -241,7 +241,6 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
 			// go through all records in the memory segment
 			for (int offset = 0; currentRecord < numRecords && offset <= this.lastIndexEntryOffset; currentRecord++, offset += this.indexEntrySize) {
 				final long pointer = currentIndexSegment.getLong(offset);
-
 				this.recordBuffer.setReadPosition(pointer);
 				this.serializer.copyFromPagesToView(this.recordBuffer, output);
 			}
