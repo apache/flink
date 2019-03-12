@@ -198,7 +198,7 @@ DataStream<Tuple2<String, Long>> result = keyedEdits
 
         @Override
         public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
-          	return a;
+          	return new Tuple2<>(a.f0 + b.f0, a.f1 + b.f1);
         }
     });
 {% endhighlight %}
@@ -275,7 +275,7 @@ public class WikipediaAnalysis {
 
       	@Override
       	public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
-      	  return a;
+      	  return new Tuple2<>(a.f0 + b.f0, a.f1 + b.f1);
       	}
       });
 
@@ -405,7 +405,7 @@ The output of that command should look similar to this, if everything went accor
 {% endhighlight %}
 
 You can see how the individual operators start running. There are only two, because
-the operations after the window get aggregated into one operation for performance reasons. In Flink
+the operations after the window get folded into one operation for performance reasons. In Flink
 we call this *chaining*.
 
 You can observe the output of the program by inspecting the Kafka topic using the Kafka
