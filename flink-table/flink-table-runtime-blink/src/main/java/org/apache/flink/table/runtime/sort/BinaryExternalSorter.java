@@ -970,7 +970,6 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			// loop as long as the thread is marked alive and we do not see the final currWriteBuffer
 			while (isRunning()) {
 				try {
-					// TODO let cache in memory instead of disk.
 					element = cache.isEmpty() ? queues.spill.take() : cache.poll();
 				} catch (InterruptedException iex) {
 					if (isRunning()) {

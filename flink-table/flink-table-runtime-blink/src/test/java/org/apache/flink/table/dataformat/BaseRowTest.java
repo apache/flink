@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -43,6 +44,7 @@ public class BaseRowTest {
 	private BinaryArray array;
 	private BinaryMap map;
 	private BinaryRow underRow;
+	private byte[] bytes;
 
 	@Before
 	public void before() {
@@ -65,6 +67,7 @@ public class BaseRowTest {
 			writer.writeInt(1, 16);
 			writer.complete();
 		}
+		bytes = new byte[] {1, 5, 6};
 	}
 
 	@Test
@@ -78,11 +81,11 @@ public class BaseRowTest {
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeRow(0, getBinaryRow(), null);
 		writer.complete();
-		testAll(row.getRow(0, 15));
+		testAll(row.getRow(0, 16));
 	}
 
 	private BinaryRow getBinaryRow() {
-		BinaryRow row = new BinaryRow(15);
+		BinaryRow row = new BinaryRow(16);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeBoolean(0, true);
 		writer.writeByte(1, (byte) 1);
@@ -100,12 +103,13 @@ public class BaseRowTest {
 		writer.writeMap(13, map);
 		writer.writeRow(14, underRow, new BaseRowSerializer(
 				new ExecutionConfig(), InternalTypes.INT, InternalTypes.INT));
+		writer.writeBinary(15, bytes);
 		return row;
 	}
 
 	@Test
 	public void testGenericRow() {
-		GenericRow row = new GenericRow(15);
+		GenericRow row = new GenericRow(16);
 		row.setField(0, true);
 		row.setField(1, (byte) 1);
 		row.setField(2, (short) 2);
@@ -121,12 +125,13 @@ public class BaseRowTest {
 		row.setField(12, array);
 		row.setField(13, map);
 		row.setField(14, underRow);
+		row.setField(15, bytes);
 		testAll(row);
 	}
 
 	@Test
 	public void testBoxedWrapperRow() {
-		BoxedWrapperRow row = new BoxedWrapperRow(15);
+		BoxedWrapperRow row = new BoxedWrapperRow(16);
 		row.setBoolean(0, true);
 		row.setByte(1, (byte) 1);
 		row.setShort(2, (short) 2);
@@ -142,6 +147,7 @@ public class BaseRowTest {
 		row.setNonPrimitiveValue(12, array);
 		row.setNonPrimitiveValue(13, map);
 		row.setNonPrimitiveValue(14, underRow);
+		row.setNonPrimitiveValue(15, bytes);
 		testAll(row);
 	}
 
@@ -154,7 +160,7 @@ public class BaseRowTest {
 		row1.setField(3, 3);
 		row1.setField(4, (long) 4);
 
-		GenericRow row2 = new GenericRow(10);
+		GenericRow row2 = new GenericRow(11);
 		row2.setField(0, (float) 5);
 		row2.setField(1, (double) 6);
 		row2.setField(2, (char) 7);
@@ -165,11 +171,12 @@ public class BaseRowTest {
 		row2.setField(7, array);
 		row2.setField(8, map);
 		row2.setField(9, underRow);
+		row2.setField(10, bytes);
 		testAll(new JoinedRow(row1, row2));
 	}
 
 	private void testAll(BaseRow row) {
-		assertEquals(15, row.getArity());
+		assertEquals(16, row.getArity());
 
 		// test header
 		assertEquals(0, row.getHeader());
@@ -193,6 +200,7 @@ public class BaseRowTest {
 		assertEquals(map, row.getMap(13));
 		assertEquals(15, row.getRow(14, 2).getInt(0));
 		assertEquals(16, row.getRow(14, 2).getInt(1));
+		assertArrayEquals(bytes, row.getBinary(15));
 
 		// test set
 		row.setBoolean(0, false);

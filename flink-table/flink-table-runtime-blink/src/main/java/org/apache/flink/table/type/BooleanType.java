@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class BooleanType extends PrimitiveType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final BooleanType INSTANCE = new BooleanType();
 
 	private BooleanType() {}

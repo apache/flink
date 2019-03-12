@@ -30,6 +30,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class GenericType<T> implements AtomicType {
 
+	private static final long serialVersionUID = 1L;
+
 	private final TypeInformation<T> typeInfo;
 
 	private transient TypeSerializer<T> serializer;

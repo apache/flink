@@ -19,11 +19,17 @@
 package org.apache.flink.table.type;
 
 /**
- * Primitive type.
+ * Binary type, It differs from ArrayType(Byte):
+ * 1. Comparisons: Unsigned comparisons, not signed byte comparisons.
+ * 2. Its elements cannot have null values.
  */
-public abstract class PrimitiveType implements AtomicType {
+public class BinaryType implements AtomicType {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final BinaryType INSTANCE = new BinaryType();
+
+	private BinaryType() {}
 
 	@Override
 	public boolean equals(Object o) {
@@ -39,5 +45,4 @@ public abstract class PrimitiveType implements AtomicType {
 	public String toString() {
 		return getClass().getSimpleName();
 	}
-
 }

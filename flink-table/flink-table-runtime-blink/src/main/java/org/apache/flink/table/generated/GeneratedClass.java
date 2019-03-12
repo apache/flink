@@ -49,7 +49,9 @@ public abstract class GeneratedClass<T> implements Serializable {
 	@SuppressWarnings("unchecked")
 	public T newInstance(ClassLoader classLoader) {
 		try {
-			return (T) compile(classLoader).getConstructor(Object[].class).newInstance(references);
+			return (T) compile(classLoader).getConstructor(Object[].class)
+					// newInstance(Object ... initargs)
+					.newInstance(new Object[] {references});
 		} catch (Exception e) {
 			throw new RuntimeException(
 				"Could not instantiate generated class '" + className + "'", e);

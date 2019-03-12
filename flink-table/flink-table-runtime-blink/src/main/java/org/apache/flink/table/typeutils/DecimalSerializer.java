@@ -44,6 +44,14 @@ public final class DecimalSerializer extends TypeSerializer<Decimal> {
 		this.scale = scale;
 	}
 
+	public int getPrecision() {
+		return precision;
+	}
+
+	public int getScale() {
+		return scale;
+	}
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

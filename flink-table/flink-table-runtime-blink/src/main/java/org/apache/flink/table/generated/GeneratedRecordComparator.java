@@ -16,28 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.generated;
+
+import org.apache.flink.table.runtime.sort.RecordComparator;
 
 /**
- * Primitive type.
+ * Describes a generated {@link RecordComparator}.
  */
-public abstract class PrimitiveType implements AtomicType {
+public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> {
 
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o != null && getClass() == o.getClass();
-	}
-
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
+	/**
+	 * Creates a GeneratedRecordComparator.
+	 *
+	 * @param className class name of the generated class.
+	 * @param code code of the generated class.
+	 * @param references referenced objects of the generated class.
+	 */
+	public GeneratedRecordComparator(String className, String code, Object[] references) {
+		super(className, code, references);
 	}
 
 }

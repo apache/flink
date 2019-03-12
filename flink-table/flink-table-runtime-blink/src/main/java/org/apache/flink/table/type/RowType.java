@@ -31,6 +31,8 @@ import java.util.Arrays;
  */
 public class RowType implements InternalType {
 
+	private static final long serialVersionUID = 1L;
+
 	private final InternalType[] types;
 
 	private final String[] fieldNames;

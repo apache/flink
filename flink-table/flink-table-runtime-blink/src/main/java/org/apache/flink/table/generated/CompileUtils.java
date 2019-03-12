@@ -77,6 +77,7 @@ public final class CompileUtils {
 		try {
 			compiler.cook(code);
 		} catch (Throwable t) {
+			System.out.println(addLineNumber(code));
 			throw new InvalidProgramException(
 				"Table program cannot be compiled. This is a bug. Please file an issue.", t);
 		}
@@ -86,5 +87,14 @@ public final class CompileUtils {
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("Can not load class " + name, e);
 		}
+	}
+
+	private static String addLineNumber(String code) {
+		String[] lines = code.split("\n");
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < lines.length; i++) {
+			builder.append(i + 1).append(" ").append(lines[i]).append("\n");
+		}
+		return builder.toString();
 	}
 }

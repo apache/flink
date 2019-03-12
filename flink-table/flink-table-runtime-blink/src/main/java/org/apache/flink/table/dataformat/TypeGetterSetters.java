@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.type.ArrayType;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.GenericType;
@@ -24,6 +25,7 @@ import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.MapType;
 import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.util.SegmentsUtil;
 
 /**
  * Provide type specialized getters and setters to reduce if/else and eliminate box and unbox.
@@ -35,6 +37,9 @@ import org.apache.flink.table.type.RowType;
  * time called.</p>
  */
 public interface TypeGetterSetters {
+
+	long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
+	long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
 
 	/**
 	 * Because the specific row implementation such as BinaryRow uses the binary format. We must
@@ -103,6 +108,11 @@ public interface TypeGetterSetters {
 	 * Get generic value, internal format is BinaryGeneric.
 	 */
 	<T> BinaryGeneric<T> getGeneric(int ordinal);
+
+	/**
+	 * Get binary value, internal format is byte[].
+	 */
+	byte[] getBinary(int ordinal);
 
 	/**
 	 * Get array value, internal format is BinaryArray.
@@ -205,8 +215,45 @@ public interface TypeGetterSetters {
 			return row.getRow(ordinal, ((RowType) type).getArity());
 		} else if (type instanceof GenericType) {
 			return row.getGeneric(ordinal);
+		} else if (type.equals(InternalTypes.BINARY)) {
+			return row.getBinary(ordinal);
 		} else {
 			throw new RuntimeException("Not support type: " + type);
+		}
+	}
+
+	/**
+	 * Get binary, if len less than 8, will be include in variablePartOffsetAndLen.
+	 *
+	 * <p>If len is less than 8, its binary format is:
+	 * 1bit mark(1) = 1, 7bits len, and 7bytes data.
+	 *
+	 * <p>If len is greater or equal to 8, its binary format is:
+	 * 1bit mark(1) = 0, 31bits offset, and 4bytes len.
+	 * Data is stored in variable-length part.
+	 *
+	 * <p>Note: Need to consider the ByteOrder.
+	 *
+	 * @param baseOffset base offset of composite binary format.
+	 * @param fieldOffset absolute start offset of 'variablePartOffsetAndLen'.
+	 * @param variablePartOffsetAndLen a long value, real data or offset and len.
+	 */
+	static byte[] readBinaryFieldFromSegments(
+			MemorySegment[] segments, int baseOffset, int fieldOffset,
+			long variablePartOffsetAndLen) {
+		long mark = variablePartOffsetAndLen & HIGHEST_FIRST_BIT;
+		if (mark == 0) {
+			final int subOffset = (int) (variablePartOffsetAndLen >> 32);
+			final int len = (int) variablePartOffsetAndLen;
+			return SegmentsUtil.copyToBytes(segments, baseOffset + subOffset, len);
+		} else {
+			int len = (int) ((variablePartOffsetAndLen & HIGHEST_SECOND_TO_EIGHTH_BIT) >>> 56);
+			if (SegmentsUtil.LITTLE_ENDIAN) {
+				return SegmentsUtil.copyToBytes(segments, fieldOffset, len);
+			} else {
+				// fieldOffset + 1 to skip header.
+				return SegmentsUtil.copyToBytes(segments, fieldOffset + 1, len);
+			}
 		}
 	}
 }

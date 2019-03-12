@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
 
 import java.io.Serializable;
@@ -32,14 +30,6 @@ import java.util.Comparator;
 public abstract class RecordComparator implements Comparator<BaseRow>, Serializable {
 
 	private static final long serialVersionUID = 1L;
-
-	protected TypeSerializer[] serializers;
-	protected TypeComparator[] comparators;
-
-	public void init(TypeSerializer[] serializers, TypeComparator[] comparators) {
-		this.serializers = serializers;
-		this.comparators = comparators;
-	}
 
 	@Override
 	public abstract int compare(BaseRow o1, BaseRow o2);

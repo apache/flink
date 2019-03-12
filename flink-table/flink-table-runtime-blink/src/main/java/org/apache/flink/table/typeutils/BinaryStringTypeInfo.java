@@ -19,14 +19,16 @@
 package org.apache.flink.table.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BinaryString;
 
 /**
  * TypeInfo for BinaryString.
  */
-public class BinaryStringTypeInfo extends TypeInformation<BinaryString> {
+public class BinaryStringTypeInfo extends TypeInformation<BinaryString> implements AtomicType<BinaryString> {
 
 	public static final BinaryStringTypeInfo INSTANCE = new BinaryStringTypeInfo();
 
@@ -85,5 +87,11 @@ public class BinaryStringTypeInfo extends TypeInformation<BinaryString> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof BinaryStringTypeInfo;
+	}
+
+	@Override
+	public TypeComparator<BinaryString> createComparator(boolean sortOrderAscending,
+			ExecutionConfig executionConfig) {
+		return new BinaryStringComparator(sortOrderAscending);
 	}
 }

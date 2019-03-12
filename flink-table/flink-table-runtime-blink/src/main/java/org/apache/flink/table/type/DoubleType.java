@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class DoubleType extends PrimitiveType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final DoubleType INSTANCE = new DoubleType();
 
 	private DoubleType() {}

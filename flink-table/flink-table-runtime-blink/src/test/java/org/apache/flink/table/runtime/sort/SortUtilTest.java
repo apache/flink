@@ -115,12 +115,12 @@ public class SortUtilTest {
 			BinaryString[] arr = new BinaryString[len];
 			for (int i = 0; i < len; i++) {
 				arr[i] = BinaryString.fromString(String.valueOf(random.nextLong()));
-				SortUtil.putBinaryStringNormalizedKey(arr[i], segments[i], 0, 8);
+				SortUtil.putStringNormalizedKey(arr[i], segments[i], 0, 8);
 			}
 
 			Arrays.sort(arr, BinaryString::compareTo);
 			for (int i = 0; i < len; i++) {
-				SortUtil.putBinaryStringNormalizedKey(arr[i], compareSegs[i], 0, 8);
+				SortUtil.putStringNormalizedKey(arr[i], compareSegs[i], 0, 8);
 			}
 
 			Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));

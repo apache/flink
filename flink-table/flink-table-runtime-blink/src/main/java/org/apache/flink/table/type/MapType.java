@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class MapType implements InternalType {
 
+	private static final long serialVersionUID = 1L;
+
 	private final InternalType keyType;
 	private final InternalType valueType;
 

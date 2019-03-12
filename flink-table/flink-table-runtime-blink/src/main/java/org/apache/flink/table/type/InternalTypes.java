@@ -43,7 +43,7 @@ public class InternalTypes {
 
 	public static final CharType CHAR = CharType.INSTANCE;
 
-	public static final ArrayType BINARY = new ArrayType(BYTE);
+	public static final BinaryType BINARY = BinaryType.INSTANCE;
 
 	public static final DateType DATE = DateType.DATE;
 

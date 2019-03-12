@@ -142,6 +142,16 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	}
 
 	@Override
+	public void writeBinary(int pos, byte[] bytes) {
+		int len = bytes.length;
+		if (len <= 7) {
+			writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
+		} else {
+			writeBytesToVarLenPart(pos, bytes, len);
+		}
+	}
+
+	@Override
 	public void writeDecimal(int pos, Decimal value, int precision) {
 		assert value == null || (value.getPrecision() == precision);
 

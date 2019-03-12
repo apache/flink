@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class ShortType extends PrimitiveType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final ShortType INSTANCE = new ShortType();
 
 	private ShortType() {}

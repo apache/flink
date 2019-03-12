@@ -450,4 +450,18 @@ public class BinaryRowTest {
 		assertEquals(1, nestedRow.getInt(1));
 		assertTrue(row.isNullAt(1));
 	}
+
+	@Test
+	public void testBinary() {
+		BinaryRow row = new BinaryRow(2);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		byte[] bytes1 = new byte[] {1, -1, 5};
+		byte[] bytes2 = new byte[] {1, -1, 5, 5, 1, 5, 1, 5};
+		writer.writeBinary(0, bytes1);
+		writer.writeBinary(1, bytes2);
+		writer.complete();
+
+		Assert.assertArrayEquals(bytes1, row.getBinary(0));
+		Assert.assertArrayEquals(bytes2, row.getBinary(1));
+	}
 }

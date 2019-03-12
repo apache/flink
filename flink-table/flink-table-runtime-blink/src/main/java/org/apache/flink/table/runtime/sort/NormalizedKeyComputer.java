@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.dataformat.BaseRow;
 
@@ -28,14 +26,6 @@ import org.apache.flink.table.dataformat.BaseRow;
  * For performance, subclasses are usually implemented through CodeGenerator.
  */
 public abstract class NormalizedKeyComputer {
-
-	protected TypeSerializer[] serializers;
-	protected TypeComparator[] comparators;
-
-	public void init(TypeSerializer[] serializers, TypeComparator[] comparators) {
-		this.serializers = serializers;
-		this.comparators = comparators;
-	}
 
 	/**
 	 * Writes a normalized key for the given record into the target {@link MemorySegment}.

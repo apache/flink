@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class LongType extends PrimitiveType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final LongType INSTANCE = new LongType();
 
 	private LongType() {}

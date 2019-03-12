@@ -79,4 +79,16 @@ public class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 		int offset = (int) (offsetAndSize >> 32);
 		return new BinaryGeneric<>(segments, offset + baseOffset, size, null);
 	}
+
+	public static <T> T getJavaObjectFromBinaryGeneric(BinaryGeneric<T> value, TypeSerializer<T> ser) {
+		if (value.getJavaObject() == null) {
+			try {
+				value.setJavaObject(InstantiationUtil.deserializeFromByteArray(ser,
+						SegmentsUtil.copyToBytes(value.getSegments(), value.getOffset(), value.getSizeInBytes())));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return value.getJavaObject();
+	}
 }

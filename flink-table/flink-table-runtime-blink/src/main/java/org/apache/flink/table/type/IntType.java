@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class IntType extends PrimitiveType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final IntType INSTANCE = new IntType();
 
 	private IntType() {}

@@ -26,6 +26,7 @@ import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.util.SegmentsUtil;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -501,5 +502,19 @@ public class BinaryArrayTest {
 		assertEquals("1", nestedRow.getString(0).toString());
 		assertEquals(1, nestedRow.getInt(1));
 		assertTrue(array.isNullAt(1));
+	}
+
+	@Test
+	public void testBinary() {
+		BinaryArray array = new BinaryArray();
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+		byte[] bytes1 = new byte[] {1, -1, 5};
+		byte[] bytes2 = new byte[] {1, -1, 5, 5, 1, 5, 1, 5};
+		writer.writeBinary(0, bytes1);
+		writer.writeBinary(1, bytes2);
+		writer.complete();
+
+		Assert.assertArrayEquals(bytes1, array.getBinary(0));
+		Assert.assertArrayEquals(bytes2, array.getBinary(1));
 	}
 }

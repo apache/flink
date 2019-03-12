@@ -23,6 +23,8 @@ import org.apache.flink.table.util.SegmentsUtil;
 
 import java.util.Arrays;
 
+import static org.apache.flink.table.dataformat.TypeGetterSetters.HIGHEST_FIRST_BIT;
+import static org.apache.flink.table.dataformat.TypeGetterSetters.HIGHEST_SECOND_TO_EIGHTH_BIT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -35,9 +37,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * <p>{@code BinaryString} are influenced by Apache Spark UTF8String.
  */
 public class BinaryString extends LazyBinaryFormat<String> implements Comparable<BinaryString> {
-
-	private static final long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
-	private static final long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
 
 	public static final BinaryString EMPTY_UTF8 = BinaryString.fromBytes("".getBytes());
 
