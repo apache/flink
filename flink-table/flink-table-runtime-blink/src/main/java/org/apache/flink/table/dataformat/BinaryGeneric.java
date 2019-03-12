@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
@@ -86,7 +87,7 @@ public class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 				value.setJavaObject(InstantiationUtil.deserializeFromByteArray(ser,
 						SegmentsUtil.copyToBytes(value.getSegments(), value.getOffset(), value.getSizeInBytes())));
 			} catch (IOException e) {
-				throw new RuntimeException(e);
+				throw new FlinkRuntimeException(e);
 			}
 		}
 		return value.getJavaObject();
