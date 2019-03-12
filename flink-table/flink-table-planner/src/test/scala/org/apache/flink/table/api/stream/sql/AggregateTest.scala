@@ -24,13 +24,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.AggFunctionCall
+import org.apache.flink.table.expressions.AggregateFunctionDefinition
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class AggregateTest extends TableTestBase {
 
@@ -63,13 +63,13 @@ class AggregateTest extends TableTestBase {
   @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
     streamUtil.addFunction("udag", new MyAgg)
-    val call = streamUtil
+    val aggFunctionDefinition = streamUtil
       .tableEnv
       .functionCatalog
-      .lookupFunction("udag", Seq())
-      .asInstanceOf[AggFunctionCall]
+      .lookupFunction("udag")
+      .asInstanceOf[AggregateFunctionDefinition]
 
-    val typeInfo = call.accTypeInfo
+    val typeInfo = aggFunctionDefinition.getAccumulatorTypeInfo
     assertTrue(typeInfo.isInstanceOf[CaseClassTypeInfo[_]])
     assertEquals(2, typeInfo.getTotalFields)
     val caseTypeInfo = typeInfo.asInstanceOf[CaseClassTypeInfo[_]]
@@ -77,13 +77,13 @@ class AggregateTest extends TableTestBase {
     assertEquals(Types.LONG, caseTypeInfo.getTypeAt(1))
 
     streamUtil.addFunction("udag2", new MyAgg2)
-    val call2 = streamUtil
+    val aggFunctionDefinition2 = streamUtil
       .tableEnv
       .functionCatalog
-      .lookupFunction("udag2", Seq())
-      .asInstanceOf[AggFunctionCall]
+      .lookupFunction("udag2")
+      .asInstanceOf[AggregateFunctionDefinition]
 
-    val typeInfo2 = call2.accTypeInfo
+    val typeInfo2 = aggFunctionDefinition2.getAccumulatorTypeInfo
     assertTrue(s"actual type: $typeInfo2", typeInfo2.isInstanceOf[RowTypeInfo])
     assertEquals(2, typeInfo2.getTotalFields)
     val rowTypeInfo = typeInfo2.asInstanceOf[RowTypeInfo]

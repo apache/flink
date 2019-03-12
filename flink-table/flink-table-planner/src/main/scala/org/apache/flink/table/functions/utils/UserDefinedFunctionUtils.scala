@@ -769,28 +769,23 @@ object UserDefinedFunctionUtils {
   /**
     * Creates a [[LogicalTableFunctionCall]] by an expression.
     *
-    * @param tableEnv The table environment to lookup the function.
     * @param callExpr an expression of a TableFunctionCall, such as "split(c)"
     * @param logicalNode child logical node
     * @return A LogicalTableFunctionCall.
     */
   def createLogicalFunctionCall(
-      tableEnv: TableEnvironment,
-      callExpr: Expression,
+      callExpr: PlannerExpression,
       logicalNode: LogicalNode)
     : LogicalTableFunctionCall = {
 
     var alias: Option[Seq[String]] = None
 
     // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: Expression): TableFunctionCall = expr match {
+    def unwrap(expr: PlannerExpression): PlannerTableFunctionCall = expr match {
       case Alias(child, name, extraNames) =>
         alias = Some(Seq(name) ++ extraNames)
         unwrap(child)
-      case Call(name, args) =>
-        val function = tableEnv.functionCatalog.lookupFunction(name, args)
-        unwrap(function)
-      case c: TableFunctionCall => c
+      case c: PlannerTableFunctionCall => c
       case _ =>
         throw new TableException(
           "A lateral join only accepts a string expression which defines a table function " +

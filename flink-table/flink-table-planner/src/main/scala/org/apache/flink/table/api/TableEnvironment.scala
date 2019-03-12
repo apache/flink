@@ -81,7 +81,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
-  private[flink] val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
+  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog()
 
   // the configuration to create a Calcite planner
   private lazy val frameworkConfig: FrameworkConfig = Frameworks
@@ -109,6 +109,10 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // registered external catalog names -> catalog
   private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
+
+  // temporary bridge between API and planner
+  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
+    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
@@ -440,14 +444,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    // register in Table API
-
-    functionCatalog.registerFunction(name, function.getClass)
-
-    // register in SQL API
-    functionCatalog.registerSqlFunction(
-      createScalarSqlFunction(name, name, function, typeFactory)
-    )
+    functionCatalog.registerScalarFunction(
+      name,
+      function,
+      typeFactory)
   }
 
   /**
@@ -467,12 +467,11 @@ abstract class TableEnvironment(val config: TableConfig) {
       implicitly[TypeInformation[T]]
     }
 
-    // register in Table API
-    functionCatalog.registerFunction(name, function.getClass)
-
-    // register in SQL API
-    val sqlFunction = createTableSqlFunction(name, name, function, typeInfo, typeFactory)
-    functionCatalog.registerSqlFunction(sqlFunction)
+    functionCatalog.registerTableFunction(
+      name,
+      function,
+      typeInfo,
+      typeFactory)
   }
 
   /**
@@ -494,19 +493,12 @@ abstract class TableEnvironment(val config: TableConfig) {
       function,
       implicitly[TypeInformation[ACC]])
 
-    // register in Table API
-    functionCatalog.registerFunction(name, function.getClass)
-
-    // register in SQL API
-    val sqlFunctions = createAggregateSqlFunction(
-      name,
+    functionCatalog.registerAggregateFunction(
       name,
       function,
       resultTypeInfo,
       accTypeInfo,
       typeFactory)
-
-    functionCatalog.registerSqlFunction(sqlFunctions)
   }
 
   /**

@@ -35,7 +35,7 @@ import java.util.Optional;
  * References that come out of the optimizer are likely to be resolved and typed.
  */
 @PublicEvolving
-public final class FieldReferenceExpression implements CommonExpression {
+public final class FieldReferenceExpression implements Expression {
 
 	private final String name;
 
@@ -60,7 +60,7 @@ public final class FieldReferenceExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

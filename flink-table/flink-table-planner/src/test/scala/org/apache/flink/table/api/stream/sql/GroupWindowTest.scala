@@ -20,7 +20,6 @@ package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
@@ -52,7 +51,7 @@ class GroupWindowTest extends TableTestBase {
             streamTableNode(0),
             term("select", "rowtime", "c", "a")
           ),
-          term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
           term("select",
             "COUNT(*) AS EXPR$0",
               "weightedAvg(c, a) AS wAvg",
@@ -86,7 +85,7 @@ class GroupWindowTest extends TableTestBase {
             streamTableNode(0),
             term("select", "proctime", "c", "a")
           ),
-          term("window", SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)),
+          term("window", "SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)"),
           term("select",
             "COUNT(*) AS EXPR$0",
               "weightedAvg(c, a) AS wAvg",
@@ -121,7 +120,7 @@ class GroupWindowTest extends TableTestBase {
             streamTableNode(0),
             term("select", "proctime", "c", "a")
           ),
-          term("window", SessionGroupWindow('w$, 'proctime, 900000.millis)),
+          term("window", "SessionGroupWindow('w$, 'proctime, 900000.millis)"),
           term("select",
             "COUNT(*) AS EXPR$0",
             "weightedAvg(c, a) AS wAvg",
@@ -153,7 +152,7 @@ class GroupWindowTest extends TableTestBase {
             streamTableNode(0),
             term("select", "rowtime")
           ),
-          term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
           term("select",
             "COUNT(*) AS EXPR$0",
             "start('w$) AS w$start",
@@ -189,7 +188,7 @@ class GroupWindowTest extends TableTestBase {
             streamTableNode(0),
             term("select", "rowtime, a")
           ),
-          term("window", SlidingGroupWindow('w$, 'rowtime, 60000.millis, 900000.millis)),
+          term("window", "SlidingGroupWindow('w$, 'rowtime, 60000.millis, 900000.millis)"),
           term("select",
             "COUNT(*) AS EXPR$0",
             "SUM(a) AS $f1",
@@ -237,7 +236,7 @@ class GroupWindowTest extends TableTestBase {
                 streamTableNode(0),
                 term("select", "rowtime, a")
               ),
-              term("window", TumblingGroupWindow('w$, 'rowtime, 2.millis)),
+              term("window", "TumblingGroupWindow('w$, 'rowtime, 2.millis)"),
               term("select",
                 "COUNT(a) AS a",
                 "start('w$) AS w$start",
@@ -247,7 +246,7 @@ class GroupWindowTest extends TableTestBase {
             ),
             term("select", "a", "w$rowtime AS zzzzz")
           ),
-          term("window", TumblingGroupWindow('w$, 'zzzzz, 4.millis)),
+          term("window", "TumblingGroupWindow('w$, 'zzzzz, 4.millis)"),
           term("select",
             "COUNT(*) AS a",
             "start('w$) AS w$start",
@@ -282,7 +281,7 @@ class GroupWindowTest extends TableTestBase {
             term("select", "rowtime", "c",
               "*(c, c) AS $f2", "*(c, c) AS $f3", "*(c, c) AS $f4", "*(c, c) AS $f5")
           ),
-          term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
           term("select",
             "SUM($f2) AS $f0",
             "SUM(c) AS $f1",

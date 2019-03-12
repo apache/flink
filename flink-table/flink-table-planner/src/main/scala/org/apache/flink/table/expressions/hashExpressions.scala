@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 
-case class Md5(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Md5(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -37,7 +37,7 @@ case class Md5(child: Expression) extends UnaryExpression with InputTypeSpec {
   }
 }
 
-case class Sha1(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Sha1(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -50,7 +50,7 @@ case class Sha1(child: Expression) extends UnaryExpression with InputTypeSpec {
   }
 }
 
-case class Sha224(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Sha224(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -63,7 +63,7 @@ case class Sha224(child: Expression) extends UnaryExpression with InputTypeSpec 
   }
 }
 
-case class Sha256(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Sha256(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -76,7 +76,7 @@ case class Sha256(child: Expression) extends UnaryExpression with InputTypeSpec 
   }
 }
 
-case class Sha384(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Sha384(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -89,7 +89,7 @@ case class Sha384(child: Expression) extends UnaryExpression with InputTypeSpec 
   }
 }
 
-case class Sha512(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Sha512(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -102,7 +102,7 @@ case class Sha512(child: Expression) extends UnaryExpression with InputTypeSpec 
   }
 }
 
-case class Sha2(child: Expression, hashLength: Expression)
+case class Sha2(child: PlannerExpression, hashLength: PlannerExpression)
     extends BinaryExpression with InputTypeSpec {
 
   override private[flink] def left = child

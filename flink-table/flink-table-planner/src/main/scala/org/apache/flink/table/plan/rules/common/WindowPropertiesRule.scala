@@ -105,9 +105,9 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
   }
 
   private def getWindowType(window: LogicalWindow): Symbol = {
-    if (ExpressionUtils.isRowtimeAttribute(window.timeAttribute)) {
+    if (PlannerExpressionUtils.isRowtimeAttribute(window.timeAttribute)) {
       'streamRowtime
-    } else if (ExpressionUtils.isProctimeAttribute(window.timeAttribute)) {
+    } else if (PlannerExpressionUtils.isProctimeAttribute(window.timeAttribute)) {
       'streamProctime
     } else if (window.timeAttribute.resultType == Types.SQL_TIMESTAMP) {
       'batchRowtime

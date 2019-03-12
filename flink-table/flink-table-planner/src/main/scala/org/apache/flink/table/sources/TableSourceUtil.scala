@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Cast, ResolvedFieldReference}
+import org.apache.flink.table.expressions.{Cast, PlannerExpression, ResolvedFieldReference}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
@@ -381,7 +381,9 @@ object TableSourceUtil {
 
       val expression = tsExtractor.getExpression(fieldAccesses)
       // add cast to requested type and convert expression to RexNode
-      val rexExpression = Cast(expression, resultType).toRexNode(relBuilder)
+      // TODO we cast to planner expressions as a temporary solution to keep the old interfaces
+      val rexExpression = Cast(expression.asInstanceOf[PlannerExpression], resultType)
+        .toRexNode(relBuilder)
       relBuilder.clear()
       rexExpression
     }

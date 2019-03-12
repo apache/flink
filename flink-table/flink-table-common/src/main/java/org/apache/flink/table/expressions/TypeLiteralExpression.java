@@ -31,7 +31,7 @@ import java.util.Objects;
  * Expression that wraps {@link TypeInformation} as a literal.
  */
 @PublicEvolving
-public final class TypeLiteralExpression implements CommonExpression {
+public final class TypeLiteralExpression implements Expression {
 
 	private final TypeInformation<?> type;
 
@@ -44,7 +44,7 @@ public final class TypeLiteralExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

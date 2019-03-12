@@ -19,9 +19,9 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{OverWindow, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.logical.{LogicalNode, Project}
+import org.apache.flink.table.plan.logical.{LogicalNode, LogicalOverWindow, Project}
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo
 
 import scala.collection.mutable
@@ -39,19 +39,21 @@ object ProjectionTranslator {
     *         and the second field contains the extracted and deduplicated window properties.
     */
   def extractAggregationsAndProperties(
-      exprs: Seq[Expression],
-      tableEnv: TableEnvironment): (Map[Expression, String], Map[Expression, String]) = {
-    exprs.foldLeft((Map[Expression, String](), Map[Expression, String]())) {
+      exprs: Seq[PlannerExpression],
+      tableEnv: TableEnvironment)
+    : (Map[PlannerExpression, String], Map[PlannerExpression, String]) = {
+    exprs.foldLeft((Map[PlannerExpression, String](), Map[PlannerExpression, String]())) {
       (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
     }
   }
 
   /** Identifies and deduplicates aggregation functions and window properties. */
   private def identifyAggregationsAndProperties(
-      exp: Expression,
+      exp: PlannerExpression,
       tableEnv: TableEnvironment,
-      aggNames: Map[Expression, String],
-      propNames: Map[Expression, String]) : (Map[Expression, String], Map[Expression, String]) = {
+      aggNames: Map[PlannerExpression, String],
+      propNames: Map[PlannerExpression, String])
+    : (Map[PlannerExpression, String], Map[PlannerExpression, String]) = {
 
     exp match {
       case agg: Aggregation =>
@@ -74,22 +76,16 @@ object ProjectionTranslator {
         val l = identifyAggregationsAndProperties(b.left, tableEnv, aggNames, propNames)
         identifyAggregationsAndProperties(b.right, tableEnv, l._1, l._2)
 
-      // Functions calls
-      case c @ Call(name, args) =>
-        args.foldLeft((aggNames, propNames)){
-          (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
-        }
-
-      case sfc @ ScalarFunctionCall(clazz, args) =>
+      case sfc @ PlannerScalarFunctionCall(clazz, args) =>
         args.foldLeft((aggNames, propNames)){
           (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
         }
 
       // General expression
-      case e: Expression =>
+      case e: PlannerExpression =>
         e.productIterator.foldLeft((aggNames, propNames)){
           (x, y) => y match {
-            case e: Expression => identifyAggregationsAndProperties(e, tableEnv, x._1, x._2)
+            case e: PlannerExpression => identifyAggregationsAndProperties(e, tableEnv, x._1, x._2)
             case _ => (x._1, x._2)
           }
         }
@@ -111,22 +107,23 @@ object ProjectionTranslator {
     * @return a list of replaced expressions
     */
   def replaceAggregationsAndProperties(
-      exprs: Seq[Expression],
+      exprs: Seq[PlannerExpression],
       tableEnv: TableEnvironment,
-      aggNames: Map[Expression, String],
-      propNames: Map[Expression, String]): Seq[NamedExpression] = {
+      aggNames: Map[PlannerExpression, String],
+      propNames: Map[PlannerExpression, String]): Seq[NamedExpression] = {
     val projectedNames = new mutable.HashSet[String]
-    exprs.map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv,
+    exprs.map((exp: PlannerExpression) => replaceAggregationsAndProperties(exp, tableEnv,
       aggNames, propNames, projectedNames))
         .map(UnresolvedAlias)
   }
 
   private def replaceAggregationsAndProperties(
-      exp: Expression,
+      exp: PlannerExpression,
       tableEnv: TableEnvironment,
-      aggNames: Map[Expression, String],
-      propNames: Map[Expression, String],
-      projectedNames: mutable.HashSet[String]) : Expression = {
+      aggNames: Map[PlannerExpression, String],
+      propNames: Map[PlannerExpression, String],
+      projectedNames: mutable.HashSet[String])
+    : PlannerExpression = {
 
     exp match {
       case agg: Aggregation =>
@@ -161,36 +158,30 @@ object ProjectionTranslator {
           aggNames, propNames, projectedNames)
         b.makeCopy(Array(l, r))
 
-      // Functions calls
-      case c @ Call(name, args) =>
-        val newArgs = args.map((exp: Expression) =>
-          replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
-        c.makeCopy(Array(name, newArgs))
-
-      case sfc @ ScalarFunctionCall(clazz, args) =>
-        val newArgs: Seq[Expression] = args
-          .map((exp: Expression) =>
+      case sfc @ PlannerScalarFunctionCall(clazz, args) =>
+        val newArgs: Seq[PlannerExpression] = args
+          .map((exp: PlannerExpression) =>
             replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         sfc.makeCopy(Array(clazz, newArgs))
 
       // array constructor
       case c @ ArrayConstructor(args) =>
         val newArgs = c.elements
-          .map((exp: Expression) =>
+          .map((exp: PlannerExpression) =>
             replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         c.makeCopy(Array(newArgs))
 
       // map constructor
       case c @ MapConstructor(args) =>
         val newArgs = c.elements
-          .map((exp: Expression) =>
+          .map((exp: PlannerExpression) =>
             replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         c.makeCopy(Array(newArgs))
 
       // General expression
-      case e: Expression =>
+      case e: PlannerExpression =>
         val newArgs = e.productIterator.map {
-          case arg: Expression =>
+          case arg: PlannerExpression =>
             replaceAggregationsAndProperties(arg, tableEnv, aggNames, propNames, projectedNames)
         }
         e.makeCopy(newArgs.toArray)
@@ -201,12 +192,12 @@ object ProjectionTranslator {
     * Expands an UnresolvedFieldReference("*") to parent's full project list.
     */
   def expandProjectList(
-      exprs: Seq[Expression],
+      exprs: Seq[PlannerExpression],
       parent: LogicalNode,
       tableEnv: TableEnvironment)
-    : Seq[Expression] = {
+    : Seq[PlannerExpression] = {
 
-    val projectList = new ListBuffer[Expression]
+    val projectList = new ListBuffer[PlannerExpression]
 
     exprs.foreach {
       case n: UnresolvedFieldReference if n.name == "*" =>
@@ -229,15 +220,15 @@ object ProjectionTranslator {
             projectList += unresolved
         }
 
-      case e: Expression => projectList += e
+      case e: PlannerExpression => projectList += e
     }
     projectList
   }
 
   def resolveOverWindows(
-      exprs: Seq[Expression],
-      overWindows: Array[OverWindow],
-      tEnv: TableEnvironment): Seq[Expression] = {
+      exprs: Seq[PlannerExpression],
+      overWindows: Seq[LogicalOverWindow],
+      tEnv: TableEnvironment): Seq[PlannerExpression] = {
 
     exprs.map(e => replaceOverCall(e, overWindows, tEnv))
   }
@@ -249,22 +240,23 @@ object ProjectionTranslator {
     * @return an expression with correct resolved OverCall
     */
   private def replaceOverCall(
-    expr: Expression,
-    overWindows: Array[OverWindow],
-    tableEnv: TableEnvironment): Expression = {
+      expr: PlannerExpression,
+      overWindows: Seq[LogicalOverWindow],
+      tableEnv: TableEnvironment)
+    : PlannerExpression = {
 
     expr match {
       case u: UnresolvedOverCall =>
-        overWindows.find(_.getAlias.equals(u.alias)) match {
+        overWindows.find(_.alias.equals(u.alias)) match {
           case Some(overWindow) =>
             OverCall(
               u.agg,
-              overWindow.getPartitioning,
-              overWindow.getOrder,
-              overWindow.getPreceding,
-              overWindow.getFollowing.getOrElse {
+              overWindow.partitionBy,
+              overWindow.orderBy,
+              overWindow.preceding,
+              overWindow.following.getOrElse {
                 // set following to CURRENT_ROW / CURRENT_RANGE if not defined
-                if (overWindow.getPreceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
+                if (overWindow.preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
                   CurrentRow()
                 } else {
                   CurrentRange()
@@ -283,19 +275,11 @@ object ProjectionTranslator {
         val r = replaceOverCall(b.right, overWindows, tableEnv)
         b.makeCopy(Array(l, r))
 
-      // Functions calls
-      case c @ Call(name, args: Seq[Expression]) =>
-        val newArgs =
-          args.map(
-            (exp: Expression) =>
-              replaceOverCall(exp, overWindows, tableEnv))
-        c.makeCopy(Array(name, newArgs))
-
       // Scala functions
-      case sfc @ ScalarFunctionCall(clazz, args: Seq[Expression]) =>
-        val newArgs: Seq[Expression] =
+      case sfc @ PlannerScalarFunctionCall(clazz, args: Seq[PlannerExpression]) =>
+        val newArgs: Seq[PlannerExpression] =
           args.map(
-            (exp: Expression) =>
+            (exp: PlannerExpression) =>
               replaceOverCall(exp, overWindows, tableEnv))
         sfc.makeCopy(Array(clazz, newArgs))
 
@@ -303,11 +287,11 @@ object ProjectionTranslator {
       case c @ ArrayConstructor(args) =>
         val newArgs =
           c.elements
-            .map((exp: Expression) => replaceOverCall(exp, overWindows, tableEnv))
+            .map((exp: PlannerExpression) => replaceOverCall(exp, overWindows, tableEnv))
         c.makeCopy(Array(newArgs))
 
       // Other expressions
-      case e: Expression => e
+      case e: PlannerExpression => e
     }
   }
 
@@ -318,14 +302,14 @@ object ProjectionTranslator {
     * @param exprs a list of expressions to extract
     * @return a list of field references extracted from the given expressions
     */
-  def extractFieldReferences(exprs: Seq[Expression]): Seq[NamedExpression] = {
+  def extractFieldReferences(exprs: Seq[PlannerExpression]): Seq[NamedExpression] = {
     exprs.foldLeft(Set[NamedExpression]()) {
       (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
     }.toSeq
   }
 
   private def identifyFieldReferences(
-      expr: Expression,
+      expr: PlannerExpression,
       fieldReferences: Set[NamedExpression]): Set[NamedExpression] = expr match {
 
     case f: UnresolvedFieldReference =>
@@ -335,12 +319,7 @@ object ProjectionTranslator {
       val l = identifyFieldReferences(b.left, fieldReferences)
       identifyFieldReferences(b.right, l)
 
-    // Functions calls
-    case Call(_, args: Seq[Expression]) =>
-      args.foldLeft(fieldReferences) {
-        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
-      }
-    case ScalarFunctionCall(_, args: Seq[Expression]) =>
+    case PlannerScalarFunctionCall(_, args: Seq[PlannerExpression]) =>
       args.foldLeft(fieldReferences) {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
@@ -365,65 +344,12 @@ object ProjectionTranslator {
       identifyFieldReferences(u.child, fieldReferences)
 
     // General expression
-    case e: Expression =>
+    case e: PlannerExpression =>
       e.productIterator.foldLeft(fieldReferences) {
         (fieldReferences, expr) => expr match {
-          case e: Expression => identifyFieldReferences(e, fieldReferences)
+          case e: PlannerExpression => identifyFieldReferences(e, fieldReferences)
           case _ => fieldReferences
         }
       }
-  }
-
-  /**
-    * Find and replace UDAGG function Call to AggFunctionCall
-    *
-    * @param field    the expression to check
-    * @param tableEnv the TableEnvironment
-    * @return an expression with correct AggFunctionCall type for UDAGG functions
-    */
-  def replaceAggFunctionCall(field: Expression, tableEnv: TableEnvironment): Expression = {
-    field match {
-      case l: LeafExpression => l
-
-      case u: UnaryExpression =>
-        val c = replaceAggFunctionCall(u.child, tableEnv)
-        u.makeCopy(Array(c))
-
-      case b: BinaryExpression =>
-        val l = replaceAggFunctionCall(b.left, tableEnv)
-        val r = replaceAggFunctionCall(b.right, tableEnv)
-        b.makeCopy(Array(l, r))
-      // Functions calls
-      case c @ Call(name, args) =>
-        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        function match {
-          case a: AggFunctionCall => a
-          case a: Aggregation => a
-          case p: AbstractWindowProperty => p
-          case _ =>
-            val newArgs =
-              args.map(
-                (exp: Expression) =>
-                  replaceAggFunctionCall(exp, tableEnv))
-            c.makeCopy(Array(name, newArgs))
-        }
-      // Scala functions
-      case sfc @ ScalarFunctionCall(clazz, args) =>
-        val newArgs: Seq[Expression] =
-          args.map(
-            (exp: Expression) =>
-              replaceAggFunctionCall(exp, tableEnv))
-        sfc.makeCopy(Array(clazz, newArgs))
-
-      // Array constructor
-      case c @ ArrayConstructor(args) =>
-        val newArgs =
-          c.elements
-            .map((exp: Expression) => replaceAggFunctionCall(exp, tableEnv))
-        c.makeCopy(Array(newArgs))
-
-      // Other expressions
-      case e: Expression => e
-    }
   }
 }

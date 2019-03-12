@@ -19,35 +19,57 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_FUNCTION;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 /**
- * The function definition of an user-defined table function.
+ * An expression that wraps a specific symbol.
  */
 @PublicEvolving
-public final class TableFunctionDefinition extends FunctionDefinition {
+public final class SymbolExpression implements Expression {
 
-	private final TableFunction tableFunction;
-	private final TypeInformation resultType;
+	private final TableSymbol symbol;
 
-	public TableFunctionDefinition(
-			String name,
-			TableFunction tableFunction,
-			TypeInformation resultType) {
-		super(name, TABLE_FUNCTION);
-		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-		this.resultType = Preconditions.checkNotNull(resultType);
+	public SymbolExpression(TableSymbol symbol) {
+		this.symbol = Preconditions.checkNotNull(symbol);
 	}
 
-	public TableFunction getTableFunction() {
-		return tableFunction;
+	public TableSymbol getSymbol() {
+		return symbol;
 	}
 
-	public TypeInformation getResultType() {
-		return resultType;
+	@Override
+	public List<Expression> getChildren() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public <R> R accept(ExpressionVisitor<R> visitor) {
+		return visitor.visitSymbol(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		SymbolExpression that = (SymbolExpression) o;
+		return Objects.equals(symbol, that.symbol);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(symbol);
+	}
+
+	@Override
+	public String toString() {
+		return symbol.toString();
 	}
 }

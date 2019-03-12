@@ -19,35 +19,84 @@
 package org.apache.flink.table.validate
 
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
-import org.apache.calcite.sql._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
-import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
-import _root_.scala.util.{Failure, Success, Try}
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
   */
-class FunctionCatalog {
+class FunctionCatalog() {
 
-  private val functionBuilders = mutable.HashMap.empty[String, Class[_]]
+  private val tableApiFunctions = mutable.HashMap.empty[String, FunctionDefinition]
+  BuiltInFunctionDefinitions.getDefinitions.foreach { functionDefinition =>
+    tableApiFunctions.put(normalizeName(functionDefinition.getName), functionDefinition)
+  }
+
   private val sqlFunctions = mutable.ListBuffer[SqlFunction]()
 
-  def registerFunction(name: String, builder: Class[_]): Unit =
-    functionBuilders.put(name.toLowerCase, builder)
+  def registerScalarFunction(
+      name: String,
+      function: ScalarFunction,
+      typeFactory: FlinkTypeFactory)
+    : Unit = {
+    registerFunction(
+      name,
+      new ScalarFunctionDefinition(name, function),
+      createScalarSqlFunction(name, name, function, typeFactory)
+    )
+  }
 
-  def registerSqlFunction(sqlFunction: SqlFunction): Unit = {
+  def registerTableFunction(
+      name: String,
+      function: TableFunction[_],
+      resultType: TypeInformation[_],
+      typeFactory: FlinkTypeFactory)
+    : Unit = {
+    registerFunction(
+      name,
+      new TableFunctionDefinition(name, function, resultType),
+      createTableSqlFunction(name, name, function, resultType, typeFactory)
+    )
+  }
+
+  def registerAggregateFunction(
+      name: String,
+      function: AggregateFunction[_, _],
+      resultType: TypeInformation[_],
+      accType: TypeInformation[_],
+      typeFactory: FlinkTypeFactory)
+    : Unit = {
+    registerFunction(
+      name,
+      new AggregateFunctionDefinition(name, function, resultType, accType),
+      createAggregateSqlFunction(
+        name,
+        name,
+        function,
+        resultType,
+        accType,
+        typeFactory)
+    )
+  }
+
+  private def registerFunction(
+      name: String,
+      functionDefinition: FunctionDefinition,
+      sqlFunction: SqlFunction): Unit = {
+    tableApiFunctions.put(normalizeName(name), functionDefinition)
     sqlFunctions --= sqlFunctions.filter(_.getName == sqlFunction.getName)
     sqlFunctions += sqlFunction
   }
@@ -63,252 +112,16 @@ class FunctionCatalog {
     )
 
   /**
-    * Lookup and create an expression if we find a match.
+    * Lookup a function by name and operands and return the [[FunctionDefinition]].
     */
-  def lookupFunction(name: String, children: Seq[Expression]): Expression = {
-    val funcClass = functionBuilders
-      .getOrElse(name.toLowerCase, throw new ValidationException(s"Undefined function: $name"))
-
-    // Instantiate a function using the provided `children`
-    funcClass match {
-
-      // user-defined scalar function call
-      case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
-        val scalarSqlFunction = sqlFunctions
-          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
-          .getOrElse(throw new ValidationException(s"Undefined scalar function: $name"))
-          .asInstanceOf[ScalarSqlFunction]
-        ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
-
-      // user-defined table function call
-      case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
-        val tableSqlFunction = sqlFunctions
-          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
-          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
-          .asInstanceOf[TableSqlFunction]
-        val typeInfo = tableSqlFunction.getRowTypeInfo
-        val function = tableSqlFunction.getTableFunction
-        TableFunctionCall(name, function, children, typeInfo)
-
-      // user-defined aggregate function call
-      case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
-        val aggregateFunction = sqlFunctions
-          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[AggSqlFunction])
-          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
-          .asInstanceOf[AggSqlFunction]
-        val function = aggregateFunction.getFunction
-        val returnType = aggregateFunction.returnType
-        val accType = aggregateFunction.accType
-        AggFunctionCall(function, returnType, accType, children)
-
-      // general expression call
-      case expression if classOf[Expression].isAssignableFrom(expression) =>
-        // try to find a constructor accepts `Seq[Expression]`
-        Try(funcClass.getDeclaredConstructor(classOf[Seq[_]])) match {
-          case Success(seqCtor) =>
-            Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
-              case Success(expr) => expr
-              case Failure(e) => throw new ValidationException(e.getMessage)
-            }
-          case Failure(_) =>
-            Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
-              case Success(ctor) =>
-                Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
-                  case Success(expr) => expr
-                  case Failure(e) => throw new ValidationException(e.getMessage)
-                }
-              case Failure(_) =>
-                val childrenClass = Seq.fill(children.length)(classOf[Expression])
-                // try to find a constructor matching the exact number of children
-                Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
-                  case Success(ctor) =>
-                    Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
-                      case Success(expr) => expr
-                      case Failure(exception) => throw new ValidationException(exception.getMessage)
-                    }
-                  case Failure(_) =>
-                    throw new ValidationException(
-                      s"Invalid number of arguments for function $funcClass")
-                }
-            }
-        }
-      case _ =>
-        throw new ValidationException("Unsupported function.")
-    }
+  def lookupFunction(name: String): FunctionDefinition = {
+    tableApiFunctions.getOrElse(
+      normalizeName(name),
+      throw new ValidationException(s"Undefined function: $name"))
   }
 
-  /**
-    * Drop a function and return if the function existed.
-    */
-  def dropFunction(name: String): Boolean =
-    functionBuilders.remove(name.toLowerCase).isDefined
-
-  /**
-    * Drop all registered functions.
-    */
-  def clear(): Unit = functionBuilders.clear()
-}
-
-object FunctionCatalog {
-
-  val builtInFunctions: Map[String, Class[_]] = Map(
-
-    // logic
-    "and" -> classOf[And],
-    "or" -> classOf[Or],
-    "not" -> classOf[Not],
-    "equals" -> classOf[EqualTo],
-    "greaterThan" -> classOf[GreaterThan],
-    "greaterThanOrEqual" -> classOf[GreaterThanOrEqual],
-    "lessThan" -> classOf[LessThan],
-    "lessThanOrEqual" -> classOf[LessThanOrEqual],
-    "notEquals" -> classOf[NotEqualTo],
-    "in" -> classOf[In],
-    "isNull" -> classOf[IsNull],
-    "isNotNull" -> classOf[IsNotNull],
-    "isTrue" -> classOf[IsTrue],
-    "isFalse" -> classOf[IsFalse],
-    "isNotTrue" -> classOf[IsNotTrue],
-    "isNotFalse" -> classOf[IsNotFalse],
-    "if" -> classOf[If],
-    "between" -> classOf[Between],
-    "notBetween" -> classOf[NotBetween],
-    "ifThenElse" -> classOf[If],
-
-    // aggregate functions
-    "avg" -> classOf[Avg],
-    "count" -> classOf[Count],
-    "max" -> classOf[Max],
-    "min" -> classOf[Min],
-    "sum" -> classOf[Sum],
-    "sum0" -> classOf[Sum0],
-    "stddevPop" -> classOf[StddevPop],
-    "stddevSamp" -> classOf[StddevSamp],
-    "varPop" -> classOf[VarPop],
-    "varSamp" -> classOf[VarSamp],
-    "collect" -> classOf[Collect],
-
-    // string functions
-    "charLength" -> classOf[CharLength],
-    "initCap" -> classOf[InitCap],
-    "like" -> classOf[Like],
-    "concat" -> classOf[Plus],
-    "lower" -> classOf[Lower],
-    "lowerCase" -> classOf[Lower],
-    "similar" -> classOf[Similar],
-    "substring" -> classOf[Substring],
-    "replace" -> classOf[Replace],
-    "trim" -> classOf[Trim],
-    "upper" -> classOf[Upper],
-    "upperCase" -> classOf[Upper],
-    "position" -> classOf[Position],
-    "overlay" -> classOf[Overlay],
-    "concat" -> classOf[Concat],
-    "concat_ws" -> classOf[ConcatWs],
-    "lpad" -> classOf[Lpad],
-    "rpad" -> classOf[Rpad],
-    "regexpExtract" -> classOf[RegexpExtract],
-    "fromBase64" -> classOf[FromBase64],
-    "toBase64" -> classOf[ToBase64],
-    "uuid" -> classOf[UUID],
-    "ltrim" -> classOf[LTrim],
-    "rtrim" -> classOf[RTrim],
-    "repeat" -> classOf[Repeat],
-    "regexpReplace" -> classOf[RegexpReplace],
-
-    // math functions
-    "plus" -> classOf[Plus],
-    "minus" -> classOf[Minus],
-    "divide" -> classOf[Div],
-    "times" -> classOf[Mul],
-    "abs" -> classOf[Abs],
-    "ceil" -> classOf[Ceil],
-    "exp" -> classOf[Exp],
-    "floor" -> classOf[Floor],
-    "log10" -> classOf[Log10],
-    "log2" -> classOf[Log2],
-    "ln" -> classOf[Ln],
-    "log" -> classOf[Log],
-    "power" -> classOf[Power],
-    "mod" -> classOf[Mod],
-    "sqrt" -> classOf[Sqrt],
-    "minusPrefix" -> classOf[UnaryMinus],
-    "sin" -> classOf[Sin],
-    "cos" -> classOf[Cos],
-    "sinh" -> classOf[Sinh],
-    "tan" -> classOf[Tan],
-    "tanh" -> classOf[Tanh],
-    "cot" -> classOf[Cot],
-    "asin" -> classOf[Asin],
-    "acos" -> classOf[Acos],
-    "atan" -> classOf[Atan],
-    "atan2" -> classOf[Atan2],
-    "cosh" -> classOf[Cosh],
-    "degrees" -> classOf[Degrees],
-    "radians" -> classOf[Radians],
-    "sign" -> classOf[Sign],
-    "round" -> classOf[Round],
-    "pi" -> classOf[Pi],
-    "e" -> classOf[E],
-    "rand" -> classOf[Rand],
-    "randInteger" -> classOf[RandInteger],
-    "bin" -> classOf[Bin],
-    "hex" -> classOf[Hex],
-    "truncate" -> classOf[Truncate],
-
-    // temporal functions
-    "extract" -> classOf[Extract],
-    "currentDate" -> classOf[CurrentDate],
-    "currentTime" -> classOf[CurrentTime],
-    "currentTimestamp" -> classOf[CurrentTimestamp],
-    "localTime" -> classOf[LocalTime],
-    "localTimestamp" -> classOf[LocalTimestamp],
-    "temporalOverlaps" -> classOf[TemporalOverlaps],
-    "dateTimePlus" -> classOf[Plus],
-    "dateFormat" -> classOf[DateFormat],
-    "timestampDiff" -> classOf[TimestampDiff],
-
-    // item
-    "at" -> classOf[ItemAt],
-
-    // cardinality
-    "cardinality" -> classOf[Cardinality],
-
-    // array
-    "array" -> classOf[ArrayConstructor],
-    "element" -> classOf[ArrayElement],
-
-    // map
-    "map" -> classOf[MapConstructor],
-
-    // row
-    "row" -> classOf[RowConstructor],
-
-    // window properties
-    "start" -> classOf[WindowStart],
-    "end" -> classOf[WindowEnd],
-
-    // ordering
-    "asc" -> classOf[Asc],
-    "desc" -> classOf[Desc],
-
-    // crypto hash
-    "md5" -> classOf[Md5],
-    "sha1" -> classOf[Sha1],
-    "sha224" -> classOf[Sha224],
-    "sha256" -> classOf[Sha256],
-    "sha384" -> classOf[Sha384],
-    "sha512" -> classOf[Sha512],
-    "sha2" -> classOf[Sha2]
-  )
-
-  /**
-    * Create a new function catalog with built-in functions.
-    */
-  def withBuiltIns: FunctionCatalog = {
-    val catalog = new FunctionCatalog()
-    builtInFunctions.foreach { case (n, c) => catalog.registerFunction(n, c) }
-    catalog
+  private def normalizeName(name: String): String = {
+    name.toUpperCase
   }
 }
 

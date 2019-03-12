@@ -541,12 +541,13 @@ abstract class StreamTableEnvironment(
     : Unit = {
 
     val streamType = dataStream.getType
+    val bridgedFields = fields.map(expressionBridge.bridge).toArray[Expression]
 
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, bridgedFields)
 
     // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, bridgedFields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {

@@ -32,7 +32,7 @@ import java.util.Objects;
  * <p>This is a pure API expression that is translated into uncorrelated sub-queries by the planner.
  */
 @PublicEvolving
-public final class TableReferenceExpression implements CommonExpression {
+public final class TableReferenceExpression implements Expression {
 
 	private final String name;
 	private final Table table;
@@ -51,7 +51,7 @@ public final class TableReferenceExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

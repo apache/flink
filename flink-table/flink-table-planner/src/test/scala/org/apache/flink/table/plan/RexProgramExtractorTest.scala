@@ -41,7 +41,11 @@ import scala.collection.mutable
 
 class RexProgramExtractorTest extends RexProgramTestBase {
 
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
+  private val functionCatalog: FunctionCatalog = new FunctionCatalog()
+  private val expressionBridge: ExpressionBridge[PlannerExpression] =
+    new ExpressionBridge[PlannerExpression](
+      functionCatalog,
+      PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -621,7 +625,8 @@ class RexProgramExtractorTest extends RexProgramTestBase {
   private def assertExpressionArrayEquals(
       expected: Array[Expression],
       actual: Array[Expression]) = {
-    val sortedExpected = expected.sortBy(e => e.toString)
+    // TODO we assume only planner expression as a temporary solution to keep the old interfaces
+    val sortedExpected = expected.map(expressionBridge.bridge).sortBy(e => e.toString)
     val sortedActual = actual.sortBy(e => e.toString)
 
     assertEquals(sortedExpected.length, sortedActual.length)

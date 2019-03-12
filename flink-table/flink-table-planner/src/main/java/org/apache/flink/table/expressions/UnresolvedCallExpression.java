@@ -21,34 +21,41 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
- * An expression that wraps a specific symbol.
+ * A call expression where the target function has not been resolved yet.
+ *
+ * <p>Instead of a {@link FunctionDefinition}, the call is identified by the function's name.
  */
 @PublicEvolving
-public final class CommonSymbolExpression implements CommonExpression {
+public final class UnresolvedCallExpression implements Expression {
 
-	private final CommonTableSymbol symbol;
+	private final String unresolvedName;
 
-	public CommonSymbolExpression(CommonTableSymbol symbol) {
-		this.symbol = Preconditions.checkNotNull(symbol);
-	}
+	private final List<Expression> args;
 
-	public CommonTableSymbol getSymbol() {
-		return symbol;
+	public UnresolvedCallExpression(String unresolvedFunction, List<Expression> args) {
+		this.unresolvedName = Preconditions.checkNotNull(unresolvedFunction);
+		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
-		return Collections.emptyList();
+	public List<Expression> getChildren() {
+		return this.args;
+	}
+
+	public String getUnresolvedName() {
+		return unresolvedName;
 	}
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitSymbol(this);
+		return visitor.visit(this);
 	}
 
 	@Override
@@ -59,17 +66,19 @@ public final class CommonSymbolExpression implements CommonExpression {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		CommonSymbolExpression that = (CommonSymbolExpression) o;
-		return Objects.equals(symbol, that.symbol);
+		UnresolvedCallExpression that = (UnresolvedCallExpression) o;
+		return Objects.equals(unresolvedName, that.unresolvedName) &&
+			Objects.equals(args, that.args);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(symbol);
+		return Objects.hash(unresolvedName, args);
 	}
 
 	@Override
 	public String toString() {
-		return symbol.toString();
+		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
+		return unresolvedName + "(" + String.join(", ", argList) + ")";
 	}
 }

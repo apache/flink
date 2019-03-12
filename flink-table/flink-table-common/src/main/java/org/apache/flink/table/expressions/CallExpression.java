@@ -33,19 +33,19 @@ import java.util.stream.Collectors;
  * <p>The function can be a built-in function or a user-defined function.
  */
 @PublicEvolving
-public final class CallExpression implements CommonExpression {
+public final class CallExpression implements Expression {
 
 	private final FunctionDefinition functionDefinition;
 
-	private final List<CommonExpression> args;
+	private final List<Expression> args;
 
-	public CallExpression(FunctionDefinition functionDefinition, List<CommonExpression> args) {
+	public CallExpression(FunctionDefinition functionDefinition, List<Expression> args) {
 		this.functionDefinition = Preconditions.checkNotNull(functionDefinition);
 		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return this.args;
 	}
 

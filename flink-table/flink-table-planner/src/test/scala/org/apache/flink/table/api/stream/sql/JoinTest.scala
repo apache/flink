@@ -331,7 +331,7 @@ class JoinTest extends TableTestBase {
           term("select", "c", "b", "a0", "b0")
         ),
         term("groupBy", "b"),
-        term("window", TumblingGroupWindow('w$, 'c, 21600000.millis)),
+        term("window", "TumblingGroupWindow('w$, 'c, 21600000.millis)"),
         term("select", "b", "SUM(a0) AS aSum", "COUNT(b0) AS bCnt")
       )
 
@@ -376,7 +376,7 @@ class JoinTest extends TableTestBase {
           term("select", "c0", "b0", "a", "b")
         ),
         term("groupBy", "b0"),
-        term("window", TumblingGroupWindow('w$, 'c0, 21600000.millis)),
+        term("window", "TumblingGroupWindow('w$, 'c0, 21600000.millis)"),
         term("select", "b0", "SUM(a) AS aSum", "COUNT(b) AS bCnt")
       )
 

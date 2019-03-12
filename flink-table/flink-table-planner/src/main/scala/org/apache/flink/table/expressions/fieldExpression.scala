@@ -71,7 +71,7 @@ case class ResolvedFieldReference(
   }
 }
 
-case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq())
+case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String] = Seq())
     extends UnaryExpression with NamedExpression {
 
   override def toString = s"$child as '$name"
@@ -83,7 +83,7 @@ case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq(
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
-    val child: Expression = anyRefs.head.asInstanceOf[Expression]
+    val child: PlannerExpression = anyRefs.head.asInstanceOf[PlannerExpression]
     copy(child, name, extraNames).asInstanceOf[this.type]
   }
 
@@ -106,7 +106,7 @@ case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq(
   }
 }
 
-case class UnresolvedAlias(child: Expression) extends UnaryExpression with NamedExpression {
+case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression with NamedExpression {
 
   override private[flink] def name: String =
     throw UnresolvedException("Invalid call to name on UnresolvedAlias")
@@ -153,14 +153,14 @@ case class TableReference(name: String, table: Table) extends LeafExpression wit
   override def toString: String = s"$name"
 }
 
-abstract class TimeAttribute(val expression: Expression)
+abstract class TimeAttribute(val expression: PlannerExpression)
   extends UnaryExpression
   with WindowProperty {
 
-  override private[flink] def child: Expression = expression
+  override private[flink] def child: PlannerExpression = expression
 }
 
-case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
+case class RowtimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr) {
 
   override private[flink] def validateInput(): ValidationResult = {
     child match {
@@ -200,7 +200,7 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
   override def toString: String = s"rowtime($child)"
 }
 
-case class ProctimeAttribute(expr: Expression) extends TimeAttribute(expr) {
+case class ProctimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr) {
 
   override private[flink] def validateInput(): ValidationResult = {
     child match {

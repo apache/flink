@@ -416,12 +416,13 @@ abstract class BatchTableEnvironment(
       name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
 
     val inputType = dataSet.getType
+    val bridgedFields = fields.map(expressionBridge.bridge).toArray[Expression]
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](
       inputType,
-      fields)
+      bridgedFields)
 
-    if (fields.exists(_.isInstanceOf[TimeAttribute])) {
+    if (bridgedFields.exists(_.isInstanceOf[TimeAttribute])) {
       throw new ValidationException(
         ".rowtime and .proctime time indicators are not allowed in a batch environment.")
     }

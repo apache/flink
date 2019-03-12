@@ -36,10 +36,11 @@ public final class AggregateFunctionDefinition extends FunctionDefinition {
 	private final TypeInformation<?> accumulatorTypeInfo;
 
 	public AggregateFunctionDefinition(
+			String name,
 			AggregateFunction<?, ?> aggregateFunction,
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
-		super(aggregateFunction.getClass().getName(), AGGREGATE_FUNCTION);
+		super(name, AGGREGATE_FUNCTION);
 		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
 		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);

@@ -26,6 +26,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.validate.BasicOperatorTable
 
@@ -89,7 +90,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
     val outAggGroupExpression = getOutAggregateGroupExpression(rexBuilder, windowExpr)
     val transformed = call.builder()
     transformed.push(LogicalWindowAggregate.create(
-      window.toLogicalWindow,
+      window,
       Seq[NamedWindowProperty](),
       newAgg))
       .project(transformed.fields().patch(windowExprIdx, Seq(outAggGroupExpression), 0))
@@ -146,6 +147,8 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
       windowExpression: RexCall): RexNode
 
   /** translate the group window expression in to a Flink Table window. */
-  private[table] def translateWindowExpression(windowExpr: RexCall, rowType: RelDataType): Window
-
+  private[table] def translateWindowExpression(
+      windowExpr: RexCall,
+      rowType: RelDataType)
+    : LogicalWindow
 }

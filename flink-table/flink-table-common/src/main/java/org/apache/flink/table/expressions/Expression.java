@@ -20,24 +20,19 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
+
 /**
- * Units for working with time intervals.
+ * The interface for all expressions.
+ *
+ * <p>Expressions represent a logical tree for producing a computation result. Every expression
+ * consists of zero or more sub-expressions. Expressions might be literal values, function calls,
+ * or field references.
  */
 @PublicEvolving
-public enum CommonTimeIntervalUnit implements CommonTableSymbol {
-	YEAR,
-	YEAR_TO_MONTH,
-	QUARTER,
-	MONTH,
-	WEEK,
-	DAY,
-	DAY_TO_HOUR,
-	DAY_TO_MINUTE,
-	DAY_TO_SECOND,
-	HOUR,
-	SECOND,
-	HOUR_TO_MINUTE,
-	HOUR_TO_SECOND,
-	MINUTE,
-	MINUTE_TO_SECOND
+public interface Expression {
+
+	List<Expression> getChildren();
+
+	<R> R accept(ExpressionVisitor<R> visitor);
 }

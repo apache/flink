@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, ResolvedFieldReference, UnresolvedAlias, WindowProperty}
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge, ExpressionParser, Ordering, PlannerExpression, ResolvedFieldReference, UnresolvedAlias, WindowProperty}
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
@@ -65,9 +65,14 @@ class Table(
     private[flink] val tableEnv: TableEnvironment,
     private[flink] val logicalPlan: LogicalNode) {
 
+  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
+    tableEnv.expressionBridge
+
   private lazy val tableSchema: TableSchema = new TableSchema(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
+
+  var tableName: String = _
 
   def relBuilder: FlinkRelBuilder = tableEnv.getRelBuilder
 
@@ -90,10 +95,28 @@ class Table(
     * Example:
     *
     * {{{
+    *   tab.select("key, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields): _*)
+  }
+
+  /**
+    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+    * can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
     *   tab.select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
   def select(fields: Expression*): Table = {
+    selectInternal(fields.map(expressionBridge.bridge))
+  }
+
+  private def selectInternal(fields: Seq[PlannerExpression]): Table = {
     val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
     if (propNames.nonEmpty) {
@@ -119,23 +142,6 @@ class Table(
   }
 
   /**
-    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
-    * can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.select("key, value.avg + ' The average' as average")
-    * }}}
-    */
-  def select(fields: String): Table = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for AggFunctionCall
-    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, tableEnv))
-    select(withResolvedAggFunctionCall: _*)
-  }
-
-  /**
     * Creates [[TemporalTableFunction]] backed up by this table as a history table.
     * Temporal Tables represent a concept of a table that changes over time and for which
     * Flink keeps track of those changes. [[TemporalTableFunction]] provides a way how to access
@@ -156,7 +162,8 @@ class Table(
     */
   def createTemporalTableFunction(
       timeAttribute: String,
-      primaryKey: String): TemporalTableFunction = {
+      primaryKey: String)
+    : TemporalTableFunction = {
     createTemporalTableFunction(
       ExpressionParser.parseExpression(timeAttribute),
       ExpressionParser.parseExpression(primaryKey))
@@ -183,7 +190,17 @@ class Table(
     */
   def createTemporalTableFunction(
       timeAttribute: Expression,
-      primaryKey: Expression): TemporalTableFunction = {
+      primaryKey: Expression)
+    : TemporalTableFunction = {
+    createTemporalTableFunctionInternal(
+      expressionBridge.bridge(timeAttribute),
+      expressionBridge.bridge(primaryKey))
+  }
+
+  private def createTemporalTableFunctionInternal(
+      timeAttribute: PlannerExpression,
+      primaryKey: PlannerExpression)
+    : TemporalTableFunction = {
     val temporalTable = TemporalTable(timeAttribute, primaryKey, logicalPlan)
       .validate(tableEnv)
       .asInstanceOf[TemporalTable]
@@ -211,11 +228,11 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.as('a, 'b)
+    *   tab.as("a, b")
     * }}}
     */
-  def as(fields: Expression*): Table = {
-    new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
+  def as(fields: String): Table = {
+    as(ExpressionParser.parseExpressionList(fields): _*)
   }
 
   /**
@@ -225,26 +242,15 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.as("a, b")
+    *   tab.as('a, 'b)
     * }}}
     */
-  def as(fields: String): Table = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    as(fieldExprs: _*)
+  def as(fields: Expression*): Table = {
+    asInternal(fields.map(tableEnv.expressionBridge.bridge))
   }
 
-  /**
-    * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
-    * clause.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.filter('name === "Fred")
-    * }}}
-    */
-  def filter(predicate: Expression): Table = {
-    new Table(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
+  private def asInternal(fields: Seq[PlannerExpression]): Table = {
+    new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -258,8 +264,7 @@ class Table(
     * }}}
     */
   def filter(predicate: String): Table = {
-    val predicateExpr = ExpressionParser.parseExpression(predicate)
-    filter(predicateExpr)
+    filter(ExpressionParser.parseExpression(predicate))
   }
 
   /**
@@ -269,11 +274,15 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.where('name === "Fred")
+    *   tab.filter('name === "Fred")
     * }}}
     */
-  def where(predicate: Expression): Table = {
-    filter(predicate)
+  def filter(predicate: Expression): Table = {
+    filterInternal(expressionBridge.bridge(predicate))
+  }
+
+  private def filterInternal(predicate: PlannerExpression): Table = {
+    new Table(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -291,17 +300,17 @@ class Table(
   }
 
   /**
-    * Groups the elements on some grouping keys. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+    * clause.
     *
     * Example:
     *
     * {{{
-    *   tab.groupBy('key).select('key, 'value.avg)
+    *   tab.where('name === "Fred")
     * }}}
     */
-  def groupBy(fields: Expression*): GroupedTable = {
-    new GroupedTable(this, fields)
+  def where(predicate: Expression): Table = {
+    filter(predicate)
   }
 
   /**
@@ -315,8 +324,25 @@ class Table(
     * }}}
     */
   def groupBy(fields: String): GroupedTable = {
-    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
-    groupBy(fieldsExpr: _*)
+    groupBy(ExpressionParser.parseExpressionList(fields): _*)
+  }
+
+  /**
+    * Groups the elements on some grouping keys. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupBy('key).select('key, 'value.avg)
+    * }}}
+    */
+  def groupBy(fields: Expression*): GroupedTable = {
+    groupByInternal(fields.map(expressionBridge.bridge))
+  }
+
+  private def groupByInternal(fields: Seq[PlannerExpression]): GroupedTable = {
+    new GroupedTable(this, fields)
   }
 
   /**
@@ -346,7 +372,7 @@ class Table(
     * }}}
     */
   def join(right: Table): Table = {
-    join(right, None, JoinType.INNER)
+    joinInternal(right, None, JoinType.INNER)
   }
 
   /**
@@ -362,7 +388,7 @@ class Table(
     * }}}
     */
   def join(right: Table, joinPredicate: String): Table = {
-    join(right, joinPredicate, JoinType.INNER)
+    join(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
   /**
@@ -378,7 +404,7 @@ class Table(
     * }}}
     */
   def join(right: Table, joinPredicate: Expression): Table = {
-    join(right, Some(joinPredicate), JoinType.INNER)
+    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.INNER)
   }
 
   /**
@@ -395,7 +421,7 @@ class Table(
     * }}}
     */
   def leftOuterJoin(right: Table): Table = {
-    join(right, None, JoinType.LEFT_OUTER)
+    joinInternal(right, None, JoinType.LEFT_OUTER)
   }
 
   /**
@@ -412,7 +438,7 @@ class Table(
     * }}}
     */
   def leftOuterJoin(right: Table, joinPredicate: String): Table = {
-    join(right, joinPredicate, JoinType.LEFT_OUTER)
+    leftOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
   /**
@@ -429,7 +455,7 @@ class Table(
     * }}}
     */
   def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    join(right, Some(joinPredicate), JoinType.LEFT_OUTER)
+    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.LEFT_OUTER)
   }
 
   /**
@@ -446,7 +472,7 @@ class Table(
     * }}}
     */
   def rightOuterJoin(right: Table, joinPredicate: String): Table = {
-    join(right, joinPredicate, JoinType.RIGHT_OUTER)
+    rightOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
   /**
@@ -463,7 +489,7 @@ class Table(
     * }}}
     */
   def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    join(right, Some(joinPredicate), JoinType.RIGHT_OUTER)
+    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.RIGHT_OUTER)
   }
 
   /**
@@ -480,7 +506,7 @@ class Table(
     * }}}
     */
   def fullOuterJoin(right: Table, joinPredicate: String): Table = {
-    join(right, joinPredicate, JoinType.FULL_OUTER)
+    fullOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
   /**
@@ -497,15 +523,14 @@ class Table(
     * }}}
     */
   def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    join(right, Some(joinPredicate), JoinType.FULL_OUTER)
+    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.FULL_OUTER)
   }
 
-  private def join(right: Table, joinPredicate: String, joinType: JoinType): Table = {
-    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
-    join(right, Some(joinPredicateExpr), joinType)
-  }
-
-  private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
+  private def joinInternal(
+      right: Table,
+      joinPredicate: Option[PlannerExpression],
+      joinType: JoinType)
+    : Table = {
     // check that the TableEnvironment of right table is not null
     // and right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
@@ -537,8 +562,28 @@ class Table(
     * }}}
     */
   def joinLateral(tableFunctionCall: String): Table = {
-    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
-    joinLateral(callExpr, None, JoinType.INNER)
+    joinLateral(ExpressionParser.parseExpression(tableFunctionCall))
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.joinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def joinLateral(tableFunctionCall: Expression): Table = {
+    joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.INNER)
   }
 
   /**
@@ -560,30 +605,9 @@ class Table(
     * }}}
     */
   def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
-    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
-    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
-    joinLateral(callExpr, Some(joinPredicateExpr), JoinType.INNER)
-  }
-
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table function.
-    *
-    * Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.joinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
-    * }}}
-    */
-  def joinLateral(tableFunctionCall: Expression): Table = {
-    joinLateral(tableFunctionCall, None, JoinType.INNER)
+    joinLateral(
+      ExpressionParser.parseExpression(tableFunctionCall),
+      ExpressionParser.parseExpression(joinPredicate))
   }
 
   /**
@@ -604,7 +628,10 @@ class Table(
     * }}}
     */
   def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
-    joinLateral(tableFunctionCall, Some(joinPredicate), JoinType.INNER)
+    joinLateralInternal(
+      expressionBridge.bridge(tableFunctionCall),
+      Some(expressionBridge.bridge(joinPredicate)),
+      JoinType.INNER)
   }
 
   /**
@@ -627,8 +654,29 @@ class Table(
     * }}}
     */
   def leftOuterJoinLateral(tableFunctionCall: String): Table = {
-    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
-    joinLateral(callExpr, None, JoinType.LEFT_OUTER)
+    leftOuterJoinLateral(ExpressionParser.parseExpression(tableFunctionCall))
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
+    joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.LEFT_OUTER)
   }
 
   /**
@@ -651,31 +699,9 @@ class Table(
     * }}}
     */
   def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
-    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
-    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
-    joinLateral(callExpr, Some(joinPredicateExpr), JoinType.LEFT_OUTER)
-  }
-
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
-    *
-    * Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
-    * }}}
-    */
-  def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
-    joinLateral(tableFunctionCall, None, JoinType.LEFT_OUTER)
+    leftOuterJoinLateral(
+      ExpressionParser.parseExpression(tableFunctionCall),
+      ExpressionParser.parseExpression(joinPredicate))
   }
 
   /**
@@ -697,12 +723,15 @@ class Table(
     * }}}
     */
   def leftOuterJoinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
-    joinLateral(tableFunctionCall, Some(joinPredicate), JoinType.LEFT_OUTER)
+    joinLateralInternal(
+      expressionBridge.bridge(tableFunctionCall),
+      Some(expressionBridge.bridge(joinPredicate)),
+      JoinType.LEFT_OUTER)
   }
 
-  private def joinLateral(
-      callExpr: Expression,
-      joinPredicate: Option[Expression],
+  private def joinLateralInternal(
+      callExpr: PlannerExpression,
+      joinPredicate: Option[PlannerExpression],
       joinType: JoinType): Table = {
 
     // check join type
@@ -712,7 +741,6 @@ class Table(
     }
 
     val logicalCall = UserDefinedFunctionUtils.createLogicalFunctionCall(
-      tableEnv,
       callExpr,
       logicalPlan)
     val validatedLogicalCall = logicalCall.validate(tableEnv)
@@ -870,30 +898,33 @@ class Table(
     * Example:
     *
     * {{{
+    *   tab.orderBy("name.desc")
+    * }}}
+    */
+  def orderBy(fields: String): Table = {
+    orderBy(ExpressionParser.parseExpressionList(fields): _*)
+  }
+
+  /**
+    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
+    * The resulting Table is globally sorted across all parallel partitions.
+    *
+    * Example:
+    *
+    * {{{
     *   tab.orderBy('name.desc)
     * }}}
     */
   def orderBy(fields: Expression*): Table = {
+    orderByInternal(fields.map(expressionBridge.bridge))
+  }
+
+  private def orderByInternal(fields: Seq[PlannerExpression]): Table = {
     val order: Seq[Ordering] = fields.map {
       case o: Ordering => o
       case e => Asc(e)
     }
     new Table(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
-  }
-
-  /**
-    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
-    * The resulting Table is sorted globally sorted across all parallel partitions.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.orderBy("name.desc")
-    * }}}
-    */
-  def orderBy(fields: String): Table = {
-    val parsedFields = ExpressionParser.parseExpressionList(fields)
-    orderBy(parsedFields: _*)
   }
 
   /**
@@ -1100,10 +1131,8 @@ class Table(
       throw new TableException("Over-Windows are currently only supported single window.")
     }
 
-    new OverWindowedTable(this, overWindows.toArray)
+    new OverWindowedTable(this, overWindows)
   }
-
-  var tableName: String = _
 
   /**
     * Registers an unique table name under the table environment
@@ -1123,7 +1152,21 @@ class Table(
   */
 class GroupedTable(
   private[flink] val table: Table,
-  private[flink] val groupKey: Seq[Expression]) {
+  private[flink] val groupKey: Seq[PlannerExpression]) {
+
+  /**
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields): _*)
+  }
 
   /**
     * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
@@ -1136,6 +1179,10 @@ class GroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
+    selectInternal(fields.map(table.expressionBridge.bridge))
+  }
+
+  private def selectInternal(fields: Seq[PlannerExpression]): Table = {
     val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
     if (propNames.nonEmpty) {
@@ -1153,53 +1200,14 @@ class GroupedTable(
         ).validate(table.tableEnv)
       ).validate(table.tableEnv))
   }
-
-  /**
-    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
-    * }}}
-    */
-  def select(fields: String): Table = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for AggFunctionCall
-    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
-    select(withResolvedAggFunctionCall: _*)
-  }
 }
 
+/**
+  * A table that has been windowed for grouping [[Window]]s.
+  */
 class WindowedTable(
     private[flink] val table: Table,
     private[flink] val window: Window) {
-
-  /**
-    * Groups the elements by a mandatory window and one or more optional grouping attributes.
-    * The window is specified by referring to its alias.
-    *
-    * If no additional grouping attribute is specified and if the input is a streaming table,
-    * the aggregation will be performed by a single task, i.e., with parallelism 1.
-    *
-    * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
-    * to SQL SELECT-GROUP-BY query.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
-    * }}}
-    */
-  def groupBy(fields: Expression*): WindowGroupedTable = {
-    val fieldsWithoutWindow = fields.filterNot(window.alias.equals(_))
-    if (fields.size != fieldsWithoutWindow.size + 1) {
-      throw new ValidationException("GroupBy must contain exactly one window alias.")
-    }
-
-    new WindowGroupedTable(table, fieldsWithoutWindow, window)
-  }
 
   /**
     * Groups the elements by a mandatory window and one or more optional grouping attributes.
@@ -1218,15 +1226,144 @@ class WindowedTable(
     * }}}
     */
   def groupBy(fields: String): WindowGroupedTable = {
-    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
-    groupBy(fieldsExpr: _*)
+    groupBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
+  /**
+    * Groups the elements by a mandatory window and one or more optional grouping attributes.
+    * The window is specified by referring to its alias.
+    *
+    * If no additional grouping attribute is specified and if the input is a streaming table,
+    * the aggregation will be performed by a single task, i.e., with parallelism 1.
+    *
+    * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
+    * to SQL SELECT-GROUP-BY query.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
+    * }}}
+    */
+  def groupBy(fields: Expression*): WindowGroupedTable = {
+    val fieldsWithoutWindow = fields.filterNot(window.getAlias.equals(_))
+    if (fields.size != fieldsWithoutWindow.size + 1) {
+      throw new ValidationException("GroupBy must contain exactly one window alias.")
+    }
+
+    new WindowGroupedTable(table, fieldsWithoutWindow, window)
+  }
 }
 
+/**
+  * A table that has been windowed and grouped for grouping [[Window]]s.
+  */
+class WindowGroupedTable(
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val window: Window) {
+
+  /**
+    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   windowGroupedTable.select("key, window.start, value.avg as valavg")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields): _*)
+  }
+
+  /**
+    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   windowGroupedTable.select('key, 'window.start, 'value.avg as 'valavg)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+    selectInternal(
+      groupKeys.map(table.expressionBridge.bridge),
+      createLogicalWindow(),
+      fields.map(table.expressionBridge.bridge))
+  }
+
+  private def selectInternal(
+      groupKeys: Seq[PlannerExpression],
+      window: LogicalWindow,
+      fields: Seq[PlannerExpression]): Table = {
+    val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
+
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      expandedFields, table.tableEnv, aggNames, propNames)
+
+    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeAttribute)
+
+    new Table(table.tableEnv,
+      Project(
+        projectsOnAgg,
+        WindowAggregate(
+          groupKeys,
+          window,
+          propNames.map(a => Alias(a._1, a._2)).toSeq,
+          aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        ).validate(table.tableEnv),
+        // required for proper resolution of the time attribute in multi-windows
+        explicitAlias = true
+      ).validate(table.tableEnv))
+  }
+
+  /**
+    * Converts an API class to a logical window for planning.
+    */
+  private def createLogicalWindow(): LogicalWindow = window match {
+    case tw: TumbleWithSizeOnTimeWithAlias =>
+      TumblingGroupWindow(
+        table.expressionBridge.bridge(tw.getAlias),
+        table.expressionBridge.bridge(tw.getTimeField),
+        table.expressionBridge.bridge(tw.getSize))
+    case sw: SlideWithSizeAndSlideOnTimeWithAlias =>
+      SlidingGroupWindow(
+        table.expressionBridge.bridge(sw.getAlias),
+        table.expressionBridge.bridge(sw.getTimeField),
+        table.expressionBridge.bridge(sw.getSize),
+        table.expressionBridge.bridge(sw.getSlide))
+    case sw: SessionWithGapOnTimeWithAlias =>
+      SessionGroupWindow(
+        table.expressionBridge.bridge(sw.getAlias),
+        table.expressionBridge.bridge(sw.getTimeField),
+        table.expressionBridge.bridge(sw.getGap))
+  }
+}
+
+/**
+  * A table that has been windowed for [[OverWindow]]s.
+  */
 class OverWindowedTable(
     private[flink] val table: Table,
-    private[flink] val overWindows: Array[OverWindow]) {
+    private[flink] val overWindows: Seq[OverWindow]) {
+
+  /**
+    * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   overWindowedTable.select("c, b.count over ow, e.sum over ow")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields): _*)
+  }
 
   /**
     * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
@@ -1239,17 +1376,27 @@ class OverWindowedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
+    selectInternal(
+      fields.map(table.expressionBridge.bridge),
+      overWindows.map(createLogicalWindow))
+  }
+
+  private def selectInternal(
+      fields: Seq[PlannerExpression],
+      logicalOverWindows: Seq[LogicalOverWindow])
+    : Table = {
+
     val expandedFields = expandProjectList(
       fields,
       table.logicalPlan,
       table.tableEnv)
 
-    if(fields.exists(_.isInstanceOf[WindowProperty])){
+    if (fields.exists(_.isInstanceOf[WindowProperty])){
       throw new ValidationException(
         "Window start and end properties are not available for Over windows.")
     }
 
-    val expandedOverFields = resolveOverWindows(expandedFields, overWindows, table.tableEnv)
+    val expandedOverFields = resolveOverWindows(expandedFields, logicalOverWindows, table.tableEnv)
 
     new Table(
       table.tableEnv,
@@ -1263,76 +1410,15 @@ class OverWindowedTable(
   }
 
   /**
-    * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   overWindowedTable.select("c, b.count over ow, e.sum over ow")
-    * }}}
+    * Converts an API class to a logical window for planning.
     */
-  def select(fields: String): Table = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for AggFunctionCall
-    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
-    select(withResolvedAggFunctionCall: _*)
-  }
-}
-
-class WindowGroupedTable(
-    private[flink] val table: Table,
-    private[flink] val groupKeys: Seq[Expression],
-    private[flink] val window: Window) {
-
-  /**
-    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   windowGroupedTable.select('key, 'window.start, 'value.avg as 'valavg)
-    * }}}
-    */
-  def select(fields: Expression*): Table = {
-    val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
-    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
-
-    val projectsOnAgg = replaceAggregationsAndProperties(
-      expandedFields, table.tableEnv, aggNames, propNames)
-
-    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeField)
-
-    new Table(table.tableEnv,
-      Project(
-        projectsOnAgg,
-        WindowAggregate(
-          groupKeys,
-          window.toLogicalWindow,
-          propNames.map(a => Alias(a._1, a._2)).toSeq,
-          aggNames.map(a => Alias(a._1, a._2)).toSeq,
-          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
-        ).validate(table.tableEnv),
-        // required for proper resolution of the time attribute in multi-windows
-        explicitAlias = true
-      ).validate(table.tableEnv))
-  }
-
-  /**
-    * Performs a selection operation on a window grouped  table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   windowGroupedTable.select("key, window.start, value.avg as valavg")
-    * }}}
-    */
-  def select(fields: String): Table = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for AggFunctionCall
-    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
-    select(withResolvedAggFunctionCall: _*)
+  private def createLogicalWindow(overWindow: OverWindow): LogicalOverWindow = {
+    LogicalOverWindow(
+      table.expressionBridge.bridge(overWindow.getAlias),
+      overWindow.getPartitioning.map(table.expressionBridge.bridge),
+      table.expressionBridge.bridge(overWindow.getOrder),
+      table.expressionBridge.bridge(overWindow.getPreceding),
+      overWindow.getFollowing.map(table.expressionBridge.bridge)
+    )
   }
 }

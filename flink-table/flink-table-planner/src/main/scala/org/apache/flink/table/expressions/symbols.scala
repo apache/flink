@@ -29,12 +29,12 @@ import scala.language.{existentials, implicitConversions}
 /**
   * General expression class to represent a symbol.
   */
-case class SymbolExpression(symbol: TableSymbol) extends LeafExpression {
+case class SymbolPlannerExpression(symbol: PlannerSymbol) extends LeafExpression {
 
   override private[flink] def resultType: TypeInformation[_] =
     throw new UnsupportedOperationException("This should not happen. A symbol has no result type.")
 
-  def toExpr: SymbolExpression = this // triggers implicit conversion
+  def toExpr: SymbolPlannerExpression = this // triggers implicit conversion
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     // dirty hack to pass Java enums to Java from Scala
@@ -49,8 +49,8 @@ case class SymbolExpression(symbol: TableSymbol) extends LeafExpression {
 /**
   * Symbol that wraps a Calcite symbol in form of a Java enum.
   */
-trait TableSymbol {
-  def symbols: TableSymbols
+trait PlannerSymbol {
+  def symbols: PlannerSymbols
   def name: String
   def enum: Enum[_]
 }
@@ -58,29 +58,29 @@ trait TableSymbol {
 /**
   * Enumeration of symbols.
   */
-abstract class TableSymbols extends Enumeration {
+abstract class PlannerSymbols extends Enumeration {
 
-  class TableSymbolValue(e: Enum[_]) extends Val(e.name()) with TableSymbol {
-    override def symbols: TableSymbols = TableSymbols.this
+  class PlannerSymbolValue(e: Enum[_]) extends Val(e.name()) with PlannerSymbol {
+    override def symbols: PlannerSymbols = PlannerSymbols.this
 
     override def enum: Enum[_] = e
 
     override def name: String = toString()
   }
 
-  protected final def Value(enum: Enum[_]): TableSymbolValue = new TableSymbolValue(enum)
+  protected final def Value(enum: Enum[_]): PlannerSymbolValue = new PlannerSymbolValue(enum)
 
-  implicit def symbolToExpression(symbol: TableSymbolValue): SymbolExpression =
-    SymbolExpression(symbol)
+  implicit def symbolToExpression(symbol: PlannerSymbolValue): SymbolPlannerExpression =
+    SymbolPlannerExpression(symbol)
 
 }
 
 /**
   * Units for working with time intervals.
   */
-object TimeIntervalUnit extends TableSymbols {
+object PlannerTimeIntervalUnit extends PlannerSymbols {
 
-  type TimeIntervalUnit = TableSymbolValue
+  type PlannerTimeIntervalUnit = PlannerSymbolValue
 
   val YEAR = Value(TimeUnitRange.YEAR)
   val YEAR_TO_MONTH = Value(TimeUnitRange.YEAR_TO_MONTH)
@@ -103,9 +103,9 @@ object TimeIntervalUnit extends TableSymbols {
 /**
   * Units for working with time points.
   */
-object TimePointUnit extends TableSymbols {
+object PlannerTimePointUnit extends PlannerSymbols {
 
-  type TimePointUnit = TableSymbolValue
+  type PlannerTimePointUnit = PlannerSymbolValue
 
   val YEAR = Value(TimeUnit.YEAR)
   val MONTH = Value(TimeUnit.MONTH)
@@ -123,9 +123,9 @@ object TimePointUnit extends TableSymbols {
 /**
   * Modes for trimming strings.
   */
-object TrimMode extends TableSymbols {
+object PlannerTrimMode extends PlannerSymbols {
 
-  type TrimMode = TableSymbolValue
+  type PlannerTrimMode = PlannerSymbolValue
 
   val BOTH = Value(SqlTrimFunction.Flag.BOTH)
   val LEADING = Value(SqlTrimFunction.Flag.LEADING)

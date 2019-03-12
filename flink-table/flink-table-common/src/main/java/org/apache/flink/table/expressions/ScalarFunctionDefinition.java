@@ -32,8 +32,8 @@ public final class ScalarFunctionDefinition extends FunctionDefinition {
 
 	private final ScalarFunction scalarFunction;
 
-	public ScalarFunctionDefinition(ScalarFunction scalarFunction) {
-		super(scalarFunction.getClass().getName(), SCALAR_FUNCTION);
+	public ScalarFunctionDefinition(String name, ScalarFunction scalarFunction) {
+		super(name, SCALAR_FUNCTION);
 		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 

@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.table.expressions.PlannerTimeIntervalUnit.PlannerTimeIntervalUnit
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
@@ -33,9 +32,10 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
 
 import scala.collection.JavaConversions._
 
-case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends PlannerExpression {
+case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpression)
+  extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = timeIntervalUnit :: temporal :: Nil
+  override private[flink] def children: Seq[PlannerExpression] = timeIntervalUnit :: temporal :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
@@ -46,20 +46,20 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends P
     }
 
     timeIntervalUnit match {
-      case SymbolExpression(TimeIntervalUnit.YEAR)
-           | SymbolExpression(TimeIntervalUnit.QUARTER)
-           | SymbolExpression(TimeIntervalUnit.MONTH)
-           | SymbolExpression(TimeIntervalUnit.WEEK)
-           | SymbolExpression(TimeIntervalUnit.DAY)
+      case SymbolPlannerExpression(PlannerTimeIntervalUnit.YEAR)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.QUARTER)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.MONTH)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.WEEK)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         ValidationSuccess
 
-      case SymbolExpression(TimeIntervalUnit.HOUR)
-           | SymbolExpression(TimeIntervalUnit.MINUTE)
-           | SymbolExpression(TimeIntervalUnit.SECOND)
+      case SymbolPlannerExpression(PlannerTimeIntervalUnit.HOUR)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.MINUTE)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.SECOND)
         if temporal.resultType == SqlTimeTypeInfo.TIME
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
@@ -83,11 +83,11 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends P
 }
 
 abstract class TemporalCeilFloor(
-    timeIntervalUnit: Expression,
-    temporal: Expression)
+    timeIntervalUnit: PlannerExpression,
+    temporal: PlannerExpression)
   extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = timeIntervalUnit :: temporal :: Nil
+  override private[flink] def children: Seq[PlannerExpression] = timeIntervalUnit :: temporal :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = temporal.resultType
 
@@ -97,7 +97,7 @@ abstract class TemporalCeilFloor(
         s"but $temporal is of type ${temporal.resultType}")
     }
     val unit = timeIntervalUnit match {
-      case SymbolExpression(u: TimeIntervalUnit) => Some(u)
+      case SymbolPlannerExpression(u: PlannerTimeIntervalUnit) => Some(u)
       case _ => None
     }
     if (unit.isEmpty) {
@@ -106,13 +106,13 @@ abstract class TemporalCeilFloor(
     }
 
     (unit.get, temporal.resultType) match {
-      case (TimeIntervalUnit.YEAR | TimeIntervalUnit.MONTH,
+      case (PlannerTimeIntervalUnit.YEAR | PlannerTimeIntervalUnit.MONTH,
           SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
-      case (TimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
+      case (PlannerTimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
-      case (TimeIntervalUnit.HOUR | TimeIntervalUnit.MINUTE | TimeIntervalUnit.SECOND,
-          SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
+      case (PlannerTimeIntervalUnit.HOUR | PlannerTimeIntervalUnit.MINUTE |
+          PlannerTimeIntervalUnit.SECOND, SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
       case _ =>
         ValidationFailure(s"Temporal ceil/floor operator does not support " +
@@ -122,8 +122,8 @@ abstract class TemporalCeilFloor(
 }
 
 case class TemporalFloor(
-    timeIntervalUnit: Expression,
-    temporal: Expression)
+    timeIntervalUnit: PlannerExpression,
+    temporal: PlannerExpression)
   extends TemporalCeilFloor(
     timeIntervalUnit,
     temporal) {
@@ -136,8 +136,8 @@ case class TemporalFloor(
 }
 
 case class TemporalCeil(
-    timeIntervalUnit: Expression,
-    temporal: Expression)
+    timeIntervalUnit: PlannerExpression,
+    temporal: PlannerExpression)
   extends TemporalCeilFloor(
     timeIntervalUnit,
     temporal) {
@@ -200,13 +200,13 @@ case class LocalTimestamp() extends CurrentTimePoint(SqlTimeTypeInfo.TIMESTAMP, 
   * Determines whether two anchored time intervals overlap.
   */
 case class TemporalOverlaps(
-    leftTimePoint: Expression,
-    leftTemporal: Expression,
-    rightTimePoint: Expression,
-    rightTemporal: Expression)
+    leftTimePoint: PlannerExpression,
+    leftTemporal: PlannerExpression,
+    rightTimePoint: PlannerExpression,
+    rightTemporal: PlannerExpression)
   extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] =
+  override private[flink] def children: Seq[PlannerExpression] =
     Seq(leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
@@ -303,7 +303,8 @@ case class TemporalOverlaps(
   }
 }
 
-case class DateFormat(timestamp: Expression, format: Expression) extends PlannerExpression {
+case class DateFormat(timestamp: PlannerExpression, format: PlannerExpression)
+  extends PlannerExpression {
   override private[flink] def children = timestamp :: format :: Nil
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder) =
@@ -315,12 +316,12 @@ case class DateFormat(timestamp: Expression, format: Expression) extends Planner
 }
 
 case class TimestampDiff(
-    timePointUnit: Expression,
-    timePoint1: Expression,
-    timePoint2: Expression)
+    timePointUnit: PlannerExpression,
+    timePoint1: PlannerExpression,
+    timePoint2: PlannerExpression)
   extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] =
+  override private[flink] def children: Seq[PlannerExpression] =
     timePointUnit :: timePoint1 :: timePoint2 :: Nil
 
   override private[flink] def validateInput(): ValidationResult = {
@@ -337,14 +338,14 @@ case class TimestampDiff(
     }
 
     timePointUnit match {
-      case SymbolExpression(TimePointUnit.YEAR)
-           | SymbolExpression(TimePointUnit.QUARTER)
-           | SymbolExpression(TimePointUnit.MONTH)
-           | SymbolExpression(TimePointUnit.WEEK)
-           | SymbolExpression(TimePointUnit.DAY)
-           | SymbolExpression(TimePointUnit.HOUR)
-           | SymbolExpression(TimePointUnit.MINUTE)
-           | SymbolExpression(TimePointUnit.SECOND)
+      case SymbolPlannerExpression(PlannerTimePointUnit.YEAR)
+           | SymbolPlannerExpression(PlannerTimePointUnit.QUARTER)
+           | SymbolPlannerExpression(PlannerTimePointUnit.MONTH)
+           | SymbolPlannerExpression(PlannerTimePointUnit.WEEK)
+           | SymbolPlannerExpression(PlannerTimePointUnit.DAY)
+           | SymbolPlannerExpression(PlannerTimePointUnit.HOUR)
+           | SymbolPlannerExpression(PlannerTimePointUnit.MINUTE)
+           | SymbolPlannerExpression(PlannerTimePointUnit.SECOND)
         if timePoint1.resultType == SqlTimeTypeInfo.DATE
           || timePoint1.resultType == SqlTimeTypeInfo.TIMESTAMP
           || timePoint2.resultType == SqlTimeTypeInfo.DATE

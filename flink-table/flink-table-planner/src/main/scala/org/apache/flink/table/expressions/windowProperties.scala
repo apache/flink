@@ -33,7 +33,7 @@ trait WindowProperty {
 
 }
 
-abstract class AbstractWindowProperty(child: Expression)
+abstract class AbstractWindowProperty(child: PlannerExpression)
   extends UnaryExpression
   with WindowProperty {
 
@@ -52,14 +52,14 @@ abstract class AbstractWindowProperty(child: Expression)
   def toNamedWindowProperty(name: String): NamedWindowProperty = NamedWindowProperty(name, this)
 }
 
-case class WindowStart(child: Expression) extends AbstractWindowProperty(child) {
+case class WindowStart(child: PlannerExpression) extends AbstractWindowProperty(child) {
 
   override def resultType = SqlTimeTypeInfo.TIMESTAMP
 
   override def toString: String = s"start($child)"
 }
 
-case class WindowEnd(child: Expression) extends AbstractWindowProperty(child) {
+case class WindowEnd(child: PlannerExpression) extends AbstractWindowProperty(child) {
 
   override def resultType = SqlTimeTypeInfo.TIMESTAMP
 

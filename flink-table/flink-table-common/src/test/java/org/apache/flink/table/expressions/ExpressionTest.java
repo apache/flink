@@ -31,7 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 /**
- * Tests for {@link org.apache.flink.table.expressions.CommonExpression} and its sub-classes.
+ * Tests for {@link org.apache.flink.table.expressions.Expression} and its sub-classes.
  */
 public class ExpressionTest {
 
@@ -39,14 +39,14 @@ public class ExpressionTest {
 		// dummy
 	};
 
-	private static final CommonExpression TREE_WITH_NULL = createExpressionTree(null);
+	private static final Expression TREE_WITH_NULL = createExpressionTree(null);
 
-	private static final CommonExpression TREE_WITH_VALUE = createExpressionTree(12);
+	private static final Expression TREE_WITH_VALUE = createExpressionTree(12);
 
-	private static final CommonExpression TREE_WITH_SAME_VALUE = createExpressionTree(12);
+	private static final Expression TREE_WITH_SAME_VALUE = createExpressionTree(12);
 
 	private static final String TREE_WITH_NULL_STRING =
-		"and(true, equals(field, " + ExpressionTest.class.getName() + "$1(null)))";
+		"and(true, equals(field, dummy(null)))";
 
 	@Test
 	public void testExpressionString() {
@@ -63,7 +63,7 @@ public class ExpressionTest {
 		assertNotEquals(TREE_WITH_NULL, TREE_WITH_VALUE);
 	}
 
-	private static CommonExpression createExpressionTree(Integer nestedValue) {
+	private static Expression createExpressionTree(Integer nestedValue) {
 		return new CallExpression(
 			AND,
 			asList(
@@ -73,7 +73,7 @@ public class ExpressionTest {
 					asList(
 						new FieldReferenceExpression("field"),
 						new CallExpression(
-							new ScalarFunctionDefinition(DUMMY_FUNCTION),
+							new ScalarFunctionDefinition("dummy", DUMMY_FUNCTION),
 							singletonList(new ValueLiteralExpression(nestedValue, Types.INT))
 						)
 					)

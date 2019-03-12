@@ -18,21 +18,26 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Units for working with points in time.
+ * A visitor for all API-specific {@link Expression}s.
  */
-@PublicEvolving
-public enum CommonTimePointUnit implements CommonTableSymbol {
-	YEAR,
-	MONTH,
-	DAY,
-	HOUR,
-	MINUTE,
-	SECOND,
-	QUARTER,
-	WEEK,
-	MILLISECOND,
-	MICROSECOND
+@Internal
+public interface ApiExpressionVisitor<R> extends ExpressionVisitor<R> {
+
+	R visitTableReference(TableReferenceExpression tableReference);
+
+	R visitUnresolvedCall(UnresolvedCallExpression unresolvedCall);
+
+	default R visit(Expression other) {
+		if (other instanceof TableReferenceExpression) {
+			return visitTableReference((TableReferenceExpression) other);
+		} else if (other instanceof UnresolvedCallExpression) {
+			return visitUnresolvedCall((UnresolvedCallExpression) other);
+		}
+		return visitNonApiExpression(other);
+	}
+
+	R visitNonApiExpression(Expression other);
 }

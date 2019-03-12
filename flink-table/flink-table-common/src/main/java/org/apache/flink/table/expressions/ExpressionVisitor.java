@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * The visitor definition of {@link CommonExpression}. An expression visitor transforms an
+ * The visitor definition of {@link Expression}. An expression visitor transforms an
  * expression to instances of {@code R}.
  */
 @PublicEvolving
@@ -29,7 +29,7 @@ public interface ExpressionVisitor<R> {
 
 	R visitCall(CallExpression call);
 
-	R visitSymbol(CommonSymbolExpression symbolExpression);
+	R visitSymbol(SymbolExpression symbolExpression);
 
 	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
 
@@ -37,6 +37,6 @@ public interface ExpressionVisitor<R> {
 
 	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
 
-	R visit(CommonExpression other);
+	R visit(Expression other);
 
 }

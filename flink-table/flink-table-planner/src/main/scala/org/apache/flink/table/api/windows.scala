@@ -19,7 +19,6 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.logical._
 
 /**
   * An over window specification.
@@ -195,13 +194,15 @@ class OverWindowPartitionedOrderedPreceding(
   *
   * For finite batch tables, group windows provide shortcuts for time-based groupBy.
   */
-abstract class Window(val alias: Expression, val timeField: Expression) {
+abstract class Window(alias: Expression, timeField: Expression) {
 
-  /**
-    * Converts an API class to a logical window for planning.
-    */
-  private[flink] def toLogicalWindow: LogicalWindow
+  def getAlias: Expression = {
+    alias
+  }
 
+  def getTimeField: Expression = {
+    timeField
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -296,11 +297,8 @@ class TumbleWithSizeOnTimeWithAlias(
     alias,
     timeField) {
 
-  /**
-    * Converts an API class to a logical window for planning.
-    */
-  override private[flink] def toLogicalWindow: LogicalWindow = {
-    TumblingGroupWindow(alias, timeField, size)
+  def getSize: Expression = {
+    size
   }
 }
 
@@ -431,11 +429,12 @@ class SlideWithSizeAndSlideOnTimeWithAlias(
     alias,
     timeField) {
 
-  /**
-    * Converts an API class to a logical window for planning.
-    */
-  override private[flink] def toLogicalWindow: LogicalWindow = {
-    SlidingGroupWindow(alias, timeField, size, slide)
+  def getSize: Expression = {
+    size
+  }
+
+  def getSlide: Expression = {
+    slide
   }
 }
 
@@ -531,10 +530,7 @@ class SessionWithGapOnTimeWithAlias(
     alias,
     timeField) {
 
-  /**
-    * Converts an API class to a logical window for planning.
-    */
-  override private[flink] def toLogicalWindow: LogicalWindow = {
-    SessionGroupWindow(alias, timeField, gap)
+  def getGap: Expression = {
+    gap
   }
 }

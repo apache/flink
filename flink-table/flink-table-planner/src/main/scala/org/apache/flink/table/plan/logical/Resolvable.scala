@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.logical
 
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.PlannerExpression
 
 /**
   * A class implementing this interface can resolve the expressions of its parameters and
@@ -39,5 +39,5 @@ trait Resolvable[T <: AnyRef] {
     * @param resolver function that can resolve an expression
     * @return class with resolved expression parameters
     */
-  def resolveExpressions(resolver: (Expression) => Expression): T
+  def resolveExpressions(resolver: (PlannerExpression) => PlannerExpression): T
 }

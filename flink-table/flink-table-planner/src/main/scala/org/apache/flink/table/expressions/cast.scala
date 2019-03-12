@@ -24,7 +24,8 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.validate._
 
-case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
+case class Cast(child: PlannerExpression, resultType: TypeInformation[_])
+  extends UnaryExpression {
 
   override def toString = s"$child.cast($resultType)"
 
@@ -40,7 +41,7 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
   }
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
-    val child: Expression = anyRefs.head.asInstanceOf[Expression]
+    val child: PlannerExpression = anyRefs.head.asInstanceOf[PlannerExpression]
     copy(child, resultType).asInstanceOf[this.type]
   }
 

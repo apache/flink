@@ -117,7 +117,9 @@ class TestFilterableTableSource(
 
   override def explainSource(): String = {
     if (filterPredicates.nonEmpty) {
-      s"filter=[${filterPredicates.reduce((l, r) => And(l, r)).toString}]"
+      // TODO we cast to planner expression as a temporary solution to keep the old interfaces
+      s"filter=[${filterPredicates.reduce((l, r) =>
+        And(l.asInstanceOf[PlannerExpression], r.asInstanceOf[PlannerExpression])).toString}]"
     } else {
       ""
     }
