@@ -50,7 +50,8 @@ public abstract class GeneratedClass<T> implements Serializable {
 	public T newInstance(ClassLoader classLoader) {
 		try {
 			return (T) compile(classLoader).getConstructor(Object[].class)
-					// newInstance(Object ... initargs)
+					// Because Constructor.newInstance(Object... initargs), we need to load
+					// references into a new Object[], otherwise it cannot be compiled.
 					.newInstance(new Object[] {references});
 		} catch (Exception e) {
 			throw new RuntimeException(

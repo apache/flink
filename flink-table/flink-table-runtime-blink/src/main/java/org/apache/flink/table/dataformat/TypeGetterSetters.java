@@ -38,6 +38,7 @@ import org.apache.flink.table.util.SegmentsUtil;
  */
 public interface TypeGetterSetters {
 
+	int MAX_FIX_PART_DATA_SIZE = 7;
 	long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
 	long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
 

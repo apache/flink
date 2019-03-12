@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
+import static org.apache.flink.table.dataformat.TypeGetterSetters.MAX_FIX_PART_DATA_SIZE;
+
 /**
  * Use the special format to write data to a {@link MemorySegment} (its capacity grows
  * automatically).
@@ -86,7 +88,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 
 	private void writeBytes(int pos, byte[] bytes) {
 		int len = bytes.length;
-		if (len <= 7) {
+		if (len <= MAX_FIX_PART_DATA_SIZE) {
 			writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
 		} else {
 			writeBytesToVarLenPart(pos, bytes, len);
@@ -144,7 +146,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	@Override
 	public void writeBinary(int pos, byte[] bytes) {
 		int len = bytes.length;
-		if (len <= 7) {
+		if (len <= MAX_FIX_PART_DATA_SIZE) {
 			writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
 		} else {
 			writeBytesToVarLenPart(pos, bytes, len);

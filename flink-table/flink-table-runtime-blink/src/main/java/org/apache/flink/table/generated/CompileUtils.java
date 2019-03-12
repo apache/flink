@@ -89,6 +89,10 @@ public final class CompileUtils {
 		}
 	}
 
+	/**
+	 * To output more information when an error occurs.
+	 * Generally, when cook fails, it shows which line is wrong. This line number starts at 1.
+	 */
 	private static String addLineNumber(String code) {
 		String[] lines = code.split("\n");
 		StringBuilder builder = new StringBuilder();
