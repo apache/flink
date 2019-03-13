@@ -82,6 +82,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceGatewaysSupplier,
 			BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
 			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction,
+			BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction,
 			Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
 			Supplier<CompletableFuture<Collection<JobID>>> listFunction,
 			int blobServerPort,
@@ -100,7 +101,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			requestMetricQueryServiceAddressesSupplier,
 			requestTaskManagerMetricQueryServiceGatewaysSupplier,
 			requestOperatorBackPressureStatsFunction,
-			triggerSavepointFunction);
+			triggerSavepointFunction,
+			stopWithSavepointFunction);
 		this.submitFunction = submitFunction;
 		this.listFunction = listFunction;
 		this.blobServerPort = blobServerPort;
@@ -189,6 +191,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 				requestTaskManagerMetricQueryServiceGatewaysSupplier,
 				requestOperatorBackPressureStatsFunction,
 				triggerSavepointFunction,
+				stopWithSavepointFunction,
 				submitFunction,
 				listFunction,
 				blobServerPort,
