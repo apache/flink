@@ -194,7 +194,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				rhe.getHttpResponseStatus(),
 				responseHeaders);
 		} else {
-			log.error("Implementation error: Unhandled exception.", throwable);
+			log.error("Unhandled exception.", throwable);
 			String stackTrace = String.format("<Exception on server side:%n%s%nEnd of exception on server side>",
 				ExceptionUtils.stringifyException(throwable));
 			return HandlerUtils.sendErrorResponse(
