@@ -212,9 +212,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * (such as from RUNNING to FINISHED). */
 	private final List<JobStatusListener> jobStatusListeners;
 
-	/** Listeners that receive messages whenever a single task execution changes its status. */
-	private final List<ExecutionStatusListener> executionListeners;
-
 	/** The implementation that decides how to recover the failures of tasks. */
 	private final FailoverStrategy failoverStrategy;
 
@@ -409,7 +406,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.currentExecutions = new ConcurrentHashMap<>(16);
 
 		this.jobStatusListeners  = new CopyOnWriteArrayList<>();
-		this.executionListeners = new CopyOnWriteArrayList<>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
@@ -1758,12 +1754,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	public void registerExecutionListener(ExecutionStatusListener listener) {
-		if (listener != null) {
-			executionListeners.add(listener);
-		}
-	}
-
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if (jobStatusListeners.size() > 0) {
 			final long timestamp = System.currentTimeMillis();
@@ -1783,23 +1773,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			final Execution execution,
 			final ExecutionState newExecutionState,
 			final Throwable error) {
-
-		if (executionListeners.size() > 0) {
-			final ExecutionJobVertex vertex = execution.getVertex().getJobVertex();
-			final String message = error == null ? null : ExceptionUtils.stringifyException(error);
-			final long timestamp = System.currentTimeMillis();
-
-			for (ExecutionStatusListener listener : executionListeners) {
-				try {
-					listener.executionStatusChanged(
-							getJobID(), vertex.getJobVertexId(), vertex.getJobVertex().getName(),
-							vertex.getParallelism(), execution.getParallelSubtaskIndex(),
-							execution.getAttemptId(), newExecutionState, timestamp, message);
-				} catch (Throwable t) {
-					LOG.warn("Error while notifying ExecutionStatusListener", t);
-				}
-			}
-		}
 
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
