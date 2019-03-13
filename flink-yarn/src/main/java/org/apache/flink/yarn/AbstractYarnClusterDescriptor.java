@@ -141,6 +141,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String nodeLabel;
 
+	private String applicationType;
+
 	/** Optional Jar file to include in the system class loader of all application nodes
 	 * (for per-job submission). */
 	private final Set<File> userJarFiles = new HashSet<>();
@@ -986,7 +988,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final String customApplicationName = customName != null ? customName : applicationName;
 
 		appContext.setApplicationName(customApplicationName);
-		appContext.setApplicationType("Apache Flink");
+		appContext.setApplicationType(applicationType != null ? applicationType : "Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 
@@ -1279,10 +1281,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	public void setName(String name) {
-		if (name == null) {
-			throw new IllegalArgumentException("The passed name is null");
-		}
-		customName = name;
+		this.customName = Preconditions.checkNotNull(name, "The customized name must not be null");
+	}
+
+	public void setApplicationType(String type) {
+		this.applicationType = Preconditions.checkNotNull(type, "The customized application type must not be null");
 	}
 
 	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws
