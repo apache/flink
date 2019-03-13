@@ -36,6 +36,10 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -44,7 +48,7 @@ import static org.powermock.api.mockito.PowerMockito.doThrow;
 /**
  * Tests for the STOP command.
  */
-public class CliFrontendStopTest extends CliFrontendTestBase {
+public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 
 	@BeforeClass
 	public static void setup() {
@@ -57,7 +61,7 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 	}
 
 	@Test
-	public void testStop() throws Exception {
+	public void testStopWithOnlyJobId() throws Exception {
 		// test stop properly
 		JobID jid = new JobID();
 		String jidString = jid.toString();
@@ -68,7 +72,73 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 
 		testFrontend.stop(parameters);
 
-		Mockito.verify(clusterClient, times(1)).stop(any(JobID.class));
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(false), isNull());
+	}
+
+	@Test
+	public void testStopWithDefaultSavepointDir() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-s", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(false), isNull());
+	}
+
+	@Test
+	public void testStopWithExplicitSavepointDir() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-s", "test-target-dir", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(false), eq("test-target-dir"));
+	}
+
+	@Test
+	public void testStopOnlyWithMaxWM() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-d", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(true), isNull());
+	}
+
+	@Test
+	public void testStopWithMaxWMAndDefaultSavepointDir() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-s", "-d", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(true), isNull());
+	}
+
+	@Test
+	public void testStopWithMaxWMAndExplicitSavepointDir() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-d", "-s", "test-target-dir", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(true), eq("test-target-dir"));
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -93,12 +163,25 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 	}
 
+	@Test(expected = CliArgsException.class)
+	public void testWrongSavepointDirOrder() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-s", "-d", "test-target-dir", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+				.stopWithSavepoint(eq(jid), eq(false), eq("test-target-dir"));
+	}
+
 	@Test
 	public void testUnknownJobId() throws Exception {
 		// test unknown job Id
 		JobID jid = new JobID();
 
-		String[] parameters = { jid.toString() };
+		String[] parameters = { "-s", "test-target-dir", jid.toString() };
 		String expectedMessage = "Test exception";
 		FlinkException testException = new FlinkException(expectedMessage);
 		final ClusterClient<String> clusterClient = createClusterClient(testException);
@@ -108,6 +191,7 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 			testFrontend.stop(parameters);
 			fail("Should have failed.");
 		} catch (FlinkException e) {
+			e.printStackTrace();
 			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedMessage).isPresent());
 		}
 	}
@@ -116,7 +200,7 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
 		if (exception != null) {
-			doThrow(exception).when(clusterClient).stop(any(JobID.class));
+			doThrow(exception).when(clusterClient).stopWithSavepoint(any(JobID.class), anyBoolean(), anyString());
 		}
 
 		return clusterClient;

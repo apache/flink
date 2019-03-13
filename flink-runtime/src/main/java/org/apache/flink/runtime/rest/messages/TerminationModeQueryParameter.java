@@ -49,7 +49,7 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 	}
 
 	/**
-	 * Supported termination modes.
+	 * Supported termination modes. todo this will be removed
 	 */
 	public enum TerminationMode {
 		CANCEL,

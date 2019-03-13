@@ -566,13 +566,20 @@ public abstract class ClusterClient<T> {
 	 * a while after sending the stop command, because after sources stopped to emit data all operators
 	 * need to finish processing.
 	 *
-	 * @param jobId
-	 *            the job ID of the streaming program to stop
+	 * @param jobId the job ID of the streaming program to stop
+	 * @param advanceToEndOfTime flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return path where the savepoint is located
 	 * @throws Exception
 	 *             If the job ID is invalid (ie, is unknown or refers to a batch job) or if sending the stop signal
 	 *             failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
 	 */
-	public void stop(final JobID jobId) throws Exception {
+	public String stopWithSavepoint(final JobID jobId, final boolean advanceToEndOfTime, @Nullable final String savepointDirectory) throws Exception {
+
+		// We ignore the `advanceToEndOfTime` and `savepointDirectory` parameters
+		// and we return null. This is because this is pre-FLIP-6 code that is going to
+		// be removed.
+
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new JobManagerMessages.StopJob(jobId), timeout);
@@ -587,6 +594,7 @@ public abstract class ClusterClient<T> {
 		} else {
 			throw new IllegalStateException("Unexpected response: " + rc);
 		}
+		return null;
 	}
 
 	/**

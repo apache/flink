@@ -35,6 +35,9 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMess
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -99,6 +102,46 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 
 	public SavepointHandlers(@Nullable final String defaultSavepointDir) {
 		this.defaultSavepointDir = defaultSavepointDir;
+	}
+
+	/**
+	 * HTTP handler to stop a job with a savepoint.
+	 */
+	public class StopWithSavepointHandler extends TriggerHandler<RestfulGateway, StopWithSavepointRequestBody, StopWithSavepointMessageParameters> {
+
+		public StopWithSavepointHandler(
+				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+				final Time timeout,
+				final Map<String, String> responseHeaders) {
+			super(leaderRetriever, timeout, responseHeaders, StopWithSavepointTriggerHeaders.getInstance());
+		}
+
+		@Override
+		protected CompletableFuture<String> triggerOperation(
+				final HandlerRequest<StopWithSavepointRequestBody, StopWithSavepointMessageParameters> request,
+				final RestfulGateway gateway) throws RestHandlerException {
+
+			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+			final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+
+			if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+				throw new RestHandlerException(
+						String.format("Config key [%s] is not set. Property [%s] must be provided.",
+								CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
+								StopWithSavepointRequestBody.FIELD_NAME_TARGET_DIRECTORY),
+						HttpResponseStatus.BAD_REQUEST);
+			}
+
+			final boolean advanceToEndOfTime = request.getRequestBody().advanceToEndOfTime();
+			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
+			return gateway.stopWithSavepoint(jobId, targetDirectory, advanceToEndOfTime, RpcUtils.INF_TIMEOUT);
+		}
+
+		@Override
+		protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<StopWithSavepointRequestBody, StopWithSavepointMessageParameters> request) {
+			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+			return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
+		}
 	}
 
 	/**
