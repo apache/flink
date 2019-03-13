@@ -27,7 +27,7 @@ import _root_.scala.collection.JavaConverters._
 /**
   * Visitor implementation for converting [[Expression]]s to [[PlannerExpression]]s.
   */
-class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpression] {
+class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
   override def visitCall(call: CallExpression): PlannerExpression = {
     val func = call.getFunctionDefinition
@@ -694,27 +694,32 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
   }
 
   override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {
-    if (fieldReference.getResultType.isPresent) {
-      ResolvedFieldReference(
-        fieldReference.getName,
-        fieldReference.getResultType.get())
-    } else {
-      UnresolvedFieldReference(fieldReference.getName)
-    }
+    ResolvedFieldReference(
+      fieldReference.getName,
+      fieldReference.getResultType)
+  }
+
+  override def visitUnresolvedField(fieldReference: UnresolvedFieldReferenceExpression)
+    : PlannerExpression = {
+    UnresolvedFieldReference(fieldReference.getName)
   }
 
   override def visitTypeLiteral(typeLiteral: TypeLiteralExpression): PlannerExpression = {
     throw new TableException("Unsupported type literal expression: " + typeLiteral)
   }
 
-  override def visit(other: Expression): PlannerExpression = {
-    other match {
-      case tableRef: TableReferenceExpression =>
-        TableReference(
-          tableRef.asInstanceOf[TableReferenceExpression].getName,
-          tableRef.asInstanceOf[TableReferenceExpression].getTable
-        )
+  override def visitTableReference(tableRef: TableReferenceExpression): PlannerExpression = {
+    TableReference(
+      tableRef.asInstanceOf[TableReferenceExpression].getName,
+      tableRef.asInstanceOf[TableReferenceExpression].getTable
+    )
+  }
 
+  override def visitUnresolvedCall(unresolvedCall: UnresolvedCallExpression): PlannerExpression =
+    throw new TableException("Unsupported function call: " + unresolvedCall)
+
+  override def visitNonApiExpression(other: Expression): PlannerExpression = {
+    other match {
       // already converted planner expressions will pass this visitor without modification
       case plannerExpression: PlannerExpression => plannerExpression
 

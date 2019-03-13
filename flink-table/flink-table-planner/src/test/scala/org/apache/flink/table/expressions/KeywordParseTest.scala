@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, fieldRef, unresolvedCall}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedFieldRef, unresolvedCall}
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -30,31 +30,31 @@ class KeywordParseTest {
   @Test
   def testKeyword(): Unit = {
     assertEquals(
-      call(BuiltInFunctionDefinitions.ORDER_ASC, fieldRef("f0")),
+      call(BuiltInFunctionDefinitions.ORDER_ASC, unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.asc"))
     assertEquals(
-      call(BuiltInFunctionDefinitions.ORDER_ASC, fieldRef("f0")),
+      call(BuiltInFunctionDefinitions.ORDER_ASC, unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.asc()"))
   }
 
   @Test
   def testKeywordAsPrefixInFunctionName(): Unit = {
     assertEquals(
-      unresolvedCall("ascii", fieldRef("f0")),
+      unresolvedCall("ascii", unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.ascii()"))
   }
 
   @Test
   def testKeywordAsInfixInFunctionName(): Unit = {
     assertEquals(
-      unresolvedCall("iiascii", fieldRef("f0")),
+      unresolvedCall("iiascii", unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.iiascii()"))
   }
 
   @Test
   def testKeywordAsSuffixInFunctionName(): Unit = {
     assertEquals(
-      unresolvedCall("iiasc", fieldRef("f0")),
+      unresolvedCall("iiasc", unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.iiasc()"))
   }
 }
