@@ -23,13 +23,16 @@ and all nightly tests via
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-nightly-tests.sh
 ```
 
-where <flink dir> is a Flink distribution directory.
+where \<flink dir\> is a Flink distribution directory.
 
 You can also run tests individually via
 
 ```
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh arg1 arg2
 ```
+
+**NOTICE**: Although ```run-nightly-tests.sh``` is a shell script, ```#!/usr/bin/env bash``` is specified as its header to assure [flexibility on different systems](https://stackoverflow.com/questions/16365130/what-is-the-difference-between-usr-bin-env-bash-and-usr-bin-bash).
+ Please _DON'T_ run it with explicit command like ```sh run-nightly-tests.sh``` or you may get weird issues like syntax error or port conflict. More details please refer to [FLINK-11892](https://issues.apache.org/jira/browse/FLINK-11892).
 
 ### Kubernetes test
 
