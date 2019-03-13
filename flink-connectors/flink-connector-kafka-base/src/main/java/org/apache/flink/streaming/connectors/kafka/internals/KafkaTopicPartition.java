@@ -42,9 +42,18 @@ public final class KafkaTopicPartition implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-	private final String topic;
-	private final int partition;
-	private final int cachedHash;
+	public final String topic;
+	public final int partition;
+	public final int cachedHash;
+
+	/**
+	 * Rules for being POJO.
+	 */
+	public KafkaTopicPartition() {
+		this.topic = null;
+		this.partition = 0;
+		this.cachedHash = 0;
+	}
 
 	public KafkaTopicPartition(String topic, int partition) {
 		this.topic = requireNonNull(topic);
