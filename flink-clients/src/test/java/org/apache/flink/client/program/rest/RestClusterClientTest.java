@@ -239,10 +239,6 @@ public class RestClusterClientTest extends TestLogger {
 				Assert.assertFalse(terminationHandler.jobCanceled);
 				restClusterClient.cancel(jobId);
 				Assert.assertTrue(terminationHandler.jobCanceled);
-
-				Assert.assertFalse(terminationHandler.jobStopped);
-				restClusterClient.stop(jobId);
-				Assert.assertTrue(terminationHandler.jobStopped);
 			} finally {
 				restClusterClient.shutdown();
 			}

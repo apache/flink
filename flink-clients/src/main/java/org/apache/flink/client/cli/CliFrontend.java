@@ -504,48 +504,45 @@ public class CliFrontend {
 	 * @param args Command line arguments for the stop action.
 	 */
 	protected void stop(String[] args) throws Exception {
-		LOG.info("Running 'stop' command.");
+		LOG.info("Running 'stop-with-savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-
 		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
 		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
-		StopOptions stopOptions = new StopOptions(commandLine);
-
-		// evaluate help flag
+		final StopOptions stopOptions = new StopOptions(commandLine);
 		if (stopOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForStop(customCommandLines);
 			return;
 		}
 
-		String[] stopArgs = stopOptions.getArgs();
-		JobID jobId;
+		final String[] cleanedArgs = stopOptions.getArgs();
 
-		if (stopArgs.length > 0) {
-			String jobIdString = stopArgs[0];
-			jobId = parseJobId(jobIdString);
-		} else {
-			throw new CliArgsException("Missing JobID");
-		}
+		final String targetDirectory = stopOptions.hasSavepointFlag() && cleanedArgs.length > 0
+				? stopOptions.getTargetDirectory()
+				: null; // the default savepoint location is going to be used in this case.
+
+		final JobID jobId = cleanedArgs.length != 0
+				? parseJobId(cleanedArgs[0])
+				: parseJobId(stopOptions.getTargetDirectory());
+
+		final boolean advanceToEndOfEventTime = stopOptions.shouldAdvanceToEndOfEventTime();
+
+		logAndSysout((advanceToEndOfEventTime ? "Draining job " : "Suspending job ") + "\"" + jobId + "\" with a savepoint.");
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-
-		logAndSysout("Stopping job " + jobId + '.');
-
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
 			clusterClient -> {
 				try {
-					clusterClient.stop(jobId);
+					clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
 				} catch (Exception e) {
-					throw new FlinkException("Could not stop the job " + jobId + '.', e);
+					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
 				}
 			});
 
-		logAndSysout("Stopped job " + jobId + '.');
+		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a savepoint.");
 	}
 
 	/**
@@ -940,7 +937,11 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	private JobID parseJobId(String jobIdString) throws CliArgsException {
-		JobID jobId;
+		if (jobIdString == null) {
+			throw new CliArgsException("Missing JobId");
+		}
+
+		final JobID jobId;
 		try {
 			jobId = JobID.fromHexString(jobIdString);
 		} catch (IllegalArgumentException e) {

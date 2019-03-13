@@ -83,6 +83,8 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMess
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.queue.AsynchronouslyCreatedResource;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
@@ -386,17 +388,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public void stop(JobID jobID) throws Exception {
-		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
-		params.jobPathParameter.resolve(jobID);
-		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.STOP));
-		CompletableFuture<EmptyResponseBody> responseFuture = sendRequest(
-			JobTerminationHeaders.getInstance(),
-			params);
-		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-	}
-
-	@Override
 	public void cancel(JobID jobID) throws Exception {
 		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
 		params.jobPathParameter.resolve(jobID);
@@ -405,6 +396,34 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			JobTerminationHeaders.getInstance(),
 			params);
 		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+	}
+
+	@Override
+	public String stopWithSavepoint(
+			final JobID jobId,
+			final boolean advanceToEndOfTime,
+			@Nullable final String savepointDirectory) throws Exception {
+
+		final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders = StopWithSavepointTriggerHeaders.getInstance();
+
+		final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
+				stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
+		stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
+
+		final CompletableFuture<TriggerResponse> responseFuture = sendRequest(
+				stopWithSavepointTriggerHeaders,
+				stopWithSavepointTriggerMessageParameters,
+				new StopWithSavepointRequestBody(savepointDirectory, advanceToEndOfTime));
+
+		return responseFuture.thenCompose(savepointTriggerResponseBody -> {
+			final TriggerId savepointTriggerId = savepointTriggerResponseBody.getTriggerId();
+			return pollSavepointAsync(jobId, savepointTriggerId);
+		}).thenApply(savepointInfo -> {
+			if (savepointInfo.getFailureCause() != null) {
+				throw new CompletionException(savepointInfo.getFailureCause());
+			}
+			return savepointInfo.getLocation();
+		}).get();
 	}
 
 	@Override

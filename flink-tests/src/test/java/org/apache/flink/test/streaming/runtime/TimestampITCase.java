@@ -28,6 +28,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointTriggerException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -194,15 +195,13 @@ public class TimestampITCase extends TestLogger {
 					// send stop until the job is stopped
 					do {
 						try {
-							clusterClient.stop(id);
+							clusterClient.stopWithSavepoint(id, false, "test");
 						}
 						catch (Exception e) {
-							if (e.getCause() instanceof IllegalStateException) {
-								// this means the job is not yet ready to be stopped,
-								// for example because it is still in CREATED state
-								// we ignore the exception
-							} else {
-								// other problem
+							if (
+									!(e.getCause() instanceof CheckpointTriggerException) ||
+									!e.getCause().getMessage().contains("Not all required tasks are currently running.")
+							) {
 								throw e;
 							}
 						}
