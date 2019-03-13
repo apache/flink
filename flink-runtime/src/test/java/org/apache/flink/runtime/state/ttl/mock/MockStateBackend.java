@@ -28,9 +28,12 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -39,6 +42,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -54,6 +58,52 @@ public class MockStateBackend extends AbstractStateBackend {
 	@Override
 	public CheckpointStorage createCheckpointStorage(JobID jobId) {
 		return new CheckpointStorage() {
+			@Override
+			public boolean supportsHighlyAvailableStorage() {
+				return false;
+			}
+
+			@Override
+			public boolean hasDefaultSavepointLocation() {
+				return false;
+			}
+
+			@Override
+			public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
+				return null;
+			}
+
+			@Override
+			public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) {
+				return new CheckpointStorageLocation() {
+
+					@Override
+					public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
+						return null;
+					}
+
+					@Override
+					public CheckpointMetadataOutputStream createMetadataOutputStream() {
+						return null;
+					}
+
+					@Override
+					public void disposeOnFailure() {
+
+					}
+
+					@Override
+					public CheckpointStorageLocationReference getLocationReference() {
+						return null;
+					}
+				};
+			}
+
+			@Override
+			public CheckpointStorageLocation initializeLocationForSavepoint(long checkpointId, @Nullable String externalLocationPointer) {
+				return null;
+			}
+
 			@Override
 			public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
 				return null;

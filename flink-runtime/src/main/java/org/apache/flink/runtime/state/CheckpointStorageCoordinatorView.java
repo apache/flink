@@ -23,10 +23,12 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * CheckpointCoordinatorStorage creates a {@link CheckpointStorageLocation} to which
+ * This interface creates a {@link CheckpointStorageLocation} to which
  * an individual checkpoint or savepoint is stored.
+ *
+ * <p>Methods of this interface act as an administration role in checkpoint coordinator.
  */
-public interface CheckpointCoordinatorStorage {
+public interface CheckpointStorageCoordinatorView {
 
 	/**
 	 * Checks whether this backend supports highly available storage of data.

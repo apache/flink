@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -44,7 +44,7 @@ public class MockStreamTask extends StreamTask {
 	private StreamTaskStateInitializer streamTaskStateInitializer;
 	private final CloseableRegistry closableRegistry;
 	private final StreamStatusMaintainer streamStatusMaintainer;
-	private final CheckpointStorage checkpointStorage;
+	private final CheckpointStorageWorkerView checkpointStorage;
 	private final ProcessingTimeService processingTimeService;
 	private final BiConsumer<String, Throwable> handleAsyncException;
 	private final Map<String, Accumulator<?, ?>> accumulatorMap;
@@ -58,7 +58,7 @@ public class MockStreamTask extends StreamTask {
 		StreamTaskStateInitializer streamTaskStateInitializer,
 		CloseableRegistry closableRegistry,
 		StreamStatusMaintainer streamStatusMaintainer,
-		CheckpointStorage checkpointStorage,
+		CheckpointStorageWorkerView checkpointStorage,
 		ProcessingTimeService processingTimeService,
 		BiConsumer<String, Throwable> handleAsyncException,
 		Map<String, Accumulator<?, ?>> accumulatorMap
@@ -134,7 +134,7 @@ public class MockStreamTask extends StreamTask {
 	}
 
 	@Override
-	public CheckpointStorage getCheckpointStorage() {
+	public CheckpointStorageWorkerView getCheckpointStorage() {
 		return checkpointStorage;
 	}
 

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -58,12 +59,12 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected AbstractFsCheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
+	protected CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
 		return new FsCheckpointStorage(checkpointDir, null, new JobID(), FILE_SIZE_THRESHOLD);
 	}
 
 	@Override
-	protected AbstractFsCheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
+	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
 		return new FsCheckpointStorage(checkpointDir, savepointDir, new JobID(), FILE_SIZE_THRESHOLD);
 	}
 

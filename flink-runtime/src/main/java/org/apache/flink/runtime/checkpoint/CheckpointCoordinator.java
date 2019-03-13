@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.state.CheckpointCoordinatorStorage;
+import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -120,7 +121,7 @@ public class CheckpointCoordinator {
 
 	/** The root checkpoint state backend, which is responsible for initializing the
 	 * checkpoint, storing the metadata, and cleaning up the checkpoint. */
-	private final CheckpointCoordinatorStorage checkpointStorage;
+	private final CheckpointStorageCoordinatorView checkpointStorage;
 
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones). */
 	private final ArrayDeque<Long> recentPendingCheckpoints;
@@ -247,9 +248,9 @@ public class CheckpointCoordinator {
 		this.checkpointProperties = CheckpointProperties.forCheckpoint(retentionPolicy);
 
 		try {
-			this.checkpointStorage = (CheckpointCoordinatorStorage) checkpointStateBackend.createCheckpointStorage(job);
-		} catch (Throwable t) {
-			throw new FlinkRuntimeException("Failed to create checkpoint storage at checkpoint coordinator side: " + t.getMessage(), t);
+			this.checkpointStorage = checkpointStateBackend.createCheckpointStorage(job);
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Failed to create checkpoint storage at checkpoint coordinator side.", e);
 		}
 
 		try {
@@ -1145,7 +1146,7 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public CheckpointCoordinatorStorage getCheckpointStorage() {
+	public CheckpointStorageCoordinatorView getCheckpointStorage() {
 		return checkpointStorage;
 	}
 
