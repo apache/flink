@@ -16,28 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.calcite
-
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-
-import java.util
+package org.apache.flink.table.plan;
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
-  */
-final class LogicalWatermarkAssigner(
-    cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkOffset) {
-
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkOffset)
-  }
+ * Enumerations for partial final aggregate types.
+ * @see org.apache.flink.table.plan.rules.physical.stream.SplitAggregateRule
+ */
+public enum PartialFinalType {
+	/** partial aggregate type. */
+	PARTIAL,
+	/** final aggregate type. */
+	FINAL,
+	/** the aggregate which has not been split. */
+	NONE
 }
-

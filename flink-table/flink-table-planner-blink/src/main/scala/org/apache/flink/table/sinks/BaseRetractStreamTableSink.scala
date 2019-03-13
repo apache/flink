@@ -16,28 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.calcite
+package org.apache.flink.table.sinks
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-
-import java.util
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
+import org.apache.flink.table.api.Table
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
+  * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
+  * changes.
+  *
+  * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-final class LogicalWatermarkAssigner(
-    cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkOffset) {
+trait BaseRetractStreamTableSink[T] extends StreamTableSink[T] {
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkOffset)
-  }
+  /** Emits the DataStream. */
+  def emitDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 }
-

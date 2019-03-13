@@ -36,7 +36,8 @@ import org.apache.calcite.tools.RelBuilder
   * global-aggregation (or named final-aggregation).
   * local-aggregation produces a partial result for each group before shuffle,
   * and then global-aggregation produces final result based on shuffled partial result.
-  * Two-stage aggregation is enabled only if all aggregate calls are mergeable. (e.g. SUM, AVG, MAX)
+  * Two-stage aggregation is enabled only if all aggregate functions are splittable.
+  * (e.g. SUM, AVG, MAX) see [[org.apache.calcite.sql.SqlSplittableAggFunction]] for more info.
   * 2. This node supports auxiliary group keys which will not be computed as key and
   * does not also affect the correctness of the final result. [[Aggregate]] does not distinguish
   * group keys and auxiliary group keys, and combines them as a complete `groupSet`.

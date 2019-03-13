@@ -104,10 +104,10 @@ class BatchExecOverAggregate(
     val constants: Seq[RexLiteral] = logicWindow.constants
 
     val writer = super.explainTerms(pw)
-      .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, outputRowType),
+      .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, inputRowType),
         partitionKeys.nonEmpty)
       .itemIf("orderBy",
-        RelExplainUtil.orderingToString(groups.head.orderKeys.getFieldCollations, outputRowType),
+        RelExplainUtil.collationToString(groups.head.orderKeys, inputRowType),
         orderKeyIndices.nonEmpty)
 
     var offset = inputRowType.getFieldCount

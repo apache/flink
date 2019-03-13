@@ -16,28 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.calcite
+package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.calcite.plan._
+import org.apache.flink.table.plan.nodes.common.CommonCalc
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
-import java.util
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Calc
+import org.apache.calcite.rex.RexProgram
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
+  * Stream physical RelNode for [[Calc]].
   */
-final class LogicalWatermarkAssigner(
+class StreamExecCalc(
     cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkOffset) {
+    traitSet: RelTraitSet,
+    inputRel: RelNode,
+    calcProgram: RexProgram,
+    outputRowType: RelDataType)
+  extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
+  with StreamPhysicalRel {
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkOffset)
+  override def deriveRowType(): RelDataType = outputRowType
+
+  override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
+    new StreamExecCalc(cluster, traitSet, child, program, outputRowType)
   }
 }
-

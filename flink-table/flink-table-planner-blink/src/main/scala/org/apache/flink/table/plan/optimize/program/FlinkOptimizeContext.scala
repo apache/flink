@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.optimize.program
 
+import org.apache.flink.table.api.TableConfig
+
 import org.apache.calcite.plan.Context
 import org.apache.calcite.plan.volcano.VolcanoPlanner
 
@@ -25,6 +27,11 @@ import org.apache.calcite.plan.volcano.VolcanoPlanner
   * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
   */
 trait FlinkOptimizeContext extends Context {
+
+  /**
+    * Gets [[TableConfig]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
+    */
+  def getTableConfig: TableConfig
 
   /**
     * Gets [[VolcanoPlanner]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].

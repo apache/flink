@@ -19,6 +19,7 @@ package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.{LogicalRank, Rank, RankRange}
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -60,7 +61,7 @@ class FlinkLogicalRank(
     pw.item("input", getInput)
       .item("rankFunction", rankFunction)
       .item("partitionBy", partitionKey.map(inputFieldNames.get(_)).mkString(","))
-      .item("orderBy", Rank.sortFieldsToString(sortCollation, input.getRowType))
+      .item("orderBy", RelExplainUtil.collationToString(sortCollation, input.getRowType))
       .item("rankRange", rankRange.toString(inputFieldNames))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }

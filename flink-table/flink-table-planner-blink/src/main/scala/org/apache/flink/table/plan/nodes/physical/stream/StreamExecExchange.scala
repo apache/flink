@@ -16,28 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.calcite
+package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
+import org.apache.flink.table.plan.nodes.common.CommonExchange
 
-import java.util
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.{RelDistribution, RelNode}
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
+  * Stream physical RelNode for [[org.apache.calcite.rel.core.Exchange]].
   */
-final class LogicalWatermarkAssigner(
+class StreamExecExchange(
     cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkOffset) {
+    traitSet: RelTraitSet,
+    relNode: RelNode,
+    relDistribution: RelDistribution)
+  extends CommonExchange(cluster, traitSet, relNode, relDistribution)
+  with StreamPhysicalRel {
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkOffset)
+  override def copy(
+      traitSet: RelTraitSet,
+      newInput: RelNode,
+      newDistribution: RelDistribution): StreamExecExchange = {
+    new StreamExecExchange(cluster, traitSet, newInput, newDistribution)
   }
 }
-

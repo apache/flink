@@ -16,28 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.calcite
+package org.apache.flink.table.plan.nodes.physical.stream
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-
-import java.util
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Values
+import org.apache.calcite.rex.RexLiteral
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
+  * Stream physical RelNode for [[Values]].
   */
-final class LogicalWatermarkAssigner(
+class StreamExecValues(
     cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkOffset) {
+    traitSet: RelTraitSet,
+    tuples: ImmutableList[ImmutableList[RexLiteral]],
+    outputRowType: RelDataType)
+  extends Values(cluster, outputRowType, tuples, traitSet)
+  with StreamPhysicalRel {
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkOffset)
+  override def deriveRowType(): RelDataType = outputRowType
+
+  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+    new StreamExecValues(cluster, traitSet, getTuples, outputRowType)
   }
 }
-

@@ -110,7 +110,7 @@ abstract class Rank(
     super.explainTerms(pw)
       .item("rankFunction", rankFunction)
       .item("partitionBy", partitionKey.map(i => s"$$$i").mkString(","))
-      .item("orderBy", Rank.sortFieldsToString(sortCollation))
+      .item("orderBy", RelExplainUtil.collationToString(sortCollation))
       .item("rankRange", rankRange.toString())
       .item("select", select)
   }
@@ -166,26 +166,5 @@ case class VariableRankRange(rankEndIndex: Int) extends RankRange {
 
   override def toString: String = {
     s"rankEnd=$$$rankEndIndex"
-  }
-}
-
-object Rank {
-  def sortFieldsToString(collationSort: RelCollation): String = {
-    val fieldCollations = collationSort.getFieldCollations
-      .map(c => (c.getFieldIndex, FlinkRelOptUtil.directionToOrder(c.getDirection)))
-
-    fieldCollations.map {
-      case (index, order) => s"$$$index ${order.getShortName}"
-    }.mkString(", ")
-  }
-
-  def sortFieldsToString(collationSort: RelCollation, inputType: RelDataType): String = {
-    val fieldCollations = collationSort.getFieldCollations
-      .map(c => (c.getFieldIndex, FlinkRelOptUtil.directionToOrder(c.getDirection)))
-    val inputFieldNames = inputType.getFieldNames
-
-    fieldCollations.map {
-      case (index, order) => s"${inputFieldNames.get(index)} ${order.getShortName}"
-    }.mkString(", ")
   }
 }

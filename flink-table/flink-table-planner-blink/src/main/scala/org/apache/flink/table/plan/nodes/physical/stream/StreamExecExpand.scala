@@ -15,29 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.plan.nodes.physical.stream
 
-package org.apache.flink.table.plan.nodes.calcite
+import org.apache.flink.table.plan.nodes.calcite.Expand
 
-import org.apache.calcite.plan._
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex.RexNode
 
 import java.util
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
+  * Stream physical RelNode for [[Expand]].
   */
-final class LogicalWatermarkAssigner(
+class StreamExecExpand(
     cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkOffset) {
+    traitSet: RelTraitSet,
+    inputRel: RelNode,
+    outputRowType: RelDataType,
+    projects: util.List[util.List[RexNode]],
+    expandIdIndex: Int)
+  extends Expand(cluster, traitSet, inputRel, outputRowType, projects, expandIdIndex)
+  with StreamPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkOffset)
+    new StreamExecExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
   }
-}
 
+}

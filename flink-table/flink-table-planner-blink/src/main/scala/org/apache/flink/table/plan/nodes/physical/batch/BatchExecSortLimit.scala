@@ -39,11 +39,11 @@ class BatchExecSortLimit(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    collations: RelCollation,
+    sortCollation: RelCollation,
     offset: RexNode,
     fetch: RexNode,
     isGlobal: Boolean)
-  extends Sort(cluster, traitSet, inputRel, collations, offset, fetch)
+  extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with BatchPhysicalRel {
 
   private val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
@@ -60,8 +60,7 @@ class BatchExecSortLimit(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
-      .item("orderBy",
-        RelExplainUtil.orderingToString(collations.getFieldCollations, getRowType))
+      .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
       .item("offset", limitStart)
       .item("fetch", RelExplainUtil.fetchToString(fetch))
       .item("global", isGlobal)
@@ -84,7 +83,7 @@ class BatchExecSortLimit(
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRowCnt = mq.getRowCount(getInput())
     val heapLen = Math.min(inputRowCnt, limitEnd)
-    val numOfSort = collations.getFieldCollations.size()
+    val numOfSort = sortCollation.getFieldCollations.size()
     val cpuCost = FlinkCost.COMPARE_CPU_COST * numOfSort * inputRowCnt * Math.log(heapLen)
     // assume memory is big enough to simplify the estimation.
     val memCost = heapLen * mq.getAverageRowSize(this)
