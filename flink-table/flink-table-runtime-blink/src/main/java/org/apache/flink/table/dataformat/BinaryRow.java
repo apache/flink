@@ -338,7 +338,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndLen = segments[0].getLong(fieldOffset);
-		return TypeGetterSetters.readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+		return readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 
 	@Override

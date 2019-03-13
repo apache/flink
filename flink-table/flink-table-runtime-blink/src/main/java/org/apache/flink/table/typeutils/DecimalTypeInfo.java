@@ -19,9 +19,7 @@
 package org.apache.flink.table.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.Decimal;
 
@@ -30,7 +28,7 @@ import java.util.Arrays;
 /**
  * TypeInfo for Decimal.
  */
-public class DecimalTypeInfo extends TypeInformation<Decimal> implements AtomicType<Decimal> {
+public class DecimalTypeInfo extends TypeInformation<Decimal> {
 
 	public static DecimalTypeInfo of(int precision, int scale) {
 		return new DecimalTypeInfo(precision, scale);
@@ -111,11 +109,5 @@ public class DecimalTypeInfo extends TypeInformation<Decimal> implements AtomicT
 
 	public int scale() {
 		return scale;
-	}
-
-	@Override
-	public TypeComparator<Decimal> createComparator(boolean sortOrderAscending,
-			ExecutionConfig executionConfig) {
-		return new DecimalComparator(sortOrderAscending, precision, scale);
 	}
 }

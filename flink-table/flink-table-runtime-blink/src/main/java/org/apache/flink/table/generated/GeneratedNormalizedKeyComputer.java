@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.generated;
 
-import org.apache.flink.table.runtime.sort.NormalizedKeyComputer;
-
 /**
  * Describes a generated {@link NormalizedKeyComputer}.
  */

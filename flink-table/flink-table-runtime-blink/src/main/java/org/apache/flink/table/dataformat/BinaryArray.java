@@ -205,7 +205,7 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		assertIndexIsValid(pos);
 		int fieldOffset = getElementOffset(pos, 8);
 		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
-		return TypeGetterSetters.readBinaryFieldFromSegments(
+		return readBinaryFieldFromSegments(
 				segments, offset, fieldOffset, offsetAndSize);
 	}
 

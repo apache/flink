@@ -24,6 +24,8 @@ import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.runtime.operators.sort.IndexedSortable;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.generated.NormalizedKeyComputer;
+import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
 

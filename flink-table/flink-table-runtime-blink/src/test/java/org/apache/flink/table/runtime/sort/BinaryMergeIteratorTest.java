@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 

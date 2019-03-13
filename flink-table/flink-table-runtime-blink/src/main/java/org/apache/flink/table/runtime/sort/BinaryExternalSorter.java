@@ -35,6 +35,8 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.table.api.TableConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.generated.NormalizedKeyComputer;
+import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.util.FileChannelUtil;

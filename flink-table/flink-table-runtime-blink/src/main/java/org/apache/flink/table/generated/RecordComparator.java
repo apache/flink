@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.sort;
+package org.apache.flink.table.generated;
 
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
 
 import java.io.Serializable;
 import java.util.Comparator;

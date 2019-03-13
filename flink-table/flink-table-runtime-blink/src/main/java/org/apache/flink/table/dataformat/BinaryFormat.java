@@ -25,6 +25,31 @@ import org.apache.flink.table.util.SegmentsUtil;
  */
 public abstract class BinaryFormat {
 
+	/**
+	 * It decides whether to put data in FixLenPart or VarLenPart. See more in {@link BinaryRow}.
+	 *
+	 * <p>If len is less than 8, its binary format is:
+	 * 1bit mark(1) = 1, 7bits len, and 7bytes data.
+	 * Data is stored in fix-length part.
+	 *
+	 * <p>If len is greater or equal to 8, its binary format is:
+	 * 1bit mark(1) = 0, 31bits offset, and 4bytes len.
+	 * Data is stored in variable-length part.
+	 */
+	static final int MAX_FIX_PART_DATA_SIZE = 7;
+
+	/**
+	 * To get the mark in highest first bit.
+	 * Form: 1000 0000 0000 0000 ...
+	 */
+	private static final long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
+
+	/**
+	 * To get the 7 bits length in second bit to eighth bit.
+	 * Form: 0111 1111 0000 0000 ...
+	 */
+	private static final long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
+
 	protected MemorySegment[] segments;
 	protected int offset;
 	protected int sizeInBytes;
@@ -74,5 +99,61 @@ public abstract class BinaryFormat {
 	@Override
 	public int hashCode() {
 		return SegmentsUtil.hash(segments, offset, sizeInBytes);
+	}
+
+	/**
+	 * Get binary, if len less than 8, will be include in variablePartOffsetAndLen.
+	 *
+	 * <p>Note: Need to consider the ByteOrder.
+	 *
+	 * @param baseOffset base offset of composite binary format.
+	 * @param fieldOffset absolute start offset of 'variablePartOffsetAndLen'.
+	 * @param variablePartOffsetAndLen a long value, real data or offset and len.
+	 */
+	static byte[] readBinaryFieldFromSegments(
+			MemorySegment[] segments, int baseOffset, int fieldOffset,
+			long variablePartOffsetAndLen) {
+		long mark = variablePartOffsetAndLen & HIGHEST_FIRST_BIT;
+		if (mark == 0) {
+			final int subOffset = (int) (variablePartOffsetAndLen >> 32);
+			final int len = (int) variablePartOffsetAndLen;
+			return SegmentsUtil.copyToBytes(segments, baseOffset + subOffset, len);
+		} else {
+			int len = (int) ((variablePartOffsetAndLen & HIGHEST_SECOND_TO_EIGHTH_BIT) >>> 56);
+			if (SegmentsUtil.LITTLE_ENDIAN) {
+				return SegmentsUtil.copyToBytes(segments, fieldOffset, len);
+			} else {
+				// fieldOffset + 1 to skip header.
+				return SegmentsUtil.copyToBytes(segments, fieldOffset + 1, len);
+			}
+		}
+	}
+
+	/**
+	 * Get binary string, if len less than 8, will be include in variablePartOffsetAndLen.
+	 *
+	 * <p>Note: Need to consider the ByteOrder.
+	 *
+	 * @param baseOffset base offset of composite binary format.
+	 * @param fieldOffset absolute start offset of 'variablePartOffsetAndLen'.
+	 * @param variablePartOffsetAndLen a long value, real data or offset and len.
+	 */
+	static BinaryString readBinaryStringFieldFromSegments(
+			MemorySegment[] segments, int baseOffset, int fieldOffset,
+			long variablePartOffsetAndLen) {
+		long mark = variablePartOffsetAndLen & HIGHEST_FIRST_BIT;
+		if (mark == 0) {
+			final int subOffset = (int) (variablePartOffsetAndLen >> 32);
+			final int len = (int) variablePartOffsetAndLen;
+			return new BinaryString(segments, baseOffset + subOffset, len);
+		} else {
+			int len = (int) ((variablePartOffsetAndLen & HIGHEST_SECOND_TO_EIGHTH_BIT) >>> 56);
+			if (SegmentsUtil.LITTLE_ENDIAN) {
+				return new BinaryString(segments, fieldOffset, len);
+			} else {
+				// fieldOffset + 1 to skip header.
+				return new BinaryString(segments, fieldOffset + 1, len);
+			}
+		}
 	}
 }

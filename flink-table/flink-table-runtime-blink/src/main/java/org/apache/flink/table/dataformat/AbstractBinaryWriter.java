@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
-import static org.apache.flink.table.dataformat.TypeGetterSetters.MAX_FIX_PART_DATA_SIZE;
+import static org.apache.flink.table.dataformat.BinaryFormat.MAX_FIX_PART_DATA_SIZE;
 
 /**
  * Use the special format to write data to a {@link MemorySegment} (its capacity grows

@@ -23,8 +23,8 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, SEGMENT, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.{BinaryRow, Decimal}
-import org.apache.flink.table.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator}
-import org.apache.flink.table.runtime.sort.{NormalizedKeyComputer, RecordComparator, SortUtil}
+import org.apache.flink.table.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
+import org.apache.flink.table.runtime.sort.SortUtil
 
 import scala.collection.mutable
 

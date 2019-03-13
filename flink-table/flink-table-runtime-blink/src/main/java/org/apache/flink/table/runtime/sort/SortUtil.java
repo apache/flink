@@ -28,7 +28,7 @@ import java.nio.ByteOrder;
 import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
 
 /**
- * Util for data formats.
+ * Util for sort.
  */
 public class SortUtil {
 

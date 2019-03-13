@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.generated;
 
-import org.apache.flink.table.runtime.sort.RecordComparator;
-
 /**
  * Describes a generated {@link RecordComparator}.
  */
