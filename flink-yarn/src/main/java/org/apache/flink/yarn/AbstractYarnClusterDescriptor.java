@@ -141,6 +141,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String nodeLabel;
 
+	private String flinkVersion;
+
 	/** Optional Jar file to include in the system class loader of all application nodes
 	 * (for per-job submission). */
 	private final Set<File> userJarFiles = new HashSet<>();
@@ -469,6 +471,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
+
+		this.flinkVersion = dynProperties.getOrDefault("flink-version", "");
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
@@ -986,7 +990,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final String customApplicationName = customName != null ? customName : applicationName;
 
 		appContext.setApplicationName(customApplicationName);
-		appContext.setApplicationType("Apache Flink");
+		appContext.setApplicationType(flinkVersion.isEmpty() ? "Apache Flink" : "Apache Flink " + flinkVersion);
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 

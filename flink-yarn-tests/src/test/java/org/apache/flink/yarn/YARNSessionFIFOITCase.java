@@ -110,6 +110,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		args.add("-tm");
 		args.add("1024m");
 
+		args.add("-D");
+		args.add("flink-version=1.6");
+
 		if (SecureTestEnvironment.getTestKeytab() != null) {
 			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
 		}
