@@ -20,19 +20,18 @@ package org.apache.flink.table.calcite
 
 import org.apache.calcite.rel.`type`.RelDataTypeSystemImpl
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.table.`type`.DecimalType
 
 /**
   * Custom type system for Flink.
   */
 class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
-  // we cannot use Int.MaxValue because of an overflow in Calcite's type inference logic
-  // half should be enough for all use cases
-  override def getMaxNumericScale: Int = Int.MaxValue / 2
+  // set the maximum precision of a NUMERIC or DECIMAL type to DecimalType.MAX_PRECISION.
+  override def getMaxNumericPrecision: Int = DecimalType.MAX_PRECISION
 
-  // we cannot use Int.MaxValue because of an overflow in Calcite's type inference logic
-  // half should be enough for all use cases
-  override def getMaxNumericPrecision: Int = Int.MaxValue / 2
+  // the max scale can't be greater than precision
+  override def getMaxNumericScale: Int = DecimalType.MAX_PRECISION
 
   override def getDefaultPrecision(typeName: SqlTypeName): Int = typeName match {
 
@@ -48,4 +47,8 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       super.getDefaultPrecision(typeName)
   }
 
+  // when union a number of CHAR types of different lengths, we should cast to a VARCHAR
+  // this fixes the problem of CASE WHEN with different length string literals but get wrong
+  // result with additional space suffix
+  override def shouldConvertRaggedUnionTypesToVarying(): Boolean = true
 }

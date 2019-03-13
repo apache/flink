@@ -106,7 +106,8 @@ public class RowType implements InternalType {
 		RowType that = (RowType) o;
 
 		// RowType comparisons should not compare names and are compatible with the behavior of CompositeTypeInfo.
-		return Arrays.equals(getFieldTypes(), that.getFieldTypes());
+		return Arrays.equals(getFieldTypes(), that.getFieldTypes()) &&
+			Arrays.equals(getFieldNames(), that.getFieldNames());
 	}
 
 	@Override

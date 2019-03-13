@@ -19,6 +19,7 @@
 package org.apache.flink.table.typeutils
 
 import org.apache.flink.table.`type`._
+import org.apache.flink.table.codegen.GeneratedExpression
 
 object TypeCheckUtils {
 
@@ -26,6 +27,26 @@ object TypeCheckUtils {
     case InternalTypes.INT | InternalTypes.BYTE | InternalTypes.SHORT
          | InternalTypes.LONG | InternalTypes.FLOAT | InternalTypes.DOUBLE => true
     case _: DecimalType => true
+    case _ => false
+  }
+
+  def isTemporal(dataType: InternalType): Boolean =
+    isTimePoint(dataType) || isTimeInterval(dataType)
+
+  def isTimePoint(dataType: InternalType): Boolean = dataType match {
+    case InternalTypes.INTERVAL_MILLIS | InternalTypes.INTERVAL_MONTHS => false
+    case _: TimeType | _: DateType | _: TimestampType => true
+    case _ => false
+  }
+
+  def isRowTime(dataType: InternalType): Boolean =
+    dataType == InternalTypes.ROWTIME_INDICATOR
+
+  def isProcTime(dataType: InternalType): Boolean =
+    dataType == InternalTypes.PROCTIME_INDICATOR
+
+  def isTimeInterval(dataType: InternalType): Boolean = dataType match {
+    case InternalTypes.INTERVAL_MILLIS | InternalTypes.INTERVAL_MONTHS => true
     case _ => false
   }
 
@@ -50,5 +71,26 @@ object TypeCheckUtils {
       !dataType.isInstanceOf[MapType] &&
       !dataType.isInstanceOf[RowType] &&
       !isArray(dataType)
+
+  def isMutable(dataType: InternalType): Boolean = dataType match {
+    // the internal representation of String is BinaryString which is mutable
+    case InternalTypes.STRING => true
+    case _: ArrayType | _: MapType | _: RowType | _: GenericType[_] => true
+    case _ => false
+  }
+
+  def isReference(t: InternalType): Boolean = t match {
+    case InternalTypes.INT
+         | InternalTypes.LONG
+         | InternalTypes.SHORT
+         | InternalTypes.BYTE
+         | InternalTypes.FLOAT
+         | InternalTypes.DOUBLE
+         | InternalTypes.BOOLEAN
+         | InternalTypes.CHAR => false
+    case _ => true
+  }
+
+  def isReference(genExpr: GeneratedExpression): Boolean = isReference(genExpr.resultType)
 
 }

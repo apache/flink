@@ -18,14 +18,19 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.util.InstantiationUtil
+
+import org.apache.calcite.avatica.util.DateTimeUtils
 
 import scala.collection.mutable
 
@@ -92,18 +97,24 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // string_constant -> reused_term
   private val reusableStringConstants: mutable.Map[String, String] = mutable.Map[String,  String]()
 
-  // map of local variable statements. It will be placed in method if method code not excess
-  // max code length, otherwise will be placed in member area of the class. The statements
-  // are maintained for multiple methods, so that it's a map from method_name to variables.
-  //
-  // method_name -> local_variable_statements
-  private val reusableLocalVariableStatements = mutable.Map[String, mutable.LinkedHashSet[String]]()
+  // map of type serializer that will be added only once
+  // InternalType -> reused_term
+  private val reusableTypeSerializers: mutable.Map[InternalType, String] =
+    mutable.Map[InternalType,  String]()
 
   /**
     * The current method name for [[reusableLocalVariableStatements]]. You can start a new
     * local variable statements for another method using [[startNewLocalVariableStatement()]]
     */
   private var currentMethodNameForLocalVariables = "DEFAULT"
+
+  // map of local variable statements. It will be placed in method if method code not excess
+  // max code length, otherwise will be placed in member area of the class. The statements
+  // are maintained for multiple methods, so that it's a map from method_name to variables.
+  //
+  // method_name -> local_variable_statements
+  private val reusableLocalVariableStatements = mutable.Map[String, mutable.LinkedHashSet[String]](
+    (currentMethodNameForLocalVariables, mutable.LinkedHashSet[String]()))
 
   // ---------------------------------------------------------------------------------
   // Getter
@@ -112,7 +123,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 
-  def getNullCheck: Boolean = tableConfig.getNullCheck
+  def nullCheck: Boolean = tableConfig.getNullCheck
 
   // ---------------------------------------------------------------------------------
   // Local Variables for Code Split
@@ -137,7 +148,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * @param fieldTypeTerm  the field type term
     * @return a new generated unique field name
     */
-  def newReusableLocalVariable(fieldTypeTerm: String, fieldName: String): String = {
+  def addReusableLocalVariable(fieldTypeTerm: String, fieldName: String): String = {
     val fieldTerm = newName(fieldName)
     reusableLocalVariableStatements
     .getOrElse(currentMethodNameForLocalVariables, mutable.LinkedHashSet[String]())
@@ -154,7 +165,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *                          left is field type term and right is field name
     * @return the new generated unique field names for each variable pairs
     */
-  def newReusableLocalFields(fieldTypeAndNames: (String, String)*): Seq[String] = {
+  def addReusableLocalVariables(fieldTypeAndNames: (String, String)*): Seq[String] = {
     val fieldTerms = newNames(fieldTypeAndNames.map(_._2): _*)
     fieldTypeAndNames.map(_._1).zip(fieldTerms).foreach { case (fieldTypeTerm, fieldTerm) =>
       reusableLocalVariableStatements
@@ -297,6 +308,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
+    * Adds a reusable init statement which will be placed in constructor.
+    */
+  def addReusableInitStatement(s: String): Unit = reusableInitStatements.add(s)
+
+  /**
     * Adds a reusable per record statement
     */
   def addReusablePerRecordStatement(s: String): Unit = reusablePerRecordStatements.add(s)
@@ -338,7 +354,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       clazz: Class[_],
       outRecordTerm: String,
       outRecordWriterTerm: Option[String] = None): Unit = {
-    val statement = generateOutputRecordStatement(t, clazz, outRecordTerm, outRecordWriterTerm)
+    val statement = generateRecordStatement(t, clazz, outRecordTerm, outRecordWriterTerm)
     reusableMemberStatements.add(statement)
   }
 
@@ -350,6 +366,42 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       new RowType((0 until arity).map(_ => InternalTypes.INT): _*),
       classOf[GenericRow],
       rowTerm)
+  }
+
+  /**
+    * Adds a reusable internal hash set to the member area of the generated class.
+    */
+  def addReusableHashSet(elements: Seq[GeneratedExpression], elementType: InternalType): String = {
+    val fieldTerm = newName("set")
+
+    val setTypeTerm = elementType match {
+      case InternalTypes.BYTE => className[ByteHashSet]
+      case InternalTypes.SHORT => className[ShortHashSet]
+      case InternalTypes.INT => className[IntHashSet]
+      case InternalTypes.LONG => className[LongHashSet]
+      case InternalTypes.FLOAT => className[FloatHashSet]
+      case InternalTypes.DOUBLE => className[DoubleHashSet]
+      case _ => className[ObjectHashSet[_]]
+    }
+
+    addReusableMember(
+      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size})")
+
+    elements.foreach { element =>
+      val content =
+        s"""
+           |${element.code}
+           |if (${element.nullTerm}) {
+           |  $fieldTerm.addNull();
+           |} else {
+           |  $fieldTerm.add(${element.resultTerm});
+           |}
+           |""".stripMargin
+      reusableInitStatements.add(content)
+    }
+    reusableInitStatements.add(s"$fieldTerm.optimize();")
+
+    fieldTerm
   }
 
   /**
@@ -458,7 +510,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |""".stripMargin
 
     val fieldInit = seedExpr match {
-      case Some(s) if getNullCheck =>
+      case Some(s) if nullCheck =>
         s"""
            |${s.code}
            |if (!${s.nullTerm}) {
@@ -551,6 +603,28 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
+    * Adds a reusable [[TypeSerializer]] to the member area of the generated class.
+    *
+    * @param t the internal type which used to generate internal type serializer
+    * @return member variable term
+    */
+  def addReusableTypeSerializer(t: InternalType): String = {
+    // if type serializer has been used before, we can reuse the code that
+    // has already been generated
+    reusableTypeSerializers.get(t) match {
+      case Some(term) => term
+
+      case None =>
+        val term = newName("typeSerializer")
+        val ser = TypeConverters.createInternalTypeInfoFromInternalType(t)
+          .createSerializer(new ExecutionConfig)
+        addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
+        reusableTypeSerializers(t) = term
+        term
+    }
+  }
+
+  /**
     * Adds a reusable static SLF4J Logger to the member area of the generated class.
     */
   def addReusableLogger(logTerm: String, clazzTerm: String): Unit = {
@@ -607,7 +681,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
         val field = newName("str")
         val stmt =
           s"""
-             |private final $BINARY_STRING $field = $BINARY_STRING.fromString("$value");"
+             |private final $BINARY_STRING $field = $BINARY_STRING.fromString("$value");
            """.stripMargin
         reusableMemberStatements.add(stmt)
         reusableStringConstants(value) = field
@@ -684,5 +758,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableInitStatements.add(nullableInit)
 
     fieldTerm
+  }
+}
+
+object CodeGeneratorContext {
+  def apply(config: TableConfig): CodeGeneratorContext = {
+    new CodeGeneratorContext(config)
   }
 }

@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.types.Row
@@ -63,6 +64,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .costFactory(new FlinkCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .sqlToRelConverterConfig(getSqlToRelConverterConfig)
+    .operatorTable(FlinkSqlOperatorTable.instance())
     // TODO: introduce ExpressionReducer after codegen
     // set the executor to evaluate constant expressions
     // .executor(new ExpressionReducer(config))

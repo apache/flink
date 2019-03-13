@@ -17,7 +17,15 @@
 
 package org.apache.flink.table.runtime.functions;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.TimeZone;
 
 /**
@@ -27,7 +35,16 @@ import java.util.TimeZone;
  */
 public class DateTimeUtils {
 
-	public static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+	private static final Logger LOG = LoggerFactory.getLogger(DateTimeUtils.class);
+
+	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+
+	private static final String[] DEFAULT_DATETIME_FORMATS = new String[]{
+		"yyyy-MM-dd HH:mm:ss",
+		"yyyy-MM-dd HH:mm:ss.S",
+		"yyyy-MM-dd HH:mm:ss.SS",
+		"yyyy-MM-dd HH:mm:ss.SSS"
+	};
 
 	/**
 	 * The number of milliseconds in a day.
@@ -35,7 +52,21 @@ public class DateTimeUtils {
 	 * <p>This is the modulo 'mask' used when converting
 	 * TIMESTAMP values to DATE and TIME values.
 	 */
-	public static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
+	private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
+
+	/**
+	 * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
+	 * (format, timezone) => formatter
+	 */
+	private static final ThreadLocalCache<Tuple2<String, TimeZone>, SimpleDateFormat> FORMATTER_CACHE =
+		new ThreadLocalCache<Tuple2<String, TimeZone>, SimpleDateFormat>(64) {
+			@Override
+			public SimpleDateFormat getNewInstance(Tuple2<String, TimeZone> key) {
+				SimpleDateFormat sdf = new SimpleDateFormat(key.f0);
+				sdf.setTimeZone(key.f1);
+				return sdf;
+			}
+		};
 
 	/** Converts the Java type used for UDF parameters of SQL TIME type
 	 * ({@link java.sql.Time}) to internal representation (int).
@@ -93,4 +124,99 @@ public class DateTimeUtils {
 		return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));
 	}
 
+	/**
+	 * Parse date time string to timestamp based on the given time zone and
+	 * "yyyy-MM-dd HH:mm:ss" format. Returns null if parsing failed.
+	 *
+	 * @param dateText the date time string
+	 * @param tz the time zone
+	 */
+	public static Long strToTimestamp(String dateText, TimeZone tz) {
+		return strToTimestamp(dateText, DEFAULT_DATETIME_FORMATS[0], tz);
+	}
+
+	/**
+	 * Parse date time string to timestamp based on the given time zone and format.
+	 * Returns null if parsing failed.
+	 *
+	 * @param dateText the date time string
+	 * @param format date time string format
+	 * @param tz the time zone
+	 */
+	public static Long strToTimestamp(String dateText, String format, TimeZone tz) {
+		SimpleDateFormat formatter = FORMATTER_CACHE.get(Tuple2.of(format, tz));
+		try {
+			return formatter.parse(dateText).getTime();
+		} catch (ParseException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Format a timestamp as specific.
+	 * @param ts the timestamp to format.
+	 * @param format the string formatter.
+	 * @param tz the time zone
+	 */
+	public static String dateFormat(long ts, String format, TimeZone tz) {
+		SimpleDateFormat formatter = FORMATTER_CACHE.get(Tuple2.of(format, tz));
+		Date dateTime = new Date(ts);
+		return formatter.format(dateTime);
+	}
+
+	/**
+	 * Convert a timestamp to string.
+	 * @param ts the timestamp to convert.
+	 * @param precision	the milli second precision to preserve
+	 * @param tz the time zone
+	 */
+	public static String timestampToString(long ts, int precision, TimeZone tz) {
+		int p = (precision <= 3 && precision >= 0) ? precision : 3;
+		String format = DEFAULT_DATETIME_FORMATS[p];
+		return dateFormat(ts, format, tz);
+	}
+
+	/** Helper for CAST({time} AS VARCHAR(n)). */
+	public static String timeToString(int time) {
+		final StringBuilder buf = new StringBuilder(8);
+		timeToString(buf, time, 0); // set milli second precision to 0
+		return buf.toString();
+	}
+
+	private static void timeToString(StringBuilder buf, int time, int precision) {
+		while (time < 0) {
+			time += MILLIS_PER_DAY;
+		}
+		int h = time / 3600000;
+		int time2 = time % 3600000;
+		int m = time2 / 60000;
+		int time3 = time2 % 60000;
+		int s = time3 / 1000;
+		int ms = time3 % 1000;
+		int2(buf, h);
+		buf.append(':');
+		int2(buf, m);
+		buf.append(':');
+		int2(buf, s);
+		if (precision > 0) {
+			buf.append('.');
+			while (precision > 0) {
+				buf.append((char) ('0' + (ms / 100)));
+				ms = ms % 100;
+				ms = ms * 10;
+
+				// keep consistent with Timestamp.toString()
+				if (ms == 0) {
+					break;
+				}
+
+				--precision;
+			}
+		}
+	}
+
+	private static void int2(StringBuilder buf, int i) {
+		buf.append((char) ('0' + (i / 10) % 10));
+		buf.append((char) ('0' + i % 10));
+	}
 }

@@ -120,6 +120,9 @@ public class TypeConverters {
 							.toArray(InternalType[]::new),
 					compositeType.getFieldNames()
 			);
+		} else if (typeInfo instanceof DecimalTypeInfo) {
+			DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
+			return InternalTypes.createDecimalType(decimalType.precision(), decimalType.scale());
 		} else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
 			PrimitiveArrayTypeInfo arrayType = (PrimitiveArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
