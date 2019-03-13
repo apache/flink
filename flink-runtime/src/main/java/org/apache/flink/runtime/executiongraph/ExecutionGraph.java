@@ -83,7 +83,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -600,26 +599,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	// --------------------------------------------------------------------------------------------
 	//  Properties and Status of the Execution Graph
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Returns a list of BLOB keys referring to the JAR files required to run this job.
-	 *
-	 * @return list of BLOB keys referring to the JAR files required to run this job
-	 */
-	public Collection<PermanentBlobKey> getRequiredJarFiles() {
-		return jobInformation.getRequiredJarFileBlobKeys();
-	}
-
-	/**
-	 * Returns a list of classpaths referring to the directories/JAR files required to run this job.
-	 *
-	 * @return list of classpaths referring to the directories/JAR files required to run this job
-	 */
-	public Collection<URL> getRequiredClasspaths() {
-		return jobInformation.getRequiredClasspathURLs();
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	public void setJsonPlan(String jsonPlan) {
