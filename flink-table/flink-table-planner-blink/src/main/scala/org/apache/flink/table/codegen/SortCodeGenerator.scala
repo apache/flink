@@ -383,7 +383,7 @@ class SortCodeGenerator(
     val baseClass = classOf[RecordComparator]
 
     val ctx = new CodeGeneratorContext(conf)
-    val compareCode = CodeGenUtils.genRowCompare(
+    val compareCode = GenerateUtils.generateRowCompare(
       ctx, keys, keyTypes, orders, nullsIsLast, "o1", "o2")
 
     val code =

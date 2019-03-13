@@ -19,6 +19,8 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.table.`type`.InternalType
+import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForType, newName}
+import org.apache.flink.table.typeutils.TypeCheckUtils
 
 /**
   * Describes a generated expression.
@@ -27,16 +29,51 @@ import org.apache.flink.table.`type`.InternalType
   * @param nullTerm boolean term that indicates if expression is null
   * @param code code necessary to produce resultTerm and nullTerm
   * @param resultType type of the resultTerm
-  * @param literal flag to indicate a constant expression do not reference input and can thus
-  *                 be used in the member area (e.g. as constructor parameter of a reusable
-  *                 instance)
+  * @param literalValue None if the expression is not literal. Otherwise it represent the
+  *                     original object of the literal.
   */
 case class GeneratedExpression(
   resultTerm: String,
   nullTerm: String,
   code: String,
   resultType: InternalType,
-  literal: Boolean = false)
+  literalValue: Option[Any] = None) {
+
+  /**
+    * Indicates a constant expression do not reference input and can thus be used
+    * in the member area (e.g. as constructor parameter of a reusable instance)
+    *
+    * @return true if the expression is literal
+    */
+  def literal: Boolean = literalValue.isDefined
+
+  /**
+    * Deep copy the generated expression.
+    *
+    * NOTE: Please use this method when the result will be buffered.
+    * This method makes sure a new object/data is created when the type is mutable.
+    */
+  def deepCopy(ctx: CodeGeneratorContext): GeneratedExpression = {
+    // only copy when type is mutable
+    if (TypeCheckUtils.isMutable(resultType)) {
+      val newResultTerm = newName("field")
+      // if the type need copy, it must be a boxed type
+      val typeTerm = boxedTypeTermForType(resultType)
+      val serTerm = ctx.addReusableTypeSerializer(resultType)
+      val newCode =
+        s"""
+           |$code
+           |$typeTerm $newResultTerm = $resultTerm;
+           |if (!$nullTerm) {
+           |  $newResultTerm = ($typeTerm) ($serTerm.copy($newResultTerm));
+           |}
+        """.stripMargin
+      GeneratedExpression(newResultTerm, nullTerm, newCode, resultType, literalValue)
+    } else {
+      this
+    }
+  }
+}
 
 object GeneratedExpression {
   val ALWAYS_NULL = "true"

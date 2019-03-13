@@ -339,6 +339,30 @@ public final class Decimal implements Comparable<Decimal> {
 		return bd.longValue();
 	}
 
+	public static long castToLong(Decimal dec) {
+		return castToIntegral(dec);
+	}
+
+	public static int castToInt(Decimal dec) {
+		return (int) castToIntegral(dec);
+	}
+
+	public static short castToShort(Decimal dec) {
+		return (short) castToIntegral(dec);
+	}
+
+	public static byte castToByte(Decimal dec) {
+		return (byte) castToIntegral(dec);
+	}
+
+	public static float castToFloat(Decimal dec) {
+		return (float) dec.doubleValue();
+	}
+
+	public static double castToDouble(Decimal dec) {
+		return dec.doubleValue();
+	}
+
 	public static Decimal castToDecimal(Decimal dec, int precision, int scale) {
 		return fromBigDecimal(dec.toBigDecimal(), precision, scale);
 	}
@@ -383,6 +407,10 @@ public final class Decimal implements Comparable<Decimal> {
 		}
 	}
 
+	public static int compare(Decimal b1, Decimal b2){
+		return b1.compareTo(b2);
+	}
+
 	public static int compare(Decimal b1, long n2) {
 		if (!b1.isCompact()) {
 			return b1.decimalVal.compareTo(BigDecimal.valueOf(n2));
@@ -398,6 +426,18 @@ public final class Decimal implements Comparable<Decimal> {
 		} else {
 			return i1 > n2 ? +1 : -1;
 		}
+	}
+
+	public static int compare(Decimal b1, double n2) {
+		return Double.compare(b1.doubleValue(), n2);
+	}
+
+	public static int compare(long n1, Decimal b2) {
+		return -compare(b2, n1);
+	}
+
+	public static int compare(double n1, Decimal b2) {
+		return -compare(b2, n1);
 	}
 
 	/**
