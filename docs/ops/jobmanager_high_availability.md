@@ -133,17 +133,17 @@ Starting zookeeper daemon on host localhost.</pre>
    <pre>
 $ bin/start-cluster.sh
 Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
-Starting jobmanager daemon on host localhost.
-Starting jobmanager daemon on host localhost.
-Starting taskmanager daemon on host localhost.</pre>
+Starting standalonesession daemon on host localhost.
+Starting standalonesession daemon on host localhost.
+Starting taskexecutor daemon on host localhost.</pre>
 
 6. **Stop ZooKeeper quorum and cluster**:
 
    <pre>
 $ bin/stop-cluster.sh
-Stopping taskmanager daemon (pid: 7647) on localhost.
-Stopping jobmanager daemon (pid: 7495) on host localhost.
-Stopping jobmanager daemon (pid: 7349) on host localhost.
+Stopping taskexecutor daemon (pid: 7647) on localhost.
+Stopping standalonesession daemon (pid: 7495) on host localhost.
+Stopping standalonesession daemon (pid: 7349) on host localhost.
 $ bin/stop-zookeeper-quorum.sh
 Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
 
