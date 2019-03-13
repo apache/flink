@@ -21,7 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedFieldReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
@@ -41,8 +41,8 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  */
 public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
-	private FieldReferenceExpression sum = new FieldReferenceExpression("sum", getSumType());
-	private FieldReferenceExpression count = new FieldReferenceExpression("count", Types.LONG);
+	private UnresolvedFieldReferenceExpression sum = new UnresolvedFieldReferenceExpression("sum");
+	private UnresolvedFieldReferenceExpression count = new UnresolvedFieldReferenceExpression("count");
 
 	public TypeInformation getSumType() {
 		return Types.LONG;
@@ -54,8 +54,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public FieldReferenceExpression[] aggBufferAttributes() {
-		return new FieldReferenceExpression[] {
+	public UnresolvedFieldReferenceExpression[] aggBufferAttributes() {
+		return new UnresolvedFieldReferenceExpression[] {
 				sum,
 				count};
 	}

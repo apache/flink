@@ -30,11 +30,15 @@ public interface ApiExpressionVisitor<R> extends ExpressionVisitor<R> {
 
 	R visitUnresolvedCall(UnresolvedCallExpression unresolvedCall);
 
+	R visitUnresolvedField(UnresolvedFieldReferenceExpression unresolvedField);
+
 	default R visit(Expression other) {
 		if (other instanceof TableReferenceExpression) {
 			return visitTableReference((TableReferenceExpression) other);
 		} else if (other instanceof UnresolvedCallExpression) {
 			return visitUnresolvedCall((UnresolvedCallExpression) other);
+		} else if (other instanceof UnresolvedFieldReferenceExpression) {
+			return visitUnresolvedField((UnresolvedFieldReferenceExpression) other);
 		}
 		return visitNonApiExpression(other);
 	}

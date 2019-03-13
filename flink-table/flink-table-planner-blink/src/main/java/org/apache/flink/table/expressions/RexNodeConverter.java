@@ -206,7 +206,9 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visit(Expression other) {
-		if (other instanceof ResolvedAggInputReference) {
+		if (other instanceof UnresolvedFieldReferenceExpression) {
+			return visitUnresolvedFieldReferenceExpression((UnresolvedFieldReferenceExpression) other);
+		} else if (other instanceof ResolvedAggInputReference) {
 			return visitResolvedAggInputReference((ResolvedAggInputReference) other);
 		} else if (other instanceof ResolvedAggLocalReference) {
 			return visitResolvedAggLocalReference((ResolvedAggLocalReference) other);
@@ -215,6 +217,10 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else {
 			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
 		}
+	}
+
+	private RexNode visitUnresolvedFieldReferenceExpression(UnresolvedFieldReferenceExpression field) {
+		return relBuilder.field(field.getName());
 	}
 
 	private RexNode visitResolvedAggInputReference(ResolvedAggInputReference reference) {

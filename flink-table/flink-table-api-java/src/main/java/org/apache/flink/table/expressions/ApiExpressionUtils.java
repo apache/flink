@@ -70,12 +70,8 @@ public final class ApiExpressionUtils {
 		return new SymbolExpression(symbol);
 	}
 
-	public static FieldReferenceExpression fieldRef(String name) {
-		return new FieldReferenceExpression(name);
-	}
-
-	public static FieldReferenceExpression fieldRef(String name, TypeInformation<?> type) {
-		return new FieldReferenceExpression(name, type);
+	public static UnresolvedFieldReferenceExpression unresolvedFieldRef(String name) {
+		return new UnresolvedFieldReferenceExpression(name);
 	}
 
 	public static TableReferenceExpression tableRef(String name, Table table) {
