@@ -89,6 +89,10 @@ under the License.
 									https://issues.apache.org/jira/browse/FLINK-8295
 								-->
 								<relocation>
+									<pattern>com.datastax.driver</pattern>
+									<shadedPattern>org.apache.flink.cassandra.shaded.com.datastax.driver</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>io.netty</pattern>
 									<shadedPattern>com.datastax.shaded.netty</shadedPattern>
 								</relocation>
