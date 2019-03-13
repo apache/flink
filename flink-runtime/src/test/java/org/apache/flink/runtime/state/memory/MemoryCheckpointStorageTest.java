@@ -21,12 +21,12 @@ package org.apache.flink.runtime.state.memory;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFileCheckpointStorageTestBase;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 
 import org.junit.Test;
@@ -56,12 +56,12 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
+	protected AbstractFsCheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
 		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, null, DEFAULT_MAX_STATE_SIZE);
 	}
 
 	@Override
-	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
+	protected AbstractFsCheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
 		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE);
 	}
 

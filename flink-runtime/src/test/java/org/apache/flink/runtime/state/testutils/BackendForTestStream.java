@@ -21,16 +21,12 @@ package org.apache.flink.runtime.state.testutils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.function.SupplierWithException;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -61,7 +57,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 	}
 
 	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+	public CheckpointStorage createCheckpointStorage(JobID jobId) {
 		return new TestCheckpointStorage();
 	}
 
@@ -75,37 +71,12 @@ public class BackendForTestStream extends MemoryStateBackend {
 	private final class TestCheckpointStorage implements CheckpointStorage {
 
 		@Override
-		public boolean supportsHighlyAvailableStorage() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public boolean hasDefaultSavepointLocation() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CheckpointStorageLocation initializeLocationForSavepoint(long checkpointId, @Nullable String externalLocationPointer) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) throws IOException {
+		public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
 			return streamFactory;
 		}
 
 		@Override
-		public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
+		public CheckpointStateOutputStream createTaskOwnedStateStream() {
 			throw new UnsupportedOperationException();
 		}
 	}

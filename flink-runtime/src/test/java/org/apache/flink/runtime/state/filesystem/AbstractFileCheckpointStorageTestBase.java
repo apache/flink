@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -62,9 +61,9 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 	//  factories for the actual state storage to be tested
 	// ------------------------------------------------------------------------
 
-	protected abstract CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception;
+	protected abstract AbstractFsCheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception;
 
-	protected abstract CheckpointStorage createCheckpointStorageWithSavepointDir(
+	protected abstract AbstractFsCheckpointStorage createCheckpointStorageWithSavepointDir(
 			Path checkpointDir,
 			Path savepointDir) throws Exception;
 
@@ -84,7 +83,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		final String pointer3 = metadataFile.getParent().toString() + '/';
 
 		// create the storage for some random checkpoint directory
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final AbstractFsCheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
 		final byte[] data = new byte[23686];
 		new Random().nextBytes(data);
@@ -116,7 +115,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 	@Test
 	public void testFailingPointerPathResolution() throws Exception {
 		// create the storage for some random checkpoint directory
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final AbstractFsCheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
 		// null value
 		try {
@@ -158,8 +157,8 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 		final long checkpointId = 177;
 
-		final CheckpointStorage storage1 = createCheckpointStorage(checkpointDir);
-		final CheckpointStorage storage2 = createCheckpointStorage(checkpointDir);
+		final AbstractFsCheckpointStorage storage1 = createCheckpointStorage(checkpointDir);
+		final AbstractFsCheckpointStorage storage2 = createCheckpointStorage(checkpointDir);
 
 		final CheckpointStorageLocation loc1 = storage1.initializeLocationForCheckpoint(checkpointId);
 		final CheckpointStorageLocation loc2 = storage2.initializeLocationForCheckpoint(checkpointId);
@@ -208,7 +207,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		final byte[] data = {8, 8, 4, 5, 2, 6, 3};
 		final long checkpointId = 177;
 
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final AbstractFsCheckpointStorage storage = createCheckpointStorage(randomTempPath());
 		final CheckpointStorageLocation loc = storage.initializeLocationForCheckpoint(checkpointId);
 
 		// write to the metadata file for the checkpoint
@@ -251,7 +250,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 	@Test
 	public void testNoSavepointPathConfiguredNoTarget() throws Exception {
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final AbstractFsCheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
 		try {
 			storage.initializeLocationForSavepoint(1337, null);
@@ -265,7 +264,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 			@Nullable Path customDir,
 			Path expectedParent) throws Exception {
 
-		final CheckpointStorage storage = savepointDir == null ?
+		final AbstractFsCheckpointStorage storage = savepointDir == null ?
 				createCheckpointStorage(randomTempPath()) :
 				createCheckpointStorageWithSavepointDir(randomTempPath(), savepointDir);
 

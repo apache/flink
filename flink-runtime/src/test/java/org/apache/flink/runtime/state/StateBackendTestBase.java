@@ -138,21 +138,23 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Rule
 	public final ExpectedException expectedException = ExpectedException.none();
 
+	private final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
+
 	// lazily initialized stream storage
-	private CheckpointStorageLocation checkpointStorageLocation;
+	private CheckpointStreamFactory checkpointStreamFactory;
 
 	protected abstract B getStateBackend() throws Exception;
 
 	protected abstract boolean isSerializerPresenceRequiredOnRestore();
 
 	protected CheckpointStreamFactory createStreamFactory() throws Exception {
-		if (checkpointStorageLocation == null) {
-			checkpointStorageLocation = getStateBackend()
+		if (checkpointStreamFactory == null) {
+			checkpointStreamFactory = getStateBackend()
 					.createCheckpointStorage(new JobID())
-					.initializeLocationForCheckpoint(1L);
+					.resolveCheckpointStorageLocation(1L, checkpointOptions.getTargetLocation());
 		}
 
-		return checkpointStorageLocation;
+		return checkpointStreamFactory;
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
@@ -331,7 +333,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
@@ -394,7 +396,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
@@ -450,7 +452,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
@@ -509,7 +511,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
@@ -564,7 +566,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				682375462378L,
 				2,
 				streamFactory,
-				CheckpointOptions.forCheckpointWithDefaultLocation()),
+				checkpointOptions),
 			sharedStateRegistry);
 
 		backend.dispose();
@@ -630,7 +632,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				682375462378L,
 				2,
 				streamFactory,
-				CheckpointOptions.forCheckpointWithDefaultLocation()),
+				checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -657,7 +659,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()),
+					checkpointOptions),
 				sharedStateRegistry);
 
 			snapshot.discardState();
@@ -735,7 +737,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()),
+					checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -761,7 +763,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()),
+					checkpointOptions),
 				sharedStateRegistry);
 
 			snapshot.discardState();
@@ -841,7 +843,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()),
+					checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -879,7 +881,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()),
+					checkpointOptions),
 				sharedStateRegistry);
 
 			snapshot.discardState();
@@ -924,7 +926,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()),
+					checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -954,7 +956,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 					682375462378L,
 					2,
 					streamFactory,
-					CheckpointOptions.forCheckpointWithDefaultLocation()), sharedStateRegistry);
+					checkpointOptions), sharedStateRegistry);
 
 			snapshot.discardState();
 		} finally {
@@ -996,7 +998,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// make some more modifications
@@ -1009,7 +1011,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462379L, 4, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// validate the original state
@@ -1229,7 +1231,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		// draw a snapshot
 		KeyedStateHandle snapshot1 =
 			runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 
 		backend.dispose();
@@ -1304,7 +1306,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		backend.dispose();
@@ -1355,7 +1357,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// make some more modifications
@@ -1370,7 +1372,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462379L, 4, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// validate the original state
@@ -1800,7 +1802,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// make some more modifications
@@ -1813,7 +1815,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462379L, 4, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// validate the original state
@@ -2421,7 +2423,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// make some more modifications
@@ -2435,7 +2437,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462379L, 4, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// validate the original state
@@ -2533,7 +2535,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// make some more modifications
@@ -2547,7 +2549,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462379L, 4, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		// validate the original state
@@ -2876,7 +2878,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// take a snapshot, and then restore backend with snapshot
 			KeyedStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(1L, 2L, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 			backend.dispose();
 
@@ -2884,7 +2886,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// now take a snapshot again without accessing the state
 			snapshot = runSnapshot(
-				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(2L, 3L, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 			backend.dispose();
 
@@ -2953,7 +2955,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 
 		KeyedStateHandle snapshot = runSnapshot(
-			backend.snapshot(0, 0, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(0, 0, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		List<KeyedStateHandle> firstHalfKeyGroupStates = StateAssignmentOperation.getKeyedStateHandles(
@@ -3024,7 +3026,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		backend.dispose();
@@ -3060,7 +3062,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// draw a snapshot
 			KeyedStateHandle snapshot1 = runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -3106,7 +3108,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// draw a snapshot
 			KeyedStateHandle snapshot1 = runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -3154,7 +3156,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// draw a snapshot
 			KeyedStateHandle snapshot1 = runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -3200,7 +3202,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// draw a snapshot
 			KeyedStateHandle snapshot1 = runSnapshot(
-				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				backend.snapshot(682375462378L, 2, streamFactory, checkpointOptions),
 				sharedStateRegistry);
 
 			backend.dispose();
@@ -3462,7 +3464,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 
 		KeyedStateHandle snapshot = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			backend.snapshot(682375462379L, 4, streamFactory, checkpointOptions),
 			sharedStateRegistry);
 
 		backend.dispose();
@@ -3497,7 +3499,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			// draw a snapshot
 			KeyedStateHandle snapshot =
 				runSnapshot(
-					backend.snapshot(682375462379L, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+					backend.snapshot(682375462379L, 1, streamFactory, checkpointOptions),
 					sharedStateRegistry);
 			assertNull(snapshot);
 			backend.dispose();
@@ -3587,7 +3589,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
-				backend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+				backend.snapshot(0L, 0L, streamFactory, checkpointOptions);
 
 			Thread runner1 = new Thread(snapshot1, "snapshot-1-runner");
 			runner1.start();
@@ -3605,7 +3607,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			streamFactory.setBlockerLatch(null);
 
 			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
-				backend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+				backend.snapshot(1L, 1L, streamFactory, checkpointOptions);
 
 			Thread runner2 = new Thread(snapshot2,"snapshot-2-runner");
 			runner2.start();
@@ -3660,7 +3662,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
-					backend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+					backend.snapshot(0L, 0L, streamFactory, checkpointOptions);
 			Thread runner = new Thread(snapshot);
 			runner.start();
 			for (int i = 0; i < 20; ++i) {
@@ -3849,7 +3851,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
-					backend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+					backend.snapshot(0L, 0L, streamFactory, checkpointOptions);
 
 			Thread runner = new Thread(snapshot);
 			runner.start();
@@ -3968,7 +3970,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.update(i);
 
 				futureList.add(runSnapshotAsync(executorService,
-					backend.snapshot(checkpointID++, System.currentTimeMillis(), streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation())));
+					backend.snapshot(checkpointID++, System.currentTimeMillis(), streamFactory, checkpointOptions)));
 			}
 
 			for (Future future : futureList) {
