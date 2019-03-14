@@ -23,9 +23,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,19 +68,19 @@ public class MetricRegistryConfiguration {
 	private final char delimiter;
 
 	// contains for every configured reporter its name and the configuration object
-	private final List<Tuple2<String, Configuration>> reporterConfigurations;
+	private final List<ReporterSetup> reporterSetups;
 
 	private final long queryServiceMessageSizeLimit;
 
 	public MetricRegistryConfiguration(
 		ScopeFormats scopeFormats,
 		char delimiter,
-		List<Tuple2<String, Configuration>> reporterConfigurations,
+		List<ReporterSetup> reporterSetups,
 		long queryServiceMessageSizeLimit) {
 
 		this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
 		this.delimiter = delimiter;
-		this.reporterConfigurations = Preconditions.checkNotNull(reporterConfigurations);
+		this.reporterSetups = Preconditions.checkNotNull(reporterSetups);
 		this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
 	}
 
@@ -93,8 +96,8 @@ public class MetricRegistryConfiguration {
 		return delimiter;
 	}
 
-	public List<Tuple2<String, Configuration>> getReporterConfigurations() {
-		return reporterConfigurations;
+	public List<ReporterSetup> getReporterSetups() {
+		return reporterSetups;
 	}
 
 	public long getQueryServiceMessageSizeLimit() {
@@ -170,12 +173,39 @@ public class MetricRegistryConfiguration {
 			}
 		}
 
+		List<ReporterSetup> reporterArguments = new ArrayList<>(reporterConfigurations.size());
+		for (Tuple2<String, Configuration> reporterConfiguration: reporterConfigurations) {
+			String reporterName = reporterConfiguration.f0;
+			Configuration reporterConfig = reporterConfiguration.f1;
+
+			try {
+				final String reporterClassName = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
+				if (reporterClassName == null) {
+					LOG.error("No reporter class set for reporter " + reporterName + ". Metrics might not be exposed/reported.");
+					continue;
+				}
+
+				final SupplierWithException<MetricReporter, Exception> supplier = () -> {
+					Class<?> reporterClass = Class.forName(reporterClassName);
+					return (MetricReporter) reporterClass.newInstance();
+				};
+
+				MetricConfig metricConfig = new MetricConfig();
+				reporterConfig.addAllToProperties(metricConfig);
+
+				reporterArguments.add(new ReporterSetup(reporterName, metricConfig, supplier));
+			}
+			catch (Throwable t) {
+				LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", reporterName, t);
+			}
+		}
+
 		final long maximumFrameSize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
 		// padding to account for serialization overhead
 		final long messageSizeLimitPadding = 256;
 
-		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations, maximumFrameSize - messageSizeLimitPadding);
+		return new MetricRegistryConfiguration(scopeFormats, delim, reporterArguments, maximumFrameSize - messageSizeLimitPadding);
 	}
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
@@ -189,6 +219,34 @@ public class MetricRegistryConfiguration {
 		}
 
 		return defaultConfiguration;
+	}
+
+	/**
+	 * Encapsulates everything needed for the instantiation and configuration of a {@link MetricReporter}.
+	 */
+	public static class ReporterSetup {
+
+		private final String name;
+		private final MetricConfig configuration;
+		private final SupplierWithException<MetricReporter, Exception> supplier;
+
+		ReporterSetup(final String name, final MetricConfig configuration, SupplierWithException<MetricReporter, Exception> supplier) {
+			this.name = name;
+			this.configuration = configuration;
+			this.supplier = supplier;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public MetricConfig getConfiguration() {
+			return configuration;
+		}
+
+		public SupplierWithException<MetricReporter, Exception> getSupplier() {
+			return supplier;
+		}
 	}
 
 }
