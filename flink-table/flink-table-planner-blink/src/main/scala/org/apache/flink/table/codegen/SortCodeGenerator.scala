@@ -141,7 +141,7 @@ class SortCodeGenerator(
 
     val code =
       j"""
-      public class $className extends ${baseClass.getCanonicalName} {
+      public class $className implements ${baseClass.getCanonicalName} {
 
         public $className(Object[] references) {
           // useless
@@ -388,7 +388,7 @@ class SortCodeGenerator(
 
     val code =
       j"""
-      public class $className extends ${baseClass.getCanonicalName} {
+      public class $className implements ${baseClass.getCanonicalName} {
 
         private final Object[] references;
         ${ctx.reuseMemberCode()}

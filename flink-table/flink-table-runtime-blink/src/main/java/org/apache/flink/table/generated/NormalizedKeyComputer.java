@@ -26,35 +26,35 @@ import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
  * Normalized key computer for {@link BinaryInMemorySortBuffer}.
  * For performance, subclasses are usually implemented through CodeGenerator.
  */
-public abstract class NormalizedKeyComputer {
+public interface NormalizedKeyComputer {
 
 	/**
 	 * Writes a normalized key for the given record into the target {@link MemorySegment}.
 	 */
-	public abstract void putKey(BaseRow record, MemorySegment target, int offset);
+	void putKey(BaseRow record, MemorySegment target, int offset);
 
 	/**
 	 * Compares two normalized keys in respective {@link MemorySegment}.
 	 */
-	public abstract int compareKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ);
+	int compareKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ);
 
 	/**
 	 * Swaps two normalized keys in respective {@link MemorySegment}.
 	 */
-	public abstract void swapKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ);
+	void swapKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ);
 
 	/**
 	 * Get normalized keys bytes length.
 	 */
-	public abstract int getNumKeyBytes();
+	int getNumKeyBytes();
 
 	/**
 	 * whether the normalized key can fully determines the comparison.
 	 */
-	public abstract boolean isKeyFullyDetermines();
+	boolean isKeyFullyDetermines();
 
 	/**
 	 * Flag whether normalized key comparisons should be inverted key.
 	 */
-	public abstract boolean invertKey();
+	boolean invertKey();
 }

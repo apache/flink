@@ -25,7 +25,7 @@ import org.apache.flink.table.generated.NormalizedKeyComputer;
 /**
  * Example for int {@link NormalizedKeyComputer}.
  */
-public class IntNormalizedKeyComputer extends NormalizedKeyComputer {
+public class IntNormalizedKeyComputer implements NormalizedKeyComputer {
 
 	public static final IntNormalizedKeyComputer INSTANCE = new IntNormalizedKeyComputer();
 
