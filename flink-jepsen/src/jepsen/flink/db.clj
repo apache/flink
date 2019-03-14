@@ -296,10 +296,10 @@
     (str install-dir "/bin/mesos-appmaster.sh")
     (str "-Dmesos.master=" (zookeeper-uri test mesos/zk-namespace))
     "-Djobmanager.rpc.address=$(hostname -f)"
-    "-Djobmanager.heap.mb=2048"
+    "-Djobmanager.heap.size=2048m"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.mem=2048"
-    "-Dtaskmanager.heap.mb=2048"
+    "-Dtaskmanager.heap.size=2048m"
     "-Dmesos.resourcemanager.tasks.cpus=1"
     "-Drest.bind-address=$(hostname -f)"))
 
