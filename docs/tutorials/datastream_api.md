@@ -198,7 +198,7 @@ DataStream<Tuple2<String, Long>> result = keyedEdits
 
         @Override
         public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
-          	return new Tuple2<>(a.f0 + b.f0, a.f1 + b.f1);
+          	return new Tuple2<>(a.f0, a.f1 + b.f1);
         }
     });
 {% endhighlight %}
@@ -275,7 +275,7 @@ public class WikipediaAnalysis {
 
       	@Override
       	public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
-      	  return new Tuple2<>(a.f0 + b.f0, a.f1 + b.f1);
+      	  return new Tuple2<>(a.f0, a.f1 + b.f1);
       	}
       });
 
