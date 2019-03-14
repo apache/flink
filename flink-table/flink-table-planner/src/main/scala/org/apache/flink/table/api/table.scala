@@ -1289,20 +1289,27 @@ class WindowedTable(
 }
 
 /**
-  * A table that has been windowed for grouping [[Window]]s.
+  * A table that has been windowed for [[GroupWindow]]s.
   */
 class GroupWindowedTable(
     override private[flink] val table: Table,
-    override private[flink] val window: Window)
+    override private[flink] val window: GroupWindow)
   extends WindowedTable(table, window)
 
 /**
-  * A table that has been windowed and grouped for grouping [[Window]]s.
+  * A table that has been windowed and grouped for [[GroupWindow]]s.
+  *
+  * @deprecated The constructor contains [[Window]] parameter will be removed. Use constructor
+  *             with [[GroupWindow]] instead.
   */
-class WindowGroupedTable(
+class WindowGroupedTable @Deprecated() (
     private[flink] val table: Table,
     private[flink] val groupKeys: Seq[Expression],
     private[flink] val window: Window) {
+
+  def this(table: Table, groupKeys: Seq[Expression], window: GroupWindow) {
+    this(table, groupKeys, window.asInstanceOf[Window])
+  }
 
   /**
     * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.

@@ -20,8 +20,7 @@ package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.WindowReference
-import org.apache.flink.table.plan.logical.TumblingGroupWindow
+import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test

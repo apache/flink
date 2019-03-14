@@ -19,25 +19,16 @@
 package org.apache.flink.table.api.java
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.ExpressionParser
 
 /**
   * Helper class for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
   * windows of a specified fixed length. For example, a tumbling window of 5 minutes size groups
   * elements in 5 minutes intervals.
+  *
+  * @deprecated This class will be replaced by [[org.apache.flink.table.api.Tumble]].
   */
-object Tumble {
-
-  /**
-    * Creates a tumbling window. Tumbling windows are consecutive, non-overlapping
-    * windows of a specified fixed length. For example, a tumbling window of 5 minutes size groups
-    * elements in 5 minutes intervals.
-    *
-    * @param size the size of the window as time or row-count interval.
-    * @return a partially defined tumbling window
-    */
-  def over(size: String): TumbleWithSize = new TumbleWithSize(size)
-}
+@Deprecated
+object Tumble extends TumbleBase
 
 /**
   * Helper class for creating a sliding window. Sliding windows have a fixed size and slide by
@@ -47,74 +38,27 @@ object Tumble {
   * For example, a sliding window of size 15 minutes with 5 minutes sliding interval groups elements
   * of 15 minutes and evaluates every five minutes. Each element is contained in three consecutive
   * window evaluations.
+  *
+  * @deprecated This class will be replaced by [[org.apache.flink.table.api.Slide]].
   */
-object Slide {
-
-  /**
-    * Creates a sliding window. Sliding windows have a fixed size and slide by
-    * a specified slide interval. If the slide interval is smaller than the window size, sliding
-    * windows are overlapping. Thus, an element can be assigned to multiple windows.
-    *
-    * For example, a sliding window of size 15 minutes with 5 minutes sliding interval groups
-    * elements of 15 minutes and evaluates every five minutes. Each element is contained in three
-    * consecutive window evaluations.
-    *
-    * @param size the size of the window as time or row-count interval
-    * @return a partially specified sliding window
-    */
-  def over(size: String): SlideWithSize = new SlideWithSize(size)
-}
+@Deprecated
+object Slide extends SlideBase
 
 /**
   * Helper class for creating a session window. The boundary of session windows are defined by
   * intervals of inactivity, i.e., a session window is closes if no event appears for a defined
   * gap period.
+  *
+  * @deprecated This class will be replaced by [[org.apache.flink.table.api.Session]].
   */
-object Session {
-
-  /**
-    * Creates a session window. The boundary of session windows are defined by
-    * intervals of inactivity, i.e., a session window is closes if no event appears for a defined
-    * gap period.
-    *
-    * @param gap specifies how long (as interval of milliseconds) to wait for new data before
-    *            closing the session window.
-    * @return a partially defined session window
-    */
-  def withGap(gap: String): SessionWithGap = new SessionWithGap(gap)
-}
+@Deprecated
+object Session extends SessionBase
 
 /**
   * Helper class for creating an over window. Similar to SQL, over window aggregates compute an
   * aggregate for each input row over a range of its neighboring rows.
+  *
+  * @deprecated This class will be replaced by [[org.apache.flink.table.api.Over]].
   */
-object Over {
-
-  /**
-    * Specifies the time attribute on which rows are ordered.
-    *
-    * For streaming tables, reference a rowtime or proctime time attribute here
-    * to specify the time mode.
-    *
-    * For batch tables, refer to a timestamp or long attribute.
-    *
-    * @param orderBy field reference
-    * @return an over window with defined order
-    */
-  def orderBy(orderBy: String): OverWindowPartitionedOrdered = {
-    new OverWindowPartitionedOrdered(Seq(), ExpressionParser.parseExpression(orderBy))
-  }
-
-  /**
-    * Partitions the elements on some partition keys.
-    *
-    * Each partition is individually sorted and aggregate functions are applied to each
-    * partition separately.
-    *
-    * @param partitionBy list of field references
-    * @return an over window with defined partitioning
-    */
-  def partitionBy(partitionBy: String): OverWindowPartitioned = {
-    new OverWindowPartitioned(ExpressionParser.parseExpressionList(partitionBy))
-  }
-}
+@Deprecated
+object Over extends OverBase

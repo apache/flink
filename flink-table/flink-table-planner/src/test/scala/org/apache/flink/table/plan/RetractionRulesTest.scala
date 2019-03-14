@@ -20,7 +20,7 @@ package org.apache.flink.table.plan
 
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.{Table, Tumble}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.nodes.datastream._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.CountDistinct
