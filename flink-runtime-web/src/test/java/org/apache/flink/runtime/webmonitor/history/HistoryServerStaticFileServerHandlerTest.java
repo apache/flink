@@ -63,7 +63,7 @@ public class HistoryServerStaticFileServerHandlerTest {
 			// verify that a) a file can be loaded using the ClassLoader and b) that the HistoryServer
 			// index_hs.html is injected
 			String index = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
-			Assert.assertTrue(index.contains("Completed Jobs"));
+			Assert.assertTrue(index.contains("Apache Flink Web Dashboard"));
 
 			// verify that index.html is appended if the request path ends on '/'
 			String index2 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/");

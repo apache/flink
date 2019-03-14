@@ -17,13 +17,19 @@
  */
 
 import { NgModule } from '@angular/core';
-import { Routes, RouterModule } from '@angular/router';
+import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
-const routes: Routes = [];
+const routes: Routes = [
+  { path: 'overview', loadChildren: './pages/overview/overview.module#OverviewModule' },
+  { path: 'submit', loadChildren: './pages/submit/submit.module#SubmitModule' },
+  { path: 'job-manager', loadChildren: './pages/job-manager/job-manager.module#JobManagerModule' },
+  { path: 'task-manager', loadChildren: './pages/task-manager/task-manager.module#TaskManagerModule' },
+  { path: 'job', loadChildren: './pages/job/job.module#JobModule', data: { collapse: true } },
+  { path: '**', redirectTo: 'overview', pathMatch: 'full' }
+];
 
 @NgModule({
-  imports: [ RouterModule.forRoot(routes) ],
-  exports: [ RouterModule ]
+  exports: [RouterModule],
+  imports: [RouterModule.forRoot(routes, { useHash: true, preloadingStrategy: PreloadAllModules })]
 })
-export class AppRoutingModule {
-}
+export class AppRoutingModule {}

@@ -1,0 +1,53 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<nav class="navbar navbar-default navbar-fixed-top navbar-main">
+  <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
+  <div class="navbar-title">Completed Jobs</div>
+</nav>
+<div id="content-inner">
+  <table class="table table-hover table-clickable">
+    <thead>
+      <tr>
+        <th>Start Time</th>
+        <th>End Time</th>
+        <th>Duration</th>
+        <th>Job Name</th>
+        <th>Job ID</th>
+        <th>Tasks</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="job in jobs|orderBy:&quot;'end-time'&quot;:true" ui-sref="single-job.plan.subtasks({ jobid: job.jid })">
+        <td>{{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+        <td>{{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+        <td title="{{job.duration | humanizeDuration:false}}">{{job.duration | humanizeDuration:true}}</td>
+        <td>{{job.name}}</td>
+        <td>{{job.jid}}</td>
+        <td class="label-group">
+          <bs-label status="{{status}}" ng-repeat="(status, value) in job.tasks">{{value}}</bs-label>
+        </td>
+        <td> 
+          <bs-label status="{{job.state}}">{{job.state}}</bs-label>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

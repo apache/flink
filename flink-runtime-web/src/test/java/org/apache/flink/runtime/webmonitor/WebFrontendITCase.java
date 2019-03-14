@@ -117,7 +117,7 @@ public class WebFrontendITCase extends TestLogger {
 	public void getFrontPage() {
 		try {
 			String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
-			String text = "Apache Flink Dashboard";
+			String text = "Apache Flink Web Dashboard";
 			assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
 		} catch (Exception e) {
 			e.printStackTrace();
