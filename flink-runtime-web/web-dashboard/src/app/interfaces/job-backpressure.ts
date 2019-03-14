@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface JobBackpressureInterface {
+  status: string;
+  'backpressure-level': string;
+  'end-timestamp': number;
+  subtasks: SubtasksItem[];
+}
+
+interface SubtasksItem {
+  subtask: number;
+  'backpressure-level': string;
+  ratio: number;
+}
+

@@ -16,8 +16,23 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { HumanizeDurationPipe } from './humanize-duration.pipe';
+import { HumanizeDatePipe } from './humanize-date.pipe';
+
+@NgModule({
+  imports     : [
+    CommonModule
+  ],
+  declarations: [
+    HumanizeDurationPipe,
+    HumanizeDatePipe
+  ],
+  exports     : [
+    HumanizeDurationPipe,
+    HumanizeDatePipe
+  ]
+})
+export class PipeModule {
+}

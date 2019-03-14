@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export * from './public-api';

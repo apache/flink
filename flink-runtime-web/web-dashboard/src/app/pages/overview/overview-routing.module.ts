@@ -16,8 +16,17 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { NgModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { OverviewComponent } from './overview.component';
+
+const routes: Routes = [
+  { path: '', component: OverviewComponent }
+];
+
+@NgModule({
+  imports: [ RouterModule.forChild(routes) ],
+  exports: [ RouterModule ]
+})
+export class OverviewRoutingModule {
+}

@@ -15,9 +15,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+nz-card {
+  ::ng-deep {
+    .ant-card-head {
+      border-bottom: 0;
+    }
+
+    .ant-card-body {
+      padding: 0 24px 8px;
+    }
+  }
+}
+
+.total {
+  color: @success-color;
+  font-size: 36px;
+  line-height: 38px;
+}
+
+.footer {
+  padding-top: 9px;
+  margin-top: 16px;
+  border-top: 1px solid @border-color-split;
+
+  .field {
+    display: inline-block;
+    font-size: 14px;
+    line-height: 22px;
+
+    span {
+      line-height: 22px;
+
+      &:last-child {
+        margin-left: 8px;
+        font-weight: 600;
+        color: @heading-color;
+      }
+    }
+  }
+}
+
+.col {
+  margin-bottom: 24px;
+}
+
+nz-divider {
+  margin: 0 12px;
+}

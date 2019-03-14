@@ -16,8 +16,19 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface JarListInterface {
+  address: string;
+  files: FilesItem[];
+}
+
+interface FilesItem {
+  id: string;
+  name: string;
+  uploaded: number;
+  entry: EntryItem[];
+}
+
+interface EntryItem {
+  name: string;
+  description: null;
+}

@@ -16,8 +16,30 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { NgZorroAntdModule } from 'ng-zorro-antd';
+import { PipeModule } from 'pipes/pipe.module';
+import { JobBadgeComponent } from 'share/customize/job-badge/job-badge.component';
+import { JobListComponent } from 'share/customize/job-list/job-list.component';
+import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.component';
+
+@NgModule({
+  imports     : [
+    CommonModule,
+    NgZorroAntdModule,
+    PipeModule
+  ],
+  declarations: [
+    JobBadgeComponent,
+    TaskBadgeComponent,
+    JobListComponent
+  ],
+  exports     : [
+    JobListComponent,
+    NgZorroAntdModule,
+    PipeModule
+  ]
+})
+export class ShareModule {
+}

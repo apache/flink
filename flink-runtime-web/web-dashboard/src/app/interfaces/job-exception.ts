@@ -16,8 +16,17 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface JobExceptionInterface {
+  'root-exception': string;
+  timestamp: number;
+  truncated: boolean;
+  'all-exceptions': Array<{
+    'attempt-num': number;
+    'exception': string;
+    'location': string;
+    'subtask-index': number;
+    'task': string;
+    'timestamp': number;
+    'vertex-id': string;
+  }>;
+}

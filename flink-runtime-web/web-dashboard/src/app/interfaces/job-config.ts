@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface JobConfigInterface {
+  'jid': string;
+  'name': string;
+  'execution-config': {
+    'execution-mode': string;
+    'restart-strategy': string;
+    'job-parallelism': number;
+    'object-reuse-mode': boolean;
+    'user-config': {
+      [ key: string ]: string;
+    }
+  };
+}

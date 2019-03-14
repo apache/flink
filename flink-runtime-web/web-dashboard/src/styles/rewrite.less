@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+nz-table {
+  &.no-border {
+    .ant-table-small {
+      border: none;
+    }
+  }
+
+  &.small {
+    .ant-table {
+      font-size: 12px;
+    }
+  }
+}

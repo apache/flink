@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export const BASE_URL = '.';
+export const COLOR_MAP = {
+  TOTAL      : '#112641',
+  RUNNING    : '#52c41a',
+  FAILED     : '#f5222d',
+  FINISHED   : '#1890ff',
+  CANCELED   : '#fa8c16',
+  CANCELING  : '#faad14',
+  CREATED    : '#2f54eb',
+  DEPLOYING  : '#13c2c2',
+  RECONCILING: '#eb2f96',
+  SCHEDULED  : '#722ed1'
+};

@@ -16,8 +16,25 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface JobSubTaskTimeInterface {
+  'id': string;
+  'name': string;
+  'now': number;
+  'subtasks': Array<{
+    'subtask': number;
+    'host': string;
+    'duration': number;
+    'timestamps': {
+      'CREATED': number;
+      'RUNNING': number;
+      'FAILING': number;
+      'RECONCILING': number;
+      'CANCELLING': number;
+      'RESTARTING': number;
+      'FINISHED': number;
+      'FAILED': number;
+      'CANCELED': number;
+      'SUSPENDED': number;
+    }
+  }>;
+}

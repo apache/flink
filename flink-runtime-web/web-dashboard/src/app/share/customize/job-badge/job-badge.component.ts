@@ -16,8 +16,21 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { COLOR_MAP } from 'config';
+
+@Component({
+  selector       : 'flink-job-badge',
+  templateUrl    : './job-badge.component.html',
+  styleUrls      : [ './job-badge.component.less' ],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class JobBadgeComponent {
+  @Input() state: string;
+
+  backgroundColor(state: string) {
+    // @ts-ignore
+    return COLOR_MAP[ state ];
+  }
+
+}

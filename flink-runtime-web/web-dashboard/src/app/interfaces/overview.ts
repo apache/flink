@@ -16,8 +16,14 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface OverviewInterface {
+  taskmanagers: number;
+  'slots-total': number;
+  'slots-available': number;
+  'jobs-running': number;
+  'jobs-finished': number;
+  'jobs-cancelled': number;
+  'jobs-failed': number;
+  'flink-version': string;
+  'flink-commit': string;
+}

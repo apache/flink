@@ -16,8 +16,23 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { BASE_URL } from '../app.config';
+import { OverviewInterface } from 'interfaces';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class OverviewService {
+
+  constructor(private httpClient: HttpClient) {
+  }
+
+  /**
+   * Get cluster overview status
+   */
+  loadOverview() {
+    return this.httpClient.get<OverviewInterface>(`${BASE_URL}/overview`);
+  }
+}

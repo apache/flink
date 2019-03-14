@@ -16,8 +16,20 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ShareModule } from 'share/share.module';
+import { OverviewRoutingModule } from './overview-routing.module';
+import { OverviewComponent } from './overview.component';
+import { OverviewStatisticComponent } from './statistic/overview-statistic.component';
+
+@NgModule({
+  imports     : [
+    CommonModule,
+    ShareModule,
+    OverviewRoutingModule
+  ],
+  declarations: [ OverviewComponent, OverviewStatisticComponent ]
+})
+export class OverviewModule {
+}

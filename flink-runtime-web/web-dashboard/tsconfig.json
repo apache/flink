@@ -2,6 +2,26 @@
   "compileOnSave": false,
   "compilerOptions": {
     "baseUrl": "./",
+    "paths": {
+      "services": [
+        "src/app/services"
+      ],
+      "config": [
+        "src/app/app.config.ts"
+      ],
+      "interfaces": [
+        "src/app/interfaces"
+      ],
+      "utils": [
+        "src/app/utils"
+      ],
+      "share/*": [
+        "src/app/share/*"
+      ],
+      "pipes/*": [
+        "src/app/pipes/*"
+      ]
+    },
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
     "declaration": false,

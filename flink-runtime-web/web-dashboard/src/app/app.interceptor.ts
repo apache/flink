@@ -16,33 +16,26 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
+import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
+import { Injectable, Injector } from '@angular/core';
+import { throwError, Observable } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { StatusService } from 'services';
 
-@Component({
-  selector   : 'flink-root',
-  templateUrl: './app.component.html',
-  styleUrls  : [ './app.component.less' ]
-})
-export class AppComponent {
-  collapsed = false;
-  visible = false;
-
-  showMessage() {
-    if (this.statusService.listOfErrorMessage.length) {
-      this.visible = true;
-    }
+@Injectable()
+export class AppInterceptor implements HttpInterceptor {
+  constructor(private injector: Injector) {
   }
 
-  clearMessage() {
-    this.statusService.listOfErrorMessage = [];
-    this.visible = false;
-  }
-
-  toggleCollapse() {
-    this.collapsed = !this.collapsed;
-  }
-
-  constructor(public statusService: StatusService) {
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    return next.handle(req).pipe(
+      catchError((res) => {
+        const errorMessage = res && res.error && res.error.errors && res.error.errors[ 0 ];
+        if (errorMessage) {
+          this.injector.get<StatusService>(StatusService).listOfErrorMessage.push(errorMessage);
+        }
+        return throwError(res);
+      })
+    );
   }
 }

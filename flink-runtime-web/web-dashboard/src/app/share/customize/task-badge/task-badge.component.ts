@@ -16,8 +16,21 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { COLOR_MAP } from 'config';
+import { TaskStatusInterface } from 'interfaces';
+
+@Component({
+  selector       : 'flink-task-badge',
+  templateUrl    : './task-badge.component.html',
+  styleUrls      : [ './task-badge.component.less' ],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TaskBadgeComponent {
+  @Input() tasks: TaskStatusInterface;
+  statusList = Object.keys(COLOR_MAP);
+
+  get colorMap() {
+    return COLOR_MAP;
+  }
+}

@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface ConfigurationInterface {
+  'refresh-interval': number;
+  'timezone-name': string;
+  'timezone-offset': number;
+  'flink-version': string;
+  'flink-revision': string;
+}

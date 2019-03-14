@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-@import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
-@import "./base";
-@import "./global";
-@import "./theme";
-@import "./rewrite";
+export interface UserAccumulatorsInterface {
+  'user-accumulators': Array<{ name: string, type: string, value: string }>;
+}
+
+export interface SubTaskAccumulatorsInterface {
+  subtasks: Array<{ name: string, type: string, value: string, subtask: number, host: string, attempt: number }>;
+}

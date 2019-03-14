@@ -16,3 +16,136 @@
  * limitations under the License.
  */
 
+@import "theme.less";
+
+.trigger {
+  font-size: 18px;
+  line-height: 64px;
+  padding: 0 24px;
+  cursor: pointer;
+  transition: color .3s;
+}
+
+.trigger:hover {
+  color: @primary-color;
+}
+
+.logo {
+  height: 64px;
+  position: relative;
+  line-height: 64px;
+  padding-left: 24px;
+  transition: all 0.3s ease 0s;
+  background: @layout-header-background;
+  overflow: hidden;
+
+  a {
+    line-height: 64px;
+
+    h1 {
+      color: #ffffff;
+      font-size: 14px;
+      font-family: "Myriad Pro", "Helvetica Neue", Arial, Helvetica, sans-serif;
+      font-weight: 600;
+      margin: 0px 0px 0px 12px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    img {
+      height: 32px;
+      width: 32px;
+      display: inline-block;
+      vertical-align: middle;
+      top: -4px;
+      position: relative;
+    }
+  }
+
+}
+
+nz-layout {
+  min-height: 100vh;
+  overflow: hidden;
+  background: darken(@component-background, 5%);
+}
+
+nz-sider {
+  min-height: 100vh;
+  box-shadow: rgba(0, 21, 41, 0.35) 2px 0px 6px;
+  position: relative;
+  z-index: 10;
+}
+
+nz-header {
+  background: @component-background;
+  border-bottom: 1px solid @border-color-split;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, .08);
+  position: relative;
+  padding: 0px 12px 0px 0px;
+  flex: 0 0 auto;
+
+  nz-badge {
+    margin-left: 12px;
+    cursor: pointer;
+
+    ::ng-deep {
+      .ant-badge-count {
+        background: @primary-color;
+      }
+    }
+
+    &.normal {
+      cursor: default;
+
+      ::ng-deep {
+        .ant-badge-count {
+          background: @text-color;
+        }
+      }
+    }
+  }
+
+  .right {
+    float: right;
+    height: 100%;
+
+    .text {
+      padding: 0 12px;
+      display: inline-block;
+      height: 100%;
+      color: @text-color;
+    }
+
+    .action {
+      transition: all .3s;
+
+      &:hover {
+        background: @background-color-light;
+      }
+
+      i {
+        font-size: 16px;
+        vertical-align: middle;
+      }
+    }
+
+    .version {
+      cursor: default;
+    }
+  }
+}
+
+nz-content {
+  margin: 24px;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.menu {
+  padding: 16px 0px;
+}
+
+nz-alert {
+  margin-bottom: 12px;
+}

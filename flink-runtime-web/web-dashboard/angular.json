@@ -48,6 +48,11 @@
             "styles": [
               "src/styles/index.less"
             ],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "src/styles"
+              ]
+            },
             "scripts": [],
             "es5BrowserSupport": true
           },
