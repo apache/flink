@@ -148,7 +148,7 @@ class RocksDBListState<K, N, V>
 				return element;
 			}
 		} catch (IOException e) {
-			throw new FlinkRuntimeException("Unexpected list element deserialization failure");
+			throw new FlinkRuntimeException("Unexpected list element deserialization failure", e);
 		}
 		return null;
 	}
