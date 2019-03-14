@@ -25,7 +25,7 @@ TEST=flink-high-parallelism-iterations-test
 TEST_PROGRAM_NAME=HighParallelismIterationsTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_config_key "taskmanager.heap.mb" "52" # 52Mb x 100 TMs = 5Gb total heap
+set_config_key "taskmanager.heap.size" "52m" # 52Mb x 100 TMs = 5Gb total heap
 
 set_config_key "taskmanager.memory.size" "8" # 8Mb
 set_config_key "taskmanager.network.memory.min" "8mb"
