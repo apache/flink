@@ -139,20 +139,20 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public final ExpectedException expectedException = ExpectedException.none();
 
 	// lazily initialized stream storage
-	private CheckpointStorageLocation checkpointStorageLocation;
+	private CheckpointStreamFactory checkpointStreamFactory;
 
 	protected abstract B getStateBackend() throws Exception;
 
 	protected abstract boolean isSerializerPresenceRequiredOnRestore();
 
 	protected CheckpointStreamFactory createStreamFactory() throws Exception {
-		if (checkpointStorageLocation == null) {
-			checkpointStorageLocation = getStateBackend()
+		if (checkpointStreamFactory == null) {
+			checkpointStreamFactory = getStateBackend()
 					.createCheckpointStorage(new JobID())
-					.initializeLocationForCheckpoint(1L);
+					.resolveCheckpointStorageLocation(1L, CheckpointStorageLocationReference.getDefault());
 		}
 
-		return checkpointStorageLocation;
+		return checkpointStreamFactory;
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
