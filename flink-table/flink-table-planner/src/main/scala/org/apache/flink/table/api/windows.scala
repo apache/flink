@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.table.api.java.{PartitionedOver => JPartitionedOver, OverWindowWithOrderBy => JOverWindowWithOrderBy}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
-import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
+import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW, OverWindowWithOrderBy, PartitionedOver}
 
 /**
   * Over window is similar to the traditional OVER SQL.
@@ -134,9 +135,13 @@ class OverWindowWithPreceding(
   * Infinite streaming tables can only be grouped into time or row intervals. Hence window grouping
   * is required to apply aggregations on streaming tables.
   *
-  * For finite batch tables, window provides shortcuts for time-based groupBy.
+  * For finite batch tables, group windows provide shortcuts for time-based groupBy.
   *
+  * @deprecated Will be replaced by [[GroupWindow]]
   */
+@Deprecated
+@deprecated(
+  "This class will be replaced by GroupWindow.", "1.8")
 abstract class Window(val alias: Expression, val timeField: Expression) {
 
   /**
@@ -145,6 +150,21 @@ abstract class Window(val alias: Expression, val timeField: Expression) {
   private[flink] def toLogicalWindow: LogicalWindow
 
 }
+
+/**
+  * A group window specification.
+  *
+  * Group windows group rows based on time or row-count intervals and is therefore essentially a
+  * special type of groupBy. Just like groupBy, group windows allow to compute aggregates
+  * on groups of elements.
+  *
+  * Infinite streaming tables can only be grouped into time or row intervals. Hence window grouping
+  * is required to apply aggregations on streaming tables.
+  *
+  * For finite batch tables, group windows provide shortcuts for time-based groupBy.
+  */
+abstract class GroupWindow(alias: Expression, timeField: Expression)
+  extends Window(alias, timeField)
 
 // ------------------------------------------------------------------------------------------------
 // Tumbling windows
@@ -234,7 +254,7 @@ class TumbleWithSizeOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     size: Expression)
-  extends Window(
+  extends GroupWindow(
     alias,
     timeField) {
 
@@ -369,7 +389,7 @@ class SlideWithSizeAndSlideOnTimeWithAlias(
     timeField: Expression,
     size: Expression,
     slide: Expression)
-  extends Window(
+  extends GroupWindow(
     alias,
     timeField) {
 
@@ -469,7 +489,7 @@ class SessionWithGapOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     gap: Expression)
-  extends Window(
+  extends GroupWindow(
     alias,
     timeField) {
 
@@ -480,3 +500,190 @@ class SessionWithGapOnTimeWithAlias(
     SessionGroupWindow(alias, timeField, gap)
   }
 }
+
+/**
+  * Base class for Tumble Window Helper classes. This class contains help methods to create Tumble
+  * Windows.
+  */
+class TumbleBase {
+
+  /**
+    * Creates a tumbling window. Tumbling windows are consecutive, non-overlapping
+    * windows of a specified fixed length. For example, a tumbling window of 5 minutes size groups
+    * elements in 5 minutes intervals.
+    *
+    * @param size the size of the window as time or row-count interval.
+    * @return a partially defined tumbling window
+    */
+  def over(size: String): TumbleWithSize = new TumbleWithSize(size)
+
+  /**
+    * Creates a tumbling window. Tumbling windows are fixed-size, consecutive, non-overlapping
+    * windows. For example, a tumbling window of 5 minutes size groups
+    * elements in 5 minutes intervals.
+    *
+    * @param size the size of the window as time or row-count interval.
+    * @return a partially defined tumbling window
+    */
+  def over(size: Expression): TumbleWithSize = new TumbleWithSize(size)
+}
+
+/**
+  * Base class for Slide Window Helper classes. This class contains help methods to create Slide
+  * Windows.
+  */
+class SlideBase {
+
+  /**
+    * Creates a sliding window. Sliding windows have a fixed size and slide by
+    * a specified slide interval. If the slide interval is smaller than the window size, sliding
+    * windows are overlapping. Thus, an element can be assigned to multiple windows.
+    *
+    * For example, a sliding window of size 15 minutes with 5 minutes sliding interval groups
+    * elements of 15 minutes and evaluates every five minutes. Each element is contained in three
+    * consecutive window evaluations.
+    *
+    * @param size the size of the window as time or row-count interval
+    * @return a partially specified sliding window
+    */
+  def over(size: String): SlideWithSize = new SlideWithSize(size)
+
+  /**
+    * Creates a sliding window. Sliding windows have a fixed size and slide by
+    * a specified slide interval. If the slide interval is smaller than the window size, sliding
+    * windows are overlapping. Thus, an element can be assigned to multiple windows.
+    *
+    * For example, a sliding window of size 15 minutes with 5 minutes sliding interval groups
+    * elements of 15 minutes and evaluates every five minutes. Each element is contained in three
+    * consecutive
+    *
+    * @param size the size of the window as time or row-count interval
+    * @return a partially specified sliding window
+    */
+  def over(size: Expression): SlideWithSize = new SlideWithSize(size)
+}
+
+/**
+  * Base class for Session Window Helper classes. This class contains help methods to create Session
+  * Windows.
+  */
+class SessionBase {
+
+  /**
+    * Creates a session window. The boundary of session windows are defined by
+    * intervals of inactivity, i.e., a session window is closes if no event appears for a defined
+    * gap period.
+    *
+    * @param gap specifies how long (as interval of milliseconds) to wait for new data before
+    *            closing the session window.
+    * @return a partially defined session window
+    */
+  def withGap(gap: String): SessionWithGap = new SessionWithGap(gap)
+
+  /**
+    * Creates a session window. The boundary of session windows are defined by
+    * intervals of inactivity, i.e., a session window is closes if no event appears for a defined
+    * gap period.
+    *
+    * @param gap specifies how long (as interval of milliseconds) to wait for new data before
+    *            closing the session window.
+    * @return a partially defined session window
+    */
+  def withGap(gap: Expression): SessionWithGap = new SessionWithGap(gap)
+}
+
+/**
+  * Base class for Over Window Helper classes. This class contains help methods to create Over
+  * Windows.
+  */
+class OverBase {
+
+  /**
+    * Specifies the time attribute on which rows are ordered.
+    *
+    * For streaming tables, reference a rowtime or proctime time attribute here
+    * to specify the time mode.
+    *
+    * For batch tables, refer to a timestamp or long attribute.
+    *
+    * @param orderBy field reference
+    * @return an over window with defined order
+    */
+  def orderBy(orderBy: String): JOverWindowWithOrderBy = {
+    val orderByExpr = ExpressionParser.parseExpression(orderBy)
+    new JOverWindowWithOrderBy(Array[Expression](), orderByExpr)
+  }
+
+  /**
+    * Specifies the time attribute on which rows are ordered.
+    *
+    * For streaming tables, reference a rowtime or proctime time attribute here
+    * to specify the time mode.
+    *
+    * For batch tables, refer to a timestamp or long attribute.
+    *
+    * @param orderBy field reference
+    * @return an over window with defined order
+    */
+  def orderBy(orderBy: Expression): OverWindowWithOrderBy = {
+    OverWindowWithOrderBy(Seq[Expression](), orderBy)
+  }
+
+  /**
+    * Partitions the elements on some partition keys.
+    *
+    * Each partition is individually sorted and aggregate functions are applied to each
+    * partition separately.
+    *
+    * @param partitionBy list of field references
+    * @return an over window with defined partitioning
+    */
+  def partitionBy(partitionBy: String): JPartitionedOver = {
+    val partitionByExpr = ExpressionParser.parseExpressionList(partitionBy).toArray
+    new JPartitionedOver(partitionByExpr)
+  }
+
+  /**
+    * Partitions the elements on some partition keys.
+    *
+    * Each partition is individually sorted and aggregate functions are applied to each
+    * partition separately.
+    *
+    * @param partitionBy list of field references
+    * @return an over window with defined partitioning
+    */
+  def partitionBy(partitionBy: Expression*): PartitionedOver = {
+    PartitionedOver(partitionBy.toArray)
+  }
+}
+
+/**
+  * Helper class for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
+  * windows of a specified fixed length. For example, a tumbling window of 5 minutes size groups
+  * elements in 5 minutes intervals.
+  */
+object Tumble extends TumbleBase
+
+/**
+  * Helper class for creating a sliding window. Sliding windows have a fixed size and slide by
+  * a specified slide interval. If the slide interval is smaller than the window size, sliding
+  * windows are overlapping. Thus, an element can be assigned to multiple windows.
+  *
+  * For example, a sliding window of size 15 minutes with 5 minutes sliding interval groups elements
+  * of 15 minutes and evaluates every five minutes. Each element is contained in three consecutive
+  * window evaluations.
+  */
+object Slide extends SlideBase
+
+/**
+  * Helper class for creating a session window. The boundary of session windows are defined by
+  * intervals of inactivity, i.e., a session window is closes if no event appears for a defined
+  * gap period.
+  */
+object Session extends SessionBase
+
+/**
+  * Helper class for creating an over window. Similar to SQL, over window aggregates compute an
+  * aggregate for each input row over a range of its neighboring rows.
+  */
+object Over extends OverBase

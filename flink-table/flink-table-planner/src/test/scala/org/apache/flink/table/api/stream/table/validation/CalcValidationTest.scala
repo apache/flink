@@ -20,8 +20,8 @@ package org.apache.flink.table.api.stream.table.validation
 import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala.{Tumble, _}
+import org.apache.flink.table.api.{Tumble, ValidationException}
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
