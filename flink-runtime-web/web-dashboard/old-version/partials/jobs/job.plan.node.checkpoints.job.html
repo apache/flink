@@ -1,0 +1,105 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<div ng-if="jobCheckpointConfig">
+  <h3>Configuration</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <td><strong>Interval</strong></td>
+        <td><strong>Timeout</strong></td>
+        <td><strong>Minimum Pause between Checkpoints</strong></td>
+        <td><strong>Maximum Concurrent Checkpoints</strong></td>
+        <td><strong>Persist Checkpoints Externally</strong></td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ jobCheckpointConfig['interval'] | humanizeDuration }}</td>
+        <td>{{ jobCheckpointConfig['timeout'] | humanizeDuration }}</td>
+        <td>{{ jobCheckpointConfig['min_pause'] | humanizeDuration }}</td>
+        <td>{{ jobCheckpointConfig['max_concurrent'] }}</td>
+        <td ng-if="jobCheckpointConfig['externalization']['enabled']">Enabled <span ng-if="jobCheckpointConfig['externalization']['delete_on_cancellation']">(delete on cancellation)</span><span ng-if="!jobCheckpointConfig['externalization']['delete_on_cancellation']">(retain on cancellation)</span>
+        </td>
+        <td ng-if="!jobCheckpointConfig['externalization']['enabled']">Disabled</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<table ng-if="checkpointDetails == -1" class="table table-body-hover table-clickable">
+  <thead>
+    <tr>
+      <td><strong>ID</strong></td>
+      <td><strong>Acknowledged</strong></td>
+      <td><strong>Trigger Time</strong></td>
+      <td><strong>Latest Ack</strong></td>
+      <td><strong>Duration</strong></td>
+      <td><strong>State Size</strong></td>
+      <td></td>
+    </tr>
+  </thead>
+  <!--ng-click="toggleCheckpointDetails(checkpoint['id'])"-->
+  <tbody ng-if="jobCheckpointStats['checkpoints'] &amp;&amp; jobCheckpointStats['checkpoints'].length &gt; 0">
+    <tr ng-repeat="checkpoint in jobCheckpointStats['checkpoints']" ng-class="{'bg-danger': checkpoint['status'] == 'FAILED'}">
+      <td><i ng-if="checkpoint['status'] == 'IN_PROGRESS'" aria-hidden="true" class="fa fa-circle-o-notch fa-spin fa-fw"></i><i ng-if="checkpoint['status'] == 'COMPLETED'" aria-hidden="true" class="fa fa-check"></i><i ng-if="checkpoint['status'] == 'FAILED'" aria-hidden="true" class="fa fa-remove"></i> {{ checkpoint['id'] }}
+      </td>
+      <td>{{ checkpoint['subtasks']['acknowledged'] }}/{{ checkpoint['subtasks']['count'] }}</td>
+      <td>{{ checkpoint['trigger_timestamp'] | amDateFormat:'H:mm:ss' }}</td>
+      <td>{{ checkpoint['latest_ack_timestamp'] | amDateFormat:'H:mm:ss' }}</td>
+      <td>{{ checkpoint['duration'] | humanizeDuration }}</td>
+      <td>{{ checkpoint['size'] | humanizeBytes }}</td>
+      <td>
+        <!--a.btn.btn-default(ng-click="toggleCheckpointDetails(checkpoint['id'])")--><a ui-sref="{checkpointid: checkpoint['id']}" class="btn btn-default"><strong>More details</strong> <i class="fa fa-chevron-down"></i></a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<div ng-if="checkpointDetails != -1"><a ng-click="toggleCheckpointDetails(-1)" class="btn btn-default"><strong>Back</strong> <i class="fa fa-chevron-left"></i></a>
+  <table class="table table-body-hover table-clickable table-activable">
+    <thead>
+      <tr>
+        <td rowspan="2">Name</td>
+        <td colspan="4">Size</td>
+        <td rowspan="2">Duration</td>
+        <td rowspan="2">Duration (Operator sync)</td>
+        <td rowspan="2">Status</td>
+      </tr>
+      <tr>
+        <td>Min</td>
+        <td>Average</td>
+        <td>Max</td>
+        <td>Sum</td>
+      </tr>
+    </thead>
+    <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="v.id == nodeid || changeNode(v.id)">
+      <tr ng-if="v.type == 'regular'">
+        <td>{{ v.name | humanizeText }}</td>
+        <td>{{ operatorCheckpointStats[checkpoint['id']][v.id]['size']['min'] | humanizeBytes }}</td>
+        <td>{{ operatorCheckpointStats[checkpoint['id']][v.id]['size']['avg'] | humanizeBytes }}</td>
+        <td>{{ operatorCheckpointStats[checkpoint['id']][v.id]['size']['max'] | humanizeBytes }}</td>
+        <td>{{ operatorCheckpointStats[checkpoint['id']][v.id]['size']['sum'] | humanizeBytes }}</td>
+        <td>min: {{ operatorCheckpointStats[checkpoint['id']][v.id]['duration']['coordinator']['min'] | humanizeDuration }}, max: {{ operatorCheckpointStats[checkpoint['id']][v.id]['duration']['coordinator']['max'] | humanizeDuration }}, average: {{ operatorCheckpointStats[checkpoint['id']][v.id]['duration']['coordinator']['avg'] | humanizeDuration }}</td>
+        <td>min: {{ operatorCheckpointStats[checkpoint['id']][v.id]['duration']['operator']['sync']['min'] | humanizeDuration }}, max: {{ operatorCheckpointStats[checkpoint['id']][v.id]['duration']['operator']['sync']['max'] | humanizeDuration }}, average: {{ operatorCheckpointStats[checkpoint['id']][v.id]['duration']['operator']['sync']['avg'] | humanizeDuration }}</td>
+        <td>
+          <bs-label status="{{v.status}}">{{v.status}}</bs-label>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

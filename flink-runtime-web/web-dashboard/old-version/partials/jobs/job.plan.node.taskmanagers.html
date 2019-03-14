@@ -1,0 +1,55 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<table ng-if="taskmanagers" class="table table-hover table-clickable table-activable table-inner">
+  <thead>
+    <tr>
+      <th>Start Time</th>
+      <th>End Time</th>
+      <th>Duration</th>
+      <th>Bytes received</th>
+      <th>Records received</th>
+      <th>Bytes sent</th>
+      <th>Records sent</th>
+      <th>Host</th>
+      <th>Tasks</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody ng-repeat="tm in taskmanagers | orderBy:'host'">
+    <tr>
+      <td><span ng-if="v['start-time'] &gt; -1">{{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
+      <td><span ng-if="v['end-time'] &gt; -1">{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
+      <td><span ng-if="v.duration &gt; -1" title="{{v.duration | humanizeDuration:false}}">{{v.duration | humanizeDuration:true}}      </span></td>
+      <td><span ng-if="tm.metrics['read-bytes-complete']">{{ tm.metrics['read-bytes'] | humanizeBytes }}</span><i ng-if="!tm.metrics['read-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="tm.metrics['read-records-complete']">{{ tm.metrics['read-records'] | number }}</span><i ng-if="!tm.metrics['read-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="tm.metrics['write-bytes-complete']">{{ tm.metrics['write-bytes'] | humanizeBytes }}</span><i ng-if="!tm.metrics['write-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="tm.metrics['write-records-complete']">{{ tm.metrics['write-records'] | number }}</span><i ng-if="!tm.metrics['write-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td>{{ tm.host }}</td>
+      <td>
+        <div class="label-group">
+          <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{tm['status-counts'][status]}}</bs-label>
+        </div>
+      </td>
+      <td>
+        <bs-label status="{{tm.status}}">{{tm.status}}</bs-label>
+      </td>
+    </tr>
+  </tbody>
+</table>
