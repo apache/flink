@@ -20,8 +20,6 @@ package org.apache.flink.table.runtime.compression;
 
 import org.junit.Assert;
 import org.junit.Test;
-import sun.misc.Cleaner;
-import sun.nio.ch.DirectBuffer;
 
 import java.nio.ByteBuffer;
 
@@ -173,20 +171,6 @@ public class BlockCompressionTest {
 
 		for (int i = 0; i < decompressedLen; i++) {
 			assertEquals((byte) i, decompressedData.get());
-		}
-
-		if (isDirect) {
-			cleanDirectBuffer(data);
-			cleanDirectBuffer(compressedData);
-			cleanDirectBuffer(copiedCompressedData);
-			cleanDirectBuffer(decompressedData);
-		}
-	}
-
-	private void cleanDirectBuffer(ByteBuffer buffer) {
-		Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
-		if (cleaner != null) {
-			cleaner.clean();
 		}
 	}
 }
