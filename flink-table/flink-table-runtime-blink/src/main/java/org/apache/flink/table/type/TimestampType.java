@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class TimestampType implements AtomicType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final TimestampType TIMESTAMP = new TimestampType(0, "TimestampType");
 	public static final TimestampType INTERVAL_MILLIS =
 			new TimestampType(1, "IntervalMillis");

@@ -257,6 +257,14 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
+	public byte[] getBinary(int pos) {
+		assertIndexIsValid(pos);
+		int fieldOffset = getFieldOffset(pos);
+		final long offsetAndLen = segments[0].getLong(fieldOffset);
+		return readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+	}
+
+	@Override
 	public BaseRow getRow(int pos, int numFields) {
 		assertIndexIsValid(pos);
 		return NestedRow.readNestedRowFieldFromSegments(segments, numFields, offset, getLong(pos));

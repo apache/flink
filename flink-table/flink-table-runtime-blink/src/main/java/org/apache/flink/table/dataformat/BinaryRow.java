@@ -334,6 +334,14 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
+	public byte[] getBinary(int pos) {
+		assertIndexIsValid(pos);
+		int fieldOffset = getFieldOffset(pos);
+		final long offsetAndLen = segments[0].getLong(fieldOffset);
+		return readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+	}
+
+	@Override
 	public BinaryArray getArray(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryArray.readBinaryArrayFieldFromSegments(segments, offset, getLong(pos));
@@ -393,5 +401,25 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	@Override
 	public int hashCode() {
 		return SegmentsUtil.hashByWords(segments, offset, sizeInBytes);
+	}
+
+	public String toOriginString(InternalType... types) {
+		return toOriginString(this, types);
+	}
+
+	public static String toOriginString(BaseRow row, InternalType[] types) {
+		checkArgument(types.length == row.getArity());
+		StringBuilder build = new StringBuilder("[");
+		build.append(row.getHeader());
+		for (int i = 0; i < row.getArity(); i++) {
+			build.append(',');
+			if (row.isNullAt(i)) {
+				build.append("null");
+			} else {
+				build.append(TypeGetterSetters.get(row, i, types[i]));
+			}
+		}
+		build.append(']');
+		return build.toString();
 	}
 }

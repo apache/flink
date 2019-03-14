@@ -27,6 +27,8 @@ import static java.lang.String.format;
  */
 public class DecimalType implements AtomicType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final int MAX_PRECISION = 38;
 
 	public static final int MAX_COMPACT_PRECISION = 18;

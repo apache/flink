@@ -154,6 +154,15 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
+	public byte[] getBinary(int i) {
+		if (i < row1.getArity()) {
+			return row1.getBinary(i);
+		} else {
+			return row2.getBinary(i - row1.getArity());
+		}
+	}
+
+	@Override
 	public BinaryString getString(int i) {
 		if (i < row1.getArity()) {
 			return row1.getString(i);

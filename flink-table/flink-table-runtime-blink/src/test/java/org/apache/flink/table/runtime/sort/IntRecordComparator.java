@@ -19,11 +19,12 @@
 package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.generated.RecordComparator;
 
 /**
  * Example String {@link RecordComparator}.
  */
-public class IntRecordComparator extends RecordComparator {
+public class IntRecordComparator implements RecordComparator {
 
 	public static final IntRecordComparator INSTANCE = new IntRecordComparator();
 

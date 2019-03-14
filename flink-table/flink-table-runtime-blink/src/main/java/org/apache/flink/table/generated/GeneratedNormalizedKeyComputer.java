@@ -16,28 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.generated;
 
 /**
- * Primitive type.
+ * Describes a generated {@link NormalizedKeyComputer}.
  */
-public abstract class PrimitiveType implements AtomicType {
+public class GeneratedNormalizedKeyComputer extends GeneratedClass<NormalizedKeyComputer> {
 
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o != null && getClass() == o.getClass();
+	/**
+	 * Creates a GeneratedNormalizedKeyComputer.
+	 *
+	 * @param className class name of the generated class.
+	 * @param code code of the generated class.
+	 */
+	public GeneratedNormalizedKeyComputer(String className, String code) {
+		super(className, code, new Object[0]);
 	}
-
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
-
 }

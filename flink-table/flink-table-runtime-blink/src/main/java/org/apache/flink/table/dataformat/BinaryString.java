@@ -36,9 +36,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class BinaryString extends LazyBinaryFormat<String> implements Comparable<BinaryString> {
 
-	private static final long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
-	private static final long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
-
 	public static final BinaryString EMPTY_UTF8 = BinaryString.fromBytes("".getBytes());
 
 	public BinaryString(MemorySegment[] segments, int offset, int sizeInBytes) {
@@ -244,40 +241,5 @@ public class BinaryString extends LazyBinaryFormat<String> implements Comparable
 		checkArgument(needCompare == len);
 
 		return sizeInBytes - other.sizeInBytes;
-	}
-
-	/**
-	 * Get binary string, if len less than 8, will be include in variablePartOffsetAndLen.
-	 *
-	 * <p>If len is less than 8, its binary format is:
-	 * 1bit mark(1) = 1, 7bits len, and 7bytes data.
-	 *
-	 * <p>If len is greater or equal to 8, its binary format is:
-	 * 1bit mark(1) = 0, 31bits offset, and 4bytes len.
-	 * Data is stored in variable-length part.
-	 *
-	 * <p>Note: Need to consider the ByteOrder.
-	 *
-	 * @param baseOffset base offset of composite binary format.
-	 * @param fieldOffset absolute start offset of 'variablePartOffsetAndLen'.
-	 * @param variablePartOffsetAndLen a long value, real data or offset and len.
-	 */
-	static BinaryString readBinaryStringFieldFromSegments(
-			MemorySegment[] segments, int baseOffset, int fieldOffset,
-			long variablePartOffsetAndLen) {
-		long mark = variablePartOffsetAndLen & HIGHEST_FIRST_BIT;
-		if (mark == 0) {
-			final int subOffset = (int) (variablePartOffsetAndLen >> 32);
-			final int len = (int) variablePartOffsetAndLen;
-			return new BinaryString(segments, baseOffset + subOffset, len);
-		} else {
-			int len = (int) ((variablePartOffsetAndLen & HIGHEST_SECOND_TO_EIGHTH_BIT) >>> 56);
-			if (SegmentsUtil.LITTLE_ENDIAN) {
-				return new BinaryString(segments, fieldOffset, len);
-			} else {
-				// fieldOffset + 1 to skip header.
-				return new BinaryString(segments, fieldOffset + 1, len);
-			}
-		}
 	}
 }

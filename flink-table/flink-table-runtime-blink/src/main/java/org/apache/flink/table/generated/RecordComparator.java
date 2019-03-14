@@ -16,28 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.generated;
+
+import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
+
+import java.io.Serializable;
+import java.util.Comparator;
 
 /**
- * Primitive type.
+ * Record comparator for {@link BinaryInMemorySortBuffer}.
+ * For performance, subclasses are usually implemented through CodeGenerator.
+ * A new interface for helping JVM inline.
  */
-public abstract class PrimitiveType implements AtomicType {
-
-	private static final long serialVersionUID = 1L;
+public interface RecordComparator extends Comparator<BaseRow>, Serializable {
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o || o != null && getClass() == o.getClass();
-	}
-
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
-
+	int compare(BaseRow o1, BaseRow o2);
 }

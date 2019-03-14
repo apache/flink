@@ -25,6 +25,8 @@ import org.apache.flink.util.Preconditions;
  */
 public class ArrayType implements InternalType {
 
+	private static final long serialVersionUID = 1L;
+
 	private final InternalType elementType;
 
 	public ArrayType(InternalType elementType) {

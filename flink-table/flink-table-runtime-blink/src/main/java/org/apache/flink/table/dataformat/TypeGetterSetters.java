@@ -105,6 +105,11 @@ public interface TypeGetterSetters {
 	<T> BinaryGeneric<T> getGeneric(int ordinal);
 
 	/**
+	 * Get binary value, internal format is byte[].
+	 */
+	byte[] getBinary(int ordinal);
+
+	/**
 	 * Get array value, internal format is BinaryArray.
 	 */
 	BinaryArray getArray(int ordinal);
@@ -205,6 +210,8 @@ public interface TypeGetterSetters {
 			return row.getRow(ordinal, ((RowType) type).getArity());
 		} else if (type instanceof GenericType) {
 			return row.getGeneric(ordinal);
+		} else if (type.equals(InternalTypes.BINARY)) {
+			return row.getBinary(ordinal);
 		} else {
 			throw new RuntimeException("Not support type: " + type);
 		}

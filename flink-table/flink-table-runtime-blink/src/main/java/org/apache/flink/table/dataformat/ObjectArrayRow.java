@@ -70,6 +70,11 @@ public abstract class ObjectArrayRow implements BaseRow {
 	}
 
 	@Override
+	public byte[] getBinary(int ordinal) {
+		return (byte[]) this.fields[ordinal];
+	}
+
+	@Override
 	public BinaryArray getArray(int ordinal) {
 		return (BinaryArray) this.fields[ordinal];
 	}

@@ -23,6 +23,8 @@ package org.apache.flink.table.type;
  */
 public class FloatType extends PrimitiveType {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final FloatType INSTANCE = new FloatType();
 
 	private FloatType() {}

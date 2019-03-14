@@ -35,6 +35,8 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.table.api.TableConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.generated.NormalizedKeyComputer;
+import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
@@ -970,7 +972,6 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			// loop as long as the thread is marked alive and we do not see the final currWriteBuffer
 			while (isRunning()) {
 				try {
-					// TODO let cache in memory instead of disk.
 					element = cache.isEmpty() ? queues.spill.take() : cache.poll();
 				} catch (InterruptedException iex) {
 					if (isRunning()) {

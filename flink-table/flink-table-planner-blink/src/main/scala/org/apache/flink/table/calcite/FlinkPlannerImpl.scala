@@ -20,9 +20,8 @@ package org.apache.flink.table.calcite
 
 import java.util
 import java.util.Properties
-
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
+import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty, NullCollation}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -220,5 +219,26 @@ object FlinkPlannerImpl {
     else {
       rootSchema(schema.getParentSchema)
     }
+  }
+
+  /**
+    * the null default direction if not specified. Consistent with HIVE/SPARK/MYSQL/BLINK-RUNTIME.
+    * So the default value only is set [[NullCollation.LOW]] for keeping consistent with
+    * BLINK-RUNTIME.
+    * [[NullCollation.LOW]] means null values appear first when the order is ASC (ascending), and
+    * ordered last when the order is DESC (descending).
+    */
+  val defaultNullCollation: NullCollation = NullCollation.LOW
+
+  /** Returns the default null direction if not specified. */
+  def getNullDefaultOrders(ascendings: Array[Boolean]): Array[Boolean] = {
+    ascendings.map { asc =>
+      FlinkPlannerImpl.defaultNullCollation.last(!asc)
+    }
+  }
+
+  /** Returns the default null direction if not specified. */
+  def getNullDefaultOrder(ascending: Boolean): Boolean = {
+    FlinkPlannerImpl.defaultNullCollation.last(!ascending)
   }
 }

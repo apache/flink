@@ -16,31 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.sort;
-
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
-
-import java.io.Serializable;
-import java.util.Comparator;
+package org.apache.flink.table.generated;
 
 /**
- * Record comparator for {@link BinaryInMemorySortBuffer}.
- * For performance, subclasses are usually implemented through CodeGenerator.
+ * Describes a generated {@link RecordComparator}.
  */
-public abstract class RecordComparator implements Comparator<BaseRow>, Serializable {
+public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> {
 
 	private static final long serialVersionUID = 1L;
 
-	protected TypeSerializer[] serializers;
-	protected TypeComparator[] comparators;
-
-	public void init(TypeSerializer[] serializers, TypeComparator[] comparators) {
-		this.serializers = serializers;
-		this.comparators = comparators;
+	/**
+	 * Creates a GeneratedRecordComparator.
+	 *
+	 * @param className class name of the generated class.
+	 * @param code code of the generated class.
+	 * @param references referenced objects of the generated class.
+	 */
+	public GeneratedRecordComparator(String className, String code, Object[] references) {
+		super(className, code, references);
 	}
 
-	@Override
-	public abstract int compare(BaseRow o1, BaseRow o2);
 }

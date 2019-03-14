@@ -44,11 +44,8 @@ import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
-import org.apache.flink.table.util.SegmentsUtil;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.InstantiationUtil;
 
-import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -488,15 +485,7 @@ public class DataFormatConverters {
 
 		@Override
 		T toExternalImpl(BinaryGeneric<T> value) {
-			if (value.getJavaObject() == null) {
-				try {
-					value.setJavaObject(InstantiationUtil.deserializeFromByteArray(serializer,
-							SegmentsUtil.copyToBytes(value.getSegments(), value.getOffset(), value.getSizeInBytes())));
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			}
-			return value.getJavaObject();
+			return BinaryGeneric.getJavaObjectFromBinaryGeneric(value, serializer);
 		}
 
 		@Override
@@ -633,25 +622,15 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive byte array.
 	 */
-	public static class PrimitiveByteArrayConverter extends DataFormatConverter<BinaryArray, byte[]> {
+	public static class PrimitiveByteArrayConverter extends IdentityConverter<byte[]> {
 
 		public static final PrimitiveByteArrayConverter INSTANCE = new PrimitiveByteArrayConverter();
 
 		private PrimitiveByteArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(byte[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
-		}
-
-		@Override
-		byte[] toExternalImpl(BinaryArray value) {
-			return value.toByteArray();
-		}
-
-		@Override
 		byte[] toExternalImpl(BaseRow row, int column) {
-			return toExternalImpl(row.getArray(column));
+			return row.getBinary(column);
 		}
 	}
 
@@ -917,7 +896,7 @@ public class DataFormatConverters {
 	/**
 	 * Abstract converter for internal base row.
 	 */
-	public abstract static class AbstractBaseRowConverter<I extends BaseRow, E> extends DataFormatConverter<I, E> {
+	public abstract static class AbstractBaseRowConverter<E> extends DataFormatConverter<BaseRow, E> {
 
 		protected final DataFormatConverter[] converters;
 
@@ -930,7 +909,7 @@ public class DataFormatConverters {
 
 		@Override
 		E toExternalImpl(BaseRow row, int column) {
-			throw new RuntimeException("Not support yet!");
+			return toExternalImpl(row.getRow(column, converters.length));
 		}
 	}
 
@@ -952,7 +931,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for pojo.
 	 */
-	public static class PojoConverter<T> extends AbstractBaseRowConverter<GenericRow, T> {
+	public static class PojoConverter<T> extends AbstractBaseRowConverter<T> {
 
 		private final PojoTypeInfo<T> t;
 		private final PojoField[] fields;
@@ -968,7 +947,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		GenericRow toInternalImpl(T value) {
+		BaseRow toInternalImpl(T value) {
 			GenericRow genericRow = new GenericRow(t.getArity());
 			for (int i = 0; i < t.getArity(); i++) {
 				try {
@@ -982,7 +961,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		T toExternalImpl(GenericRow value) {
+		T toExternalImpl(BaseRow value) {
 			try {
 				T pojo = t.getTypeClass().newInstance();
 				for (int i = 0; i < t.getArity(); i++) {
@@ -998,7 +977,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for row.
 	 */
-	public static class RowConverter extends AbstractBaseRowConverter<GenericRow, Row> {
+	public static class RowConverter extends AbstractBaseRowConverter<Row> {
 
 		private final RowTypeInfo t;
 
@@ -1008,7 +987,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		GenericRow toInternalImpl(Row value) {
+		BaseRow toInternalImpl(Row value) {
 			GenericRow genericRow = new GenericRow(t.getArity());
 			for (int i = 0; i < t.getArity(); i++) {
 				genericRow.setField(i, converters[i].toInternal(value.getField(i)));
@@ -1017,7 +996,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		Row toExternalImpl(GenericRow value) {
+		Row toExternalImpl(BaseRow value) {
 			Row row = new Row(t.getArity());
 			for (int i = 0; i < t.getArity(); i++) {
 				row.setField(i, converters[i].toExternal(value, i));
@@ -1029,7 +1008,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for flink tuple.
 	 */
-	public static class TupleConverter extends AbstractBaseRowConverter<GenericRow, Tuple> {
+	public static class TupleConverter extends AbstractBaseRowConverter<Tuple> {
 
 		private final TupleTypeInfo t;
 
@@ -1039,7 +1018,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		GenericRow toInternalImpl(Tuple value) {
+		BaseRow toInternalImpl(Tuple value) {
 			GenericRow genericRow = new GenericRow(t.getArity());
 			for (int i = 0; i < t.getArity(); i++) {
 				genericRow.setField(i, converters[i].toInternal(value.getField(i)));
@@ -1048,7 +1027,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		Tuple toExternalImpl(GenericRow value) {
+		Tuple toExternalImpl(BaseRow value) {
 			try {
 				Tuple tuple = (Tuple) t.getTypeClass().newInstance();
 				for (int i = 0; i < t.getArity(); i++) {
@@ -1065,7 +1044,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for case class.
 	 */
-	public static class CaseClassConverter extends AbstractBaseRowConverter<GenericRow, Product> {
+	public static class CaseClassConverter extends AbstractBaseRowConverter<Product> {
 
 		private final TupleTypeInfoBase t;
 		private final TupleSerializerBase serializer;
@@ -1077,7 +1056,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		GenericRow toInternalImpl(Product value) {
+		BaseRow toInternalImpl(Product value) {
 			GenericRow genericRow = new GenericRow(t.getArity());
 			for (int i = 0; i < t.getArity(); i++) {
 				genericRow.setField(i, converters[i].toInternal(value.productElement(i)));
@@ -1086,7 +1065,7 @@ public class DataFormatConverters {
 		}
 
 		@Override
-		Product toExternalImpl(GenericRow value) {
+		Product toExternalImpl(BaseRow value) {
 			Object[] fields = new Object[t.getArity()];
 			for (int i = 0; i < t.getArity(); i++) {
 				fields[i] = converters[i].toExternal(value, i);

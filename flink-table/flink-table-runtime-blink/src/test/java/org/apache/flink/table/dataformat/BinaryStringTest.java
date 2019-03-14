@@ -166,10 +166,10 @@ public class BinaryStringTest {
 
 		MemorySegment segment1 = MemorySegmentFactory.allocateUnpooledSegment(1024);
 		MemorySegment segment2 = MemorySegmentFactory.allocateUnpooledSegment(1024);
-		SortUtil.putBinaryStringNormalizedKey(fromString("abcabcabc"), segment1, 0, 9);
-		SortUtil.putBinaryStringNormalizedKey(fromString("abcabcabC"), segment2, 0, 9);
+		SortUtil.putStringNormalizedKey(fromString("abcabcabc"), segment1, 0, 9);
+		SortUtil.putStringNormalizedKey(fromString("abcabcabC"), segment2, 0, 9);
 		assertTrue(segment1.compare(segment2, 0, 0, 9) > 0);
-		SortUtil.putBinaryStringNormalizedKey(fromString("abcab"), segment1, 0, 9);
+		SortUtil.putStringNormalizedKey(fromString("abcab"), segment1, 0, 9);
 		assertTrue(segment1.compare(segment2, 0, 0, 9) < 0);
 	}
 

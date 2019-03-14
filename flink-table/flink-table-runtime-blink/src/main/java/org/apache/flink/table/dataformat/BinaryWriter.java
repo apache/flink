@@ -62,6 +62,8 @@ public interface BinaryWriter {
 
 	void writeString(int pos, BinaryString value);
 
+	void writeBinary(int pos, byte[] bytes);
+
 	void writeDecimal(int pos, Decimal value, int precision);
 
 	void writeArray(int pos, BinaryArray value);
@@ -112,8 +114,10 @@ public interface BinaryWriter {
 		} else if (type instanceof RowType) {
 			RowType rowType = (RowType) type;
 			writer.writeRow(pos, (BaseRow) o, rowType.getBaseRowSerializer());
-		}  else if (type instanceof GenericType) {
+		} else if (type instanceof GenericType) {
 			writer.writeGeneric(pos, (BinaryGeneric) o);
+		} else if (type.equals(InternalTypes.BINARY)) {
+			writer.writeBinary(pos, (byte[]) o);
 		} else {
 			throw new RuntimeException("Not support type: " + type);
 		}

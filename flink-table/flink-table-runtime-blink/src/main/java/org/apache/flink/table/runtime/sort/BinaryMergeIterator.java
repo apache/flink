@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.runtime.operators.sort.MergeIterator;
 import org.apache.flink.runtime.operators.sort.PartialOrderPriorityQueue;
+import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;

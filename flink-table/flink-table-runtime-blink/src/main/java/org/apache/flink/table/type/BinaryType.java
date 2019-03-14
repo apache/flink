@@ -19,11 +19,22 @@
 package org.apache.flink.table.type;
 
 /**
- * Primitive type.
+ * Binary type, It differs from ArrayType(Byte):
+ *
+ * <p>1. Comparisons: Unsigned comparisons, not signed byte comparisons.
+ * According to: https://docs.oracle.com/cd/E11882_01/timesten.112/e21642/types.htm#TTSQL148
+ * The BINARY data type is a fixed-length binary value with a length of n bytes. In database,
+ * byte value usually expresses a range of 0-255, so the comparison is unsigned comparisons.
+ *
+ * <p>2. Its elements cannot have null values.
  */
-public abstract class PrimitiveType implements AtomicType {
+public class BinaryType implements AtomicType {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final BinaryType INSTANCE = new BinaryType();
+
+	private BinaryType() {}
 
 	@Override
 	public boolean equals(Object o) {
@@ -39,5 +50,4 @@ public abstract class PrimitiveType implements AtomicType {
 	public String toString() {
 		return getClass().getSimpleName();
 	}
-
 }

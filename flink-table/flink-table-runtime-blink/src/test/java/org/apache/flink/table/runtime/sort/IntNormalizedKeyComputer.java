@@ -20,11 +20,12 @@ package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.generated.NormalizedKeyComputer;
 
 /**
  * Example for int {@link NormalizedKeyComputer}.
  */
-public class IntNormalizedKeyComputer extends org.apache.flink.table.runtime.sort.NormalizedKeyComputer {
+public class IntNormalizedKeyComputer implements NormalizedKeyComputer {
 
 	public static final IntNormalizedKeyComputer INSTANCE = new IntNormalizedKeyComputer();
 
