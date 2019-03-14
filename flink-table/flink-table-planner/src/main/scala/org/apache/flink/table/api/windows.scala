@@ -193,7 +193,12 @@ class OverWindowPartitionedOrderedPreceding(
   * is required to apply aggregations on streaming tables.
   *
   * For finite batch tables, group windows provide shortcuts for time-based groupBy.
+  *
+  * @deprecated Will be replaced by [[GroupWindow]]
   */
+@Deprecated
+@deprecated(
+  "This class will be replaced by GroupWindow.", "1.8")
 abstract class Window(alias: Expression, timeField: Expression) {
 
   def getAlias: Expression = {
@@ -204,6 +209,21 @@ abstract class Window(alias: Expression, timeField: Expression) {
     timeField
   }
 }
+
+/**
+  * A group window specification.
+  *
+  * Group windows group rows based on time or row-count intervals and is therefore essentially a
+  * special type of groupBy. Just like groupBy, group windows allow to compute aggregates
+  * on groups of elements.
+  *
+  * Infinite streaming tables can only be grouped into time or row intervals. Hence window grouping
+  * is required to apply aggregations on streaming tables.
+  *
+  * For finite batch tables, group windows provide shortcuts for time-based groupBy.
+  */
+abstract class GroupWindow(alias: Expression, timeField: Expression)
+  extends Window(alias, timeField)
 
 // ------------------------------------------------------------------------------------------------
 // Tumbling windows
@@ -293,7 +313,7 @@ class TumbleWithSizeOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     size: Expression)
-  extends Window(
+  extends GroupWindow(
     alias,
     timeField) {
 
@@ -425,7 +445,7 @@ class SlideWithSizeAndSlideOnTimeWithAlias(
     timeField: Expression,
     size: Expression,
     slide: Expression)
-  extends Window(
+  extends GroupWindow(
     alias,
     timeField) {
 
@@ -526,7 +546,7 @@ class SessionWithGapOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     gap: Expression)
-  extends Window(
+  extends GroupWindow(
     alias,
     timeField) {
 

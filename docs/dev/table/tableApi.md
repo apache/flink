@@ -1271,14 +1271,14 @@ orders.insertInto("OutOrders")
 
 Group window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
-Windows are defined using the `window(w: Window)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
 The following example shows how to define a window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy("w")  // group the table by window w
   .select("b.sum");  // aggregate
 {% endhighlight %}
@@ -1287,7 +1287,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w)  // define window with alias w
+  .window([w: GroupWindow] as 'w)  // define window with alias w
   .groupBy('w)   // group the table by window w
   .select('b.sum)  // aggregate
 {% endhighlight %}
@@ -1301,7 +1301,7 @@ The following example shows how to define a window aggregation with additional g
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
   .select("a, b.sum");  // aggregate
 {% endhighlight %}
@@ -1310,7 +1310,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w) // define window with alias w
+  .window([w: GroupWindow] as 'w) // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
   .select('a, 'b.sum)  // aggregate
 {% endhighlight %}
@@ -1323,7 +1323,7 @@ Window properties such as the start, end, or rowtime timestamp of a time window 
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
   .select("a, w.start, w.end, w.rowtime, b.count"); // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
@@ -1332,7 +1332,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w)  // define window with alias w
+  .window([w: GroupWindow] as 'w)  // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
   .select('a, 'w.start, 'w.end, 'w.rowtime, 'b.count) // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
