@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan
 
-import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.{Table, Tumble}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.utils.StreamTableTestUtil
 import org.junit.Assert._

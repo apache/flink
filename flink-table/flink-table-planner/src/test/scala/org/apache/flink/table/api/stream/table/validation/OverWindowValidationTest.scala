@@ -20,7 +20,7 @@ package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, ValidationException}
+import org.apache.flink.table.api.{Over, Table, Tumble, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{OverAgg0, WeightedAvgWithRetract}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test

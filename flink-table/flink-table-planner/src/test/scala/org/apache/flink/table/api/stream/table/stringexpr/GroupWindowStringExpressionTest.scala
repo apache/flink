@@ -19,9 +19,9 @@
 package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{Session, Slide, Tumble}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.api.java.{Session => JSession, Slide => JSlide, Tumble => JTumble}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
@@ -53,7 +53,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JSlide.over("4.hours").every("2.hours").on("rowtime").as("w"))
+      .window(Slide.over("4.hours").every("2.hours").on("rowtime").as("w"))
       .groupBy("w, string")
       .select(
         "string, " +
@@ -92,7 +92,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JTumble.over("4.hours").on("rowtime").as("w"))
+      .window(Tumble.over("4.hours").on("rowtime").as("w"))
       .groupBy("w, string")
       .select(
         "string, " +
@@ -130,7 +130,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JSession.withGap("4.hours").on("rowtime").as("w"))
+      .window(Session.withGap("4.hours").on("rowtime").as("w"))
       .groupBy("w, string")
       .select(
         "string, " +
@@ -167,7 +167,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JSlide.over("4.hours").every("2.hours").on("proctime").as("w"))
+      .window(Slide.over("4.hours").every("2.hours").on("proctime").as("w"))
       .groupBy("w")
       .select(
         "myCountFun(string), " +
@@ -204,7 +204,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JTumble.over("4.hours").on("proctime").as("w"))
+      .window(Tumble.over("4.hours").on("proctime").as("w"))
       .groupBy("w")
       .select(
         "myCountFun(string), " +
@@ -241,7 +241,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JSession.withGap("4.hours").on("proctime").as("w"))
+      .window(Session.withGap("4.hours").on("proctime").as("w"))
       .groupBy("w")
       .select(
         "myCountFun(string), " +

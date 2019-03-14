@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{StreamQueryConfig, Tumble, Types}
 import org.apache.flink.table.expressions.Literal
 import org.apache.flink.table.expressions.utils.Func20
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction

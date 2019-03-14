@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment => JExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, TableSchema, Types}
+import org.apache.flink.table.api.{TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.sources.BatchTableSource
