@@ -20,14 +20,14 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface for the one-input operator that can process EndOfInput event.
+ * Interface for the operators that can select the input to get the next
+ * {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
  */
 @PublicEvolving
-public interface BoundedOneInput {
+public interface InputSelectable {
 
 	/**
-	 * It is notified that no more data will arrive on the input.
+	 * Returns the input selection that wants to get the next record.
 	 */
-	void endInput() throws Exception;
+	InputSelection nextSelection();
 }
-

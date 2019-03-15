@@ -20,14 +20,14 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface for the two-input operator that can process EndOfInput event.
+ * Interface for the operators that can process EndOfInput event.
  */
 @PublicEvolving
-public interface BoundedTwoInput {
+public interface BoundedInput {
 
 	/**
-	 * It is notified that no more data will arrive on the input identified
-	 * by {@code inputId}.
+	 * It is notified that no more data will arrive on the input identified by the {@code inputId}.
+	 * The {@code inputId} is numbered starting from 1, and `1` indicates the first input.
 	 */
-	void endInput(InputIdentifier inputId) throws Exception;
+	void endInput(int inputId) throws Exception;
 }
