@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.optimize.program
+package org.apache.flink.table.plan.stream.sql
 
-import org.apache.flink.table.calcite.FlinkContext
+import org.apache.flink.api.scala._
+import org.apache.flink.table.util.TableTestBase
 
-import org.apache.calcite.plan.volcano.VolcanoPlanner
+import org.junit.Test
 
-/**
-  * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
-  */
-trait FlinkOptimizeContext extends FlinkContext {
+class TableScanTest extends TableTestBase {
 
-  /**
-    * Gets [[VolcanoPlanner]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def getVolcanoPlanner: VolcanoPlanner
+  private val util = streamTestUtil()
+
+  @Test
+  def testTableSourceScan(): Unit = {
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.verifyPlan("SELECT * FROM MyTable")
+  }
+
+  @Test
+  def testDataStreamScan(): Unit = {
+    util.addDataStream[(Int, Long, String)]("DataStreamTable", 'a, 'b, 'c)
+    util.verifyPlan("SELECT * FROM DataStreamTable")
+  }
 }

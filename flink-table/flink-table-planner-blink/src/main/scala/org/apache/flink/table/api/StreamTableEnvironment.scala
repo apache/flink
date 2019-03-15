@@ -21,10 +21,18 @@ package org.apache.flink.table.api
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
+import org.apache.flink.table.plan.optimize.{Optimizer, StreamOptimizer}
 import org.apache.flink.table.plan.schema._
+import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
-import _root_.java.util.concurrent.atomic.AtomicInteger
+import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.calcite.rel.RelCollationTraitDef
+import org.apache.calcite.sql.SqlExplainLevel
 
 /**
   * The base class for stream TableEnvironments.
@@ -46,13 +54,15 @@ abstract class StreamTableEnvironment(
     config: TableConfig)
   extends TableEnvironment(config) {
 
-  // a counter for unique table names
-  private val nameCntr: AtomicInteger = new AtomicInteger(0)
+  // prefix  for unique table names.
+  override private[flink] val tableNamePrefix = "_DataStreamTable_"
 
   // the naming pattern for internally registered tables.
-  private val internalNamePattern = "^_StreamTable_[0-9]+$".r
+  private val internalNamePattern = "^_DataStreamTable_[0-9]+$".r
 
   override def queryConfig: StreamQueryConfig = new StreamQueryConfig
+
+  override protected def getOptimizer: Optimizer = new StreamOptimizer(this)
 
   /**
     * Checks if the chosen table name is valid.
@@ -69,10 +79,70 @@ abstract class StreamTableEnvironment(
     }
   }
 
-  /** Returns a unique table name according to the internal naming pattern. */
-  override protected def createUniqueTableName(): String =
-    "_StreamTable_" + nameCntr.getAndIncrement()
+  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
+  override protected def createRelBuilder: FlinkRelBuilder = FlinkRelBuilder.create(
+    frameworkConfig,
+    Array(
+      ConventionTraitDef.INSTANCE,
+      FlinkRelDistributionTraitDef.INSTANCE,
+      RelCollationTraitDef.INSTANCE,
+      MiniBatchIntervalTraitDef.INSTANCE,
+      UpdateAsRetractionTraitDef.INSTANCE,
+      AccModeTraitDef.INSTANCE)
+  )
 
+  /**
+    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+    *
+    * @param table The table for which the AST and execution plan will be returned.
+    */
+  def explain(table: Table): String = explain(table, extended = false)
+
+  /**
+    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+    *
+    * @param table    The table for which the AST and execution plan will be returned.
+    * @param extended Flag to include detailed optimizer estimates.
+    */
+  def explain(table: Table, extended: Boolean): String = {
+    val ast = table.getRelNode
+    val optimizedNode = optimize(ast)
+
+    val explainLevel = if (extended) {
+      SqlExplainLevel.ALL_ATTRIBUTES
+    } else {
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES
+    }
+
+    s"== Abstract Syntax Tree ==" +
+      System.lineSeparator +
+      s"${FlinkRelOptUtil.toString(ast)}" +
+      System.lineSeparator +
+      s"== Optimized Logical Plan ==" +
+      System.lineSeparator +
+      s"${FlinkRelOptUtil.toString(optimizedNode, explainLevel)}" +
+      System.lineSeparator
+    // TODO show Physical Execution Plan
+  }
+
+  /**
+    * Explain the whole plan, and returns the AST(s) of the specified Table API and SQL queries
+    * and the execution plan.
+    */
+  def explain(): String = explain(extended = false)
+
+  /**
+    * Explain the whole plan, and returns the AST(s) of the specified Table API and SQL queries
+    * and the execution plan.
+    *
+    * @param extended Flag to include detailed optimizer estimates.
+    */
+  def explain(extended: Boolean): String = {
+    // TODO implements this method when supports multi-sinks
+    throw new TableException("Unsupported now")
+  }
 
   /**
     * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
@@ -107,8 +177,7 @@ abstract class StreamTableEnvironment(
   protected def registerDataStreamInternal[T](
       name: String,
       dataStream: DataStream[T],
-      fields: Array[String])
-    : Unit = {
+      fields: Array[String]): Unit = {
 
     val streamType = dataStream.getType
 
@@ -138,6 +207,69 @@ abstract class StreamTableEnvironment(
     registerTableInternal(name, dataStreamTable)
   }
 
+  /**
+    * Registers an internal [[StreamTableSource]] in this [[TableEnvironment]]'s catalog without
+    * name checking. Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  override protected def registerTableSourceInternal(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: FlinkStatistic,
+      replace: Boolean = false): Unit = {
+
+    // TODO `TableSourceUtil.hasRowtimeAttribute` depends on [Expression]
+    // check that event-time is enabled if table source includes rowtime attributes
+    //tableSource match {
+    //  case tableSource: TableSource[_] if TableSourceUtil.hasRowtimeAttribute(tableSource) &&
+    //    execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime =>
+    //
+    //    throw new TableException(
+    //      s"A rowtime attribute requires an EventTime time characteristic in stream environment
+    //      . " +
+    //        s"But is: ${execEnv.getStreamTimeCharacteristic}")
+    //  case _ => // ok
+    //}
+
+    tableSource match {
+
+      // check for proper stream table source
+      case streamTableSource: StreamTableSource[_] =>
+        // register
+        getTable(name) match {
+
+          // check if a table (source or sink) is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+
+            // wrapper contains source
+            case Some(_: TableSourceTable[_]) if !replace =>
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only sink (not source)
+            case Some(_: StreamTableSourceTable[_]) =>
+              val enrichedTable = new TableSourceSinkTable(
+                Some(new StreamTableSourceTable(streamTableSource)),
+                table.tableSinkTable)
+              replaceRegisteredTable(name, enrichedTable)
+          }
+
+          // no table is registered
+          case _ =>
+            val newTable = new TableSourceSinkTable(
+              Some(new StreamTableSourceTable(streamTableSource)),
+              None)
+            registerTableInternal(name, newTable)
+        }
+
+      // not a stream table source
+      case _ =>
+        throw new TableException(
+          "Only StreamTableSource can be registered in StreamTableEnvironment")
+    }
+  }
 
   /**
     * Injects markers for time indicator fields into the field indexes.

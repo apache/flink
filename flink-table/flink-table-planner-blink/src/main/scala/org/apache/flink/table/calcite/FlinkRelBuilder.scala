@@ -18,15 +18,14 @@
 
 package org.apache.flink.table.calcite
 
-import java.util.{Collections, Properties}
-
 import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.volcano.VolcanoPlanner
-import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
+
+import java.util.{Collections, Properties}
 
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
@@ -52,29 +51,36 @@ class FlinkRelBuilder(
 
 object FlinkRelBuilder {
 
-  def create(config: FrameworkConfig): FlinkRelBuilder = {
+  def create(
+      config: FrameworkConfig,
+      traitDefs: Array[RelTraitDef[_ <: RelTrait]] = Array(ConventionTraitDef.INSTANCE)
+  ): FlinkRelBuilder = {
 
     // create Flink type factory
     val typeSystem = config.getTypeSystem
     val typeFactory = new FlinkTypeFactory(typeSystem)
 
     // create context instances with Flink type factory
-    val planner = new VolcanoPlanner(config.getCostFactory, Contexts.empty())
+    val context = config.getContext
+    val planner = new VolcanoPlanner(config.getCostFactory, context)
     planner.setExecutor(config.getExecutor)
-    planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
+    traitDefs.foreach(planner.addRelTraitDef)
+
     val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
+
     val prop = new Properties()
     prop.setProperty(
       CalciteConnectionProperty.CASE_SENSITIVE.camelName,
       String.valueOf(config.getParserConfig.caseSensitive))
     val connectionConfig = new CalciteConnectionConfigImpl(prop)
-    val relOptSchema = new CalciteCatalogReader(
+
+    val relOptSchema = new FlinkCalciteCatalogReader(
       calciteSchema,
       Collections.emptyList(),
       typeFactory,
       connectionConfig)
 
-    new FlinkRelBuilder(config.getContext, cluster, relOptSchema)
+    new FlinkRelBuilder(context, cluster, relOptSchema)
   }
 }

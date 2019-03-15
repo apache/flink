@@ -18,24 +18,29 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.plan.cost.FlinkCostFactory
+import org.apache.flink.table.plan.optimize.Optimizer
+import org.apache.flink.table.plan.schema.RelTable
+import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.sources.TableSource
+import org.apache.flink.types.Row
+
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.plan.cost.FlinkCostFactory
-import org.apache.flink.table.plan.schema.RelTable
-import org.apache.flink.types.Row
 
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
@@ -57,7 +62,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // the configuration to create a Calcite planner
-  private lazy val frameworkConfig: FrameworkConfig = Frameworks
+  protected lazy val frameworkConfig: FrameworkConfig = Frameworks
     .newConfigBuilder
     .defaultSchema(rootSchema)
     .parserConfig(getSqlParserConfig)
@@ -68,10 +73,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     // TODO: introduce ExpressionReducer after codegen
     // set the executor to evaluate constant expressions
     // .executor(new ExpressionReducer(config))
+    .context(new FlinkContextImpl(config))
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
+  protected lazy val relBuilder: FlinkRelBuilder = createRelBuilder
 
   // the planner instance used to optimize queries of this TableEnvironment
   private lazy val planner: RelOptPlanner = relBuilder.getPlanner
@@ -81,20 +87,37 @@ abstract class TableEnvironment(val config: TableConfig) {
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
+  // a counter for unique table names
+  private[flink] val tableNameCntr: AtomicInteger = new AtomicInteger(0)
+
+  private[flink] val tableNamePrefix = "_TempTable_"
+
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
 
-  /** Returns the [[QueryConfig]] depends on the concrete type of this TableEnvironment. */
-  private[flink] def queryConfig: QueryConfig
+  /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
+  private[flink] def getRelBuilder: FlinkRelBuilder = relBuilder
+
+  /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
+  private[flink] def getPlanner: RelOptPlanner = planner
+
+  /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
+  private[flink] def getTypeFactory: FlinkTypeFactory = typeFactory
+
+  /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
+  private[flink] def getFrameworkConfig: FrameworkConfig = frameworkConfig
 
   /**
     * Returns the SqlToRelConverter config.
+    *
+    * `expand` is set as false, and each sub-query becomes a [[org.apache.calcite.rex.RexSubQuery]].
     */
   protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
     SqlToRelConverter.configBuilder()
     .withTrimUnusedFields(false)
     .withConvertTableAccess(false)
     .withInSubQueryThreshold(Integer.MAX_VALUE)
+    .withExpand(false)
     .build()
   }
 
@@ -102,13 +125,51 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the SQL parser config for this environment including a custom Calcite configuration.
     */
   protected def getSqlParserConfig: SqlParser.Config = {
-    // we use Java lex because back ticks are easier than double quotes in programming
-    // and cases are preserved
-    SqlParser
-    .configBuilder()
-    .setLex(Lex.JAVA)
-    .build()
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlParserConfig match {
+
+      case None =>
+        // we use Java lex because back ticks are easier than double quotes in programming
+        // and cases are preserved
+        SqlParser
+          .configBuilder()
+          .setLex(Lex.JAVA)
+          .setIdentifierMaxLength(256)
+          .build()
+
+      case Some(sqlParserConfig) =>
+        sqlParserConfig
+    }
   }
+
+  /** Returns the [[QueryConfig]] depends on the concrete type of this TableEnvironment. */
+  private[flink] def queryConfig: QueryConfig
+
+  /** Returns specific [[FlinkRelBuilder]] depends on the concrete type of this TableEnvironment. */
+  protected def createRelBuilder: FlinkRelBuilder
+
+  /** Returns specific query [[Optimizer]] depends on the concrete type of this TableEnvironment. */
+  protected def getOptimizer: Optimizer
+
+  /**
+    * Generates the optimized [[RelNode]] dag from the original relational nodes.
+    *
+    * @param roots The root nodes of the relational expression tree.
+    * @return The optimized [[RelNode]] dag
+    */
+  private[flink] def optimize(roots: Seq[RelNode]): Seq[RelNode] = {
+    val optRelNodes = getOptimizer.optimize(roots)
+    require(optRelNodes.size == roots.size)
+    optRelNodes
+  }
+
+  /**
+    * Generates the optimized [[RelNode]] tree from the original relational tee.
+    *
+    * @param root The root nodes of the relational expression tree.
+    * @return The optimized [[RelNode]] tree
+    */
+  private[flink] def optimize(root: RelNode): RelNode = optimize(Seq(root)).head
 
   /**
     * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.
@@ -224,9 +285,41 @@ abstract class TableEnvironment(val config: TableConfig) {
     val planner = new FlinkPlannerImpl(
       getFrameworkConfig,
       getPlanner,
-      getTypeFactory)
+      getTypeFactory,
+      relBuilder.getCluster)
     planner.getCompletionHints(statement, position)
   }
+
+  /**
+    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+    *
+    * @param table The table for which the AST and execution plan will be returned.
+    */
+  def explain(table: Table): String
+
+  /**
+    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+    *
+    * @param table The table for which the AST and execution plan will be returned.
+    * @param extended Flag to include detailed optimizer estimates.
+    */
+  def explain(table: Table, extended: Boolean): String
+
+  /**
+    * Explain the whole plan, and returns the AST(s) of the specified Table API and SQL queries
+    * and the execution plan.
+    */
+  def explain(): String
+
+  /**
+    * Explain the whole plan, and returns the AST(s) of the specified Table API and SQL queries
+    * and the execution plan.
+    *
+    * @param extended Flag to include detailed optimizer estimates.
+    */
+  def explain(extended: Boolean): String
 
   /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
@@ -246,7 +339,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The result of the query as Table
     */
   def sqlQuery(query: String): Table = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig,
+      getPlanner,
+      getTypeFactory,
+      relBuilder.getCluster)
     // parse the sql query
     val parsed = planner.parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
@@ -254,7 +351,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new Table(this, relational.rel)
+      new Table(this, relational.project())
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -270,7 +367,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @throws TableException if another table is registered under the provided name.
     */
   @throws[TableException]
-  protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
+  private[flink] def registerTableInternal(name: String, table: AbstractTable): Unit = {
     if (isRegistered(name)) {
       throw new TableException(s"Table \'$name\' already exists. " +
               s"Please, choose a different name.")
@@ -280,7 +377,14 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /** Returns a unique table name according to the internal naming pattern. */
-  protected def createUniqueTableName(): String
+  private[flink] def createUniqueTableName(tableNamePrefix: Option[String] = None): String = {
+    val prefix = tableNamePrefix.getOrElse(this.tableNamePrefix)
+    var res = prefix + tableNameCntr.getAndIncrement()
+    while (getTable(res).nonEmpty) {
+      res = prefix + tableNameCntr.getAndIncrement()
+    }
+    res
+  }
 
   /**
     * Checks if the chosen table name is valid.
@@ -339,26 +443,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     "TMP_" + attrNameCntr.getAndIncrement()
   }
 
-  /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
-  private[flink] def getRelBuilder: FlinkRelBuilder = {
-    relBuilder
-  }
-
-  /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
-  private[flink] def getPlanner: RelOptPlanner = {
-    planner
-  }
-
-  /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
-  private[flink] def getTypeFactory: FlinkTypeFactory = {
-    typeFactory
-  }
-
-  /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
-  private[flink] def getFrameworkConfig: FrameworkConfig = {
-    frameworkConfig
-  }
-
   /**
     * Reference input fields by name:
     * All fields in the schema definition are referenced by name
@@ -395,8 +479,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
-  (Array[String], Array[Int]) = {
+  protected[flink] def getFieldInfo[A](
+      inputType: TypeInformation[A]): (Array[String], Array[Int]) = {
 
     if (inputType.isInstanceOf[GenericTypeInfo[A]] && inputType.getTypeClass == classOf[Row]) {
       throw new TableException(
@@ -417,10 +501,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
   // TODO: we should support Expression fields after we introduce [Expression]
-  protected def getFieldInfo[A](
+  protected[flink] def getFieldInfo[A](
     inputType: TypeInformation[A],
-    fields: Array[String])
-  : (Array[String], Array[Int]) = {
+    fields: Array[String]): (Array[String], Array[Int]) = {
 
     TableEnvironment.validateType(inputType)
 
@@ -477,6 +560,45 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     (fieldNames, fieldIndexes)
   }
+
+  /**
+    * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+    registerTableSourceInternal(name, tableSource, FlinkStatistic.UNKNOWN, replace = false)
+  }
+
+  /**
+    * Registers or replace an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  def registerOrReplaceTableSource(name: String,
+      tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+    registerTableSourceInternal(name, tableSource, FlinkStatistic.UNKNOWN, replace = true)
+  }
+
+  /**
+    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
+    * name checking. Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    * @param replace     Whether to replace this [[TableSource]]
+    */
+  protected def registerTableSourceInternal(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: FlinkStatistic,
+      replace: Boolean): Unit
 
 }
 

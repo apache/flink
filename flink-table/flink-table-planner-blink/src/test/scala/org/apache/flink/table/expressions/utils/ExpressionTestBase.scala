@@ -59,7 +59,8 @@ abstract class ExpressionTestBase {
   private val planner = new FlinkPlannerImpl(
     tEnv.getFrameworkConfig,
     tEnv.getPlanner,
-    tEnv.getTypeFactory)
+    tEnv.getTypeFactory,
+    relBuilder.getCluster)
 
 
   // setup test utils

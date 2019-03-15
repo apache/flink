@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.plan.util
 
+import org.apache.flink.table.calcite.FlinkPlannerImpl
+
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
@@ -26,23 +28,6 @@ import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
   */
 object RelFieldCollationUtil {
 
-  // TODO move `defaultNullCollation` and `defaultCollationDirection` into FlinkPlannerImpl
-
-  /**
-    * the null default direction if not specified. Consistent with HIVE/SPARK/MYSQL/BLINK-RUNTIME.
-    * So the default value only is set [[NullCollation.LOW]] for keeping consistent with
-    * BLINK-RUNTIME.
-    * [[NullCollation.LOW]] means null values appear first when the order is ASC (ascending), and
-    * ordered last when the order is DESC (descending).
-    */
-  val defaultNullCollation: NullCollation = NullCollation.LOW
-
-  /**
-    * the default field collation if not specified, Consistent with CALCITE.
-    */
-  val defaultCollationDirection: RelFieldCollation.Direction = RelFieldCollation.Direction.ASCENDING
-
-
   /**
     * Returns the null direction if not specified.
     *
@@ -50,7 +35,7 @@ object RelFieldCollationUtil {
     * @return default null direction
     */
   def defaultNullDirection(direction: Direction): NullDirection = {
-    defaultNullCollation match {
+    FlinkPlannerImpl.defaultNullCollation match {
       case NullCollation.FIRST => NullDirection.FIRST
       case NullCollation.LAST => NullDirection.LAST
       case NullCollation.LOW =>
@@ -77,8 +62,8 @@ object RelFieldCollationUtil {
   def of(fieldIndex: Int): RelFieldCollation = {
     new RelFieldCollation(
       fieldIndex,
-      defaultCollationDirection,
-      defaultNullDirection(defaultCollationDirection))
+      FlinkPlannerImpl.defaultCollationDirection,
+      defaultNullDirection(FlinkPlannerImpl.defaultCollationDirection))
   }
 
   /**

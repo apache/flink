@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.`type`.DecimalType
+import org.apache.flink.table.api.ValidationException
+
 import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
@@ -25,7 +28,6 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.validate.{SqlConformanceEnum, SqlValidatorImpl, SqlValidatorScope}
 import org.apache.calcite.util.Static
-import org.apache.flink.table.api.ValidationException
 
 /**
  * This is a copy of Calcite's CalciteSqlValidator to use with [[FlinkPlannerImpl]].
@@ -56,8 +58,7 @@ class FlinkCalciteSqlValidator(
     literal.getTypeName match {
       case SqlTypeName.DECIMAL =>
         val bd = literal.getValue.asInstanceOf[java.math.BigDecimal]
-        // TODO: use Decimal.MAX_PS instead when we introduce [Decimal]
-        if (bd.precision > 38) {
+        if (bd.precision > DecimalType.MAX_PRECISION) {
           throw newValidationError(
             literal,
             Static.RESOURCE.numberLiteralOutOfRange(bd.toString))
@@ -73,7 +74,7 @@ class FlinkCalciteSqlValidator(
       isCollectionTable(join.getRight)) {
       join.getCondition match {
         case c: SqlLiteral if c.booleanValue() && c.getValue.asInstanceOf[Boolean] =>
-          // We accept only literal true
+        // We accept only literal true
         case c if null != c =>
           throw new ValidationException(
             s"Left outer joins with a table function do not accept a predicate such as $c. " +

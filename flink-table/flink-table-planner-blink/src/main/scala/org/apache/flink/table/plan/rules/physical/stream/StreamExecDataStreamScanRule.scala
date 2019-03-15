@@ -27,12 +27,15 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
-class StreamExecScanRule
+/**
+  * Rule that converts [[FlinkLogicalDataStreamTableScan]] to [[StreamExecDataStreamScan]].
+  */
+class StreamExecDataStreamScanRule
   extends ConverterRule(
     classOf[FlinkLogicalDataStreamTableScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecScanRule") {
+    "StreamExecDataStreamScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalDataStreamTableScan = call.rel(0)
@@ -53,6 +56,6 @@ class StreamExecScanRule
   }
 }
 
-object StreamExecScanRule {
-  val INSTANCE: RelOptRule = new StreamExecScanRule
+object StreamExecDataStreamScanRule {
+  val INSTANCE: RelOptRule = new StreamExecDataStreamScanRule
 }
