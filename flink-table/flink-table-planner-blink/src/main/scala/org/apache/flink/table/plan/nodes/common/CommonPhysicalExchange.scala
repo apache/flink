@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.common
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
-import org.apache.flink.table.plan.nodes.FlinkRelNode
+import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Exchange
@@ -33,13 +33,13 @@ import scala.collection.JavaConverters._
 /**
   * Base class for flink [[Exchange]].
   */
-abstract class CommonExchange(
+abstract class CommonPhysicalExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     relNode: RelNode,
     relDistribution: RelDistribution)
   extends Exchange(cluster, traitSet, relNode, relDistribution)
-  with FlinkRelNode {
+  with FlinkPhysicalRel {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRows = mq.getRowCount(input)

@@ -65,4 +65,13 @@ public class TableConfigOptions {
 					.withDescription("The buffer is to compress. The larger the buffer," +
 							" the better the compression ratio, but the more memory consumption.");
 
+	// ------------------------------------------------------------------------
+	//  MiniBatch Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_EXEC_MINIBATCH_ALLOW_LATENCY =
+			key("sql.exec.mini-batch.allow-latency.ms")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("MiniBatch allow latency(ms). Value > 0 means MiniBatch enabled.");
+
 }

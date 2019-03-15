@@ -18,58 +18,42 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
+import org.apache.flink.table.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
-
-import scala.collection.JavaConverters._
 
 /**
-  * Flink RelNode which matches along with DataStreamSource.
-  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
-  * the plan translation.
+  * Stream physical RelNode to read data from an external source defined by a [[StreamTableSource]].
   */
-class StreamExecDataStreamScan(
+class StreamExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    relDataType: RelDataType)
-  extends TableScan(cluster, traitSet, table)
+    relOptTable: FlinkRelOptTable)
+  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
   with StreamPhysicalRel {
 
-  val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
-
-  def isAccRetract: Boolean = getTable.unwrap(classOf[DataStreamTable[Any]]).isAccRetract
-
-  override def producesUpdates: Boolean = dataStreamTable.producesUpdates
+  override def producesUpdates: Boolean = false
 
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
 
   override def consumesRetractions: Boolean = false
 
-  override def producesRetractions: Boolean = producesUpdates && isAccRetract
+  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
-  override def deriveRowType(): RelDataType = relDataType
-
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecDataStreamScan(cluster, traitSet, getTable, getRowType)
+    new StreamExecTableSourceScan(cluster, traitSet, relOptTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val rowCnt = mq.getRowCount(this)
     val rowSize = mq.getAverageRowSize(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
   }
 
 }

@@ -16,28 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.calcite
+package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.calcite.plan._
+import org.apache.flink.table.plan.nodes.calcite.Sink
+import org.apache.flink.table.sinks._
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 
 import java.util
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
+  * Stream physical RelNode to to write data into an external sink defined by a [[TableSink]].
   */
-final class LogicalWatermarkAssigner(
+class StreamExecSink[T](
     cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkDelay: Option[Long])
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkDelay) {
+    traitSet: RelTraitSet,
+    inputRel: RelNode,
+    sink: TableSink[T],
+    sinkName: String)
+  extends Sink(cluster, traitSet, inputRel, sink, sinkName)
+  with StreamPhysicalRel {
+
+  override def producesUpdates: Boolean = false
+
+  override def needsUpdatesAsRetraction(input: RelNode): Boolean =
+    sink.isInstanceOf[BaseRetractStreamTableSink[_]]
+
+  override def consumesRetractions: Boolean = false
+
+  override def producesRetractions: Boolean = false
+
+  override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkDelay)
+    new StreamExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
-}
 
+
+}

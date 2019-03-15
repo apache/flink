@@ -15,15 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
+package org.apache.flink.table.sinks
 
-import org.apache.calcite.rel.core.Join
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 
 /**
-  * Batch physical RelNode for [[Join]]
+  * Defines an external stream table and provides write access to its data.
+  *
+  * @tparam T Type of the [[DataStream]] created by this [[TableSink]].
   */
-trait BatchExecJoinBase extends CommonPhysicalJoin with BatchPhysicalRel {
+trait StreamTableSink[T] extends TableSink[T] {
+
+  /** Emits the DataStream. */
+  def emitDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 
 }

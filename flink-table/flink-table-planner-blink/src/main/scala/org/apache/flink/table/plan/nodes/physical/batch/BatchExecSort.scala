@@ -35,11 +35,11 @@ class BatchExecSort(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    collations: RelCollation)
-  extends Sort(cluster, traitSet, inputRel, collations)
+    sortCollation: RelCollation)
+  extends Sort(cluster, traitSet, inputRel, sortCollation)
   with BatchPhysicalRel {
 
-  require(collations.getFieldCollations.size() > 0)
+  require(sortCollation.getFieldCollations.size() > 0)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -52,8 +52,7 @@ class BatchExecSort(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
-      .item("orderBy",
-        RelExplainUtil.orderingToString(collations.getFieldCollations, getRowType))
+      .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
   }
 
   override def estimateRowCount(mq: RelMetadataQuery): Double = mq.getRowCount(getInput)
@@ -63,7 +62,7 @@ class BatchExecSort(
     if (rowCount == null) {
       return null
     }
-    val numOfSortKeys = collations.getFieldCollations.size()
+    val numOfSortKeys = sortCollation.getFieldCollations.size()
     val cpuCost = FlinkCost.COMPARE_CPU_COST * numOfSortKeys *
       rowCount * Math.max(Math.log(rowCount), 1.0)
     val memCost = FlinkRelMdUtil.computeSortMemory(mq, getInput)

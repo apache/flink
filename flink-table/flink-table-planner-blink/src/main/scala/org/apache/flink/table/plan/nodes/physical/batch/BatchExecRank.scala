@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, Rank, RankRange}
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -85,12 +86,12 @@ class BatchExecRank(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val inputFieldNames = inputRel.getRowType.getFieldNames
+    val inputRowType = inputRel.getRowType
     pw.item("input", getInput)
       .item("rankFunction", rankFunction)
-      .item("partitionBy", partitionKey.map(inputFieldNames.get(_)).mkString(","))
-      .item("orderBy", Rank.sortFieldsToString(sortCollation, inputRel.getRowType))
-      .item("rankRange", rankRange.toString(inputFieldNames))
+      .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
+      .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
+      .item("orderBy", RelExplainUtil.collationToString(sortCollation, inputRowType))
       .item("global", isGlobal)
       .item("select", getRowType.getFieldNames.mkString(", "))
   }

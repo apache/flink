@@ -30,22 +30,26 @@ trait StreamPhysicalRel extends FlinkPhysicalRel {
   /**
     * Whether the [[StreamPhysicalRel]] produces update and delete changes.
     */
-  def producesUpdates: Boolean = false
+  def producesUpdates: Boolean
 
   /**
     * Whether the [[StreamPhysicalRel]] requires retraction messages or not.
     */
-  def needsUpdatesAsRetraction(input: RelNode): Boolean = false
+  def needsUpdatesAsRetraction(input: RelNode): Boolean
 
   /**
     * Whether the [[StreamPhysicalRel]] consumes retraction messages instead of forwarding them.
     * The node might or might not produce new retraction messages.
     */
-  def consumesRetractions: Boolean = false
+  def consumesRetractions: Boolean
 
   /**
     * Whether the [[StreamPhysicalRel]] produces retraction messages.
     */
-  def producesRetractions: Boolean = false
+  def producesRetractions: Boolean
 
+  /**
+    * Whether the [[StreamPhysicalRel]] requires rowtime watermark in processing logic.
+    */
+  def requireWatermark: Boolean
 }

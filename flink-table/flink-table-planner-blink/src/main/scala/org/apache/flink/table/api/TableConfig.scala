@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.api
 
+import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
+
 import _root_.java.util.TimeZone
 import _root_.java.math.MathContext
 
@@ -46,6 +48,11 @@ class TableConfig {
     * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
     */
   private var maxGeneratedCodeLength: Int = 64000 // just an estimate
+
+  /**
+    * Defines user-defined configuration
+    */
+  private var conf = GlobalConfiguration.loadConfiguration()
 
   /**
    * Sets the timezone for date/time/timestamp conversions.
@@ -103,6 +110,19 @@ class TableConfig {
       throw new IllegalArgumentException("Length must be greater than 0.")
     }
     this.maxGeneratedCodeLength = maxGeneratedCodeLength
+  }
+
+  /**
+    * Returns user-defined configuration
+    */
+  def getConf: Configuration = conf
+
+  /**
+    * Sets user-defined configuration
+    */
+  def setConf(conf: Configuration): Unit = {
+    this.conf = GlobalConfiguration.loadConfiguration()
+    this.conf.addAll(conf)
   }
 }
 

@@ -32,21 +32,21 @@ import scala.collection.JavaConversions._
 abstract class WatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
-    inputNode: RelNode,
-    val rowtimeField: String,
-    val watermarkOffset: Long)
-  extends SingleRel(cluster, traits, inputNode) {
+    inputRel: RelNode,
+    val rowtimeFieldIndex: Option[Int],
+    val watermarkDelay: Option[Long])
+  extends SingleRel(cluster, traits, inputRel) {
 
   override def deriveRowType(): RelDataType = {
-    val inputRowType = inputNode.getRowType
+    val inputRowType = inputRel.getRowType
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
     val newFieldList = inputRowType.getFieldList.map { f =>
-      if (f.getName.equals(rowtimeField)) {
-        val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType()
-        new RelDataTypeFieldImpl(rowtimeField, f.getIndex, rowtimeIndicatorType)
-      } else {
-        f
+      rowtimeFieldIndex match {
+        case Some(index) if f.getIndex == index =>
+          val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType()
+          new RelDataTypeFieldImpl(f.getName, f.getIndex, rowtimeIndicatorType)
+        case _ => f
       }
     }
 
@@ -57,8 +57,9 @@ abstract class WatermarkAssigner(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", getRowType.getFieldNames)
-      .item("rowtimeField", rowtimeField)
-      .item("watermarkOffset", watermarkOffset)
+      .item("fields", getRowType.getFieldNames.mkString(", "))
+      .itemIf("rowtimeField", getRowType.getFieldNames.get(rowtimeFieldIndex.getOrElse(0)),
+        rowtimeFieldIndex.isDefined)
+      .itemIf("watermarkDelay", watermarkDelay.getOrElse(0L), watermarkDelay.isDefined)
   }
 }

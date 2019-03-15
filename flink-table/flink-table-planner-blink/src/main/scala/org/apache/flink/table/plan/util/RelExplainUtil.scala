@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.FlinkJoinRelType
 
-import org.apache.calcite.rel.RelFieldCollation
+import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
@@ -47,14 +47,27 @@ object RelExplainUtil {
   }
 
   /**
-    * Converts sort fields to String.
+    * Converts [[RelCollation]] to String.
+    *
+    * format sort fields as field name with direction `shortString`.
     */
-  def orderingToString(
-      orderFields: util.List[RelFieldCollation],
-      inputType: RelDataType): String = {
-    val fieldNames = inputType.getFieldNames
-    orderFields.map {
-      x => s"${fieldNames(x.getFieldIndex)} ${x.direction.shortString}"
+  def collationToString(
+      collation: RelCollation,
+      inputRowType: RelDataType): String = {
+    val inputFieldNames = inputRowType.getFieldNames
+    collation.getFieldCollations.map { c =>
+      s"${inputFieldNames(c.getFieldIndex)} ${c.direction.shortString}"
+    }.mkString(", ")
+  }
+
+  /**
+    * Converts [[RelCollation]] to String.
+    *
+    * format sort fields as field index with direction `shortString`.
+    */
+  def collationToString(collation: RelCollation): String = {
+    collation.getFieldCollations.map { c =>
+      s"$$${c.getFieldIndex} ${c.direction.shortString}"
     }.mkString(", ")
   }
 
@@ -223,6 +236,217 @@ object RelExplainUtil {
         s"$prefix$f AS $o"
       }
     }.mkString(", ")
+  }
+
+  def streamGroupAggregationToString(
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggCalls: Seq[AggregateCall],
+      grouping: Array[Int]): String = {
+    val inputFieldNames = inputRowType.getFieldNames
+    val outputFieldNames = outputRowType.getFieldNames
+    val aggStrings = aggCalls.map { call =>
+      val distinct = if (call.isDistinct) {
+        if (call.getArgList.size() == 0) {
+          "DISTINCT"
+        } else {
+          "DISTINCT "
+        }
+      } else {
+        ""
+      }
+      val newArgList = call.getArgList.map(_.toInt).toList
+      val argListNames = if (newArgList.nonEmpty) {
+        newArgList.map(inputFieldNames(_)).mkString(", ")
+      } else {
+        "*"
+      }
+
+      if (call.filterArg >= 0 && call.filterArg < inputFieldNames.size) {
+        s"${call.getAggregation}($distinct$argListNames) FILTER " +
+          s"${inputFieldNames(call.filterArg)}"
+      } else {
+        s"${call.getAggregation}($distinct$argListNames)"
+      }
+    }
+    (grouping.map(inputFieldNames(_)) ++ aggStrings).zip(
+      grouping.indices.map(outputFieldNames(_)) ++ outputFieldNames).map {
+      case (f, o) => if (f == o) {
+        f
+      } else {
+        s"$f AS $o"
+      }
+    }.mkString(", ")
+  }
+
+  def streamGroupAggregationToString(
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      shuffleKey: Option[Array[Int]] = None,
+      isLocal: Boolean = false,
+      isGlobal: Boolean = false): String = {
+
+    val aggInfos = aggInfoList.aggInfos
+    val distinctInfos = aggInfoList.distinctInfos
+    val distinctFieldNames = distinctInfos.indices.map(index => s"distinct$$$index")
+    // aggIndex -> distinctFieldName
+    val distinctAggs = distinctInfos.zip(distinctFieldNames)
+      .flatMap(f => f._1.aggIndexes.map(i => (i, f._2)))
+      .toMap
+    val aggFilters = {
+      val distinctAggFilters = distinctInfos
+        .flatMap(d => d.aggIndexes.zip(d.filterArgs))
+        .toMap
+      val otherAggFilters = aggInfos
+        .map(info => (info.aggIndex, info.agg.filterArg))
+        .toMap
+      otherAggFilters ++ distinctAggFilters
+    }
+
+    val inFieldNames = inputRowType.getFieldNames.toList.toArray
+    val outFieldNames = outputRowType.getFieldNames.toList.toArray
+    val groupingNames = grouping.map(inFieldNames(_))
+    val aggOffset = shuffleKey match {
+      case None => grouping.length
+      case Some(k) => k.length
+    }
+    val isIncremental: Boolean = shuffleKey.isDefined
+
+    val aggStrings = if (isLocal) {
+      stringifyLocalAggregates(aggInfos, distinctInfos, distinctAggs, aggFilters, inFieldNames)
+    } else if (isGlobal || isIncremental) {
+      val accFieldNames = inputRowType.getFieldNames.toList.toArray
+      val aggOutputFieldNames = localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
+      stringifyGlobalAggregates(aggInfos, distinctAggs, aggOutputFieldNames)
+    } else {
+      stringifyAggregates(aggInfos, distinctAggs, aggFilters, inFieldNames)
+    }
+
+    val outputFieldNames = if (isLocal) {
+      grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, outFieldNames)
+    } else if (isIncremental) {
+      val accFieldNames = inputRowType.getFieldNames.toList.toArray
+      grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
+    } else {
+      outFieldNames
+    }
+
+    (groupingNames ++ aggStrings).zip(outputFieldNames).map {
+      case (f, o) if f == o => f
+      case (f, o) => s"$f AS $o"
+    }.mkString(", ")
+  }
+
+  private def stringifyGlobalAggregates(
+      aggInfos: Array[AggregateInfo],
+      distinctAggs: Map[Int, String],
+      accFieldNames: Seq[String]): Array[String] = {
+    aggInfos.zipWithIndex.map { case (aggInfo, index) =>
+      val buf = new mutable.StringBuilder
+      buf.append(aggInfo.agg.getAggregation)
+      if (aggInfo.consumeRetraction) {
+        buf.append("_RETRACT")
+      }
+      buf.append("(")
+      if (index >= accFieldNames.length) {
+        println()
+      }
+      val argNames = accFieldNames(index)
+      if (distinctAggs.contains(index)) {
+        buf.append(s"${distinctAggs(index)} ")
+      }
+      buf.append(argNames).append(")")
+      buf.toString
+    }
+  }
+
+  private def stringifyLocalAggregates(
+      aggInfos: Array[AggregateInfo],
+      distincts: Array[DistinctInfo],
+      distinctAggs: Map[Int, String],
+      aggFilters: Map[Int, Int],
+      inFieldNames: Array[String]): Array[String] = {
+    val aggStrs = aggInfos.zipWithIndex.map { case (aggInfo, index) =>
+      val buf = new mutable.StringBuilder
+      buf.append(aggInfo.agg.getAggregation)
+      if (aggInfo.consumeRetraction) {
+        buf.append("_RETRACT")
+      }
+      buf.append("(")
+      val argNames = aggInfo.agg.getArgList.map(inFieldNames(_))
+      if (distinctAggs.contains(index)) {
+        buf.append(if (argNames.nonEmpty) s"${distinctAggs(index)} " else distinctAggs(index))
+      }
+      val argNameStr = if (argNames.nonEmpty) {
+        argNames.mkString(", ")
+      } else {
+        "*"
+      }
+      buf.append(argNameStr).append(")")
+      if (aggFilters(index) >= 0) {
+        val filterName = inFieldNames(aggFilters(index))
+        buf.append(" FILTER ").append(filterName)
+      }
+      buf.toString
+    }
+    val distinctStrs = distincts.map { distinctInfo =>
+      val argNames = distinctInfo.argIndexes.map(inFieldNames(_)).mkString(", ")
+      s"DISTINCT($argNames)"
+    }
+    aggStrs ++ distinctStrs
+  }
+
+  private def localAggOutputFieldNames(
+      aggOffset: Int,
+      aggInfos: Array[AggregateInfo],
+      accNames: Array[String]): Array[String] = {
+    var offset = aggOffset
+    val aggOutputNames = aggInfos.map { info =>
+      info.function match {
+        case _: AggregateFunction[_, _] =>
+          val name = accNames(offset)
+          offset = offset + 1
+          name
+        case _ =>
+          // TODO supports DeclarativeAggregateFunction
+          throw new TableException("Unsupported now")
+      }
+    }
+    val distinctFieldNames = (offset until accNames.length).map(accNames)
+    aggOutputNames ++ distinctFieldNames
+  }
+
+  private def stringifyAggregates(
+      aggInfos: Array[AggregateInfo],
+      distinctAggs: Map[Int, String],
+      aggFilters: Map[Int, Int],
+      inFields: Array[String]): Array[String] = {
+    // MAX_RETRACT(DISTINCT a) FILTER b
+    aggInfos.zipWithIndex.map { case (aggInfo, index) =>
+      val buf = new mutable.StringBuilder
+      buf.append(aggInfo.agg.getAggregation)
+      if (aggInfo.consumeRetraction) {
+        buf.append("_RETRACT")
+      }
+      buf.append("(")
+      val argNames = aggInfo.agg.getArgList.map(inFields(_))
+      if (distinctAggs.contains(index)) {
+        buf.append(if (argNames.nonEmpty) "DISTINCT " else "DISTINCT")
+      }
+      val argNameStr = if (argNames.nonEmpty) {
+        argNames.mkString(", ")
+      } else {
+        "*"
+      }
+      buf.append(argNameStr).append(")")
+      if (aggFilters(index) >= 0) {
+        val filterName = inFields(aggFilters(index))
+        buf.append(" FILTER ").append(filterName)
+      }
+      buf.toString
+    }
   }
 
   /**

@@ -35,16 +35,16 @@ class FlinkLogicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    rowtimeField: String,
-    watermarkOffset: Long)
-  extends WatermarkAssigner(cluster, traits, input, rowtimeField, watermarkOffset)
+    rowtimeFieldIndex: Option[Int],
+    watermarkDelay: Option[Long])
+  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkDelay)
   with FlinkLogicalRel {
 
   override def copy(
       traitSet: RelTraitSet,
       inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalWatermarkAssigner(
-      cluster, traitSet, inputs.get(0), rowtimeField, watermarkOffset)
+      cluster, traitSet, inputs.get(0), rowtimeFieldIndex, watermarkDelay)
   }
 
 }
@@ -60,8 +60,8 @@ class FlinkLogicalWatermarkAssignerConverter extends ConverterRule(
     val newInput = RelOptRule.convert(watermark.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalWatermarkAssigner.create(
       newInput,
-      watermark.rowtimeField,
-      watermark.watermarkOffset)
+      watermark.rowtimeFieldIndex,
+      watermark.watermarkDelay)
   }
 }
 
@@ -70,12 +70,10 @@ object FlinkLogicalWatermarkAssigner {
 
   def create(
       input: RelNode,
-      rowtimeField: String,
-      watermarkOffset: Long): FlinkLogicalWatermarkAssigner = {
+      rowtimeFieldIndex: Option[Int],
+      watermarkDelay: Option[Long]): FlinkLogicalWatermarkAssigner = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalWatermarkAssigner(cluster, traitSet, input, rowtimeField, watermarkOffset)
+    new FlinkLogicalWatermarkAssigner(cluster, traitSet, input, rowtimeFieldIndex, watermarkDelay)
   }
 }
-
-
