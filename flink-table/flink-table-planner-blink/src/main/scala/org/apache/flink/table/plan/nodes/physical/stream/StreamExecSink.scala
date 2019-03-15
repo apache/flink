@@ -38,11 +38,20 @@ class StreamExecSink[T](
   extends Sink(cluster, traitSet, inputRel, sink, sinkName)
   with StreamPhysicalRel {
 
+  override def producesUpdates: Boolean = false
+
+  override def needsUpdatesAsRetraction(input: RelNode): Boolean =
+    sink.isInstanceOf[BaseRetractStreamTableSink[_]]
+
+  override def consumesRetractions: Boolean = false
+
+  override def producesRetractions: Boolean = false
+
+  override def requireWatermark: Boolean = false
+
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
 
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean =
-    sink.isInstanceOf[BaseRetractStreamTableSink[_]]
 
 }

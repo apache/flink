@@ -109,9 +109,9 @@ abstract class Rank(
     }.mkString(", ")
     super.explainTerms(pw)
       .item("rankFunction", rankFunction)
+      .item("rankRange", rankRange.toString())
       .item("partitionBy", partitionKey.map(i => s"$$$i").mkString(","))
       .item("orderBy", RelExplainUtil.collationToString(sortCollation))
-      .item("rankRange", rankRange.toString())
       .item("select", select)
   }
 

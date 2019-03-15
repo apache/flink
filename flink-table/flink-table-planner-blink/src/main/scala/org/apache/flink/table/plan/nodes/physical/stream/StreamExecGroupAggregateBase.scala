@@ -26,19 +26,23 @@ import org.apache.calcite.rel.core.Aggregate
   * Base stream physical RelNode for unbounded group aggregate.
   *
   * <P>There are two differences between stream group aggregate and [[Aggregate]]:
-  * 1. stream group aggregate supports two-stage aggregation to reduce shuffle data:
+  * 1. This node supports two-stage aggregation to reduce data-shuffling:
   * local-aggregation and global-aggregation.
-  * local-aggregation produces a partial result for each group before shuffle,
-  * and then global-aggregation produces final result based on shuffled partial result.
-  * Two-stage aggregation is enabled only if all aggregate functions are splittable.
-  * (e.g. SUM, AVG, MAX) see [[org.apache.calcite.sql.SqlSplittableAggFunction]] for more info.
+  * local-aggregation produces a partial result for each group before shuffle in stage 1,
+  * and then the partially aggregated results are shuffled by group key to global-aggregation
+  * which produces the final result in stage 2.
+  * local-global aggregation is enabled only if all aggregate functions are mergeable.
+  * (e.g. SUM, AVG, MAX)
   * 2. stream group aggregate supports partial-final aggregation to resolve data-skew for
-  * distinct agg. partial-aggregation produces a partial distinct agg result for each bucket group,
-  * and then final-aggregation produces final result based on partial result.
-  * Both partial-aggregation and final-aggregation need to shuffle data.
-  * partial-final aggregation is enabled only if all distinct aggregate calls are mergeable.
+  * distinct agg.
+  * partial-aggregation produces a partial distinct aggregated result based on
+  * group key and bucket number (which means the data is shuffled by group key and bucket number),
+  * and then the partially distinct aggregated result are shuffled by group key only
+  * to final-aggregation which produces final result.
+  * partial-final aggregation is enabled only if all distinct aggregate functions are splittable.
+  * (e.g. DISTINCT SUM, DISTINCT AVG, DISTINCT MAX)
   *
-  * <p>NOTES: partial-aggregation has local-global mode, so does final-aggregation.
+  * <p>NOTES: partial-aggregation supports local-global mode, so does final-aggregation.
   */
 abstract class StreamExecGroupAggregateBase(
     cluster: RelOptCluster,

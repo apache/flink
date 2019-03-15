@@ -34,7 +34,7 @@ abstract class WatermarkAssigner(
     traits: RelTraitSet,
     inputRel: RelNode,
     val rowtimeFieldIndex: Option[Int],
-    val watermarkOffset: Option[Long])
+    val watermarkDelay: Option[Long])
   extends SingleRel(cluster, traits, inputRel) {
 
   override def deriveRowType(): RelDataType = {
@@ -60,6 +60,6 @@ abstract class WatermarkAssigner(
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("rowtimeField", getRowType.getFieldNames.get(rowtimeFieldIndex.getOrElse(0)),
         rowtimeFieldIndex.isDefined)
-      .itemIf("watermarkOffset", watermarkOffset.getOrElse(0L), watermarkOffset.isDefined)
+      .itemIf("watermarkDelay", watermarkDelay.getOrElse(0L), watermarkDelay.isDefined)
   }
 }

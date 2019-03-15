@@ -89,9 +89,9 @@ class BatchExecRank(
     val inputRowType = inputRel.getRowType
     pw.item("input", getInput)
       .item("rankFunction", rankFunction)
+      .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, inputRowType))
-      .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("global", isGlobal)
       .item("select", getRowType.getFieldNames.mkString(", "))
   }

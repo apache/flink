@@ -61,7 +61,7 @@ class FlinkLogicalWatermarkAssignerConverter extends ConverterRule(
     FlinkLogicalWatermarkAssigner.create(
       newInput,
       watermark.rowtimeFieldIndex,
-      watermark.watermarkOffset)
+      watermark.watermarkDelay)
   }
 }
 

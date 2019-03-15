@@ -51,6 +51,14 @@ class StreamExecWindowJoin(
   extends BiRel(cluster, traitSet, leftRel, rightRel)
   with StreamPhysicalRel {
 
+  override def producesUpdates: Boolean = false
+
+  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
+
+  override def consumesRetractions: Boolean = false
+
+  override def producesRetractions: Boolean = false
+
   override def requireWatermark: Boolean = isRowTime
 
   override def deriveRowType(): RelDataType = outputRowType

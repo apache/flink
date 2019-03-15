@@ -39,14 +39,6 @@ trait StreamExecJoinBase extends CommonJoin with StreamPhysicalRel {
     flinkJoinType != FlinkJoinRelType.INNER && flinkJoinType != FlinkJoinRelType.SEMI
   }
 
-  override def producesRetractions: Boolean = {
-    flinkJoinType match {
-      case FlinkJoinRelType.FULL | FlinkJoinRelType.RIGHT | FlinkJoinRelType.LEFT => true
-      case FlinkJoinRelType.ANTI => true
-      case _ => false
-    }
-  }
-
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
     def getCurrentRel(rel: RelNode): RelNode = {
       rel match {
@@ -71,6 +63,18 @@ trait StreamExecJoinBase extends CommonJoin with StreamPhysicalRel {
       true
     }
   }
+
+  override def consumesRetractions: Boolean = false
+
+  override def producesRetractions: Boolean = {
+    flinkJoinType match {
+      case FlinkJoinRelType.FULL | FlinkJoinRelType.RIGHT | FlinkJoinRelType.LEFT => true
+      case FlinkJoinRelType.ANTI => true
+      case _ => false
+    }
+  }
+
+  override def requireWatermark: Boolean = false
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val elementRate = 100.0d * 2 // two input stream

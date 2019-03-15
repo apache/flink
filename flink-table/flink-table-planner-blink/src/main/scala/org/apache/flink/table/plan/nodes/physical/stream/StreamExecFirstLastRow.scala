@@ -44,9 +44,13 @@ class StreamExecFirstLastRow(
 
   override def producesUpdates: Boolean = isLastRowMode
 
+  override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
+
   override def consumesRetractions: Boolean = true
 
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
+  override def producesRetractions: Boolean = false
+
+  override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = getInput.getRowType
 
@@ -64,10 +68,9 @@ class StreamExecFirstLastRow(
     val fieldNames = getRowType.getFieldNames
     val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
     super.explainTerms(pw)
-      .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
-      .item("select", fieldNames.mkString(", "))
-      .item("order", orderString)
       .item("mode", if (isLastRowMode) "LastRow" else "FirstRow")
+      .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
+      .item("order", orderString)
   }
 
 }

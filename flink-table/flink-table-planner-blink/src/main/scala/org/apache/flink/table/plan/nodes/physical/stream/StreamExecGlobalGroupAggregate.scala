@@ -41,11 +41,15 @@ class StreamExecGlobalGroupAggregate(
     val partialFinalType: PartialFinalType)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel) {
 
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
   override def producesUpdates = true
 
+  override def needsUpdatesAsRetraction(input: RelNode) = true
+
   override def consumesRetractions = true
+
+  override def producesRetractions: Boolean = false
+
+  override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = outputRowType
 

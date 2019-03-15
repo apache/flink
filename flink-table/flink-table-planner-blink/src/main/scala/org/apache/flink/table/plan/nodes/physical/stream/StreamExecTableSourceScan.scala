@@ -36,6 +36,16 @@ class StreamExecTableSourceScan(
   extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
   with StreamPhysicalRel {
 
+  override def producesUpdates: Boolean = false
+
+  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
+
+  override def consumesRetractions: Boolean = false
+
+  override def producesRetractions: Boolean = false
+
+  override def requireWatermark: Boolean = false
+
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecTableSourceScan(cluster, traitSet, relOptTable)
   }

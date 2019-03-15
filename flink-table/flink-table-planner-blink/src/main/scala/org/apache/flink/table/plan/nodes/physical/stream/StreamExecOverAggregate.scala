@@ -46,7 +46,13 @@ class StreamExecOverAggregate(
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 
+  override def producesUpdates: Boolean = false
+
   override def needsUpdatesAsRetraction(input: RelNode) = true
+
+  override def consumesRetractions = true
+
+  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = {
     if (logicWindow.groups.size() != 1
@@ -57,8 +63,6 @@ class StreamExecOverAggregate(
     val timeType = outputRowType.getFieldList.get(orderKey.getFieldIndex).getType
     FlinkTypeFactory.isRowtimeIndicatorType(timeType)
   }
-
-  override def consumesRetractions = true
 
   override def deriveRowType(): RelDataType = outputRowType
 

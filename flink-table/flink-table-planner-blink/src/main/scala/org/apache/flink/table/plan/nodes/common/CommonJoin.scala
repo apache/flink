@@ -70,9 +70,9 @@ trait CommonJoin extends Join with FlinkPhysicalRel {
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
+      .item("joinType", RelExplainUtil.joinTypeToString(flinkJoinType))
       .item("where",
         RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
-      .item("join", getRowType.getFieldNames.mkString(", "))
-      .item("joinType", RelExplainUtil.joinTypeToString(flinkJoinType))
+      .item("select", getRowType.getFieldNames.mkString(", "))
   }
 }

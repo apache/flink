@@ -68,11 +68,15 @@ class StreamExecRank(
 
   override def producesUpdates = true
 
-  override def consumesRetractions = true
-
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
     getStrategy(forceRecompute = true) == RetractRank
   }
+
+  override def consumesRetractions = true
+
+  override def producesRetractions: Boolean = false
+
+  override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = {
     if (outputRankFunColumn) {
@@ -97,11 +101,11 @@ class StreamExecRank(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = inputRel.getRowType
     pw.input("input", getInput)
+      .item("strategy", getStrategy())
       .item("rankFunction", rankFunction.getKind)
+      .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, inputRowType))
-      .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
-      .item("strategy", getStrategy())
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
