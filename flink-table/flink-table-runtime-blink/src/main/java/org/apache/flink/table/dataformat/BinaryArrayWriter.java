@@ -25,7 +25,7 @@ import org.apache.flink.table.util.SegmentsUtil;
 /**
  * Writer for binary array. See {@link BinaryArray}.
  */
-public class BinaryArrayWriter extends AbstractBinaryWriter {
+public final class BinaryArrayWriter extends AbstractBinaryWriter {
 
 	private final int nullBitsSizeInBytes;
 	private final BinaryArray array;

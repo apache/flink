@@ -793,7 +793,7 @@ object ScalarOperatorGens {
     case (InternalTypes.BINARY, InternalTypes.STRING) =>
       val charset = classOf[StandardCharsets].getCanonicalName
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
-        terms => s"(new String(${terms.head}.toByteArray(), $charset.UTF_8))"
+        terms => s"(new String(${terms.head}, $charset.UTF_8))"
       }
 
 

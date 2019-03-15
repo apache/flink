@@ -20,7 +20,6 @@ package org.apache.flink.table.expressions
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.{Ignore, Test}
 
-@Ignore("TODO: [FLINK-11898] the math functions will be supported in the future")
 class MathFunctionsTest extends ScalarTypesTestBase {
 
   // ----------------------------------------------------------------------------------------------

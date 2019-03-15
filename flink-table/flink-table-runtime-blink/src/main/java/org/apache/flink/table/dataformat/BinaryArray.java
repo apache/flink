@@ -34,7 +34,7 @@ import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
  *
  * <p>{@code BinaryArray} are influenced by Apache Spark UnsafeArrayData.
  */
-public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
+public final class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 
 	/**
 	 * Offset for Arrays.

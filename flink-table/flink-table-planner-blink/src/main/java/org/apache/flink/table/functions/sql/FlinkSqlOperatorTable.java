@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.functions.sql;
 
-import org.apache.calcite.rel.type.RelDataType;
+import org.apache.flink.table.calcite.type.FlinkReturnTypes;
+import org.apache.flink.table.calcite.type.NumericExceptFirstOperandChecker;
+import org.apache.flink.table.calcite.type.RepeatFamilyOperandTypeChecker;
+
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -29,10 +33,17 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
+import org.apache.calcite.sql.validate.SqlMonotonicity;
+
+import static org.apache.flink.table.calcite.type.FlinkReturnTypes.ARG0_VARCHAR_FORCE_NULLABLE;
+import static org.apache.flink.table.calcite.type.FlinkReturnTypes.FLINK_DIV_NULLABLE;
+import static org.apache.flink.table.calcite.type.FlinkReturnTypes.FLINK_QUOTIENT_NULLABLE;
+import static org.apache.flink.table.calcite.type.FlinkReturnTypes.STR_MAP_NULLABLE;
+import static org.apache.flink.table.calcite.type.FlinkReturnTypes.VARCHAR_2000_NULLABLE;
 
 /**
  * Operator table that contains only Flink-specific functions and operators.
@@ -59,31 +70,13 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	}
 
 	// -----------------------------------------------------------------------------
-
-	private static final SqlReturnTypeInference FLINK_QUOTIENT_NULLABLE = new SqlReturnTypeInference() {
-		@Override
-		public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-			RelDataType type1 = opBinding.getOperandType(0);
-			RelDataType type2 = opBinding.getOperandType(1);
-			if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
-				return ReturnTypes.QUOTIENT_NULLABLE.inferReturnType(opBinding);
-			} else {
-				RelDataType doubleType = opBinding.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
-				if (type1.isNullable() || type2.isNullable()) {
-					return opBinding.getTypeFactory().createTypeWithNullability(doubleType, true);
-				} else {
-					return doubleType;
-				}
-			}
-		}
-	};
-
-	// -----------------------------------------------------------------------------
 	// Flink specific built-in scalar SQL functions
 	// -----------------------------------------------------------------------------
 
+	// OPERATORS
+
 	/**
-	 * Arithmetic division operator, '/'.
+	 * Arithmetic division operator, '/'. Return DOUBLE or DECIMAL with fractional part.
 	 */
 	public static final SqlBinaryOperator DIVIDE = new SqlBinaryOperator(
 		"/",
@@ -94,14 +87,773 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		InferTypes.FIRST_KNOWN,
 		OperandTypes.DIVISION_OPERATOR);
 
-	/** Function used to access a processing time attribute. */
+	// FUNCTIONS
+
+	/**
+	 * DIV function. It corresponds to {@link #DIVIDE} operator but
+	 * returns without fractional part.
+	 */
+	public static final SqlFunction DIV = new SqlFunction(
+		"DIV",
+		SqlKind.OTHER_FUNCTION,
+		FLINK_DIV_NULLABLE,
+		null,
+		OperandTypes.EXACT_NUMERIC_EXACT_NUMERIC,
+		SqlFunctionCategory.NUMERIC);
+
+	/**
+	 * DIV_INT function. It corresponds to {@link #DIVIDE_INTEGER} operator but
+	 * returns without fractional part.
+	 */
+	public static final SqlFunction DIV_INT = new SqlFunction(
+		"DIV_INT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_QUOTIENT_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	/**
+	 * Function used to access a processing time attribute.
+	 */
 	public static final SqlFunction PROCTIME = new ProctimeSqlFunction();
 
-	/** Function used to materialize a processing time attribute. */
+	/**
+	 * Function used to materialize a processing time attribute.
+	 */
 	public static final SqlFunction PROCTIME_MATERIALIZE = new ProctimeMaterializeSqlFunction();
 
-	/** Function to access the timestamp of a StreamRecord. */
+	/**
+	 * Function to access the timestamp of a StreamRecord.
+	 */
 	public static final SqlFunction STREAMRECORD_TIMESTAMP = new StreamRecordTimestampSqlFunction();
+
+	/**
+	 * Function to access the constant value of E.
+	 */
+	public static final SqlFunction E = new SqlFunction(
+		"E",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE,
+		null,
+		OperandTypes.NILADIC,
+		SqlFunctionCategory.NUMERIC);
+
+	/**
+	 * Function to access the constant value of PI.
+	 */
+	public static final SqlFunction PI_FUNCTION = new SqlFunction(
+		"PI",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE,
+		null,
+		OperandTypes.NILADIC,
+		SqlFunctionCategory.NUMERIC);
+
+	/**
+	 * Function for concat strings, it is same with {@link #CONCAT}, but this is a function.
+	 */
+	public static final SqlFunction CONCAT_FUNCTION = new SqlFunction(
+		"CONCAT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
+		null,
+		new RepeatFamilyOperandTypeChecker(SqlTypeFamily.CHARACTER),
+		SqlFunctionCategory.STRING);
+
+	/**
+	 * Function for concat strings with a separator.
+	 */
+	public static final SqlFunction CONCAT_WS = new SqlFunction(
+		"CONCAT_WS",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
+		null,
+		new RepeatFamilyOperandTypeChecker(SqlTypeFamily.CHARACTER),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction LOG = new SqlFunction(
+		"LOG",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.NUMERIC,
+			OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction LOG2 = new SqlFunction(
+		"LOG2",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE_NULLABLE,
+		null,
+		OperandTypes.NUMERIC,
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction ROUND = new SqlFunction(
+		"ROUND",
+		SqlKind.OTHER_FUNCTION,
+		FlinkReturnTypes.ROUND_FUNCTION_NULLABLE,
+		null,
+		OperandTypes.or(OperandTypes.NUMERIC_INTEGER, OperandTypes.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BIN = new SqlFunction(
+		"BIN",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
+		InferTypes.RETURN_TYPE,
+		OperandTypes.family(SqlTypeFamily.INTEGER),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction SINH = new SqlFunction(
+		"SINH",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE_NULLABLE,
+		null,
+		OperandTypes.NUMERIC,
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction HEX = new SqlFunction(
+		"HEX",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(
+			ReturnTypes.explicit(SqlTypeName.VARCHAR),
+			SqlTypeTransforms.TO_NULLABLE),
+		InferTypes.RETURN_TYPE,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING)),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITAND = new SqlFunction(
+		"BITAND",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITOR = new SqlFunction(
+		"BITOR",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITXOR = new SqlFunction(
+		"BITXOR",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITNOT = new SqlFunction(
+		"BITNOT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0_NULLABLE,
+		null,
+		OperandTypes.NUMERIC,
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction JSONVALUE = new SqlFunction(
+		"JSONVALUE",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction STR_TO_MAP = new SqlFunction(
+		"STR_TO_MAP",
+		SqlKind.OTHER_FUNCTION,
+		STR_MAP_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction IS_DECIMAL = new SqlFunction(
+		"IS_DECIMAL",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.BOOLEAN,
+		null,
+		OperandTypes.or(OperandTypes.CHARACTER, OperandTypes.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction IS_DIGIT = new SqlFunction(
+		"IS_DIGIT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.BOOLEAN,
+		null,
+		OperandTypes.or(OperandTypes.CHARACTER, OperandTypes.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction IS_ALPHA = new SqlFunction(
+		"IS_ALPHA",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.BOOLEAN,
+		null,
+		OperandTypes.or(OperandTypes.CHARACTER, OperandTypes.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction COSH = new SqlFunction(
+		"COSH",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE_NULLABLE,
+		null,
+		OperandTypes.NUMERIC,
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction TANH = new SqlFunction(
+		"TANH",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.DOUBLE_NULLABLE,
+		null,
+		OperandTypes.NUMERIC,
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction CHR = new SqlFunction(
+		"CHR",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.INTEGER),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction LPAD = new SqlFunction(
+		"LPAD",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction RPAD = new SqlFunction(
+		"RPAD",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction REPEAT = new SqlFunction(
+		"REPEAT",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction REVERSE = new SqlFunction(
+		"REVERSE",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction REPLACE = new SqlFunction(
+		"REPLACE",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+
+	public static final SqlFunction SPLIT_INDEX = new SqlFunction(
+		"SPLIT_INDEX",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction REGEXP_REPLACE = new SqlFunction(
+		"REGEXP_REPLACE",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction REGEXP_EXTRACT = new SqlFunction(
+		"REGEXP_EXTRACT",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.STRING_STRING_INTEGER,
+			OperandTypes.STRING_STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction KEYVALUE = new SqlFunction(
+		"KEYVALUE",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(
+			SqlTypeFamily.STRING,
+			SqlTypeFamily.STRING,
+			SqlTypeFamily.STRING,
+			SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction HASH_CODE = new SqlFunction(
+		"HASH_CODE",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.BOOLEAN),
+			OperandTypes.family(SqlTypeFamily.NUMERIC),
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP),
+			OperandTypes.family(SqlTypeFamily.TIME),
+			OperandTypes.family(SqlTypeFamily.DATE)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction MD5 = new SqlFunction(
+		"MD5",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SHA1 = new SqlFunction(
+		"SHA1",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SHA224 = new SqlFunction(
+		"SHA224",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SHA256 = new SqlFunction(
+		"SHA256",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SHA384 = new SqlFunction(
+		"SHA384",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SHA512 = new SqlFunction(
+		"SHA512",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SHA2 = new SqlFunction(
+		"SHA2",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction DATE_FORMAT = new SqlFunction(
+		"DATE_FORMAT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		InferTypes.RETURN_TYPE,
+		OperandTypes.or(
+			OperandTypes.sequence("'(TIMESTAMP, FORMAT)'",
+				OperandTypes.DATETIME, OperandTypes.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction REGEXP = new SqlFunction(
+		"REGEXP",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.BOOLEAN_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction PARSE_URL = new SqlFunction(
+		"PARSE_URL",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction PRINT = new SqlFunction(
+		"PRINT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG1_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.ANY),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction NOW = new SqlFunction(
+		"NOW",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.BIGINT,
+		null,
+		OperandTypes.or(
+			OperandTypes.NILADIC,
+			OperandTypes.family(SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.TIMEDATE) {
+
+		@Override
+		public boolean isDeterministic() {
+			return false;
+		}
+
+		@Override
+		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+			return SqlMonotonicity.INCREASING;
+		}
+	};
+
+	public static final SqlFunction UNIX_TIMESTAMP = new SqlFunction(
+		"UNIX_TIMESTAMP",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.BIGINT_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.NILADIC,
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP)),
+		SqlFunctionCategory.TIMEDATE) {
+
+		@Override
+		public boolean isDeterministic() {
+			return false;
+		}
+
+		@Override
+		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+			return SqlMonotonicity.INCREASING;
+		}
+	};
+
+	public static final SqlFunction FROM_UNIXTIME = new SqlFunction(
+		"FROM_UNIXTIME",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.NUMERIC),
+			OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction DATEDIFF = new SqlFunction(
+		"DATEDIFF",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.TIMESTAMP),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction DATE_SUB = new SqlFunction(
+		"DATE_SUB",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction DATE_ADD = new SqlFunction(
+		"DATE_ADD",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction IF = new SqlFunction(
+		"IF",
+		SqlKind.OTHER_FUNCTION,
+		FlinkReturnTypes.NUMERIC_FROM_ARG1_DEFAULT1_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.and(
+				// cannot only use `family(BOOLEAN, NUMERIC, NUMERIC)` here,
+				// as we don't want non-numeric types to be implicitly casted to numeric types.
+				new NumericExceptFirstOperandChecker(3),
+				OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)
+			),
+			// used for a more explicit exception message
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.BOOLEAN, SqlTypeFamily.BOOLEAN),
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.BINARY, SqlTypeFamily.BINARY),
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.DATE, SqlTypeFamily.DATE),
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
+			OperandTypes.family(SqlTypeFamily.BOOLEAN, SqlTypeFamily.TIME, SqlTypeFamily.TIME)
+		),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction TO_BASE64 = new SqlFunction(
+		"TO_BASE64",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.ANY,
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction FROM_BASE64 = new SqlFunction(
+		"FROM_BASE64",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.BINARY), SqlTypeTransforms.TO_NULLABLE),
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction UUID = new SqlFunction(
+		"UUID",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.VARCHAR_2000,
+		null,
+		OperandTypes.or(
+			OperandTypes.NILADIC,
+			OperandTypes.ANY),
+		SqlFunctionCategory.STRING) {
+
+		@Override
+		public boolean isDeterministic() {
+			return false;
+		}
+
+		@Override
+		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+			return SqlMonotonicity.INCREASING;
+		}
+	};
+
+	public static final SqlFunction SUBSTRING = new SqlFunction(
+		"SUBSTRING",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+		),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction SUBSTR = new SqlFunction(
+		"SUBSTR",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+		),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction LEFT = new SqlFunction(
+		"LEFT",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction RIGHT = new SqlFunction(
+		"RIGHT",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction TO_TIMESTAMP = new SqlFunction(
+		"TO_TIMESTAMP",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.TO_NULLABLE),
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.NUMERIC),
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction FROM_TIMESTAMP = new SqlFunction(
+		"FROM_TIMESTAMP",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.BIGINT, SqlTypeTransforms.TO_NULLABLE),
+		null,
+		OperandTypes.family(SqlTypeFamily.TIMESTAMP),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction TO_DATE = new SqlFunction(
+		"TO_DATE",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.DATE), SqlTypeTransforms.TO_NULLABLE),
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.NUMERIC),
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction TO_TIMESTAMP_TZ = new SqlFunction(
+		"TO_TIMESTAMP_TZ",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.TO_NULLABLE),
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction DATE_FORMAT_TZ = new SqlFunction(
+		"DATE_FORMAT_TZ",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		InferTypes.RETURN_TYPE,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction CONVERT_TZ = new SqlFunction(
+		"CONVERT_TZ",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING,
+				SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.TIMEDATE);
+
+	public static final SqlFunction LOCATE = new SqlFunction(
+		"LOCATE",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction LENGTH = new SqlFunction(
+		"LENGTH",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING),
+		SqlFunctionCategory.NUMERIC);
+
+
+	public static final SqlFunction ASCII = new SqlFunction(
+		"ASCII",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction ENCODE = new SqlFunction(
+		"ENCODE",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.BINARY), SqlTypeTransforms.FORCE_NULLABLE),
+		null,
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction DECODE = new SqlFunction(
+		"DECODE",
+		SqlKind.OTHER_FUNCTION,
+		VARCHAR_2000_NULLABLE,
+		null,
+		OperandTypes.family(SqlTypeFamily.BINARY, SqlTypeFamily.STRING),
+		SqlFunctionCategory.STRING);
+
+
+	public static final SqlFunction INSTR = new SqlFunction(
+		"INSTR",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.INTEGER_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER,
+				SqlTypeFamily.INTEGER)),
+		SqlFunctionCategory.NUMERIC);
+
+
+	public static final SqlFunction LTRIM = new SqlFunction(
+		"LTRIM",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
+
+	public static final SqlFunction RTRIM = new SqlFunction(
+		"RTRIM",
+		SqlKind.OTHER_FUNCTION,
+		ARG0_VARCHAR_FORCE_NULLABLE,
+		null,
+		OperandTypes.or(
+			OperandTypes.family(SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		SqlFunctionCategory.STRING);
 
 	// -----------------------------------------------------------------------------
 	// Window SQL functions

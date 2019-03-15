@@ -47,20 +47,20 @@ class CompositeTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      createTypeInformation[MyCaseClass],
-      createTypeInformation[MyCaseClass2],
-      createTypeInformation[(String, String)],
-      new TupleTypeInfo(Types.STRING, Types.STRING),
-      TypeExtractor.createTypeInfo(classOf[MyPojo]),
-      Types.INT,
-      TypeExtractor.createTypeInfo(classOf[MyCaseClass2]),
-      createTypeInformation[Tuple1[Boolean]],
-      createTypeInformation[Array[Tuple2[Boolean, Int]]],
-      createTypeInformation[Array[Tuple1[Boolean]]],
-      createTypeInformation[Array[MyCaseClass]],
-      createTypeInformation[Array[MyPojo]],
-      createTypeInformation[Array[MyCaseClass3]],
-      createTypeInformation[Array[MyCaseClass2]]
+      /* 0 */  createTypeInformation[MyCaseClass],
+      /* 1 */  createTypeInformation[MyCaseClass2],
+      /* 2 */  createTypeInformation[(String, String)],
+      /* 3 */  new TupleTypeInfo(Types.STRING, Types.STRING),
+      /* 4 */  TypeExtractor.createTypeInfo(classOf[MyPojo]),
+      /* 5 */  Types.INT,
+      /* 6 */  TypeExtractor.createTypeInfo(classOf[MyCaseClass2]),
+      /* 7 */  createTypeInformation[Tuple1[Boolean]],
+      /* 8 */  createTypeInformation[Array[Tuple2[Boolean, Int]]],
+      /* 9 */  createTypeInformation[Array[Tuple1[Boolean]]],
+      /* 10 */ createTypeInformation[Array[MyCaseClass]],
+      /* 11 */ createTypeInformation[Array[MyPojo]],
+      /* 12 */ createTypeInformation[Array[MyCaseClass3]],
+      /* 13 */ createTypeInformation[Array[MyCaseClass2]]
     )
   }
 }

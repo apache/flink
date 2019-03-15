@@ -18,6 +18,12 @@
 
 package org.apache.flink.table.expressions.utils
 
+import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan}
+import org.apache.calcite.rel.rules._
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
 import org.apache.flink.api.common.TaskInfo
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
@@ -32,16 +38,8 @@ import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, 
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, fail}
-import org.junit.{After, Before}
-import org.apache.calcite.plan.Convention
-import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan}
-import org.apache.calcite.rel.rules._
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.apache.calcite.tools.Programs
-import org.apache.flink.table.plan.optimize.program.{FlinkHepProgram, FlinkOptimizeContext}
+import org.junit.rules.ExpectedException
+import org.junit.{After, Before, Rule}
 
 import java.util.Collections
 
@@ -62,11 +60,16 @@ abstract class ExpressionTestBase {
     tEnv.getTypeFactory,
     relBuilder.getCluster)
 
-
   // setup test utils
   private val tableName = "testTable"
   protected val nullable = "null"
   protected val notNullable = "not null"
+
+  // used for accurate exception information checking.
+  val expectedException: ExpectedException = ExpectedException.none()
+
+  @Rule
+  def thrown: ExpectedException = expectedException
 
   @Before
   def prepare(): Unit = {

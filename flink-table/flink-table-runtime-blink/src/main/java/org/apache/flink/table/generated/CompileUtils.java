@@ -97,7 +97,7 @@ public final class CompileUtils {
 		String[] lines = code.split("\n");
 		StringBuilder builder = new StringBuilder();
 		for (int i = 0; i < lines.length; i++) {
-			builder.append(i + 1).append(" ").append(lines[i]).append("\n");
+			builder.append("/* ").append(i + 1).append(" */").append(lines[i]).append("\n");
 		}
 		return builder.toString();
 	}

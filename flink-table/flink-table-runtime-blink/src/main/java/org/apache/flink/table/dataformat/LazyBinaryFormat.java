@@ -57,7 +57,6 @@ public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 	}
 
 	public T getJavaObject() {
-		// TODO: ensure deserialize ?
 		return javaObject;
 	}
 

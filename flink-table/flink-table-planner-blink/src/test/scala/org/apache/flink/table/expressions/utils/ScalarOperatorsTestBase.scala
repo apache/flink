@@ -52,24 +52,24 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.DOUBLE,
-      Types.INT,
-      Types.INT,
-      Types.STRING,
-      Types.BOOLEAN,
-      Types.BOOLEAN,
-      Types.ROW(Types.STRING, Types.STRING),
-      Types.STRING,
-      Types.SQL_DATE,
-      DecimalTypeInfo.of(19, 8),
-      DecimalTypeInfo.of(19, 1)
+      /* 0 */  Types.BYTE,
+      /* 1 */  Types.SHORT,
+      /* 2 */  Types.INT,
+      /* 3 */  Types.LONG,
+      /* 4 */  Types.FLOAT,
+      /* 5 */  Types.DOUBLE,
+      /* 6 */  Types.BOOLEAN,
+      /* 7 */  Types.DOUBLE,
+      /* 8 */  Types.INT,
+      /* 9 */  Types.INT,
+      /* 10 */ Types.STRING,
+      /* 11 */ Types.BOOLEAN,
+      /* 12 */ Types.BOOLEAN,
+      /* 13 */ Types.ROW(Types.STRING, Types.STRING),
+      /* 14 */ Types.STRING,
+      /* 15 */ Types.SQL_DATE,
+      /* 16 */ DecimalTypeInfo.of(19, 8),
+      /* 17 */ DecimalTypeInfo.of(19, 1)
     )
   }
 }

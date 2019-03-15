@@ -29,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>{@code BinaryMap} are influenced by Apache Spark UnsafeMapData.
  */
-public class BinaryMap extends BinaryFormat {
+public final class BinaryMap extends BinaryFormat {
 
 	private final BinaryArray keys;
 	private final BinaryArray values;

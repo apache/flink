@@ -21,7 +21,7 @@ package org.apache.flink.table.generated;
 /**
  * Describes a generated {@link NamespaceAggsHandleFunction}.
  */
-public class GeneratedNamespaceAggsHandleFunction extends GeneratedClass<NamespaceAggsHandleFunction> {
+public final class GeneratedNamespaceAggsHandleFunction extends GeneratedClass<NamespaceAggsHandleFunction> {
 
 	private static final long serialVersionUID = 1L;
 

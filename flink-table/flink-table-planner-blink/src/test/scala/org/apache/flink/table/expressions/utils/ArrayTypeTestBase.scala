@@ -46,18 +46,18 @@ abstract class ArrayTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      Types.INT,
-      Types.INT,
-      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.SQL_DATE),
-      ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
-      ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
+      /* 0 */  Types.INT,
+      /* 1 */  Types.INT,
+      /* 2 */  PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 3 */  ObjectArrayTypeInfo.getInfoFor(Types.SQL_DATE),
+      /* 4 */  ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
+      /* 5 */  ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
+      /* 6 */  ObjectArrayTypeInfo.getInfoFor(Types.INT),
+      /* 7 */  PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 8 */  PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 9 */  ObjectArrayTypeInfo.getInfoFor(Types.INT),
+      /* 10 */ ObjectArrayTypeInfo.getInfoFor(Types.INT),
+      /* 11 */ BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
     )
   }
 }

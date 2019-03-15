@@ -28,7 +28,7 @@ import org.apache.flink.types.Row
 abstract class ScalarTypesTestBase extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(46)
+    val testData = new Row(55)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -60,10 +60,10 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(28, 0.45.toFloat)
     testData.setField(29, 0.46)
     testData.setField(30, 1)
-    testData.setField(31, Decimal.castFrom("-0.1231231321321321111", 38, 0))
+    testData.setField(31, Decimal.castFrom("-0.1231231321321321111", 38, 19))
     testData.setField(32, -1)
     testData.setField(33, null)
-    testData.setField(34, Decimal.castFrom("1514356320000", 38, 19))
+    testData.setField(34, Decimal.castFrom("1514356320000", 38, 0))
     testData.setField(35, "a")
     testData.setField(36, "b")
     testData.setField(37, Array[Byte](1, 2, 3, 4))
@@ -75,56 +75,74 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(43, -1.toLong)
     testData.setField(44, 256)
     testData.setField(45, UTCTimestamp("1996-11-10 06:55:44.333").toString)
+    testData.setField(46, "test1=1,test2=2,test3=3")
+    testData.setField(47, null)
+    testData.setField(48, false)
+    testData.setField(49, Decimal.castFrom("1345.1231231321321321111", 38, 19))
+    testData.setField(50, UTCDate("1997-11-11"))
+    testData.setField(51, UTCTime("09:44:55"))
+    testData.setField(52, UTCTimestamp("1997-11-11 09:44:55.333"))
+    testData.setField(53, "hello world".getBytes)
+    testData.setField(54, "This is a testing string.".getBytes)
     testData
   }
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      Types.STRING,
-      Types.BOOLEAN,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      Types.STRING,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      DecimalTypeInfo.of(38, 19),
-      Types.SQL_DATE,
-      Types.SQL_TIME,
-      Types.SQL_TIMESTAMP,
-      TimeIntervalTypeInfo.INTERVAL_MILLIS,
-      TimeIntervalTypeInfo.INTERVAL_MONTHS,
-      Types.BOOLEAN,
-      DecimalTypeInfo.of(38, 19),
-      Types.STRING,
-      Types.STRING,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      DecimalTypeInfo.of(38, 19),
-      Types.INT,
-      Types.STRING,
-      DecimalTypeInfo.of(19, 0),
-      Types.STRING,
-      Types.STRING,
-      PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
-      Types.STRING,
-      Types.STRING,
-      Types.STRING,
-      DecimalTypeInfo.of(38, 19),
-      Types.LONG,
-      Types.LONG,
-      Types.INT,
-      Types.STRING)
+      /* 0 */  Types.STRING,
+      /* 1 */  Types.BOOLEAN,
+      /* 2 */  Types.BYTE,
+      /* 3 */  Types.SHORT,
+      /* 4 */  Types.LONG,
+      /* 5 */  Types.FLOAT,
+      /* 6 */  Types.DOUBLE,
+      /* 7 */  Types.INT,
+      /* 8 */  Types.STRING,
+      /* 9 */  Types.BYTE,
+      /* 10 */ Types.SHORT,
+      /* 11 */ Types.LONG,
+      /* 12 */ Types.FLOAT,
+      /* 13 */ Types.DOUBLE,
+      /* 14 */ Types.INT,
+      /* 15 */ DecimalTypeInfo.of(38, 19),
+      /* 16 */ Types.SQL_DATE,
+      /* 17 */ Types.SQL_TIME,
+      /* 18 */ Types.SQL_TIMESTAMP,
+      /* 19 */ TimeIntervalTypeInfo.INTERVAL_MILLIS,
+      /* 20 */ TimeIntervalTypeInfo.INTERVAL_MONTHS,
+      /* 21 */ Types.BOOLEAN,
+      /* 22 */ DecimalTypeInfo.of(38, 19),
+      /* 23 */ Types.STRING,
+      /* 24 */ Types.STRING,
+      /* 25 */ Types.BYTE,
+      /* 26 */ Types.SHORT,
+      /* 27 */ Types.LONG,
+      /* 28 */ Types.FLOAT,
+      /* 29 */ Types.DOUBLE,
+      /* 30 */ Types.INT,
+      /* 31 */ DecimalTypeInfo.of(38, 19),
+      /* 32 */ Types.INT,
+      /* 33 */ Types.STRING,
+      /* 34 */ DecimalTypeInfo.of(19, 0),
+      /* 35 */ Types.STRING,
+      /* 36 */ Types.STRING,
+      /* 37 */ PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 38 */ Types.STRING,
+      /* 39 */ Types.STRING,
+      /* 40 */ Types.STRING,
+      /* 41 */ DecimalTypeInfo.of(38, 19),
+      /* 42 */ Types.LONG,
+      /* 43 */ Types.LONG,
+      /* 44 */ Types.INT,
+      /* 45 */ Types.STRING,
+      /* 46 */ Types.STRING,
+      /* 47 */ Types.STRING,
+      /* 48 */ Types.BOOLEAN,
+      /* 49 */ DecimalTypeInfo.of(38, 19),
+      /* 50 */ Types.SQL_DATE,
+      /* 51 */ Types.SQL_TIME,
+      /* 52 */ Types.SQL_TIMESTAMP,
+      /* 53 */ Types.PRIMITIVE_ARRAY(Types.BYTE),
+      /* 54 */ Types.PRIMITIVE_ARRAY(Types.BYTE))
   }
 }

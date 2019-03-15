@@ -27,7 +27,6 @@ import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NU
 import org.apache.flink.table.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isReference, isTemporal}
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.commons.lang3.StringEscapeUtils
 
@@ -48,11 +47,11 @@ object GenerateUtils {
     * Generates a call with a single result statement.
     */
   def generateCallIfArgsNotNull(
-    ctx: CodeGeneratorContext,
-    returnType: InternalType,
-    operands: Seq[GeneratedExpression],
-    resultNullable: Boolean = false)
-    (call: Seq[String] => String): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      returnType: InternalType,
+      operands: Seq[GeneratedExpression],
+      resultNullable: Boolean = false)
+      (call: Seq[String] => String): GeneratedExpression = {
     generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable) {
       args => ("", call(args))
     }
@@ -62,12 +61,16 @@ object GenerateUtils {
     * Generates a call with auxiliary statements and result expression.
     */
   def generateCallWithStmtIfArgsNotNull(
-    ctx: CodeGeneratorContext,
-    returnType: InternalType,
-    operands: Seq[GeneratedExpression],
-    resultNullable: Boolean = false)
-    (call: Seq[String] => (String, String)): GeneratedExpression = {
-    val resultTypeTerm = primitiveTypeTermForType(returnType)
+      ctx: CodeGeneratorContext,
+      returnType: InternalType,
+      operands: Seq[GeneratedExpression],
+      resultNullable: Boolean = false)
+      (call: Seq[String] => (String, String)): GeneratedExpression = {
+    val resultTypeTerm = if (resultNullable) {
+      boxedTypeTermForType(returnType)
+    } else {
+      primitiveTypeTermForType(returnType)
+    }
     val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val defaultValue = primitiveDefaultValue(returnType)
@@ -116,9 +119,9 @@ object GenerateUtils {
     * This will convert the String result to BinaryString.
     */
   def generateStringResultCallIfArgsNotNull(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression])
-    (call: Seq[String] => String): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression])
+      (call: Seq[String] => String): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, InternalTypes.STRING, operands) {
       args => s"$BINARY_STRING.fromString(${call(args)})"
     }
@@ -130,14 +133,67 @@ object GenerateUtils {
     * This will convert the String result to BinaryString.
     */
   def generateStringResultCallWithStmtIfArgsNotNull(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression])
-    (call: Seq[String] => (String, String)): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression])
+      (call: Seq[String] => (String, String)): GeneratedExpression = {
     generateCallWithStmtIfArgsNotNull(ctx, InternalTypes.STRING, operands) {
       args =>
         val (stmt, result) = call(args)
         (stmt, s"$BINARY_STRING.fromString($result)")
     }
+  }
+
+  /**
+    * Generates a call with the nullable args.
+    */
+  def generateCallIfArgsNullable(
+      ctx: CodeGeneratorContext,
+      returnType: InternalType,
+      operands: Seq[GeneratedExpression],
+      resultNullable: Boolean = false)
+      (call: Seq[String] => String): GeneratedExpression = {
+    val resultTypeTerm = if (resultNullable) {
+      boxedTypeTermForType(returnType)
+    } else {
+      primitiveTypeTermForType(returnType)
+    }
+    val defaultValue = primitiveDefaultValue(returnType)
+    val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
+    val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
+    val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
+    val nullTermCode = if (ctx.nullCheck && isResultNullable) {
+      s"$nullTerm = ($resultTerm == null);"
+    } else {
+      s"$nullTerm = false;"
+    }
+
+    // TODO: should we also consider other types?
+    val parameters = operands.map(x =>
+      if (x.resultType.equals(InternalTypes.STRING)){
+        "( " + x.nullTerm + " ) ? null : (" + x.resultTerm + ")"
+      } else {
+        x.resultTerm
+      })
+
+    val resultCode = if (ctx.nullCheck) {
+      s"""
+         |${operands.map(_.code).mkString("\n")}
+         |$resultTerm = ${call(parameters)};
+         |$nullTermCode
+         |if ($nullTerm) {
+         |  $resultTerm = $defaultValue;
+         |}
+       """.stripMargin
+    } else {
+      s"""
+         |${operands.map(_.code).mkString("\n")}
+         |$resultTerm = ${call(parameters)};
+         |$nullTermCode
+       """.stripMargin
+    }
+
+
+    GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
   }
 
   // --------------------------- General Generate Utils ----------------------------------
