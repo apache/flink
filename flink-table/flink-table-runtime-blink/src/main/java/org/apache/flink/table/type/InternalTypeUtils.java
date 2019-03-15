@@ -18,10 +18,34 @@
 
 package org.apache.flink.table.type;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.table.type.InternalTypes.BYTE;
+import static org.apache.flink.table.type.InternalTypes.CHAR;
+import static org.apache.flink.table.type.InternalTypes.DOUBLE;
+import static org.apache.flink.table.type.InternalTypes.FLOAT;
+import static org.apache.flink.table.type.InternalTypes.INT;
+import static org.apache.flink.table.type.InternalTypes.LONG;
+import static org.apache.flink.table.type.InternalTypes.SHORT;
+
 /**
  * Utilities for {@link InternalType}.
  */
 public class InternalTypeUtils {
+
+	private static final Map<InternalType, InternalType[]> POSSIBLE_CAST_MAP;
+
+	static {
+		Map<InternalType, InternalType[]> autoCastMap = new HashMap<>();
+		autoCastMap.put(BYTE, new InternalType[]{SHORT, INT, LONG, FLOAT, DOUBLE, CHAR});
+		autoCastMap.put(SHORT, new InternalType[]{INT, LONG, FLOAT, DOUBLE, CHAR});
+		autoCastMap.put(INT, new InternalType[]{LONG, FLOAT, DOUBLE, CHAR});
+		autoCastMap.put(LONG, new InternalType[]{FLOAT, DOUBLE, CHAR});
+		autoCastMap.put(FLOAT, new InternalType[]{DOUBLE});
+		POSSIBLE_CAST_MAP = Collections.unmodifiableMap(autoCastMap);
+	}
 
 	/**
 	 * Gets the arity of the type.
@@ -49,4 +73,21 @@ public class InternalTypeUtils {
 			return new RowType(new InternalType[] {t});
 		}
 	}
+
+	/**
+	 * Returns whether this type should be automatically casted to
+	 * the target type in an arithmetic operation.
+	 */
+	public static boolean shouldAutoCastTo(PrimitiveType from, PrimitiveType to) {
+		InternalType[] castTypes = POSSIBLE_CAST_MAP.get(from);
+		if (castTypes != null) {
+			for (InternalType type : POSSIBLE_CAST_MAP.get(from)) {
+				if (type.equals(to)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 }

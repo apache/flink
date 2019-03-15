@@ -44,10 +44,12 @@ public class SegmentsUtil {
 	 * SQL execution threads is limited, not too many, so it can bear the overhead of 64K per thread.
 	 */
 	private static final int MAX_BYTES_LENGTH = 1024 * 64;
+	private static final int MAX_CHARS_LENGTH = 1024 * 32;
 
 	private static final int BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 
 	private static final ThreadLocal<byte[]> BYTES_LOCAL = new ThreadLocal<>();
+	private static final ThreadLocal<char[]> CHARS_LOCAL = new ThreadLocal<>();
 
 	/**
 	 * Allocate bytes that is only for temporary usage, it should not be stored in somewhere else.
@@ -73,6 +75,25 @@ public class SegmentsUtil {
 
 		return bytes;
 	}
+
+	public static char[] allocateReuseChars(int length) {
+		char[] chars = CHARS_LOCAL.get();
+
+		if (chars == null) {
+			if (length <= MAX_CHARS_LENGTH) {
+				chars = new char[MAX_CHARS_LENGTH];
+				CHARS_LOCAL.set(chars);
+			} else {
+				chars = new char[length];
+			}
+		} else if (chars.length < length) {
+			chars = new char[length];
+		}
+
+		return chars;
+	}
+
+
 
 	/**
 	 * Copy segments to a new byte[].
@@ -104,7 +125,7 @@ public class SegmentsUtil {
 		return bytes;
 	}
 
-	private static void copyMultiSegmentsToBytes(MemorySegment[] segments, int offset, byte[] bytes,
+	public static void copyMultiSegmentsToBytes(MemorySegment[] segments, int offset, byte[] bytes,
 			int bytesOffset, int numBytes) {
 		int remainSize = numBytes;
 		for (MemorySegment segment : segments) {
@@ -254,6 +275,29 @@ public class SegmentsUtil {
 				// now the offset = offset - segmentSize (-remain)
 				offset = -remain;
 			}
+		}
+	}
+
+	/**
+	 * Maybe not copied, if want copy, please use copyTo.
+	 */
+	public static byte[] getBytes(MemorySegment[] segments, int baseOffset, int sizeInBytes) {
+		// avoid copy if `base` is `byte[]`
+		if (segments.length == 1) {
+			byte[] heapMemory = segments[0].getHeapMemory();
+			if (baseOffset == 0
+				&& heapMemory != null
+				&& heapMemory.length == sizeInBytes) {
+				return heapMemory;
+			} else {
+				byte[] bytes = new byte[sizeInBytes];
+				segments[0].get(baseOffset, bytes, 0, sizeInBytes);
+				return bytes;
+			}
+		} else {
+			byte[] bytes = new byte[sizeInBytes];
+			copyMultiSegmentsToBytes(segments, baseOffset, bytes, 0, sizeInBytes);
+			return bytes;
 		}
 	}
 
@@ -987,4 +1031,44 @@ public class SegmentsUtil {
 		segment.put(segOffset, (byte) (LITTLE_ENDIAN ? b2 : b1));
 	}
 
+	/**
+	 * Find equal segments2 in segments1.
+	 * @param segments1 segs to find.
+	 * @param segments2 sub segs.
+	 * @return Return the found offset, return -1 if not find.
+	 */
+	public static int find(
+		MemorySegment[] segments1, int offset1, int numBytes1,
+		MemorySegment[] segments2, int offset2, int numBytes2) {
+		if (numBytes2 == 0) { // quick way 1.
+			return offset1;
+		}
+		if (inFirstSegment(segments1, offset1, numBytes1) &&
+			inFirstSegment(segments2, offset2, numBytes2)) {
+			byte first = segments2[0].get(offset2);
+			int end = numBytes1 - numBytes2 + offset1;
+			for (int i = offset1; i <= end; i++) {
+				// quick way 2: equal first byte.
+				if (segments1[0].get(i) == first &&
+					segments1[0].equalTo(segments2[0], i, offset2, numBytes2)) {
+					return i;
+				}
+			}
+			return -1;
+		} else {
+			return findInMultiSegments(segments1, offset1, numBytes1, segments2, offset2, numBytes2);
+		}
+	}
+
+	private static int findInMultiSegments(
+		MemorySegment[] segments1, int offset1, int numBytes1,
+		MemorySegment[] segments2, int offset2, int numBytes2) {
+		int end = numBytes1 - numBytes2 + offset1;
+		for (int i = offset1; i <= end; i++) {
+			if (equalsMultiSegments(segments1, i, segments2, offset2, numBytes2)) {
+				return i;
+			}
+		}
+		return -1;
+	}
 }

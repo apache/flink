@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions.validation
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.flink.table.api.{SqlParserException, ValidationException}
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
@@ -29,38 +29,21 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Math functions
   // ----------------------------------------------------------------------------------------------
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[IllegalArgumentException])
-  def testInvalidLog1(): Unit = {
-    // invalid arithmetic argument
-    testSqlApi(
-      "LOG(1, 100)",
-      "FAIL"
-    )
-  }
-
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[IllegalArgumentException])
-  def testInvalidLog2(): Unit ={
-    // invalid arithmetic argument
-    testSqlApi(
-      "LOG(-1)",
-      "FAIL"
-    )
-  }
-
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin1(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("BIN(f12)", "101010") // float type
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin2(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("BIN(f15)", "101010") // BigDecimal type
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin3(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("BIN(f16)", "101010") // Date type
   }
 
@@ -69,18 +52,22 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampInterval(): Unit ={
+  @Test
+  def testTimestampAddWithWrongTimestampInterval(): Unit = {
+    thrown.expect(classOf[SqlParserException])
     testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
-  @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampFormat(): Unit ={
+  @Test
+  def testTimestampAddWithWrongTimestampFormat(): Unit = {
+    thrown.expect(classOf[SqlParserException])
+    thrown.expectMessage("Illegal TIMESTAMP literal '2016-02-24'")
     testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testTimestampAddWithWrongQuantity(): Unit ={
+  @Test
+  def testTimestampAddWithWrongQuantity(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 
@@ -88,49 +75,75 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDOWWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("EXTRACT(DOW FROM TIME '12:42:25')", "0")
   }
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDOYWithTimeWhichIsUnsupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
   }
 
   private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
+    thrown.expect(classOf[ValidationException])
     testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
   }
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMillenniumWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.MILLENNIUM)
   }
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testCenturyWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.CENTURY)
   }
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testYearWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.YEAR)
   }
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMonthWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.MONTH)
   }
 
-  @Ignore("TODO: FLINK-11898")
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDayWithTime(): Unit = {
+    thrown.expect(classOf[ValidationException])
     testExtractFromTimeZeroResult(TimeUnit.DAY)
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Builtin functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
+  def testInvalidStringToMap(): Unit = {
+    // test non-exist key access
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Invalid number of arguments to function 'STR_TO_MAP'")
+    testSqlApi(
+      "STR_TO_MAP('k1:v1;k2:v2', ';')",
+      "EXCEPTION"
+    )
+  }
+
+  @Test
+  def testInvalidIf(): Unit = {
+    // test IF(BOOL, STRING, BOOLEAN)
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Cannot apply 'IF' to arguments")
+    testSqlApi(
+      "IF(f7 > 5, f0, f1)",
+      "FAIL")
   }
 }

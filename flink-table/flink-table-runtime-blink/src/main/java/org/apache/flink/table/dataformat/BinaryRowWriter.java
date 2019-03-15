@@ -23,7 +23,7 @@ import org.apache.flink.table.util.SegmentsUtil;
 /**
  * Writer for {@link BinaryRow}.
  */
-public class BinaryRowWriter extends AbstractBinaryWriter {
+public final class BinaryRowWriter extends AbstractBinaryWriter {
 
 	private final int nullBitsSizeInBytes;
 	private final BinaryRow row;

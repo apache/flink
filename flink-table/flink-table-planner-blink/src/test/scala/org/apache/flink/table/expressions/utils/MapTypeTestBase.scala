@@ -58,18 +58,18 @@ abstract class MapTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      Types.STRING,
-      Types.INT,
-      Types.PRIMITIVE_ARRAY(Types.DOUBLE),
-      new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, Types.PRIMITIVE_ARRAY(Types.INT)),
-      new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, Types.PRIMITIVE_ARRAY(Types.INT))
+      /* 0 */  new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+      /* 1 */  new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 2 */  new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 3 */  new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+      /* 4 */  Types.STRING,
+      /* 5 */  Types.INT,
+      /* 6 */  Types.PRIMITIVE_ARRAY(Types.DOUBLE),
+      /* 7 */  new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+      /* 8 */  new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 9 */  new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 10 */ new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, Types.PRIMITIVE_ARRAY(Types.INT)),
+      /* 11 */ new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, Types.PRIMITIVE_ARRAY(Types.INT))
     )
   }
 }

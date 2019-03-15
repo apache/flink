@@ -52,16 +52,16 @@ abstract class RowTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      Types.STRING,
-      Types.INT,
-      Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN),
-      Types.ROW(Types.INT, Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN)),
-      Types.ROW(
-        Types.SQL_DATE,
-        DecimalTypeInfo.of(9, 8),
-        ObjectArrayTypeInfo.getInfoFor(Types.INT)),
-      Types.ROW(Types.STRING, Types.BOOLEAN),
-      Types.ROW(Types.STRING, Types.STRING)
+      /* 0 */ Types.STRING,
+      /* 1 */ Types.INT,
+      /* 2 */ Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN),
+      /* 3 */ Types.ROW(Types.INT, Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN)),
+      /* 4 */ Types.ROW(
+                Types.SQL_DATE,
+                DecimalTypeInfo.of(9, 8),
+                ObjectArrayTypeInfo.getInfoFor(Types.INT)),
+      /* 5 */ Types.ROW(Types.STRING, Types.BOOLEAN),
+      /* 6 */ Types.ROW(Types.STRING, Types.STRING)
     )
   }
 }

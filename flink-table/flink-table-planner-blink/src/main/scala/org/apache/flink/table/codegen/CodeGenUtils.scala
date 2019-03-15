@@ -25,7 +25,9 @@ import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeIn
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
+import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.util.MurmurHashUtil
 import org.apache.flink.types.Row
 
 import java.lang.reflect.Method
@@ -111,7 +113,8 @@ object CodeGenUtils {
     case InternalTypes.TIME => "int"
     case InternalTypes.TIMESTAMP => "long"
 
-    // TODO: support [INTERVAL_MONTHS] and [INTERVAL_MILLIS] in the future
+    case InternalTypes.INTERVAL_MONTHS => "int"
+    case InternalTypes.INTERVAL_MILLIS => "long"
 
     case _ => boxedTypeTermForType(t)
   }
@@ -159,8 +162,8 @@ object CodeGenUtils {
     case InternalTypes.STRING => s"$BINARY_STRING.EMPTY_UTF8"
     case InternalTypes.CHAR => "'\\0'"
 
-    case InternalTypes.DATE | InternalTypes.TIME => "-1"
-    case InternalTypes.TIMESTAMP => "-1L"
+    case _: DateType | InternalTypes.TIME => "-1"
+    case _: TimestampType => "-1L"
 
     case _ => "null"
   }
@@ -173,6 +176,86 @@ object CodeGenUtils {
     clazz != classOf[Object] && clazz != classOf[Row] &&
       (classOf[BaseRow].isAssignableFrom(clazz) ||
           clazz == getInternalClassForType(createInternalTypeFromTypeInfo(t)))
+
+  def hashCodeForType(ctx: CodeGeneratorContext, t: InternalType, term: String): String = t match {
+    case InternalTypes.BYTE => s"${className[JByte]}.hashCode($term)"
+    case InternalTypes.SHORT => s"${className[JShort]}.hashCode($term)"
+    case InternalTypes.INT => s"${className[JInt]}.hashCode($term)"
+    case InternalTypes.LONG => s"${className[JLong]}.hashCode($term)"
+    case InternalTypes.FLOAT => s"${className[JFloat]}.hashCode($term)"
+    case InternalTypes.DOUBLE => s"${className[JDouble]}.hashCode($term)"
+    case InternalTypes.CHAR => s"${className[JChar]}.hashCode($term)"
+    case InternalTypes.STRING => s"$term.hashCode()"
+    case InternalTypes.BINARY => s"${className[MurmurHashUtil]}.hashUnsafeBytes(" +
+      s"$term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
+    case _: DecimalType => s"$term.hashCode()"
+    case _: DateType => s"${className[JInt]}.hashCode($term)"
+    case InternalTypes.TIME => s"${className[JInt]}.hashCode($term)"
+    case _: TimestampType => s"${className[JLong]}.hashCode($term)"
+    case _: ArrayType => throw new IllegalArgumentException(s"Not support type to hash: $t")
+    case gt: GenericType[_] =>
+      val serTerm = ctx.addReusableObject(gt.getSerializer, "serializer")
+      s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
+  }
+
+
+  // ----------------------------------------------------------------------------------------------
+
+  // Cast numeric type to another numeric type with larger range.
+  // This function must be in sync with [[NumericOrDefaultReturnTypeInference]].
+  def getNumericCastedResultTerm(expr: GeneratedExpression, targetType: InternalType): String = {
+    (expr.resultType, targetType) match {
+      case _ if expr.resultType == targetType => expr.resultTerm
+
+      // byte -> other numeric types
+      case (_: ByteType, _: ShortType) => s"(short) ${expr.resultTerm}"
+      case (_: ByteType, _: IntType) => s"(int) ${expr.resultTerm}"
+      case (_: ByteType, _: LongType) => s"(long) ${expr.resultTerm}"
+      case (_: ByteType, dt: DecimalType) =>
+        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+          s"${expr.resultTerm}, ${dt.precision}, ${dt.scale})"
+      case (_: ByteType, _: FloatType) => s"(float) ${expr.resultTerm}"
+      case (_: ByteType, _: DoubleType) => s"(double) ${expr.resultTerm}"
+
+      // short -> other numeric types
+      case (_: ShortType, _: IntType) => s"(int) ${expr.resultTerm}"
+      case (_: ShortType, _: LongType) => s"(long) ${expr.resultTerm}"
+      case (_: ShortType, dt: DecimalType) =>
+        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+          s"${expr.resultTerm}, ${dt.precision}, ${dt.scale})"
+      case (_: ShortType, _: FloatType) => s"(float) ${expr.resultTerm}"
+      case (_: ShortType, _: DoubleType) => s"(double) ${expr.resultTerm}"
+
+      // int -> other numeric types
+      case (_: IntType, _: LongType) => s"(long) ${expr.resultTerm}"
+      case (_: IntType, dt: DecimalType) =>
+        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+          s"${expr.resultTerm}, ${dt.precision}, ${dt.scale})"
+      case (_: IntType, _: FloatType) => s"(float) ${expr.resultTerm}"
+      case (_: IntType, _: DoubleType) => s"(double) ${expr.resultTerm}"
+
+      // long -> other numeric types
+      case (_: LongType, dt: DecimalType) =>
+        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+          s"${expr.resultTerm}, ${dt.precision}, ${dt.scale})"
+      case (_: LongType, _: FloatType) => s"(float) ${expr.resultTerm}"
+      case (_: LongType, _: DoubleType) => s"(double) ${expr.resultTerm}"
+
+      // decimal -> other numeric types
+      case (_: DecimalType, dt: DecimalType) =>
+        s"${classOf[Decimal].getCanonicalName}.castToDecimal(" +
+          s"${expr.resultTerm}, ${dt.precision}, ${dt.scale})"
+      case (_: DecimalType, _: FloatType) =>
+        s"${classOf[Decimal].getCanonicalName}.castToFloat(${expr.resultTerm})"
+      case (_: DecimalType, _: DoubleType) =>
+        s"${classOf[Decimal].getCanonicalName}.castToDouble(${expr.resultTerm})"
+
+      // float -> other numeric types
+      case (_: FloatType, _: DoubleType) => s"(double) ${expr.resultTerm}"
+
+      case _ => null
+    }
+  }
 
   // -------------------------- Method & Enum ---------------------------------------
 

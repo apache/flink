@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * Internal format to {@link GenericType}.
  */
-public class BinaryGeneric<T> extends LazyBinaryFormat<T> {
+public final class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 
 	private final TypeSerializer<T> javaObjectSer;
 

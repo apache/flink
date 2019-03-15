@@ -731,7 +731,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *
     * @return member variable term
     */
-  def addReusableSha2MessageDigest(constant: GeneratedExpression, nullCheck: Boolean): String = {
+  def addReusableSha2MessageDigest(constant: GeneratedExpression): String = {
     require(constant.literal, "Literal expected")
     val fieldTerm = newName("messageDigest")
 

@@ -34,7 +34,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
-import org.apache.flink.table.runtime.functions.DateTimeUtils;
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
@@ -44,6 +44,7 @@ import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 
 import java.io.Serializable;
@@ -99,6 +100,9 @@ public class DataFormatConverters {
 		t2C.put(SqlTimeTypeInfo.DATE, DateConverter.INSTANCE);
 		t2C.put(SqlTimeTypeInfo.TIME, TimeConverter.INSTANCE);
 		t2C.put(SqlTimeTypeInfo.TIMESTAMP, TimestampConverter.INSTANCE);
+
+		t2C.put(TimeIntervalTypeInfo.INTERVAL_MONTHS, IntConverter.INSTANCE);
+		t2C.put(TimeIntervalTypeInfo.INTERVAL_MILLIS, LongConverter.INSTANCE);
 
 		t2C.put(BinaryStringTypeInfo.INSTANCE, BinaryStringConverter.INSTANCE);
 
@@ -223,7 +227,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for boolean.
 	 */
-	public static class BooleanConverter extends IdentityConverter<Boolean> {
+	public static final class BooleanConverter extends IdentityConverter<Boolean> {
 
 		private static final long serialVersionUID = 3618373319753553272L;
 
@@ -240,7 +244,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for byte.
 	 */
-	public static class ByteConverter extends IdentityConverter<Byte> {
+	public static final class ByteConverter extends IdentityConverter<Byte> {
 
 		private static final long serialVersionUID = 1880134895918999433L;
 
@@ -257,7 +261,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for short.
 	 */
-	public static class ShortConverter extends IdentityConverter<Short> {
+	public static final class ShortConverter extends IdentityConverter<Short> {
 
 		private static final long serialVersionUID = 8055034507232206636L;
 
@@ -274,7 +278,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for int.
 	 */
-	public static class IntConverter extends IdentityConverter<Integer> {
+	public static final class IntConverter extends IdentityConverter<Integer> {
 
 		private static final long serialVersionUID = -7749307898273403416L;
 
@@ -291,7 +295,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for long.
 	 */
-	public static class LongConverter extends IdentityConverter<Long> {
+	public static final class LongConverter extends IdentityConverter<Long> {
 
 		private static final long serialVersionUID = 7373868336730797650L;
 
@@ -308,7 +312,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for float.
 	 */
-	public static class FloatConverter extends IdentityConverter<Float> {
+	public static final class FloatConverter extends IdentityConverter<Float> {
 
 		private static final long serialVersionUID = -1119035126939832966L;
 
@@ -325,7 +329,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for double.
 	 */
-	public static class DoubleConverter extends IdentityConverter<Double> {
+	public static final class DoubleConverter extends IdentityConverter<Double> {
 
 		private static final long serialVersionUID = 2801171640313215040L;
 
@@ -342,7 +346,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for char.
 	 */
-	public static class CharConverter extends IdentityConverter<Character> {
+	public static final class CharConverter extends IdentityConverter<Character> {
 
 		private static final long serialVersionUID = -7631466361315237011L;
 
@@ -359,7 +363,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BinaryString.
 	 */
-	public static class BinaryStringConverter extends IdentityConverter<BinaryString> {
+	public static final class BinaryStringConverter extends IdentityConverter<BinaryString> {
 
 		private static final long serialVersionUID = 5565684451615599206L;
 
@@ -376,7 +380,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BinaryArray.
 	 */
-	public static class BinaryArrayConverter extends IdentityConverter<BinaryArray> {
+	public static final class BinaryArrayConverter extends IdentityConverter<BinaryArray> {
 
 		private static final long serialVersionUID = -7790350668043604641L;
 
@@ -393,7 +397,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BinaryMap.
 	 */
-	public static class BinaryMapConverter extends IdentityConverter<BinaryMap> {
+	public static final class BinaryMapConverter extends IdentityConverter<BinaryMap> {
 
 		private static final long serialVersionUID = -9114231688474126815L;
 
@@ -410,7 +414,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for Decimal.
 	 */
-	public static class DecimalConverter extends IdentityConverter<Decimal> {
+	public static final class DecimalConverter extends IdentityConverter<Decimal> {
 
 		private static final long serialVersionUID = 3825744951173809617L;
 
@@ -431,7 +435,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BinaryGeneric.
 	 */
-	public static class BinaryGenericConverter extends IdentityConverter<BinaryGeneric> {
+	public static final class BinaryGenericConverter extends IdentityConverter<BinaryGeneric> {
 
 		private static final long serialVersionUID = 1436229503920584273L;
 
@@ -448,7 +452,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for String.
 	 */
-	public static class StringConverter extends DataFormatConverter<BinaryString, String> {
+	public static final class StringConverter extends DataFormatConverter<BinaryString, String> {
 
 		private static final long serialVersionUID = 4713165079099282774L;
 
@@ -475,7 +479,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BigDecimal.
 	 */
-	public static class BigDecimalConverter extends DataFormatConverter<Decimal, BigDecimal> {
+	public static final class BigDecimalConverter extends DataFormatConverter<Decimal, BigDecimal> {
 
 		private static final long serialVersionUID = -6586239704060565834L;
 
@@ -506,7 +510,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for generic.
 	 */
-	public static class GenericConverter<T> extends DataFormatConverter<BinaryGeneric<T>, T> {
+	public static final class GenericConverter<T> extends DataFormatConverter<BinaryGeneric<T>, T> {
 
 		private static final long serialVersionUID = -3611718364918053384L;
 
@@ -535,7 +539,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for date.
 	 */
-	public static class DateConverter extends DataFormatConverter<Integer, Date> {
+	public static final class DateConverter extends DataFormatConverter<Integer, Date> {
 
 		private static final long serialVersionUID = 1343457113582411650L;
 
@@ -545,12 +549,12 @@ public class DataFormatConverters {
 
 		@Override
 		Integer toInternalImpl(Date value) {
-			return DateTimeUtils.toInt(value);
+			return SqlDateTimeUtils.dateToInternal(value);
 		}
 
 		@Override
 		Date toExternalImpl(Integer value) {
-			return DateTimeUtils.internalToDate(value);
+			return SqlDateTimeUtils.internalToDate(value);
 		}
 
 		@Override
@@ -562,7 +566,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for time.
 	 */
-	public static class TimeConverter extends DataFormatConverter<Integer, Time> {
+	public static final class TimeConverter extends DataFormatConverter<Integer, Time> {
 
 		private static final long serialVersionUID = -8061475784916442483L;
 
@@ -572,12 +576,12 @@ public class DataFormatConverters {
 
 		@Override
 		Integer toInternalImpl(Time value) {
-			return DateTimeUtils.toInt(value);
+			return SqlDateTimeUtils.timeToInternal(value);
 		}
 
 		@Override
 		Time toExternalImpl(Integer value) {
-			return DateTimeUtils.internalToTime(value);
+			return SqlDateTimeUtils.internalToTime(value);
 		}
 
 		@Override
@@ -589,7 +593,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for timestamp.
 	 */
-	public static class TimestampConverter extends DataFormatConverter<Long, Timestamp> {
+	public static final class TimestampConverter extends DataFormatConverter<Long, Timestamp> {
 
 		private static final long serialVersionUID = -779956524906131757L;
 
@@ -599,12 +603,12 @@ public class DataFormatConverters {
 
 		@Override
 		Long toInternalImpl(Timestamp value) {
-			return DateTimeUtils.toLong(value);
+			return SqlDateTimeUtils.timestampToInternal(value);
 		}
 
 		@Override
 		Timestamp toExternalImpl(Long value) {
-			return DateTimeUtils.internalToTimestamp(value);
+			return SqlDateTimeUtils.internalToTimestamp(value);
 		}
 
 		@Override
@@ -616,7 +620,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive int array.
 	 */
-	public static class PrimitiveIntArrayConverter extends DataFormatConverter<BinaryArray, int[]> {
+	public static final class PrimitiveIntArrayConverter extends DataFormatConverter<BinaryArray, int[]> {
 
 		private static final long serialVersionUID = 1780941126232395638L;
 
@@ -643,7 +647,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive boolean array.
 	 */
-	public static class PrimitiveBooleanArrayConverter extends DataFormatConverter<BinaryArray, boolean[]> {
+	public static final class PrimitiveBooleanArrayConverter extends DataFormatConverter<BinaryArray, boolean[]> {
 
 		private static final long serialVersionUID = -4037693692440282141L;
 
@@ -670,7 +674,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive byte array.
 	 */
-	public static class PrimitiveByteArrayConverter extends IdentityConverter<byte[]> {
+	public static final class PrimitiveByteArrayConverter extends IdentityConverter<byte[]> {
 
 		private static final long serialVersionUID = -2007960927801689921L;
 
@@ -687,7 +691,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive short array.
 	 */
-	public static class PrimitiveShortArrayConverter extends DataFormatConverter<BinaryArray, short[]> {
+	public static final class PrimitiveShortArrayConverter extends DataFormatConverter<BinaryArray, short[]> {
 
 		private static final long serialVersionUID = -1343184089311186834L;
 
@@ -714,7 +718,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive long array.
 	 */
-	public static class PrimitiveLongArrayConverter extends DataFormatConverter<BinaryArray, long[]> {
+	public static final class PrimitiveLongArrayConverter extends DataFormatConverter<BinaryArray, long[]> {
 
 		private static final long serialVersionUID = 4061982985342526078L;
 
@@ -741,7 +745,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive float array.
 	 */
-	public static class PrimitiveFloatArrayConverter extends DataFormatConverter<BinaryArray, float[]> {
+	public static final class PrimitiveFloatArrayConverter extends DataFormatConverter<BinaryArray, float[]> {
 
 		private static final long serialVersionUID = -3237695040861141459L;
 
@@ -768,7 +772,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive double array.
 	 */
-	public static class PrimitiveDoubleArrayConverter extends DataFormatConverter<BinaryArray, double[]> {
+	public static final class PrimitiveDoubleArrayConverter extends DataFormatConverter<BinaryArray, double[]> {
 
 		private static final long serialVersionUID = 6333670535356315691L;
 
@@ -795,7 +799,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive char array.
 	 */
-	public static class PrimitiveCharArrayConverter extends DataFormatConverter<BinaryArray, char[]> {
+	public static final class PrimitiveCharArrayConverter extends DataFormatConverter<BinaryArray, char[]> {
 
 		private static final long serialVersionUID = -5438377988505771316L;
 
@@ -822,7 +826,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for object array.
 	 */
-	public static class ObjectArrayConverter<T> extends DataFormatConverter<BinaryArray, T[]> {
+	public static final class ObjectArrayConverter<T> extends DataFormatConverter<BinaryArray, T[]> {
 
 		private static final long serialVersionUID = -7434682160639380078L;
 
@@ -885,7 +889,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for map.
 	 */
-	public static class MapConverter extends DataFormatConverter<BinaryMap, Map> {
+	public static final class MapConverter extends DataFormatConverter<BinaryMap, Map> {
 
 		private static final long serialVersionUID = -916429669828309919L;
 
@@ -982,7 +986,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for base row.
 	 */
-	public static class BaseRowConverter extends IdentityConverter<BaseRow> {
+	public static final class BaseRowConverter extends IdentityConverter<BaseRow> {
 
 		private static final long serialVersionUID = -4470307402371540680L;
 
@@ -999,7 +1003,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for pojo.
 	 */
-	public static class PojoConverter<T> extends AbstractBaseRowConverter<T> {
+	public static final class PojoConverter<T> extends AbstractBaseRowConverter<T> {
 
 		private static final long serialVersionUID = 6821541780176167135L;
 
@@ -1047,7 +1051,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for row.
 	 */
-	public static class RowConverter extends AbstractBaseRowConverter<Row> {
+	public static final class RowConverter extends AbstractBaseRowConverter<Row> {
 
 		private static final long serialVersionUID = -56553502075225785L;
 
@@ -1080,7 +1084,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for flink tuple.
 	 */
-	public static class TupleConverter extends AbstractBaseRowConverter<Tuple> {
+	public static final class TupleConverter extends AbstractBaseRowConverter<Tuple> {
 
 		private static final long serialVersionUID = 2794892691010934194L;
 
@@ -1118,7 +1122,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for case class.
 	 */
-	public static class CaseClassConverter extends AbstractBaseRowConverter<Product> {
+	public static final class CaseClassConverter extends AbstractBaseRowConverter<Product> {
 
 		private static final long serialVersionUID = -966598627968372952L;
 

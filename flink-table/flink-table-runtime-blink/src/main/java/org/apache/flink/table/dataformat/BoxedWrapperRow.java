@@ -29,7 +29,7 @@ import org.apache.flink.types.ShortValue;
 /**
  * A {@link ObjectArrayRow} that wrap primitive type to boxed object to reuse.
  */
-public class BoxedWrapperRow extends ObjectArrayRow {
+public final class BoxedWrapperRow extends ObjectArrayRow {
 
 	public BoxedWrapperRow(int arity) {
 		super(arity);

@@ -35,6 +35,7 @@ import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,6 +67,8 @@ public class TypeConverters {
 		tiToType.put(SqlTimeTypeInfo.DATE, InternalTypes.DATE);
 		tiToType.put(SqlTimeTypeInfo.TIMESTAMP, InternalTypes.TIMESTAMP);
 		tiToType.put(SqlTimeTypeInfo.TIME, InternalTypes.TIME);
+		tiToType.put(TimeIntervalTypeInfo.INTERVAL_MONTHS, InternalTypes.INTERVAL_MONTHS);
+		tiToType.put(TimeIntervalTypeInfo.INTERVAL_MILLIS, InternalTypes.INTERVAL_MILLIS);
 
 		// BigDecimal have infinity precision and scale, but we converted it into a limited
 		// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
@@ -91,6 +94,8 @@ public class TypeConverters {
 		internalTypeToInfo.put(InternalTypes.TIMESTAMP, BasicTypeInfo.LONG_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.TIME, BasicTypeInfo.INT_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.BINARY, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.INTERVAL_MONTHS, BasicTypeInfo.INT_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.INTERVAL_MILLIS, BasicTypeInfo.LONG_TYPE_INFO);
 		INTERNAL_TYPE_TO_INTERNAL_TYPE_INFO = Collections.unmodifiableMap(internalTypeToInfo);
 
 		Map<InternalType, TypeInformation> itToEti = new HashMap<>();

@@ -27,8 +27,14 @@ import java.util.Map;
  */
 public abstract class ThreadLocalCache<K, V> {
 
+	private static final int DEFAULT_CACHE_SIZE = 64;
+
 	private final ThreadLocal<BoundedMap<K, V>> cache = new ThreadLocal<>();
 	private final int maxSizePerThread;
+
+	protected ThreadLocalCache() {
+		this(DEFAULT_CACHE_SIZE);
+	}
 
 	protected ThreadLocalCache(int maxSizePerThread) {
 		this.maxSizePerThread = maxSizePerThread;

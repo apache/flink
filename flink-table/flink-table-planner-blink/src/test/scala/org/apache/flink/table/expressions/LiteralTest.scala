@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class LiteralTest extends ExpressionTestBase {
 
@@ -55,7 +55,6 @@ class LiteralTest extends ExpressionTestBase {
     )
   }
 
-  @Ignore("TODO: FLINK-11898")
   @Test
   def testNonAsciiLiteral(): Unit = {
     testSqlApi(
@@ -67,13 +66,12 @@ class LiteralTest extends ExpressionTestBase {
       "Абвгде谢谢")
   }
 
-  @Ignore("TODO: FLINK-11898")
   @Test
   def testDoubleQuote(): Unit = {
     val hello = "\"<hello>\""
     testSqlApi(
-      s"concat('a', '$hello')",
-      s"a and $hello")
+      s"concat('a', ' ', '$hello')",
+      s"a $hello")
   }
 
   @Test
@@ -148,10 +146,10 @@ class LiteralTest extends ExpressionTestBase {
   override def typeInfo : RowTypeInfo = {
     new RowTypeInfo(
       Array(
-        Types.STRING,
-        Types.STRING,
-        Types.STRING,
-        Types.STRING
+        /* 0 */  Types.STRING,
+        /* 1 */  Types.STRING,
+        /* 2 */  Types.STRING,
+        /* 3 */  Types.STRING
       ).asInstanceOf[Array[TypeInformation[_]]],
       Array("trUeX", "FALSE_A", "FALSE_AB", "f4")
     )

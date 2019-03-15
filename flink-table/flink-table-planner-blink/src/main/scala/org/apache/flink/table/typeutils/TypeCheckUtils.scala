@@ -87,7 +87,10 @@ object TypeCheckUtils {
          | InternalTypes.FLOAT
          | InternalTypes.DOUBLE
          | InternalTypes.BOOLEAN
-         | InternalTypes.CHAR => false
+         | InternalTypes.CHAR
+         | _: DateType
+         | InternalTypes.TIME
+         | _: TimestampType => false
     case _ => true
   }
 
