@@ -40,7 +40,6 @@ import org.apache.commons.cli.PosixParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
 
@@ -86,11 +85,7 @@ public class MesosTaskExecutorRunner {
 		final Map<String, String> envs = System.getenv();
 
 		// configure the filesystems
-		try {
-			FileSystem.initialize(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while configuring the filesystems.", e);
-		}
+		FileSystem.initialize(configuration);
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);

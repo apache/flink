@@ -251,7 +251,7 @@ public abstract class FileSystem {
 	 *
 	 * @param config the configuration from where to fetch the parameter.
 	 */
-	public static void initialize(Configuration config) throws IOException, IllegalConfigurationException {
+	public static void initialize(Configuration config) throws IllegalConfigurationException {
 		LOCK.lock();
 		try {
 			// make sure file systems are re-instantiated after re-configuration
