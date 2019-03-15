@@ -35,11 +35,11 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 
 	private CountDownLatch submitLatch;
 
-	public InteractionsCountingTaskManagerGateway(){
+	public InteractionsCountingTaskManagerGateway() {
 		submitLatch = new CountDownLatch(0);
 	}
 
-	public InteractionsCountingTaskManagerGateway(final int parallelism){
+	public InteractionsCountingTaskManagerGateway(final int parallelism) {
 		this.submitLatch = new CountDownLatch(parallelism);
 	}
 
@@ -73,10 +73,10 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 		return cancelTaskCount.get() + submitTaskCount.get();
 	}
 
-	void waitAllTasksSubmitted(){
-		try{
+	void waitAllTasksSubmitted() {
+		try {
 			submitLatch.await();
-		}catch (InterruptedException e){
+		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
 	}
