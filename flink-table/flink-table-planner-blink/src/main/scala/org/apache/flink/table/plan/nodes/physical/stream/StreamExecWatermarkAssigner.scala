@@ -37,8 +37,8 @@ class StreamExecWatermarkAssigner(
     traits: RelTraitSet,
     inputRel: RelNode,
     rowtimeFieldIndex: Option[Int],
-    watermarkOffset: Option[Long])
-  extends WatermarkAssigner(cluster, traits, inputRel, rowtimeFieldIndex, watermarkOffset)
+    watermarkDelay: Option[Long])
+  extends WatermarkAssigner(cluster, traits, inputRel, rowtimeFieldIndex, watermarkDelay)
   with StreamPhysicalRel {
 
   override def producesUpdates: Boolean = false
@@ -57,7 +57,7 @@ class StreamExecWatermarkAssigner(
       traitSet,
       inputs.get(0),
       rowtimeFieldIndex,
-      watermarkOffset)
+      watermarkDelay)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -92,13 +92,13 @@ object StreamExecWatermarkAssigner {
       traits: RelTraitSet,
       inputRel: RelNode,
       rowtimeFieldIndex: Int,
-      watermarkOffset: Long): StreamExecWatermarkAssigner = {
+      watermarkDelay: Long): StreamExecWatermarkAssigner = {
     new StreamExecWatermarkAssigner(
       cluster,
       traits,
       inputRel,
       Some(rowtimeFieldIndex),
-      Some(watermarkOffset))
+      Some(watermarkDelay))
   }
 
   def createIngestionTimeWatermarkAssigner(
