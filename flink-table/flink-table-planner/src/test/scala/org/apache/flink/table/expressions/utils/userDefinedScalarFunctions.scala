@@ -330,6 +330,18 @@ object Func22 extends ScalarFunction {
   }
 }
 
+object Func23 extends ScalarFunction {
+  def eval(row: Row): Row = {
+    row
+  }
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(Types.ROW(Types.INT))
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.INT)
+}
+
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   def eval(x: String, sep: String, index: Int): String = {
     val splits = StringUtils.splitByWholeSeparator(x, sep)

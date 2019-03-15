@@ -25,10 +25,10 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{Rowtime, Schema}
-import org.apache.flink.table.expressions.utils.Func15
+import org.apache.flink.table.expressions.utils.{Func15, Func23}
 import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.MultiArgCount
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
@@ -219,6 +219,34 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("Hello,Worlds,1","Hello again,Worlds,2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowTypeResultSingletonCollectionChainedWithOperation(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.clear
+
+    val data = List(
+      Row.of(
+        Row.of(12.asInstanceOf[Integer]),
+        "second_field"))
+
+    val stream = env.fromCollection(data)(Types.ROW(
+      Types.ROW(Types.INT),
+      Types.STRING
+    ))
+    val table = stream.toTable(tEnv, 'a, 'b)
+    tEnv.registerFunction("func", Func23)
+    tEnv.registerTable("t", table)
+
+    val results = tEnv.sqlQuery("SELECT func(a) as myRow FROM t").toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("12")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
     
