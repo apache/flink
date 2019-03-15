@@ -57,4 +57,12 @@ public class StreamWriterBaseComparator {
 		return equals((StreamWriterBase) writer1, (StreamWriterBase) writer2) &&
 			Objects.equals(writer1.getCharsetName(), writer2.getCharsetName());
 	}
+
+	public static<T> boolean equals(
+		CompressionStringWriter<T> writer1,
+		CompressionStringWriter<T> writer2) {
+		return equals((StreamWriterBase) writer1, (StreamWriterBase) writer2) &&
+			Objects.equals(writer1.getCodecName(), writer2.getCodecName()) &&
+			Objects.equals(writer1.getSeparator(), writer2.getSeparator());
+	}
 }

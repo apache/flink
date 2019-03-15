@@ -17,34 +17,51 @@ import java.io.IOException;
  * Extends the class and override write() to make custom writing
  */
 public class CompressionStringWriter<T> extends StreamWriterBase<T> implements Writer<T>{
+	private static final long serialVersionUID = 1L;
 
+	// The codec name is the codec class name from org.apache.hadoop.io.compress.
+	// Candidate: GzipCodec, Lz4Codec, SnappyCodec, BZip2Codec
 	private String codecName;
+
+	private String separator;
+
+	public String getCodecName() {
+		return codecName;
+	}
+
+	public String getSeparator() {
+		return separator;
+	}
 
 	private transient CompressionOutputStream compressedOutputStream;
 
-	public CompressionStringWriter(String codecName) {
+	public CompressionStringWriter(String codecName, String separator) {
 		this.codecName = codecName;
+		this.separator = separator;
+	}
+
+	public CompressionStringWriter(String codecName) {
+		this(codecName, System.lineSeparator());
 	}
 
 	protected CompressionStringWriter(CompressionStringWriter<T> other) {
 		super(other);
 		this.codecName = other.codecName;
+		this.separator = other.separator;
 	}
 
 	@Override
 	public void open(FileSystem fs, Path path) throws IOException {
 		super.open(fs, path);
 		Configuration conf = fs.getConf();
-		if (!codecName.equals("None")) {
-			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
-			CompressionCodec codec = codecFactory.getCodecByName(codecName);
-			if (codec == null) {
-				throw new RuntimeException("Codec " + codecName + " not found");
-			}
-			Compressor compressor = CodecPool.getCompressor(codec, conf);
-			compressedOutputStream = codec.createOutputStream(getStream(), compressor);
-
+		CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
+		CompressionCodec codec = codecFactory.getCodecByName(codecName);
+		if (codec == null) {
+			throw new RuntimeException("Codec " + codecName + " not found");
 		}
+		Compressor compressor = CodecPool.getCompressor(codec, conf);
+		compressedOutputStream = codec.createOutputStream(getStream(), compressor);
+
 	}
 
 	@Override
@@ -61,7 +78,7 @@ public class CompressionStringWriter<T> extends StreamWriterBase<T> implements W
 	public void write(Object element) throws IOException {
 		getStream();
 		compressedOutputStream.write(element.toString().getBytes());
-		compressedOutputStream.write('\n');
+		compressedOutputStream.write(this.separator.getBytes());
 	}
 
 	@Override
