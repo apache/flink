@@ -661,12 +661,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// ------------------ Initialize the file systems -------------------------
 
-		try {
-			org.apache.flink.core.fs.FileSystem.initialize(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-					"filesystem scheme from configuration.", e);
-		}
+		org.apache.flink.core.fs.FileSystem.initialize(configuration);
 
 		// initialize file system
 		// Copy the application master jar to the filesystem

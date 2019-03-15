@@ -110,12 +110,7 @@ public class LocalExecutor implements Executor {
 			this.flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
 
 			// initialize default file system
-			try {
-				FileSystem.initialize(this.flinkConfig);
-			} catch (IOException e) {
-				throw new SqlClientException(
-					"Error while setting the default filesystem scheme from configuration.", e);
-			}
+			FileSystem.initialize(this.flinkConfig);
 
 			// load command lines for deployment
 			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);
