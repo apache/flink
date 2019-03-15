@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.nodes.common.CommonJoin
+import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 
 import org.apache.calcite.rel.core.Join
 
 /**
   * Batch physical RelNode for [[Join]]
   */
-trait BatchExecJoinBase extends CommonJoin with BatchPhysicalRel {
+trait BatchExecJoinBase extends CommonPhysicalJoin with BatchPhysicalRel {
 
 }

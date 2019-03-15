@@ -36,7 +36,7 @@ import scala.collection.JavaConversions._
 /**
   * Base physical class for flink [[Join]].
   */
-trait CommonJoin extends Join with FlinkPhysicalRel {
+trait CommonPhysicalJoin extends Join with FlinkPhysicalRel {
 
   lazy val (joinInfo, filterNulls) = {
     val filterNulls = new util.ArrayList[java.lang.Boolean]

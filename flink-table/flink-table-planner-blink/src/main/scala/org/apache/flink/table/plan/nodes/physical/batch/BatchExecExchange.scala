@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.nodes.common.CommonExchange
+import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
@@ -76,7 +76,7 @@ class BatchExecExchange(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     relDistribution: RelDistribution)
-  extends CommonExchange(cluster, traitSet, inputRel, relDistribution)
+  extends CommonPhysicalExchange(cluster, traitSet, inputRel, relDistribution)
   with BatchPhysicalRel {
 
   override def copy(

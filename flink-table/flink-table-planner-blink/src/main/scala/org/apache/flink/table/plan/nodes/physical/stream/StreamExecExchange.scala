@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.nodes.common.CommonExchange
+import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
@@ -31,7 +31,7 @@ class StreamExecExchange(
     traitSet: RelTraitSet,
     relNode: RelNode,
     relDistribution: RelDistribution)
-  extends CommonExchange(cluster, traitSet, relNode, relDistribution)
+  extends CommonPhysicalExchange(cluster, traitSet, relNode, relDistribution)
   with StreamPhysicalRel {
 
   override def producesUpdates: Boolean = false

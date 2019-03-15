@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.table.plan.FlinkJoinRelType
-import org.apache.flink.table.plan.nodes.common.CommonJoin
+import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -33,7 +33,7 @@ import scala.collection.JavaConversions._
 /**
   * Stream physical RelNode for [[Join]].
   */
-trait StreamExecJoinBase extends CommonJoin with StreamPhysicalRel {
+trait StreamExecJoinBase extends CommonPhysicalJoin with StreamPhysicalRel {
 
   override def producesUpdates: Boolean = {
     flinkJoinType != FlinkJoinRelType.INNER && flinkJoinType != FlinkJoinRelType.SEMI
