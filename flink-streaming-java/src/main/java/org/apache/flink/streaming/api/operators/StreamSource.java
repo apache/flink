@@ -47,10 +47,20 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 
 	private transient volatile boolean canceledOrStopped = false;
 
+	private long idleTimeout = -1;
+
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
+	}
+
+	public long getIdleTimeout() {
+		return idleTimeout;
+	}
+
+	public void setIdleTimeout(long idleTimeout) {
+		this.idleTimeout = idleTimeout;
 	}
 
 	public void run(final Object lockingObject, final StreamStatusMaintainer streamStatusMaintainer) throws Exception {
@@ -87,7 +97,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 			streamStatusMaintainer,
 			collector,
 			watermarkInterval,
-			-1);
+			getIdleTimeout());
 
 		try {
 			userFunction.run(ctx);

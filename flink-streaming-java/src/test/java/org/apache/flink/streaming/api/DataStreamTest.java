@@ -65,6 +65,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
@@ -1354,6 +1355,20 @@ public class DataStreamTest extends TestLogger {
 				Assert.assertEquals(10000L, (long) value);
 			}
 		});
+	}
+
+	@Test
+	public void testSetIdleTimeout() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Long> input1 = env.generateSequence(0, 0).setIdleTimeout(1000L);
+
+		if (input1.getTransformation() instanceof SourceTransformation) {
+			SourceTransformation sourceTransformation = (SourceTransformation) input1.getTransformation();
+			assertEquals(1000, sourceTransformation.getOperator().getIdleTimeout());
+		} else {
+			fail("Can not get a SourceTransformation from DataStreamSource");
+		}
 	}
 
 	/**

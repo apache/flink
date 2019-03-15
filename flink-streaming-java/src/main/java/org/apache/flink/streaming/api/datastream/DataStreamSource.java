@@ -58,4 +58,21 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 			return this;
 		}
 	}
+
+	public DataStreamSource<T> setIdleTimeout(long idleTimeout) {
+		if (idleTimeout < 0 && idleTimeout != -1) {
+			throw new IllegalArgumentException("The idle timeout " + idleTimeout + " is illegal, it should be larger " +
+				"than 0 or just set to -1.");
+		}
+
+		if (getTransformation() instanceof SourceTransformation) {
+			SourceTransformation sourceTransformation = (SourceTransformation) getTransformation();
+			sourceTransformation.getOperator().setIdleTimeout(idleTimeout);
+
+			return this;
+		} else {
+			throw new IllegalStateException("Can not get a SourceTransformation from DataStreamSource");
+		}
+	}
+
 }
