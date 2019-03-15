@@ -560,12 +560,14 @@ reporters will be instantiated on each job and task manager when they are starte
 
 - `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
 - `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
+- `metrics.reporter.<name>.factory.class`: The reporter factory class to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
 - `metrics.reporters`: (optional) A comma-separated include list of reporter names. By default all configured reporters will be used.
 
-All reporters must at least have the `class` property, some allow specifying a reporting `interval`. Below,
-we will list more settings specific to each reporter.
+All reporters must at least have either the `class` or `factory.class` property. Which property may/should be used depends on the reporter implementation. See the individual reporter configuration sections for more information.
+Some reporters (referred to as `Scheduled`) allow specifying a reporting `interval`.
+Below more settings specific to each reporter will be listed.
 
 Example reporter configuration that specifies multiple reporters:
 
