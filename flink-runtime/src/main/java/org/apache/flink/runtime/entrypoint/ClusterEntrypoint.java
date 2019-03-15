@@ -181,15 +181,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		}
 	}
 
-	private void configureFileSystems(Configuration configuration) throws Exception {
+	private void configureFileSystems(Configuration configuration) {
 		LOG.info("Install default filesystem.");
-
-		try {
-			FileSystem.initialize(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
+		FileSystem.initialize(configuration);
 	}
 
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {

@@ -61,7 +61,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -278,12 +277,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		final Configuration configuration = loadConfiguration(args);
 
-		try {
-			FileSystem.initialize(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
+		FileSystem.initialize(configuration);
 
 		SecurityUtils.install(new SecurityConfiguration(configuration));
 
