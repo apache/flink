@@ -16,7 +16,56 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
+
+.input-file {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+}
+
+.extra {
+  position: absolute;
+  right: 24px;
+  top: 18px;
+
+  nz-progress {
+    width: 150px;
+    display: block;
+  }
+
+  .upload {
+    vertical-align: middle;
+
+    span {
+      display: inline-block;
+      line-height: 22px;
+
+      i {
+        margin-right: 6px;
+      }
+    }
+  }
+}
+
+flink-dagre {
+  position: absolute;
+  top: 60px;
+  bottom: 0;
+  right: 0;
+  left: 0;
+}
+
+nz-form-item {
+  width: calc(50% - 16px);
+
+  nz-form-control {
+    width: 100%;
+
+    button {
+      margin-right: 12px;
+    }
+  }
+}

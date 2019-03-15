@@ -21,6 +21,7 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
 const routes: Routes = [
   { path: 'overview', loadChildren: './pages/overview/overview.module#OverviewModule' },
+  { path: 'submit', loadChildren: './pages/submit/submit.module#SubmitModule' },
   { path: '**', redirectTo: 'overview', pathMatch: 'full' }
 ];
 

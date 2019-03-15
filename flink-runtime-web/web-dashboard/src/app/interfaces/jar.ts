@@ -18,10 +18,10 @@
 
 export interface JarListInterface {
   address: string;
-  files: FilesItem[];
+  files: JarFilesItemInterface[];
 }
 
-interface FilesItem {
+export interface JarFilesItemInterface {
   id: string;
   name: string;
   uploaded: number;

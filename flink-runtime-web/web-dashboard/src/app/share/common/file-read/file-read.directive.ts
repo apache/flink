@@ -16,7 +16,22 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
+import { Directive, EventEmitter, HostListener, Output } from '@angular/core';
+
+@Directive({
+  selector: '[flinkFileRead]'
+})
+export class FileReadDirective {
+
+  @Output() fileRead = new EventEmitter();
+
+  @HostListener('change', [ '$event' ])
+  onChange(changeEvent: Event) {
+    const target = changeEvent.target as HTMLInputElement;
+    this.fileRead.emit(target!.files![ 0 ]);
+  }
+
+  constructor() {
+  }
+
+}

@@ -131,6 +131,8 @@ export interface NodesItemLinkInterface {
   id: string;
   source: string;
   target: string;
+  width?: number;
+  ship_strategy?: string;
 }
 
 export interface JobDetailCorrectInterface extends JobDetailInterface {

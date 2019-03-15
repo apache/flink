@@ -20,6 +20,8 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NgZorroAntdModule } from 'ng-zorro-antd';
 import { PipeModule } from 'pipes/pipe.module';
+import { DagreModule } from 'share/common/dagre/dagre.module';
+import { FileReadDirective } from 'share/common/file-read/file-read.directive';
 import { JobBadgeComponent } from 'share/customize/job-badge/job-badge.component';
 import { JobListComponent } from 'share/customize/job-list/job-list.component';
 import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.component';
@@ -28,17 +30,21 @@ import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.compon
   imports     : [
     CommonModule,
     NgZorroAntdModule,
-    PipeModule
+    PipeModule,
+    DagreModule
   ],
   declarations: [
     JobBadgeComponent,
     TaskBadgeComponent,
-    JobListComponent
+    JobListComponent,
+    FileReadDirective
   ],
   exports     : [
     JobListComponent,
     NgZorroAntdModule,
-    PipeModule
+    PipeModule,
+    DagreModule,
+    FileReadDirective
   ]
 })
 export class ShareModule {
