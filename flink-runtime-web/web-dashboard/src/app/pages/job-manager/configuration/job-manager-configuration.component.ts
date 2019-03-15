@@ -16,24 +16,27 @@
  * limitations under the License.
  */
 
-:host {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { JobManagerService } from 'services';
+
+@Component({
+  selector       : 'flink-job-manager-configuration',
+  templateUrl    : './job-manager-configuration.component.html',
+  styleUrls      : [ './job-manager-configuration.component.less' ],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class JobManagerConfigurationComponent implements OnInit {
+  listOfConfig: Array<{ key: string, value: string }> = [];
+
+  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {
+  }
+
+  ngOnInit() {
+    this.jobManagerService.loadConfig().subscribe(data => {
+      this.listOfConfig = data;
+      this.cdr.markForCheck();
+    });
+  }
+
 }
 
-.svg-container {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-  .svg-inner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    .background {
-      cursor: move;
-    }
-  }
-}

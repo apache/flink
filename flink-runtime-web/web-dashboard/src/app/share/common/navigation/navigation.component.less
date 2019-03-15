@@ -17,23 +17,13 @@
  */
 
 :host {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
+  ::ng-deep {
+    .ant-tabs-bar {
+      margin-bottom: 0;
+    }
 
-.svg-container {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-  .svg-inner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    .background {
-      cursor: move;
+    .ant-tabs-tab {
+      font-weight: 500;
     }
   }
 }

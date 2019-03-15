@@ -16,24 +16,11 @@
  * limitations under the License.
  */
 
-:host {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
+flink-monaco-editor {
+  height: calc(~"100vh - 160px");
 }
 
-.svg-container {
-  display: block;
+:host {
   position: relative;
-  height: 100%;
-  width: 100%;
-  .svg-inner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    .background {
-      cursor: move;
-    }
-  }
+  display: block;
 }

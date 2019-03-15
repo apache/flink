@@ -22,9 +22,12 @@ import { NgZorroAntdModule } from 'ng-zorro-antd';
 import { PipeModule } from 'pipes/pipe.module';
 import { DagreModule } from 'share/common/dagre/dagre.module';
 import { FileReadDirective } from 'share/common/file-read/file-read.directive';
+import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { NavigationComponent } from 'share/common/navigation/navigation.component';
 import { JobBadgeComponent } from 'share/customize/job-badge/job-badge.component';
 import { JobListComponent } from 'share/customize/job-list/job-list.component';
 import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.component';
+import { RefreshDownloadComponent } from 'share/customize/refresh-download/refresh-download.component';
 
 @NgModule({
   imports     : [
@@ -37,14 +40,20 @@ import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.compon
     JobBadgeComponent,
     TaskBadgeComponent,
     JobListComponent,
-    FileReadDirective
+    FileReadDirective,
+    MonacoEditorComponent,
+    NavigationComponent,
+    RefreshDownloadComponent
   ],
   exports     : [
     JobListComponent,
     NgZorroAntdModule,
     PipeModule,
     DagreModule,
-    FileReadDirective
+    FileReadDirective,
+    MonacoEditorComponent,
+    NavigationComponent,
+    RefreshDownloadComponent
   ]
 })
 export class ShareModule {

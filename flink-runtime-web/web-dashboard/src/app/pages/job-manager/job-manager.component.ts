@@ -16,24 +16,18 @@
  * limitations under the License.
  */
 
-:host {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 
-.svg-container {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-  .svg-inner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    .background {
-      cursor: move;
-    }
-  }
+@Component({
+  selector       : 'flink-job-manager',
+  templateUrl    : './job-manager.component.html',
+  styleUrls      : [ './job-manager.component.less' ],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class JobManagerComponent {
+  listOfNavigation = [
+    { path: 'config', title: 'Configuration' },
+    { path: 'logs', title: 'Logs' },
+    { path: 'stdout', title: 'Stdout' }
+  ];
 }

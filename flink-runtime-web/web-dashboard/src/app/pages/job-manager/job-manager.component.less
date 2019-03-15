@@ -16,24 +16,17 @@
  * limitations under the License.
  */
 
+@import "theme";
+
 :host {
   display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  padding: 0;
+  list-style: none;
+  background: @body-background;
+  border-radius: 2px;
   position: relative;
-  height: 100%;
-  width: 100%;
-}
-
-.svg-container {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-  .svg-inner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    .background {
-      cursor: move;
-    }
-  }
+  transition: all .3s;
 }

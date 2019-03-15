@@ -16,11 +16,20 @@
   ~ limitations under the License.
   -->
 
-<div class="svg-container">
-  <svg #svgContainer class="svg-inner" width="100%" height="100%">
-    <svg:rect width="100%" height="100%" fill="transparent" class="background" (click)="clickBgEvent.emit($event)"></svg:rect>
-    <svg:g #svgInner [attr.transform]="transform">
-      <ng-content></ng-content>
-    </svg:g>
-  </svg>
-</div>
+<nz-table
+  [nzData]="listOfConfig"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false">
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let config of listOfConfig">
+      <td><strong>{{ config.key }}</strong></td>
+      <td>{{ config.value }}</td>
+    </tr>
+  </tbody>
+</nz-table>

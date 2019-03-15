@@ -61,6 +61,8 @@ import {
   FileTextOutline,
   FullscreenOutline,
   ArrowsAltOutline,
+  ReloadOutline,
+  DownloadOutline,
   ShrinkOutline,
   PicCenterOutline
 } from '@ant-design/icons-angular/icons';
@@ -126,6 +128,8 @@ export function AppInitServiceFactory(statusService: StatusService, injector: In
         SyncOutline,
         AlignLeftOutline,
         FullscreenExitOutline,
+        ReloadOutline,
+        DownloadOutline,
         MinusOutline,
         FileTextOutline,
         FullscreenOutline,

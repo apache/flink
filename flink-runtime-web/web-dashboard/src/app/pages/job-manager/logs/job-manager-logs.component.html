@@ -16,11 +16,5 @@
   ~ limitations under the License.
   -->
 
-<div class="svg-container">
-  <svg #svgContainer class="svg-inner" width="100%" height="100%">
-    <svg:rect width="100%" height="100%" fill="transparent" class="background" (click)="clickBgEvent.emit($event)"></svg:rect>
-    <svg:g #svgInner [attr.transform]="transform">
-      <ng-content></ng-content>
-    </svg:g>
-  </svg>
-</div>
+<flink-monaco-editor [value]="logs"></flink-monaco-editor>
+<flink-refresh-download [downloadHref]="'jobmanager/log'" [downloadName]="'jobmanager_log'" (reload)="reload()"></flink-refresh-download>

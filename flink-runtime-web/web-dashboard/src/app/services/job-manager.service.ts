@@ -16,24 +16,36 @@
  * limitations under the License.
  */
 
-:host {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { BASE_URL } from 'config';
 
-.svg-container {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-  .svg-inner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    .background {
-      cursor: move;
-    }
+@Injectable({
+  providedIn: 'root'
+})
+export class JobManagerService {
+
+  /**
+   * Load JM config
+   */
+  loadConfig() {
+    return this.httpClient.get<Array<{ key: string; value: string; }>>(`${BASE_URL}/jobmanager/config`);
+  }
+
+  /**
+   * Load JM logs
+   */
+  loadLogs() {
+    return this.httpClient.get(`${BASE_URL}/jobmanager/log`, { responseType: 'text' });
+  }
+
+  /**
+   * Load JM stdout
+   */
+  loadStdout() {
+    return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, { responseType: 'text' });
+  }
+
+  constructor(private httpClient: HttpClient) {
   }
 }
