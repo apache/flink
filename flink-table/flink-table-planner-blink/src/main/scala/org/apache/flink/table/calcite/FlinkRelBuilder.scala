@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.expressions.WindowProperty
+
 import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -83,4 +85,11 @@ object FlinkRelBuilder {
 
     new FlinkRelBuilder(context, cluster, relOptSchema)
   }
+
+  /**
+    * Information necessary to create a window aggregate.
+    *
+    * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
+    */
+  case class NamedWindowProperty(name: String, property: WindowProperty)
 }

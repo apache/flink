@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.type;
 
+import org.apache.flink.table.typeutils.DecimalTypeInfo;
+
 import java.math.BigDecimal;
 
 import static java.lang.String.format;
@@ -97,6 +99,10 @@ public class DecimalType implements AtomicType {
 				"precision=" + precision +
 				", scale=" + scale +
 				'}';
+	}
+
+	public DecimalTypeInfo toTypeInfo() {
+		return new DecimalTypeInfo(precision, scale);
 	}
 
 	public static DecimalType of(int precision, int scale) {

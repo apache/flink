@@ -19,7 +19,9 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.ValidationException;
 
 /**
  * Base class for user-defined aggregates.
@@ -151,5 +153,22 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
 	 */
 	public TypeInformation<ACC> getAccumulatorType() {
 		return null;
+	}
+
+	/**
+	 * Returns the result type of the user defined inputs with a given signature.
+	 */
+	public TypeInformation[] getUserDefinedInputTypes(Class[] argTypes) {
+		TypeInformation[] types = new TypeInformation[argTypes.length];
+		try {
+			for (int i = 0; i < argTypes.length; i++) {
+				types[i] = TypeInformation.of(argTypes[i]);
+			}
+		} catch (InvalidTypesException e) {
+			throw new ValidationException("Parameter types of aggregate function '" +
+					getClass().getCanonicalName() + "' cannot be automatically determined. " +
+					"Please provide data type manually.");
+		}
+		return types;
 	}
 }

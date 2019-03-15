@@ -48,6 +48,27 @@ case class GeneratedExpression(
   def literal: Boolean = literalValue.isDefined
 
   /**
+    * Copy result term to target term if the reference is changed.
+    * Note: We must ensure that the target can only be copied out, so that its object is definitely
+    * a brand new reference, not the object being re-used.
+    * @param target the target term that cannot be assigned a reusable reference.
+    * @return code.
+    */
+  def copyResultTermToTargetIfChanged(ctx: CodeGeneratorContext, target: String): String = {
+    if (TypeCheckUtils.isMutable(resultType)) {
+      val typeTerm = boxedTypeTermForType(resultType)
+      val serTerm = ctx.addReusableTypeSerializer(resultType)
+      s"""
+         |if ($target != $resultTerm) {
+         |  $target = (($typeTerm) $serTerm.copy($resultTerm));
+         |}
+       """.stripMargin
+    } else {
+      s"$target = $resultTerm;"
+    }
+  }
+
+  /**
     * Deep copy the generated expression.
     *
     * NOTE: Please use this method when the result will be buffered.
