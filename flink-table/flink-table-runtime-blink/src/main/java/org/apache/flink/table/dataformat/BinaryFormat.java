@@ -42,7 +42,7 @@ public abstract class BinaryFormat {
 	 * To get the mark in highest bit of long.
 	 * Form: 10000000 00000000 ... (8 bytes)
 	 *
-	 * This is used to decide whether the data is stored in fixed-length part or variable-length
+	 * <p>This is used to decide whether the data is stored in fixed-length part or variable-length
 	 * part. see {@link #MAX_FIX_PART_DATA_SIZE} for more information.
 	 */
 	private static final long HIGHEST_FIRST_BIT = 0x80L << 56;
@@ -51,7 +51,7 @@ public abstract class BinaryFormat {
 	 * To get the 7 bits length in second bit to eighth bit out of a long.
 	 * Form: 01111111 00000000 ... (8 bytes)
 	 *
-	 * This is used to get the length of the data which is stored in this long.
+	 * <p>This is used to get the length of the data which is stored in this long.
 	 * see {@link #MAX_FIX_PART_DATA_SIZE} for more information.
 	 */
 	private static final long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;

@@ -140,18 +140,20 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			double estimatedRowCount,
 			int maxSegs,
 			int recursionLevel) {
-		this(longTable,
-			 partitionNum,
-			 buildSideSerializer,
-			 getBucketBuffersByRowCount((long) estimatedRowCount, maxSegs, longTable.pageSize()),
-			 recursionLevel,
-			 null,
-			 0);
+		this(
+				longTable,
+				partitionNum,
+				buildSideSerializer,
+				getBucketBuffersByRowCount((long) estimatedRowCount, maxSegs, longTable.pageSize()),
+				recursionLevel,
+				null,
+				0);
 		this.buildSideWriteBuffer = new BuildSideBuffer(longTable.nextSegment());
 	}
 
 	/**
-	 * Entrance 2: build table from spilled partition when the partition fits entirely into main memory.
+	 * Entrance 2: build table from spilled partition when the partition fits entirely into main
+	 * memory.
 	 */
 	LongHashPartition(
 			LongHybridHashTable longTable,
@@ -288,7 +290,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			int size,
 			MemorySegment dataSegment,
 			int currentPositionInSegment) throws IOException {
-		assert(numKeys <= numBuckets / 2);
+		assert (numKeys <= numBuckets / 2);
 		int bucketId = hashCode & numBucketsMask;
 
 		// each bucket occupied 16 bytes (long key + long pointer to data address)
@@ -468,10 +470,13 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 
 	/**
 	 * After build phase.
+	 *
 	 * @return build spill return buffer, if have spilled, it returns the current write buffer,
 	 * because it was used all the time in build phase, so it can only be returned at this time.
 	 */
-	int finalizeBuildPhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator) throws IOException {
+	int finalizeBuildPhase(
+			IOManager ioAccess,
+			FileIOChannel.Enumerator probeChannelEnumerator) throws IOException {
 		this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
 		this.partitionBuffers = this.buildSideWriteBuffer.close();
 
@@ -551,7 +556,9 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		return buildSideChannel == null;
 	}
 
-	final void insertIntoProbeBuffer(BinaryRowSerializer probeSer, BinaryRow record) throws IOException {
+	final void insertIntoProbeBuffer(
+			BinaryRowSerializer probeSer,
+			BinaryRow record) throws IOException {
 		probeSer.serialize(record, this.probeSideBuffer);
 		this.probeSideRecordCounter++;
 	}
@@ -887,7 +894,8 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		reuse.pointTo(segment, 0, length);
 	}
 
-	void iteratorToDenseBucket(MemorySegment[] denseBuckets, long addressOffset, long globalMinKey) {
+	void iteratorToDenseBucket(MemorySegment[] denseBuckets, long addressOffset,
+			long globalMinKey) {
 		int bucketOffset = 0;
 		MemorySegment segment = buckets[bucketOffset];
 		int segOffset = 0;
