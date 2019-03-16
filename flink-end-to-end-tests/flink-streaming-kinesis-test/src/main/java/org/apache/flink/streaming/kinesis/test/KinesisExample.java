@@ -62,6 +62,8 @@ public class KinesisExample {
 		Properties producerProperties = new Properties(parameterTool.getProperties());
 		// producer needs region even when URL is specified
 		producerProperties.putIfAbsent(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		// test driver does not deaggregate
+		producerProperties.putIfAbsent("AggregationEnabled", String.valueOf(false));
 
 		// KPL does not recognize endpoint URL..
 		String kinesisUrl = producerProperties.getProperty(ConsumerConfigConstants.AWS_ENDPOINT);
