@@ -23,7 +23,6 @@ package org.apache.flink.table.runtime.compression;
  */
 public class Lz4BlockCompressionFactory implements BlockCompressionFactory {
 
-
 	/**
 	 * We put two integers before each compressed block, the first integer represents the compressed
 	 * length of the block, and the second one represents the original length of the block.
