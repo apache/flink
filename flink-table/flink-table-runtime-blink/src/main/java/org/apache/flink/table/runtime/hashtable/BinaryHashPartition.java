@@ -337,8 +337,13 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
 			// close the channel.
 			this.buildSideChannel.close();
 
-			this.probeSideBuffer = FileChannelUtil.createOutputView(ioAccess, probeChannelEnumerator.next(),
-																	compressionEnable, compressionCodecFactory, compressionBlockSize, memorySegmentSize);
+			this.probeSideBuffer = FileChannelUtil.createOutputView(
+					ioAccess,
+					probeChannelEnumerator.next(),
+					compressionEnable,
+					compressionCodecFactory,
+					compressionBlockSize,
+					memorySegmentSize);
 			return 1;
 		} else {
 			return 0;

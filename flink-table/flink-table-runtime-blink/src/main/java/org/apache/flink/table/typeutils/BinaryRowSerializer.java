@@ -83,7 +83,7 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	@Override
 	public void serialize(BinaryRow record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyBytesToView(
+		SegmentsUtil.copyToView(
 				record.getSegments(),
 				record.getOffset(),
 				record.getSizeInBytes(),
@@ -133,9 +133,41 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 			BinaryRow record,
 			AbstractPagedOutputView headerLessView) throws IOException {
 		checkArgument(headerLessView.getHeaderLength() == 0);
+		int sizeInBytes = record.getSizeInBytes();
 		int skip = checkSkipWriteForFixLengthPart(headerLessView);
-		serialize(record, headerLessView);
+		if (record.getSegments().length == 1) {
+			headerLessView.writeInt(sizeInBytes);
+			headerLessView.write(record.getSegments()[0], record.getOffset(), sizeInBytes);
+		} else {
+			headerLessView.writeInt(record.getSizeInBytes());
+			serializeToPagesWithoutLength(record, headerLessView);
+		}
 		return skip;
+	}
+
+	/**
+	 * Serialize row to pages without row length. The caller should make sure that the fixed-length
+	 * parit can fit in output's current segment, no skip check will be done here.
+	 */
+	public void serializeToPagesWithoutLength(
+			BinaryRow record,
+			AbstractPagedOutputView out) throws IOException {
+		int remainSize = record.getSizeInBytes();
+		int posInSegOfRecord = record.getOffset();
+		int segmentSize = record.getSegments()[0].size();
+		for (MemorySegment segOfRecord : record.getSegments()) {
+			int nWrite = Math.min(segmentSize - posInSegOfRecord, remainSize);
+			assert nWrite > 0;
+			out.write(segOfRecord, posInSegOfRecord, nWrite);
+
+			// next new segment.
+			posInSegOfRecord = 0;
+			remainSize -= nWrite;
+			if (remainSize == 0) {
+				break;
+			}
+		}
+		checkArgument(remainSize == 0);
 	}
 
 	@Override

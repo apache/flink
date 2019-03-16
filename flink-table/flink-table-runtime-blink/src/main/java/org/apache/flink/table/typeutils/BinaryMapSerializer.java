@@ -65,7 +65,7 @@ public class BinaryMapSerializer extends TypeSerializerSingleton<BinaryMap> {
 	@Override
 	public void serialize(BinaryMap record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
+		SegmentsUtil.copyToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
 	}
 
 	@Override
