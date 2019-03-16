@@ -126,9 +126,22 @@ public class SegmentsUtil {
 		}
 	}
 
+	/**
+	 * Copy segments to target unsafe pointer.
+	 *
+	 * @param segments Source segments.
+	 * @param offset   The position where the bytes are started to be read from these memory
+	 *                 segments.
+	 * @param target   The unsafe memory to copy the bytes to.
+	 * @param pointer  The position in the target unsafe memory to copy the chunk to.
+	 * @param numBytes the number bytes to copy.
+	 */
 	public static void copyToUnsafe(
-			MemorySegment[] segments, int offset,
-			Object target, int pointer, int numBytes) {
+			MemorySegment[] segments,
+			int offset,
+			Object target,
+			int pointer,
+			int numBytes) {
 		if (inFirstSegment(segments, offset, numBytes)) {
 			segments[0].copyToUnsafe(offset, target, pointer, numBytes);
 		} else {
@@ -137,8 +150,11 @@ public class SegmentsUtil {
 	}
 
 	private static void copyMultiSegmentsToUnsafe(
-			MemorySegment[] segments, int offset,
-			Object target, int pointer, int numBytes) {
+			MemorySegment[] segments,
+			int offset,
+			Object target,
+			int pointer,
+			int numBytes) {
 		int remainSize = numBytes;
 		for (MemorySegment segment : segments) {
 			int remain = segment.size() - offset;
@@ -156,6 +172,47 @@ public class SegmentsUtil {
 				// now the offset = offset - segmentSize (-remain)
 				offset = -remain;
 			}
+		}
+	}
+
+
+	/**
+	 * Copy bytes of segments to output view.
+	 * Note: It just copies the data in, not include the length.
+	 *
+	 * @param segments    source segments
+	 * @param offset      offset for segments
+	 * @param sizeInBytes size in bytes
+	 * @param target      target output view
+	 */
+	public static void copyToView(
+			MemorySegment[] segments,
+			int offset,
+			int sizeInBytes,
+			DataOutputView target) throws IOException {
+		for (MemorySegment sourceSegment : segments) {
+			int curSegRemain = sourceSegment.size() - offset;
+			if (curSegRemain > 0) {
+				int copySize = Math.min(curSegRemain, sizeInBytes);
+
+				byte[] bytes = allocateReuseBytes(copySize);
+				sourceSegment.get(offset, bytes, 0, copySize);
+				target.write(bytes, 0, copySize);
+
+				sizeInBytes -= copySize;
+				offset = 0;
+			} else {
+				offset -= sourceSegment.size();
+			}
+
+			if (sizeInBytes == 0) {
+				return;
+			}
+		}
+
+		if (sizeInBytes != 0) {
+			throw new RuntimeException("No copy finished, this should be a bug, " +
+					"The remaining length is: " + sizeInBytes);
 		}
 	}
 
@@ -930,41 +987,4 @@ public class SegmentsUtil {
 		segment.put(segOffset, (byte) (LITTLE_ENDIAN ? b2 : b1));
 	}
 
-	/**
-	 * Copy bytes of segments to output view.
-	 * Note: It just copies the data in, not include the length.
-	 *
-	 * @param segments source segments
-	 * @param offset offset for segments
-	 * @param sizeInBytes size in bytes
-	 * @param target target output view
-	 */
-	public static void copyBytesToView(MemorySegment[] segments, int offset,
-			int sizeInBytes, DataOutputView target) throws IOException {
-		for (MemorySegment sourceSegment : segments) {
-			int curSegRemain = sourceSegment.size() - offset;
-			if (curSegRemain > 0) {
-				int copySize = Math.min(curSegRemain, sizeInBytes);
-
-				// TODO after FLINK-11724
-				byte[] bytes = new byte[copySize];
-				sourceSegment.get(offset, bytes);
-				target.write(bytes);
-
-				sizeInBytes -= copySize;
-				offset = 0;
-			} else {
-				offset -= sourceSegment.size();
-			}
-
-			if (sizeInBytes == 0) {
-				return;
-			}
-		}
-
-		if (sizeInBytes != 0) {
-			throw new RuntimeException("No copy finished, this should be a bug, " +
-					"The remaining length is: " + sizeInBytes);
-		}
-	}
 }

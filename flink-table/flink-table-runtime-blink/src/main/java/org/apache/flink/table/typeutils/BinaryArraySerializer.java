@@ -65,7 +65,7 @@ public class BinaryArraySerializer extends TypeSerializerSingleton<BinaryArray> 
 	@Override
 	public void serialize(BinaryArray record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
+		SegmentsUtil.copyToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
 	}
 
 	@Override

@@ -29,24 +29,30 @@ public abstract class BinaryFormat {
 	 * It decides whether to put data in FixLenPart or VarLenPart. See more in {@link BinaryRow}.
 	 *
 	 * <p>If len is less than 8, its binary format is:
-	 * 1bit mark(1) = 1, 7bits len, and 7bytes data.
+	 * 1-bit mark(1) = 1, 7-bits len, and 7-bytes data.
 	 * Data is stored in fix-length part.
 	 *
 	 * <p>If len is greater or equal to 8, its binary format is:
-	 * 1bit mark(1) = 0, 31bits offset, and 4bytes len.
+	 * 1-bit mark(1) = 0, 31-bits offset to the data, and 4-bytes length of data.
 	 * Data is stored in variable-length part.
 	 */
 	static final int MAX_FIX_PART_DATA_SIZE = 7;
 
 	/**
-	 * To get the mark in highest first bit.
-	 * Form: 1000 0000 0000 0000 ...
+	 * To get the mark in highest bit of long.
+	 * Form: 10000000 00000000 ... (8 bytes)
+	 *
+	 * <p>This is used to decide whether the data is stored in fixed-length part or variable-length
+	 * part. see {@link #MAX_FIX_PART_DATA_SIZE} for more information.
 	 */
-	private static final long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
+	private static final long HIGHEST_FIRST_BIT = 0x80L << 56;
 
 	/**
-	 * To get the 7 bits length in second bit to eighth bit.
-	 * Form: 0111 1111 0000 0000 ...
+	 * To get the 7 bits length in second bit to eighth bit out of a long.
+	 * Form: 01111111 00000000 ... (8 bytes)
+	 *
+	 * <p>This is used to get the length of the data which is stored in this long.
+	 * see {@link #MAX_FIX_PART_DATA_SIZE} for more information.
 	 */
 	private static final long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
 

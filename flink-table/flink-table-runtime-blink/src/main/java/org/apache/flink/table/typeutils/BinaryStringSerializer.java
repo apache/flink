@@ -70,7 +70,7 @@ public final class BinaryStringSerializer extends TypeSerializerSingleton<Binary
 	public void serialize(BinaryString record, DataOutputView target) throws IOException {
 		record.ensureMaterialized();
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
+		SegmentsUtil.copyToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
 	}
 
 	@Override

@@ -77,7 +77,7 @@ public final class BinaryGenericSerializer<T> extends TypeSerializer<BinaryGener
 	@Override
 	public void serialize(BinaryGeneric<T> record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
+		SegmentsUtil.copyToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
 	}
 
 	@Override
