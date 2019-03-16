@@ -93,7 +93,7 @@ public class StateTtlConfig implements Serializable {
 
 	private final UpdateType updateType;
 	private final StateVisibility stateVisibility;
-	private TtlTimeCharacteristic ttlTimeCharacteristic;
+	private final TtlTimeCharacteristic ttlTimeCharacteristic;
 	private final Time ttl;
 	private final CleanupStrategies cleanupStrategies;
 
@@ -126,6 +126,7 @@ public class StateTtlConfig implements Serializable {
 		return ttl;
 	}
 
+	@Nonnull
 	public TtlTimeCharacteristic getTtlTimeCharacteristic() {
 		return ttlTimeCharacteristic;
 	}
@@ -221,9 +222,7 @@ public class StateTtlConfig implements Serializable {
 		@Deprecated
 		@Nonnull
 		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
-			/**
-			 * We only support ProcessingTime now, so transfer to {@link TtlTimeCharacteristic.ProcessingTime} directly.
-			 */
+			// We only support ProcessingTime now, so transfer to  {@link TtlTimeCharacteristic.ProcessingTime} directly.
 			setTtlTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
 			return this;
 		}
@@ -233,6 +232,7 @@ public class StateTtlConfig implements Serializable {
 		 *
 		 * @param ttlTimeCharacteristic The time characteristic configures time scale to use for ttl.
 		 */
+		@Nonnull
 		public Builder setTtlTimeCharacteristic(@Nonnull TtlTimeCharacteristic ttlTimeCharacteristic) {
 			this.ttlTimeCharacteristic = ttlTimeCharacteristic;
 			return this;
