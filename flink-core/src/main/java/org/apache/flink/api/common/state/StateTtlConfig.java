@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
@@ -43,6 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * it can be wrapped with {@link org.apache.flink.api.java.typeutils.runtime.NullableSerializer}
  * at the cost of an extra byte in the serialized form.
  */
+@PublicEvolving
 public class StateTtlConfig implements Serializable {
 
 	private static final long serialVersionUID = -7592693245044289793L;
