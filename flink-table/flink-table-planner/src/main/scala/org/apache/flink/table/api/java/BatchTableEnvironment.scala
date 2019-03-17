@@ -24,6 +24,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
+import _root_.scala.collection.JavaConverters._
+
 /**
   * The [[TableEnvironment]] for a Java batch [[ExecutionEnvironment]] that works
   * with [[DataSet]]s.
@@ -80,7 +82,7 @@ class BatchTableEnvironment @Deprecated() (
     */
   def fromDataSet[T](dataSet: DataSet[T], fields: String): Table = {
     val exprs = ExpressionParser
-      .parseExpressionList(fields)
+      .parseExpressionList(fields).asScala
       .toArray
 
     val name = createUniqueTableName()
@@ -124,7 +126,7 @@ class BatchTableEnvironment @Deprecated() (
     */
   def registerDataSet[T](name: String, dataSet: DataSet[T], fields: String): Unit = {
     val exprs = ExpressionParser
-      .parseExpressionList(fields)
+      .parseExpressionList(fields).asScala
       .toArray
 
     checkValidTableName(name)

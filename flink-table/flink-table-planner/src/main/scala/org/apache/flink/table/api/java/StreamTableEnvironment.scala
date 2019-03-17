@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import _root_.java.lang.{Boolean => JBool}
+import _root_.scala.collection.JavaConverters._
 
 /**
   * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]] that works with
@@ -84,7 +85,7 @@ class StreamTableEnvironment @Deprecated() (
     */
   def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
     val exprs = ExpressionParser
-      .parseExpressionList(fields)
+      .parseExpressionList(fields).asScala
       .toArray
 
     val name = createUniqueTableName()
@@ -129,7 +130,7 @@ class StreamTableEnvironment @Deprecated() (
     */
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: String): Unit = {
     val exprs = ExpressionParser
-      .parseExpressionList(fields)
+      .parseExpressionList(fields).asScala
       .toArray
 
     checkValidTableName(name)
