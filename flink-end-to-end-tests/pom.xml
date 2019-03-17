@@ -66,8 +66,28 @@ under the License.
 		<module>flink-streaming-kafka-test</module>
 		<module>flink-streaming-kafka011-test</module>
 		<module>flink-streaming-kafka010-test</module>
-		<module>flink-streaming-kinesis-test</module>
 	</modules>
+
+	<!-- See main pom.xml for explanation of profiles -->
+	<profiles>
+		<!--
+			We include the kinesis module only optionally because it contains a dependency
+			licenced under the "Amazon Software License".
+			In accordance with the discussion in https://issues.apache.org/jira/browse/LEGAL-198
+			this is an optional module for Flink.
+		-->
+		<profile>
+			<id>include-kinesis</id>
+			<activation>
+				<property>
+					<name>include-kinesis</name>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-streaming-kinesis-test</module>
+			</modules>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
