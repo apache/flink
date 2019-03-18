@@ -156,7 +156,8 @@ class TemporalTableJoinTest extends TableTestBase {
       inputRates: TemporalTableFunction,
       proctime: Boolean = false): Unit = {
     val rates = inputRates.asInstanceOf[TemporalTableFunctionImpl]
-    assertEquals("currency", rates.getPrimaryKey)
+    assertTrue(rates.getPrimaryKey.isInstanceOf[ResolvedFieldReference])
+    assertEquals("currency", rates.getPrimaryKey.asInstanceOf[ResolvedFieldReference].name)
     assertTrue(rates.getTimeAttribute.isInstanceOf[ResolvedFieldReference])
     assertEquals(
       if (proctime) "proctime" else "rowtime",

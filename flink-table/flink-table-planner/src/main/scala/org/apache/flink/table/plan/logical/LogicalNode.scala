@@ -20,8 +20,9 @@ package org.apache.flink.table.plan.logical
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.plan.TreeNode
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableSchema, ValidationException}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.validate._
 
@@ -45,8 +46,13 @@ import org.apache.flink.table.validate._
   *
   * Once we pass the validation phase, we can safely convert LogicalNode into Calcite's RelNode.
   */
-abstract class LogicalNode extends TreeNode[LogicalNode] {
+abstract class LogicalNode extends TreeNode[LogicalNode] with TableOperation {
   def output: Seq[Attribute]
+
+  override def getTableSchema: TableSchema = {
+    val attributes = output
+    new TableSchema(attributes.map(_.name).toArray, attributes.map(_.resultType).toArray)
+  }
 
   def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     // resolve references and function calls

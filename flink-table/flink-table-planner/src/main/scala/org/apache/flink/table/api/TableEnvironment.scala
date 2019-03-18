@@ -53,6 +53,7 @@ import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.plan.OperationTreeBuilder
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -113,6 +114,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
+
+  private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config

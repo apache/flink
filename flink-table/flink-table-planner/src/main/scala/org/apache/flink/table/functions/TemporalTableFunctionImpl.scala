@@ -21,8 +21,8 @@ package org.apache.flink.table.functions
 import java.sql.Timestamp
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.PlannerExpression
+import org.apache.flink.table.operations.TableOperation
 
 /**
   * Class representing temporal table function over some history table.
@@ -33,9 +33,9 @@ import org.apache.flink.table.expressions.PlannerExpression
   * into other operators (like Temporal Table Join).
   */
 class TemporalTableFunctionImpl private(
-    @transient private val underlyingHistoryTable: Table,
+    @transient private val underlyingHistoryTable: TableOperation,
     private val timeAttribute: PlannerExpression,
-    private val primaryKey: String,
+    private val primaryKey: PlannerExpression,
     private val resultType: RowTypeInfo)
   extends TemporalTableFunction {
 
@@ -51,11 +51,11 @@ class TemporalTableFunctionImpl private(
     timeAttribute
   }
 
-  def getPrimaryKey: String = {
+  def getPrimaryKey: PlannerExpression = {
     primaryKey
   }
 
-  private[flink] def getUnderlyingHistoryTable: Table = {
+  private[flink] def getUnderlyingHistoryTable: TableOperation = {
     if (underlyingHistoryTable == null) {
       throw new IllegalStateException("Accessing table field after planing/serialization")
     }
@@ -65,15 +65,15 @@ class TemporalTableFunctionImpl private(
 
 object TemporalTableFunctionImpl {
   private[flink] def create(
-      table: Table,
+      operationTree: TableOperation,
       timeAttribute: PlannerExpression,
-      primaryKey: String): TemporalTableFunction = {
+      primaryKey: PlannerExpression): TemporalTableFunction = {
     new TemporalTableFunctionImpl(
-      table,
+      operationTree,
       timeAttribute,
       primaryKey,
       new RowTypeInfo(
-        table.getSchema.getFieldTypes,
-        table.getSchema.getFieldNames))
+        operationTree.getTableSchema.getFieldTypes,
+        operationTree.getTableSchema.getFieldNames))
   }
 }

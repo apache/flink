@@ -16,24 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions
+package org.apache.flink.table.operations;
 
-import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableSchema;
 
 /**
-  * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
-  */
-class ExpressionBridge[E <: Expression](
-    functionCatalog: FunctionCatalog,
-    finalVisitor: ExpressionVisitor[E]) {
+ * Base class for representing the operation structure behind a user-facing {@link Table} API.
+ */
+@Internal
+public interface TableOperation {
 
-  private val callResolver = new LookupCallResolver(functionCatalog)
-
-  def bridge(expression: Expression): E = {
-    // resolve calls
-    val resolvedExpressionTree = expression.accept(callResolver)
-
-    // convert to final expressions
-    resolvedExpressionTree.accept(finalVisitor)
-  }
+	/**
+	 * Resolved schema of this operation.
+	 */
+	TableSchema getTableSchema();
 }

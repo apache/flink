@@ -55,12 +55,12 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }
-        val tableOutput = table.logicalPlan.output
-        if (tableOutput.length > 1) {
+        val tableSchema = table.operationTree.getTableSchema
+        if (tableSchema.getFieldCount > 1) {
           return ValidationFailure(
             s"The sub-query table '$name' must not have more than one column.")
         }
-        (expression.resultType, tableOutput.head.resultType) match {
+        (expression.resultType, tableSchema.getFieldType(0).get()) match {
           case (lType, rType) if lType == rType => ValidationSuccess
           case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
           case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
