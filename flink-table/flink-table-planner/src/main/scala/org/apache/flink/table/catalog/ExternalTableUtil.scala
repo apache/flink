@@ -24,6 +24,7 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.{BatchTableSink, StreamTableSink}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
+import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.util.Logging
 
 /**
@@ -44,7 +45,7 @@ object ExternalTableUtil extends Logging {
       externalTable: ExternalCatalogTable)
     : TableSourceSinkTable[T1, T2] = {
 
-    val statistics = new FlinkStatistic(externalTable.getTableStats)
+    val statistics = new FlinkStatistic(toScala(externalTable.getTableStats))
 
     val source: Option[TableSourceTable[T1]] = if (externalTable.isTableSource) {
       Some(createTableSource(tableEnv, externalTable, statistics))

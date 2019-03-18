@@ -80,7 +80,7 @@ object CommonTestData {
       .field("a", Types.INT)
       .field("b", Types.LONG)
       .field("c", Types.STRING)
-    val externalTableBuilder1 = ExternalCatalogTable.builder(connDesc1)
+    val externalTableBuilder1 = new ExternalCatalogTableBuilder(connDesc1)
       .withFormat(formatDesc1)
       .withSchema(schemaDesc1)
 
@@ -123,7 +123,7 @@ object CommonTestData {
       .field("f", Types.INT)
       .field("g", Types.STRING)
       .field("h", Types.LONG)
-    val externalTableBuilder2 = ExternalCatalogTable.builder(connDesc2)
+    val externalTableBuilder2 = new ExternalCatalogTableBuilder(connDesc2)
       .withFormat(formatDesc2)
       .withSchema(schemaDesc2)
 
@@ -144,7 +144,7 @@ object CommonTestData {
       .field("x", Types.INT)
       .field("y", Types.LONG)
       .field("z", Types.STRING)
-    val externalTableBuilder3 = ExternalCatalogTable.builder(connDesc3)
+    val externalTableBuilder3 = new ExternalCatalogTableBuilder(connDesc3)
       .withFormat(formatDesc3)
       .withSchema(schemaDesc3)
 

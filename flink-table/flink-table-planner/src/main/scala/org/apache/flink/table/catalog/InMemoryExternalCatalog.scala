@@ -83,7 +83,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     catalogName: String,
     ignoreIfNotExists: Boolean): Unit = synchronized {
     if (databases.remove(catalogName).isEmpty && !ignoreIfNotExists) {
-      throw CatalogNotExistException(catalogName, null)
+      throw new CatalogNotExistException(catalogName)
     }
   }
 
@@ -101,7 +101,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
   override def getTable(tableName: String): ExternalCatalogTable = synchronized {
     tables.get(tableName) match {
       case Some(t) => t
-      case _ => throw TableNotExistException(name, tableName, null)
+      case _ => throw new TableNotExistException(name, tableName)
     }
   }
 
@@ -113,7 +113,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
   override def getSubCatalog(catalogName: String): ExternalCatalog = synchronized {
     databases.get(catalogName) match {
       case Some(d) => d
-      case _ => throw CatalogNotExistException(catalogName, null)
+      case _ => throw new CatalogNotExistException(catalogName)
     }
   }
 

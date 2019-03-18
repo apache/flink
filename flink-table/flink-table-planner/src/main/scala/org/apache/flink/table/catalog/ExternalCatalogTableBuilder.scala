@@ -20,149 +20,36 @@ package org.apache.flink.table.catalog
 
 import java.util
 
-import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_ROW_COUNT, readColumnStats}
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
 import org.apache.flink.table.descriptors._
-import org.apache.flink.table.factories.TableFactory
-import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 
 /**
-  * Defines a table in an [[ExternalCatalog]]. External catalog tables describe table sources
-  * and/or sinks for both batch and stream environments.
+  * A builder for creating an [[ExternalCatalogTable]].
   *
-  * See also [[TableFactory]] for more information about how to target suitable factories.
+  * It takes [[Descriptor]]s which allow for declaring the communication to external
+  * systems in an implementation-agnostic way. The classpath is scanned for suitable table
+  * factories that match the desired configuration.
   *
-  * Use [[ExternalCatalogTableBuilder]] to integrate with the normalized descriptor-based API.
+  * Use the provided builder methods to configure the external catalog table accordingly.
   *
-  * @param isBatch Flag whether this external table is intended for batch environments.
-  * @param isStreaming Flag whether this external table is intended for streaming environments.
-  * @param isSource Flag whether this external table is declared as table source.
-  * @param isSink Flag whether this external table is declared as table sink.
-  * @param properties Properties that describe the table and should match with a [[TableFactory]].
-  */
-class ExternalCatalogTable(
-    private val isBatch: Boolean,
-    private val isStreaming: Boolean,
-    private val isSource: Boolean,
-    private val isSink: Boolean,
-    private val properties: java.util.Map[String, String])
-  extends TableDescriptor {
-
-  // ----------------------------------------------------------------------------------------------
-  // Legacy code
-  // ---------------------------------------------------------------------------------------------
-
-  /**
-    * Reads table statistics from the descriptors properties.
-    *
-    * @deprecated This method exists for backwards-compatibility only.
-    */
-  @Deprecated
-  @deprecated
-  def getTableStats: Option[TableStats] = {
-    val normalizedProps = new DescriptorProperties()
-    normalizedProps.putProperties(normalizedProps)
-    val rowCount = toScala(normalizedProps.getOptionalLong(STATISTICS_ROW_COUNT))
-    rowCount match {
-      case Some(cnt) =>
-        val columnStats = readColumnStats(normalizedProps, STATISTICS_COLUMNS)
-        Some(new TableStats(cnt, columnStats))
-      case None =>
-        None
-    }
-  }
-
-  // ----------------------------------------------------------------------------------------------
-  // Getters
-  // ----------------------------------------------------------------------------------------------
-
-  /**
-    * Returns whether this external table is declared as table source.
-    */
-  def isTableSource: Boolean = {
-    isSource
-  }
-
-  /**
-    * Returns whether this external table is declared as table sink.
-    */
-  def isTableSink: Boolean = {
-    isSink
-  }
-
-  /**
-    * Returns whether this external table is intended for batch environments.
-    */
-  def isBatchTable: Boolean = {
-    isBatch
-  }
-
-  /**
-    * Returns whether this external table is intended for stream environments.
-    */
-  def isStreamTable: Boolean = {
-    isStreaming
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  /**
-    * Converts this descriptor into a set of properties.
-    */
-  override def toProperties: util.Map[String, String] = {
-    properties
-  }
-}
-
-object ExternalCatalogTable {
-
-  /**
-    * Creates a builder for creating an [[ExternalCatalogTable]].
-    *
-    * It takes [[Descriptor]]s which allow for declaring the communication to external
-    * systems in an implementation-agnostic way. The classpath is scanned for suitable table
-    * factories that match the desired configuration.
-    *
-    * Use the provided builder methods to configure the external catalog table accordingly.
-    *
-    * The following example shows how to read from a connector using a JSON format and
-    * declaring it as a table source:
-    *
-    * {{{
-    *   ExternalCatalogTable(
-    *     new ExternalSystemXYZ()
-    *       .version("0.11"))
-    *   .withFormat(
-    *     new Json()
-    *       .jsonSchema("{...}")
-    *       .failOnMissingField(false))
-    *   .withSchema(
-    *     new Schema()
-    *       .field("user-name", "VARCHAR").from("u_name")
-    *       .field("count", "DECIMAL")
-    *   .supportsStreaming()
-    *   .asTableSource()
-    * }}}
-    *
-    * @param connectorDescriptor Connector descriptor describing the external system
-    * @return External catalog builder
-    *
-    * @deprecated This method might be removed in 1.9 and may be added back after some major rework.
-    *             Use `new ExternalCatalogTableBuilder()` instead.
-    */
-  @Deprecated
-  @deprecated(
-    "This method might be removed in 1.9 and may be added back after some major rework. " +
-    "Use `new ExternalCatalogTableBuilder()` instead.",
-    "1.8")
-  def builder(connectorDescriptor: ConnectorDescriptor): ExternalCatalogTableBuilder = {
-    new ExternalCatalogTableBuilder(connectorDescriptor)
-  }
-}
-
-/**
-  * Builder for an [[ExternalCatalogTable]].
+  * The following example shows how to read from a connector using a JSON format and
+  * declaring it as a table source:
+  *
+  * {{{
+  *   ExternalCatalogTableBuilder(
+  *     new ExternalSystemXYZ()
+  *       .version("0.11"))
+  *   .withFormat(
+  *     new Json()
+  *       .jsonSchema("{...}")
+  *       .failOnMissingField(false))
+  *   .withSchema(
+  *     new Schema()
+  *       .field("user-name", "VARCHAR").from("u_name")
+  *       .field("count", "DECIMAL")
+  *   .supportsStreaming()
+  *   .asTableSource()
+  * }}}
   *
   * @param connectorDescriptor Connector descriptor describing the external system
   */
@@ -300,8 +187,8 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     new ExternalCatalogTable(
       isBatch,
       isStreaming,
-      isSource = true,
-      isSink = false,
+      true,
+      false,
       toProperties)
   }
 
@@ -315,8 +202,8 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     new ExternalCatalogTable(
       isBatch,
       isStreaming,
-      isSource = false,
-      isSink = true,
+      false,
+      true,
       toProperties)
   }
 
@@ -330,8 +217,8 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     new ExternalCatalogTable(
       isBatch,
       isStreaming,
-      isSource = true,
-      isSink = true,
+      true,
+      true,
       toProperties)
   }
 
