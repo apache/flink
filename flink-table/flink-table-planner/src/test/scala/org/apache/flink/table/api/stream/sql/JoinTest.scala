@@ -19,10 +19,9 @@ package org.apache.flink.table.api.stream.sql
 
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableImpl, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
-import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.runtime.join.WindowJoinUtil
 import org.apache.flink.table.utils.TableTestUtil.{term, _}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
@@ -989,7 +988,7 @@ class JoinTest extends TableTestBase {
 
     val resultTable = streamUtil.tableEnv.sqlQuery(query)
     val relNode = RelTimeIndicatorConverter.convert(
-      resultTable.getRelNode,
+      resultTable.asInstanceOf[TableImpl].getRelNode,
       streamUtil.tableEnv.getRelBuilder.getRexBuilder)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val (windowBounds, _) =
@@ -1014,7 +1013,7 @@ class JoinTest extends TableTestBase {
 
     val resultTable = streamUtil.tableEnv.sqlQuery(query)
     val relNode = RelTimeIndicatorConverter.convert(
-      resultTable.getRelNode,
+      resultTable.asInstanceOf[TableImpl].getRelNode,
       streamUtil.tableEnv.getRelBuilder.getRexBuilder)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val (_, remainCondition) =

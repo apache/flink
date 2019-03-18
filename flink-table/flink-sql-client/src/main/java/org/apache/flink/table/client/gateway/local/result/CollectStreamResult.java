@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
@@ -54,7 +55,7 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	protected final Object resultLock;
 	protected SqlExecutionException executionException;
 
-	public CollectStreamResult(TypeInformation<Row> outputType, ExecutionConfig config,
+	public CollectStreamResult(RowTypeInfo outputType, ExecutionConfig config,
 			InetAddress gatewayAddress, int gatewayPort) {
 		this.outputType = outputType;
 
@@ -72,7 +73,8 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 
 		// create table sink
 		// pass binding address and port such that sink knows where to send to
-		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer);
+		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer)
+			.configure(outputType.getFieldNames(), outputType.getFieldTypes());
 		retrievalThread = new ResultRetrievalThread();
 		monitoringThread = new JobMonitoringThread();
 	}

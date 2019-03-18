@@ -419,7 +419,9 @@ public class LocalExecutor implements Executor {
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				table.writeToSink(result.getTableSink(), envInst.getQueryConfig());
+				envInst
+					.getTableEnvironment()
+					.writeToSink(table, result.getTableSink(), envInst.getQueryConfig());
 				return null;
 			});
 			jobGraph = envInst.createJobGraph(jobName);

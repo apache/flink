@@ -19,9 +19,9 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 
@@ -42,7 +42,7 @@ public class MaterializedCollectStreamResultTest {
 
 	@Test
 	public void testSnapshot() throws UnknownHostException {
-		final TypeInformation<Row> type = Types.ROW(Types.STRING, Types.LONG);
+		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
@@ -90,7 +90,7 @@ public class MaterializedCollectStreamResultTest {
 
 	@Test
 	public void testLimitedSnapshot() throws UnknownHostException {
-		final TypeInformation<Row> type = Types.ROW(Types.STRING, Types.LONG);
+		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
@@ -145,7 +145,7 @@ public class MaterializedCollectStreamResultTest {
 		public boolean isRetrieving;
 
 		public TestMaterializedCollectStreamResult(
-				TypeInformation<Row> outputType,
+				RowTypeInfo outputType,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
 				int gatewayPort,
@@ -162,7 +162,7 @@ public class MaterializedCollectStreamResultTest {
 		}
 
 		public TestMaterializedCollectStreamResult(
-				TypeInformation<Row> outputType,
+				RowTypeInfo outputType,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
 				int gatewayPort,

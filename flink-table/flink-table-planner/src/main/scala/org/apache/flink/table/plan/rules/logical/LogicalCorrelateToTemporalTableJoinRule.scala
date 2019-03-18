@@ -24,10 +24,10 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
-import org.apache.flink.table.api.{Table, Types, ValidationException}
+import org.apache.flink.table.api.{TableImpl, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isTimeIndicatorType}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
@@ -64,9 +64,12 @@ class LogicalCorrelateToTemporalTableJoinRule
       .visit(rightTableFunctionScan.getCall) match {
       case None =>
         // Do nothing and handle standard TableFunction
-      case Some(TemporalTableFunctionCall(rightTemporalTableFunction, leftTimeAttribute)) =>
+      case Some(TemporalTableFunctionCall(
+        rightTemporalTableFunction: TemporalTableFunctionImpl, leftTimeAttribute)) =>
+
         // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
-        val underlyingHistoryTable: Table = rightTemporalTableFunction.getUnderlyingHistoryTable
+        val underlyingHistoryTable: TableImpl =
+          rightTemporalTableFunction.getUnderlyingHistoryTable.asInstanceOf[TableImpl]
         val relBuilder = this.relBuilderFactory.create(
           cluster,
           underlyingHistoryTable.relBuilder.getRelOptSchema)
@@ -162,7 +165,8 @@ class GetTemporalTableFunctionCall(
     if (!tableFunction.getTableFunction.isInstanceOf[TemporalTableFunction]) {
       return null
     }
-    val temporalTableFunction = tableFunction.getTableFunction.asInstanceOf[TemporalTableFunction]
+    val temporalTableFunction =
+      tableFunction.getTableFunction.asInstanceOf[TemporalTableFunctionImpl]
 
     checkState(
       rexCall.getOperands.size().equals(1),
@@ -181,7 +185,7 @@ class GetTemporalTableFunctionCall(
   * for join condition context without `$cor` reference.
   */
 class CorrelatedFieldAccessRemoval(
-    var temporalTableFunction: TemporalTableFunction,
+    var temporalTableFunction: TemporalTableFunctionImpl,
     var rexBuilder: RexBuilder,
     var leftSide: RelNode) extends RexDefaultVisitor[RexNode] {
 

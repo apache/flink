@@ -19,8 +19,8 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 
@@ -38,7 +38,7 @@ public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C> impl
 	private List<Tuple2<Boolean, Row>> changeRecordBuffer;
 	private static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
 
-	public ChangelogCollectStreamResult(TypeInformation<Row> outputType, ExecutionConfig config,
+	public ChangelogCollectStreamResult(RowTypeInfo outputType, ExecutionConfig config,
 			InetAddress gatewayAddress, int gatewayPort) {
 		super(outputType, config, gatewayAddress, gatewayPort);
 

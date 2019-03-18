@@ -25,7 +25,7 @@ import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.stream.table.TemporalTableJoinTest._
 import org.apache.flink.table.expressions.ResolvedFieldReference
-import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
@@ -153,8 +153,9 @@ class TemporalTableJoinTest extends TableTestBase {
 
   private def assertRatesFunction(
       expectedSchema: TableSchema,
-      rates: TemporalTableFunction,
+      inputRates: TemporalTableFunction,
       proctime: Boolean = false): Unit = {
+    val rates = inputRates.asInstanceOf[TemporalTableFunctionImpl]
     assertEquals("currency", rates.getPrimaryKey)
     assertTrue(rates.getTimeAttribute.isInstanceOf[ResolvedFieldReference])
     assertEquals(

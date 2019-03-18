@@ -512,13 +512,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   def registerTable(name: String, table: Table): Unit = {
 
     // check that table belongs to this table environment
-    if (table.tableEnv != this) {
+    if (table.asInstanceOf[TableImpl].tableEnv != this) {
       throw new TableException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
     checkValidTableName(name)
-    val tableTable = new RelTable(table.getRelNode)
+    val tableTable = new RelTable(table.asInstanceOf[TableImpl].getRelNode)
     registerTableInternal(name, tableTable)
   }
 
@@ -656,7 +656,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
       if (table != null) {
-        return Some(new Table(this, CatalogNode(tablePath, table.getRowType(typeFactory))))
+        return Some(new TableImpl(this, CatalogNode(tablePath, table.getRowType(typeFactory))))
       }
     }
     None
@@ -739,7 +739,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new Table(this, LogicalRelNode(relational.rel))
+      new TableImpl(this, LogicalRelNode(relational.rel))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -801,7 +801,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         val validatedQuery = planner.validate(query)
 
         // get query result as Table
-        val queryResult = new Table(this, LogicalRelNode(planner.rel(validatedQuery).rel))
+        val queryResult = new TableImpl(this, LogicalRelNode(planner.rel(validatedQuery).rel))
 
         // get name of sink table
         val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
