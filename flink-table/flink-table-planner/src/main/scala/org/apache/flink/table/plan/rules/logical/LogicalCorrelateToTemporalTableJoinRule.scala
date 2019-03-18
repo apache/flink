@@ -24,11 +24,13 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
-import org.apache.flink.table.api.{TableImpl, Types, ValidationException}
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isTimeIndicatorType}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
+import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.plan.logical.LogicalNode
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
 import org.apache.flink.util.Preconditions.checkState
@@ -41,7 +43,7 @@ class LogicalCorrelateToTemporalTableJoinRule
         operand(classOf[TableFunctionScan], none()))),
     "LogicalCorrelateToTemporalTableJoinRule") {
 
-  def extractNameFromTimeAttribute(timeAttribute: PlannerExpression): String = {
+  private def extractNameFromTimeAttribute(timeAttribute: PlannerExpression): String = {
     timeAttribute match {
       case ResolvedFieldReference(name, _)
         if timeAttribute.resultType == Types.LONG ||
@@ -50,6 +52,16 @@ class LogicalCorrelateToTemporalTableJoinRule
         name
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
+    }
+  }
+
+  private def extractNameFromPrimaryKeyAttribute(expression: PlannerExpression): String = {
+    expression match {
+      case ResolvedFieldReference(name, _) =>
+        name
+      case _ => throw new ValidationException(
+        s"Unsupported expression [$expression] as primary key. " +
+          s"Only top-level (not nested) field references are supported.")
     }
   }
 
@@ -68,14 +80,15 @@ class LogicalCorrelateToTemporalTableJoinRule
         rightTemporalTableFunction: TemporalTableFunctionImpl, leftTimeAttribute)) =>
 
         // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
-        val underlyingHistoryTable: TableImpl =
-          rightTemporalTableFunction.getUnderlyingHistoryTable.asInstanceOf[TableImpl]
+        val underlyingHistoryTable: TableOperation = rightTemporalTableFunction
+          .getUnderlyingHistoryTable
         val relBuilder = this.relBuilderFactory.create(
           cluster,
-          underlyingHistoryTable.relBuilder.getRelOptSchema)
+          leftNode.getTable.getRelOptSchema)
         val rexBuilder = cluster.getRexBuilder
 
-        val rightNode: RelNode = underlyingHistoryTable.logicalPlan.toRelNode(relBuilder)
+        val rightNode: RelNode = underlyingHistoryTable.asInstanceOf[LogicalNode]
+          .toRelNode(relBuilder)
 
         val rightTimeIndicatorExpression = createRightExpression(
           rexBuilder,
@@ -87,7 +100,7 @@ class LogicalCorrelateToTemporalTableJoinRule
           rexBuilder,
           leftNode,
           rightNode,
-          rightTemporalTableFunction.getPrimaryKey)
+          extractNameFromPrimaryKeyAttribute(rightTemporalTableFunction.getPrimaryKey))
 
         relBuilder.push(
           if (isProctimeIndicatorType(rightTemporalTableFunction.getTimeAttribute.resultType)) {

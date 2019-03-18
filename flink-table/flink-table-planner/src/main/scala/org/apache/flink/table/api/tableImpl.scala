@@ -17,21 +17,20 @@
  */
 package org.apache.flink.table.api
 
+import _root_.java.util.Collections.emptyList
 import _root_.java.util.function.Supplier
+import _root_.java.util.Optional
 
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.expressions.ApiExpressionUtils
-.{extractAggregationsAndProperties, extractFieldReferences, replaceAggregationsAndProperties}
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge,
-  ExpressionParser, LookupCallResolver, Ordering, PlannerExpression, ResolvedFieldReference,
-  UnresolvedAlias, WindowProperty}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.expressions.ApiExpressionUtils.{extractAggregationsAndProperties,
+  extractFieldReferences, replaceAggregationsAndProperties}
+import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical.{Minus, _}
-import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.plan.OperationTreeBuilder
+import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
 import _root_.scala.collection.JavaConverters._
 
@@ -43,26 +42,23 @@ import _root_.scala.collection.JavaConverters._
   * __NOTE__: Currently, the implementation depends on Calcite.
   *
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
-  * @param logicalPlan logical representation
+  * @param operationTree logical representation
   */
 class TableImpl(
     private[flink] val tableEnv: TableEnvironment,
-    private[flink] val logicalPlan: LogicalNode) extends Table {
+    private[flink] val operationTree: TableOperation)
+  extends Table {
 
-  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
-    tableEnv.expressionBridge
+  private[flink] val operationTreeBuilder: OperationTreeBuilder = tableEnv.operationTreeBuilder
 
   private[flink] val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
 
-  private lazy val tableSchema: TableSchema = new TableSchema(
-    logicalPlan.output.map(_.name).toArray,
-    logicalPlan.output.map(_.resultType).toArray)
+  private lazy val tableSchema: TableSchema = operationTree.getTableSchema
 
   var tableName: String = _
 
-  def relBuilder: FlinkRelBuilder = tableEnv.getRelBuilder
-
-  def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
+  def getRelNode: RelNode = operationTree.asInstanceOf[LogicalNode]
+    .toRelNode(tableEnv.getRelBuilder)
 
   override def getSchema: TableSchema = tableSchema
 
@@ -99,28 +95,18 @@ class TableImpl(
         replaceAggregationsAndProperties(
           expressionsWithResolvedCalls,
           aggNames,
-          propNames).asScala
-          .map(expressionBridge.bridge)
-          .flatMap(expr => flattenExpression(expr, logicalPlan, tableEnv))
-          .map(UnresolvedAlias)
+          propNames)
       val projectFields = extractFieldReferences(expressionsWithResolvedCalls)
-        .asScala
-        .map(expressionBridge.bridge)
-        .flatMap(expr => flattenExpression(expr, logicalPlan, tableEnv))
-        .map(UnresolvedAlias).toList
 
-      new TableImpl(tableEnv,
-        Project(projectsOnAgg,
-          Aggregate(Nil, aggNames.asScala.map(a => Alias(expressionBridge.bridge(a._1), a._2)).toSeq,
-            Project(projectFields, logicalPlan).validate(tableEnv)
-          ).validate(tableEnv)
-        ).validate(tableEnv)
+      wrap(
+        operationTreeBuilder.project(projectsOnAgg,
+          operationTreeBuilder.aggregate(emptyList[Expression], aggNames,
+            operationTreeBuilder.project(projectFields, operationTree.asInstanceOf[LogicalNode])
+          )
+        )
       )
     } else {
-      new TableImpl(tableEnv,
-        Project(expressionsWithResolvedCalls.asScala.map(expressionBridge.bridge)
-          .flatMap(expr => flattenExpression(expr, logicalPlan, tableEnv))
-          .map(UnresolvedAlias), logicalPlan).validate(tableEnv))
+      wrap(operationTreeBuilder.project(expressionsWithResolvedCalls, operationTree))
     }
   }
 
@@ -137,33 +123,15 @@ class TableImpl(
       timeAttribute: Expression,
       primaryKey: Expression)
     : TemporalTableFunction = {
-    createTemporalTableFunctionInternal(
-      expressionBridge.bridge(timeAttribute),
-      expressionBridge.bridge(primaryKey))
-  }
-
-  private def createTemporalTableFunctionInternal(
-      timeAttribute: PlannerExpression,
-      primaryKey: PlannerExpression)
-    : TemporalTableFunction = {
-    val temporalTable = TemporalTable(timeAttribute, primaryKey, logicalPlan)
-      .validate(tableEnv)
-      .asInstanceOf[TemporalTable]
+    val temporalTable = operationTreeBuilder.createTemporalTable(
+      timeAttribute,
+      primaryKey,
+      operationTree)
 
     TemporalTableFunctionImpl.create(
-      this,
+      operationTree,
       temporalTable.timeAttribute,
-      validatePrimaryKeyExpression(temporalTable.primaryKey))
-  }
-
-  private def validatePrimaryKeyExpression(expression: Expression): String = {
-    expression match {
-      case fieldReference: ResolvedFieldReference =>
-        fieldReference.name
-      case _ => throw new ValidationException(
-        s"Unsupported expression [$expression] as primary key. " +
-          s"Only top-level (not nested) field references are supported.")
-    }
+      temporalTable.primaryKey)
   }
 
   override def as(fields: String): Table = {
@@ -171,11 +139,11 @@ class TableImpl(
   }
 
   override def as(fields: Expression*): Table = {
-    asInternal(fields.map(tableEnv.expressionBridge.bridge))
+    asInternal(fields)
   }
 
-  private def asInternal(fields: Seq[PlannerExpression]): Table = {
-    new TableImpl(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
+  private def asInternal(fields: Seq[Expression]): Table = {
+    new TableImpl(tableEnv, operationTreeBuilder.alias(fields.asJava, operationTree))
   }
 
   override def filter(predicate: String): Table = {
@@ -183,11 +151,12 @@ class TableImpl(
   }
 
   override def filter(predicate: Expression): Table = {
-    filterInternal(expressionBridge.bridge(predicate))
+    filterInternal(predicate)
   }
 
-  private def filterInternal(predicate: PlannerExpression): Table = {
-    new TableImpl(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
+  private def filterInternal(predicate: Expression): Table = {
+    val resolvedCallPredicate = predicate.accept(callResolver)
+    new TableImpl(tableEnv, operationTreeBuilder.filter(resolvedCallPredicate, operationTree))
   }
 
   override def where(predicate: String): Table = {
@@ -211,7 +180,7 @@ class TableImpl(
   }
 
   override def distinct(): Table = {
-    new TableImpl(tableEnv, Distinct(logicalPlan).validate(tableEnv))
+    new TableImpl(tableEnv, operationTreeBuilder.distinct(operationTree))
   }
 
   override def join(right: Table): Table = {
@@ -223,7 +192,7 @@ class TableImpl(
   }
 
   override def join(right: Table, joinPredicate: Expression): Table = {
-    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.INNER)
+    joinInternal(right, Some(joinPredicate), JoinType.INNER)
   }
 
   override def leftOuterJoin(right: Table): Table = {
@@ -235,7 +204,7 @@ class TableImpl(
   }
 
   override def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.LEFT_OUTER)
+    joinInternal(right, Some(joinPredicate), JoinType.LEFT_OUTER)
   }
 
   override def rightOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -243,7 +212,7 @@ class TableImpl(
   }
 
   override def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.RIGHT_OUTER)
+    joinInternal(right, Some(joinPredicate), JoinType.RIGHT_OUTER)
   }
 
   override def fullOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -251,12 +220,12 @@ class TableImpl(
   }
 
   override def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.FULL_OUTER)
+    joinInternal(right, Some(joinPredicate), JoinType.FULL_OUTER)
   }
 
   private def joinInternal(
       right: Table,
-      joinPredicate: Option[PlannerExpression],
+      joinPredicate: Option[Expression],
       joinType: JoinType)
     : Table = {
     // check that the TableEnvironment of right table is not null
@@ -265,14 +234,12 @@ class TableImpl(
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
 
-    new TableImpl(
-      tableEnv,
-      Join(
-        this.logicalPlan,
-        right.asInstanceOf[TableImpl].logicalPlan,
+    wrap(operationTreeBuilder.join(
+        this.operationTree,
+        right.asInstanceOf[TableImpl].operationTree,
         joinType,
-        joinPredicate,
-        correlated = false).validate(tableEnv))
+        toJava(joinPredicate),
+        correlated = false))
   }
 
   override def joinLateral(tableFunctionCall: String): Table = {
@@ -280,7 +247,7 @@ class TableImpl(
   }
 
   override def joinLateral(tableFunctionCall: Expression): Table = {
-    joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.INNER)
+    joinLateralInternal(tableFunctionCall, None, JoinType.INNER)
   }
 
   override def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
@@ -291,8 +258,8 @@ class TableImpl(
 
   override def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
     joinLateralInternal(
-      expressionBridge.bridge(tableFunctionCall),
-      Some(expressionBridge.bridge(joinPredicate)),
+      tableFunctionCall,
+      Some(joinPredicate),
       JoinType.INNER)
   }
 
@@ -301,7 +268,7 @@ class TableImpl(
   }
 
   override def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
-    joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.LEFT_OUTER)
+    joinLateralInternal(tableFunctionCall, None, JoinType.LEFT_OUTER)
   }
 
   override def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
@@ -313,14 +280,14 @@ class TableImpl(
   override def leftOuterJoinLateral(
     tableFunctionCall: Expression, joinPredicate: Expression): Table = {
     joinLateralInternal(
-      expressionBridge.bridge(tableFunctionCall),
-      Some(expressionBridge.bridge(joinPredicate)),
+      tableFunctionCall,
+      Some(joinPredicate),
       JoinType.LEFT_OUTER)
   }
 
   private def joinLateralInternal(
-      callExpr: PlannerExpression,
-      joinPredicate: Option[PlannerExpression],
+      callExpr: Expression,
+      joinPredicate: Option[Expression],
       joinType: JoinType): Table = {
 
     // check join type
@@ -328,85 +295,75 @@ class TableImpl(
       throw new ValidationException(
         "Table functions are currently only supported for inner and left outer lateral joins.")
     }
-
-    val logicalCall = UserDefinedFunctionUtils.createLogicalFunctionCall(
-      callExpr,
-      logicalPlan)
-    val validatedLogicalCall = logicalCall.validate(tableEnv)
-
-    new TableImpl(
-      tableEnv,
-      Join(
-        logicalPlan,
-        validatedLogicalCall,
+    wrap(operationTreeBuilder.joinLateral(
+        operationTree,
+        callExpr.accept(callResolver),
         joinType,
-        joinPredicate,
-        correlated = true
-      ).validate(tableEnv))
+        toJava(joinPredicate.map(_.accept(callResolver))
+      )))
   }
 
   override def minus(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
-    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new TableImpl(
-      tableEnv, Minus(logicalPlan, right.asInstanceOf[TableImpl].logicalPlan, all = false)
-      .validate(tableEnv))
+    wrap(operationTreeBuilder.minus(operationTree, rightImpl.operationTree, all = false))
   }
 
   override def minusAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
-    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new TableImpl(
-      tableEnv, Minus(logicalPlan, right.asInstanceOf[TableImpl].logicalPlan, all = true)
-      .validate(tableEnv))
+
+    wrap(operationTreeBuilder.minus(operationTree, rightImpl.operationTree, all = true))
   }
 
   override def union(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
-    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new TableImpl(
-      tableEnv, Union(logicalPlan, right.asInstanceOf[TableImpl].logicalPlan, all = false)
-        .validate(tableEnv))
+
+    wrap(operationTreeBuilder.union(operationTree, rightImpl.operationTree, all = false))
   }
 
   override def unionAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new TableImpl(
-      tableEnv, Union(logicalPlan, right.asInstanceOf[TableImpl].logicalPlan, all = true)
-        .validate(tableEnv))
+
+    wrap(operationTreeBuilder.union(operationTree, rightImpl.operationTree, all = true))
   }
 
   override def intersect(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
-    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
       throw new ValidationException(
         "Only tables from the same TableEnvironment can be intersected.")
     }
-    new TableImpl(
-      tableEnv, Intersect(logicalPlan, right.asInstanceOf[TableImpl].logicalPlan, all = false)
-        .validate(tableEnv))
+
+    wrap(operationTreeBuilder.intersect(operationTree, rightImpl.operationTree, all = false))
   }
 
   override def intersectAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
-    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
       throw new ValidationException(
         "Only tables from the same TableEnvironment can be intersected.")
     }
-    new TableImpl(
-      tableEnv, Intersect(logicalPlan, right.asInstanceOf[TableImpl].logicalPlan, all = true)
-        .validate(tableEnv))
+
+    wrap(operationTreeBuilder.intersect(operationTree, rightImpl.operationTree, all = true))
   }
 
   override def orderBy(fields: String): Table = {
@@ -414,34 +371,22 @@ class TableImpl(
   }
 
   override def orderBy(fields: Expression*): Table = {
-    orderByInternal(fields.map(expressionBridge.bridge))
+    orderByInternal(fields)
   }
 
-  private def orderByInternal(fields: Seq[PlannerExpression]): Table = {
-    val order: Seq[Ordering] = fields.map {
-      case o: Ordering => o
-      case e => Asc(e)
-    }
-    new TableImpl(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
+  private def orderByInternal(fields: Seq[Expression]): Table = {
+    wrap(operationTreeBuilder.sort(fields.map(_.accept(callResolver)).asJava, operationTree))
   }
 
   override def offset(offset: Int): Table = {
-    new TableImpl(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
+    wrap(operationTreeBuilder.limitWithOffset(offset, operationTree))
   }
 
   override def fetch(fetch: Int): Table = {
     if (fetch < 0) {
       throw new ValidationException("FETCH count must be equal or larger than 0.")
     }
-    this.logicalPlan match {
-      case Limit(o, -1, c) =>
-        // replace LIMIT without FETCH by LIMIT with FETCH
-        new TableImpl(tableEnv, Limit(o, fetch, c).validate(tableEnv))
-      case Limit(_, _, _) =>
-        throw new ValidationException("FETCH is already defined.")
-      case _ =>
-        new TableImpl(tableEnv, Limit(0, fetch, logicalPlan).validate(tableEnv))
-    }
+    wrap(operationTreeBuilder.limitWithFetch(fetch, operationTree))
   }
 
   override def insertInto(tableName: String): Unit = {
@@ -480,6 +425,10 @@ class TableImpl(
     }
     tableName
   }
+
+  private def wrap(operation: TableOperation): Table = {
+    new TableImpl(tableEnv, operation)
+  }
 }
 
 /**
@@ -502,7 +451,8 @@ class GroupedTableImpl(
 
   private def selectInternal(fields: Seq[Expression]): Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
-    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls, tableImpl.getUniqueAttributeSupplier)
+    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls,
+      tableImpl.getUniqueAttributeSupplier)
 
     val aggNames = extracted.getAggregations
     val propNames = extracted.getWindowProperties
@@ -514,23 +464,18 @@ class GroupedTableImpl(
       replaceAggregationsAndProperties(
         expressionsWithResolvedCalls,
         aggNames,
-        propNames).asScala
-        .map(tableImpl.expressionBridge.bridge)
-        .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
-        .map(UnresolvedAlias)
-    val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKey).asJava)
-      .asScala
-      .map(tableImpl.expressionBridge.bridge)
-      .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
-      .map(UnresolvedAlias).toList
+        propNames)
+    val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKey)
+      .asJava)
 
     new TableImpl(tableImpl.tableEnv,
-      Project(projectsOnAgg,
-        Aggregate(groupKey.map(tableImpl.expressionBridge.bridge),
-          aggNames.asScala.map(a => Alias(tableImpl.expressionBridge.bridge(a._1), a._2)).toSeq,
-          Project(projectFields, tableImpl.logicalPlan).validate(tableImpl.tableEnv)
-        ).validate(tableImpl.tableEnv)
-      ).validate(tableImpl.tableEnv))
+      tableImpl.operationTreeBuilder.project(projectsOnAgg,
+        tableImpl.operationTreeBuilder.aggregate(
+          groupKey.asJava,
+          aggNames,
+          tableImpl.operationTreeBuilder.project(projectFields, tableImpl.operationTree)
+        )
+      ))
   }
 }
 
@@ -575,17 +520,19 @@ class WindowGroupedTableImpl(
   override def select(fields: Expression*): Table = {
     selectInternal(
       groupKeys,
-      createLogicalWindow(),
+      window,
       fields)
   }
 
   private def selectInternal(
       groupKeys: Seq[Expression],
-      window: LogicalWindow,
+      window: GroupWindow,
       fields: Seq[Expression])
     : Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
-    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls, tableImpl.getUniqueAttributeSupplier)
+    val extracted = extractAggregationsAndProperties(
+      expressionsWithResolvedCalls,
+      tableImpl.getUniqueAttributeSupplier)
 
     val aggNames = extracted.getAggregations
     val propNames = extracted.getWindowProperties
@@ -594,52 +541,24 @@ class WindowGroupedTableImpl(
       replaceAggregationsAndProperties(
         expressionsWithResolvedCalls,
         aggNames,
-        propNames).asScala
-        .map(tableImpl.expressionBridge.bridge)
-        .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
-        .map(UnresolvedAlias)
-    val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKeys :+ this.window.getTimeField)
-      .asJava)
-      .asScala
-      .map(tableImpl.expressionBridge.bridge)
-      .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
-      .map(UnresolvedAlias).toList
+        propNames)
+    val projectFields = extractFieldReferences(
+      (expressionsWithResolvedCalls.asScala ++ groupKeys :+ this.window.getTimeField)
+        .asJava)
 
     new TableImpl(tableImpl.tableEnv,
-      Project(
+      tableImpl.operationTreeBuilder.project(
         projectsOnAgg,
-        WindowAggregate(
-          groupKeys.map(tableImpl.expressionBridge.bridge),
+        tableImpl.operationTreeBuilder.windowAggregate(
+          groupKeys.asJava,
           window,
-          propNames.asScala.map(a => Alias(tableImpl.expressionBridge.bridge(a._1), a._2)).toSeq,
-          aggNames.asScala.map(a => Alias(tableImpl.expressionBridge.bridge(a._1), a._2)).toSeq,
-          Project(projectFields, tableImpl.logicalPlan).validate(tableImpl.tableEnv)
-        ).validate(tableImpl.tableEnv),
+          propNames,
+          aggNames,
+          tableImpl.operationTreeBuilder.project(projectFields, tableImpl.operationTree)
+        ),
         // required for proper resolution of the time attribute in multi-windows
         explicitAlias = true
-      ).validate(tableImpl.tableEnv))
-  }
-
-  /**
-    * Converts an API class to a logical window for planning.
-    */
-  private def createLogicalWindow(): LogicalWindow = window match {
-    case tw: TumbleWithSizeOnTimeWithAlias =>
-      TumblingGroupWindow(
-        tableImpl.expressionBridge.bridge(tw.getAlias),
-        tableImpl.expressionBridge.bridge(tw.getTimeField),
-        tableImpl.expressionBridge.bridge(tw.getSize))
-    case sw: SlideWithSizeAndSlideOnTimeWithAlias =>
-      SlidingGroupWindow(
-        tableImpl.expressionBridge.bridge(sw.getAlias),
-        tableImpl.expressionBridge.bridge(sw.getTimeField),
-        tableImpl.expressionBridge.bridge(sw.getSize),
-        tableImpl.expressionBridge.bridge(sw.getSlide))
-    case sw: SessionWithGapOnTimeWithAlias =>
-      SessionGroupWindow(
-        tableImpl.expressionBridge.bridge(sw.getAlias),
-        tableImpl.expressionBridge.bridge(sw.getTimeField),
-        tableImpl.expressionBridge.bridge(sw.getGap))
+      ))
   }
 }
 
@@ -659,50 +578,22 @@ class OverWindowedTableImpl(
 
   override def select(fields: Expression*): Table = {
     selectInternal(
-      fields.map(tableImpl.expressionBridge.bridge),
-      overWindows.map(createLogicalWindow))
+      fields,
+      overWindows)
   }
 
   private def selectInternal(
-      fields: Seq[PlannerExpression],
-      logicalOverWindows: Seq[LogicalOverWindow])
-    : Table = {
-
-    val expandedFields = expandProjectList(
-      fields,
-      tableImpl.logicalPlan,
-      tableImpl.tableEnv)
-
-    if (fields.exists(_.isInstanceOf[WindowProperty])){
-      throw new ValidationException(
-        "Window start and end properties are not available for Over windows.")
-    }
-
-    val expandedOverFields =
-      resolveOverWindows(expandedFields, logicalOverWindows)
+    fields: Seq[Expression],
+    logicalOverWindows: Seq[OverWindow])
+  : Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver))
 
     new TableImpl(
       tableImpl.tableEnv,
-      Project(
-        expandedOverFields.map(UnresolvedAlias),
-        tableImpl.logicalPlan,
-        // required for proper projection push down
-        explicitAlias = true)
-        .validate(tableImpl.tableEnv)
-    )
-  }
-
-  /**
-    * Converts an API class to a logical window for planning.
-    */
-  private def createLogicalWindow(overWindow: OverWindow): LogicalOverWindow = {
-    LogicalOverWindow(
-      tableImpl.expressionBridge.bridge(overWindow.getAlias),
-      overWindow.getPartitioning.asScala.map(tableImpl.expressionBridge.bridge),
-      tableImpl.expressionBridge.bridge(overWindow.getOrder),
-      tableImpl.expressionBridge.bridge(overWindow.getPreceding),
-      JavaScalaConversionUtil
-        .toScala(overWindow.getFollowing).map(tableImpl.expressionBridge.bridge)
+      tableImpl.operationTreeBuilder
+        .project(expressionsWithResolvedCalls.asJava,
+          tableImpl.operationTree,
+          logicalOverWindows.asJava)
     )
   }
 }
