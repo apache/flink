@@ -19,7 +19,10 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.table.api.ValidationException;
 
 /**
  * Base class for user-defined aggregates.
@@ -151,5 +154,31 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
 	 */
 	public TypeInformation<ACC> getAccumulatorType() {
 		return null;
+	}
+
+	/**
+	 * Returns {@link TypeInformation} about the operands of the accumulate method with a given
+	 * signature.
+	 *
+	 * <p>In order to perform operand type inference in SQL (especially when <code>NULL</code> is
+	 * used) it might be necessary to determine the parameter {@link TypeInformation} of an
+	 * accumulate method. By default Flink's type extraction facilities are used for this but might
+	 * be wrong for more complex, custom, or composite types.
+	 *
+	 * @param signature signature of the method the operand types need to be determined
+	 * @return {@link TypeInformation} of operand types
+	 */
+	public TypeInformation<?>[] getUserDefinedInputTypes(Class<?>[] signature) {
+		TypeInformation[] types = new TypeInformation[signature.length];
+		try {
+			for (int i = 0; i < signature.length; i++) {
+				types[i] = TypeExtractor.getForClass(signature[i]);
+			}
+		} catch (InvalidTypesException e) {
+			throw new ValidationException("Parameter types of aggregate function '" +
+					getClass().getCanonicalName() + "' cannot be automatically determined. " +
+					"Please provide data type manually.");
+		}
+		return types;
 	}
 }
