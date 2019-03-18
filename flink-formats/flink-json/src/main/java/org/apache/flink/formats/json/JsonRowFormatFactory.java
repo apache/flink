@@ -59,8 +59,7 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 
 		// create and configure
 		final JsonRowDeserializationSchema.Builder schema =
-			new JsonRowDeserializationSchema.Builder(createTypeInformation(descriptorProperties))
-				;
+			new JsonRowDeserializationSchema.Builder(createTypeInformation(descriptorProperties));
 
 		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
 			.ifPresent(flag -> {

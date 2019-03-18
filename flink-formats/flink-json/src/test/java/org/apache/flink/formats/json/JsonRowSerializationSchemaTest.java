@@ -175,8 +175,10 @@ public class JsonRowSerializationSchemaTest {
 		nestedRow.setField(1, BigDecimal.valueOf(12));
 		row.setField(10, nestedRow);
 
-		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
-		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
+			.build();
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(rowSchema)
+			.build();
 
 		assertThat(row, whenSerializedWith(serializationSchema)
 			.andDeserializedWith(deserializationSchema)

@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.formats.json.RuntimeSerializationConverterFactory.SerializationRuntimeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -51,42 +52,19 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	/** Object mapper that is used to create output JSON objects. */
 	private final ObjectMapper mapper = new ObjectMapper();
 
-	private final RuntimeSerializationConverterFactory.SerializationRuntimeConverter runtimeConverter;
+	private final SerializationRuntimeConverter runtimeConverter;
 
 	/** Reusable object node. */
 	private transient ObjectNode node;
 
-	/**
-	 * Creates a JSON serialization schema for the given type information.
-	 *
-	 * @param typeInfo The field names of {@link Row} are used to map to JSON properties.
-	 * @deprecated use {@link Builder} instead
-	 */
-	@Deprecated
-	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
-		this(typeInfo, new DefaultRuntimeSerializationConverterFactory());
-	}
-
-	/**
-	 * Creates a JSON serialization schema for the given JSON schema.
-	 *
-	 * @param jsonSchema JSON schema describing the result type
-	 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
-	 * @deprecated use {@link Builder} instead
-	 */
-	@Deprecated
-	public JsonRowSerializationSchema(String jsonSchema) {
-		this(JsonRowSchemaConverter.convert(jsonSchema));
-	}
-
 	private JsonRowSerializationSchema(
 			TypeInformation<Row> typeInfo,
-			RuntimeSerializationConverterFactory converterFactory) {
+			SerializationRuntimeConverter runtimeConverter) {
 		Preconditions.checkNotNull(typeInfo, "Type information");
 		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
-		Preconditions.checkNotNull(converterFactory, "Did not provide converter factory.");
+		Preconditions.checkNotNull(runtimeConverter, "Did not provide runtime converter.");
 		this.typeInfo = (RowTypeInfo) typeInfo;
-		this.runtimeConverter = converterFactory.getSerializationRuntimeConverter(this.typeInfo);
+		this.runtimeConverter = runtimeConverter;
 	}
 
 	/**
@@ -132,7 +110,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 			RuntimeSerializationConverterFactory factory =
 				converterFactory != null ? converterFactory : new DefaultRuntimeSerializationConverterFactory();
 
-			return new JsonRowSerializationSchema(typeInfo, factory);
+			return new JsonRowSerializationSchema(typeInfo, factory.getSerializationRuntimeConverter(typeInfo));
 		}
 	}
 
@@ -160,12 +138,13 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 			return false;
 		}
 		final JsonRowSerializationSchema that = (JsonRowSerializationSchema) o;
-		return Objects.equals(typeInfo, that.typeInfo);
+		return Objects.equals(typeInfo, that.typeInfo) &&
+			Objects.equals(runtimeConverter, that.runtimeConverter);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(typeInfo);
+		return Objects.hash(typeInfo, runtimeConverter);
 	}
 
 }

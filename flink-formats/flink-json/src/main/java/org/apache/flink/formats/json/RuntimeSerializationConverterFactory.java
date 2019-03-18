@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -29,6 +30,7 @@ import java.io.Serializable;
  * Abstract Factory that resolves {@link RowTypeInfo} into a converter that can be used
  * during runtime to convert {@link Object}s into {@link JsonNode}.
  */
+@PublicEvolving
 interface RuntimeSerializationConverterFactory {
 
 	/**

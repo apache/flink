@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -29,6 +30,7 @@ import java.io.Serializable;
  * Abstract factory that resolves {@link RowTypeInfo} into a converter that can be used
  * during runtime to convert {@link JsonNode}s into {@link org.apache.flink.types.Row}s.
  */
+@PublicEvolving
 interface RuntimeDeserializationConverterFactory {
 
 	/**
@@ -37,14 +39,11 @@ interface RuntimeDeserializationConverterFactory {
 	@FunctionalInterface
 	interface DeserializationRuntimeConverter extends Serializable {
 		Object convert(ObjectMapper mapper, JsonNode jsonNode);
-
-		default void setFailOnMissingField(boolean failOnMissingField) {
-		}
 	}
 
 	/**
 	 * Creates a converter based on the given {@link RowTypeInfo} that can be used during runtime to deserialize
 	 * json into {@link org.apache.flink.types.Row}s.
 	 */
-	DeserializationRuntimeConverter getDeserializationRuntimeConverter(RowTypeInfo typeInfo);
+	DeserializationRuntimeConverter getDeserializationRuntimeConverter(RowTypeInfo typeInfo, boolean failOnMissingField);
 }
