@@ -32,16 +32,27 @@ import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.DoubleValue;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -53,6 +64,9 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 	public DataSetUtilsITCase(TestExecutionMode mode) {
 		super(mode);
 	}
+
+	@ClassRule
+	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	@Test
 	public void testCountElementsPerPartition() throws Exception {
@@ -188,4 +202,112 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		Assert.assertEquals(100.0, col7Summary.getMax().doubleValue(), 0.00001);
 		Assert.assertEquals(50.0, col7Summary.getMin().doubleValue(), 0.00001);
 	}
+
+	@Test
+	public void testPipe() throws Exception {
+		File tempTestFolder = TEMPORARY_FOLDER.newFolder();
+		String shellScriptName = "test1.sh";
+
+		String shellContent =
+			"#!/bin/sh\n" +
+			"echo \"Running shell script\"\n" +
+			"while read LINE; do\n" +
+			"   echo ${LINE}    \n" +
+			"done";
+
+		String absolutePathStr = tempTestFolder.getAbsolutePath() + File.pathSeparator + shellScriptName;
+
+		try (Writer output = new BufferedWriter(new FileWriter(absolutePathStr));) {
+			output.write(shellContent);
+			Runtime.getRuntime().exec("chmod u+x " + absolutePathStr);
+		}
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<String> input = env.fromCollection(Lists.newArrayList("1", "2", "3", "4", "5"));
+		DataSet<String> result = DataSetUtils.pipe(input, absolutePathStr);
+		List<String> actual = result.collect();
+		List<String> expected = new ArrayList<>(6);
+		expected.add("Running shell script");
+		expected.add("1");
+		expected.add("2");
+		expected.add("3");
+		expected.add("4");
+		expected.add("5");
+
+		Assert.assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testPipeWithCommandArgs() throws Exception {
+		File tempTestFolder = TEMPORARY_FOLDER.newFolder();
+		String shellScriptName = "test2.sh";
+
+		String shellContent =
+			"#!/bin/sh\n" +
+				"echo $1\n" +
+				"while read LINE; do\n" +
+				"   echo ${LINE}    \n" +
+				"done";
+
+		String absolutePathStr = tempTestFolder.getAbsolutePath() + File.pathSeparator + shellScriptName;
+
+		try (Writer output = new BufferedWriter(new FileWriter(absolutePathStr));) {
+			output.write(shellContent);
+			Runtime.getRuntime().exec("chmod u+x " + absolutePathStr);
+		}
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<String> input = env.fromCollection(Lists.newArrayList("1", "2", "3", "4", "5"));
+		DataSet<String> result = DataSetUtils.pipe(
+			input,
+			Lists.newArrayList(absolutePathStr, "hello"),
+			null,
+			StandardCharsets.UTF_8.name(),
+			8192);
+
+		List<String> actual = result.collect();
+		List<String> expected = new ArrayList<>(6);
+		expected.add("hello");
+		expected.add("1");
+		expected.add("2");
+		expected.add("3");
+		expected.add("4");
+		expected.add("5");
+
+		Assert.assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testPipeWithEnvVar() throws Exception {
+		File tempTestFolder = TEMPORARY_FOLDER.newFolder();
+		String shellScriptName = "test2.sh";
+
+		String shellContent =
+			"#!/bin/sh\n" +
+				"echo ${myEnv} \n";
+
+		String absolutePathStr = tempTestFolder.getAbsolutePath() + File.pathSeparator + shellScriptName;
+
+		try (Writer output = new BufferedWriter(new FileWriter(absolutePathStr));) {
+			output.write(shellContent);
+			Runtime.getRuntime().exec("chmod u+x " + absolutePathStr);
+		}
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<String> input = env.fromCollection(Lists.newArrayList("1", "2", "3", "4", "5"));
+		Map<String, String> customEnv = new HashMap<>(1);
+		customEnv.put("myEnv", "hello");
+		DataSet<String> result = DataSetUtils.pipe(
+			input,
+			Collections.singletonList(absolutePathStr),
+			customEnv,
+			StandardCharsets.UTF_8.name(),
+			8192);
+		List<String> actual = result.collect();
+		List<String> expected = new ArrayList<>(1);
+		expected.add("hello");
+
+		Assert.assertEquals(expected, actual);
+	}
+
 }

@@ -46,11 +46,31 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
+import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This class provides simple utility methods for zipping elements in a data set with an index
@@ -177,6 +197,157 @@ public final class DataSetUtils {
 				}
 			}
 		});
+	}
+
+	/**
+	 * Return an DataSet created by piping elements to a forked external process.
+	 *
+	 * @param input the input data set.
+	 * @param command the command which will invoke by the external process.
+	 * @return The result data set collect the output from the external process.
+	 */
+	public static <T> DataSet<T> pipe(DataSet<T> input, String command) {
+		return pipe(input, tokenize(command), null, StandardCharsets.UTF_8.name(), 8192);
+	}
+
+	/**
+	 * Return an DataSet created by piping elements to a forked external process.
+	 *
+	 * @param input the input data set.
+	 * @param command the command which will invoke by the external process.
+	 * @param envVars the customized user defined environment variables.
+	 * @param encoding the encoding for the input of the external process.
+	 * @param bufferSize the buffer size used by the external process reading the input.
+	 * @return The result data set collect the output from the external process.
+	 */
+	public static <T> DataSet<T> pipe(
+		DataSet<T> input,
+		List<String> command,
+		@Nullable  Map<String, String> envVars,
+		String encoding,
+		int bufferSize) {
+
+		return input.mapPartition(new PipeFunction(command, envVars, encoding, bufferSize));
+	}
+
+	/**
+	 * The pipe function which read the MapPartition function's iterator as input, write the
+	 * external process's result into stdout then collect to the down stream.
+	 */
+	public static class PipeFunction<T> extends RichMapPartitionFunction<T, String> {
+
+		private static final Logger LOG = LoggerFactory.getLogger(PipeFunction.class);
+
+		private final List<String> command;
+		private final Map<String, String> envVars;
+		private final String encoding;
+		private final int bufferSize;
+		private Process process;
+		private Thread stderrReaderThread;
+		private AtomicReference<Throwable> childThreadException;
+
+		public PipeFunction(
+			List<String> command,
+			@Nullable Map<String, String> envVars,
+			String encoding,
+			int bufferSize) {
+
+			this.command = Preconditions.checkNotNull(command);
+			this.envVars = envVars;
+			this.encoding = Preconditions.checkNotNull(encoding);
+			Preconditions.checkArgument(bufferSize > 0, "bufferSize must larger than 0");
+			this.bufferSize = bufferSize;
+		}
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+
+			ProcessBuilder pb = new ProcessBuilder(command);
+			Map<String, String> currentEnvVars = pb.environment();
+
+			if (envVars != null) {
+				for (Map.Entry<String, String> entry : envVars.entrySet()) {
+					currentEnvVars.put(entry.getKey(), entry.getValue());
+				}
+			}
+
+			process = pb.start();
+			childThreadException = new AtomicReference<>(null);
+
+			stderrReaderThread = new Thread(() -> {
+				try (InputStream stderr = process.getErrorStream();
+					BufferedReader reader = new BufferedReader(new InputStreamReader(stderr))) {
+					reader.lines().forEach((line) -> System.err.println(line));
+				} catch (IOException ex) {
+					childThreadException.set(ex);
+				}
+			});
+
+			stderrReaderThread.start();
+		}
+
+		@Override
+		public void mapPartition(Iterable<T> values, Collector<String> out) throws Exception {
+			//feed input to the process
+			OutputStream stdIn = process.getOutputStream();
+			try (PrintWriter writer = new PrintWriter(
+				new BufferedWriter(new OutputStreamWriter(stdIn, encoding), bufferSize))) {
+				Iterator<T> iterator = values.iterator();
+				while (iterator.hasNext()) {
+					T val = iterator.next();
+					writer.println(val);
+				}
+			} catch (IOException ex) {
+				throw new RuntimeException(ex);
+			}
+
+			//fetch output from the process and collect them
+			InputStream stdOut = process.getInputStream();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdOut))) {
+				reader.lines().forEach((line) -> out.collect(line));
+			} catch (IOException ex) {
+				throw new RuntimeException(ex);
+			}
+
+			process.waitFor();
+
+			propagateChildException();
+		}
+
+		@Override
+		public void close() throws Exception {
+			if (process.isAlive()) {
+				process.destroy();
+			}
+
+			if (stderrReaderThread.isAlive()) {
+				stderrReaderThread.interrupt();
+			}
+		}
+
+		private void propagateChildException() {
+			Throwable throwable = childThreadException.get();
+			if (throwable != null) {
+				StringJoiner joiner = new StringJoiner(" ");
+				command.forEach(cmd -> joiner.add(cmd));
+				String joinedCmd = joiner.toString();
+				LOG.error("Caught exception while running pipe(), command is {}, exception is {}.",
+					joinedCmd, throwable.getMessage());
+
+				throw new RuntimeException(throwable);
+			}
+		}
+	}
+
+	private static List<String> tokenize(String command) {
+		List<String> commandBuf = new ArrayList<>();
+		StringTokenizer tokenizer = new StringTokenizer(command);
+		while (tokenizer.hasMoreElements()) {
+			commandBuf.add(tokenizer.nextToken());
+		}
+
+		return commandBuf;
 	}
 
 	// --------------------------------------------------------------------------------------------
