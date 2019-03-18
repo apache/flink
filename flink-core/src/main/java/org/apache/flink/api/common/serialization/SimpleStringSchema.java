@@ -72,7 +72,7 @@ public class SimpleStringSchema implements DeserializationSchema<String>, Serial
 
 	@Override
 	public String deserialize(byte[] message) {
-		return new String(message, charset);
+		return message != null ? new String(message, charset) : null;
 	}
 
 	@Override
