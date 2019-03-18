@@ -21,7 +21,8 @@ package org.apache.flink.table.calcite;
 import org.apache.flink.table.plan.schema.FlinkRelOptTable;
 import org.apache.flink.table.plan.schema.FlinkTable;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
+
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.prepare.CalciteCatalogReader;

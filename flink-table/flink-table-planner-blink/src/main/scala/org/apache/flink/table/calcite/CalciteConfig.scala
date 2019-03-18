@@ -51,6 +51,16 @@ class CalciteConfigBuilder {
   private var operatorTables: List[SqlOperatorTable] = Nil
 
   /**
+    * Defines a SQL parser configuration.
+    */
+  private var replaceSqlParserConfig: Option[SqlParser.Config] = None
+
+  /**
+    * Defines a configuration for SqlToRelConverter.
+    */
+  private var replaceSqlToRelConverterConfig: Option[SqlToRelConverter.Config] = None
+
+  /**
     * Replaces the default batch table optimize program with the given program.
     */
   def replaceBatchProgram(
@@ -69,16 +79,6 @@ class CalciteConfigBuilder {
     streamProgram = Some(program)
     this
   }
-
-  /**
-    * Defines a SQL parser configuration.
-    */
-  private var replaceSqlParserConfig: Option[SqlParser.Config] = None
-
-  /**
-    * Defines a configuration for SqlToRelConverter.
-    */
-  private var replaceSqlToRelConverterConfig: Option[SqlToRelConverter.Config] = None
 
   /**
     * Replaces the built-in SQL operator table with the given table.

@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelFieldCollation.Direction
@@ -29,7 +28,6 @@ import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.IntPair
-import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.util
@@ -244,64 +242,6 @@ object FlinkRelOptUtil {
     } else {
       // TODO create NonEquiJoinInfo directly
       JoinInfo.of(left, right, condition)
-    }
-  }
-
-  /**
-    * Merge two MiniBatchInterval as a new one.
-    *
-    * The Merge Logic:  MiniBatchMode: (R: rowtime, P: proctime, N: None), I: Interval
-    * Possible values:
-    * - (R, I = 0): operators that require watermark (window excluded).
-    * - (R, I > 0): window / operators that require watermark with minibatch enabled.
-    * - (P, I > 0): unbounded agg with minibatch enabled.
-    * - (N, I = 0): no operator requires watermark, minibatch disabled
-    * ------------------------------------------------
-    * |    A        |    B        |   merged result
-    * ------------------------------------------------
-    * | R, I_1 == 0 | R, I_2      |  R, gcd(I_1, I_2)
-    * ------------------------------------------------
-    * | R, I_1 == 0 | P, I_2      |  R, I_2
-    * ------------------------------------------------
-    * | R, I_1 > 0  | R, I_2      |  R, gcd(I_1, I_2)
-    * ------------------------------------------------
-    * | R, I_1 > 0  | P, I_2      |  R, I_1
-    * ------------------------------------------------
-    * | P, I_1      | R, I_2 == 0 |  R, I_1
-    * ------------------------------------------------
-    * | P, I_1      | R, I_2 > 0  |  R, I_2
-    * ------------------------------------------------
-    * | P, I_1      | P, I_2 > 0  |  P, I_1
-    * ------------------------------------------------
-    */
-  def mergeMiniBatchInterval(
-      interval1: MiniBatchInterval,
-      interval2: MiniBatchInterval): MiniBatchInterval = {
-    interval1.mode match {
-      case MiniBatchMode.None => interval2
-      case MiniBatchMode.RowTime =>
-        interval2.mode match {
-          case MiniBatchMode.None => interval1
-          case MiniBatchMode.RowTime =>
-            val gcd = ArithmeticUtils.gcd(interval1.interval, interval2.interval)
-            MiniBatchInterval(gcd, MiniBatchMode.RowTime)
-          case MiniBatchMode.ProcTime =>
-            if (interval1.interval == 0) {
-              MiniBatchInterval(interval2.interval, MiniBatchMode.RowTime)
-            } else {
-              interval1
-            }
-        }
-      case MiniBatchMode.ProcTime =>
-        interval2.mode match {
-          case MiniBatchMode.None | MiniBatchMode.ProcTime => interval1
-          case MiniBatchMode.RowTime =>
-            if (interval2.interval > 0) {
-              interval2
-            } else {
-              MiniBatchInterval(interval1.interval, MiniBatchMode.RowTime)
-            }
-        }
     }
   }
 
