@@ -15,36 +15,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
-import { Component } from '@angular/core';
-import { StatusService } from 'services';
-import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
+:host {
+  display: block;
+  background: @component-background;
+  padding: 16px 24px 0;
+  border-bottom: 1px solid @border-color-split;
+  margin: -24px -24px 0px;
+}
 
-@Component({
-  selector   : 'flink-root',
-  templateUrl: './app.component.html',
-  styleUrls  : [ './app.component.less' ]
-})
-export class AppComponent {
-  collapsed = false;
-  visible = false;
+.wrapper {
+  position: relative;
+}
 
-  showMessage() {
-    if (this.statusService.listOfErrorMessage.length) {
-      this.visible = true;
-    }
+.name {
+  h2, flink-job-badge {
+    display: inline-block;
   }
 
-  clearMessage() {
-    this.statusService.listOfErrorMessage = [];
-    this.visible = false;
-  }
-
-  toggleCollapse() {
-    this.collapsed = !this.collapsed;
-    this.monacoEditorService.layout();
-  }
-
-  constructor(public statusService: StatusService, private monacoEditorService: MonacoEditorService) {
+  nz-divider {
+    margin: 0 24px;
   }
 }
+
+.field {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 22px;
+  margin-bottom: 12px;
+
+  span {
+    line-height: 22px;
+
+    &:last-child {
+      margin-left: 8px;
+      font-weight: 700;
+      color: @heading-color;
+    }
+  }
+}
+
+.status {
+  margin-bottom: 12px;
+  padding: 12px 12px 0 12px;
+  border: 1px solid @border-color-split;
+  background: darken(@component-background, 1%);
+
+  nz-divider {
+    margin: 0 24px;
+  }
+}
+
+flink-navigation {
+  margin-bottom: -1px;
+  display: block;
+}
+

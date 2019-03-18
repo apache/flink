@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
-import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
+import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 
-const routes: Routes = [
-  { path: 'overview', loadChildren: './pages/overview/overview.module#OverviewModule' },
-  { path: 'submit', loadChildren: './pages/submit/submit.module#SubmitModule' },
-  { path: 'job-manager', loadChildren: './pages/job-manager/job-manager.module#JobManagerModule' },
-  { path: 'task-manager', loadChildren: './pages/task-manager/task-manager.module#TaskManagerModule' },
-  { path: '**', redirectTo: 'overview', pathMatch: 'full' }
-];
-
-@NgModule({
-  exports: [ RouterModule ],
-  imports: [ RouterModule.forRoot(routes, { useHash: true, preloadingStrategy: PreloadAllModules }) ]
+@Injectable({
+  providedIn: 'root'
 })
-export class AppRoutingModule {
+export class MonacoEditorService {
+  layout$ = new Subject();
+
+  /**
+   * Recalculate monaco editor layout manually
+   */
+  layout() {
+    this.layout$.next();
+  }
 }

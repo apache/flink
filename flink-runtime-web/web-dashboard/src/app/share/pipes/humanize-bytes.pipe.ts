@@ -16,23 +16,35 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HumanizeDurationPipe } from './humanize-duration.pipe';
-import { HumanizeDatePipe } from './humanize-date.pipe';
+import { Pipe, PipeTransform } from '@angular/core';
+import { isNil } from 'utils';
 
-@NgModule({
-  imports     : [
-    CommonModule
-  ],
-  declarations: [
-    HumanizeDurationPipe,
-    HumanizeDatePipe
-  ],
-  exports     : [
-    HumanizeDurationPipe,
-    HumanizeDatePipe
-  ]
+@Pipe({
+  name: 'humanizeBytes'
 })
-export class PipeModule {
+export class HumanizeBytesPipe implements PipeTransform {
+
+  transform(value: number): any {
+    if (isNil(value)) {
+      return '-';
+    }
+    const units = [ 'B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB' ];
+    const converter = (v: number, p: number): string => {
+      const base = Math.pow(1024, p);
+      if (v < base) {
+        return (v / base).toFixed(2) + ' ' + units[ p ];
+      } else if (v < base * 1000) {
+        return (v / base).toPrecision(3) + ' ' + units[ p ];
+      } else {
+        return converter(v, p + 1);
+      }
+    };
+    if (value < 1000) {
+      return value + ' B';
+    } else {
+      return converter(value, 1);
+    }
+  }
+
 }
+

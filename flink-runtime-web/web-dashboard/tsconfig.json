@@ -17,9 +17,6 @@
       ],
       "share/*": [
         "src/app/share/*"
-      ],
-      "pipes/*": [
-        "src/app/pipes/*"
       ]
     },
     "outDir": "./dist/out-tsc",

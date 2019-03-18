@@ -17,19 +17,25 @@
  */
 
 import { NgModule } from '@angular/core';
-import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
-
-const routes: Routes = [
-  { path: 'overview', loadChildren: './pages/overview/overview.module#OverviewModule' },
-  { path: 'submit', loadChildren: './pages/submit/submit.module#SubmitModule' },
-  { path: 'job-manager', loadChildren: './pages/job-manager/job-manager.module#JobManagerModule' },
-  { path: 'task-manager', loadChildren: './pages/task-manager/task-manager.module#TaskManagerModule' },
-  { path: '**', redirectTo: 'overview', pathMatch: 'full' }
-];
+import { CommonModule } from '@angular/common';
+import { HumanizeBytesPipe } from 'share/pipes/humanize-bytes.pipe';
+import { HumanizeDurationPipe } from './humanize-duration.pipe';
+import { HumanizeDatePipe } from './humanize-date.pipe';
 
 @NgModule({
-  exports: [ RouterModule ],
-  imports: [ RouterModule.forRoot(routes, { useHash: true, preloadingStrategy: PreloadAllModules }) ]
+  imports     : [
+    CommonModule
+  ],
+  declarations: [
+    HumanizeDurationPipe,
+    HumanizeDatePipe,
+    HumanizeBytesPipe
+  ],
+  exports     : [
+    HumanizeDurationPipe,
+    HumanizeDatePipe,
+    HumanizeBytesPipe
+  ]
 })
-export class AppRoutingModule {
+export class PipeModule {
 }

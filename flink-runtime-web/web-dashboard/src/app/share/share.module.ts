@@ -19,7 +19,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NgZorroAntdModule } from 'ng-zorro-antd';
-import { PipeModule } from 'pipes/pipe.module';
+import { PipeModule } from 'share/pipes/pipe.module';
 import { DagreModule } from 'share/common/dagre/dagre.module';
 import { FileReadDirective } from 'share/common/file-read/file-read.directive';
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';

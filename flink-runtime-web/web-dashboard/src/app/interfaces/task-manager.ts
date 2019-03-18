@@ -17,7 +17,7 @@
  */
 
 export interface TaskManagerListInterface {
-  taskmanagers: TaskmanagersItem[];
+  taskmanagers: TaskmanagersItemInterface[];
 }
 
 export interface TaskManagerDetailInterface {
@@ -31,7 +31,7 @@ export interface TaskManagerDetailInterface {
   metrics: Metrics;
 }
 
-interface TaskmanagersItem {
+export interface TaskmanagersItemInterface {
   id: string;
   path: string;
   dataPort: number;

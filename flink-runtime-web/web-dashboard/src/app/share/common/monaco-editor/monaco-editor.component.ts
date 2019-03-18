@@ -19,6 +19,9 @@
 /// <reference path="../../../../../node_modules/monaco-editor/monaco.d.ts" />
 
 import { AfterViewInit, Component, ElementRef, ChangeDetectionStrategy, Input, OnDestroy } from '@angular/core';
+import { fromEvent, merge, Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
+import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
 import IStandaloneCodeEditor = monaco.editor.IStandaloneCodeEditor;
 
 @Component({
@@ -30,6 +33,7 @@ import IStandaloneCodeEditor = monaco.editor.IStandaloneCodeEditor;
 export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
   private innerValue = '';
   private editor: IStandaloneCodeEditor;
+  private destroy$ = new Subject();
 
   @Input()
   set value(value) {
@@ -66,12 +70,11 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  constructor(private elementRef: ElementRef) {
+  constructor(private elementRef: ElementRef, private monacoEditorService: MonacoEditorService) {
   }
 
   ngAfterViewInit() {
-    const windowAny = window as any;
-    if (windowAny.monaco) {
+    if ((window as any).monaco) {
       this.setupMonaco();
     } else {
       const script = document.createElement('script');
@@ -80,11 +83,9 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
       script.onload = () => {
         const onGotAmdLoader = () => {
           // Load monaco
-          windowAny.require.config({ paths: { vs: 'libs/vs' } });
-          windowAny.require([ 'vs/editor/editor.main' ], () => {
-            setTimeout(() => {
-              this.setupMonaco();
-            });
+          (window as any).require.config({ paths: { vs: 'libs/vs' } });
+          (window as any).require([ 'vs/editor/editor.main' ], () => {
+            setTimeout(() => this.setupMonaco());
           });
         };
         onGotAmdLoader();
@@ -92,9 +93,20 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
       // Add the script tag to the page in order to start loading monaco
       document.body.appendChild(script);
     }
+    merge(
+      fromEvent(window, 'resize'),
+      this.monacoEditorService.layout$
+    ).pipe(
+      takeUntil(this.destroy$),
+      debounceTime(200)
+    ).subscribe(() => {
+      this.layout();
+    });
   }
 
   ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.editor.dispose();
   }
 
