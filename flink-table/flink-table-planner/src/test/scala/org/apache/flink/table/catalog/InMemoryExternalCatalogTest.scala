@@ -138,7 +138,7 @@ class InMemoryExternalCatalogTest {
     val schemaDesc = new Schema()
       .field("first", BasicTypeInfo.STRING_TYPE_INFO)
       .field("second", BasicTypeInfo.INT_TYPE_INFO)
-    ExternalCatalogTable.builder(connDesc)
+    new ExternalCatalogTableBuilder(connDesc)
       .withSchema(schemaDesc)
       .asTableSource()
   }
@@ -151,7 +151,7 @@ class InMemoryExternalCatalogTest {
     fieldNames.zipWithIndex.foreach { case (fieldName, index) =>
       schemaDesc.field(fieldName, fieldTypes(index))
     }
-    ExternalCatalogTable.builder(connDesc)
+    new ExternalCatalogTableBuilder(connDesc)
       .withSchema(schemaDesc)
       .asTableSource()
   }

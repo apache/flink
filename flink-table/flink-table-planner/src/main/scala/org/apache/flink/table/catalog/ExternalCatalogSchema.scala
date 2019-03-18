@@ -81,8 +81,8 @@ class ExternalCatalogSchema(
     val externalCatalogTable = catalog.getTable(name)
     ExternalTableUtil.fromExternalCatalogTable(tableEnv, externalCatalogTable)
   } catch {
-    case TableNotExistException(table, _, _) => {
-      LOG.warn(s"Table $table does not exist in externalCatalog $catalogIdentifier")
+    case _: TableNotExistException => {
+      LOG.warn(s"Table $name does not exist in externalCatalog $catalogIdentifier")
       null
     }
   }
