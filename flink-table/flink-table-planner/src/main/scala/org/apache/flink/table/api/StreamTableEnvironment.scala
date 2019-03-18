@@ -319,10 +319,11 @@ abstract class StreamTableEnvironment(
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
     */
   override private[flink] def writeToSink[T](
-      table: Table,
+      inputTable: Table,
       sink: TableSink[T],
       queryConfig: QueryConfig): Unit = {
 
+    val table = inputTable.asInstanceOf[TableImpl]
     // Check query configuration
     val streamQueryConfig = queryConfig match {
       case streamConfig: StreamQueryConfig => streamConfig
@@ -859,7 +860,7 @@ abstract class StreamTableEnvironment(
       queryConfig: StreamQueryConfig,
       updatesAsRetraction: Boolean,
       withChangeFlag: Boolean)(implicit tpe: TypeInformation[A]): DataStream[A] = {
-    val relNode = table.getRelNode
+    val relNode = table.asInstanceOf[TableImpl].getRelNode
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
 
     val rowType = getResultType(relNode, dataStreamPlan)
@@ -1000,7 +1001,7 @@ abstract class StreamTableEnvironment(
     * @param table The table for which the AST and execution plan will be returned.
     */
   def explain(table: Table): String = {
-    val ast = table.getRelNode
+    val ast = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = optimize(ast, updatesAsRetraction = false)
     val dataStream = translateToCRow(optimizedPlan, queryConfig)
 

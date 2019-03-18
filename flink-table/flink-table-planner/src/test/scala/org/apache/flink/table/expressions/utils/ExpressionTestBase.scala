@@ -38,7 +38,7 @@ import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.table.api.scala.BatchTableEnvironment
-import org.apache.flink.table.api.{TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableImpl}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
@@ -201,6 +201,7 @@ abstract class ExpressionTestBase {
     val converted = env
       .scan(tableName)
       .select(tableApiExpr)
+      .asInstanceOf[TableImpl]
       .getRelNode
 
     val optimized = env.optimize(converted)

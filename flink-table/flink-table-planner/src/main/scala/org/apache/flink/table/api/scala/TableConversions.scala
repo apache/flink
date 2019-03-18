@@ -21,7 +21,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, TableException}
+import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, TableException, TableImpl}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 
@@ -30,7 +30,7 @@ import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTa
   *
   * @param table The table to convert.
   */
-class TableConversions(table: Table) {
+class TableConversions(table: TableImpl) {
 
   /**
     * Converts the given [[Table]] into a [[DataSet]] of a specified type.

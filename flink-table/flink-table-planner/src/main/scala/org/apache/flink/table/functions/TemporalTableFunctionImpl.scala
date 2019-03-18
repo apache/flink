@@ -23,7 +23,6 @@ import java.sql.Timestamp
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.PlannerExpression
-import org.apache.flink.types.Row
 
 /**
   * Class representing temporal table function over some history table.
@@ -33,12 +32,12 @@ import org.apache.flink.types.Row
   * This function shouldn't be evaluated. Instead calls to it should be rewritten by the optimiser
   * into other operators (like Temporal Table Join).
   */
-class TemporalTableFunction private(
+class TemporalTableFunctionImpl private(
     @transient private val underlyingHistoryTable: Table,
     private val timeAttribute: PlannerExpression,
     private val primaryKey: String,
     private val resultType: RowTypeInfo)
-  extends TableFunction[Row] {
+  extends TemporalTableFunction {
 
   def eval(row: Timestamp): Unit = {
     throw new IllegalStateException("This should never be called")
@@ -64,12 +63,12 @@ class TemporalTableFunction private(
   }
 }
 
-object TemporalTableFunction {
+object TemporalTableFunctionImpl {
   private[flink] def create(
       table: Table,
       timeAttribute: PlannerExpression,
       primaryKey: String): TemporalTableFunction = {
-    new TemporalTableFunction(
+    new TemporalTableFunctionImpl(
       table,
       timeAttribute,
       primaryKey,
