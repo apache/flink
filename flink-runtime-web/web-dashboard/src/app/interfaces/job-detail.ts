@@ -88,6 +88,10 @@ export interface VerticesItemInterface {
   metrics: MetricsStatus;
 }
 
+export interface VerticesItemRangeInterface extends VerticesItemInterface {
+  range: number[];
+}
+
 interface TasksStatus {
   FINISHED: number;
   SCHEDULED: number;
@@ -133,6 +137,7 @@ export interface NodesItemLinkInterface {
   target: string;
   width?: number;
   ship_strategy?: string;
+  local_strategy?: string;
 }
 
 export interface JobDetailCorrectInterface extends JobDetailInterface {

@@ -18,7 +18,6 @@
 
 <flink-svg-container
   [style.visibility]="visibility"
-  (clickBgEvent)="clickBackground()"
   (transformEvent)="onTransform($event)">
   <svg:g class="graph" #graphElement>
     <defs>
@@ -30,19 +29,19 @@
       </svg:marker>
     </defs>
     <svg:g #linkElement
-      *ngFor="let link of layoutLinks"
+      *ngFor="let link of layoutLinks;trackBy:trackByLink"
       class="link-group"
       [id]="link.id">
       <svg:path class="edge" [id]="'link-' + link.id" [class.focused]="link.options?.focused" [attr.marker-end]="'url(#end-arrow' + (link.options?.focused ? '-focus' : '') + ')'">
       </svg:path>
       <svg:text class="edge-label" text-anchor="middle" dy="20">
-        <svg:textPath class="text-path" [attr.href]="'#link-' + link.id" [style.dominant-baseline]="link?.options?.dominantBaseline" startOffset="50%">
-          {{link?.detail?.ship_strategy}}
+        <svg:textPath class="text-path" [attr.xlink:href]="'#link-' + link.id" [style.dominant-baseline]="link?.options?.dominantBaseline" startOffset="50%">
+          {{link?.detail?.ship_strategy}} {{link?.detail?.local_strategy}}
         </svg:textPath>
       </svg:text>
     </svg:g>
     <svg:g #nodeElement
-      *ngFor="let node of layoutNodes"
+      *ngFor="let node of layoutNodes;trackBy:trackByNode"
       class="node-group"
       [class.focused]="node.options?.focused"
       [id]="node.id"

@@ -20,10 +20,10 @@ export interface JobBackpressureInterface {
   status: string;
   'backpressure-level': string;
   'end-timestamp': number;
-  subtasks: SubtasksItem[];
+  subtasks: JobBackpressureSubtaskInterface[];
 }
 
-interface SubtasksItem {
+export interface JobBackpressureSubtaskInterface {
   subtask: number;
   'backpressure-level': string;
   ratio: number;

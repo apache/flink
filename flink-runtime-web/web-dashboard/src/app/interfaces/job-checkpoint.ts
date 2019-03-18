@@ -53,20 +53,22 @@ export interface CheckPointInterface {
       'is_savepoint': boolean;
       'external_path': string;
     };
-    history: {
-      'id': number;
-      'status': string;
-      'is_savepoint': boolean;
-      'trigger_timestamp': number;
-      'latest_ack_timestamp': number;
-      'state_size': number;
-      'end_to_end_duration': number;
-      'alignment_buffered': number;
-      'num_subtasks': number;
-      'num_acknowledged_subtasks': number;
-      task: CheckPointTaskStatisticsInterface;
-    }
+    history: CheckPointHistoryInterface
   };
+}
+
+export interface CheckPointHistoryInterface {
+  'id': number;
+  'status': string;
+  'is_savepoint': boolean;
+  'trigger_timestamp': number;
+  'latest_ack_timestamp': number;
+  'state_size': number;
+  'end_to_end_duration': number;
+  'alignment_buffered': number;
+  'num_subtasks': number;
+  'num_acknowledged_subtasks': number;
+  task: CheckPointTaskStatisticsInterface;
 }
 
 export interface CheckPointMinMaxAvgStatisticsInterface {

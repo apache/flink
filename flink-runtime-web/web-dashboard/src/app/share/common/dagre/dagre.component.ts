@@ -32,7 +32,7 @@ import {
 
 import { select } from 'd3-selection';
 import { zoomIdentity } from 'd3-zoom';
-import { NodesItemCorrectInterface, VerticesLinkInterface } from 'interfaces';
+import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
 import { LayoutNode, NzGraph } from './graph';
 import { NodeComponent } from './node.component';
 import { SvgContainerComponent } from './svg-container.component';
@@ -57,7 +57,7 @@ export class DagreComponent extends NzGraph {
   cacheTransform = { x: 0, y: 0, k: 1 };
   oldTransform = { x: 0, y: 0, k: 1 };
   cacheNodes: NodesItemCorrectInterface[] = [];
-  cacheLinks: VerticesLinkInterface[] = [];
+  cacheLinks: NodesItemLinkInterface[] = [];
   @ViewChildren('nodeElement') nodeElements: QueryList<ElementRef>;
   @ViewChildren('linkElement') linkElements: QueryList<ElementRef>;
   @ViewChildren(NodeComponent) rectNodeComponents: QueryList<NodeComponent>;
@@ -89,7 +89,7 @@ export class DagreComponent extends NzGraph {
    */
   focusNode(node: NodesItemCorrectInterface, force = false) {
     const layoutNode = this.layoutNodes.find(n => n.id === node.id);
-    this.clickNode(layoutNode, null, force);
+    this.clickNode(layoutNode, null, force, false);
   }
 
   /**
@@ -136,31 +136,43 @@ export class DagreComponent extends NzGraph {
    * @param links
    * @param isResizeNode
    */
-  flush(nodes: NodesItemCorrectInterface[], links: VerticesLinkInterface[], isResizeNode = false) {
-    this.cacheNodes = [ ...nodes ];
-    this.cacheLinks = [ ...links ];
-    this.zone.run(() => {
-      this.selectedNodeId = null;
-      this.createGraph({ compound: true });
-      this.setNodes(nodes);
-      this.setEdge(links);
-      requestAnimationFrame(() => {
-        this.initLayout().then(() => {
-          requestAnimationFrame(() => {
-            this.redrawLines();
-            this.redrawNodes();
-            this.moveToCenter();
-            if (isResizeNode) {
-              this.visibility = Visibility.Hidden;
-              setTimeout(() => {
-                this.resetNodeSize();
-              }, 100);
-            }
+  flush(nodes: NodesItemCorrectInterface[], links: NodesItemLinkInterface[], isResizeNode = false): Promise<void> {
+    return new Promise(resolve => {
+      this.cacheNodes = [ ...nodes ];
+      this.cacheLinks = [ ...links ];
+      this.zone.run(() => {
+        this.selectedNodeId = null;
+        this.createGraph({ compound: true });
+        this.setNodes(nodes);
+        this.setEdge(links);
+        requestAnimationFrame(() => {
+          this.initLayout().then(() => {
+            requestAnimationFrame(() => {
+              this.redrawLines();
+              this.redrawNodes();
+              this.moveToCenter();
+              if (isResizeNode) {
+                this.visibility = Visibility.Hidden;
+                setTimeout(() => {
+                  this.resetNodeSize().then(() => resolve());
+                }, 300);
+              } else {
+                resolve();
+              }
+            });
+            this.cd.markForCheck();
           });
-          this.cd.markForCheck();
         });
       });
     });
+  }
+
+  trackByLink(_: number, link: NodesItemLinkInterface) {
+    return link.id;
+  }
+
+  trackByNode(_: number, link: NodesItemCorrectInterface) {
+    return link.id;
   }
 
   /**
@@ -180,7 +192,7 @@ export class DagreComponent extends NzGraph {
         }
       }
     });
-    this.flush(this.cacheNodes, this.cacheLinks, false);
+    return this.flush(this.cacheNodes, this.cacheLinks, false);
   }
 
   /**
@@ -212,10 +224,15 @@ export class DagreComponent extends NzGraph {
       const node = this.layoutNodes.find(n => n.id === nodeEl.nativeElement.id);
       if (node) {
         const nodeGroupSelection = select(nodeEl.nativeElement);
-        nodeGroupSelection.attr('transform', `${node.options.oldTransform},scale(${node.options.oldScale}, ${node.options.oldScale})`)
-        .transition()
-        .duration(animate ? 500 : 0)
-        .attr('transform', `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`);
+        if (animate) {
+          nodeGroupSelection.attr('transform', `${node.options.oldTransform},scale(${node.options.oldScale}, ${node.options.oldScale})`)
+          .transition()
+          .duration(500)
+          .attr('transform', `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`);
+        } else {
+          nodeGroupSelection.attr('transform', `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`);
+        }
+
       }
     });
   }
@@ -226,12 +243,14 @@ export class DagreComponent extends NzGraph {
    * @param $event
    * @param force
    */
-  clickNode(node: LayoutNode | undefined, $event?: MouseEvent | null, force = false) {
+  clickNode(node: LayoutNode | undefined, $event?: MouseEvent | null, force = false, emit = true) {
     if ($event) {
       $event.stopPropagation();
     }
     if (node) {
-      this.nodeClick.emit(node);
+      if (emit) {
+        this.nodeClick.emit(node);
+      }
       if (!this.selectedNodeId) {
         this.oldTransform = { ...this.svgContainer.containerTransform };
       }
@@ -255,7 +274,7 @@ export class DagreComponent extends NzGraph {
           requestAnimationFrame(() => {
             const t = zoomIdentity.translate(transform.x, transform.y).scale(transform.k);
             this.svgContainer.setPositionByTransform(t, true);
-            this.redrawNodes();
+            this.redrawNodes(!force);
           });
           this.graphElement.nativeElement.appendChild(this.overlayElement.nativeElement);
           this.graphElement.nativeElement.querySelectorAll(`.link-group`)
@@ -277,22 +296,22 @@ export class DagreComponent extends NzGraph {
   }
 
   /**
-   * Click graph background
+   * Redraw graph
    */
-  clickBackground() {
-    if (!this.selectedNodeId) {
-      return;
-    }
+  redrawGraph() {
     this.selectedNodeId = null;
-    this.nodeClick.emit(null);
     this.circleNodeIds = [];
     this.focusedLinkIds = [];
     this.recoveryLayout().then(() => {
       requestAnimationFrame(() => {
-        const t = zoomIdentity.translate(this.oldTransform.x, this.oldTransform.y).scale(this.oldTransform.k);
-        this.svgContainer.setPositionByTransform(t, true);
-        this.redrawLines();
-        this.redrawNodes();
+        if (this.oldTransform.x === 0 && this.oldTransform.y === 0 && this.oldTransform.k === 1) {
+          this.moveToCenter();
+        } else {
+          const t = zoomIdentity.translate(this.oldTransform.x, this.oldTransform.y).scale(this.oldTransform.k);
+          this.svgContainer.setPositionByTransform(t, true);
+          this.redrawLines();
+          this.redrawNodes();
+        }
       });
       this.cd.markForCheck();
     });

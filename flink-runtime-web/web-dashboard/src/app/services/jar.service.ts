@@ -46,7 +46,6 @@ export class JarService {
   uploadJar(fd: File) {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
-    console.log(formData);
     const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
       reportProgress: true
     });

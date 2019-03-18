@@ -29,3 +29,4 @@ export const COLOR_MAP = {
   RECONCILING: '#eb2f96',
   SCHEDULED  : '#722ed1'
 };
+export const LONG_MIN_VALUE = -9223372036854776000;

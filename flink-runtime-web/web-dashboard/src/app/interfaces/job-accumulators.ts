@@ -17,9 +17,16 @@
  */
 
 export interface UserAccumulatorsInterface {
-  'user-accumulators': Array<{ name: string, type: string, value: string }>;
+  name: string;
+  type: string;
+  value: string;
 }
 
 export interface SubTaskAccumulatorsInterface {
-  subtasks: Array<{ name: string, type: string, value: string, subtask: number, host: string, attempt: number }>;
+  name: string;
+  type: string;
+  value: string;
+  subtask: number;
+  host: string;
+  attempt: number;
 }

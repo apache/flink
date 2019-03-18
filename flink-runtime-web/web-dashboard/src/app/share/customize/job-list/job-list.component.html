@@ -27,7 +27,7 @@
         <th>Job Name</th>
         <th nzShowSort nzSortKey="start-time">Start Time</th>
         <th nzShowSort nzSortKey="duration">Duration</th>
-        <th nzShowSort nzSortKey="end-time" *ngIf="completed">End Time</th>
+        <th nzShowSort nzSortKey="end-time">End Time</th>
         <th>Tasks</th>
         <th nzShowSort nzSortKey="state">Status</th>
       </tr>
@@ -37,7 +37,7 @@
         <td>{{ job.name }}</td>
         <td>{{ job["start-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
         <td>{{ job.duration | humanizeDuration }}</td>
-        <td *ngIf="completed">{{ job["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
         <td>
           <flink-task-badge [tasks]="job.tasks"></flink-task-badge>
         </td>

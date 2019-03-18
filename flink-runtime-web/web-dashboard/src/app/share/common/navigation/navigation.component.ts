@@ -29,6 +29,8 @@ import { map, takeUntil } from 'rxjs/operators';
 })
 export class NavigationComponent implements OnInit, OnDestroy {
   @Input() listOfNavigation: Array<{ path: string, title: string }> = [];
+  @Input() tabBarGutter = 8;
+  @Input() size = 'default';
   navIndex = 0;
   destroy$ = new Subject();
 
@@ -55,6 +57,5 @@ export class NavigationComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 
 }

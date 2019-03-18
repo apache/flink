@@ -17,7 +17,7 @@
   -->
 
 <ng-container *ngIf="taskManagerDetail">
-  <nz-card [nzBordered]="false" nzTitle="Memory">
+  <nz-card nzTitle="Memory">
     <nz-card nzType="inner" nzTitle="JVM (Heap/Non-Heap)">
       <nz-table
         [nzTemplateMode]="true"
@@ -85,7 +85,7 @@
       </nz-table>
     </nz-card>
   </nz-card>
-  <nz-card [nzBordered]="false" nzTitle="Network">
+  <nz-card nzTitle="Network">
     <nz-card nzType="inner" nzTitle="Memory Segments">
       <nz-table
         [nzTemplateMode]="true"

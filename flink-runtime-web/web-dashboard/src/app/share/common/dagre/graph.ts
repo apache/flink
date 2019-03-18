@@ -116,7 +116,14 @@ export class NzGraph {
    */
   setEdge(links: NodesItemLinkInterface[]) {
     links.forEach(l => {
-      l.width = l.ship_strategy ? l.ship_strategy.length * 3 : 3;
+      let length = 0;
+      if (l.local_strategy) {
+        length += l.local_strategy.length;
+      }
+      if (l.ship_strategy) {
+        length += l.ship_strategy.length;
+      }
+      l.width = (length || 1) * 3;
       this.graph.setEdge(l.source, l.target, l as any);
     });
   }

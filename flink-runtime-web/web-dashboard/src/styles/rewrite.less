@@ -28,4 +28,59 @@ nz-table {
       font-size: 12px;
     }
   }
+
+  &.full-height {
+    display: block;
+    height: 100%;
+    position: relative;
+
+    nz-spin {
+      display: block;
+      height: 100%;
+
+      .ant-spin-container {
+        position: relative;
+        zoom: 1;
+        height: 100%;
+
+        .ant-table {
+          height: 100%;
+
+          .ant-table-content {
+            height: 100%;
+
+            .ant-table-scroll {
+              height: 100%;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.ant-table-small > .ant-table-content > .ant-table-scroll > .ant-table-header > table > .ant-table-thead > tr > th.ant-table-column-sort {
+  background: @table-header-sort-active-bg;
+}
+
+.ant-tabs-tab {
+  font-weight: 500;
+}
+
+.ant-tooltip {
+  max-width: 500px;
+}
+
+.ant-tooltip-inner {
+  word-break: break-all;
+  font-size: 12px;
+}
+
+.ant-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.ant-table-tbody>tr>td, .ant-table-thead>tr>th{
+  word-break: break-word;
 }

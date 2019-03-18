@@ -22,6 +22,7 @@ import { TaskmanagersItemInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 import { StatusService, TaskManagerService } from 'services';
+import { deepFind } from 'utils';
 
 @Component({
   selector       : 'flink-task-manager-list',
@@ -33,6 +34,27 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   listOfTaskManager: TaskmanagersItemInterface[] = [];
   isLoading = true;
   destroy$ = new Subject();
+  sortName: string;
+  sortValue: string;
+
+  sort(sort: { key: string, value: string }) {
+    this.sortName = sort.key;
+    this.sortValue = sort.value;
+    this.search();
+  }
+
+  search() {
+    if (this.sortName) {
+      this.listOfTaskManager = [ ...this.listOfTaskManager.sort(
+        (pre, next) => {
+          if (this.sortValue === 'ascend') {
+            return (deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1);
+          } else {
+            return (deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1);
+          }
+        }) ];
+    }
+  }
 
   trackManagerBy(_: number, node: TaskmanagersItemInterface) {
     return node.id;
@@ -57,6 +79,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
     ).subscribe(data => {
       this.isLoading = false;
       this.listOfTaskManager = data;
+      this.search();
       this.cdr.markForCheck();
     }, () => {
       this.isLoading = false;
