@@ -25,15 +25,49 @@ import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.core.{AggregateCall, JoinInfo}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.IntPair
 
+import java.io.{PrintWriter, StringWriter}
 import java.util
 
 import scala.collection.mutable
 
 object FlinkRelOptUtil {
+
+  /**
+    * Converts a relational expression to a string.
+    * This is different from [[RelOptUtil]]#toString on two points:
+    * 1. Generated string by this method is in a tree style
+    * 2. Generated string by this method may have more information about RelNode, such as
+    * RelNode id, retractionTraits.
+    *
+    * @param rel                the RelNode to convert
+    * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
+    * @param withIdPrefix       whether including ID of RelNode as prefix
+    * @param withRetractTraits  whether including Retraction Traits of RelNode (only apply to
+    *                           StreamPhysicalRel node at present)
+    * @return explain plan of RelNode
+    */
+  def toString(
+      rel: RelNode,
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withIdPrefix: Boolean = false,
+      withRetractTraits: Boolean = false): String = {
+    if (rel == null) {
+      return null
+    }
+    val sw = new StringWriter
+    val planWriter = new RelTreeWriterImpl(
+      new PrintWriter(sw),
+      detailLevel,
+      withIdPrefix,
+      withRetractTraits)
+    rel.explain(planWriter)
+    sw.toString
+  }
+
 
   /**
     * Get unique field name based on existed `allFieldNames` collection.

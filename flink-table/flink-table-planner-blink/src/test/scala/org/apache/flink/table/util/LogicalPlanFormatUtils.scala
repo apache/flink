@@ -16,19 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.optimize.program
+package org.apache.flink.table.util
 
-import org.apache.flink.table.calcite.FlinkContext
+object LogicalPlanFormatUtils {
+  private val tempPattern = """TMP_\d+""".r
 
-import org.apache.calcite.plan.volcano.VolcanoPlanner
+  def formatTempTableId(preStr: String): String = {
+    val str = preStr.replaceAll("ArrayBuffer\\(", "List\\(")
+    val minId = getMinTempTableId(str)
+    tempPattern.replaceAllIn(str, s => "TMP_" + (s.matched.substring(4).toInt - minId))
+  }
 
-/**
-  * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
-  */
-trait FlinkOptimizeContext extends FlinkContext {
-
-  /**
-    * Gets [[VolcanoPlanner]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def getVolcanoPlanner: VolcanoPlanner
+  private def getMinTempTableId(logicalStr: String): Long = {
+    val found = tempPattern.findAllIn(logicalStr).map(s => {
+      s.substring(4).toInt
+    })
+    if (found.isEmpty) {
+      0L
+    } else {
+      found.min
+    }
+  }
 }

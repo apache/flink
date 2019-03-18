@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.sources.TableSource
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.adapter.enumerable.EnumerableTableScan
@@ -35,7 +37,7 @@ import org.apache.calcite.schema._
 import org.apache.calcite.sql.SqlAccessType
 import org.apache.calcite.sql.validate.{SqlModality, SqlMonotonicity}
 import org.apache.calcite.sql2rel.InitializerContext
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.util.{List => JList}
 
@@ -71,7 +73,29 @@ class FlinkRelOptTable protected(
     *
     * @return qualified name
     */
-  override def getQualifiedName: JList[String] = names
+  override def getQualifiedName: JList[String] = {
+    def explainSourceAsString(ts: TableSource[_]): JList[String] = {
+      val tsDigest = ts.explainSource()
+      if (tsDigest.nonEmpty) {
+        val builder = ImmutableList.builder[String]()
+        builder.addAll(Util.skipLast(names))
+        val completeTableName = s"${Util.last(names)}, source: [$tsDigest]"
+        builder.add(completeTableName)
+        builder.build()
+      } else {
+        names
+      }
+    }
+
+    table match {
+      // At this moment, table will always be instance of TableSourceSinkTable.
+      case tsst: TableSourceSinkTable[_, _] if tsst.tableSourceTable.nonEmpty =>
+        explainSourceAsString(tsst.tableSourceTable.get.tableSource)
+      case tst: TableSourceTable[_] =>
+        explainSourceAsString(tst.tableSource)
+      case _ => names
+    }
+  }
 
   /**
     * Obtains the access type of the table.
@@ -85,6 +109,8 @@ class FlinkRelOptTable protected(
       clazz.cast(this)
     } else if (clazz.isInstance(table)) {
       clazz.cast(table)
+    } else if (table.isInstanceOf[TableSourceSinkTable[_, _]]) {
+      table.asInstanceOf[TableSourceSinkTable[_, _]].unwrap(clazz)
     } else {
       null.asInstanceOf[T]
     }
@@ -228,7 +254,7 @@ class FlinkRelOptTable protected(
     if (table.getStatistic != null) {
       table.getStatistic.getDistribution
     } else {
-      null
+      FlinkRelDistributionTraitDef.INSTANCE.getDefault
     }
   }
 

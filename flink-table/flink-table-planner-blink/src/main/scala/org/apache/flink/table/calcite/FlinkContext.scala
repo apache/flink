@@ -16,19 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.optimize.program
+package org.apache.flink.table.calcite
 
-import org.apache.flink.table.calcite.FlinkContext
+import org.apache.flink.table.api.TableConfig
 
-import org.apache.calcite.plan.volcano.VolcanoPlanner
+import org.apache.calcite.plan.Context
 
 /**
-  * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
+  * A [[Context]] to allow the store data within the planner session and access it within rules.
   */
-trait FlinkOptimizeContext extends FlinkContext {
+trait FlinkContext extends Context {
 
   /**
-    * Gets [[VolcanoPlanner]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
+    * Gets [[TableConfig]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
     */
-  def getVolcanoPlanner: VolcanoPlanner
+  def getTableConfig: TableConfig
+
+  override def unwrap[C](clazz: Class[C]): C = {
+    if (clazz.isInstance(this)) clazz.cast(this) else null.asInstanceOf[C]
+  }
+
 }

@@ -18,28 +18,35 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sinks.TableSink
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
 /**
-  * Abstract class which define the interfaces required to convert a [[TableSource]] to
-  * a Calcite Table
+  * Class which implements the logic to convert a [[TableSink]] to Calcite Table
   */
-abstract class TableSourceTable[T](
-    val tableSource: TableSource[T],
+class TableSinkTable[T](
+    val tableSink: TableSink[T],
     val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
   extends FlinkTable {
 
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+    val fieldTypes = tableSink.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo)
+    flinkTypeFactory.buildRelDataType(tableSink.getFieldNames, fieldTypes)
+  }
+
   /**
-    * Returns statistics of current table.
+    * Returns statistics of current table
+    *
+    * @return statistics of current table
     */
   override def getStatistic: FlinkStatistic = statistic
 
-  /**
-    * Replaces table source with the given one, and create a new table source table.
-    *
-    * @param tableSource tableSource to replace.
-    * @return new TableSourceTable
-    */
-  def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T]
+  override def copy(statistic: FlinkStatistic): FlinkTable = {
+    new TableSinkTable[T](tableSink, statistic)
+  }
 }

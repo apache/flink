@@ -25,19 +25,58 @@ import org.apache.calcite.util.ImmutableBitSet
 import java.lang.Double
 import java.util
 
+import scala.collection.JavaConversions._
+
 /**
   * The class provides statistics for a [[org.apache.flink.table.plan.schema.FlinkTable]].
-  *
-  * TODO: Introduce TableStats after https://github.com/apache/flink/pull/7642 finished
   */
-class FlinkStatistic extends Statistic {
+class FlinkStatistic(
+    tableStats: TableStats,
+    uniqueKeys: util.Set[_ <: util.Set[String]] = null)
+  extends Statistic {
+
+  require(uniqueKeys == null || !uniqueKeys.exists(keys => keys == null || keys.isEmpty),
+    "uniqueKeys contains invalid elements!")
+
+  /**
+    * Returns the table statistics.
+    *
+    * @return The table statistics
+    */
+  def getTableStats: TableStats = tableStats
+
+  /**
+    * Returns the stats of the specified the column.
+    *
+    * @param columnName The name of the column for which the stats are requested.
+    * @return The stats of the specified column.
+    */
+  def getColumnStats(columnName: String): ColumnStats = {
+    if (tableStats != null && tableStats.getColumnStats != null) {
+      tableStats.getColumnStats.get(columnName)
+    } else {
+      null
+    }
+  }
+
+  /**
+    * Returns the table uniqueKeys.
+    * @return
+    */
+  def getUniqueKeys: util.Set[_ <: util.Set[String]] = uniqueKeys
 
   /**
     * Returns the number of rows of the table.
     *
     * @return The number of rows of the table.
     */
-  override def getRowCount: Double = null
+  override def getRowCount: Double = {
+    if (tableStats != null) {
+      tableStats.getRowCount.toDouble
+    } else {
+      null
+    }
+  }
 
   override def getCollations: util.List[RelCollation] = util.Collections.emptyList()
 
@@ -68,6 +107,43 @@ class FlinkStatistic extends Statistic {
 object FlinkStatistic {
 
   /** Represents a FlinkStatistic that knows nothing about a table */
-  val UNKNOWN: FlinkStatistic = new FlinkStatistic()
+  val UNKNOWN: FlinkStatistic = new FlinkStatistic(null)
 
+  class Builder {
+
+    private var tableStats: TableStats = _
+    private var uniqueKeys: util.Set[_ <: util.Set[String]] = _
+
+    def tableStats(tableStats: TableStats): Builder = {
+      this.tableStats = tableStats
+      this
+    }
+
+    def uniqueKeys(uniqueKeys: util.Set[_ <: util.Set[String]]): Builder = {
+      this.uniqueKeys = uniqueKeys
+      this
+    }
+
+    def statistic(statistic: FlinkStatistic): Builder = {
+      require(statistic != null, "input statistic cannot be null!")
+      this.tableStats = statistic.getTableStats
+      this.uniqueKeys = statistic.getUniqueKeys
+      this
+    }
+
+    def build(): FlinkStatistic = {
+      if (tableStats == null && uniqueKeys == null) {
+        UNKNOWN
+      } else {
+        new FlinkStatistic(tableStats, uniqueKeys)
+      }
+    }
+  }
+
+  /**
+    * Return a new builder that builds a [[FlinkStatistic]].
+    *
+    * @return a new builder to build a [[FlinkStatistic]]
+    */
+  def builder(): Builder = new Builder
 }

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.`trait`
 
-import org.apache.flink.table.plan.util.RelFieldCollationUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelFieldCollationUtil}
 
 import com.google.common.collect.{ImmutableList, Ordering}
 import org.apache.calcite.plan.{RelMultipleTrait, RelOptPlanner, RelTrait}

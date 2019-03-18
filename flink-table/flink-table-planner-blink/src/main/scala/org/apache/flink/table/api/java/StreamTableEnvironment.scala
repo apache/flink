@@ -146,8 +146,7 @@ object StreamTableEnvironment {
     *
     * @param executionEnvironment The Java [[StreamExecutionEnvironment]] of the TableEnvironment.
     */
-  def create(executionEnvironment: StreamExecutionEnvironment):
-  StreamTableEnvironment = {
+  def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
     new StreamTableEnvironment(executionEnvironment, new TableConfig())
   }
 
