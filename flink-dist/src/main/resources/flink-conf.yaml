@@ -243,3 +243,5 @@ rest.port: 8081
 # Interval in milliseconds for refreshing the monitored directories.
 #historyserver.archive.fs.refresh-interval: 10000
 
+# How long you want to retain archived job in milliseconds. The default value of -1 means no cleanup.
+#historyserver.archive.fs.retained-application-millis: -1

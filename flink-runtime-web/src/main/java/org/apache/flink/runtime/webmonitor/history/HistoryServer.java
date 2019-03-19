@@ -187,7 +187,8 @@ public class HistoryServer {
 		}
 
 		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, numFinishedPolls);
+		long retainedApplicationsMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_RETAIN_APPLICATION_MILLIS);
+		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, retainedApplicationsMillis, refreshDirs, webDir, numFinishedPolls);
 
 		this.shutdownHook = ShutdownHookUtil.addShutdownHook(
 			HistoryServer.this::stop,

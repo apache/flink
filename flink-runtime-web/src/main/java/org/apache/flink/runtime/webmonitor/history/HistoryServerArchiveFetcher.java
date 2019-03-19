@@ -79,9 +79,10 @@ class HistoryServerArchiveFetcher {
 	private final JobArchiveFetcherTask fetcherTask;
 	private final long refreshIntervalMillis;
 
-	HistoryServerArchiveFetcher(long refreshIntervalMillis, List<HistoryServer.RefreshLocation> refreshDirs, File webDir, CountDownLatch numFinishedPolls) {
+	HistoryServerArchiveFetcher(long refreshIntervalMillis, long retainedApplicationsMillis,
+								List<HistoryServer.RefreshLocation> refreshDirs, File webDir, CountDownLatch numFinishedPolls) {
 		this.refreshIntervalMillis = refreshIntervalMillis;
-		this.fetcherTask = new JobArchiveFetcherTask(refreshDirs, webDir, numFinishedPolls);
+		this.fetcherTask = new JobArchiveFetcherTask(retainedApplicationsMillis, refreshDirs, webDir, numFinishedPolls);
 		if (LOG.isInfoEnabled()) {
 			for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
 				LOG.info("Monitoring directory {} for archived jobs.", refreshDir.getPath());
@@ -111,6 +112,8 @@ class HistoryServerArchiveFetcher {
 	 */
 	static class JobArchiveFetcherTask extends TimerTask {
 
+		private final long retainedApplicationsMillis;
+		private final boolean isCleanupEnabled;
 		private final List<HistoryServer.RefreshLocation> refreshDirs;
 		private final CountDownLatch numFinishedPolls;
 
@@ -123,7 +126,16 @@ class HistoryServerArchiveFetcher {
 
 		private static final String JSON_FILE_ENDING = ".json";
 
-		JobArchiveFetcherTask(List<HistoryServer.RefreshLocation> refreshDirs, File webDir, CountDownLatch numFinishedPolls) {
+		JobArchiveFetcherTask(long retainedApplicationsMillis, List<HistoryServer.RefreshLocation> refreshDirs, File webDir,
+							CountDownLatch numFinishedPolls) {
+			this.retainedApplicationsMillis = retainedApplicationsMillis;
+			if (retainedApplicationsMillis > -1L) {
+				isCleanupEnabled = true;
+			} else {
+				isCleanupEnabled = false;
+				LOG.info("A negative value {} of the historyserver.archive.fs.retained-application-millis " +
+					"configuration is considered to disable the cleanup mechanism.", retainedApplicationsMillis);
+			}
 			this.refreshDirs = checkNotNull(refreshDirs);
 			this.numFinishedPolls = numFinishedPolls;
 			this.cachedArchives = new HashSet<>();
@@ -153,9 +165,19 @@ class HistoryServerArchiveFetcher {
 						continue;
 					}
 					boolean updateOverview = false;
+					long now = System.currentTimeMillis();
 					for (FileStatus jobArchive : jobArchives) {
 						Path jobArchivePath = jobArchive.getPath();
 						String jobID = jobArchivePath.getName();
+						if (isCleanupEnabled && now - jobArchive.getModificationTime() > retainedApplicationsMillis) {
+							if (LOG.isDebugEnabled()) {
+								LOG.debug("delete the old archived job for path {}." + jobArchivePath.toString());
+							}
+							jobArchivePath.getFileSystem().delete(jobArchivePath, false);
+							cleanUpLocalJob(jobID);
+							updateOverview = true;
+							continue;
+						}
 						try {
 							JobID.fromHexString(jobID);
 						} catch (IllegalArgumentException iae) {
@@ -203,21 +225,7 @@ class HistoryServerArchiveFetcher {
 							} catch (IOException e) {
 								LOG.error("Failure while fetching/processing job archive for job {}.", jobID, e);
 								// Make sure we attempt to fetch the archive again
-								cachedArchives.remove(jobID);
-								// Make sure we do not include this job in the overview
-								try {
-									Files.delete(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
-								} catch (IOException ioe) {
-									LOG.debug("Could not delete file from overview directory.", ioe);
-								}
-
-								// Clean up job files we may have created
-								File jobDirectory = new File(webJobDir, jobID);
-								try {
-									FileUtils.deleteDirectory(jobDirectory);
-								} catch (IOException ioe) {
-									LOG.debug("Could not clean up job directory.", ioe);
-								}
+								cleanUpLocalJob(jobID);
 							}
 						}
 					}
@@ -229,6 +237,25 @@ class HistoryServerArchiveFetcher {
 				LOG.error("Critical failure while fetching/processing job archives.", e);
 			}
 			numFinishedPolls.countDown();
+		}
+
+		private void cleanUpLocalJob(String jobID){
+			cachedArchives.remove(jobID);
+			// Make sure we do not include this job in the overview
+			try {
+				Files.delete(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
+			} catch (IOException ioe) {
+				LOG.debug("Could not delete file from overview directory.", ioe);
+			}
+
+			// Clean up job files we may have created
+			File jobDirectory = new File(webJobDir, jobID);
+			try {
+				FileUtils.deleteDirectory(jobDirectory);
+				Files.deleteIfExists(new File(webJobDir, jobID + JSON_FILE_ENDING).toPath());
+			} catch (IOException ioe) {
+				LOG.debug("Could not clean up job directory.", ioe);
+			}
 		}
 	}
 

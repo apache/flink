@@ -37,6 +37,14 @@ public class HistoryServerOptions {
 			.withDescription("Interval in milliseconds for refreshing the archived job directories.");
 
 	/**
+	 * How long you want to retain archived job in milliseconds. The default value of 0 means no cleanup.
+	 */
+	public static final ConfigOption<Long> HISTORY_SERVER_ARCHIVE_RETAIN_APPLICATION_MILLIS =
+		key("historyserver.archive.fs.retained-application-millis")
+			.defaultValue(-1L)
+			.withDescription("How long you want to retain archived job in milliseconds. The default value of -1 means no cleanup.");
+
+	/**
 	 * Comma-separated list of directories which the HistoryServer polls for new archives.
 	 */
 	public static final ConfigOption<String> HISTORY_SERVER_ARCHIVE_DIRS =
