@@ -55,4 +55,17 @@ public final class TableStats {
 	public Map<String, ColumnStats> getColumnStats() {
 		return colStats;
 	}
+
+	/**
+	 * Create a deep copy of "this" instance.
+	 * @return a deep copy
+	 */
+	public TableStats copy() {
+		TableStats copy = new TableStats(this.rowCount);
+		for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
+			copy.colStats.put(entry.getKey(), entry.getValue().copy());
+		}
+		return copy;
+	}
+
 }
