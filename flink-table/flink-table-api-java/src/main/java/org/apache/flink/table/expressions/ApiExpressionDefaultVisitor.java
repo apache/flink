@@ -62,8 +62,8 @@ public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisito
 	}
 
 	@Override
-	public T visitUnresolvedCall(UnresolvedCallExpression unresolvedCall) {
-		return defaultMethod(unresolvedCall);
+	public T visitLookupCall(LookupCallExpression lookupCall) {
+		return defaultMethod(lookupCall);
 	}
 
 	@Override

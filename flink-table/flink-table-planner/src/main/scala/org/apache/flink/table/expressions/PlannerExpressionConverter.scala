@@ -715,8 +715,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     )
   }
 
-  override def visitUnresolvedCall(unresolvedCall: UnresolvedCallExpression): PlannerExpression =
-    throw new TableException("Unsupported function call: " + unresolvedCall)
+  override def visitLookupCall(lookupCall: LookupCallExpression): PlannerExpression =
+    throw new TableException("Unsupported function call: " + lookupCall)
 
   override def visitNonApiExpression(other: Expression): PlannerExpression = {
     other match {
