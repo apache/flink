@@ -50,7 +50,7 @@ public final class TypeLiteralExpression implements Expression {
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visit(this);
+		return visitor.visitTypeLiteral(this);
 	}
 
 	@Override
