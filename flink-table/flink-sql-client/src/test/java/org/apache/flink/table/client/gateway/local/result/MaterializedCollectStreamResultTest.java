@@ -42,7 +42,7 @@ public class MaterializedCollectStreamResultTest {
 
 	@Test
 	public void testSnapshot() throws UnknownHostException {
-		final RowTypeInfo type = (RowTypeInfo) Types.ROW(Types.STRING, Types.LONG);
+		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
@@ -90,7 +90,7 @@ public class MaterializedCollectStreamResultTest {
 
 	@Test
 	public void testLimitedSnapshot() throws UnknownHostException {
-		final RowTypeInfo type = (RowTypeInfo) Types.ROW(Types.STRING, Types.LONG);
+		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {

@@ -73,9 +73,8 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 
 		// create table sink
 		// pass binding address and port such that sink knows where to send to
-		collectTableSink =
-			(CollectStreamTableSink) new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer)
-				.configure(outputType.getFieldNames(), outputType.getFieldTypes());
+		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer)
+			.configure(outputType.getFieldNames(), outputType.getFieldTypes());
 		retrievalThread = new ResultRetrievalThread();
 		monitoringThread = new JobMonitoringThread();
 	}

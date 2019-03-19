@@ -25,7 +25,6 @@ import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFun
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import _root_.scala.collection.JavaConversions._
@@ -33,46 +32,9 @@ import _root_.scala.collection.JavaConversions._
 /**
   * The implementation of the [[Table]].
   *
-  * A Table is the core component of the Table API.
-  * Similar to how the batch and streaming APIs have DataSet and DataStream,
-  * the Table API is built around [[Table]].
+  * In [[TableImpl]], string expressions are parsed by [[ExpressionParser]] into [[Expression]]s.
   *
-  * Use the methods of [[Table]] to transform data. Use [[TableEnvironment]] to convert a [[Table]]
-  * back to a DataSet or DataStream.
-  *
-  * When using Scala a [[Table]] can also be converted using implicit conversions.
-  *
-  * Java Example:
-  *
-  * {{{
-  *   ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-  *   BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
-  *
-  *   DataSet<Tuple2<String, Integer>> set = ...
-  *   tEnv.registerTable("MyTable", set, "a, b");
-  *
-  *   Table table = tEnv.scan("MyTable").select(...);
-  *   ...
-  *   Table table2 = ...
-  *   DataSet<MyType> set2 = tEnv.toDataSet(table2, MyType.class);
-  * }}}
-  *
-  * Scala Example:
-  *
-  * {{{
-  *   val env = ExecutionEnvironment.getExecutionEnvironment
-  *   val tEnv = BatchTableEnvironment.create(env)
-  *
-  *   val set: DataSet[(String, Int)] = ...
-  *   val table = set.toTable(tEnv, 'a, 'b)
-  *   ...
-  *   val table2 = ...
-  *   val set2: DataSet[MyType] = table2.toDataSet[MyType]
-  * }}}
-  *
-  * Operations such as [[join]], [[select]], [[where]] and [[groupBy]] either take arguments
-  * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
-  * syntax.
+  * __NOTE__: Currently, the implementation depends on Calcite.
   *
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
   * @param logicalPlan logical representation
@@ -94,40 +56,14 @@ class TableImpl(
 
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
 
-  /**
-    * Returns the schema of this table.
-    */
   def getSchema: TableSchema = tableSchema
 
-  /**
-    * Prints the schema of this table to the console in a tree format.
-    */
   def printSchema(): Unit = print(tableSchema.toString)
 
-  /**
-    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
-    * can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.select("key, value.avg + ' The average' as average")
-    * }}}
-    */
   def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
-    * can contain complex expressions and aggregations.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.select('key, 'value.avg + " The average" as 'average)
-    * }}}
-    */
   def select(fields: Expression*): Table = {
     selectInternal(fields.map(expressionBridge.bridge))
   }
@@ -157,25 +93,6 @@ class TableImpl(
     }
   }
 
-  /**
-    * Creates [[TemporalTableFunction]] backed up by this table as a history table.
-    * Temporal Tables represent a concept of a table that changes over time and for which
-    * Flink keeps track of those changes. [[TemporalTableFunction]] provides a way how to access
-    * those data.
-    *
-    * For more information please check Flink's documentation on Temporal Tables.
-    *
-    * Currently [[TemporalTableFunction]]s are only supported in streaming.
-    *
-    * @param timeAttribute Must points to a time attribute. Provides a way to compare which records
-    *                      are a newer or older version.
-    * @param primaryKey    Defines the primary key. With primary key it is possible to update
-    *                      a row or to delete it.
-    * @return [[TemporalTableFunction]] which is an instance of
-    *        [[org.apache.flink.table.functions.TableFunction]]. It takes one single argument,
-    *        the `timeAttribute`, for which it returns matching version of the [[Table]], from which
-    *        [[TemporalTableFunction]] was created.
-    */
   def createTemporalTableFunction(
       timeAttribute: String,
       primaryKey: String)
@@ -185,25 +102,6 @@ class TableImpl(
       ExpressionParser.parseExpression(primaryKey))
   }
 
-  /**
-    * Creates [[TemporalTableFunction]] backed up by this table as a history table.
-    * Temporal Tables represent a concept of a table that changes over time and for which
-    * Flink keeps track of those changes. [[TemporalTableFunction]] provides a way how to access
-    * those data.
-    *
-    * For more information please check Flink's documentation on Temporal Tables.
-    *
-    * Currently [[TemporalTableFunction]]s are only supported in streaming.
-    *
-    * @param timeAttribute Must points to a time indicator. Provides a way to compare which records
-    *                      are a newer or older version.
-    * @param primaryKey    Defines the primary key. With primary key it is possible to update
-    *                      a row or to delete it.
-    * @return [[TemporalTableFunction]] which is an instance of
-    *        [[org.apache.flink.table.functions.TableFunction]]. It takes one single argument,
-    *        the `timeAttribute`, for which it returns matching version of the [[Table]], from which
-    *        [[TemporalTableFunction]] was created.
-    */
   def createTemporalTableFunction(
       timeAttribute: Expression,
       primaryKey: Expression)
@@ -237,30 +135,10 @@ class TableImpl(
     }
   }
 
-  /**
-    * Renames the fields of the expression result. Use this to disambiguate fields before
-    * joining to operations.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.as("a, b")
-    * }}}
-    */
   def as(fields: String): Table = {
     as(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Renames the fields of the expression result. Use this to disambiguate fields before
-    * joining to operations.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.as('a, 'b)
-    * }}}
-    */
   def as(fields: Expression*): Table = {
     asInternal(fields.map(tableEnv.expressionBridge.bridge))
   }
@@ -269,30 +147,10 @@ class TableImpl(
     new TableImpl(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
   }
 
-  /**
-    * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
-    * clause.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.filter("name = 'Fred'")
-    * }}}
-    */
   def filter(predicate: String): Table = {
     filter(ExpressionParser.parseExpression(predicate))
   }
 
-  /**
-    * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
-    * clause.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.filter('name === "Fred")
-    * }}}
-    */
   def filter(predicate: Expression): Table = {
     filterInternal(expressionBridge.bridge(predicate))
   }
@@ -301,58 +159,18 @@ class TableImpl(
     new TableImpl(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
   }
 
-  /**
-    * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
-    * clause.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.where("name = 'Fred'")
-    * }}}
-    */
   def where(predicate: String): Table = {
     filter(predicate)
   }
 
-  /**
-    * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
-    * clause.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.where('name === "Fred")
-    * }}}
-    */
   def where(predicate: Expression): Table = {
     filter(predicate)
   }
 
-  /**
-    * Groups the elements on some grouping keys. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.groupBy("key").select("key, value.avg")
-    * }}}
-    */
   def groupBy(fields: String): GroupedTable = {
     groupBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Groups the elements on some grouping keys. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.groupBy('key).select('key, 'value.avg)
-    * }}}
-    */
   def groupBy(fields: Expression*): GroupedTable = {
     groupByInternal(fields.map(expressionBridge.bridge))
   }
@@ -361,183 +179,46 @@ class TableImpl(
     new GroupedTableImpl(this, fields)
   }
 
-  /**
-    * Removes duplicate values and returns only distinct (different) values.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.select("key, value").distinct()
-    * }}}
-    */
   def distinct(): Table = {
     new TableImpl(tableEnv, Distinct(logicalPlan).validate(tableEnv))
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary. You can use
-    * where and select clauses after a join to further specify the behaviour of the join.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.join(right).where("a = b && c > 3").select("a, b, d")
-    * }}}
-    */
   def join(right: Table): Table = {
     joinInternal(right, None, JoinType.INNER)
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.join(right, "a = b")
-    * }}}
-    */
   def join(right: Table, joinPredicate: String): Table = {
     join(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   left.join(right, 'a === 'b).select('a, 'b, 'd)
-    * }}}
-    */
   def join(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.INNER)
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL left outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Example:
-    *
-    * {{{
-    *   left.leftOuterJoin(right).select("a, b, d")
-    * }}}
-    */
   def leftOuterJoin(right: Table): Table = {
     joinInternal(right, None, JoinType.LEFT_OUTER)
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL left outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Example:
-    *
-    * {{{
-    *   left.leftOuterJoin(right, "a = b").select("a, b, d")
-    * }}}
-    */
   def leftOuterJoin(right: Table, joinPredicate: String): Table = {
     leftOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL left outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   left.leftOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
-    * }}}
-    */
   def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.LEFT_OUTER)
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL right outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Example:
-    *
-    * {{{
-    *   left.rightOuterJoin(right, "a = b").select("a, b, d")
-    * }}}
-    */
   def rightOuterJoin(right: Table, joinPredicate: String): Table = {
     rightOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL right outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   left.rightOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
-    * }}}
-    */
   def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.RIGHT_OUTER)
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL full outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Example:
-    *
-    * {{{
-    *   left.fullOuterJoin(right, "a = b").select("a, b, d")
-    * }}}
-    */
   def fullOuterJoin(right: Table, joinPredicate: String): Table = {
     fullOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  /**
-    * Joins two [[Table]]s. Similar to an SQL full outer join. The fields of the two joined
-    * operations must not overlap, use [[as]] to rename fields if necessary.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have null check enabled (default).
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   left.fullOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
-    * }}}
-    */
   def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.FULL_OUTER)
   }
@@ -563,90 +244,20 @@ class TableImpl(
         correlated = false).validate(tableEnv))
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table function.
-    *
-    * Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *   table.joinLateral("split(c) as (s)").select("a, b, c, s");
-    * }}}
-    */
   def joinLateral(tableFunctionCall: String): Table = {
     joinLateral(ExpressionParser.parseExpression(tableFunctionCall))
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table function.
-    *
-    * Scala Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.joinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
-    * }}}
-    */
   def joinLateral(tableFunctionCall: Expression): Table = {
     joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.INNER)
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table function.
-    *
-    * Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *   table.joinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
-    * }}}
-    */
   def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
     joinLateral(
       ExpressionParser.parseExpression(tableFunctionCall),
       ExpressionParser.parseExpression(joinPredicate))
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table function.
-    *
-    * Scala Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.joinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
-    * }}}
-    */
   def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
     joinLateralInternal(
       expressionBridge.bridge(tableFunctionCall),
@@ -654,94 +265,20 @@ class TableImpl(
       JoinType.INNER)
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
-    *
-    * Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *   table.leftOuterJoinLateral("split(c) as (s)").select("a, b, c, s");
-    * }}}
-    */
   def leftOuterJoinLateral(tableFunctionCall: String): Table = {
     leftOuterJoinLateral(ExpressionParser.parseExpression(tableFunctionCall))
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
-    *
-    * Scala Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
-    * }}}
-    */
   def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
     joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.LEFT_OUTER)
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
-    *
-    * Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *   table.leftOuterJoinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
-    * }}}
-    */
   def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
     leftOuterJoinLateral(
       ExpressionParser.parseExpression(tableFunctionCall),
       ExpressionParser.parseExpression(joinPredicate))
   }
 
-  /**
-    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
-    * table function. Each row of the table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
-    *
-    * Scala Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
-    * }}}
-    */
   def leftOuterJoinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
     joinLateralInternal(
       expressionBridge.bridge(tableFunctionCall),
@@ -776,20 +313,6 @@ class TableImpl(
       ).validate(tableEnv))
   }
 
-  /**
-    * Minus of two [[Table]]s with duplicate records removed.
-    * Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
-    * exist in the right table. Duplicate records in the left table are returned
-    * exactly once, i.e., duplicates are removed. Both tables must have identical field types.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.minus(right)
-    * }}}
-    */
   def minus(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
@@ -801,21 +324,7 @@ class TableImpl(
       .validate(tableEnv))
   }
 
-  /**
-    * Minus of two [[Table]]s. Similar to an SQL EXCEPT ALL.
-    * Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
-    * the right table. A record that is present n times in the left table and m times
-    * in the right table is returned (n - m) times, i.e., as many duplicates as are present
-    * in the right table are removed. Both tables must have identical field types.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.minusAll(right)
-    * }}}
-    */
+
   def minusAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
@@ -827,18 +336,7 @@ class TableImpl(
       .validate(tableEnv))
   }
 
-  /**
-    * Unions two [[Table]]s with duplicate records removed.
-    * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.union(right)
-    * }}}
-    */
+
   def union(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
@@ -849,18 +347,6 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  /**
-    * Unions two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
-    * must fully overlap.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.unionAll(right)
-    * }}}
-    */
   def unionAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
@@ -871,20 +357,6 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  /**
-    * Intersects two [[Table]]s with duplicate records removed. Intersect returns records that
-    * exist in both tables. If a record is present in one or both tables more than once, it is
-    * returned just once, i.e., the resulting table has no duplicate records. Similar to an
-    * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.intersect(right)
-    * }}}
-    */
   def intersect(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
@@ -896,20 +368,6 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  /**
-    * Intersects two [[Table]]s. IntersectAll returns records that exist in both tables.
-    * If a record is present in both tables more than once, it is returned as many times as it
-    * is present in both tables, i.e., the resulting table might have duplicate records. Similar
-    * to an SQL INTERSECT ALL. The fields of the two intersect operations must fully overlap.
-    *
-    * Note: Both tables must be bound to the same [[TableEnvironment]].
-    *
-    * Example:
-    *
-    * {{{
-    *   left.intersectAll(right)
-    * }}}
-    */
   def intersectAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
@@ -921,30 +379,10 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  /**
-    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
-    * The resulting Table is globally sorted across all parallel partitions.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.orderBy("name.desc")
-    * }}}
-    */
   def orderBy(fields: String): Table = {
     orderBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
-    * The resulting Table is globally sorted across all parallel partitions.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.orderBy('name.desc)
-    * }}}
-    */
   def orderBy(fields: Expression*): Table = {
     orderByInternal(fields.map(expressionBridge.bridge))
   }
@@ -957,44 +395,10 @@ class TableImpl(
     new TableImpl(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
   }
 
-  /**
-    * Limits a sorted result from an offset position.
-    * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-    * thus must be preceded by it.
-    *
-    * [[Table#offset(o)]] can be combined with a subsequent [[Table#fetch(n)]] call to return n rows
-    * after skipping the first o rows.
-    *
-    * {{{
-    *   // skips the first 3 rows and returns all following rows.
-    *   tab.orderBy("name.desc").offset(3)
-    *   // skips the first 10 rows and returns the next 5 rows.
-    *   tab.orderBy("name.desc").offset(10).fetch(5)
-    * }}}
-    *
-    * @param offset number of records to skip
-    */
   def offset(offset: Int): Table = {
     new TableImpl(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
   }
 
-  /**
-    * Limits a sorted result to the first n rows.
-    * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-    * thus must be preceded by it.
-    *
-    * [[Table#fetch(n)]] can be combined with a preceding [[Table#offset(o)]] call to return n rows
-    * after skipping the first o rows.
-    *
-    * {{{
-    *   // returns the first 3 records.
-    *   tab.orderBy("name.desc").fetch(3)
-    *   // skips the first 10 rows and returns the next 5 rows.
-    *   tab.orderBy("name.desc").offset(10).fetch(5)
-    * }}}
-    *
-    * @param fetch the number of records to return. Fetch must be >= 0.
-    */
   def fetch(fetch: Int): Table = {
     if (fetch < 0) {
       throw new ValidationException("FETCH count must be equal or larger than 0.")
@@ -1010,82 +414,18 @@ class TableImpl(
     }
   }
 
-  /**
-    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
-    *
-    * A batch [[Table]] can only be written to a
-    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
-    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
-    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
-    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
-    *
-    * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
-    */
   def insertInto(tableName: String): Unit = {
     insertInto(tableName, tableEnv.queryConfig)
   }
 
-  /**
-    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
-    *
-    * A batch [[Table]] can only be written to a
-    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
-    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
-    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
-    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
-    *
-    * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
-    * @param conf The [[QueryConfig]] to use.
-    */
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
     tableEnv.insertInto(this, tableName, conf)
   }
 
-  /**
-    * Groups the records of a table by assigning them to windows defined by a time or row interval.
-    *
-    * For streaming tables of infinite size, grouping into windows is required to define finite
-    * groups on which group-based aggregates can be computed.
-    *
-    * For batch tables of finite size, windowing essentially provides shortcuts for time-based
-    * groupBy.
-    *
-    * __Note__: Computing windowed aggregates on a streaming table is only a parallel operation
-    * if additional grouping attributes are added to the `groupBy(...)` clause.
-    * If the `groupBy(...)` only references a window alias, the streamed table will be processed
-    * by a single task, i.e., with parallelism 1.
-    *
-    * @param window groupWindow that specifies how elements are grouped.
-    * @return A group windowed table.
-    */
   def window(window: GroupWindow): GroupWindowedTable = {
     new GroupWindowedTableImpl(this, window)
   }
 
-  /**
-    * Defines over-windows on the records of a table.
-    *
-    * An over-window defines for each record an interval of records over which aggregation
-    * functions can be computed.
-    *
-    * Example:
-    *
-    * {{{
-    *   table
-    *     .window(Over partitionBy 'c orderBy 'rowTime preceding 10.seconds as 'ow)
-    *     .select('c, 'b.count over 'ow, 'e.sum over 'ow)
-    * }}}
-    *
-    * __Note__: Computing over window aggregates on a streaming table is only a parallel operation
-    * if the window is partitioned. Otherwise, the whole stream will be processed by a single
-    * task, i.e., with parallelism 1.
-    *
-    * __Note__: Over-windows for batch tables are currently not supported.
-    *
-    * @param overWindows windows that specify the record interval over which aggregations are
-    *                    computed.
-    * @return An OverWindowedTable to specify the aggregations.
-    */
   def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
@@ -1113,7 +453,7 @@ class TableImpl(
 }
 
 /**
-  * A table that has been grouped on a set of grouping keys.
+  * The implementation of a [[GroupedTable]] that has been grouped on a set of grouping keys.
   */
 class GroupedTableImpl(
     private[flink] val table: Table,
@@ -1122,30 +462,10 @@ class GroupedTableImpl(
 
   val tableImpl = table.asInstanceOf[TableImpl]
 
-  /**
-    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
-    * }}}
-    */
   def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
-    * }}}
-    */
   def select(fields: Expression*): Table = {
     selectInternal(fields.map(tableImpl.expressionBridge.bridge))
   }
@@ -1171,49 +491,17 @@ class GroupedTableImpl(
 }
 
 /**
-  * A table that has been windowed for [[GroupWindow]]s.
+  * The implementation of a [[GroupWindowedTable]] that has been windowed for [[GroupWindow]]s.
   */
 class GroupWindowedTableImpl(
     private[flink] val table: Table,
     private[flink] val window: GroupWindow)
   extends GroupWindowedTable {
 
-  /**
-    * Groups the elements by a mandatory window and one or more optional grouping attributes.
-    * The window is specified by referring to its alias.
-    *
-    * If no additional grouping attribute is specified and if the input is a streaming table,
-    * the aggregation will be performed by a single task, i.e., with parallelism 1.
-    *
-    * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
-    * to SQL SELECT-GROUP-BY query.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.window([window].as("w")).groupBy("w, key").select("key, value.avg")
-    * }}}
-    */
   def groupBy(fields: String): WindowGroupedTable = {
     groupBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Groups the elements by a mandatory window and one or more optional grouping attributes.
-    * The window is specified by referring to its alias.
-    *
-    * If no additional grouping attribute is specified and if the input is a streaming table,
-    * the aggregation will be performed by a single task, i.e., with parallelism 1.
-    *
-    * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
-    * to SQL SELECT-GROUP-BY query.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
-    * }}}
-    */
   def groupBy(fields: Expression*): WindowGroupedTable = {
     val fieldsWithoutWindow = fields.filterNot(window.getAlias.equals(_))
     if (fields.size != fieldsWithoutWindow.size + 1) {
@@ -1225,7 +513,8 @@ class GroupWindowedTableImpl(
 }
 
 /**
-  * A table that has been windowed and grouped for [[GroupWindow]]s.
+  * The implementation of a [[WindowGroupedTable]] that has been windowed and grouped for
+  * [[GroupWindow]]s.
   */
 class WindowGroupedTableImpl(
     private[flink] val table: Table,
@@ -1235,30 +524,10 @@ class WindowGroupedTableImpl(
 
   val tableImpl = table.asInstanceOf[TableImpl]
 
-  /**
-    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   windowGroupedTable.select("key, window.start, value.avg as valavg")
-    * }}}
-    */
   def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   windowGroupedTable.select('key, 'window.start, 'value.avg as 'valavg)
-    * }}}
-    */
   def select(fields: Expression*): Table = {
     selectInternal(
       groupKeys.map(tableImpl.expressionBridge.bridge),
@@ -1317,7 +586,7 @@ class WindowGroupedTableImpl(
 }
 
 /**
-  * A table that has been windowed for [[OverWindow]]s.
+  * The implementation of an [[OverWindowedTable]] that has been windowed for [[OverWindow]]s.
   */
 class OverWindowedTableImpl(
     private[flink] val table: Table,
@@ -1326,30 +595,10 @@ class OverWindowedTableImpl(
 
   val tableImpl = table.asInstanceOf[TableImpl]
 
-  /**
-    * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   overWindowedTable.select("c, b.count over ow, e.sum over ow")
-    * }}}
-    */
   def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  /**
-    * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Scala Example:
-    *
-    * {{{
-    *   overWindowedTable.select('c, 'b.count over 'ow, 'e.sum over 'ow)
-    * }}}
-    */
   def select(fields: Expression*): Table = {
     selectInternal(
       fields.map(tableImpl.expressionBridge.bridge),
