@@ -224,7 +224,8 @@ public class StateTtlConfig implements Serializable {
 		@Deprecated
 		@Nonnull
 		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
-			// We only support ProcessingTime now, so transfer to  {@link TtlTimeCharacteristic.ProcessingTime} directly.
+			checkArgument(timeCharacteristic.equals(TimeCharacteristic.ProcessingTime),
+				"Only support TimeCharacteristic.ProcessingTime, this function has replaced by setTtlTimeCharacteristic.");
 			setTtlTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
 			return this;
 		}
