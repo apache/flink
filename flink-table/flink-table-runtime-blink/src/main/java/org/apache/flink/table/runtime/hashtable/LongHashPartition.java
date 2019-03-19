@@ -653,10 +653,6 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		}
 	}
 
-//	public void append(long key, BinaryRow row) throws IOException {
-//		insertIntoTable(key, hashLong(key, recursionLevel), row);
-//	}
-
 	// ------------------ PagedInputView for read end --------------------
 
 	/**

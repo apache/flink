@@ -195,7 +195,7 @@ public class SegmentsUtil {
 			if (curSegRemain > 0) {
 				int copySize = Math.min(curSegRemain, sizeInBytes);
 
-				byte[] bytes = new byte[copySize];
+				byte[] bytes = allocateReuseBytes(copySize);
 				sourceSegment.get(offset, bytes);
 				target.write(bytes);
 
