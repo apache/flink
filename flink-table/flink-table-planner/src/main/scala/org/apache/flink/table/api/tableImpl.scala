@@ -17,19 +17,23 @@
  */
 package org.apache.flink.table.api
 
+import _root_.java.util.function.Supplier
+
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.expressions.ApiExpressionUtils
+.{extractAggregationsAndProperties, extractFieldReferences, replaceAggregationsAndProperties}
 import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge,
-  ExpressionParser, Ordering, PlannerExpression, ResolvedFieldReference, UnresolvedAlias,
-  WindowProperty}
-import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
+  ExpressionParser, LookupCallResolver, Ordering, PlannerExpression, ResolvedFieldReference,
+  UnresolvedAlias, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
-import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
 
 /**
   * The implementation of the [[Table]].
@@ -48,6 +52,8 @@ class TableImpl(
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
     tableEnv.expressionBridge
 
+  private[flink] val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
+
   private lazy val tableSchema: TableSchema = new TableSchema(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
@@ -63,35 +69,58 @@ class TableImpl(
   override def printSchema(): Unit = print(tableSchema.toString)
 
   override def select(fields: String): Table = {
-    select(ExpressionParser.parseExpressionList(fields): _*)
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def select(fields: Expression*): Table = {
-    selectInternal(fields.map(expressionBridge.bridge))
+    selectInternal(fields)
   }
 
-  private def selectInternal(fields: Seq[PlannerExpression]): Table = {
-    val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
-    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
-    if (propNames.nonEmpty) {
+  private[flink] def getUniqueAttributeSupplier: Supplier[String] = {
+    new Supplier[String] {
+      override def get(): String = tableEnv.createUniqueAttributeName()
+    }
+  }
+
+  private def selectInternal(fields: Seq[Expression]): Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(callResolver)).asJava
+    val extracted = extractAggregationsAndProperties(
+      expressionsWithResolvedCalls,
+      getUniqueAttributeSupplier)
+
+    val aggNames = extracted.getAggregations
+    val propNames = extracted.getWindowProperties
+    if (!propNames.isEmpty) {
       throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    if (aggNames.nonEmpty) {
-      val projectsOnAgg = replaceAggregationsAndProperties(
-        expandedFields, tableEnv, aggNames, propNames)
-      val projectFields = extractFieldReferences(expandedFields)
+    if (!aggNames.isEmpty) {
+      val projectsOnAgg =
+        replaceAggregationsAndProperties(
+          expressionsWithResolvedCalls,
+          aggNames,
+          propNames).asScala
+          .map(expressionBridge.bridge)
+          .flatMap(expr => flattenExpression(expr, logicalPlan, tableEnv))
+          .map(UnresolvedAlias)
+      val projectFields = extractFieldReferences(expressionsWithResolvedCalls)
+        .asScala
+        .map(expressionBridge.bridge)
+        .flatMap(expr => flattenExpression(expr, logicalPlan, tableEnv))
+        .map(UnresolvedAlias).toList
 
       new TableImpl(tableEnv,
         Project(projectsOnAgg,
-          Aggregate(Nil, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Aggregate(Nil, aggNames.asScala.map(a => Alias(expressionBridge.bridge(a._1), a._2)).toSeq,
             Project(projectFields, logicalPlan).validate(tableEnv)
           ).validate(tableEnv)
         ).validate(tableEnv)
       )
     } else {
       new TableImpl(tableEnv,
-        Project(expandedFields.map(UnresolvedAlias), logicalPlan).validate(tableEnv))
+        Project(expressionsWithResolvedCalls.asScala.map(expressionBridge.bridge)
+          .flatMap(expr => flattenExpression(expr, logicalPlan, tableEnv))
+          .map(UnresolvedAlias), logicalPlan).validate(tableEnv))
     }
   }
 
@@ -138,7 +167,7 @@ class TableImpl(
   }
 
   override def as(fields: String): Table = {
-    as(ExpressionParser.parseExpressionList(fields): _*)
+    as(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def as(fields: Expression*): Table = {
@@ -170,14 +199,14 @@ class TableImpl(
   }
 
   override def groupBy(fields: String): GroupedTable = {
-    groupBy(ExpressionParser.parseExpressionList(fields): _*)
+    groupBy(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def groupBy(fields: Expression*): GroupedTable = {
-    groupByInternal(fields.map(expressionBridge.bridge))
+    groupByInternal(fields)
   }
 
-  private def groupByInternal(fields: Seq[PlannerExpression]): GroupedTable = {
+  private def groupByInternal(fields: Seq[Expression]): GroupedTable = {
     new GroupedTableImpl(this, fields)
   }
 
@@ -381,7 +410,7 @@ class TableImpl(
   }
 
   override def orderBy(fields: String): Table = {
-    orderBy(ExpressionParser.parseExpressionList(fields): _*)
+    orderBy(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def orderBy(fields: Expression*): Table = {
@@ -458,33 +487,47 @@ class TableImpl(
   */
 class GroupedTableImpl(
     private[flink] val table: Table,
-    private[flink] val groupKey: Seq[PlannerExpression])
+    private[flink] val groupKey: Seq[Expression])
   extends GroupedTable {
 
   private val tableImpl = table.asInstanceOf[TableImpl]
 
   override def select(fields: String): Table = {
-    select(ExpressionParser.parseExpressionList(fields): _*)
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def select(fields: Expression*): Table = {
-    selectInternal(fields.map(tableImpl.expressionBridge.bridge))
+    selectInternal(fields)
   }
 
-  private def selectInternal(fields: Seq[PlannerExpression]): Table = {
-    val expandedFields = expandProjectList(fields, tableImpl.logicalPlan, tableImpl.tableEnv)
-    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableImpl.tableEnv)
-    if (propNames.nonEmpty) {
+  private def selectInternal(fields: Seq[Expression]): Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
+    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls, tableImpl.getUniqueAttributeSupplier)
+
+    val aggNames = extracted.getAggregations
+    val propNames = extracted.getWindowProperties
+    if (!propNames.isEmpty) {
       throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    val projectsOnAgg = replaceAggregationsAndProperties(
-      expandedFields, tableImpl.tableEnv, aggNames, propNames)
-    val projectFields = extractFieldReferences(expandedFields ++ groupKey)
+    val projectsOnAgg =
+      replaceAggregationsAndProperties(
+        expressionsWithResolvedCalls,
+        aggNames,
+        propNames).asScala
+        .map(tableImpl.expressionBridge.bridge)
+        .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
+        .map(UnresolvedAlias)
+    val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKey).asJava)
+      .asScala
+      .map(tableImpl.expressionBridge.bridge)
+      .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
+      .map(UnresolvedAlias).toList
 
     new TableImpl(tableImpl.tableEnv,
       Project(projectsOnAgg,
-        Aggregate(groupKey, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+        Aggregate(groupKey.map(tableImpl.expressionBridge.bridge),
+          aggNames.asScala.map(a => Alias(tableImpl.expressionBridge.bridge(a._1), a._2)).toSeq,
           Project(projectFields, tableImpl.logicalPlan).validate(tableImpl.tableEnv)
         ).validate(tableImpl.tableEnv)
       ).validate(tableImpl.tableEnv))
@@ -500,7 +543,7 @@ class GroupWindowedTableImpl(
   extends GroupWindowedTable {
 
   override def groupBy(fields: String): WindowGroupedTable = {
-    groupBy(ExpressionParser.parseExpressionList(fields): _*)
+    groupBy(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def groupBy(fields: Expression*): WindowGroupedTable = {
@@ -526,36 +569,50 @@ class WindowGroupedTableImpl(
   private val tableImpl = table.asInstanceOf[TableImpl]
 
   override def select(fields: String): Table = {
-    select(ExpressionParser.parseExpressionList(fields): _*)
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def select(fields: Expression*): Table = {
     selectInternal(
-      groupKeys.map(tableImpl.expressionBridge.bridge),
+      groupKeys,
       createLogicalWindow(),
-      fields.map(tableImpl.expressionBridge.bridge))
+      fields)
   }
 
   private def selectInternal(
-      groupKeys: Seq[PlannerExpression],
+      groupKeys: Seq[Expression],
       window: LogicalWindow,
-      fields: Seq[PlannerExpression]): Table = {
-    val expandedFields = expandProjectList(fields, tableImpl.logicalPlan, tableImpl.tableEnv)
-    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableImpl.tableEnv)
+      fields: Seq[Expression])
+    : Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
+    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls, tableImpl.getUniqueAttributeSupplier)
 
-    val projectsOnAgg = replaceAggregationsAndProperties(
-      expandedFields, tableImpl.tableEnv, aggNames, propNames)
+    val aggNames = extracted.getAggregations
+    val propNames = extracted.getWindowProperties
 
-    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeAttribute)
+    val projectsOnAgg =
+      replaceAggregationsAndProperties(
+        expressionsWithResolvedCalls,
+        aggNames,
+        propNames).asScala
+        .map(tableImpl.expressionBridge.bridge)
+        .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
+        .map(UnresolvedAlias)
+    val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKeys :+ this.window.getTimeField)
+      .asJava)
+      .asScala
+      .map(tableImpl.expressionBridge.bridge)
+      .flatMap(expr => flattenExpression(expr, tableImpl.logicalPlan, tableImpl.tableEnv))
+      .map(UnresolvedAlias).toList
 
     new TableImpl(tableImpl.tableEnv,
       Project(
         projectsOnAgg,
         WindowAggregate(
-          groupKeys,
+          groupKeys.map(tableImpl.expressionBridge.bridge),
           window,
-          propNames.map(a => Alias(a._1, a._2)).toSeq,
-          aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          propNames.asScala.map(a => Alias(tableImpl.expressionBridge.bridge(a._1), a._2)).toSeq,
+          aggNames.asScala.map(a => Alias(tableImpl.expressionBridge.bridge(a._1), a._2)).toSeq,
           Project(projectFields, tableImpl.logicalPlan).validate(tableImpl.tableEnv)
         ).validate(tableImpl.tableEnv),
         // required for proper resolution of the time attribute in multi-windows
@@ -597,7 +654,7 @@ class OverWindowedTableImpl(
   private val tableImpl = table.asInstanceOf[TableImpl]
 
   override def select(fields: String): Table = {
-    select(ExpressionParser.parseExpressionList(fields): _*)
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
   }
 
   override def select(fields: Expression*): Table = {
@@ -622,7 +679,7 @@ class OverWindowedTableImpl(
     }
 
     val expandedOverFields =
-      resolveOverWindows(expandedFields, logicalOverWindows, tableImpl.tableEnv)
+      resolveOverWindows(expandedFields, logicalOverWindows)
 
     new TableImpl(
       tableImpl.tableEnv,
@@ -641,7 +698,7 @@ class OverWindowedTableImpl(
   private def createLogicalWindow(overWindow: OverWindow): LogicalOverWindow = {
     LogicalOverWindow(
       tableImpl.expressionBridge.bridge(overWindow.getAlias),
-      overWindow.getPartitioning.map(tableImpl.expressionBridge.bridge),
+      overWindow.getPartitioning.asScala.map(tableImpl.expressionBridge.bridge),
       tableImpl.expressionBridge.bridge(overWindow.getOrder),
       tableImpl.expressionBridge.bridge(overWindow.getPreceding),
       JavaScalaConversionUtil
