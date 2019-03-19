@@ -28,17 +28,17 @@ import java.util.stream.Collectors;
  * Resolves calls with function names to calls with actual function definitions.
  */
 @Internal
-public class UnresolvedCallResolver extends ApiExpressionDefaultVisitor<Expression> {
+public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> {
 
 	private final FunctionDefinitionCatalog functionCatalog;
 
-	public UnresolvedCallResolver(FunctionDefinitionCatalog functionCatalog) {
+	public LookupCallResolver(FunctionDefinitionCatalog functionCatalog) {
 		this.functionCatalog = functionCatalog;
 	}
 
-	public Expression visitUnresolvedCall(UnresolvedCallExpression unresolvedCall) {
-		FunctionDefinition functionDefinition = functionCatalog.lookupFunction(unresolvedCall.getUnresolvedName());
-		return createResolvedCall(functionDefinition, unresolvedCall.getChildren());
+	public Expression visitLookupCall(LookupCallExpression lookupCall) {
+		FunctionDefinition functionDefinition = functionCatalog.lookupFunction(lookupCall.getUnresolvedName());
+		return createResolvedCall(functionDefinition, lookupCall.getChildren());
 	}
 
 	public Expression visitCall(CallExpression call) {

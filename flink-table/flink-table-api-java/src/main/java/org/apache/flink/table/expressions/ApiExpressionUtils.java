@@ -78,8 +78,8 @@ public final class ApiExpressionUtils {
 		return new TableReferenceExpression(name, table);
 	}
 
-	public static UnresolvedCallExpression unresolvedCall(String name, Expression... args) {
-		return new UnresolvedCallExpression(name, Arrays.asList(args));
+	public static LookupCallExpression lookupCall(String name, Expression... args) {
+		return new LookupCallExpression(name, Arrays.asList(args));
 	}
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {

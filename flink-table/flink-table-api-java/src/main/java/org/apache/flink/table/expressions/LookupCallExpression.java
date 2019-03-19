@@ -30,16 +30,17 @@ import java.util.stream.Collectors;
 /**
  * A call expression where the target function has not been resolved yet.
  *
- * <p>Instead of a {@link FunctionDefinition}, the call is identified by the function's name.
+ * <p>Instead of a {@link FunctionDefinition}, the call is identified by the function's name and needs to be lookup in
+ * a catalog
  */
 @PublicEvolving
-public final class UnresolvedCallExpression implements Expression {
+public final class LookupCallExpression implements Expression {
 
 	private final String unresolvedName;
 
 	private final List<Expression> args;
 
-	public UnresolvedCallExpression(String unresolvedFunction, List<Expression> args) {
+	public LookupCallExpression(String unresolvedFunction, List<Expression> args) {
 		this.unresolvedName = Preconditions.checkNotNull(unresolvedFunction);
 		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
@@ -66,7 +67,7 @@ public final class UnresolvedCallExpression implements Expression {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		UnresolvedCallExpression that = (UnresolvedCallExpression) o;
+		LookupCallExpression that = (LookupCallExpression) o;
 		return Objects.equals(unresolvedName, that.unresolvedName) &&
 			Objects.equals(args, that.args);
 	}

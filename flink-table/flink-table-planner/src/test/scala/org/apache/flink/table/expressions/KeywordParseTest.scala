@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedFieldRef, unresolvedCall}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedFieldRef, lookupCall}
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -40,21 +40,21 @@ class KeywordParseTest {
   @Test
   def testKeywordAsPrefixInFunctionName(): Unit = {
     assertEquals(
-      unresolvedCall("ascii", unresolvedFieldRef("f0")),
+      lookupCall("ascii", unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.ascii()"))
   }
 
   @Test
   def testKeywordAsInfixInFunctionName(): Unit = {
     assertEquals(
-      unresolvedCall("iiascii", unresolvedFieldRef("f0")),
+      lookupCall("iiascii", unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.iiascii()"))
   }
 
   @Test
   def testKeywordAsSuffixInFunctionName(): Unit = {
     assertEquals(
-      unresolvedCall("iiasc", unresolvedFieldRef("f0")),
+      lookupCall("iiasc", unresolvedFieldRef("f0")),
       ExpressionParser.parseExpression("f0.iiasc()"))
   }
 }

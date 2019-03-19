@@ -29,7 +29,7 @@ class ExpressionBridge[E <: Expression](
     functionCatalog: FunctionCatalog,
     finalVisitor: ExpressionVisitor[E]) {
 
-  private val callResolver = new UnresolvedCallResolver(functionCatalog)
+  private val callResolver = new LookupCallResolver(functionCatalog)
 
   def bridge(expression: Expression): E = {
     // resolve calls
