@@ -56,15 +56,15 @@ class TableImpl(
 
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
 
-  def getSchema: TableSchema = tableSchema
+  override def getSchema: TableSchema = tableSchema
 
-  def printSchema(): Unit = print(tableSchema.toString)
+  override def printSchema(): Unit = print(tableSchema.toString)
 
-  def select(fields: String): Table = {
+  override def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def select(fields: Expression*): Table = {
+  override def select(fields: Expression*): Table = {
     selectInternal(fields.map(expressionBridge.bridge))
   }
 
@@ -93,7 +93,7 @@ class TableImpl(
     }
   }
 
-  def createTemporalTableFunction(
+  override def createTemporalTableFunction(
       timeAttribute: String,
       primaryKey: String)
     : TemporalTableFunction = {
@@ -102,7 +102,7 @@ class TableImpl(
       ExpressionParser.parseExpression(primaryKey))
   }
 
-  def createTemporalTableFunction(
+  override def createTemporalTableFunction(
       timeAttribute: Expression,
       primaryKey: Expression)
     : TemporalTableFunction = {
@@ -135,11 +135,11 @@ class TableImpl(
     }
   }
 
-  def as(fields: String): Table = {
+  override def as(fields: String): Table = {
     as(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def as(fields: Expression*): Table = {
+  override def as(fields: Expression*): Table = {
     asInternal(fields.map(tableEnv.expressionBridge.bridge))
   }
 
@@ -147,11 +147,11 @@ class TableImpl(
     new TableImpl(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
   }
 
-  def filter(predicate: String): Table = {
+  override def filter(predicate: String): Table = {
     filter(ExpressionParser.parseExpression(predicate))
   }
 
-  def filter(predicate: Expression): Table = {
+  override def filter(predicate: Expression): Table = {
     filterInternal(expressionBridge.bridge(predicate))
   }
 
@@ -159,19 +159,19 @@ class TableImpl(
     new TableImpl(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
   }
 
-  def where(predicate: String): Table = {
+  override def where(predicate: String): Table = {
     filter(predicate)
   }
 
-  def where(predicate: Expression): Table = {
+  override def where(predicate: Expression): Table = {
     filter(predicate)
   }
 
-  def groupBy(fields: String): GroupedTable = {
+  override def groupBy(fields: String): GroupedTable = {
     groupBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def groupBy(fields: Expression*): GroupedTable = {
+  override def groupBy(fields: Expression*): GroupedTable = {
     groupByInternal(fields.map(expressionBridge.bridge))
   }
 
@@ -179,47 +179,47 @@ class TableImpl(
     new GroupedTableImpl(this, fields)
   }
 
-  def distinct(): Table = {
+  override def distinct(): Table = {
     new TableImpl(tableEnv, Distinct(logicalPlan).validate(tableEnv))
   }
 
-  def join(right: Table): Table = {
+  override def join(right: Table): Table = {
     joinInternal(right, None, JoinType.INNER)
   }
 
-  def join(right: Table, joinPredicate: String): Table = {
+  override def join(right: Table, joinPredicate: String): Table = {
     join(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  def join(right: Table, joinPredicate: Expression): Table = {
+  override def join(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.INNER)
   }
 
-  def leftOuterJoin(right: Table): Table = {
+  override def leftOuterJoin(right: Table): Table = {
     joinInternal(right, None, JoinType.LEFT_OUTER)
   }
 
-  def leftOuterJoin(right: Table, joinPredicate: String): Table = {
+  override def leftOuterJoin(right: Table, joinPredicate: String): Table = {
     leftOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
+  override def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.LEFT_OUTER)
   }
 
-  def rightOuterJoin(right: Table, joinPredicate: String): Table = {
+  override def rightOuterJoin(right: Table, joinPredicate: String): Table = {
     rightOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
+  override def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.RIGHT_OUTER)
   }
 
-  def fullOuterJoin(right: Table, joinPredicate: String): Table = {
+  override def fullOuterJoin(right: Table, joinPredicate: String): Table = {
     fullOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
   }
 
-  def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
+  override def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
     joinInternal(right, Some(expressionBridge.bridge(joinPredicate)), JoinType.FULL_OUTER)
   }
 
@@ -244,42 +244,43 @@ class TableImpl(
         correlated = false).validate(tableEnv))
   }
 
-  def joinLateral(tableFunctionCall: String): Table = {
+  override def joinLateral(tableFunctionCall: String): Table = {
     joinLateral(ExpressionParser.parseExpression(tableFunctionCall))
   }
 
-  def joinLateral(tableFunctionCall: Expression): Table = {
+  override def joinLateral(tableFunctionCall: Expression): Table = {
     joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.INNER)
   }
 
-  def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
+  override def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
     joinLateral(
       ExpressionParser.parseExpression(tableFunctionCall),
       ExpressionParser.parseExpression(joinPredicate))
   }
 
-  def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
+  override def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
     joinLateralInternal(
       expressionBridge.bridge(tableFunctionCall),
       Some(expressionBridge.bridge(joinPredicate)),
       JoinType.INNER)
   }
 
-  def leftOuterJoinLateral(tableFunctionCall: String): Table = {
+  override def leftOuterJoinLateral(tableFunctionCall: String): Table = {
     leftOuterJoinLateral(ExpressionParser.parseExpression(tableFunctionCall))
   }
 
-  def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
+  override def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
     joinLateralInternal(expressionBridge.bridge(tableFunctionCall), None, JoinType.LEFT_OUTER)
   }
 
-  def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
+  override def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
     leftOuterJoinLateral(
       ExpressionParser.parseExpression(tableFunctionCall),
       ExpressionParser.parseExpression(joinPredicate))
   }
 
-  def leftOuterJoinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
+  override def leftOuterJoinLateral(
+    tableFunctionCall: Expression, joinPredicate: Expression): Table = {
     joinLateralInternal(
       expressionBridge.bridge(tableFunctionCall),
       Some(expressionBridge.bridge(joinPredicate)),
@@ -313,7 +314,7 @@ class TableImpl(
       ).validate(tableEnv))
   }
 
-  def minus(right: Table): Table = {
+  override def minus(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
@@ -325,7 +326,7 @@ class TableImpl(
   }
 
 
-  def minusAll(right: Table): Table = {
+  override def minusAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
@@ -337,7 +338,7 @@ class TableImpl(
   }
 
 
-  def union(right: Table): Table = {
+  override def union(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
@@ -347,7 +348,7 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  def unionAll(right: Table): Table = {
+  override def unionAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
@@ -357,7 +358,7 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  def intersect(right: Table): Table = {
+  override def intersect(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException(
@@ -368,7 +369,7 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  def intersectAll(right: Table): Table = {
+  override def intersectAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
       throw new ValidationException(
@@ -379,11 +380,11 @@ class TableImpl(
         .validate(tableEnv))
   }
 
-  def orderBy(fields: String): Table = {
+  override def orderBy(fields: String): Table = {
     orderBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def orderBy(fields: Expression*): Table = {
+  override def orderBy(fields: Expression*): Table = {
     orderByInternal(fields.map(expressionBridge.bridge))
   }
 
@@ -395,11 +396,11 @@ class TableImpl(
     new TableImpl(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
   }
 
-  def offset(offset: Int): Table = {
+  override def offset(offset: Int): Table = {
     new TableImpl(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
   }
 
-  def fetch(fetch: Int): Table = {
+  override def fetch(fetch: Int): Table = {
     if (fetch < 0) {
       throw new ValidationException("FETCH count must be equal or larger than 0.")
     }
@@ -414,19 +415,19 @@ class TableImpl(
     }
   }
 
-  def insertInto(tableName: String): Unit = {
+  override def insertInto(tableName: String): Unit = {
     insertInto(tableName, tableEnv.queryConfig)
   }
 
-  def insertInto(tableName: String, conf: QueryConfig): Unit = {
+  override def insertInto(tableName: String, conf: QueryConfig): Unit = {
     tableEnv.insertInto(this, tableName, conf)
   }
 
-  def window(window: GroupWindow): GroupWindowedTable = {
+  override def window(window: GroupWindow): GroupWindowedTable = {
     new GroupWindowedTableImpl(this, window)
   }
 
-  def window(overWindows: OverWindow*): OverWindowedTable = {
+  override def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
       throw new TableException("Over-windows for batch tables are currently not supported.")
@@ -462,11 +463,11 @@ class GroupedTableImpl(
 
   val tableImpl = table.asInstanceOf[TableImpl]
 
-  def select(fields: String): Table = {
+  override def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def select(fields: Expression*): Table = {
+  override def select(fields: Expression*): Table = {
     selectInternal(fields.map(tableImpl.expressionBridge.bridge))
   }
 
@@ -498,11 +499,11 @@ class GroupWindowedTableImpl(
     private[flink] val window: GroupWindow)
   extends GroupWindowedTable {
 
-  def groupBy(fields: String): WindowGroupedTable = {
+  override def groupBy(fields: String): WindowGroupedTable = {
     groupBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def groupBy(fields: Expression*): WindowGroupedTable = {
+  override def groupBy(fields: Expression*): WindowGroupedTable = {
     val fieldsWithoutWindow = fields.filterNot(window.getAlias.equals(_))
     if (fields.size != fieldsWithoutWindow.size + 1) {
       throw new ValidationException("GroupBy must contain exactly one window alias.")
@@ -524,11 +525,11 @@ class WindowGroupedTableImpl(
 
   val tableImpl = table.asInstanceOf[TableImpl]
 
-  def select(fields: String): Table = {
+  override def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def select(fields: Expression*): Table = {
+  override def select(fields: Expression*): Table = {
     selectInternal(
       groupKeys.map(tableImpl.expressionBridge.bridge),
       createLogicalWindow(),
@@ -595,11 +596,11 @@ class OverWindowedTableImpl(
 
   val tableImpl = table.asInstanceOf[TableImpl]
 
-  def select(fields: String): Table = {
+  override def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields): _*)
   }
 
-  def select(fields: Expression*): Table = {
+  override def select(fields: Expression*): Table = {
     selectInternal(
       fields.map(tableImpl.expressionBridge.bridge),
       overWindows.map(createLogicalWindow))
