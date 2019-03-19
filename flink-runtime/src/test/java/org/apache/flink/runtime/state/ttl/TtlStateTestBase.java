@@ -515,7 +515,7 @@ public abstract class TtlStateTestBase {
 		// trigger more cleanup by doing something out side of INC_CLEANUP_ALL_KEYS
 		for (int i = INC_CLEANUP_ALL_KEYS; i < INC_CLEANUP_ALL_KEYS * 2; i++) {
 			sbetc.setCurrentKey(Integer.toString(i));
-			if (i / 2 == 0) {
+			if (i % 2 == 0) {
 				ctx().get();
 			} else {
 				ctx().update(ctx().updateEmpty);
