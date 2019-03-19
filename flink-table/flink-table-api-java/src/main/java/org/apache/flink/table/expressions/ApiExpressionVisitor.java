@@ -24,15 +24,15 @@ import org.apache.flink.annotation.Internal;
  * A visitor for all API-specific {@link Expression}s.
  */
 @Internal
-public interface ApiExpressionVisitor<R> extends ExpressionVisitor<R> {
+public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
-	R visitTableReference(TableReferenceExpression tableReference);
+	public abstract R visitTableReference(TableReferenceExpression tableReference);
 
-	R visitUnresolvedCall(UnresolvedCallExpression unresolvedCall);
+	public abstract R visitUnresolvedCall(UnresolvedCallExpression unresolvedCall);
 
-	R visitUnresolvedField(UnresolvedFieldReferenceExpression unresolvedField);
+	public abstract R visitUnresolvedField(UnresolvedFieldReferenceExpression unresolvedField);
 
-	default R visit(Expression other) {
+	public final R visit(Expression other) {
 		if (other instanceof TableReferenceExpression) {
 			return visitTableReference((TableReferenceExpression) other);
 		} else if (other instanceof UnresolvedCallExpression) {
@@ -43,5 +43,5 @@ public interface ApiExpressionVisitor<R> extends ExpressionVisitor<R> {
 		return visitNonApiExpression(other);
 	}
 
-	R visitNonApiExpression(Expression other);
+	public abstract R visitNonApiExpression(Expression other);
 }
