@@ -32,7 +32,7 @@ public class FunctionDefinition {
 	/**
 	 * Classifies the function definition.
 	 */
-	enum Type {
+	public enum Type {
 		AGGREGATE_FUNCTION,
 		SCALAR_FUNCTION,
 		TABLE_FUNCTION,

@@ -24,7 +24,10 @@ import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.OTHER_FUNCTION;
@@ -325,6 +328,10 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("as", OTHER_FUNCTION);
 	public static final FunctionDefinition STREAM_RECORD_TIMESTAMP =
 		new FunctionDefinition("streamRecordTimestamp", OTHER_FUNCTION);
+
+	public static final Set<FunctionDefinition> WINDOW_PROPERTIES = new HashSet<>(Arrays.asList(
+		WINDOW_START, WINDOW_END, PROCTIME, ROWTIME
+	));
 
 	public static List<FunctionDefinition> getDefinitions() {
 		final Field[] fields = BuiltInFunctionDefinitions.class.getFields();
