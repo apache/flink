@@ -19,10 +19,10 @@
 package org.apache.flink.table.generated;
 
 /**
- * Describes a generated {@link SubKeyedAggsHandleFunction}.
+ * Describes a generated {@link NamespaceAggsHandleFunction}.
  */
-public class GeneratedSubKeyedAggsHandleFunction extends GeneratedClass<SubKeyedAggsHandleFunction> {
-	public GeneratedSubKeyedAggsHandleFunction(String className, String code, Object[] references) {
+public class GeneratedNamespaceAggsHandleFunction extends GeneratedClass<NamespaceAggsHandleFunction> {
+	public GeneratedNamespaceAggsHandleFunction(String className, String code, Object[] references) {
 		super(className, code, references);
 	}
 }

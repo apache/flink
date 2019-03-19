@@ -20,11 +20,11 @@ package org.apache.flink.table.codegen.agg
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, RowType, TypeConverters, TypeUtils}
+import org.apache.flink.table.`type`.{InternalType, RowType, TypeUtils}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.{CONTEXT_TERM, CURRENT_KEY, DISTINCT_KEY_TERM, NAMESPACE_TERM, addReusableStateDataViews, createDataViewBackupTerm, createDataViewTerm}
-import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.dataformat.{GenericRow, UpdatableRow}
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.expressions.{Expression, ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeGenExpressionVisitor}
@@ -280,19 +280,18 @@ class ImperativeAggCodeGen(
         s"${expr.nullTerm} ? null : ${
           genToExternal(ctx, externalUDITypes(index), expr.resultTerm)}"
       } else {
-        val typeInfo = TypeConverters.createInternalTypeInfoFromInternalType(inputTypes(f))
         // index to input field
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
           if (argTypes.length == 1) {
             // called from distinct merge and the inputTerm is the only argument
-            new ResolvedDistinctKeyReference(generator.input1Term, typeInfo)
+            new ResolvedDistinctKeyReference(generator.input1Term, inputTypes(f))
           } else {
             // called from distinct merge call and the inputTerm is BaseRow type
-            new ResolvedAggInputReference(f.toString, index, typeInfo)
+            new ResolvedAggInputReference(f.toString, index, inputTypes(f))
           }
         } else {
           // called from accumulate
-          new ResolvedAggInputReference(f.toString, f, typeInfo)
+          new ResolvedAggInputReference(f.toString, f, inputTypes(f))
         }
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)

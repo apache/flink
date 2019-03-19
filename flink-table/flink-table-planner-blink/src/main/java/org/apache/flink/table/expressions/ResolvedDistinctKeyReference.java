@@ -52,7 +52,7 @@ public class ResolvedDistinctKeyReference implements Expression {
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visit(this) ;
+		return visitor.visit(this);
 	}
 
 	@Override

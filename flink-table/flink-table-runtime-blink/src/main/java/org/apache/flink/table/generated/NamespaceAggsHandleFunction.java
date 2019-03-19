@@ -25,11 +25,11 @@ import org.apache.flink.table.runtime.functions.ExecutionContext;
 /**
  * The base class for handling aggregate functions.
  *
- * <p>The differences between {@link SubKeyedAggsHandleFunction} and {@link AggsHandleFunction}
- * is that the {@code SubKeyedAggsHandleFunction} has namespace.
+ * <p>The differences between {@link NamespaceAggsHandleFunction} and {@link AggsHandleFunction}
+ * is that the {@link NamespaceAggsHandleFunction} has namespace.
  * @param <N> type of namespace
  */
-public interface SubKeyedAggsHandleFunction<N> extends Function {
+public interface NamespaceAggsHandleFunction<N> extends Function {
 
 	/**
 	 * Initialization method for the function. It is called before the actual working methods.

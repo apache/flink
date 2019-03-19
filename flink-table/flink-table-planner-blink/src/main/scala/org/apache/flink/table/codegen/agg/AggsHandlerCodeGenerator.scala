@@ -18,7 +18,7 @@
 package org.apache.flink.table.codegen.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeConverters.{createInternalTypeFromTypeInfo, createInternalTypeInfoFromInternalType}
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, _}
@@ -29,7 +29,7 @@ import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction}
-import org.apache.flink.table.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedSubKeyedAggsHandleFunction, SubKeyedAggsHandleFunction}
+import org.apache.flink.table.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.plan.util.AggregateInfoList
 import org.apache.flink.table.runtime.functions.ExecutionContext
 
@@ -75,7 +75,7 @@ class AggsHandlerCodeGenerator(
 
   /**
     * The [[aggBufferCodeGens]] and [[aggActionCodeGens]] will be both created when code generate
-    * an [[AggsHandleFunction]] or [[SubKeyedAggsHandleFunction]]. They both contain all the
+    * an [[AggsHandleFunction]] or [[NamespaceAggsHandleFunction]]. They both contain all the
     * same AggCodeGens, but are different in the organizational form. The [[aggBufferCodeGens]]
     * flatten all the AggCodeGens in a flat format. The [[aggActionCodeGens]] organize all the
     * AggCodeGens in a tree format. If there is no distinct aggregate, the [[aggBufferCodeGens]]
@@ -273,10 +273,7 @@ class AggsHandlerCodeGenerator(
         throw new TableException(s"filter arg must be boolean, but is $filterType, " +
             s"the aggregate is $aggName.")
       }
-      Some(new ResolvedAggInputReference(
-        name,
-        filterArg,
-        createInternalTypeInfoFromInternalType(inputFieldTypes(filterArg))))
+      Some(new ResolvedAggInputReference(name, filterArg, inputFieldTypes(filterArg)))
     } else {
       None
     }
@@ -380,11 +377,11 @@ class AggsHandlerCodeGenerator(
     * Generate [[GeneratedAggsHandleFunction]] with the given function name and aggregate infos
     * and window properties.
     */
-  def generateSubKeyedAggsHandler[N](
+  def generateNamespaceAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[WindowProperty],
-      windowClass: Class[N]): GeneratedSubKeyedAggsHandleFunction = {
+      windowClass: Class[N]): GeneratedNamespaceAggsHandleFunction = {
 
     initialWindowProperties(windowProperties, windowClass)
     initialAggregateInformation(aggInfoList)
@@ -403,7 +400,7 @@ class AggsHandlerCodeGenerator(
     val functionCode =
       j"""
         public final class $functionName
-          implements $SUB_KEYED_AGGS_HANDLER_FUNCTION<$namespaceClassName> {
+          implements $NAMESPACE_AGGS_HANDLER_FUNCTION<$namespaceClassName> {
 
           private $EXECUTION_CONTEXT $CONTEXT_TERM;
           ${ctx.reuseMemberCode()}
@@ -471,7 +468,7 @@ class AggsHandlerCodeGenerator(
         }
       """.stripMargin
 
-    new GeneratedSubKeyedAggsHandleFunction(functionName, functionCode, ctx.references.toArray)
+    new GeneratedNamespaceAggsHandleFunction(functionName, functionCode, ctx.references.toArray)
   }
 
   private def genCreateAccumulators(): String = {
@@ -700,7 +697,7 @@ object AggsHandlerCodeGenerator {
   val BASE_ROW: String = className[BaseRow]
   val GENERIC_ROW: String = className[GenericRow]
   val AGGS_HANDLER_FUNCTION: String = className[AggsHandleFunction]
-  val SUB_KEYED_AGGS_HANDLER_FUNCTION: String = className[SubKeyedAggsHandleFunction[_]]
+  val NAMESPACE_AGGS_HANDLER_FUNCTION: String = className[NamespaceAggsHandleFunction[_]]
   val EXECUTION_CONTEXT:String = className[ExecutionContext]
 
   /** static terms **/
