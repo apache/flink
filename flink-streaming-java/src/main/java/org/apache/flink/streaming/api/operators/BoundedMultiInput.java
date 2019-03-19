@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface for the operators that can process EndOfInput event.
+ * Interface for the multi-input operators that can process EndOfInput event.
  */
 @PublicEvolving
-public interface BoundedInput {
+public interface BoundedMultiInput {
 
 	/**
 	 * It is notified that no more data will arrive on the input identified by the {@code inputId}.
