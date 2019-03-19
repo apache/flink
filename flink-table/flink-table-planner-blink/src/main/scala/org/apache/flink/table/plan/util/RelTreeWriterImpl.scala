@@ -37,7 +37,8 @@ class RelTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withIdPrefix: Boolean = false,
-    withRetractTraits: Boolean = false)
+    withRetractTraits: Boolean = false,
+    withRowType: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -97,6 +98,10 @@ class RelTreeWriterImpl(
           s.append(value.left).append("=[").append(value.right).append("]")
       }
       if (j > 0) s.append(")")
+    }
+
+    if (withRowType) {
+      s.append(", rowType=[").append(rel.getRowType.toString).append("]")
     }
 
     if (explainLevel == SqlExplainLevel.ALL_ATTRIBUTES) {

@@ -48,13 +48,15 @@ object FlinkRelOptUtil {
     * @param withIdPrefix       whether including ID of RelNode as prefix
     * @param withRetractTraits  whether including Retraction Traits of RelNode (only apply to
     *                           StreamPhysicalRel node at present)
+    * @param withRowType        whether including output rowType
     * @return explain plan of RelNode
     */
   def toString(
       rel: RelNode,
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withIdPrefix: Boolean = false,
-      withRetractTraits: Boolean = false): String = {
+      withRetractTraits: Boolean = false,
+      withRowType: Boolean = false): String = {
     if (rel == null) {
       return null
     }
@@ -63,7 +65,8 @@ object FlinkRelOptUtil {
       new PrintWriter(sw),
       detailLevel,
       withIdPrefix,
-      withRetractTraits)
+      withRetractTraits,
+      withRowType)
     rel.explain(planWriter)
     sw.toString
   }

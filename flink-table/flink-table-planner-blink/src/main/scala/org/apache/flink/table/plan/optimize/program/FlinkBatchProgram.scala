@@ -90,7 +90,7 @@ object FlinkBatchProgram {
     chainedProgram.addLast(
       LOGICAL,
       FlinkVolcanoProgramBuilder.newBuilder
-        .add(FlinkBatchRuleSets.BATCH_EXEC_LOGICAL_OPT_RULES)
+        .add(FlinkBatchRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())
 

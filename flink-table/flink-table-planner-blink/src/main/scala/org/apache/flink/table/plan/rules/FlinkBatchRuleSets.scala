@@ -48,14 +48,33 @@ object FlinkBatchRuleSets {
     EnumerableToLogicalTableScan.INSTANCE
   )
 
+  /**
+    * RuleSet to reduce expressions
+    */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
-    // reduce expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
     ReduceExpressionsRule.CALC_INSTANCE,
     ReduceExpressionsRule.JOIN_INSTANCE
   )
 
+  /**
+    * RuleSet to normalize plans for batch
+    */
+  val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
+    REDUCE_EXPRESSION_RULES.asScala ++
+      List(
+        //ensure union set operator have the same row type
+        new CoerceInputsRule(classOf[LogicalUnion], false),
+        //ensure intersect set operator have the same row type
+        new CoerceInputsRule(classOf[LogicalIntersect], false),
+        //ensure except set operator have the same row type
+        new CoerceInputsRule(classOf[LogicalMinus], false)
+      )).asJava)
+
+  /**
+    * RuleSet about filter
+    */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
     FilterJoinRule.FILTER_ON_JOIN,
@@ -69,6 +88,9 @@ object FlinkBatchRuleSets {
     FilterMergeRule.INSTANCE
   )
 
+  /**
+    * RuleSet to do predicate pushdown
+    */
   val FILTER_PREPARE_RULES: RuleSet = RuleSets.ofList((
     FILTER_RULES.asScala
       // reduce expressions in filters and joins
@@ -76,8 +98,10 @@ object FlinkBatchRuleSets {
     ).asJava
   )
 
+  /**
+    * RuleSet to prune empty results rules
+    */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
-    // prune empty results rules
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
@@ -87,6 +111,9 @@ object FlinkBatchRuleSets {
     PruneEmptyRules.UNION_INSTANCE
   )
 
+  /**
+    * RuleSet about project
+    */
   val PROJECT_RULES: RuleSet = RuleSets.ofList(
     // push a projection past a filter
     ProjectFilterTransposeRule.INSTANCE,
@@ -103,7 +130,11 @@ object FlinkBatchRuleSets {
     AggregateProjectPullUpConstantsRule.INSTANCE
   )
 
-  private val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+  /**
+    * RuleSet to do logical optimize.
+    * This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]].
+    */
+  private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // aggregation and projection rules
     AggregateProjectMergeRule.INSTANCE,
     AggregateProjectPullUpConstantsRule.INSTANCE,
@@ -139,8 +170,10 @@ object FlinkBatchRuleSets {
     CalcMergeRule.INSTANCE
   )
 
+  /**
+    * RuleSet to translate calcite nodes to flink nodes
+    */
   private val LOGICAL_CONVERTERS: RuleSet = RuleSets.ofList(
-    // translate to flink logical rel nodes
     FlinkLogicalAggregate.BATCH_CONVERTER,
     FlinkLogicalOverWindow.CONVERTER,
     FlinkLogicalCalc.CONVERTER,
@@ -160,34 +193,22 @@ object FlinkBatchRuleSets {
   /**
     * RuleSet to do logical optimize for batch
     */
-  val BATCH_EXEC_LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList((
+  val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList((
     FILTER_RULES.asScala ++
       PROJECT_RULES.asScala ++
       PRUNE_EMPTY_RULES.asScala ++
-      LOGICAL_OPT_RULES.asScala ++
+      LOGICAL_RULES.asScala ++
       LOGICAL_CONVERTERS.asScala
     ).asJava)
-
-  /**
-    * RuleSet to normalize plans for batch
-    */
-  val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
-    REDUCE_EXPRESSION_RULES.asScala ++
-      List(
-        //ensure union set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalUnion], false),
-        //ensure intersect set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalIntersect], false),
-        //ensure except set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalMinus], false)
-      )).asJava)
 
   /**
     * RuleSet to do physical optimize for batch
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     BatchExecBoundedStreamScanRule.INSTANCE,
-    BatchExecScanTableSourceRule.INSTANCE
-
+    BatchExecScanTableSourceRule.INSTANCE,
+    BatchExecValuesRule.INSTANCE,
+    BatchExecCalcRule.INSTANCE,
+    BatchExecUnionRule.INSTANCE
   )
 }

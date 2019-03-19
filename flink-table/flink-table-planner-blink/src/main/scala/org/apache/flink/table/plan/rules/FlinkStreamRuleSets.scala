@@ -48,15 +48,37 @@ object FlinkStreamRuleSets {
     EnumerableToLogicalTableScan.INSTANCE
   )
 
-
+  /**
+    * RuleSet to reduce expressions
+    */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
-    // reduce expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
     ReduceExpressionsRule.CALC_INSTANCE,
     ReduceExpressionsRule.JOIN_INSTANCE
   )
 
+  /**
+    * RuleSet to normalize plans for stream
+    */
+  val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
+    REDUCE_EXPRESSION_RULES.asScala ++
+      List(
+        // slices a project into sections which contain window agg functions
+        // and sections which do not.
+        ProjectToWindowRule.PROJECT,
+        //ensure union set operator have the same row type
+        new CoerceInputsRule(classOf[LogicalUnion], false),
+        //ensure intersect set operator have the same row type
+        new CoerceInputsRule(classOf[LogicalIntersect], false),
+        //ensure except set operator have the same row type
+        new CoerceInputsRule(classOf[LogicalMinus], false)
+      )
+    ).asJava)
+
+  /**
+    * RuleSet about filter
+    */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
     FilterJoinRule.FILTER_ON_JOIN,
@@ -71,14 +93,19 @@ object FlinkStreamRuleSets {
     FilterMergeRule.INSTANCE
   )
 
+  /**
+    * RuleSet to do predicate pushdown
+    */
   val FILTER_PREPARE_RULES: RuleSet =  RuleSets.ofList((
       FILTER_RULES.asScala
           // reduce expressions in filters and joins
           ++ REDUCE_EXPRESSION_RULES.asScala
       ).asJava)
 
+  /**
+    * RuleSet to prune empty results rules
+    */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
-    // prune empty results rules
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
@@ -88,6 +115,9 @@ object FlinkStreamRuleSets {
     PruneEmptyRules.UNION_INSTANCE
   )
 
+  /**
+    * RuleSet about project
+    */
   val PROJECT_RULES: RuleSet = RuleSets.ofList(
     // push a projection past a filter
     ProjectFilterTransposeRule.INSTANCE,
@@ -106,7 +136,11 @@ object FlinkStreamRuleSets {
     ProjectSetOpTransposeRule.INSTANCE
   )
 
-  private val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+  /**
+    * RuleSet to do logical optimize.
+    * This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]].
+    */
+  private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // aggregation and projection rules
     AggregateProjectMergeRule.INSTANCE,
     AggregateProjectPullUpConstantsRule.INSTANCE,
@@ -141,7 +175,10 @@ object FlinkStreamRuleSets {
     CalcMergeRule.INSTANCE
   )
 
-  private val STREAM_EXEC_LOGICAL_CONVERTERS: RuleSet = RuleSets.ofList(
+  /**
+    * RuleSet to translate calcite nodes to flink nodes
+    */
+  private val LOGICAL_CONVERTERS: RuleSet = RuleSets.ofList(
     // translate to flink logical rel nodes
     FlinkLogicalAggregate.STREAM_CONVERTER,
     FlinkLogicalOverWindow.CONVERTER,
@@ -160,40 +197,25 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * RuleSet to do logical optimize for stream exec execution
+    * RuleSet to do logical optimize for stream
     */
-  val STREAM_EXEC_LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList((
+  val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList((
     FILTER_RULES.asScala ++
     PROJECT_RULES.asScala ++
     PRUNE_EMPTY_RULES.asScala ++
-    LOGICAL_OPT_RULES.asScala ++
-    STREAM_EXEC_LOGICAL_CONVERTERS.asScala
+    LOGICAL_RULES.asScala ++
+    LOGICAL_CONVERTERS.asScala
   ).asJava)
 
   /**
-    * RuleSet to normalize plans for stream exec execution
+    * RuleSet to do physical optimize for stream
     */
-  val STREAM_EXEC_DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
-        REDUCE_EXPRESSION_RULES.asScala ++
-        List(
-          // slices a project into sections which contain window agg functions
-          // and sections which do not.
-          ProjectToWindowRule.PROJECT,
-          //ensure union set operator have the same row type
-          new CoerceInputsRule(classOf[LogicalUnion], false),
-          //ensure intersect set operator have the same row type
-          new CoerceInputsRule(classOf[LogicalIntersect], false),
-          //ensure except set operator have the same row type
-          new CoerceInputsRule(classOf[LogicalMinus], false)
-        )
-      ).asJava)
-
-  /**
-    * RuleSet to optimize plans for streamExec / DataStream execution
-    */
-  val STREAM_EXEC_OPT_RULES: RuleSet = RuleSets.ofList(
+  val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     StreamExecDataStreamScanRule.INSTANCE,
-    StreamExecTableSourceScanRule.INSTANCE
+    StreamExecTableSourceScanRule.INSTANCE,
+    StreamExecValuesRule.INSTANCE,
+    StreamExecCalcRule.INSTANCE,
+    StreamExecUnionRule.INSTANCE
   )
 
 }
