@@ -57,7 +57,7 @@ public interface GroupWindowedTable {
 	 * <p>Aggregations are performed per group and defined by a subsequent {@code select(...)}
 	 * clause similar to SQL SELECT-GROUP-BY query.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {code

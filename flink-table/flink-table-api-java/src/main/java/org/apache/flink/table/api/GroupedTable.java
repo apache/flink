@@ -45,7 +45,7 @@ public interface GroupedTable {
 	 * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
 	 * The field expressions can contain complex expressions and aggregations.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code

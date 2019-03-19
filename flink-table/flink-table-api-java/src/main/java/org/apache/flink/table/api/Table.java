@@ -69,7 +69,6 @@ import org.apache.flink.table.sinks.TableSink;
  * <p>Operations such as {@code join}, {@code select}, {@code where} and {@code groupBy} either
  * take arguments in a Scala DSL or as an expression String. Please refer to the documentation for
  * the expression syntax.
- *
  */
 @PublicEvolving
 public interface Table {
@@ -102,7 +101,7 @@ public interface Table {
 	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -172,7 +171,7 @@ public interface Table {
 	 * Renames the fields of the expression result. Use this to disambiguate fields before
 	 * joining to operations.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -200,7 +199,7 @@ public interface Table {
 	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
 	 * clause.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -228,7 +227,7 @@ public interface Table {
 	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
 	 * clause.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -256,7 +255,7 @@ public interface Table {
 	 * Groups the elements on some grouping keys. Use this before a selection with aggregations
 	 * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -290,7 +289,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.join(right).where('a === 'b && 'c > 3).select('a, 'b, 'd)
+	 *   left.join(right).where("a = b && c > 3").select("a, b, d")
 	 * }
 	 * </pre>
 	 */
@@ -318,7 +317,7 @@ public interface Table {
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -339,7 +338,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.leftOuterJoin(right).select('a, 'b, 'd)
+	 *   left.leftOuterJoin(right).select("a, b, d")
 	 * }
 	 * </pre>
 	 */
@@ -369,7 +368,7 @@ public interface Table {
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
 	 * {@code TableConfig} must have null check enabled (default).
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -390,7 +389,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.rightOuterJoin(right, "a = b").select('a, 'b, 'd)
+	 *   left.rightOuterJoin(right, "a = b").select("a, b, d")
 	 * }
 	 * </pre>
 	 */
@@ -403,7 +402,7 @@ public interface Table {
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
 	 * {@code TableConfig} must have null check enabled (default).
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -424,7 +423,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.fullOuterJoin(right, "a = b").select('a, 'b, 'd)
+	 *   left.fullOuterJoin(right, "a = b").select("a, b, d")
 	 * }
 	 * </pre>
 	 */
@@ -437,7 +436,7 @@ public interface Table {
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
 	 * {@code TableConfig} must have null check enabled (default).
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -475,7 +474,7 @@ public interface Table {
 	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
 	 * table is joined with all rows produced by the table function.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -520,7 +519,7 @@ public interface Table {
 	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
 	 * table is joined with all rows produced by the table function.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -567,7 +566,7 @@ public interface Table {
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -614,7 +613,7 @@ public interface Table {
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -754,7 +753,7 @@ public interface Table {
 	 * Sorts the given {@link Table}. Similar to SQL ORDER BY.
 	 * The resulting Table is globally sorted across all parallel partitions.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -769,81 +768,42 @@ public interface Table {
 	 * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
 	 * thus must be preceded by it.
 	 *
-	 * {@link Table#offset(Integer offset)} can be combined with a subsequent
-	 * {@link Table#fetch(Integer fetch)} call to return n rows after skipping the first o rows.
+	 * {@link Table#offset(int offset)} can be combined with a subsequent
+	 * {@link Table#fetch(int fetch)} call to return n rows after skipping the first o rows.
 	 *
 	 * <pre>
 	 * {@code
 	 *   // skips the first 3 rows and returns all following rows.
-	 *   tab.orderBy('name.desc).offset(3)
+	 *   tab.orderBy("name.desc").offset(3)
 	 *   // skips the first 10 rows and returns the next 5 rows.
-	 *   tab.orderBy('name.desc).offset(10).fetch(5)
+	 *   tab.orderBy("name.desc").offset(10).fetch(5)
 	 * }
 	 * </pre>
 	 *
 	 * @param offset number of records to skip
 	 */
-	Table offset(Integer offset);
+	Table offset(int offset);
 
 	/**
 	 * Limits a sorted result to the first n rows.
 	 * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
 	 * thus must be preceded by it.
 	 *
-	 * {@link Table#fetch(Integer fetch)} can be combined with a preceding
-	 * {@link Table#offset(Integer offset)} call to return n rows after skipping the first o rows.
+	 * {@link Table#fetch(int fetch)} can be combined with a preceding
+	 * {@link Table#offset(int offset)} call to return n rows after skipping the first o rows.
 	 *
 	 * <pre>
 	 * {@code
 	 *   // returns the first 3 records.
-	 *   tab.orderBy('name.desc).fetch(3)
+	 *   tab.orderBy("name.desc").fetch(3)
 	 *   // skips the first 10 rows and returns the next 5 rows.
-	 *   tab.orderBy('name.desc).offset(10).fetch(5)
+	 *   tab.orderBy("name.desc").offset(10).fetch(5)
 	 * }
 	 * </pre>
 	 *
 	 * @param fetch the number of records to return. Fetch must be >= 0.
 	 */
-	Table fetch(Integer fetch);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink}. A {@link TableSink} defines an external
-	 * storage location.
-	 *
-	 * <p>A batch {@link Table} can only be written to a
-	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
-	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
-	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
-	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
-	 *
-	 * @param sink The {@link TableSink} to which the {@link Table} is written.
-	 * @tparam T The data type that the {@link TableSink} expects.
-	 *
-	 * @deprecated Will be removed in a future release. Please register the TableSink and use
-	 *             {@link Table#insertInto(String tableName)}.
-	 */
-	@Deprecated
-	<T> void writeToSink(TableSink<T> sink);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink}. A {@link TableSink} defines an external
-	 * storage location.
-	 *
-	 * <p>A batch {@link Table} can only be written to a
-	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
-	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
-	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
-	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
-	 *
-	 * @param sink The {@link TableSink} to which the {@link Table} is written.
-	 * @param conf The configuration for the query that writes to the sink.
-	 * @tparam T The data type that the {@link TableSink} expects.
-	 *
-	 * @deprecated Will be removed in a future release. Please register the TableSink and use
-	 *             {@link Table#insertInto(String tableName, QueryConfig conf)}.
-	 */
-	@Deprecated
-	<T> void writeToSink(TableSink<T> sink, QueryConfig conf);
+	Table fetch(int fetch);
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
@@ -882,7 +842,7 @@ public interface Table {
 	 * <p>For batch tables of finite size, windowing essentially provides shortcuts for time-based
 	 * groupBy.
 	 *
-	 * <p>__Note__: Computing windowed aggregates on a streaming table is only a parallel operation
+	 * <p><b>Note</b>: Computing windowed aggregates on a streaming table is only a parallel operation
 	 * if additional grouping attributes are added to the {@code groupBy(...)} clause.
 	 * If the {@code groupBy(...)} only references a GroupWindow alias, the streamed table will be
 	 * processed by a single task, i.e., with parallelism 1.
@@ -908,11 +868,11 @@ public interface Table {
 	 * }
 	 * </pre>
 	 *
-	 * <p>__Note__: Computing over window aggregates on a streaming table is only a parallel
+	 * <p><b>Note</b>: Computing over window aggregates on a streaming table is only a parallel
 	 * operation if the window is partitioned. Otherwise, the whole stream will be processed by a
 	 * single task, i.e., with parallelism 1.
 	 *
-	 * <p>__Note__: Over-windows for batch tables are currently not supported.
+	 * <p><b>Note</b>: Over-windows for batch tables are currently not supported.
 	 *
 	 * @param overWindows windows that specify the record interval over which aggregations are
 	 *                    computed.

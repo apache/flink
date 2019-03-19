@@ -49,7 +49,7 @@ public interface OverWindowedTable {
 	 * Performs a selection operation on a over windowed table. Similar to an SQL SELECT statement.
 	 * The field expressions can contain complex expressions and aggregations.
 	 *
-	 * <p>Example:
+	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code

@@ -18,9 +18,8 @@
 package org.apache.flink.table.api
 
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge, ExpressionParser, Ordering, PlannerExpression, ResolvedFieldReference, UnresolvedAlias, WindowProperty}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
@@ -29,7 +28,6 @@ import org.apache.flink.table.plan.logical.{Minus, _}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
-import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -124,7 +122,7 @@ class TableImpl(
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
     * can contain complex expressions and aggregations.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.select('key, 'value.avg + " The average" as 'average)
@@ -257,7 +255,7 @@ class TableImpl(
     * Renames the fields of the expression result. Use this to disambiguate fields before
     * joining to operations.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.as('a, 'b)
@@ -289,7 +287,7 @@ class TableImpl(
     * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
     * clause.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.filter('name === "Fred")
@@ -321,7 +319,7 @@ class TableImpl(
     * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
     * clause.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.where('name === "Fred")
@@ -349,7 +347,7 @@ class TableImpl(
     * Groups the elements on some grouping keys. Use this before a selection with aggregations
     * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.groupBy('key).select('key, 'value.avg)
@@ -386,7 +384,7 @@ class TableImpl(
     * Example:
     *
     * {{{
-    *   left.join(right).where('a === 'b && 'c > 3).select('a, 'b, 'd)
+    *   left.join(right).where("a = b && c > 3").select("a, b, d")
     * }}}
     */
   def join(right: Table): Table = {
@@ -415,7 +413,7 @@ class TableImpl(
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   left.join(right, 'a === 'b).select('a, 'b, 'd)
@@ -435,7 +433,7 @@ class TableImpl(
     * Example:
     *
     * {{{
-    *   left.leftOuterJoin(right).select('a, 'b, 'd)
+    *   left.leftOuterJoin(right).select("a, b, d")
     * }}}
     */
   def leftOuterJoin(right: Table): Table = {
@@ -466,7 +464,7 @@ class TableImpl(
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
     * have null check enabled (default).
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   left.leftOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
@@ -486,7 +484,7 @@ class TableImpl(
     * Example:
     *
     * {{{
-    *   left.rightOuterJoin(right, "a = b").select('a, 'b, 'd)
+    *   left.rightOuterJoin(right, "a = b").select("a, b, d")
     * }}}
     */
   def rightOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -500,7 +498,7 @@ class TableImpl(
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
     * have null check enabled (default).
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   left.rightOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
@@ -520,7 +518,7 @@ class TableImpl(
     * Example:
     *
     * {{{
-    *   left.fullOuterJoin(right, "a = b").select('a, 'b, 'd)
+    *   left.fullOuterJoin(right, "a = b").select("a, b, d")
     * }}}
     */
   def fullOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -534,7 +532,7 @@ class TableImpl(
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
     * have null check enabled (default).
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   left.fullOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
@@ -592,7 +590,7 @@ class TableImpl(
     * This join is similar to a SQL inner join with ON TRUE predicate but works with a
     * table function. Each row of the table is joined with all rows produced by the table function.
     *
-    * Example:
+    * Scala Example:
     * {{{
     *   class MySplitUDTF extends TableFunction[String] {
     *     def eval(str: String): Unit = {
@@ -637,7 +635,7 @@ class TableImpl(
     * This join is similar to a SQL inner join with ON TRUE predicate but works with a
     * table function. Each row of the table is joined with all rows produced by the table function.
     *
-    * Example:
+    * Scala Example:
     * {{{
     *   class MySplitUDTF extends TableFunction[String] {
     *     def eval(str: String): Unit = {
@@ -685,7 +683,7 @@ class TableImpl(
     * table function. Each row of the table is joined with all rows produced by the table
     * function. If the table function does not produce any row, the outer row is padded with nulls.
     *
-    * Example:
+    * Scala Example:
     * {{{
     *   class MySplitUDTF extends TableFunction[String] {
     *     def eval(str: String): Unit = {
@@ -732,7 +730,7 @@ class TableImpl(
     * table function. Each row of the table is joined with all rows produced by the table
     * function. If the table function does not produce any row, the outer row is padded with nulls.
     *
-    * Example:
+    * Scala Example:
     * {{{
     *   class MySplitUDTF extends TableFunction[String] {
     *     def eval(str: String): Unit = {
@@ -941,7 +939,7 @@ class TableImpl(
     * Sorts the given [[Table]]. Similar to SQL ORDER BY.
     * The resulting Table is globally sorted across all parallel partitions.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.orderBy('name.desc)
@@ -969,14 +967,14 @@ class TableImpl(
     *
     * {{{
     *   // skips the first 3 rows and returns all following rows.
-    *   tab.orderBy('name.desc).offset(3)
+    *   tab.orderBy("name.desc").offset(3)
     *   // skips the first 10 rows and returns the next 5 rows.
-    *   tab.orderBy('name.desc).offset(10).fetch(5)
+    *   tab.orderBy("name.desc").offset(10).fetch(5)
     * }}}
     *
     * @param offset number of records to skip
     */
-  def offset(offset: Integer): Table = {
+  def offset(offset: Int): Table = {
     new TableImpl(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
   }
 
@@ -990,14 +988,14 @@ class TableImpl(
     *
     * {{{
     *   // returns the first 3 records.
-    *   tab.orderBy('name.desc).fetch(3)
+    *   tab.orderBy("name.desc").fetch(3)
     *   // skips the first 10 rows and returns the next 5 rows.
-    *   tab.orderBy('name.desc).offset(10).fetch(5)
+    *   tab.orderBy("name.desc").offset(10).fetch(5)
     * }}}
     *
     * @param fetch the number of records to return. Fetch must be >= 0.
     */
-  def fetch(fetch: Integer): Table = {
+  def fetch(fetch: Int): Table = {
     if (fetch < 0) {
       throw new ValidationException("FETCH count must be equal or larger than 0.")
     }
@@ -1010,70 +1008,6 @@ class TableImpl(
       case _ =>
         new TableImpl(tableEnv, Limit(0, fetch, logicalPlan).validate(tableEnv))
     }
-  }
-
-  /**
-    * Writes the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
-    *
-    * A batch [[Table]] can only be written to a
-    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
-    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
-    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
-    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
-    *
-    * @param sink The [[TableSink]] to which the [[Table]] is written.
-    * @tparam T The data type that the [[TableSink]] expects.
-    *
-    * @deprecated Will be removed in a future release. Please register the TableSink and use
-    *             Table.insertInto().
-    */
-  @deprecated("This method will be removed. Please register the TableSink and use " +
-    "Table.insertInto().", "1.7.0")
-  @Deprecated
-  def writeToSink[T](sink: TableSink[T]): Unit = {
-    val queryConfig = Option(this.tableEnv) match {
-      case None => null
-      case _ => this.tableEnv.queryConfig
-    }
-    writeToSink(sink, queryConfig)
-  }
-
-  /**
-    * Writes the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
-    *
-    * A batch [[Table]] can only be written to a
-    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
-    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
-    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
-    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
-    *
-    * @param sink The [[TableSink]] to which the [[Table]] is written.
-    * @param conf The configuration for the query that writes to the sink.
-    * @tparam T The data type that the [[TableSink]] expects.
-    *
-    * @deprecated Will be removed in a future release. Please register the TableSink and use
-    *             Table.insertInto().
-    */
-  @deprecated("This method will be removed. Please register the TableSink and use " +
-    "Table.insertInto().", "1.7.0")
-  @Deprecated
-  def writeToSink[T](sink: TableSink[T], conf: QueryConfig): Unit = {
-    // get schema information of table
-    val rowType = getRelNode.getRowType
-    val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
-    val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-      .map {
-        // replace time indicator types by SQL_TIMESTAMP
-        case t: TypeInformation[_] if FlinkTypeFactory.isTimeIndicatorType(t) => Types.SQL_TIMESTAMP
-        case t: TypeInformation[_] => t
-      }.toArray
-
-    // configure the table sink
-    val configuredSink = sink.configure(fieldNames, fieldTypes)
-
-    // emit the table to the configured table sink
-    tableEnv.writeToSink(this, configuredSink, conf)
   }
 
   /**
@@ -1206,7 +1140,7 @@ class GroupedTableImpl(
     * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
@@ -1274,7 +1208,7 @@ class GroupWindowedTableImpl(
     * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
     * to SQL SELECT-GROUP-BY query.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
@@ -1319,7 +1253,7 @@ class WindowGroupedTableImpl(
     * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   windowGroupedTable.select('key, 'window.start, 'value.avg as 'valavg)
@@ -1410,7 +1344,7 @@ class OverWindowedTableImpl(
     * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
-    * Example:
+    * Scala Example:
     *
     * {{{
     *   overWindowedTable.select('c, 'b.count over 'ow, 'e.sum over 'ow)
