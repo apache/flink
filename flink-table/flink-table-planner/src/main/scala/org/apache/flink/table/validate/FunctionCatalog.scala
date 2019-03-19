@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -38,7 +39,7 @@ import _root_.scala.collection.mutable
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
   */
-class FunctionCatalog() {
+class FunctionCatalog extends FunctionDefinitionCatalog {
 
   private val tableApiFunctions = mutable.HashMap.empty[String, FunctionDefinition]
   BuiltInFunctionDefinitions.getDefinitions.foreach { functionDefinition =>
@@ -114,7 +115,7 @@ class FunctionCatalog() {
   /**
     * Lookup a function by name and operands and return the [[FunctionDefinition]].
     */
-  def lookupFunction(name: String): FunctionDefinition = {
+  override def lookupFunction(name: String): FunctionDefinition = {
     tableApiFunctions.getOrElse(
       normalizeName(name),
       throw new ValidationException(s"Undefined function: $name"))

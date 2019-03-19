@@ -16,26 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions
+package org.apache.flink.table.expressions.catalog;
 
-import org.apache.flink.table.validate.FunctionCatalog
-
-import scala.collection.JavaConverters._
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.FunctionDefinition;
 
 /**
-  * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
-  */
-class ExpressionBridge[E <: Expression](
-    functionCatalog: FunctionCatalog,
-    finalVisitor: ExpressionVisitor[E]) {
+ * Catalog of functions that can resolve the name of a function to a {@link FunctionDefinition}.
+ */
+@Internal
+public interface FunctionDefinitionCatalog {
 
-  private val callResolver = new UnresolvedCallResolver(functionCatalog)
-
-  def bridge(expression: Expression): E = {
-    // resolve calls
-    val resolvedExpressionTree = expression.accept(callResolver)
-
-    // convert to final expressions
-    resolvedExpressionTree.accept(finalVisitor)
-  }
+	/**
+	 * Lookup a function by name and return the {@link FunctionDefinition}. The lookup is case insensitive.
+	 */
+	FunctionDefinition lookupFunction(String name);
 }
