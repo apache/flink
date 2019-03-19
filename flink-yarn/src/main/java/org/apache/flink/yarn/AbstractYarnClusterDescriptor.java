@@ -1555,7 +1555,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
 		final  Map<String, String> startCommandValues = new HashMap<>();
-		startCommandValues.put("java", "$JAVA_HOME/bin/java");
+		String osName = System.getProperty("os.name");
+		String javaHome;
+		if (osName.startsWith("Windows")) {
+			javaHome = "%JAVA_HOME%";
+		} else {
+			javaHome = "$JAVA_HOME";
+		}
+		String javaCommand = javaHome + "/bin/java";
+		startCommandValues.put("java", javaCommand);
 
 		int heapSize = Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration);
 		String jvmHeapMem = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
