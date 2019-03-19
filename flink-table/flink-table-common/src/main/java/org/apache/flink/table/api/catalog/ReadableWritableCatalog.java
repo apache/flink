@@ -22,7 +22,6 @@ import org.apache.flink.table.api.catalog.exceptions.DatabaseAlreadyExistExcepti
 import org.apache.flink.table.api.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.api.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.api.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.plan.stats.TableStats;
 
 /**
  * An interface responsible for manipulating catalog metadata.
@@ -32,143 +31,136 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	// ------ databases ------
 
 	/**
-	 * Adds a database to this catalog.
+	 * Create a database.
 	 *
-	 * @param dbName    	The name of the database to add.
-	 * @param database        The database to add.
-	 * @param ignoreIfExists Flag to specify behavior if a database with the given name already
-	 *                       exists: if set to false, it throws a DatabaseAlreadyExistException,
-	 *                       if set to true, nothing happens.
-	 * @throws DatabaseAlreadyExistException
-	 *                       thrown if the database does already exist in the catalog
-	 *                       and ignoreIfExists is false
+	 * @param name           Name of the database to be created
+	 * @param database       The database definition
+	 * @param ignoreIfExists Flag to specify behavior when a database with the given name already exists:
+	 *                       if set to false, throw a DatabaseAlreadyExistException,
+	 *                       if set to true, do nothing.
+	 * @throws DatabaseAlreadyExistException if the given database already exists and ignoreIfExists is false
 	 */
-	void createDatabase(String dbName, CatalogDatabase database, boolean ignoreIfExists)
+	void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
 		throws DatabaseAlreadyExistException;
 
 	/**
-	 * Deletes a database from this catalog.
+	 * Drop a database.
 	 *
-	 * @param dbName        Name of the database to delete.
-	 * @param ignoreIfNotExists Flag to specify behavior if the database does not exist:
+	 * @param name              Name of the database to be dropped.
+	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
+	 *                          if set to true, do nothing.
+	 * @throws DatabaseNotExistException if the given database does not exist
 	 */
-	void dropDatabase(String dbName, boolean ignoreIfNotExists) throws DatabaseNotExistException;
+	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException;
 
 	/**
-	 * Modifies an existing database.
+	 * Modify an existing database.
 	 *
-	 * @param dbName        Name of the database to modify.
-	 * @param newDatabase           The new database to replace the existing database.
-	 * @param ignoreIfNotExists Flag to specify behavior if the database does not exist:
+	 * @param name        Name of the database to be modified
+	 * @param newDatabase    The new database definition
+	 * @param ignoreIfNotExists Flag to specify behavior when the given database does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
+	 *                          if set to true, do nothing.
+	 * @throws DatabaseNotExistException if the given database does not exist
 	 */
-	void alterDatabase(String dbName, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
+	void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
 		throws DatabaseNotExistException;
 
 	/**
-	 * Renames an existing database.
+	 * Rename an existing database.
 	 *
-	 * @param dbName        Name of the database to modify.
-	 * @param newDbName     New name of the database.
-	 * @param ignoreIfNotExists Flag to specify behavior if the database does not exist:
+	 * @param name        Name of the database to be renamed
+	 * @param newName     the new name of the database
+	 * @param ignoreIfNotExists Flag to specify behavior when the given database does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
+	 *                          if set to true, do nothing.
+	 * @throws DatabaseNotExistException if the database does not exist
 	 */
-	void renameDatabase(String dbName, String newDbName, boolean ignoreIfNotExists)
+	void renameDatabase(String name, String newName, boolean ignoreIfNotExists)
 		throws DatabaseNotExistException;
 
 	// ------ tables and views ------
 
 	/**
-	 * Deletes a table or view.
+	 * Drop a table or view.
 	 *
-	 * @param objectName         Path of the table or view to delete.
-	 * @param ignoreIfNotExists Flag to specify behavior if the table or view does not exist:
+	 * @param tablePath         Path of the table or view to be dropped
+	 * @param ignoreIfNotExists Flag to specify behavior when the table or view does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws TableNotExistException    thrown if the table or view does not exist
+	 *                          if set to true, do nothing.
+	 * @throws TableNotExistException if the table or view does not exist
 	 */
-	void dropTable(ObjectPath objectName, boolean ignoreIfNotExists) throws TableNotExistException;
-
+	void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException;
 
 	// ------ tables ------
 
 	/**
-	 * Create a new table in the catalog.
-	 * Note that TableStats in the CatalogTable will not be used for creation.
-	 * Use {@link #alterTableStats(ObjectPath, TableStats, boolean)} to alter table stats.
+	 * Create a new table. Note that TableStats in the table is ignored for table creation.
 	 *
-	 * @param tableName      Path of the table to create.
-	 * @param table          The table to create.
-	 * @param ignoreIfExists Flag to specify behavior if a table with the given name already exists:
+	 * @param tablePath      Path of the table to be created
+	 * @param table          The table definition
+	 * @param ignoreIfExists Flag to specify behavior when a table already exists at the given path:
 	 *                       if set to false, it throws a TableAlreadyExistException,
-	 *                       if set to true, nothing happens.
-	 * @throws TableAlreadyExistException thrown if table already exists and ignoreIfExists is false
-	 * @throws DatabaseNotExistException thrown if the database that this table belongs to doesn't exist
+	 *                       if set to true, do nothing.
+	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
+	 * @throws DatabaseNotExistException if the database in tablePath doesn't exist
 	 */
-	void createTable(ObjectPath tableName, CatalogTable table, boolean ignoreIfExists)
+	void createTable(ObjectPath tablePath, CatalogTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException;
 
 	/**
-	 * Modifies an existing table.
-	 * Note that TableStats in the CatalogTable will not be used for alteration.
-	 * Use {@link #alterTableStats(ObjectPath, TableStats, boolean)} to alter table stats.
+	 * Modify an existing table. Note that TableStats in the newTable is ignored for table modification.
 	 *
-	 * @param tableName         Path of the table to modify.
-	 * @param newTable             The new table which replaces the existing table.
-	 * @param ignoreIfNotExists Flag to specify behavior if the table does not exist:
+	 * @param tableName         Path of the table to be modified
+	 * @param newTable          The new table definition
+	 * @param ignoreIfNotExists Flag to specify behavior when the table does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws TableNotExistException   thrown if the table does not exist
+	 *                          if set to true, do nothing.
+	 * @throws TableNotExistException if the table does not exist
 	 */
 	void alterTable(ObjectPath tableName, CatalogTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException;
 
 	/**
-	 * Renames an existing table.
+	 * Rename an existing table.
 	 *
-	 * @param tableName        Path of the table to modify.
-	 * @param newTableName     New name of the table.
-	 * @param ignoreIfNotExists Flag to specify behavior if the table does not exist:
+	 * @param tablePath       Path of the table to rename
+	 * @param newTableName     the new name of the table
+	 * @param ignoreIfNotExists Flag to specify behavior when the table does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws TableNotExistException thrown if the table does not exist
-	 * @throws DatabaseNotExistException thrown if the database that this table belongs to doesn't exist
+	 *                          if set to true, do nothing.
+	 * @throws TableNotExistException if the table does not exist
+	 * @throws DatabaseNotExistException if the database in tablePath to doesn't exist
 	 */
-	void renameTable(ObjectPath tableName, String newTableName, boolean ignoreIfNotExists)
+	void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
 		throws TableNotExistException, DatabaseNotExistException;
 
 	// ----- views ------
 
 	/**
-	 * Creates a view.
+	 * Create a view.
 	 *
-	 * @param viewPath		Path of the view
-	 * @param view			The CatalogView to create
-	 * @param ignoreIfExists    Flag to specify behavior if a table/view with the given name already exists:
+	 * @param viewPath		Path of the view to be created
+	 * @param view			The view definition
+	 * @param ignoreIfExists    Flag to specify behavior when a table/view already exists at the given path:
 	 *                       if set to false, it throws a TableAlreadyExistException,
-	 *                       if set to true, nothing happens.
-	 * @throws TableAlreadyExistException thrown if table already exists and ignoreIfExists is false
-	 * @throws DatabaseNotExistException thrown if the database that this table belongs to doesn't exist
+	 *                       if set to true, do nothing.
+	 * @throws TableAlreadyExistException if a table/view already exists and ignoreIfExists is false
+	 * @throws DatabaseNotExistException if the database in viewPath doesn't exist
 	 */
 	void createView(ObjectPath viewPath, CatalogView view, boolean ignoreIfExists) throws TableAlreadyExistException,
 		DatabaseNotExistException;
 
 	/**
-	 * Modifies an existing newView.
+	 * Modify an existing view.
 	 *
-	 * @param viewPath         Path of the newView to modify.
-	 * @param newView             The new newView which replaces the existing newView.
-	 * @param ignoreIfNotExists Flag to specify behavior if the newView does not exist:
+	 * @param viewPath         Path of the view to to be modified
+	 * @param newView          The new view definition
+	 * @param ignoreIfNotExists Flag to specify behavior when the given view does not exist:
 	 *                          if set to false, throw an exception,
-	 *                          if set to true, nothing happens.
-	 * @throws TableNotExistException   thrown if the newView does not exist
+	 *                          if set to true, do nothing.
+	 * @throws TableNotExistException if the given view does not exist
 	 */
 	void alterView(ObjectPath viewPath, CatalogView newView, boolean ignoreIfNotExists) throws TableNotExistException;
 

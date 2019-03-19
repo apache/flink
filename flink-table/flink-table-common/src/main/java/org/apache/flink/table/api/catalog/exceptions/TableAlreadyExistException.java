@@ -25,7 +25,7 @@ import org.apache.flink.table.api.catalog.ObjectPath;
  */
 public class TableAlreadyExistException extends RuntimeException {
 
-	private static final String MSG = "Table (or view) $catalog.$table already exists.";
+	private static final String MSG = "Table (or view) %s already exists in Catalog %s.";
 
 	public TableAlreadyExistException(String catalogName, ObjectPath tablePath) {
 		this(catalogName, tablePath, null);

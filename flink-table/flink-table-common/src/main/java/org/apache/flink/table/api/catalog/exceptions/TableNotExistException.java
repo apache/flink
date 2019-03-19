@@ -25,7 +25,7 @@ import org.apache.flink.table.api.catalog.ObjectPath;
  */
 public class TableNotExistException extends RuntimeException {
 
-	private static final String MSG = "Table (or view) %s in catalog %s does not exist.";
+	private static final String MSG = "Table (or view) %s does not exist in Catalog %s.";
 
 	public TableNotExistException(String catalogName, ObjectPath tablePath) {
 		this(catalogName, tablePath, null);

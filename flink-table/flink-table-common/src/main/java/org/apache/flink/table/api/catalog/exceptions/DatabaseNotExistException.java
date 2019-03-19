@@ -23,10 +23,10 @@ package org.apache.flink.table.api.catalog.exceptions;
  *
  */
 public class DatabaseNotExistException extends RuntimeException {
-	private static final String MSG = "Database $catalog.$database does not exist.";
+	private static final String MSG = "Database %s does not exist in Catalog %s.";
 
 	public DatabaseNotExistException(String catalog, String database, Throwable cause) {
-		super(String.format(MSG, catalog, database), cause);
+		super(String.format(MSG, database, catalog), cause);
 	}
 
 	public DatabaseNotExistException(String catalog, String database) {

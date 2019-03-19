@@ -22,10 +22,10 @@ package org.apache.flink.table.api.catalog.exceptions;
  * Exception for trying to create a database that already exists.
  */
 public class DatabaseAlreadyExistException extends RuntimeException {
-	private static final String MSG = "Database $catalog.$database already exists.";
+	private static final String MSG = "Database %s already exists in Catalog %s.";
 
 	public DatabaseAlreadyExistException(String catalog, String database, Throwable cause) {
-		super(String.format(MSG, catalog, database), cause);
+		super(String.format(MSG, database, catalog), cause);
 	}
 
 	public DatabaseAlreadyExistException(String catalog, String database) {
