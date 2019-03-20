@@ -35,11 +35,13 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.operators.AbstractOneInputSubstituteStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorSubstitutor;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -361,9 +363,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		}
 	}
 
-	private static class TestSubstituteStreamOperator<IN, OUT> extends AbstractOneInputSubstituteStreamOperator<IN, OUT> {
+	private static class TestSubstituteStreamOperator<IN, OUT> extends AbstractStreamOperator<OUT>
+			implements OneInputStreamOperator<IN, OUT>, StreamOperatorSubstitutor {
 
-		private ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
 		private final OneInputStreamOperator<IN, OUT> actualStreamOperator;
 
 		TestSubstituteStreamOperator(OneInputStreamOperator<IN, OUT> actualStreamOperator) {
@@ -376,14 +378,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		}
 
 		@Override
-		public void setChainingStrategy(ChainingStrategy chainingStrategy) {
-			this.chainingStrategy = chainingStrategy;
-			this.actualStreamOperator.setChainingStrategy(chainingStrategy);
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return chainingStrategy;
+		public void processElement(StreamRecord<IN> element) throws Exception {
+			throw new UnsupportedOperationException();
 		}
 	}
 

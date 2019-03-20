@@ -22,12 +22,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.operators.AbstractOneInputSubstituteStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.AbstractTwoInputSubstituteStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorSubstitutor;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
@@ -112,9 +110,9 @@ public class SubstituteStreamOperatorITCase extends AbstractTestBase {
 	//  Test Utilities
 	// ------------------------------------------------------------------------
 
-	private static class TestOneInputSubstituteStreamOperator<IN, OUT> extends AbstractOneInputSubstituteStreamOperator<IN, OUT> {
+	private static class TestOneInputSubstituteStreamOperator<IN, OUT> extends AbstractStreamOperator<OUT>
+			implements OneInputStreamOperator<IN, OUT>, StreamOperatorSubstitutor {
 
-		private ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
 		private final OneInputStreamOperator<IN, OUT> actualStreamOperator;
 
 		TestOneInputSubstituteStreamOperator(OneInputStreamOperator<IN, OUT> actualStreamOperator) {
@@ -127,14 +125,8 @@ public class SubstituteStreamOperatorITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void setChainingStrategy(ChainingStrategy chainingStrategy) {
-			this.chainingStrategy = chainingStrategy;
-			this.actualStreamOperator.setChainingStrategy(chainingStrategy);
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return chainingStrategy;
+		public void processElement(StreamRecord<IN> element) throws Exception {
+			throw new UnsupportedOperationException();
 		}
 	}
 
@@ -155,9 +147,9 @@ public class SubstituteStreamOperatorITCase extends AbstractTestBase {
 		}
 	}
 
-	private static class TestTwoInputSubstituteStreamOperator<IN1, IN2, OUT> extends AbstractTwoInputSubstituteStreamOperator<IN1, IN2, OUT> {
+	private static class TestTwoInputSubstituteStreamOperator<IN1, IN2, OUT> extends AbstractStreamOperator<OUT>
+			implements TwoInputStreamOperator<IN1, IN2, OUT>, StreamOperatorSubstitutor {
 
-		private ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
 		private final TwoInputStreamOperator<IN1, IN2, OUT> actualStreamOperator;
 
 		TestTwoInputSubstituteStreamOperator(TwoInputStreamOperator<IN1, IN2, OUT> actualStreamOperator) {
@@ -170,14 +162,13 @@ public class SubstituteStreamOperatorITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void setChainingStrategy(ChainingStrategy chainingStrategy) {
-			this.chainingStrategy = chainingStrategy;
-			this.actualStreamOperator.setChainingStrategy(chainingStrategy);
+		public void processElement1(StreamRecord<IN1> element) throws Exception {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return chainingStrategy;
+		public void processElement2(StreamRecord<IN2> element) throws Exception {
+			throw new UnsupportedOperationException();
 		}
 	}
 

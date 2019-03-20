@@ -19,10 +19,10 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.operators.AbstractSubstituteStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorSubstitutor;
 
 import org.junit.Test;
 
@@ -66,9 +66,9 @@ public class StreamConfigTest {
 		}
 	}
 
-	private static class TestSubstituteStreamOperator<OUT> extends AbstractSubstituteStreamOperator<OUT> {
+	private static class TestSubstituteStreamOperator<OUT> extends AbstractStreamOperator<OUT>
+			implements StreamOperatorSubstitutor {
 
-		private ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
 		private final StreamOperator<OUT> actualStreamOperator;
 
 		TestSubstituteStreamOperator(StreamOperator<OUT> actualStreamOperator) {
@@ -78,17 +78,6 @@ public class StreamConfigTest {
 		@Override
 		public StreamOperator<OUT> getActualStreamOperator(ClassLoader cl) {
 			return actualStreamOperator;
-		}
-
-		@Override
-		public void setChainingStrategy(ChainingStrategy chainingStrategy) {
-			this.chainingStrategy = chainingStrategy;
-			this.actualStreamOperator.setChainingStrategy(chainingStrategy);
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return chainingStrategy;
 		}
 	}
 }
