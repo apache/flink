@@ -60,7 +60,7 @@ public class DatadogHttpClientTest {
 	}
 
 	@Before
-	public void suppressValidateApiKey(){
+	public void suppressValidateApiKey() {
 		PowerMockito.suppress(MemberMatcher.method(DatadogHttpClient.class, "validateApiKey"));
 	}
 
