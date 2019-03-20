@@ -18,20 +18,20 @@
 package org.apache.flink.table.codegen.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, RowType, TypeUtils}
+import org.apache.flink.table.`type`.{InternalType, InternalTypeUtils, RowType}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.{CONTEXT_TERM, CURRENT_KEY, DISTINCT_KEY_TERM, NAMESPACE_TERM, addReusableStateDataViews, createDataViewBackupTerm, createDataViewTerm}
 import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.dataformat.{GenericRow, UpdatableRow}
 import org.apache.flink.table.dataview.DataViewSpec
-import org.apache.flink.table.expressions.{Expression, ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeGenExpressionVisitor}
+import org.apache.flink.table.expressions.{Expression, ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeConverter}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.plan.util.AggregateInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.SingleElementIterator
 
 import org.apache.calcite.tools.RelBuilder
 
@@ -111,7 +111,7 @@ class ImperativeAggCodeGen(
   private val externalResultType = aggInfo.externalResultType
   private val internalResultType = createInternalTypeFromTypeInfo(externalResultType)
 
-  private val rexNodeGen = new RexNodeGenExpressionVisitor(relBuilder)
+  private val rexNodeGen = new RexNodeConverter(relBuilder)
 
   val viewSpecs: Array[DataViewSpec] = aggInfo.viewSpecs
   // add reusable dataviews to context
@@ -143,9 +143,7 @@ class ImperativeAggCodeGen(
 
     if (isAccTypeInternal) {
       ctx.addReusableMember(s"private $accTypeInternalTerm $accInternalTerm;")
-      s"""
-         |$accInternalTerm = ${expr.resultTerm};
-      """.stripMargin
+      s"$accInternalTerm = ${expr.resultTerm};"
     } else {
       ctx.addReusableMember(s"private $accTypeInternalTerm $accInternalTerm;")
       ctx.addReusableMember(s"private $accTypeExternalTerm $accExternalTerm;")
@@ -370,14 +368,15 @@ class ImperativeAggCodeGen(
               GeneratedExpression(newExpr.resultTerm, newExpr.nullTerm, code, newExpr.resultType)
             } else {
               val fieldType = ct.getTypeAt(index)
-              val fieldTerm = ctx.newReusableField("field", UPDATABLE_ROW)
+              val fieldTerm = newName("field")
+              ctx.addReusableMember(s"$UPDATABLE_ROW $fieldTerm;")
               val code =
                 s"""
                    |${newExpr.code}
                    |$fieldTerm = null;
                    |if (!${newExpr.nullTerm}) {
                    |  $fieldTerm = new $UPDATABLE_ROW(${newExpr.resultTerm}, ${
-                        TypeUtils.getArity(fieldType)});
+                        InternalTypeUtils.getArity(fieldType)});
                    |  ${generateDataViewFieldSetter(fieldTerm, viewSpecs, useBackupDataView)}
                    |}
                 """.stripMargin
@@ -481,7 +480,7 @@ class ImperativeAggCodeGen(
 
       if (iterableTypeClass != externalAccType.getTypeClass &&
           // iterableTypeClass can be GenericRow, so classOf[BaseRow] is assignable from it.
-          !TypeUtils.getInternalClassForType(internalAccType).isAssignableFrom(
+          !InternalTypeUtils.getInternalClassForType(internalAccType).isAssignableFrom(
             iterableTypeClass.asInstanceOf[Class[_]])) {
         throw new CodeGenException(
           s"merge method in AggregateFunction ${function.getClass.getCanonicalName} does not " +

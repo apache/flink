@@ -689,12 +689,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     }
   }
 
-  def newReusableField(name: String, fieldTypeTerm: String): String = {
-    val fieldName = newName(name)
-    reusableMemberStatements.add(s"$fieldTypeTerm $fieldName;")
-    fieldName
-  }
-
   /**
     * Adds a reusable MessageDigest to the member area of the generated [[Function]].
     *

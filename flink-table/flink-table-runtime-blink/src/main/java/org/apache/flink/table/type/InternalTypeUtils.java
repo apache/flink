@@ -33,4 +33,12 @@ public class InternalTypeUtils {
 			return 1;
 		}
 	}
+
+	public static Class getExternalClassForType(InternalType type) {
+		return TypeConverters.createExternalTypeInfoFromInternalType(type).getTypeClass();
+	}
+
+	public static Class getInternalClassForType(InternalType type) {
+		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
+	}
 }

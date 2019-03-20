@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.generated;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.functions.ExecutionContext;
 
 /**
  * The base class for handling aggregate functions.
+ * It encapsulates CodeGenerate and Optimization for all {@link AggregateFunction}s.
+ * It is the entry point of Aggregate operators to operate all {@link AggregateFunction}s.
  */
 public interface AggsHandleFunction extends Function {
 
@@ -52,8 +55,10 @@ public interface AggsHandleFunction extends Function {
 	void merge(BaseRow accumulators) throws Exception;
 
 	/**
-	 * Set the current accumulators (saved in a row) which contains the current.
-	 * aggregated results
+	 * Set the current accumulators (saved in a row) which contains the current aggregated results.
+	 * In streaming: accumulators are store in the state, we need to restore aggregate buffers from state.
+	 * In batch: accumulators are store in the hashMap, we need to restore aggregate buffers from hashMap.
+	 *
 	 * @param accumulators current accumulators
 	 */
 	void setAccumulators(BaseRow accumulators) throws Exception;

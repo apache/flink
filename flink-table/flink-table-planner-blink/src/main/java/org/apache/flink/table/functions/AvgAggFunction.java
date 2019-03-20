@@ -21,7 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedAggBufferReference;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
@@ -33,7 +33,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
-import static org.apache.flink.table.expressions.ExpressionBuilder.nullValue;
+import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
 
 /**
@@ -41,49 +41,53 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  */
 public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
-	private UnresolvedAggBufferReference sum = new UnresolvedAggBufferReference("sum", getSumType());
-	private UnresolvedAggBufferReference count = new UnresolvedAggBufferReference("count", Types.LONG);
+	private FieldReferenceExpression sum = new FieldReferenceExpression("sum", getSumType());
+	private FieldReferenceExpression count = new FieldReferenceExpression("count", Types.LONG);
 
 	public TypeInformation getSumType() {
 		return Types.LONG;
 	}
 
 	@Override
-	public int inputCount() {
+	public int operandCount() {
 		return 1;
 	}
 
 	@Override
-	public UnresolvedAggBufferReference[] aggBufferAttributes() {
-		return new UnresolvedAggBufferReference[] {sum, count};
+	public FieldReferenceExpression[] aggBufferAttributes() {
+		return new FieldReferenceExpression[] {
+				sum,
+				count};
 	}
 
 	@Override
 	public Expression[] initialValuesExpressions() {
-		return new Expression[] {literal(0L, getSumType()), literal(0L)};
+		return new Expression[] {
+				/* sum = */ literal(0L, getSumType()),
+				/* count = */ literal(0L)};
 	}
 
 	@Override
 	public Expression[] accumulateExpressions() {
 		return new Expression[] {
-				ifThenElse(isNull(operands()[0]), sum, plus(sum, operands()[0])),
-				ifThenElse(isNull(operands()[0]), count, plus(count, literal(1L))),
+				/* sum = */ ifThenElse(isNull(operand(0)), sum, plus(sum, operand(0))),
+				/* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L))),
 		};
 	}
 
 	@Override
 	public Expression[] retractExpressions() {
 		return new Expression[] {
-				ifThenElse(isNull(operands()[0]), sum, minus(sum, operands()[0])),
-				ifThenElse(isNull(operands()[0]), count, minus(count, literal(1L))),
+				/* sum = */ ifThenElse(isNull(operand(0)), sum, minus(sum, operand(0))),
+				/* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L))),
 		};
 	}
 
 	@Override
 	public Expression[] mergeExpressions() {
 		return new Expression[] {
-				plus(sum, mergeInput(sum)),
-				plus(count, mergeInput(count))
+				/* sum = */ plus(sum, mergeOperand(sum)),
+				/* count = */ plus(count, mergeOperand(count))
 		};
 	}
 
@@ -92,7 +96,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	@Override
 	public Expression getValueExpression() {
-		return ifThenElse(equalTo(count, literal(0L)), nullValue(getResultType()), div(sum, count));
+		return ifThenElse(equalTo(count, literal(0L)), nullOf(getResultType()), div(sum, count));
 	}
 
 	/**

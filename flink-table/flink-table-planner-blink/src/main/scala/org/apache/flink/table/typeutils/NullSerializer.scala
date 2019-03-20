@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.typeutils
 
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
@@ -51,7 +50,5 @@ class NullSerializer extends TypeSerializerSingleton[Any] {
   override def copy(source: DataInputView, target: DataOutputView): Unit = {
   }
 
-  override def snapshotConfiguration: TypeSerializerSnapshot[Any] =
-    new NullSerializerSnapshot().asInstanceOf[TypeSerializerSnapshot[Any]]
-
+  override def snapshotConfiguration() = throw new UnsupportedOperationException
 }

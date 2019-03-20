@@ -154,7 +154,5 @@ class NullAwareMapSerializer[K, V](
     result
   }
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot[JMap[K, V]] = {
-    new NullAwareMapSerializerConfigSnapshot(keySerializer, valueSerializer)
-  }
+  override def snapshotConfiguration() = throw new UnsupportedOperationException
 }

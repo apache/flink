@@ -19,7 +19,7 @@
 package org.apache.flink.table.functions.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeUtils.getExternalClassForType
+import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.TableFunction
@@ -104,10 +104,30 @@ object TableSqlFunction {
           callBinding: SqlCallBinding,
           returnType: RelDataType,
           operandTypes: Array[RelDataType]): Unit = {
-        ScalarSqlFunction.inferOperandTypes(
+        inferOperandTypesInternal(
           name, udtf, typeFactory, callBinding, returnType, operandTypes)
       }
     }
+  }
+
+  def inferOperandTypesInternal(
+      name: String,
+      func: TableFunction[_],
+      typeFactory: FlinkTypeFactory,
+      callBinding: SqlCallBinding,
+      returnType: RelDataType,
+      operandTypes: Array[RelDataType]): Unit = {
+    val parameters = getOperandType(callBinding).toArray
+    if (getEvalUserDefinedMethod(func, parameters).isEmpty) {
+      throwValidationException(name, func, parameters)
+    }
+    func.getParameterTypes(getEvalMethodSignature(func, parameters))
+        .map(TypeConverters.createInternalTypeFromTypeInfo)
+        .map(typeFactory.createTypeFromInternalType(_, isNullable = true))
+        .zipWithIndex
+        .foreach {
+          case (t, i) => operandTypes(i) = t
+        }
   }
 
   private[flink] def createOperandTypeChecker(

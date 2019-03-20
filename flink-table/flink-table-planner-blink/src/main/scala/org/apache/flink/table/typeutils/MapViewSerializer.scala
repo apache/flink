@@ -19,7 +19,6 @@
 package org.apache.flink.table.typeutils
 
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.common.typeutils.base.{MapSerializerConfigSnapshot, MapSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.table.api.dataview.MapView
 
@@ -37,8 +36,7 @@ import org.apache.flink.table.api.dataview.MapView
   */
 @SerialVersionUID(-9007142882049098705L)
 class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K, V]])
-    extends TypeSerializer[MapView[K, V]]
-        with LegacySerializerSnapshotTransformer[MapView[K, V]] {
+    extends TypeSerializer[MapView[K, V]] {
 
   override def isImmutableType: Boolean = false
 
@@ -76,48 +74,7 @@ class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K,
   override def equals(obj: Any): Boolean =
     mapSerializer.equals(obj.asInstanceOf[MapViewSerializer[_, _]].mapSerializer)
 
-  override def snapshotConfiguration(): MapViewSerializerSnapshot[K, V] =
-    new MapViewSerializerSnapshot[K, V](this)
-
-  /**
-    * We need to override this as a [[LegacySerializerSnapshotTransformer]]
-    * because in Flink 1.6.x and below, this serializer was incorrectly returning
-    * directly the snapshot of the nested map serializer as its own snapshot.
-    *
-    * <p>This method transforms the incorrect map serializer snapshot
-    * to be a proper [[MapViewSerializerSnapshot]].
-    */
-  override def transformLegacySerializerSnapshot[U](
-      legacySnapshot: TypeSerializerSnapshot[U]
-  ): TypeSerializerSnapshot[MapView[K, V]] = {
-
-    legacySnapshot match {
-      case correctSnapshot: MapViewSerializerSnapshot[K, V] =>
-        correctSnapshot
-
-      case legacySnapshot: MapSerializerConfigSnapshot[K, V] =>
-        // first, transform the incorrect map serializer's snapshot
-        // into a proper ListSerializerSnapshot
-        val transformedNestedMapSerializerSnapshot =
-          new MapSerializerSnapshot[K, V]
-        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-          transformedNestedMapSerializerSnapshot,
-          legacySnapshot.getNestedSerializersAndConfigs.get(0).f1,
-          legacySnapshot.getNestedSerializersAndConfigs.get(1).f1
-        )
-
-        // then, wrap the transformed MapSerializerSnapshot
-        // as a nested snapshot in the final resulting MapViewSerializerSnapshot
-        val transformedMapViewSerializerSnapshot =
-        new MapViewSerializerSnapshot[K, V]()
-        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-          transformedMapViewSerializerSnapshot,
-          transformedNestedMapSerializerSnapshot
-        )
-
-        transformedMapViewSerializerSnapshot
-    }
-  }
-
   def getMapSerializer: TypeSerializer[java.util.Map[K, V]] = mapSerializer
+
+  override def snapshotConfiguration() = throw new UnsupportedOperationException
 }

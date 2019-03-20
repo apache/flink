@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.functions.utils
 
-import org.apache.flink.table.`type`.TypeUtils.getExternalClassForType
-import org.apache.flink.table.`type`.{TypeConverters, TypeUtils}
+import org.apache.flink.table.`type`.{InternalTypeUtils, TypeConverters}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
-import org.apache.flink.table.functions.{CustomTypeDefinedFunction, ScalarFunction}
+import org.apache.flink.table.functions.ScalarFunction
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
@@ -82,7 +81,7 @@ object ScalarSqlFunction {
             null
           } else if (opBinding.isOperandLiteral(i, false)) {
             opBinding.getOperandLiteralValue(
-              i, TypeUtils.getExternalClassForType(parameters(i))).asInstanceOf[AnyRef]
+              i, InternalTypeUtils.getExternalClassForType(parameters(i))).asInstanceOf[AnyRef]
           } else {
             null
           }
@@ -97,7 +96,7 @@ object ScalarSqlFunction {
 
   def inferOperandTypes(
       name: String,
-      func: CustomTypeDefinedFunction,
+      func: ScalarFunction,
       typeFactory: FlinkTypeFactory,
       callBinding: SqlCallBinding,
       returnType: RelDataType,

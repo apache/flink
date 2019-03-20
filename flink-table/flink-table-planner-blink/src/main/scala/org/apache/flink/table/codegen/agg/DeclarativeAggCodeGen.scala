@@ -69,7 +69,7 @@ class DeclarativeAggCodeGen(
     val types = inputTypes ++ constantExprs.map(_.resultType)
     argIndexes.map(types(_))
   }
-  private val rexNodeGen = new RexNodeGenExpressionVisitor(relBuilder)
+  private val rexNodeGen = new RexNodeConverter(relBuilder)
 
   def createAccumulator(generator: ExprCodeGenerator): Seq[GeneratedExpression] = {
     function.initialValuesExpressions
@@ -226,59 +226,61 @@ class DeclarativeAggCodeGen(
     }
 
     override def visitFieldReference(input: FieldReferenceExpression): Expression = {
-      // We always use FieldReferenceExpression to represent reference of input field.
-      // In non-merge case, the input is the operand of the aggregate function.
-      // In merge case, the input is the aggregate buffers sent by local aggregate.
-      if (isMerge) {
-        val localIndex = function.inputAggBufferAttributes.indexOf(input)
-        // in merge case, the input1 is mergedAcc
-        new ResolvedAggInputReference(
-          input.getName,
-          mergedAccOffset + bufferIndexes(localIndex),
-          bufferTypes(localIndex))
-      } else {
-        val localIndex = function.operands.indexOf(input)
-        val inputIndex = argIndexes(localIndex)
-        if (inputIndex >= inputTypes.length) { // it is a constant
-          val constantIndex = inputIndex - inputTypes.length
-          val constantTerm = constantExprs(constantIndex).resultTerm
-          val nullTerm = constantExprs(constantIndex).nullTerm
-          val constantType = constantExprs(constantIndex).resultType
-          // constant is reused as member variable
-          new ResolvedAggLocalReference(
-            constantTerm,
-            nullTerm,
-            constantType)
-        } else { // it is a input field
-          if (isDistinctMerge) {  // this is called from distinct merge
-            if (function.inputCount == 1) {
-              // the distinct key is a BoxedValue
-              new ResolvedDistinctKeyReference(input.getName, argTypes(localIndex))
-            } else {
-              // the distinct key is a BaseRow
-              new ResolvedAggInputReference(input.getName, localIndex, argTypes(localIndex))
-            }
-          } else {
-            // the input is the inputRow
-            new ResolvedAggInputReference(
-              input.getName, argIndexes(localIndex), argTypes(localIndex))
-          }
-        }
-      }
+       function.aggBufferAttributes.indexOf(input) match {
+         case -1 =>
+           // Not find in agg buffers, it is a operand, represent reference of input field.
+           // In non-merge case, the input is the operand of the aggregate function.
+           // In merge case, the input is the aggregate buffers sent by local aggregate.
+           if (isMerge) {
+             val localIndex = function.mergeOperands.indexOf(input)
+             // in merge case, the input1 is mergedAcc
+             new ResolvedAggInputReference(
+               input.getName,
+               mergedAccOffset + bufferIndexes(localIndex),
+               bufferTypes(localIndex))
+           } else {
+             val localIndex = function.operands.indexOf(input)
+             val inputIndex = argIndexes(localIndex)
+             if (inputIndex >= inputTypes.length) { // it is a constant
+               val constantIndex = inputIndex - inputTypes.length
+               val constantTerm = constantExprs(constantIndex).resultTerm
+               val nullTerm = constantExprs(constantIndex).nullTerm
+               val constantType = constantExprs(constantIndex).resultType
+               // constant is reused as member variable
+               new ResolvedAggLocalReference(
+                 constantTerm,
+                 nullTerm,
+                 constantType)
+             } else { // it is a input field
+               if (isDistinctMerge) {  // this is called from distinct merge
+                 if (function.operandCount == 1) {
+                   // the distinct key is a BoxedValue
+                   new ResolvedDistinctKeyReference(input.getName, argTypes(localIndex))
+                 } else {
+                   // the distinct key is a BaseRow
+                   new ResolvedAggInputReference(input.getName, localIndex, argTypes(localIndex))
+                 }
+               } else {
+                 // the input is the inputRow
+                 new ResolvedAggInputReference(
+                   input.getName, argIndexes(localIndex), argTypes(localIndex))
+               }
+             }
+           }
+         case localIndex =>
+           // it is a agg buffer.
+           val name = bufferTerms(localIndex)
+           val nullTerm = bufferNullTerms(localIndex)
+           // buffer access is reused as member variable
+           new ResolvedAggLocalReference(name, nullTerm, bufferTypes(localIndex))
+       }
     }
 
     override def visitTypeLiteral(typeLiteral: TypeLiteralExpression): Expression = {
       typeLiteral
     }
 
-    override def visit(other: Expression): Expression = other match {
-      case buffer: UnresolvedAggBufferReference =>
-        val localIndex = function.aggBufferAttributes.indexOf(buffer)
-        val name = bufferTerms(localIndex)
-        val nullTerm = bufferNullTerms(localIndex)
-        // buffer access is reused as member variable
-        new ResolvedAggLocalReference(name, nullTerm, bufferTypes(localIndex))
-    }
+    override def visit(other: Expression): Expression = other
   }
 
   override def checkNeededMethods(

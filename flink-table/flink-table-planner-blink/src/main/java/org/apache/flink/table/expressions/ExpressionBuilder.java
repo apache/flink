@@ -35,7 +35,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS
  */
 public class ExpressionBuilder {
 
-	public static Expression nullValue(TypeInformation type) {
+	public static Expression nullOf(TypeInformation type) {
 		return literal(null, type);
 	}
 

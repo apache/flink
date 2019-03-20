@@ -23,12 +23,11 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.`type`.TypeConverters.{createInternalTypeFromTypeInfo, createInternalTypeInfoFromInternalType}
-import org.apache.flink.table.`type`.{InternalType, RowType, TypeConverters, TypeUtils}
+import org.apache.flink.table.`type`.{InternalType, InternalTypeUtils, RowType, TypeConverters}
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
-import org.apache.flink.table.functions.{AggregateFunction, CustomTypeDefinedFunction, ScalarFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.schema.DeferredTypeFlinkTableFunction
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
 
@@ -113,7 +112,16 @@ object UserDefinedFunctionUtils {
   }
 
   def getEvalMethodSignature(
-      func: CustomTypeDefinedFunction,
+      func: ScalarFunction,
+      expectedTypes: Array[InternalType]): Array[Class[_]] = {
+    val method = getEvalUserDefinedMethod(func, expectedTypes).getOrElse(
+      throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
+    )
+    getParamClassesConsiderVarArgs(method.isVarArgs, method.getParameterTypes, expectedTypes.length)
+  }
+
+  def getEvalMethodSignature(
+      func: TableFunction[_],
       expectedTypes: Array[InternalType]): Array[Class[_]] = {
     val method = getEvalUserDefinedMethod(func, expectedTypes).getOrElse(
       throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
@@ -129,12 +137,19 @@ object UserDefinedFunctionUtils {
       func, "accumulate", externalAccType, expectedTypes).getOrElse(
       throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
     )
-    func.getUserDefinedInputTypes(
-      getParamClassesConsiderVarArgs(
+//    val udiTypes = func.getUserDefinedInputTypes(
+//      getParamClassesConsiderVarArgs(
+//        accMethod.isVarArgs,
+//        // drop first, first must be Acc.
+//        accMethod.getParameterTypes.drop(1),
+//        expectedTypes.length))
+    val udiTypes = getParamClassesConsiderVarArgs(
         accMethod.isVarArgs,
         // drop first, first must be Acc.
         accMethod.getParameterTypes.drop(1),
-        expectedTypes.length)).zipWithIndex.map {
+        expectedTypes.length).map(TypeExtractor.createTypeInfo(_))
+
+    udiTypes.zipWithIndex.map {
       case (t, i) =>
         // we don't trust GenericType.
         if (t.isInstanceOf[GenericTypeInfo[_]]) {
@@ -177,7 +192,19 @@ object UserDefinedFunctionUtils {
   }
 
   def getEvalUserDefinedMethod(
-      function: CustomTypeDefinedFunction,
+      function: ScalarFunction,
+      expectedTypes: Seq[InternalType])
+  : Option[Method] = {
+    getUserDefinedMethod(
+      function,
+      "eval",
+      internalTypesToClasses(expectedTypes),
+      expectedTypes.toArray,
+      (paraClasses) => function.getParameterTypes(paraClasses))
+  }
+
+  def getEvalUserDefinedMethod(
+      function: TableFunction[_],
       expectedTypes: Seq[InternalType])
   : Option[Method] = {
     getUserDefinedMethod(
@@ -200,8 +227,9 @@ object UserDefinedFunctionUtils {
       methodName,
       internalTypesToClasses(input),
       input.map{ t => if (t == null) null else t}.toArray,
-      (cls) => Array(accType) ++
-          function.getUserDefinedInputTypes(cls.drop(1)))
+//      (cls) => Array(accType) ++
+//          function.getUserDefinedInputTypes(cls.drop(1)))
+      (cls) => Array(accType) ++ cls.drop(1).map(TypeExtractor.createTypeInfo(_)))
   }
 
   /**
@@ -402,68 +430,6 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Create [[SqlFunction]] instance for a [[TableFunction]].
-    *
-    * There are 2 cases that we should invoke this function to create TableFunction instance:
-    * case 1: The function instance is initiated from a full class name, e.g. from a persisted
-    * catalog.
-    * case 2: Some builtin table functions registered in BuiltInFunctionCatalog.
-    *
-    * In total, the implicitResultType will only affect TableAPI result type inference when
-    * we do expression validation, which would be used as a fallback type of
-    * CustomTypeDefinedFunction#getResultType.
-    *
-    * @param name function name
-    * @param tableFunction table function instance
-    * @param typeFactory type factory, default to be [new FlinkTypeFactory(new FlinkTypeSystem())]
-    * @return [[TableSqlFunction]] instance of the [[TableFunction]]
-    */
-  def createTableSqlFunction(
-      name: String,
-      displayName: String,
-      tableFunction: TableFunction[_],
-      typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem()))
-  : TableSqlFunction = {
-    val implicitResultType = extractResultTypeFromTableFunction(tableFunction)
-    createTableSqlFunction(name, displayName, tableFunction, implicitResultType, typeFactory)
-  }
-
-  /**
-    * Create [[SqlFunction]] for a [[TableFunction]].
-    *
-    * Caution that the implicitResultType is only expect to be passed explicitly by Scala implicit
-    * type inference.
-    *
-    * The entrance in BatchTableEnvironment.scala and StreamTableEnvironment.scala
-    * {{{
-    *   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T])
-    * }}}
-    *
-    * The implicitResultType would be inferred from type `T`.
-    *
-    * For all the other cases, please use
-    * createTableSqlFunction (String, String, TableFunction, FlinkTypeFactory) instead.
-    *
-    * @param name function name
-    * @param tableFunction table function
-    * @param implicitResultType the implicit type information of returned table
-    * @param typeFactory type factory
-    * @return the TableSqlFunction
-    */
-  def createTableSqlFunction(
-      name: String,
-      displayName: String,
-      tableFunction: TableFunction[_],
-      implicitResultType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-  : TableSqlFunction = {
-    // we don't know the exact result type yet.
-    val function = new DeferredTypeFlinkTableFunction(tableFunction, implicitResultType)
-    new TableSqlFunction(name, displayName, tableFunction, implicitResultType,
-      typeFactory, function)
-  }
-
-  /**
     * Create [[SqlFunction]] for an [[AggregateFunction]]
     *
     * @param name function name
@@ -582,8 +548,9 @@ object UserDefinedFunctionUtils {
       function: ScalarFunction,
       arguments: Array[AnyRef],
       argTypes: Array[InternalType]): TypeInformation[_] = {
-    val userDefinedTypeInfo = function.getResultType(
-      arguments, getEvalMethodSignature(function, argTypes))
+//    val userDefinedTypeInfo = function.getResultType(
+//      arguments, getEvalMethodSignature(function, argTypes))
+    val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
     if (userDefinedTypeInfo != null) {
       userDefinedTypeInfo
     } else {
@@ -682,7 +649,7 @@ object UserDefinedFunctionUtils {
       if (t == null) {
         null
       } else {
-        TypeUtils.getExternalClassForType(t)
+        InternalTypeUtils.getExternalClassForType(t)
       }
     }.toArray
 

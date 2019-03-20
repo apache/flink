@@ -21,7 +21,6 @@ package org.apache.flink.table.functions.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.TypeUtils.getExternalClassForType
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.AggregateFunction

@@ -19,7 +19,6 @@
 package org.apache.flink.table.typeutils
 
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.common.typeutils.base.{CollectionSerializerConfigSnapshot, ListSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.table.api.dataview.ListView
 
@@ -35,8 +34,7 @@ import org.apache.flink.table.api.dataview.ListView
   */
 @SerialVersionUID(-2030398712359267867L)
 class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]])
-    extends TypeSerializer[ListView[T]]
-        with LegacySerializerSnapshotTransformer[ListView[T]] {
+    extends TypeSerializer[ListView[T]] {
 
   override def isImmutableType: Boolean = false
 
@@ -75,43 +73,7 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
   override def equals(obj: Any): Boolean =
     listSerializer.equals(obj.asInstanceOf[ListViewSerializer[_]].listSerializer)
 
-  override def snapshotConfiguration(): ListViewSerializerSnapshot[T] =
-    new ListViewSerializerSnapshot[T](this)
-
-  /**
-    * We need to override this as a [[LegacySerializerSnapshotTransformer]]
-    * because in Flink 1.6.x and below, this serializer was incorrectly returning
-    * directly the snapshot of the nested list serializer as its own snapshot.
-    *
-    * <p>This method transforms the incorrect list serializer snapshot
-    * to be a proper [[ListViewSerializerSnapshot]].
-    */
-  override def transformLegacySerializerSnapshot[U](
-      legacySnapshot: TypeSerializerSnapshot[U]
-  ): TypeSerializerSnapshot[ListView[T]] = {
-
-    legacySnapshot match {
-      case correctSnapshot: ListViewSerializerSnapshot[T] =>
-        correctSnapshot
-
-      case legacySnapshot: CollectionSerializerConfigSnapshot[java.util.List[T], T] =>
-        // first, transform the incorrect list serializer's snapshot
-        // into a proper ListSerializerSnapshot
-        val transformedNestedListSerializerSnapshot = new ListSerializerSnapshot[T]
-        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-          transformedNestedListSerializerSnapshot,
-          legacySnapshot.getSingleNestedSerializerAndConfig.f1)
-
-        // then, wrap the transformed ListSerializerSnapshot
-        // as a nested snapshot in the final resulting ListViewSerializerSnapshot
-        val transformedListViewSerializerSnapshot = new ListViewSerializerSnapshot[T]()
-        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-          transformedListViewSerializerSnapshot,
-          transformedNestedListSerializerSnapshot)
-
-        transformedListViewSerializerSnapshot
-    }
-  }
-
   def getListSerializer: TypeSerializer[java.util.List[T]] = listSerializer
+
+  override def snapshotConfiguration() = throw new UnsupportedOperationException
 }

@@ -24,9 +24,11 @@ import org.apache.flink.table.dataformat.BaseRow;
 
 /**
  * A ExecutionContext contains information about the context in which functions are executed and
- * the APIs to create v2 state.
+ * the APIs to create state.
  */
 public interface ExecutionContext {
+
+	// TODO add create state method.
 
 	/**
 	 * @return the key serializer of state key

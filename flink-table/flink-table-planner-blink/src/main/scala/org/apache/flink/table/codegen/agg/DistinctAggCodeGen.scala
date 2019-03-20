@@ -20,16 +20,16 @@ package org.apache.flink.table.codegen.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, RowType, TypeConverters}
+import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName, _}
 import org.apache.flink.table.codegen.GenerateUtils.{generateFieldAccess, generateInputAccess}
 import org.apache.flink.table.codegen.GeneratedExpression._
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator._
-import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.dataformat.GenericRow
-import org.apache.flink.table.expressions.{Expression, RexNodeGenExpressionVisitor}
+import org.apache.flink.table.expressions.{Expression, RexNodeConverter}
 import org.apache.flink.table.plan.util.DistinctInfo
 import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
@@ -90,7 +90,7 @@ class DistinctAggCodeGen(
   val isValueChangedTerm: String = s"is_distinct_value_changed_$distinctIndex"
   val isValueEmptyTerm: String = s"is_distinct_value_empty_$distinctIndex"
   val valueGenerator: DistinctValueGenerator = createDistinctValueGenerator()
-  private val rexNodeGen = new RexNodeGenExpressionVisitor(relBuilder)
+  private val rexNodeGen = new RexNodeConverter(relBuilder)
 
   addReusableDistinctAccumulator()
 
@@ -357,7 +357,7 @@ class DistinctAggCodeGen(
   private def generateKeyExpression(
       ctx: CodeGeneratorContext,
       generator: ExprCodeGenerator): GeneratedExpression = {
-    var fieldExprs = distinctInfo.argIndexes.map(generateInputAccess(
+    val fieldExprs = distinctInfo.argIndexes.map(generateInputAccess(
       ctx,
       generator.input1Type,
       generator.input1Term,
