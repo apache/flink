@@ -95,10 +95,8 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
-
 							<artifactSet>
 								<includes combine.children="append">
-									<!-- lz4-java -->
 									<include>org.lz4:lz4-java</include>
 								</includes>
 							</artifactSet>
