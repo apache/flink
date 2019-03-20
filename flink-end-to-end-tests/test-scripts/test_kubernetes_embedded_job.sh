@@ -40,8 +40,7 @@ function cleanup {
 }
 
 function check_kubernetes_status {
-    local status=`minikube status`
-    echo ${status} | grep -q "minikube: Running cluster: Running kubectl: Correctly Configured"
+    minikube status
     return $?
 }
 
@@ -50,7 +49,8 @@ function start_kubernetes_if_not_running {
         minikube start
     fi
 
-    return $(check_kubernetes_status)
+    check_kubernetes_status
+    return $?
 }
 
 trap cleanup EXIT
