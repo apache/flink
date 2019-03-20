@@ -186,8 +186,8 @@ DataStream<Tuple2<String, Long>> result = keyedEdits
 
         @Override
         public Tuple2<String, Long> add(WikipediaEditEvent value, Tuple2<String, Long> accumulator) {
-          	accumulator.f0 = value.getUser();
-          	accumulator.f1 += value.getByteDiff();
+            accumulator.f0 = value.getUser();
+            accumulator.f1 += value.getByteDiff();
             return accumulator;
         }
 
