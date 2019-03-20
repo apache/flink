@@ -181,7 +181,7 @@ DataStream<Tuple2<String, Long>> result = keyedEdits
     .aggregate(new AggregateFunction<WikipediaEditEvent, Tuple2<String, Long>, Tuple2<String, Long>>() {
         @Override
         public Tuple2<String, Long> createAccumulator() {
-          	return new Tuple2<>("", 0L);
+            return new Tuple2<>("", 0L);
         }
 
         @Override
@@ -193,12 +193,12 @@ DataStream<Tuple2<String, Long>> result = keyedEdits
 
         @Override
         public Tuple2<String, Long> getResult(Tuple2<String, Long> accumulator) {
-          	return accumulator;
+            return accumulator;
         }
 
         @Override
         public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
-          	return new Tuple2<>(a.f0, a.f1 + b.f1);
+            return new Tuple2<>(a.f0, a.f1 + b.f1);
         }
     });
 {% endhighlight %}
