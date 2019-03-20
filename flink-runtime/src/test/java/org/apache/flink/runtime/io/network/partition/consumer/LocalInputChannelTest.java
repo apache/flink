@@ -42,7 +42,7 @@ import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -110,8 +110,6 @@ public class LocalInputChannelTest {
 
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier = new NoOpResultPartitionConsumableNotifier();
 
-		final TaskActions taskActions = mock(TaskActions.class);
-
 		final IOManager ioManager = mock(IOManager.class);
 
 		final JobID jobId = new JobID();
@@ -127,7 +125,7 @@ public class LocalInputChannelTest {
 
 			final ResultPartition partition = new ResultPartition(
 				"Test Name",
-				taskActions,
+				new NoOpTaskActions(),
 				jobId,
 				partitionIds[i],
 				ResultPartitionType.PIPELINED,
@@ -302,7 +300,7 @@ public class LocalInputChannelTest {
 			ResultPartitionType.PIPELINED,
 			0,
 			1,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 			true
 		);
@@ -500,7 +498,7 @@ public class LocalInputChannelTest {
 					ResultPartitionType.PIPELINED,
 					subpartitionIndex,
 					numberOfInputChannels,
-					mock(TaskActions.class),
+					new NoOpTaskActions(),
 					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 					true);
 

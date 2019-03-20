@@ -50,7 +50,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.io.IOException;
@@ -293,25 +293,5 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		} else {
 			return gates[0];
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Mocks
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A dummy implementation of the {@link TaskActions}. We implement this here rather than using Mockito
-	 * to avoid using mockito in this benchmark class.
-	 */
-	private static final class NoOpTaskActions implements TaskActions {
-
-		@Override
-		public void triggerPartitionProducerStateCheck(
-			JobID jobId,
-			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionID resultPartitionId) {}
-
-		@Override
-		public void failExternally(Throwable cause) {}
 	}
 }

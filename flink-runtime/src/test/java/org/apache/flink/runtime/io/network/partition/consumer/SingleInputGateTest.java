@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -350,7 +350,7 @@ public class SingleInputGateTest {
 			new ExecutionAttemptID(),
 			gateDesc,
 			netEnv,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		try {
@@ -554,7 +554,7 @@ public class SingleInputGateTest {
 			partitionType,
 			0,
 			numberOfInputChannels,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 			enableCreditBasedFlowControl);
 
