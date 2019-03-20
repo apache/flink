@@ -20,8 +20,10 @@ package org.apache.flink.table.plan.nodes.exec
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.dataformat.BaseRow
 
+/**
+  * Base class for batch ExecNode.
+  */
 trait BatchExecNode[T] extends ExecNode[BatchTableEnvironment, T] {
 
   /**
@@ -30,5 +32,3 @@ trait BatchExecNode[T] extends ExecNode[BatchTableEnvironment, T] {
   def getDamBehavior: DamBehavior
 
 }
-
-trait RowBatchExecNode extends BatchExecNode[BaseRow]

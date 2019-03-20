@@ -19,8 +19,8 @@
 package org.apache.flink.table.plan.nodes.exec
 
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.dataformat.BaseRow
 
+/**
+  * Base class for stream ExecNode.
+  */
 trait StreamExecNode[T] extends ExecNode[StreamTableEnvironment, T]
-
-trait RowStreamExecNode extends StreamExecNode[BaseRow]
