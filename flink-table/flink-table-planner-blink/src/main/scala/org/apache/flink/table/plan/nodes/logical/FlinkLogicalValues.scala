@@ -22,15 +22,16 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.logical.LogicalValues
-import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.metadata.{RelMdCollation, RelMetadataQuery}
 import org.apache.calcite.rex.RexLiteral
 
 import java.util
+import java.util.function.Supplier
 
 /**
   * Sub-class of [[Values]] that is a relational expression
@@ -78,7 +79,12 @@ object FlinkLogicalValues {
       cluster: RelOptCluster,
       rowType: RelDataType,
       tuples: ImmutableList[ImmutableList[RexLiteral]]): FlinkLogicalValues = {
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val mq = cluster.getMetadataQuery
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
+      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
+        def get: util.List[RelCollation] = RelMdCollation.values(mq, rowType, tuples)
+      }).simplify()
     new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
   }
+
 }

@@ -67,7 +67,7 @@ object FlinkStreamProgram {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkStreamRuleSets.STREAM_EXEC_DEFAULT_REWRITE_RULES)
+        .add(FlinkStreamRuleSets.DEFAULT_REWRITE_RULES)
         .build())
 
     // rule based optimization: push down predicate(s) in where clause, so it only needs to read
@@ -93,7 +93,7 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       LOGICAL,
       FlinkVolcanoProgramBuilder.newBuilder
-        .add(FlinkStreamRuleSets.STREAM_EXEC_LOGICAL_OPT_RULES)
+        .add(FlinkStreamRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())
 
@@ -101,7 +101,7 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       PHYSICAL,
       FlinkVolcanoProgramBuilder.newBuilder
-        .add(FlinkStreamRuleSets.STREAM_EXEC_OPT_RULES)
+        .add(FlinkStreamRuleSets.PHYSICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.STREAM_PHYSICAL))
         .build())
 

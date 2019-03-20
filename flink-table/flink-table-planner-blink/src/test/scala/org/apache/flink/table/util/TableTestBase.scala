@@ -41,8 +41,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
 
-import scala.collection.JavaConversions._
-
 /**
   * Test base for testing Table API / SQL plans.
   */
@@ -112,14 +110,34 @@ abstract class TableTestUtil(test: TableTestBase) {
   def addTableSource[T: TypeInformation](name: String, fields: Symbol*): Table = {
     val typeInfo: TypeInformation[T] = implicitly[TypeInformation[T]]
     val fieldTypes: Array[TypeInformation[_]] = typeInfo match {
-      case tt: TupleTypeInfo[_] => tt.getGenericParameters.values().map(i => i).toArray
-      case ct: CaseClassTypeInfo[_] => ct.getGenericParameters.values().map(i => i).toArray
+      case tt: TupleTypeInfo[_] => (0 until tt.getArity).map(tt.getTypeAt).toArray
+      case ct: CaseClassTypeInfo[_] => (0 until ct.getArity).map(ct.getTypeAt).toArray
       case at: AtomicType[_] => Array[TypeInformation[_]](at)
       case _ => throw new TableException(s"Unsupported type info: $typeInfo")
     }
     val tableEnv = getTableEnv
     val (fieldNames, _) = tableEnv.getFieldInfo(typeInfo, fields.map(_.name).toArray)
     val schema = new TableSchema(fieldNames, fieldTypes)
+    val tableSource = new TestTableSource(schema)
+    tableEnv.registerTableSource(name, tableSource)
+    tableEnv.scan(name)
+  }
+
+  /**
+    * Create a [[TestTableSource]] with the given schema,
+    * and registers this TableSource under given name into the TableEnvironment's catalog.
+    *
+    * @param name table name
+    * @param types field types
+    * @param names field names
+    * @return returns the registered [[Table]].
+    */
+  def addTableSource(
+      name: String,
+      types: Array[TypeInformation[_]],
+      names: Array[String]): Table = {
+    val tableEnv = getTableEnv
+    val schema = new TableSchema(names, types)
     val tableSource = new TestTableSource(schema)
     tableEnv.registerTableSource(name, tableSource)
     tableEnv.scan(name)
@@ -163,13 +181,19 @@ abstract class TableTestUtil(test: TableTestBase) {
   }
 
   def verifyPlan(sql: String): Unit = {
-    val table = getTableEnv.sqlQuery(sql)
     doVerifyPlan(
-      table, SqlExplainLevel.EXPPLAN_ATTRIBUTES, printPlanBefore = true, printSql = true, Some(sql))
+      sql,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRowType = false,
+      printPlanBefore = true)
   }
 
   def verifyPlan(table: Table): Unit = {
-    doVerifyPlan(table, SqlExplainLevel.EXPPLAN_ATTRIBUTES, printPlanBefore = true)
+    doVerifyPlan(
+      table,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRowType = false,
+      printPlanBefore = true)
   }
 
   def verifyExplain(): Unit = doVerifyExplain()
@@ -183,23 +207,44 @@ abstract class TableTestUtil(test: TableTestBase) {
     doVerifyExplain(Some(table))
   }
 
-  protected def doVerifyPlan(
-      table: Table,
+  def doVerifyPlan(
+      sql: String,
       explainLevel: SqlExplainLevel,
-      printPlanBefore: Boolean,
-      printSql: Boolean = false,
-      originSql: Option[String] = None): Unit = {
+      withRowType: Boolean,
+      printPlanBefore: Boolean): Unit = {
+    val table = getTableEnv.sqlQuery(sql)
     val relNode = table.getRelNode
-    val optimizedPlan = getOptimizedPlan(relNode, explainLevel)
+    val optimizedPlan = getOptimizedPlan(relNode, explainLevel, withRowType = withRowType)
 
-    originSql match {
-      case Some(sql) if printSql => assertEqualsOrExpand("sql", sql)
-      case _ => // do nothing
-    }
+    assertEqualsOrExpand("sql", sql)
 
     if (printPlanBefore) {
       val planBefore = SystemUtils.LINE_SEPARATOR +
-        FlinkRelOptUtil.toString(relNode, SqlExplainLevel.EXPPLAN_ATTRIBUTES)
+        FlinkRelOptUtil.toString(
+          relNode,
+          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+          withRowType = withRowType)
+      assertEqualsOrExpand("planBefore", planBefore)
+    }
+
+    val actual = SystemUtils.LINE_SEPARATOR + optimizedPlan
+    assertEqualsOrExpand("planAfter", actual.toString, expand = false)
+  }
+
+  def doVerifyPlan(
+      table: Table,
+      explainLevel: SqlExplainLevel,
+      withRowType: Boolean,
+      printPlanBefore: Boolean): Unit = {
+    val relNode = table.getRelNode
+    val optimizedPlan = getOptimizedPlan(relNode, explainLevel, withRowType = withRowType)
+
+    if (printPlanBefore) {
+      val planBefore = SystemUtils.LINE_SEPARATOR +
+        FlinkRelOptUtil.toString(
+          relNode,
+          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+          withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
 
@@ -217,9 +262,10 @@ abstract class TableTestUtil(test: TableTestBase) {
 
   private def getOptimizedPlan(
       relNode: RelNode,
-      explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES): String = {
+      explainLevel: SqlExplainLevel,
+      withRowType: Boolean): String = {
     val optimized = getTableEnv.optimize(relNode)
-    FlinkRelOptUtil.toString(optimized, detailLevel = explainLevel)
+    FlinkRelOptUtil.toString(optimized, detailLevel = explainLevel, withRowType = withRowType)
   }
 
   /* Stage {id} is ignored, because id keeps incrementing in test class
