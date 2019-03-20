@@ -65,7 +65,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unnamed job");
+		Plan plan = createProgramPlan("unnamed job", false);
 
 		OptimizedPlan op = ClusterClient.getOptimizedPlan(client.compiler, plan, getParallelism());
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
