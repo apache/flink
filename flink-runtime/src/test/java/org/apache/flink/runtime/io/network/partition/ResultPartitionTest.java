@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.AfterClass;
@@ -259,12 +260,12 @@ public class ResultPartitionTest {
 	// ------------------------------------------------------------------------
 
 	private static ResultPartition createPartition(
-		ResultPartitionConsumableNotifier notifier,
-		ResultPartitionType type,
-		boolean sendScheduleOrUpdateConsumersMessage) {
+			ResultPartitionConsumableNotifier notifier,
+			ResultPartitionType type,
+			boolean sendScheduleOrUpdateConsumersMessage) {
 		return new ResultPartition(
 			"TestTask",
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			new JobID(),
 			new ResultPartitionID(),
 			type,
