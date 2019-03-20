@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -34,6 +35,11 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractOneInputSubstituteStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -305,4 +311,80 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			}
 		}
 	}
+
+	@Test
+	public void testSubstituteStreamOperatorChaining() {
+		// chained
+		{
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(5);
+
+			// fromElements -> Map -> Print
+			TestSubstituteStreamOperator substituteOperator = new TestSubstituteStreamOperator<>(
+					new StreamMap<>((MapFunction<Integer, Integer>) value -> value));
+			substituteOperator.setChainingStrategy(ChainingStrategy.ALWAYS);
+
+			env.fromElements(1, 2, 3).name("source1")
+					.map((MapFunction<Integer, Integer>) value -> value).name("map1")
+					.transform("operator1",
+							BasicTypeInfo.INT_TYPE_INFO,
+							substituteOperator)
+					.print().name("print1");
+
+			JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+			List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+			assertEquals(2, verticesSorted.size());
+		}
+
+		// not chained
+		{
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(5);
+
+			// fromElements -> Map -> Print
+			TestSubstituteStreamOperator substituteOperator = new TestSubstituteStreamOperator<>(
+					new StreamMap<>((MapFunction<Integer, Integer>) value -> value));
+			substituteOperator.setChainingStrategy(ChainingStrategy.HEAD);
+
+			env.fromElements(1, 2, 3).name("source1")
+					.map((MapFunction<Integer, Integer>) value -> value).name("map1")
+					.transform("operator1",
+							BasicTypeInfo.INT_TYPE_INFO,
+							substituteOperator)
+					.print().name("print1");
+
+			JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+			List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+			assertEquals(3, verticesSorted.size());
+		}
+	}
+
+	private static class TestSubstituteStreamOperator<IN, OUT> extends AbstractOneInputSubstituteStreamOperator<IN, OUT> {
+
+		private ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
+		private final OneInputStreamOperator<IN, OUT> actualStreamOperator;
+
+		TestSubstituteStreamOperator(OneInputStreamOperator<IN, OUT> actualStreamOperator) {
+			this.actualStreamOperator = actualStreamOperator;
+		}
+
+		@Override
+		public StreamOperator<OUT> getActualStreamOperator(ClassLoader cl) {
+			return actualStreamOperator;
+		}
+
+		@Override
+		public void setChainingStrategy(ChainingStrategy chainingStrategy) {
+			this.chainingStrategy = chainingStrategy;
+			this.actualStreamOperator.setChainingStrategy(chainingStrategy);
+		}
+
+		@Override
+		public ChainingStrategy getChainingStrategy() {
+			return chainingStrategy;
+		}
+	}
+
 }

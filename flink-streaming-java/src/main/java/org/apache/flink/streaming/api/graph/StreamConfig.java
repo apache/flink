@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorSubstitutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -221,7 +222,12 @@ public class StreamConfig implements Serializable {
 
 	public <T extends StreamOperator<?>> T getStreamOperator(ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
+			T operator = InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
+			if (operator != null && operator instanceof StreamOperatorSubstitutor) {
+				return (T) ((StreamOperatorSubstitutor) operator).getActualStreamOperator(cl);
+			} else {
+				return operator;
+			}
 		}
 		catch (ClassNotFoundException e) {
 			String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
