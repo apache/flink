@@ -31,7 +31,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.plan.util.AggregateInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.util.SingleElementIterator
+import org.apache.flink.runtime.util.SingleElementIterator
 
 import org.apache.calcite.tools.RelBuilder
 
