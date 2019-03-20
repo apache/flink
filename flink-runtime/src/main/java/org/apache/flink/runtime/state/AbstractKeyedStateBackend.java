@@ -23,8 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -204,12 +202,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	@Override
 	public TypeSerializer<K> getKeySerializer() {
 		return keySerializerProvider.currentSchemaSerializer();
-	}
-
-	public TypeSerializerSchemaCompatibility<K> checkKeySerializerSchemaCompatibility(
-			TypeSerializerSnapshot<K> previousKeySerializerSnapshot) {
-
-		return keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(previousKeySerializerSnapshot);
 	}
 
 	/**
