@@ -760,6 +760,8 @@ Parameters:
 
 - `apikey` - the Datadog API key
 - `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Tags should be separated by comma only
+- `proxyHost` - (optional) The proxy host to use when sending to Datadog.
+- `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 
 Example configuration:
 
@@ -768,6 +770,8 @@ Example configuration:
 metrics.reporter.dghttp.class: org.apache.flink.metrics.datadog.DatadogHttpReporter
 metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
+metrics.reporter.dghttp.proxyHost: my.web.proxy.com
+metrics.reporter.dghttp.proxyPort: 8080
 
 {% endhighlight %}
 
