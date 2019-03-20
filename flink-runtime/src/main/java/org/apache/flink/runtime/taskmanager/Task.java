@@ -110,7 +110,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * with the JobManager.
  *
  * <p>The Flink operators (implemented as subclasses of
- * {@link AbstractInvokable} have only data readers, -writers, and certain event callbacks.
+ * {@link AbstractInvokable} have only data readers, writers, and certain event callbacks.
  * The task connects those to the network stack and actor messages, and tracks the state
  * of the execution and handles exceptions.
  *
@@ -127,7 +127,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-	/** The tread group that contains all task threads. */
+	/** The thread group that contains all task threads. */
 	private static final ThreadGroup TASK_THREADS_GROUP = new ThreadGroup("Flink Task Threads");
 
 	/** For atomic state updates. */
