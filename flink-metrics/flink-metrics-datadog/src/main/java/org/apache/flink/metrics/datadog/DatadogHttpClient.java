@@ -81,8 +81,7 @@ public class DatadogHttpClient {
 	Proxy getProxy() {
 		if (proxyHost == null) {
 			return Proxy.NO_PROXY;
-		}
-		else {
+		} else {
 			return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
 		}
 	}
