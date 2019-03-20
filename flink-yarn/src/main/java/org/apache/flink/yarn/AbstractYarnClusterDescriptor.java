@@ -140,8 +140,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private String zookeeperNamespace;
 
 	private String nodeLabel;
-
-	private String flinkVersion;
+	/* This field can be override by dynamic property application-type */
+	private String applicationType;
 
 	/** Optional Jar file to include in the system class loader of all application nodes
 	 * (for per-job submission). */
@@ -472,7 +472,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
 
-		this.flinkVersion = dynProperties.getOrDefault("flink-version", "");
+		this.applicationType = dynProperties.getOrDefault("application-type", "");
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
@@ -990,7 +990,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final String customApplicationName = customName != null ? customName : applicationName;
 
 		appContext.setApplicationName(customApplicationName);
-		appContext.setApplicationType(flinkVersion.isEmpty() ? "Apache Flink" : "Apache Flink " + flinkVersion);
+		appContext.setApplicationType(applicationType.isEmpty() ? "Apache Flink" : applicationType);
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 

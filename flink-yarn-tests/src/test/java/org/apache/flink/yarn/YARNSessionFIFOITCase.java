@@ -111,7 +111,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		args.add("1024m");
 
 		args.add("-D");
-		args.add("flink-version=1.6");
+		args.add("application-type=Apache Flink 1.6");
 
 		if (SecureTestEnvironment.getTestKeytab() != null) {
 			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
@@ -170,6 +170,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			ApplicationReport app = apps.get(0);
 
 			Assert.assertEquals("MyCustomName", app.getName());
+			Assert.assertEquals("Apache Flink 1.6", app.getApplicationType());
 			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
 
