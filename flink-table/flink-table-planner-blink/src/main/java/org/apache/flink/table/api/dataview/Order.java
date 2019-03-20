@@ -16,29 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.api.dataview;
 
 /**
- * Utilities for {@link InternalType}.
+ * Enumeration representing order.
  */
-public class InternalTypeUtils {
+public enum Order {
+	ASCENDING("ASC"),
 
-	/**
-	 * Gets the arity of the type.
-	 */
-	public static int getArity(InternalType t) {
-		if (t instanceof RowType) {
-			return ((RowType) t).getArity();
-		} else {
-			return 1;
-		}
+	DESCENDING("DESC");
+
+	public final String shortString;
+
+	Order(String shortString) {
+		this.shortString = shortString;
 	}
 
-	public static Class getExternalClassForType(InternalType type) {
-		return TypeConverters.createExternalTypeInfoFromInternalType(type).getTypeClass();
-	}
-
-	public static Class getInternalClassForType(InternalType type) {
-		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
+	public String toString() {
+		return shortString;
 	}
 }

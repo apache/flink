@@ -16,29 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.typeutils
 
-/**
- * Utilities for {@link InternalType}.
- */
-public class InternalTypeUtils {
+import org.apache.flink.api.common.typeinfo.{TypeInfoFactory, TypeInformation}
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.table.api.dataview.ListView
 
-	/**
-	 * Gets the arity of the type.
-	 */
-	public static int getArity(InternalType t) {
-		if (t instanceof RowType) {
-			return ((RowType) t).getArity();
-		} else {
-			return 1;
-		}
-	}
+import java.lang.reflect.Type
+import java.util
 
-	public static Class getExternalClassForType(InternalType type) {
-		return TypeConverters.createExternalTypeInfoFromInternalType(type).getTypeClass();
-	}
+class ListViewTypeInfoFactory[T] extends TypeInfoFactory[ListView[T]] {
 
-	public static Class getInternalClassForType(InternalType type) {
-		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
-	}
+  override def createTypeInfo(
+      t: Type,
+      genericParameters: util.Map[String, TypeInformation[_]]): TypeInformation[ListView[T]] = {
+
+    var elementType = genericParameters.get("T")
+
+    if (elementType == null) {
+      // we might can get the elementType later from the ListView constructor
+      elementType = new GenericTypeInfo(classOf[Any])
+    }
+
+    new ListViewTypeInfo[T](elementType.asInstanceOf[TypeInformation[T]])
+  }
 }

@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.api.dataview
+
+import org.apache.flink.table.functions.AggregateFunction
 
 /**
- * Utilities for {@link InternalType}.
- */
-public class InternalTypeUtils {
+  * A [[DataView]] is a collection type that can be used in the accumulator of an
+  * [[AggregateFunction]].
+  *
+  * Depending on the context in which the [[AggregateFunction]] is
+  * used, a [[DataView]] can be backed by a Java heap collection or a state backend.
+  */
+trait DataView extends Serializable {
 
-	/**
-	 * Gets the arity of the type.
-	 */
-	public static int getArity(InternalType t) {
-		if (t instanceof RowType) {
-			return ((RowType) t).getArity();
-		} else {
-			return 1;
-		}
-	}
+  /**
+    * Clears the [[DataView]] and removes all data.
+    */
+  def clear(): Unit
 
-	public static Class getExternalClassForType(InternalType type) {
-		return TypeConverters.createExternalTypeInfoFromInternalType(type).getTypeClass();
-	}
-
-	public static Class getInternalClassForType(InternalType type) {
-		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
-	}
 }

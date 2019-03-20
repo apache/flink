@@ -16,29 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.runtime.functions;
+
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.dataformat.BaseRow;
 
 /**
- * Utilities for {@link InternalType}.
+ * A ExecutionContext contains information about the context in which functions are executed and
+ * the APIs to create state.
  */
-public class InternalTypeUtils {
+public interface ExecutionContext {
+
+	// TODO add create state method.
 
 	/**
-	 * Gets the arity of the type.
+	 * @return the key serializer of state key
 	 */
-	public static int getArity(InternalType t) {
-		if (t instanceof RowType) {
-			return ((RowType) t).getArity();
-		} else {
-			return 1;
-		}
-	}
+	<K> TypeSerializer<K> getKeySerializer();
 
-	public static Class getExternalClassForType(InternalType type) {
-		return TypeConverters.createExternalTypeInfoFromInternalType(type).getTypeClass();
-	}
+	/**
+	 * @return key of the current processed element.
+	 */
+	BaseRow currentKey();
 
-	public static Class getInternalClassForType(InternalType type) {
-		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
-	}
+	/**
+	 * Sets current key.
+	 */
+	void setCurrentKey(BaseRow key);
+
+	RuntimeContext getRuntimeContext();
 }

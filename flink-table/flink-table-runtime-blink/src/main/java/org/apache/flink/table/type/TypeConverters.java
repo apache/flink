@@ -36,6 +36,7 @@ import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +50,7 @@ public class TypeConverters {
 
 	private static final Map<TypeInformation, InternalType> TYPE_INFO_TO_INTERNAL_TYPE;
 	private static final Map<InternalType, TypeInformation> INTERNAL_TYPE_TO_INTERNAL_TYPE_INFO;
+	private static final Map<InternalType, TypeInformation> INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO;
 	static {
 		Map<TypeInformation, InternalType> tiToType = new HashMap<>();
 		tiToType.put(BasicTypeInfo.STRING_TYPE_INFO, InternalTypes.STRING);
@@ -90,6 +92,22 @@ public class TypeConverters {
 		internalTypeToInfo.put(InternalTypes.TIME, BasicTypeInfo.INT_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.BINARY, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
 		INTERNAL_TYPE_TO_INTERNAL_TYPE_INFO = Collections.unmodifiableMap(internalTypeToInfo);
+
+		Map<InternalType, TypeInformation> itToEti = new HashMap<>();
+		itToEti.put(InternalTypes.STRING, BasicTypeInfo.STRING_TYPE_INFO);
+		itToEti.put(InternalTypes.BOOLEAN, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		itToEti.put(InternalTypes.DOUBLE, BasicTypeInfo.DOUBLE_TYPE_INFO);
+		itToEti.put(InternalTypes.FLOAT, BasicTypeInfo.FLOAT_TYPE_INFO);
+		itToEti.put(InternalTypes.BYTE, BasicTypeInfo.BYTE_TYPE_INFO);
+		itToEti.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO);
+		itToEti.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO);
+		itToEti.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
+		itToEti.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO);
+		itToEti.put(InternalTypes.DATE, SqlTimeTypeInfo.DATE);
+		itToEti.put(InternalTypes.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP);
+		itToEti.put(InternalTypes.TIME, SqlTimeTypeInfo.TIME);
+		itToEti.put(InternalTypes.BINARY, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
+		INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO = Collections.unmodifiableMap(itToEti);
 	}
 
 	/**
@@ -179,6 +197,43 @@ public class TypeConverters {
 		}  else if (type instanceof GenericType) {
 			GenericType genericType = (GenericType) type;
 			return new BinaryGenericTypeInfo(genericType);
+		} else {
+			throw new UnsupportedOperationException("Not support yet: " + type);
+		}
+	}
+
+	/**
+	 * Create a external {@link TypeInformation} from a {@link InternalType}.
+	 *
+	 * <p>eg:
+	 * {@link InternalTypes#STRING} => {@link BasicTypeInfo#STRING_TYPE_INFO}.
+	 * {@link RowType} => {@link RowTypeInfo}.
+	 */
+	public static TypeInformation createExternalTypeInfoFromInternalType(InternalType type) {
+		TypeInformation typeInfo = INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO.get(type);
+		if (typeInfo != null) {
+			return typeInfo;
+		}
+
+		if (type instanceof RowType) {
+			RowType rowType = (RowType) type;
+			return new RowTypeInfo(Arrays.stream(rowType.getFieldTypes())
+					.map(TypeConverters::createExternalTypeInfoFromInternalType)
+					.toArray(TypeInformation[]::new),
+					rowType.getFieldNames());
+		} else if (type instanceof ArrayType) {
+			return ObjectArrayTypeInfo.getInfoFor(
+					createExternalTypeInfoFromInternalType(((ArrayType) type).getElementType()));
+		} else if (type instanceof MapType) {
+			MapType mapType = (MapType) type;
+			return new MapTypeInfo(
+					createExternalTypeInfoFromInternalType(mapType.getKeyType()),
+					createExternalTypeInfoFromInternalType(mapType.getValueType()));
+		} else if (type instanceof DecimalType) {
+			return BasicTypeInfo.BIG_DEC_TYPE_INFO;
+		}  else if (type instanceof GenericType) {
+			GenericType genericType = (GenericType) type;
+			return genericType.getTypeInfo();
 		} else {
 			throw new UnsupportedOperationException("Not support yet: " + type);
 		}

@@ -16,29 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.generated;
 
 /**
- * Utilities for {@link InternalType}.
+ * Describes a generated {@link AggsHandleFunction}.
  */
-public class InternalTypeUtils {
+public class GeneratedAggsHandleFunction extends GeneratedClass<AggsHandleFunction> {
 
-	/**
-	 * Gets the arity of the type.
-	 */
-	public static int getArity(InternalType t) {
-		if (t instanceof RowType) {
-			return ((RowType) t).getArity();
-		} else {
-			return 1;
-		}
-	}
+	private static final long serialVersionUID = 1L;
 
-	public static Class getExternalClassForType(InternalType type) {
-		return TypeConverters.createExternalTypeInfoFromInternalType(type).getTypeClass();
-	}
-
-	public static Class getInternalClassForType(InternalType type) {
-		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
+	public GeneratedAggsHandleFunction(String className, String code, Object[] references) {
+		super(className, code, references);
 	}
 }

@@ -20,7 +20,9 @@ package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.core.memory.MemorySegment
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`._
+import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.typeutils.TypeCheckUtils
 
@@ -451,7 +453,6 @@ object CodeGenUtils {
     case _ => s"$writerTerm.setNullAt($indexTerm)"
   }
 
-
   def binaryWriterWriteField(
       ctx: CodeGeneratorContext,
       index: Int,
@@ -492,4 +493,37 @@ object CodeGenUtils {
 
       case _: GenericType[_] => s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm)"
     }
+
+  private def isConverterIdentity(t: TypeInformation[_]): Boolean = {
+    DataFormatConverters.getConverterForTypeInfo(t).isInstanceOf[IdentityConverter[_]]
+  }
+
+  def genToInternal(ctx: CodeGeneratorContext, t: TypeInformation[_], term: String): String =
+    genToInternal(ctx, t)(term)
+
+  def genToInternal(ctx: CodeGeneratorContext, t: TypeInformation[_]): String => String = {
+    val iTerm = boxedTypeTermForType(createInternalTypeFromTypeInfo(t))
+    if (isConverterIdentity(t)) {
+      term => s"($iTerm) $term"
+    } else {
+      val eTerm = boxedTypeTermForExternalType(t)
+      val converter = ctx.addReusableObject(
+        DataFormatConverters.getConverterForTypeInfo(t),
+        "converter")
+      term => s"($iTerm) $converter.toInternal(($eTerm) $term)"
+    }
+  }
+
+  def genToExternal(ctx: CodeGeneratorContext, t: TypeInformation[_], term: String): String = {
+    val iTerm = boxedTypeTermForType(createInternalTypeFromTypeInfo(t))
+    if (isConverterIdentity(t)) {
+      s"($iTerm) $term"
+    } else {
+      val eTerm = boxedTypeTermForExternalType(t)
+      val converter = ctx.addReusableObject(
+        DataFormatConverters.getConverterForTypeInfo(t),
+        "converter")
+      s"($eTerm) $converter.toExternal(($iTerm) $term)"
+    }
+  }
 }
