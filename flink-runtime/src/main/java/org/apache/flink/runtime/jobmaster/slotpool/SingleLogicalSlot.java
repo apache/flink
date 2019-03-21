@@ -33,12 +33,11 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.Function;
 
 /**
- * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
+ * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPoolImpl}.
  */
-public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
+public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 
 	private static final AtomicReferenceFieldUpdater<SingleLogicalSlot, Payload> PAYLOAD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
 		SingleLogicalSlot.class,
@@ -122,8 +121,8 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
 		if (STATE_UPDATER.compareAndSet(this, State.ALIVE, State.RELEASING)) {
-			final CompletableFuture<?> payloadTerminalStateFuture = signalPayloadRelease(cause);
-			returnSlotToOwner(payloadTerminalStateFuture);
+			signalPayloadRelease(cause);
+			returnSlotToOwner(payload.getTerminalStateFuture());
 		}
 
 		return releaseFuture;
@@ -169,24 +168,19 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 		releaseFuture.complete(null);
 	}
 
-	private CompletableFuture<?> signalPayloadRelease(Throwable cause) {
+	private void signalPayloadRelease(Throwable cause) {
 		tryAssignPayload(TERMINATED_PAYLOAD);
 		payload.fail(cause);
-
-		return payload.getTerminalStateFuture();
 	}
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
-		final CompletableFuture<Boolean> slotReturnFuture = terminalStateFuture.handle((Object ignored, Throwable throwable) -> {
-			if (state == State.RELEASING) {
-				return slotOwner.returnAllocatedSlot(this);
-			} else {
-				return CompletableFuture.completedFuture(true);
-			}
-		}).thenCompose(Function.identity());
+		terminalStateFuture
+			.whenComplete((Object ignored, Throwable throwable) -> {
 
-		slotReturnFuture.whenComplete(
-			(Object ignored, Throwable throwable) -> {
+				if (state == State.RELEASING) {
+					slotOwner.returnLogicalSlot(this);
+				}
+
 				markReleased();
 
 				if (throwable != null) {

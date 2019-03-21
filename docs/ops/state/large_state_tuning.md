@@ -132,7 +132,7 @@ Incremental checkpoints can dramatically reduce the checkpointing time in compar
 recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
 producing a full, self-contained backup of the state backend. Like this, incremental checkpoints build upon previous checkpoints. Flink leverages
 RocksDB's internal backup mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink
-does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically. `
+does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically.
 
 While we strongly encourage the use of incremental checkpoints for large state, please note that this is a new feature and currently not enabled 
 by default. To enable this feature, users can instantiate a `RocksDBStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
@@ -153,40 +153,61 @@ Possible choices are `heap` (to store timers on the heap, default) and `rocksdb`
 <span class="label label-info">Note</span> *The combination RocksDB state backend / with incremental checkpoint / with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
 Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
 
-**Passing Options to RocksDB**
-
-{% highlight java %}
-RocksDBStateBackend.setOptions(new MyOptions());
-
-public class MyOptions implements OptionsFactory {
-
-    @Override
-    public DBOptions createDBOptions() {
-        return new DBOptions()
-            .setIncreaseParallelism(4)
-            .setUseFsync(false)
-            .setDisableDataSync(true);
-    }
-
-    @Override
-    public ColumnFamilyOptions createColumnOptions() {
-
-        return new ColumnFamilyOptions()
-            .setTableFormatConfig(
-                new BlockBasedTableConfig()
-                    .setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
-                    .setBlockSize(128 * 1024));            // 128 KB
-    }
-}
-{% endhighlight %}
-
 **Predefined Options**
 
-Flink provides some predefined collections of option for RocksDB for different settings, which can be set for example via
-`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
+Flink provides some predefined collections of option for RocksDB for different settings, and there existed two ways
+to pass these predefined options to RocksDB:
+  - Configure the predefined options through `flink-conf.yaml` via option key `state.backend.rocksdb.predefined-options`.
+    The default value of this option is `DEFAULT` which means `PredefinedOptions.DEFAULT`.
+  - Set the predefined options programmatically, e.g. `RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
 found a set of options that work well and seem representative for certain workloads.
+
+<span class="label label-info">Note</span> Predefined options which set programmatically would override the one configured via `flink-conf.yaml`.
+
+**Passing Options Factory to RocksDB**
+
+There existed two ways to pass options factory to RocksDB in Flink:
+
+  - Configure options factory through `flink-conf.yaml`. You could set the options factory class name via option key `state.backend.rocksdb.options-factory`.
+    The default value for this option is `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory`, and all candidate configurable options are defined in `RocksDBConfigurableOptions`.
+    Moreover, you could also define your customized and configurable options factory class like below and pass the class name to `state.backend.rocksdb.options-factory`.
+
+    {% highlight java %}
+
+    public class MyOptionsFactory implements ConfigurableOptionsFactory {
+
+        private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
+        private long blockCacheSize = DEFAULT_SIZE;
+
+        @Override
+        public DBOptions createDBOptions(DBOptions currentOptions) {
+            return currentOptions.setIncreaseParallelism(4)
+                   .setUseFsync(false);
+        }
+
+        @Override
+        public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+            return currentOptions.setTableFormatConfig(
+                new BlockBasedTableConfig()
+                    .setBlockCacheSize(blockCacheSize)
+                    .setBlockSize(128 * 1024));            // 128 KB
+        }
+
+        @Override
+        public OptionsFactory configure(Configuration configuration) {
+            this.blockCacheSize =
+                configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+            return this;
+        }
+    }
+    {% endhighlight %}
+
+  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setOptions(new MyOptionsFactory());`
+
+<span class="label label-info">Note</span> Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
+and options factory has a higher priority over the predefined options if ever configured or set.
 
 <span class="label label-info">Note</span> RocksDB is a native library that allocates memory directly from the process,
 and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
@@ -335,7 +356,5 @@ allocation and *requests the exact same slot* to restart in recovery. If this sl
 if a task manager is no longer available, a task that cannot return to its previous location *will not drive other recovering tasks out of their previous slots*. Our reasoning is
 that the previous slot can only disappear when a task manager is no longer available, and in this case *some* tasks have to request a new slot anyways. With our scheduling strategy
 we give the maximum number of tasks a chance to recover from their local state and avoid the cascading effect of tasks stealing their previous slots from one another.
-
-Allocation-preserving scheduling does not work with Flink's legacy mode.
 
 {% top %}

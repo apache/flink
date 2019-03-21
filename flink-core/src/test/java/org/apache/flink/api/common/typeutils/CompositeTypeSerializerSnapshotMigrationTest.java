@@ -19,17 +19,16 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
-import org.apache.flink.api.common.typeutils.base.GenericArraySerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
-import org.apache.flink.api.java.typeutils.runtime.EitherSerializerSnapshot;
-import org.apache.flink.types.Either;
+import org.apache.flink.api.java.typeutils.runtime.JavaEitherSerializerSnapshot;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 /**
@@ -44,25 +43,21 @@ public class CompositeTypeSerializerSnapshotMigrationTest extends TypeSerializer
 
 	@SuppressWarnings("unchecked")
 	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<Object[]> testSpecifications() {
+	public static Collection<TestSpecification<?>> testSpecifications() {
 
-		// Either<String, Integer>
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
 
-		final TestSpecification<Either<String, Integer>> either = TestSpecification.<Either<String, Integer>>builder("1.6-either", EitherSerializer.class, EitherSerializerSnapshot.class)
-			.withSerializerProvider(() -> new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE))
-			.withSnapshotDataLocation("flink-1.6-either-type-serializer-snapshot")
-			.withTestData("flink-1.6-either-type-serializer-data", 10);
+		testSpecifications.add(
+			"either-serializer",
+			EitherSerializer.class,
+			JavaEitherSerializerSnapshot.class,
+			() -> new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE));
+		testSpecifications.add(
+			"generic-array-serializer",
+			GenericArraySerializer.class,
+			GenericArraySerializerSnapshot.class,
+			() -> new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE));
 
-		// GenericArray<String>
-
-		final TestSpecification<String[]> array = TestSpecification.<String[]>builder("1.6-generic-array", GenericArraySerializer.class, GenericArraySerializerConfigSnapshot.class)
-			.withSerializerProvider(() -> new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE))
-			.withSnapshotDataLocation("flink-1.6-array-type-serializer-snapshot")
-			.withTestData("flink-1.6-array-type-serializer-data", 10);
-
-		return Arrays.asList(
-			new Object[]{either},
-			new Object[]{array}
-		);
+		return testSpecifications.get();
 	}
 }

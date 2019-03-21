@@ -25,8 +25,8 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -340,9 +340,9 @@ public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 				dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
 			}
 			serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
-		} else if (stateHandle instanceof IncrementalKeyedStateHandle) {
-			IncrementalKeyedStateHandle incrementalKeyedStateHandle =
-				(IncrementalKeyedStateHandle) stateHandle;
+		} else if (stateHandle instanceof IncrementalRemoteKeyedStateHandle) {
+			IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
+				(IncrementalRemoteKeyedStateHandle) stateHandle;
 
 			dos.writeByte(INCREMENTAL_KEY_GROUPS_HANDLE);
 
@@ -427,7 +427,7 @@ public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 				uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
 			}
 
-			return new IncrementalKeyedStateHandle(
+			return new IncrementalRemoteKeyedStateHandle(
 				uuid,
 				keyGroupRange,
 				checkpointId,

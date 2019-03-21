@@ -128,7 +128,7 @@ import org.apache.flink.table.functions.TemporalTableFunction;
 
 // Get the stream and table environments.
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // Provide a static data set of the rates history table.
 List<Tuple2<String, Long>> ratesHistoryData = new ArrayList<>();
@@ -155,7 +155,7 @@ tEnv.registerFunction("Rates", rates);                                          
 {% highlight scala %}
 // Get the stream and table environments.
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val tEnv = StreamTableEnvironment.create(env)
 
 // Provide a static data set of the rates history table.
 val ratesHistoryData = new mutable.MutableList[(String, Long)]
@@ -186,3 +186,5 @@ which allows us to use the function `rates` in the [Table API](../tableApi.html#
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
 which allows us to use the `Rates` function in [SQL](../sql.html#joins).
+
+{% top %}

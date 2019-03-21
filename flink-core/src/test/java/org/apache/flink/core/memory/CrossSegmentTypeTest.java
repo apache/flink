@@ -35,6 +35,8 @@ import static org.junit.Assert.fail;
  */
 public class CrossSegmentTypeTest {
 
+	private static final long BYTE_ARRAY_BASE_OFFSET = MemoryUtils.UNSAFE.arrayBaseOffset(byte[].class);
+
 	private final int pageSize = 32 * 1024;
 
 	// ------------------------------------------------------------------------
@@ -187,6 +189,8 @@ public class CrossSegmentTypeTest {
 
 		byte[] expected = new byte[pageSize];
 		byte[] actual = new byte[pageSize];
+		byte[] unsafeCopy = new byte[pageSize];
+		MemorySegment unsafeCopySeg = MemorySegmentFactory.allocateUnpooledSegment(pageSize);
 
 		// zero out the memory
 		seg1.put(0, expected);
@@ -205,6 +209,12 @@ public class CrossSegmentTypeTest {
 
 			seg1.put(thisPos, bytes);
 			seg1.copyTo(thisPos, seg2, otherPos, numBytes);
+			seg1.copyToUnsafe(thisPos, unsafeCopy, (int) (otherPos + BYTE_ARRAY_BASE_OFFSET), numBytes);
+
+			int otherPos2 = random.nextInt(pageSize - numBytes);
+			unsafeCopySeg.copyFromUnsafe(otherPos2, unsafeCopy,
+					(int) (otherPos + BYTE_ARRAY_BASE_OFFSET), numBytes);
+			assertTrue(unsafeCopySeg.equalTo(seg2, otherPos2, otherPos, numBytes));
 		}
 
 		seg2.get(0, actual);

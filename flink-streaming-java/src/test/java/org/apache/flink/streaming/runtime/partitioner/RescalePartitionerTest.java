@@ -31,11 +31,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -49,6 +49,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -62,7 +63,9 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 
 	@Override
 	public StreamPartitioner<Tuple> createPartitioner() {
-		return new RescalePartitioner<>();
+		StreamPartitioner<Tuple> partitioner = new RescalePartitioner<>();
+		assertFalse(partitioner.isBroadcast());
+		return partitioner;
 	}
 
 	@Test
@@ -137,7 +140,7 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
 			ExecutionGraph.class.getClassLoader(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout());

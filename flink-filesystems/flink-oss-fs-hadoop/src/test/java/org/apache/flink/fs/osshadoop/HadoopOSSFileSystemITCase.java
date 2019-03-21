@@ -19,84 +19,47 @@
 package org.apache.flink.fs.osshadoop;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
+import org.apache.flink.testutils.oss.OSSTestCredentials;
 
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.UUID;
 
 import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
 
 /**
  * Unit tests for the OSS file system support via AliyunOSSFileSystem.
  * These tests do actually read from or write to OSS.
  */
-public class HadoopOSSFileSystemITCase extends TestLogger {
+public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
 
-	private static final String ENDPOINT = System.getenv("ARTIFACTS_OSS_ENDPOINT");
-	private static final String BUCKET = System.getenv("ARTIFACTS_OSS_BUCKET");
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_OSS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_OSS_SECRET_KEY");
 
 	@BeforeClass
-	public static void checkIfCredentialsArePresent() {
-		Assume.assumeTrue("Aliyun OSS endpoint not configured, skipping test...", ENDPOINT != null);
-		Assume.assumeTrue("Aliyun OSS bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("Aliyun OSS access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("Aliyun OSS secret key not configured, skipping test...", SECRET_KEY != null);
-	}
+	public static void setup() throws IOException {
+		OSSTestCredentials.assumeCredentialsAvailable();
 
-	@Test
-	public void testReadAndWrite() throws Exception {
 		final Configuration conf = new Configuration();
-		conf.setString("fs.oss.endpoint", ENDPOINT);
-		conf.setString("fs.oss.accessKeyId", ACCESS_KEY);
-		conf.setString("fs.oss.accessKeySecret", SECRET_KEY);
-		final String testLine = "Aliyun OSS";
-
+		conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
+		conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
+		conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
 		FileSystem.initialize(conf);
-		final Path path = new Path("oss://" + BUCKET + '/' + TEST_DATA_DIR);
-		final FileSystem fs = path.getFileSystem();
-		try {
-			for (int i = 0; i < 10; ++i) {
-				final Path file = new Path(path.getPath() + "/test.data." + i);
-				try (FSDataOutputStream out = fs.create(file, FileSystem.WriteMode.OVERWRITE)) {
-					try (OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-						writer.write(testLine);
-					}
-				}
-				try (FSDataInputStream in = fs.open(file);
-					InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
-					BufferedReader reader = new BufferedReader(ir)) {
-					String line = reader.readLine();
-					assertEquals(testLine, line);
-				}
-			}
-			assertTrue(fs.exists(path));
-			assertEquals(10, fs.listStatus(path).length);
-		} finally {
-			fs.delete(path, true);
-		}
+		basePath = new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+		fs = basePath.getFileSystem();
+		deadline = 0;
 	}
 
 	@Test
 	public void testShadedConfigurations() {
 		final Configuration conf = new Configuration();
-		conf.setString("fs.oss.endpoint", ENDPOINT);
-		conf.setString("fs.oss.accessKeyId", ACCESS_KEY);
-		conf.setString("fs.oss.accessKeySecret", SECRET_KEY);
+		conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
+		conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
+		conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
 		conf.setString("fs.oss.credentials.provider", "org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider");
 
 		OSSFileSystemFactory ossfsFactory = new OSSFileSystemFactory();
@@ -106,8 +69,8 @@ public class HadoopOSSFileSystemITCase extends TestLogger {
 		assertEquals("org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
 			configuration.get("fs.oss.credentials.provider"));
 		// should not shaded
-		assertEquals(ENDPOINT, configuration.get("fs.oss.endpoint"));
-		assertEquals(ACCESS_KEY, configuration.get("fs.oss.accessKeyId"));
-		assertEquals(SECRET_KEY, configuration.get("fs.oss.accessKeySecret"));
+		assertEquals(OSSTestCredentials.getOSSEndpoint(), configuration.get("fs.oss.endpoint"));
+		assertEquals(OSSTestCredentials.getOSSAccessKey(), configuration.get("fs.oss.accessKeyId"));
+		assertEquals(OSSTestCredentials.getOSSSecretKey(), configuration.get("fs.oss.accessKeySecret"));
 	}
 }

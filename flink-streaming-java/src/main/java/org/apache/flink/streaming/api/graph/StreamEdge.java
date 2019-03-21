@@ -36,8 +36,8 @@ public class StreamEdge implements Serializable {
 
 	private final String edgeId;
 
-	private final StreamNode sourceVertex;
-	private final StreamNode targetVertex;
+	private final int sourceId;
+	private final int targetId;
 
 	/**
 	 * The type number of the input for co-tasks.
@@ -60,33 +60,37 @@ public class StreamEdge implements Serializable {
 	 */
 	private StreamPartitioner<?> outputPartitioner;
 
+	/**
+	 * The name of the operator in the source vertex.
+	 */
+	private final String sourceOperatorName;
+
+	/**
+	 * The name of the operator in the target vertex.
+	 */
+	private final String targetOperatorName;
+
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
-		this.sourceVertex = sourceVertex;
-		this.targetVertex = targetVertex;
+		this.sourceId = sourceVertex.getId();
+		this.targetId = targetVertex.getId();
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
+		this.sourceOperatorName = sourceVertex.getOperatorName();
+		this.targetOperatorName = targetVertex.getOperatorName();
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
 				+ "_" + outputPartitioner;
 	}
 
-	public StreamNode getSourceVertex() {
-		return sourceVertex;
-	}
-
-	public StreamNode getTargetVertex() {
-		return targetVertex;
-	}
-
 	public int getSourceId() {
-		return sourceVertex.getId();
+		return sourceId;
 	}
 
 	public int getTargetId() {
-		return targetVertex.getId();
+		return targetId;
 	}
 
 	public int getTypeNumber() {
@@ -130,8 +134,8 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public String toString() {
-		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
-				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-				+ ", outputTag=" + outputTag + ')';
+		return "(" + (sourceOperatorName + "-" + sourceId) + " -> " + (targetOperatorName + "-" + targetId)
+			+ ", typeNumber=" + typeNumber + ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
+			+ ", outputTag=" + outputTag + ')';
 	}
 }

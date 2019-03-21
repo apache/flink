@@ -24,7 +24,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -74,7 +73,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			String hostname,
 			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
 			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
-			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
+			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
 			Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
 			Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
 			Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -160,7 +159,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		}
 
 		@Override
-		public TestingRestfulGateway.Builder setRequestJobFunction(Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction) {
+		public TestingRestfulGateway.Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
 			// signature clash
 			throw new UnsupportedOperationException("Use setRequestArchivedJobFunction() instead.");
 		}

@@ -435,7 +435,7 @@ class MyDeserializer(object):
         return MyObj(i)
 
 
-env.register_custom_type(MyObj, MySerializer(), MyDeserializer())
+env.register_type(MyObj, MySerializer(), MyDeserializer())
 {% endhighlight %}
 
 #### Tuples/Lists

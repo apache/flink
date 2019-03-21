@@ -24,11 +24,15 @@ import org.apache.flink.util.TestLogger
 import org.junit.Test
 import org.scalatest.junit.JUnitSuiteLike
 
+case class Outer(a: Int, i: FieldAccessorTest.Inner, b: Boolean)
+case class IntBoolean(foo: Int, bar: Boolean)
+case class InnerCaseClass(a: Short, b: String)
+case class OuterCaseClassWithInner(a: Int, i: InnerCaseClass, b: Boolean)
+
 class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testFieldAccessorFlatCaseClass(): Unit = {
-    case class IntBoolean(foo: Int, bar: Boolean)
     val tpeInfo = createTypeInformation[IntBoolean]
 
     {
@@ -76,7 +80,6 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testFieldAccessorPojoInCaseClass(): Unit = {
-    case class Outer(a: Int, i: FieldAccessorTest.Inner, b: Boolean)
     var x = Outer(1, new FieldAccessorTest.Inner(3L, true), false)
     val tpeInfo = createTypeInformation[Outer]
     val cfg = new ExecutionConfig
@@ -116,22 +119,22 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testFieldAccessorCaseClassInCaseClass(): Unit = {
-    case class Inner(a: Short, b: String)
-    case class Outer(a: Int, i: Inner, b: Boolean)
-    val tpeInfo = createTypeInformation[Outer]
+    val tpeInfo = createTypeInformation[OuterCaseClassWithInner]
 
-    var x = Outer(1, Inner(2, "alma"), true)
+    var x = OuterCaseClassWithInner(1, InnerCaseClass(2, "alma"), true)
 
-    val fib = FieldAccessorFactory.getAccessor[Outer, String](tpeInfo, "i.b", null)
+    val fib = FieldAccessorFactory
+      .getAccessor[OuterCaseClassWithInner, String](tpeInfo, "i.b", null)
     assert(fib.get(x) == "alma")
     assert(x.i.b == "alma")
     x = fib.set(x, "korte")
     assert(fib.get(x) == "korte")
     assert(x.i.b == "korte")
 
-    val fi = FieldAccessorFactory.getAccessor[Outer, Inner](tpeInfo, "i", null)
-    assert(fi.get(x) == Inner(2, "korte"))
-    x = fi.set(x, Inner(3, "aaa"))
-    assert(x.i == Inner(3, "aaa"))
+    val fi = FieldAccessorFactory
+      .getAccessor[OuterCaseClassWithInner, InnerCaseClass](tpeInfo, "i", null)
+    assert(fi.get(x) == InnerCaseClass(2, "korte"))
+    x = fi.set(x, InnerCaseClass(3, "aaa"))
+    assert(x.i == InnerCaseClass(3, "aaa"))
   }
 }

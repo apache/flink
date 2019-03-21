@@ -20,10 +20,13 @@ package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,5 +59,57 @@ public class MetricUtilsTest extends TestLogger {
 		} finally {
 			AkkaUtils.terminateActorSystem(actorSystem).get();
 		}
+	}
+
+	@Test
+	public void testNonHeapMetricsCompleteness() {
+		final InterceptingOperatorMetricGroup nonHeapMetrics = new InterceptingOperatorMetricGroup();
+
+		MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
+
+		Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_USED));
+		Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED));
+		Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_MAX));
+	}
+
+	@Test
+	public void testHeapMetricsCompleteness() {
+		final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
+
+		MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
+
+		Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_USED));
+		Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_COMMITTED));
+		Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_MAX));
+	}
+
+	/**
+	 * Tests that heap/non-heap metrics do not rely on a static MemoryUsage instance.
+	 *
+	 * <p>We can only check this easily for the currently used heap memory, so we use it this as a proxy for testing
+	 * the functionality in general.
+	 */
+	@Test
+	public void testHeapMetrics() throws Exception {
+		final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
+
+		MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
+
+		@SuppressWarnings("unchecked")
+		final Gauge<Long> used = (Gauge<Long>) heapMetrics.get(MetricNames.MEMORY_USED);
+
+		final long usedHeapInitially = used.getValue();
+
+		// check memory usage difference multiple times since other tests may affect memory usage as well
+		for (int x = 0; x < 10; x++) {
+			final byte[] array = new byte[1024 * 1024 * 8];
+			final long usedHeapAfterAllocation = used.getValue();
+
+			if (usedHeapInitially != usedHeapAfterAllocation) {
+				return;
+			}
+			Thread.sleep(50);
+		}
+		Assert.fail("Heap usage metric never changed it's value.");
 	}
 }

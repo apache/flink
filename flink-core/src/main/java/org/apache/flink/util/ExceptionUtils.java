@@ -260,6 +260,18 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Tries to throw the given exception if not null.
+	 *
+	 * @param e exception to throw if not null.
+	 * @throws Exception
+	 */
+	public static void tryRethrowException(@Nullable Exception e) throws Exception {
+		if (e != null) {
+			throw e;
+		}
+	}
+
+	/**
 	 * Tries to throw the given {@code Throwable} in scenarios where the signatures allows only IOExceptions
 	 * (and RuntimeException and Error). Throws this exception directly, if it is an IOException,
 	 * a RuntimeException, or an Error. Otherwise does nothing.

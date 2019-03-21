@@ -23,6 +23,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -59,7 +60,7 @@ public class TaskManagerServicesBuilder {
 		broadcastVariableManager = new BroadcastVariableManager();
 		taskSlotTable = mock(TaskSlotTable.class);
 		jobManagerTable = new JobManagerTable();
-		jobLeaderService = new JobLeaderService(taskManagerLocation);
+		jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 	}
 

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -34,28 +33,24 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
+import org.apache.flink.streaming.util.MockStreamTask;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.doAnswer;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the emission of latency markers by {@link StreamSource} operators.
@@ -205,29 +200,18 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 		cfg.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		cfg.setOperatorID(new OperatorID());
 
-		StreamStatusMaintainer streamStatusMaintainer = mock(StreamStatusMaintainer.class);
-		when(streamStatusMaintainer.getStreamStatus()).thenReturn(StreamStatus.ACTIVE);
+		try {
+			MockStreamTask mockTask = new MockStreamTaskBuilder(env)
+				.setConfig(cfg)
+				.setExecutionConfig(executionConfig)
+				.setProcessingTimeService(timeProvider)
+				.build();
 
-		StreamTask<?, ?> mockTask = mock(StreamTask.class);
-		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(new Object());
-		when(mockTask.getConfiguration()).thenReturn(cfg);
-		when(mockTask.getEnvironment()).thenReturn(env);
-		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
-		when(mockTask.getStreamStatusMaintainer()).thenReturn(streamStatusMaintainer);
-
-		doAnswer(new Answer<ProcessingTimeService>() {
-			@Override
-			public ProcessingTimeService answer(InvocationOnMock invocation) throws Throwable {
-				if (timeProvider == null) {
-					throw new RuntimeException("The time provider is null.");
-				}
-				return timeProvider;
-			}
-		}).when(mockTask).getProcessingTimeService();
-
-		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
+			operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
@@ -110,6 +111,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			false,
 			managedMemoryFraction,
 			0,
+			RetryingRegistrationConfiguration.defaultConfiguration(),
 			Optional.empty());
 	}
 }

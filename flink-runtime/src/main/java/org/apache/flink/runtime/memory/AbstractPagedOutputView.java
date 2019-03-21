@@ -133,9 +133,16 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 	 * @throws IOException Thrown, if the current segment could not be processed or a new segment could not
 	 *                     be obtained.
 	 */
-	protected void advance() throws IOException {
+	public void advance() throws IOException {
 		this.currentSegment = nextSegment(this.currentSegment, this.positionInSegment);
 		this.positionInSegment = this.headerLength;
+	}
+
+	/**
+	 * @return header length.
+	 */
+	public int getHeaderLength() {
+		return headerLength;
 	}
 
 	/**
@@ -406,6 +413,37 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 			}
 
 			advance();
+		}
+	}
+
+	public void write(MemorySegment segment, int off, int len) throws IOException {
+		int remaining = this.segmentSize - this.positionInSegment;
+		if (remaining >= len) {
+			segment.copyTo(off, currentSegment, positionInSegment, len);
+			this.positionInSegment += len;
+		} else {
+
+			if (remaining == 0) {
+				advance();
+				remaining = this.segmentSize - this.positionInSegment;
+			}
+
+			while (true) {
+				int toPut = Math.min(remaining, len);
+				segment.copyTo(off, currentSegment, positionInSegment, toPut);
+				off += toPut;
+				len -= toPut;
+
+				if (len > 0) {
+					this.positionInSegment = this.segmentSize;
+					advance();
+					remaining = this.segmentSize - this.positionInSegment;
+				}
+				else {
+					this.positionInSegment += toPut;
+					break;
+				}
+			}
 		}
 	}
 }

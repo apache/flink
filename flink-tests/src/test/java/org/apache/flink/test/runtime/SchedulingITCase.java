@@ -97,7 +97,7 @@ public class SchedulingITCase extends TestLogger {
 	}
 
 	private void executeSchedulingTest(Configuration configuration) throws Exception {
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		final long slotIdleTimeout = 50L;
 		configuration.setLong(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);

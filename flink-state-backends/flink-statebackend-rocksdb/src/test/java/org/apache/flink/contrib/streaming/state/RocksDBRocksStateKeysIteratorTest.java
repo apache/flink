@@ -24,12 +24,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -38,6 +41,7 @@ import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyHandle;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
@@ -90,10 +94,13 @@ public class RocksDBRocksStateKeysIteratorTest {
 			keySerializer,
 			maxKeyGroupNumber,
 			new KeyGroupRange(0, maxKeyGroupNumber - 1),
-			mock(TaskKvStateRegistry.class));
+			mock(TaskKvStateRegistry.class),
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 
 		try {
-			keyedStateBackend.restore(null);
 			ValueState<String> testState = keyedStateBackend.getPartitionedState(
 				namespace,
 				namespaceSerializer,
@@ -115,9 +122,11 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 			byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();
 
+			// already created with the state, should be closed with the backend
+			ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
+
 			try (
-				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
-				RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(keyedStateBackend.db, handle);
+				RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(keyedStateBackend.db, handle);
 				RocksStateKeysIterator<K> iteratorWrapper =
 					new RocksStateKeysIterator<>(
 						iterator,

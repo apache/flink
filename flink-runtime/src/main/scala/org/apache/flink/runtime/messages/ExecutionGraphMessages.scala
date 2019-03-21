@@ -73,26 +73,6 @@ object ExecutionGraphMessages {
     }
   }
 
-  /**
-   * Denotes the job state change of a job.
-   *
-   * @param jobID identifying the corresponding job
-   * @param newJobStatus
-   * @param timestamp
-   * @param error
-   */
-  case class JobStatusChanged(
-      jobID: JobID,
-      newJobStatus: JobStatus,
-      timestamp: Long,
-      error: Throwable)
-    extends RequiresLeaderSessionID {
-    
-    override def toString: String = {
-      s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
-    }
-  }
-
   // --------------------------------------------------------------------------
   //  Utilities
   // --------------------------------------------------------------------------

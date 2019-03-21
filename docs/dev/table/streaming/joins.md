@@ -176,14 +176,14 @@ WHERE
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table result = orders
-    .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
+    .joinLateral("rates(o_proctime)", "o_currency = r_currency")
     .select("(o_amount * r_rate).sum as amount");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val result = orders
-    .join(rates('o_proctime), 'r_currency === 'o_currency)
+    .joinLateral(rates('o_proctime), 'r_currency === 'o_currency)
     .select(('o_amount * 'r_rate).sum as 'amount)
 {% endhighlight %}
 </div>
@@ -221,3 +221,5 @@ applied updates according to the primary key until this point in time.
 By definition of event time, [watermarks]({{ site.baseurl }}/dev/event_time.html) allow the join operation to move
 forward in time and discard versions of the build table that are no longer necessary because no incoming row with
 lower or equal timestamp is expected.
+
+{% top %}

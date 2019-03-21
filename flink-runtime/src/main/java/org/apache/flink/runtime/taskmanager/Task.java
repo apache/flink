@@ -67,6 +67,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -203,6 +204,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** Checkpoint notifier used to communicate with the CheckpointCoordinator. */
 	private final CheckpointResponder checkpointResponder;
 
+	/** GlobalAggregateManager used to update aggregates on the JobMaster. */
+	private final GlobalAggregateManager aggregateManager;
+
 	/** The BLOB cache, from which the task can request BLOB files. */
 	private final BlobCacheService blobService;
 
@@ -287,6 +291,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
 		CheckpointResponder checkpointResponder,
+		GlobalAggregateManager aggregateManager,
 		BlobCacheService blobService,
 		LibraryCacheManager libraryCache,
 		FileCache fileCache,
@@ -335,6 +340,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		this.inputSplitProvider = Preconditions.checkNotNull(inputSplitProvider);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
+		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
 
 		this.blobService = Preconditions.checkNotNull(blobService);
@@ -666,6 +672,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				ioManager,
 				broadcastVariableManager,
 				taskStateManager,
+				aggregateManager,
 				accumulatorRegistry,
 				kvStateRegistry,
 				inputSplitProvider,

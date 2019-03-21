@@ -20,6 +20,7 @@ package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -35,6 +36,10 @@ public class TestingHeartbeatServices extends HeartbeatServices {
 		super(heartbeatInterval, heartbeatTimeout);
 
 		this.scheduledExecutorToUse = Preconditions.checkNotNull(scheduledExecutorToUse);
+	}
+
+	public TestingHeartbeatServices() {
+		this(1000L, 10000L, TestingUtils.defaultScheduledExecutor());
 	}
 
 	@Override

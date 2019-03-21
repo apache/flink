@@ -433,7 +433,7 @@ public class StateBackendLoadingTest {
 	static final class FailingFactory implements StateBackendFactory<StateBackend> {
 
 		@Override
-		public StateBackend createFromConfig(Configuration config) throws IOException {
+		public StateBackend createFromConfig(Configuration config, ClassLoader classLoader) throws IOException {
 			throw new IOException("fail!");
 		}
 	}

@@ -55,7 +55,7 @@ public interface NormalizableKey<T> extends Comparable<T>, Key<T> {
 	 * an writing exactly the given number of bytes. Note that the comparison of the bytes is treating the bytes
 	 * as unsigned bytes: {@code int byteI = bytes[i] & 0xFF;}
 	 * <p>
-	 * If the meaningful part of the normalized key takes less than the given number of bytes, than it must be padded.
+	 * If the meaningful part of the normalized key takes less than the given number of bytes, then it must be padded.
 	 * Padding is typically required for variable length data types, such as strings. The padding uses a special
 	 * character, either {@code 0} or {@code 0xff}, depending on whether shorter values are sorted to the beginning or
 	 * the end. 

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,12 +42,14 @@ import java.util.function.Function;
  */
 class TestingDispatcher extends Dispatcher {
 
+	private final CompletableFuture<Void> startFuture;
+
 	TestingDispatcher(
 		RpcService rpcService,
 		String endpointId,
 		Configuration configuration,
 		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
+		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
@@ -60,7 +63,7 @@ class TestingDispatcher extends Dispatcher {
 			configuration,
 			highAvailabilityServices,
 			highAvailabilityServices.getSubmittedJobGraphStore(),
-			resourceManagerGateway,
+			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
@@ -69,6 +72,20 @@ class TestingDispatcher extends Dispatcher {
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE);
+
+		this.startFuture = new CompletableFuture<>();
+	}
+
+	@Override
+	public void onStart() throws Exception {
+		try {
+			super.onStart();
+		} catch (Exception e) {
+			startFuture.completeExceptionally(e);
+			throw e;
+		}
+
+		startFuture.complete(null);
 	}
 
 	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
@@ -86,5 +103,15 @@ class TestingDispatcher extends Dispatcher {
 		return callAsyncWithoutFencing(
 			this::getRecoveryOperation,
 			timeout).thenCompose(Function.identity());
+	}
+
+	CompletableFuture<Integer> getNumberJobs(Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> listJobs(timeout).get().size(),
+			timeout);
+	}
+
+	void waitUntilStarted() {
+		startFuture.join();
 	}
 }

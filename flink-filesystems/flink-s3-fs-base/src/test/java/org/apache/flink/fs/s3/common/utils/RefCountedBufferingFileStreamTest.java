@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -121,7 +122,7 @@ public class RefCountedBufferingFileStreamTest {
 		Assert.assertEquals(contentToWrite.length, stream.getPos());
 
 		final byte[] contentRead = new byte[contentToWrite.length];
-		stream.getInputStream().read(contentRead, 0, contentRead.length);
+		new FileInputStream(stream.getInputFile()).read(contentRead, 0, contentRead.length);
 		Assert.assertTrue(Arrays.equals(contentToWrite, contentRead));
 
 		stream.release();

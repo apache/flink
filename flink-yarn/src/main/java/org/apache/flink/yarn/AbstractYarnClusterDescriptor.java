@@ -84,7 +84,6 @@ import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
@@ -107,7 +106,7 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 /**
- * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
+ * The descriptor with deployment information for deploying a Flink cluster on Yarn.
  */
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractYarnClusterDescriptor.class);
@@ -219,42 +218,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
-	}
-
-	/**
-	 * Returns true if the descriptor has the job jars to include in the classpath.
-	 */
-	public boolean hasUserJarFiles(List<URL> requiredJarFiles) {
-		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED) {
-			return false;
-		}
-		if (userJarFiles.size() != requiredJarFiles.size()) {
-			return false;
-		}
-		try {
-			for (URL jarFile : requiredJarFiles) {
-				if (!userJarFiles.contains(new File(jarFile.toURI()))) {
-					return false;
-				}
-			}
-		} catch (URISyntaxException e) {
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * Sets the user jar which is included in the system classloader of all nodes.
-	 */
-	public void setProvidedUserJarFiles(List<URL> userJarFiles) {
-		for (URL jarFile : userJarFiles) {
-			try {
-				this.userJarFiles.add(new File(jarFile.toURI()));
-			} catch (URISyntaxException e) {
-				throw new IllegalArgumentException("Couldn't add local user jar: " + jarFile
-					+ " Currently only file:/// URLs are supported.");
-			}
-		}
 	}
 
 	public String getDynamicPropertiesEncoded() {
@@ -800,19 +763,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			localResources,
 			envShipFileList);
 
-		List<String> userClassPaths;
-		if (userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED) {
-			userClassPaths = uploadAndRegisterFiles(
-				userJarFiles,
-				fs,
-				homeDir,
-				appId,
-				paths,
-				localResources,
-				envShipFileList);
-		} else {
-			userClassPaths = Collections.emptyList();
-		}
+		final List<String> userClassPaths = uploadAndRegisterFiles(
+			userJarFiles,
+			fs,
+			homeDir,
+			appId,
+			paths,
+			localResources,
+			envShipFileList);
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
 			systemClassPaths.addAll(userClassPaths);
@@ -1639,20 +1597,21 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	private static YarnConfigOptions.UserJarInclusion getUserJarInclusionMode(org.apache.flink.configuration.Configuration config) {
-		String configuredUserJarInclusion = config.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-		try {
-			return YarnConfigOptions.UserJarInclusion.valueOf(configuredUserJarInclusion.toUpperCase());
-		} catch (IllegalArgumentException e) {
-			LOG.warn("Configuration parameter {} was configured with an invalid value {}. Falling back to default ({}).",
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-				configuredUserJarInclusion,
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
-			return YarnConfigOptions.UserJarInclusion.valueOf(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
+		throwIfUserTriesToDisableUserJarInclusionInSystemClassPath(config);
+
+		return config.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+	}
+
+	private static void throwIfUserTriesToDisableUserJarInclusionInSystemClassPath(final Configuration config) {
+		final String userJarInclusion = config.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		if ("DISABLED".equalsIgnoreCase(userJarInclusion)) {
+			throw new IllegalArgumentException(String.format("Config option %s cannot be set to DISABLED anymore (see FLINK-11781)",
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key()));
 		}
 	}
 
 	/**
-	 * Creates a YarnClusterClient; may be overriden in tests.
+	 * Creates a YarnClusterClient; may be overridden in tests.
 	 */
 	protected abstract ClusterClient<ApplicationId> createYarnClusterClient(
 			AbstractYarnClusterDescriptor descriptor,

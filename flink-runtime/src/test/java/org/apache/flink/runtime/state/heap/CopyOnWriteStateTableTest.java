@@ -28,8 +28,10 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
@@ -208,6 +210,9 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				}
 			};
 
+		StateIncrementalVisitor<Integer, Integer, ArrayList<Integer>> updatingIterator =
+			stateTable.getStateIncrementalVisitor(5);
+
 		// the main loop for modifications
 		for (int i = 0; i < 10_000_000; ++i) {
 
@@ -215,7 +220,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 			int namespace = random.nextInt(4);
 			Tuple2<Integer, Integer> compositeKey = new Tuple2<>(key, namespace);
 
-			int op = random.nextInt(7);
+			int op = random.nextInt(10);
 
 			ArrayList<Integer> state = null;
 			ArrayList<Integer> referenceState = null;
@@ -260,6 +265,18 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 						referenceMap.remove(compositeKey), updateValue));
 					break;
 				}
+				case 7:
+				case 8:
+				case 9:
+					if (!updatingIterator.hasNext()) {
+						updatingIterator = stateTable.getStateIncrementalVisitor(5);
+						if (!updatingIterator.hasNext()) {
+							break;
+						}
+					}
+					testStateIteratorWithUpdate(
+						updatingIterator, stateTable, referenceMap, op == 8, op == 9);
+					break;
 				default: {
 					Assert.fail("Unknown op-code " + op);
 				}
@@ -311,6 +328,40 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 					snapshotSize = stateTable.size();
 					reference = manualDeepDump(referenceMap);
 				}
+			}
+		}
+	}
+
+	/**
+	 * Test operations specific for StateIncrementalVisitor in {@code testRandomModificationsAndCopyOnWriteIsolation()}.
+	 *
+	 * <p>Check next, update and remove during global iteration of StateIncrementalVisitor.
+	 */
+	private static void testStateIteratorWithUpdate(
+		StateIncrementalVisitor<Integer, Integer, ArrayList<Integer>> updatingIterator,
+		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable,
+		HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap,
+		boolean update, boolean remove) {
+
+		for (StateEntry<Integer, Integer, ArrayList<Integer>> stateEntry : updatingIterator.nextEntries()) {
+			Integer key = stateEntry.getKey();
+			Integer namespace = stateEntry.getNamespace();
+			Tuple2<Integer, Integer> compositeKey = new Tuple2<>(key, namespace);
+			Assert.assertEquals(referenceMap.get(compositeKey), stateEntry.getState());
+
+			if (update) {
+				ArrayList<Integer> newState = new ArrayList<>(stateEntry.getState());
+				if (!newState.isEmpty()) {
+					newState.remove(0);
+				}
+				updatingIterator.update(stateEntry, newState);
+				referenceMap.put(compositeKey, new ArrayList<>(newState));
+				Assert.assertEquals(newState, stateTable.get(key, namespace));
+			}
+
+			if (remove) {
+				updatingIterator.remove(stateEntry);
+				referenceMap.remove(compositeKey);
 			}
 		}
 	}

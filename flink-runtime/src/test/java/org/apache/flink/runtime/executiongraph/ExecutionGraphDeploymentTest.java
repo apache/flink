@@ -40,8 +40,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -52,9 +50,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -63,10 +62,12 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -79,7 +80,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -157,17 +157,20 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				jobId,
 				"some job");
 
+			DirectScheduledExecutorService executor = new DirectScheduledExecutorService();
 			ExecutionGraph eg = new ExecutionGraph(
 				expectedJobInformation,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+				executor,
+				executor,
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
 				new RestartAllStrategy.Factory(),
-				new Scheduler(TestingUtils.defaultExecutionContext()),
+				new TestingSlotProvider(ignore -> new CompletableFuture<>()),
 				ExecutionGraph.class.getClassLoader(),
 				blobWriter,
 				AkkaUtils.getDefaultTimeout());
+
+			eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 			checkJobOffloaded(eg);
 
@@ -178,14 +181,15 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
-			ExecutionGraphTestUtils.SimpleActorGatewayWithTDD instanceGateway =
-				new ExecutionGraphTestUtils.SimpleActorGatewayWithTDD(
-					TestingUtils.directExecutionContext(),
-					blobCache);
+			final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+			final CompletableFuture<TaskDeploymentDescriptor> tdd = new CompletableFuture<>();
 
-			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
+			taskManagerGateway.setSubmitConsumer(FunctionUtils.uncheckedConsumer(taskDeploymentDescriptor -> {
+				taskDeploymentDescriptor.loadBigData(blobCache);
+				tdd.complete(taskDeploymentDescriptor);
+			}));
 
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot(taskManagerGateway);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -194,7 +198,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			checkTaskOffloaded(eg, vertex.getJobvertexId());
 
-			TaskDeploymentDescriptor descr = instanceGateway.lastTDD;
+			TaskDeploymentDescriptor descr = tdd.get();
 			assertNotNull(descr);
 
 			JobInformation jobInformation =
@@ -349,7 +353,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that {@link Execution#cancelingComplete(Map, IOMetrics)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
+	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
 	 * store the given accumulators and metrics correctly.
 	 */
 	@Test
@@ -367,7 +371,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		Execution execution1 = executions.values().iterator().next();
 		execution1.cancel();
-		execution1.cancelingComplete(accumulators, ioMetrics);
+		execution1.completeCancelling(accumulators, ioMetrics);
 		
 		assertEquals(ioMetrics, execution1.getIOMetrics());
 		assertEquals(accumulators, execution1.getUserAccumulators());
@@ -393,7 +397,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			for (Execution e : executions.values()) {
 				e.cancel();
-				e.cancelingComplete();
+				e.completeCancelling();
 			}
 
 			assertEquals(0, executions.size());
@@ -426,31 +430,33 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-		Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
+		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1; i++) {
-			scheduler.newInstanceAvailable(
-				ExecutionGraphTestUtils.getInstance(
-					new ActorTaskManagerGateway(
-						new ExecutionGraphTestUtils.SimpleActorGateway(
-							TestingUtils.directExecutionContext()))));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		}
+
+		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
 
 		final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
 			"failing test job");
 
+		DirectScheduledExecutorService directExecutor = new DirectScheduledExecutorService();
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			jobInformation,
-			new DirectScheduledExecutorService(),
+			directExecutor,
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			scheduler,
+			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
+
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		checkJobOffloaded(eg);
 
@@ -458,8 +464,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
-
-		assertEquals(dop1, scheduler.getNumberOfAvailableSlots());
 
 		// schedule, this triggers mock deployment
 		eg.scheduleForExecution();
@@ -508,39 +512,39 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		v1.setInvokableClass(BatchTask.class);
 		v2.setInvokableClass(BatchTask.class);
 
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1 + dop2; i++) {
-			scheduler.newInstanceAvailable(
-					ExecutionGraphTestUtils.getInstance(
-							new ActorTaskManagerGateway(
-									new ExecutionGraphTestUtils.SimpleActorGateway(
-											TestingUtils.directExecutionContext()))));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		}
+
+		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
 
 		final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
 			"some job");
 
+		DirectScheduledExecutorService executorService = new DirectScheduledExecutorService();
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			jobInformation,
-			new DirectScheduledExecutorService(),
+			executorService,
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			scheduler,
+			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
 		checkJobOffloaded(eg);
+
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
-
-		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 
 		// schedule, this triggers mock deployment
 		eg.scheduleForExecution();
@@ -615,6 +619,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			sourceVertex,
 			sinkVertex);
 
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		executionGraph.setScheduleMode(ScheduleMode.EAGER);
 		executionGraph.scheduleForExecution();
 

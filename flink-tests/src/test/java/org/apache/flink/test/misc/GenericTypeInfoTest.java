@@ -26,6 +26,8 @@ import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.hamcrest.core.StringStartsWith.startsWith;
+
 /**
  * Test TypeInfo serializer tree.
  */
@@ -41,7 +43,7 @@ public class GenericTypeInfoTest {
 		String serTree = Utils.getSerializerTree(ti);
 		// We can not test against the entire output because the fields of 'String' differ
 		// between java versions
-		Assert.assertTrue(serTree.startsWith("GenericTypeInfo (PojoWithCollectionGeneric)\n" +
+		Assert.assertThat(serTree, startsWith("GenericTypeInfo (PojoWithCollectionGeneric)\n" +
 				"    pojos:java.util.List\n" +
 				"    key:int\n" +
 				"    sqlDate:java.sql.Date\n" +

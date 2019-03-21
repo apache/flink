@@ -61,6 +61,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -442,7 +443,12 @@ public class KinesisDataFetcher<T> {
 		}
 
 		// make sure all resources have been terminated before leaving
-		awaitTermination();
+		try {
+			awaitTermination();
+		} catch (InterruptedException ie) {
+			// If there is an original exception, preserve it, since that's more important/useful.
+			this.error.compareAndSet(null, ie);
+		}
 
 		// any error thrown in the shard consumer threads will be thrown to the main thread
 		Throwable throwable = this.error.get();
@@ -492,8 +498,8 @@ public class KinesisDataFetcher<T> {
 
 	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown. */
 	public void awaitTermination() throws InterruptedException {
-		while (!shardConsumersExecutor.isTerminated()) {
-			Thread.sleep(50);
+		while (!shardConsumersExecutor.awaitTermination(1, TimeUnit.MINUTES)) {
+			// Keep waiting.
 		}
 	}
 

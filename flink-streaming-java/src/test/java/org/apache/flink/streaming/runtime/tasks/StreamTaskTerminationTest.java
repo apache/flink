@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -64,6 +66,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -80,7 +83,10 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -167,6 +173,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			new TestGlobalAggregateManager(),
 			blobService,
 			new BlobLibraryCacheManager(
 				blobService.getPermanentBlobService(),
@@ -265,12 +272,18 @@ public class StreamTaskTerminationTest extends TestLogger {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) {
+			MetricGroup metricGroup,
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) {
 			return null;
 		}
 
 		@Override
-		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
+		public OperatorStateBackend createOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier,
+			@Nonnull Collection<OperatorStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) throws Exception {
 			OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
 			when(operatorStateBackend.snapshot(anyLong(), anyLong(), any(CheckpointStreamFactory.class), any(CheckpointOptions.class)))
 				.thenReturn(new FutureTask<>(new BlockingCallable()));

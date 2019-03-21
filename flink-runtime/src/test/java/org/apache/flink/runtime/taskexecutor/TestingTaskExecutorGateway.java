@@ -62,7 +62,23 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
-	TestingTaskExecutorGateway(String address, String hostname, Consumer<ResourceID> heartbeatJobManagerConsumer, BiConsumer<JobID, Throwable> disconnectJobManagerConsumer, BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer, Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction, BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
+	private final Consumer<ResourceID> heartbeatResourceManagerConsumer;
+
+	private final Consumer<Exception> disconnectResourceManagerConsumer;
+
+	private final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction;
+
+	TestingTaskExecutorGateway(
+			String address,
+			String hostname,
+			Consumer<ResourceID> heartbeatJobManagerConsumer,
+			BiConsumer<JobID, Throwable> disconnectJobManagerConsumer,
+			BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer,
+			Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction,
+			BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
+			Consumer<ResourceID> heartbeatResourceManagerConsumer,
+			Consumer<Exception> disconnectResourceManagerConsumer,
+			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction) {
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
@@ -70,6 +86,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
 		this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
 		this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
+		this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
+		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
+		this.cancelTaskFunction = cancelTaskFunction;
 	}
 
 	@Override
@@ -120,7 +139,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		return CompletableFuture.completedFuture(Acknowledge.get());
+		return cancelTaskFunction.apply(executionAttemptID);
 	}
 
 	@Override
@@ -130,7 +149,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public void heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
-		// noop
+		heartbeatResourceManagerConsumer.accept(heartbeatOrigin);
 	}
 
 	@Override
@@ -140,7 +159,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public void disconnectResourceManager(Exception cause) {
-		// noop
+		disconnectResourceManagerConsumer.accept(cause);
 	}
 
 	@Override

@@ -40,8 +40,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.FileUtils;
@@ -87,6 +86,7 @@ public class ContinuousFileProcessingMigrationTest {
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
@@ -175,11 +175,9 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.setup();
 
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 
@@ -306,11 +304,9 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.setup();
 
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 

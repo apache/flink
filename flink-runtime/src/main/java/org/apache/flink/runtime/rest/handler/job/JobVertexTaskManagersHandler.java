@@ -62,7 +62,7 @@ import java.util.concurrent.Executor;
  * runtime and metrics of all its subtasks aggregated by TaskManager.
  */
 public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters> implements JsonArchivist {
-	private MetricFetcher<?> metricFetcher;
+	private MetricFetcher metricFetcher;
 
 	public JobVertexTaskManagersHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -71,7 +71,7 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 			MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
@@ -105,7 +105,7 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 		return archive;
 	}
 
-	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
+	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		// Build a map that groups tasks by TaskManager
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {

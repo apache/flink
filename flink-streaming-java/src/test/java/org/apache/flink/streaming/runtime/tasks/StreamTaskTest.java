@@ -85,6 +85,7 @@ import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -939,6 +940,7 @@ public class StreamTaskTest extends TestLogger {
 			taskManagerActions,
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			new TestGlobalAggregateManager(),
 			blobService,
 			libCache,
 			mock(FileCache.class),
@@ -1009,7 +1011,7 @@ public class StreamTaskTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public AbstractStateBackend createFromConfig(Configuration config) {
+		public AbstractStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
 			return new TestSpyWrapperStateBackend(createInnerBackend(config));
 		}
 

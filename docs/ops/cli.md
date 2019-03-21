@@ -30,11 +30,6 @@ distributed setups. It is located under `<flink-home>/bin/flink`
 and connects by default to the running Flink master (JobManager) that was
 started from the same installation directory.
 
-A prerequisite to using the command line interface is that the Flink
-master (JobManager) has been started (via
-`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
-available.
-
 The command line can be used to
 
 - submit jobs for execution,
@@ -43,6 +38,11 @@ The command line can be used to
 - list running and waiting jobs,
 - trigger and dispose savepoints, and
 - modify a running job
+
+A prerequisite to using the command line interface is that the Flink
+master (JobManager) has been started (via
+`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
+available.
 
 * This will be replaced by the TOC
 {:toc}
@@ -127,6 +127,7 @@ The command line can be used to
         ./bin/flink stop <jobID>
         
 -   Modify a running job (streaming jobs only):
+
         ./bin/flink modify <jobID> -p <newParallelism>
 
 
@@ -294,7 +295,8 @@ Action "run" compiles and runs a program.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
      -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
-                                          (t for transfer)
+                                          (t for transfer), multiple options are 
+                                          supported.
      -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container
                                           with optional unit (default: MB)
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper

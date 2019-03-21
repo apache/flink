@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -26,6 +27,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -51,6 +53,7 @@ import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
@@ -61,6 +64,9 @@ public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
 	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
+
+	static final String METRIC_GROUP_HEAP_NAME = "Heap";
+	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
 
 	private MetricUtils() {
 	}
@@ -159,20 +165,8 @@ public class MetricUtils {
 	}
 
 	private static void instantiateMemoryMetrics(MetricGroup metrics) {
-		final MemoryUsage heapMemoryUsage = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
-		final MemoryUsage nonHeapMemoryUsage = ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage();
-
-		MetricGroup heap = metrics.addGroup("Heap");
-
-		heap.<Long, Gauge<Long>>gauge("Used", heapMemoryUsage::getUsed);
-		heap.<Long, Gauge<Long>>gauge("Committed", heapMemoryUsage::getCommitted);
-		heap.<Long, Gauge<Long>>gauge("Max", heapMemoryUsage::getMax);
-
-		MetricGroup nonHeap = metrics.addGroup("NonHeap");
-
-		nonHeap.<Long, Gauge<Long>>gauge("Used", nonHeapMemoryUsage::getUsed);
-		nonHeap.<Long, Gauge<Long>>gauge("Committed", nonHeapMemoryUsage::getCommitted);
-		nonHeap.<Long, Gauge<Long>>gauge("Max", nonHeapMemoryUsage::getMax);
+		instantiateHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_HEAP_NAME));
+		instantiateNonHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_NONHEAP_NAME));
 
 		final MBeanServer con = ManagementFactory.getPlatformMBeanServer();
 
@@ -203,6 +197,22 @@ public class MetricUtils {
 		} catch (MalformedObjectNameException e) {
 			LOG.warn("Could not create object name {}.", mappedBufferPoolName, e);
 		}
+	}
+
+	@VisibleForTesting
+	static void instantiateHeapMemoryMetrics(final MetricGroup metricGroup) {
+		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
+	}
+
+	@VisibleForTesting
+	static void instantiateNonHeapMemoryMetrics(final MetricGroup metricGroup) {
+		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage());
+	}
+
+	private static void instantiateMemoryUsageMetrics(final MetricGroup metricGroup, final Supplier<MemoryUsage> memoryUsageSupplier) {
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_USED, () -> memoryUsageSupplier.get().getUsed());
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_COMMITTED, () -> memoryUsageSupplier.get().getCommitted());
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_MAX, () -> memoryUsageSupplier.get().getMax());
 	}
 
 	private static void instantiateThreadMetrics(MetricGroup metrics) {

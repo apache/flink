@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -348,6 +350,11 @@ public class DataOutputSerializer implements DataOutputView {
 
 		source.readFully(this.buffer, this.position, numBytes);
 		this.position += numBytes;
+	}
+
+	public void setPosition(int position) {
+		Preconditions.checkArgument(position >= 0 && position <= this.position, "Position out of bounds.");
+		this.position = position;
 	}
 
 	// ------------------------------------------------------------------------

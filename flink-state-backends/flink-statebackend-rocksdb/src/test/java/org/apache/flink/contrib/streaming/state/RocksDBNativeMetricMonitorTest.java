@@ -71,9 +71,9 @@ public class RocksDBNativeMetricMonitorTest {
 		options.enableSizeAllMemTables();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			localRocksDBResource.getRocksDB(),
 			options,
-			group
+			group,
+			localRocksDBResource.getRocksDB()
 		);
 
 		ColumnFamilyHandle handle = localRocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
@@ -101,7 +101,10 @@ public class RocksDBNativeMetricMonitorTest {
 	}
 
 	@Test
-	public void testReturnsUnsigned() {
+	public void testReturnsUnsigned() throws Throwable {
+		RocksDBResource localRocksDBResource = new RocksDBResource();
+		localRocksDBResource.before();
+
 		SimpleMetricRegistry registry = new SimpleMetricRegistry();
 		GenericMetricGroup group = new GenericMetricGroup(
 			registry,
@@ -113,16 +116,19 @@ public class RocksDBNativeMetricMonitorTest {
 		options.enableSizeAllMemTables();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			null,
 			options,
-			group
+			group,
+			localRocksDBResource.getRocksDB()
 		);
 
-		monitor.registerColumnFamily(COLUMN_FAMILY_NAME, null);
+		ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
+		monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
 		RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
 
 		view.setValue(-1);
 		BigInteger result = view.getValue();
+
+		localRocksDBResource.after();
 
 		Assert.assertEquals("Failed to interpret RocksDB result as an unsigned long", 1, result.signum());
 	}
@@ -140,9 +146,9 @@ public class RocksDBNativeMetricMonitorTest {
 		options.enableSizeAllMemTables();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			rocksDBResource.getRocksDB(),
 			options,
-			group
+			group,
+			rocksDBResource.getRocksDB()
 		);
 
 		ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);

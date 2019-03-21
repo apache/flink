@@ -88,6 +88,9 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	@Nonnull
 	private final TypeSerializer<S> localStateSerializer;
 
+	@Nullable
+	private final StateSnapshotTransformer<S> stateSnapshotTransformer;
+
 	/**
 	 * Result of partitioning the snapshot by key-group. This is lazily created in the process of writing this snapshot
 	 * to an output as part of checkpointing.
@@ -114,6 +117,9 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		this.localStateSerializer = owningStateTable.metaInfo.getStateSerializer().duplicate();
 
 		this.partitionedStateTableSnapshot = null;
+
+		this.stateSnapshotTransformer = owningStateTable.metaInfo.
+			getStateSnapshotTransformFactory().createForDeserializedState().orElse(null);
 	}
 
 	/**
@@ -147,7 +153,6 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
 				};
-			StateSnapshotTransformer<S> stateSnapshotTransformer = owningStateTable.metaInfo.getSnapshotTransformer();
 			StateTableKeyGroupPartitioner<K, N, S> stateTableKeyGroupPartitioner = stateSnapshotTransformer != null ?
 				new TransformingStateTableKeyGroupPartitioner<>(
 					snapshotData,
