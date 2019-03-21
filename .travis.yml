@@ -222,40 +222,40 @@ jobs:
       name: Documentation links check
     # E2E profile
     - stage: E2E
-      env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dinclude-kinesis"
+      env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: misc - hadoop 2.8
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: ha - hadoop 2.8
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: sticky - hadoop 2.8
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: checkpoints - hadoop 2.8
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_container.sh
       name: container - hadoop 2.8
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: heavy - hadoop 2.8
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: misc - scala 2.12
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: ha - scala 2.12
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: sticky - scala 2.12
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: checkpoints - scala 2.12
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_container.sh
       name: container - scala 2.12
-    - env: PROFILE="-Pinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+    - env: PROFILE="-Dínclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: heavy - scala 2.12
     - env: PROFILE="-De2e-metrics -Dinclude-kinesis"
