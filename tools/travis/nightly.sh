@@ -26,19 +26,16 @@ if [ -z "${HERE}" ] ; then
 fi
 
 ARTIFACTS_DIR="${HERE}/artifacts"
-FLINK_DIR="${HERE}/flink"
 
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
-LOG4J_PROPERTIES=${FLINK_DIR}/tools/log4j-travis.properties
+LOG4J_PROPERTIES=tools/log4j-travis.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast"
 MVN_COMPILE_OPTIONS="-T1C -DskipTests"
 
-cp tools/travis/splits/* ${FLINK_DIR}/flink-end-to-end-tests
-
-cd "${FLINK_DIR}"
+cp tools/travis/splits/* flink-end-to-end-tests
 
 COMMIT_HASH=$(git rev-parse HEAD)
 echo "Testing branch ${BRANCH} from remote ${REMOTE}. Commit hash: ${COMMIT_HASH}"
