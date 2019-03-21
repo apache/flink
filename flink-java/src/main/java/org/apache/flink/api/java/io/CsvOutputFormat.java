@@ -69,6 +69,8 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 
 	private boolean quoteStrings = false;
 
+	private String[] headers;
+
 	// --------------------------------------------------------------------------------------------
 	// Constructors and getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
@@ -142,6 +144,16 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	}
 
 	/**
+	 * Sets String headers to write to the file.
+	 * If not specified, no headers will be set.
+	 *
+	 * @param headers The headers to specify at the beginning of the file.
+	 */
+	public void setHeaders(String[] headers) {
+		this.headers = headers;
+	}
+
+	/**
 	 * Configures whether the output format should quote string values. String values are fields
 	 * of type {@link java.lang.String} and {@link org.apache.flink.types.StringValue}, as well as
 	 * all subclasses of the latter.
@@ -161,6 +173,29 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 		super.open(taskNumber, numTasks);
 		this.wrt = this.charsetName == null ? new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096)) :
 				new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096), this.charsetName);
+		// print headers
+		if (this.headers != null) {
+			for (int i = 0; i < headers.length; i++) {
+				String v = headers[i];
+				if (v != null) {
+					if (i != 0) {
+						this.wrt.write(this.fieldDelimiter);
+					}
+					if (quoteStrings) {
+						this.wrt.write('"');
+					}
+					this.wrt.write(v.toString());
+					if (quoteStrings) {
+						this.wrt.write('"');
+					}
+				} else {
+					throw new RuntimeException("Cannot write header with <null> value at position: " + i);
+				}
+			}
+
+			// add the record delimiter
+			this.wrt.write(this.recordDelimiter);
+		}
 	}
 
 	@Override

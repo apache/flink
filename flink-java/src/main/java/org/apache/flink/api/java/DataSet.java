@@ -1584,7 +1584,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsCsv(String filePath, WriteMode writeMode) {
-		return internalWriteAsCsv(new Path(filePath), CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER, writeMode);
+		return internalWriteAsCsv(new Path(filePath), CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER, writeMode, null);
 	}
 
 	/**
@@ -1603,7 +1603,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
-		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, null);
+		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, null, null);
 	}
 
 	/**
@@ -1622,15 +1622,38 @@ public abstract class DataSet<T> {
 	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter, WriteMode writeMode) {
-		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, writeMode);
+		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, writeMode, null);
+	}
+
+	/**
+	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location with the specified field and line delimiters.
+	 *
+	 * <p><b>Note: Only a Tuple DataSet can written as a CSV file.</b>
+ 	 * For each Tuple field the result of {@link Object#toString()} is written.
+	 *
+	 * @param filePath The path pointing to the location the CSV file is written to.
+	 * @param rowDelimiter The row delimiter to separate Tuples.
+	 * @param fieldDelimiter The field delimiter to separate Tuple fields.
+	 * @param writeMode The behavior regarding existing files. Options are NO_OVERWRITE and OVERWRITE.
+	 * @param headers Strings to use as headers for the CSV output.
+	 *
+	 * @see Tuple
+	 * @see CsvOutputFormat
+	 * @see DataSet#writeAsText(String) Output files and directories
+	 */
+	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter, WriteMode writeMode, String[] headers) {
+		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, writeMode, headers);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm) {
+	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm, String[] headers) {
 		Preconditions.checkArgument(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<>(filePath, rowDelimiter, fieldDelimiter);
 		if (wm != null) {
 			of.setWriteMode(wm);
+		}
+		if (headers != null) {
+			of.setHeaders(headers);
 		}
 		return output((OutputFormat<T>) of);
 	}
