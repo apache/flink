@@ -86,7 +86,7 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
       this.zoomEvent.emit(this.zoom);
       this.transformEvent.emit(this.containerTransform as any);
     });
-    this.svgSelect.call(this.zoomController);
+    this.svgSelect.call(this.zoomController).on('wheel.zoom', null);
   }
 
   ngAfterContentInit() {
