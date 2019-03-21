@@ -117,11 +117,6 @@ MODULES_TESTS_JDK9_EXCLUSIONS="\
 !flink-tests"
 
 MODULES_MISC_JDK9_EXCLUSIONS="\
-!flink-metrics/flink-metrics-jmx,\
-!flink-metrics/flink-metrics-dropwizard,\
-!flink-metrics/flink-metrics-prometheus,\
-!flink-metrics/flink-metrics-statsd,\
-!flink-metrics/flink-metrics-slf4j,\
 !flink-yarn-tests"
 
 if [[ ${PROFILE} == *"include-kinesis"* ]]; then
