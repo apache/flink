@@ -18,6 +18,8 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { EMPTY } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { BASE_URL } from '../app.config';
 import { OverviewInterface } from 'interfaces';
 
@@ -33,6 +35,6 @@ export class OverviewService {
    * Get cluster overview status
    */
   loadOverview() {
-    return this.httpClient.get<OverviewInterface>(`${BASE_URL}/overview`);
+    return this.httpClient.get<OverviewInterface>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
   }
 }

@@ -38,8 +38,8 @@ import {
   UserAccumulatorsInterface,
   VerticesLinkInterface
 } from 'interfaces';
-import { combineLatest, ReplaySubject } from 'rxjs';
-import { filter, flatMap, map, tap } from 'rxjs/operators';
+import { combineLatest, EMPTY, ReplaySubject } from 'rxjs';
+import { catchError, filter, flatMap, map, tap } from 'rxjs/operators';
 import { BASE_URL } from 'config';
 
 @Injectable({
@@ -105,7 +105,8 @@ export class JobService {
           job.completed = [ 'FINISHED', 'FAILED', 'CANCELED' ].indexOf(job.state) > -1;
         });
         return data.jobs || [];
-      })
+      }),
+      catchError(() => EMPTY)
     );
   }
 
@@ -126,7 +127,8 @@ export class JobService {
       map(job => this.convertJob(job)),
       tap(job => {
         this.jobDetail$.next(job);
-      })
+      }),
+      catchError(() => EMPTY)
     );
   }
 

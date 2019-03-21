@@ -63,9 +63,12 @@
           <strong>Commit:</strong> {{ statusService.configuration['flink-revision'] }}
         </span>
         <nz-divider nzType="vertical"></nz-divider>
-        <span>
-          <strong> Message:</strong>
+        <span [hidden]="!(online$ | async)">
+          <strong> Message: </strong>
           <nz-badge (click)="showMessage()" nzShowZero [class.normal]="statusService.listOfErrorMessage.length===0" [nzCount]="statusService.listOfErrorMessage.length"></nz-badge>
+        </span>
+        <span [hidden]="online$ | async">
+          <strong class="offline">Lost Connection, Reconnecting Now...</strong>
         </span>
       </div>
     </nz-header>

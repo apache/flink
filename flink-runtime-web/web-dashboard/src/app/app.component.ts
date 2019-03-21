@@ -18,7 +18,8 @@
 
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { filter, first } from 'rxjs/operators';
+import { fromEvent, merge } from 'rxjs';
+import { filter, first, map, startWith } from 'rxjs/operators';
 import { StatusService } from 'services';
 import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
 
@@ -30,6 +31,10 @@ import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.se
 export class AppComponent implements OnInit {
   collapsed = false;
   visible = false;
+  online$ = merge(
+    fromEvent(window, 'offline').pipe(map(() => false)),
+    fromEvent(window, 'online').pipe(map(() => true))
+  ).pipe(startWith(true));
 
   showMessage() {
     if (this.statusService.listOfErrorMessage.length) {

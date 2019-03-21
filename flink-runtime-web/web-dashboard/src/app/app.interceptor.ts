@@ -18,6 +18,7 @@
 
 import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
 import { Injectable, Injector } from '@angular/core';
+import { NzNotificationService } from 'ng-zorro-antd';
 import { throwError, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { StatusService } from 'services';
@@ -28,11 +29,16 @@ export class AppInterceptor implements HttpInterceptor {
   }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    /**
+     * Error response from below url should be ignored
+     */
+    const ignoreErrorUrlEndsList = [ 'checkpoints/config', 'checkpoints' ];
     return next.handle(req).pipe(
       catchError((res) => {
         const errorMessage = res && res.error && res.error.errors && res.error.errors[ 0 ];
-        if (errorMessage) {
+        if (errorMessage && ignoreErrorUrlEndsList.every(url => !res.url.endsWith(url))) {
           this.injector.get<StatusService>(StatusService).listOfErrorMessage.push(errorMessage);
+          this.injector.get<NzNotificationService>(NzNotificationService).info('Server Response Message:', errorMessage);
         }
         return throwError(res);
       })

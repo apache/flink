@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 @import "theme.less";
 
 .trigger {
@@ -149,3 +148,21 @@ nz-content {
 nz-alert {
   margin-bottom: 12px;
 }
+
+.offline {
+  color: @error-color;
+  animation: opacity 3s ease-in infinite alternate;
+}
+
+@keyframes opacity {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+

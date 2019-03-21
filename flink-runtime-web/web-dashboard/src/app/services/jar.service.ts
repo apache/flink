@@ -25,7 +25,8 @@ import {
   PlanInterface,
   VerticesLinkInterface
 } from 'interfaces';
-import { map } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -36,7 +37,12 @@ export class JarService {
    * Get uploaded jar list
    */
   loadJarList() {
-    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`);
+    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(catchError(() => {
+      return of({
+        address: '',
+        files  : []
+      });
+    }));
   }
 
   /**

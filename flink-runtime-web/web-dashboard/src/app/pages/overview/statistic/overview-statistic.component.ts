@@ -29,7 +29,7 @@ import { OverviewService, StatusService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
-  statistic: OverviewInterface;
+  statistic: OverviewInterface | null;
   destroy$ = new Subject();
 
   constructor(private statusService: StatusService, private overviewService: OverviewService, private cdr: ChangeDetectorRef) {
