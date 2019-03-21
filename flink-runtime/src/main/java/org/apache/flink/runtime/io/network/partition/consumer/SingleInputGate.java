@@ -680,7 +680,7 @@ public class SingleInputGate implements InputGate {
 
 		final SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, metrics, networkEnvironment.isCreditBased());
+			icdd.length, taskActions, metrics, networkEnvironment.getConfiguration().isCreditBased());
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -697,8 +697,8 @@ public class SingleInputGate implements InputGate {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
 					networkEnvironment.getResultPartitionManager(),
 					taskEventPublisher,
-					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestMaxBackoff(),
+					networkEnvironment.getConfiguration().partitionRequestInitialBackoff(),
+					networkEnvironment.getConfiguration().partitionRequestMaxBackoff(),
 					metrics
 				);
 
@@ -708,8 +708,8 @@ public class SingleInputGate implements InputGate {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
 					partitionLocation.getConnectionId(),
 					networkEnvironment.getConnectionManager(),
-					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestMaxBackoff(),
+					networkEnvironment.getConfiguration().partitionRequestInitialBackoff(),
+					networkEnvironment.getConfiguration().partitionRequestMaxBackoff(),
 					metrics
 				);
 
@@ -720,8 +720,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getResultPartitionManager(),
 					taskEventPublisher,
 					networkEnvironment.getConnectionManager(),
-					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestMaxBackoff(),
+					networkEnvironment.getConfiguration().partitionRequestInitialBackoff(),
+					networkEnvironment.getConfiguration().partitionRequestMaxBackoff(),
 					metrics
 				);
 

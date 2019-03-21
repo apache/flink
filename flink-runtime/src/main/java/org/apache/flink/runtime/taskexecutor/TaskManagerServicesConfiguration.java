@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -209,6 +210,7 @@ public class TaskManagerServicesConfiguration {
 	 * sanity check them.
 	 *
 	 * @param configuration The configuration.
+	 * @param maxJvmHeapMemory The maximum JVM heap size, in bytes.
 	 * @param remoteAddress identifying the IP address under which the TaskManager will be accessible
 	 * @param localCommunication True, to skip initializing the network stack.
 	 *                                      Use only in cases where only one task manager runs.
@@ -216,8 +218,9 @@ public class TaskManagerServicesConfiguration {
 	 */
 	public static TaskManagerServicesConfiguration fromConfiguration(
 			Configuration configuration,
+			long maxJvmHeapMemory,
 			InetAddress remoteAddress,
-			boolean localCommunication) throws Exception {
+			boolean localCommunication) {
 
 		// we need this because many configs have been written with a "-1" entry
 		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
@@ -227,61 +230,23 @@ public class TaskManagerServicesConfiguration {
 
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
-
 		if (localStateRootDir.length == 0) {
 			// default to temp dirs.
 			localStateRootDir = tmpDirs;
 		}
 
-		boolean localRecoveryMode = configuration.getBoolean(
-			CheckpointingOptions.LOCAL_RECOVERY.key(),
-			CheckpointingOptions.LOCAL_RECOVERY.defaultValue());
+		boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
+			maxJvmHeapMemory,
 			localCommunication,
 			remoteAddress,
 			slots);
 
-		final QueryableStateConfiguration queryableStateConfig =
-				parseQueryableStateConfiguration(configuration);
-
-		// extract memory settings
-		long configuredMemory;
-		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
-			try {
-				configuredMemory = MemorySize.parse(configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-			} catch (IllegalArgumentException e) {
-				throw new IllegalConfigurationException(
-					"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
-			}
-		} else {
-			configuredMemory = Long.valueOf(managedMemorySizeDefaultVal);
-		}
-
-		checkConfigParameter(
-			configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) ||
-				configuredMemory > 0, configuredMemory,
-			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
-			"MemoryManager needs at least one MB of memory. " +
-				"If you leave this config parameter empty, the system automatically " +
-				"pick a fraction of the available memory.");
-
-		// check whether we use heap or off-heap memory
-		final MemoryType memType;
-		if (configuration.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
-			memType = MemoryType.OFF_HEAP;
-		} else {
-			memType = MemoryType.HEAP;
-		}
+		final QueryableStateConfiguration queryableStateConfig = parseQueryableStateConfiguration(configuration);
 
 		boolean preAllocateMemory = configuration.getBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE);
-
-		float memoryFraction = configuration.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-		checkConfigParameter(memoryFraction > 0.0f && memoryFraction < 1.0f, memoryFraction,
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(),
-			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
 
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
@@ -295,10 +260,10 @@ public class TaskManagerServicesConfiguration {
 			networkConfig,
 			queryableStateConfig,
 			slots,
-			configuredMemory,
-			memType,
+			getManagedMemorySize(configuration),
+			getMemoryType(configuration),
 			preAllocateMemory,
-			memoryFraction,
+			getManagedMemoryFraction(configuration),
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
 			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
@@ -312,6 +277,7 @@ public class TaskManagerServicesConfiguration {
 	 * Creates the {@link NetworkEnvironmentConfiguration} from the given {@link Configuration}.
 	 *
 	 * @param configuration to create the network environment configuration from
+	 * @param maxJvmHeapMemory The maximum JVM heap size, in bytes
 	 * @param localTaskManagerCommunication true if task manager communication is local
 	 * @param taskManagerAddress address of the task manager
 	 * @param slots to start the task manager with
@@ -320,51 +286,43 @@ public class TaskManagerServicesConfiguration {
 	@SuppressWarnings("deprecation")
 	private static NetworkEnvironmentConfiguration parseNetworkEnvironmentConfiguration(
 		Configuration configuration,
+		long maxJvmHeapMemory,
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress,
-		int slots) throws Exception {
+		int slots) {
 
 		// ----> hosts / ports for communication and data exchange
 
 		int dataport = configuration.getInteger(TaskManagerOptions.DATA_PORT);
-
 		checkConfigParameter(dataport >= 0, dataport, TaskManagerOptions.DATA_PORT.key(),
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
 		checkConfigParameter(slots >= 1, slots, TaskManagerOptions.NUM_TASK_SLOTS.key(),
 			"Number of task slots must be at least one.");
 
-		final int pageSize = checkedDownCast(MemorySize.parse(configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+		final int pageSize = getPageSize(configuration);
 
-		// check page size of for minimum size
-		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
-			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
-
-		// check page size for power of two
-		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
-			"Memory segment size must be a power of 2.");
-
-		// network buffer memory fraction
-
-		float networkBufFraction = configuration.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		long networkBufMin = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
-		long networkBufMax = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
-		checkNetworkBufferConfig(pageSize, networkBufFraction, networkBufMin, networkBufMax);
-
-		// fallback: number of network buffers
-		final int numNetworkBuffers = configuration.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
-		checkNetworkConfigOld(numNetworkBuffers);
-
+		final int numNetworkBuffers;
 		if (!hasNewNetworkBufConf(configuration)) {
-			// map old config to new one:
-			networkBufMin = networkBufMax = ((long) numNetworkBuffers) * pageSize;
+			// fallback: number of network buffers
+			numNetworkBuffers = configuration.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
+
+			checkNetworkConfigOld(numNetworkBuffers);
 		} else {
 			if (configuration.contains(TaskManagerOptions.NETWORK_NUM_BUFFERS)) {
 				LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
 					TaskManagerOptions.NETWORK_NUM_BUFFERS.key());
 			}
+
+			final long networkMemorySize = calculateNetworkBufferMemory(configuration, maxJvmHeapMemory);
+
+			// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
+			long numNetworkBuffersLong = networkMemorySize / pageSize;
+			if (numNetworkBuffersLong > Integer.MAX_VALUE) {
+				throw new IllegalArgumentException("The given number of memory bytes (" + networkMemorySize
+					+ ") corresponds to more than MAX_INT pages.");
+			}
+			numNetworkBuffers = (int) numNetworkBuffersLong;
 		}
 
 		final NettyConfig nettyConfig;
@@ -377,26 +335,90 @@ public class TaskManagerServicesConfiguration {
 			nettyConfig = null;
 		}
 
-		int initialRequestBackoff = configuration.getInteger(
-			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
-		int maxRequestBackoff = configuration.getInteger(
-			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX);
+		int initialRequestBackoff = configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
+		int maxRequestBackoff = configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX);
 
-		int buffersPerChannel = configuration.getInteger(
-			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL);
-		int extraBuffersPerGate = configuration.getInteger(
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+		int buffersPerChannel = configuration.getInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL);
+		int extraBuffersPerGate = configuration.getInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+
+		boolean isCreditBased = configuration.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
 
 		return new NetworkEnvironmentConfiguration(
-			networkBufFraction,
-			networkBufMin,
-			networkBufMax,
+			numNetworkBuffers,
 			pageSize,
 			initialRequestBackoff,
 			maxRequestBackoff,
 			buffersPerChannel,
 			extraBuffersPerGate,
+			isCreditBased,
 			nettyConfig);
+	}
+
+	/**
+	 * Calculates the amount of memory used for network buffers inside the current JVM instance
+	 * based on the available heap or the max heap size and the according configuration parameters.
+	 *
+	 * <p>For containers or when started via scripts, if started with a memory limit and set to use
+	 * off-heap memory, the maximum heap size for the JVM is adjusted accordingly and we are able
+	 * to extract the intended values from this.
+	 *
+	 * <p>The following configuration parameters are involved:
+	 * <ul>
+	 *  <li>{@link TaskManagerOptions#MANAGED_MEMORY_FRACTION},</li>
+	 *  <li>{@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
+	 * 	<li>{@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
+	 * 	<li>{@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}, and</li>
+	 *  <li>{@link TaskManagerOptions#NETWORK_NUM_BUFFERS} (fallback if the ones above do not exist)</li>
+	 * </ul>.
+	 *
+	 * @param configuration configuration object
+	 * @param maxJvmHeapMemory the maximum JVM heap size
+	 *
+	 * @return memory to use for network buffers (in bytes)
+	 */
+	@VisibleForTesting
+	static long calculateNetworkBufferMemory(Configuration configuration, long maxJvmHeapMemory) {
+		// The maximum heap memory has been adjusted as in TaskManagerServices#calculateHeapSizeMB
+		// and we need to invert these calculations.
+		final long jvmHeapNoNet;
+		final MemoryType memoryType = getMemoryType(configuration);
+		if (memoryType == MemoryType.HEAP) {
+			jvmHeapNoNet = maxJvmHeapMemory;
+		} else if (memoryType == MemoryType.OFF_HEAP) {
+			long configuredMemory = getManagedMemorySize(configuration) << 20; // megabytes to bytes
+			if (configuredMemory > 0) {
+				// The maximum heap memory has been adjusted according to configuredMemory, i.e.
+				// maxJvmHeap = jvmHeapNoNet - configuredMemory
+				jvmHeapNoNet = maxJvmHeapMemory + configuredMemory;
+			} else {
+				// The maximum heap memory has been adjusted according to the fraction, i.e.
+				// maxJvmHeap = jvmHeapNoNet - jvmHeapNoNet * managedFraction = jvmHeapNoNet * (1 - managedFraction)
+				jvmHeapNoNet = (long) (maxJvmHeapMemory / (1.0 - getManagedMemoryFraction(configuration)));
+			}
+		} else {
+			throw new RuntimeException("No supported memory type detected.");
+		}
+
+		float networkBufFraction = configuration.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
+		long networkBufMin = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
+		long networkBufMax = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
+		checkNetworkBufferConfig(getPageSize(configuration), networkBufFraction, networkBufMin, networkBufMax);
+
+		// finally extract the network buffer memory size again from:
+		// jvmHeapNoNet = jvmHeap - networkBufBytes
+		//              = jvmHeap - Math.min(networkBufMax, Math.max(networkBufMin, jvmHeap * netFraction)
+		long networkMemorySize = Math.min(networkBufMax, Math.max(networkBufMin,
+			(long) (jvmHeapNoNet / (1.0 - networkBufFraction) * networkBufFraction)));
+
+		TaskManagerServicesConfiguration.checkConfigParameter(networkMemorySize < maxJvmHeapMemory,
+			"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
+			"(" + TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
+				TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
+				TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
+			"Network buffer memory size too large: " + networkMemorySize + " >= " +
+				maxJvmHeapMemory + "(maximum JVM heap size)");
+
+		return networkMemorySize;
 	}
 
 	/**
@@ -507,5 +529,89 @@ public class TaskManagerServicesConfiguration {
 			throw new IllegalConfigurationException("Invalid configuration value for " +
 					name + " : " + parameter + " - " + errorMessage);
 		}
+	}
+
+	/**
+	 * Parses the configuration to get the managed memory size and validates the value.
+	 *
+	 * @param configuration configuration object
+	 * @return managed memory size (in megabytes)
+	 */
+	private static long getManagedMemorySize(Configuration configuration) {
+		long managedMemorySize;
+		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
+		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
+			try {
+				managedMemorySize = MemorySize.parse(configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
+			} catch (IllegalArgumentException e) {
+				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+			}
+		} else {
+			managedMemorySize = Long.valueOf(managedMemorySizeDefaultVal);
+		}
+
+		checkConfigParameter(
+			configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) ||
+				managedMemorySize > 0, managedMemorySize,
+			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+			"MemoryManager needs at least one MB of memory. " +
+				"If you leave this config parameter empty, the system automatically pick a fraction of the available memory.");
+
+		return managedMemorySize;
+	}
+
+	/**
+	 * Parses the configuration to get the fraction of managed memory and validates the value.
+	 *
+	 * @param configuration configuration object
+	 * @return fraction of managed memory
+	 */
+	private static float getManagedMemoryFraction(Configuration configuration) {
+		float managedMemoryFraction = configuration.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+
+		checkConfigParameter(managedMemoryFraction > 0.0f && managedMemoryFraction < 1.0f, managedMemoryFraction,
+			TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(),
+			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
+
+		return managedMemoryFraction;
+	}
+
+	/**
+	 * Parses the configuration to get the type of memory.
+	 *
+	 * @param configuration configuration object
+	 * @return type of memory
+	 */
+	private static MemoryType getMemoryType(Configuration configuration) {
+		// check whether we use heap or off-heap memory
+		final MemoryType memType;
+		if (configuration.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
+			memType = MemoryType.OFF_HEAP;
+		} else {
+			memType = MemoryType.HEAP;
+		}
+		return memType;
+	}
+
+	/**
+	 * Parses the configuration to get the page size and validates the value.
+	 *
+	 * @param configuration configuration object
+	 * @return size of memory segment
+	 */
+	private static int getPageSize(Configuration configuration) {
+		final int pageSize = checkedDownCast(MemorySize.parse(
+			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+
+		// check page size of for minimum size
+		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
+		// check page size for power of two
+		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+			"Memory segment size must be a power of 2.");
+
+		return pageSize;
 	}
 }

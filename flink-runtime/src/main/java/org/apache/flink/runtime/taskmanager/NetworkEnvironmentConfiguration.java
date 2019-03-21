@@ -27,11 +27,7 @@ import javax.annotation.Nullable;
  */
 public class NetworkEnvironmentConfiguration {
 
-	private final float networkBufFraction;
-
-	private final long networkBufMin;
-
-	private final long networkBufMax;
+	private final int numNetworkBuffers;
 
 	private final int networkBufferSize;
 
@@ -43,42 +39,34 @@ public class NetworkEnvironmentConfiguration {
 
 	private final int floatingNetworkBuffersPerGate;
 
+	private final boolean isCreditBased;
+
 	private final NettyConfig nettyConfig;
 
 	public NetworkEnvironmentConfiguration(
-			float networkBufFraction,
-			long networkBufMin,
-			long networkBufMax,
+			int numNetworkBuffers,
 			int networkBufferSize,
 			int partitionRequestInitialBackoff,
 			int partitionRequestMaxBackoff,
 			int networkBuffersPerChannel,
 			int floatingNetworkBuffersPerGate,
+			boolean isCreditBased,
 			@Nullable NettyConfig nettyConfig) {
 
-		this.networkBufFraction = networkBufFraction;
-		this.networkBufMin = networkBufMin;
-		this.networkBufMax = networkBufMax;
+		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
 		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		this.isCreditBased = isCreditBased;
 		this.nettyConfig = nettyConfig;
 	}
 
 	// ------------------------------------------------------------------------
 
-	public float networkBufFraction() {
-		return networkBufFraction;
-	}
-
-	public long networkBufMin() {
-		return networkBufMin;
-	}
-
-	public long networkBufMax() {
-		return networkBufMax;
+	public int numNetworkBuffers() {
+		return numNetworkBuffers;
 	}
 
 	public int networkBufferSize() {
@@ -105,6 +93,10 @@ public class NetworkEnvironmentConfiguration {
 		return nettyConfig;
 	}
 
+	public boolean isCreditBased() {
+		return isCreditBased;
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -115,6 +107,7 @@ public class NetworkEnvironmentConfiguration {
 		result = 31 * result + partitionRequestMaxBackoff;
 		result = 31 * result + networkBuffersPerChannel;
 		result = 31 * result + floatingNetworkBuffersPerGate;
+		result = 31 * result + (isCreditBased ? 1 : 0);
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
 		return result;
 	}
@@ -130,14 +123,13 @@ public class NetworkEnvironmentConfiguration {
 		else {
 			final NetworkEnvironmentConfiguration that = (NetworkEnvironmentConfiguration) obj;
 
-			return this.networkBufFraction == that.networkBufFraction &&
-					this.networkBufMin == that.networkBufMin &&
-					this.networkBufMax == that.networkBufMax &&
+			return this.numNetworkBuffers == that.numNetworkBuffers &&
 					this.networkBufferSize == that.networkBufferSize &&
 					this.partitionRequestInitialBackoff == that.partitionRequestInitialBackoff &&
 					this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff &&
 					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
 					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
+					this.isCreditBased == that.isCreditBased &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null);
 		}
 	}
@@ -145,14 +137,13 @@ public class NetworkEnvironmentConfiguration {
 	@Override
 	public String toString() {
 		return "NetworkEnvironmentConfiguration{" +
-				"networkBufFraction=" + networkBufFraction +
-				", networkBufMin=" + networkBufMin +
-				", networkBufMax=" + networkBufMax +
+				", numNetworkBuffers=" + numNetworkBuffers +
 				", networkBufferSize=" + networkBufferSize +
 				", partitionRequestInitialBackoff=" + partitionRequestInitialBackoff +
 				", partitionRequestMaxBackoff=" + partitionRequestMaxBackoff +
 				", networkBuffersPerChannel=" + networkBuffersPerChannel +
 				", floatingNetworkBuffersPerGate=" + floatingNetworkBuffersPerGate +
+				", isCreditBased=" + isCreditBased +
 				", nettyConfig=" + nettyConfig +
 				'}';
 	}
