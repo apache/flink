@@ -22,7 +22,6 @@ import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.util.MurmurHashUtil;
 
-import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
 import static org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET;
 
 /**
