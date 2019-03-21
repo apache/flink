@@ -30,7 +30,7 @@ public interface StreamOperatorSubstitutor<OUT> {
 	 * Produces the actual stream operator.
 	 *
 	 * @param userCodeClassLoader the user code class loader to use.
-	 * @return the actual stream operator created on {@code StreamTask}.
+	 * @return the actual stream operator which will be used by {@code StreamTask}.
 	 */
 	StreamOperator<OUT> getActualStreamOperator(ClassLoader userCodeClassLoader);
 }
