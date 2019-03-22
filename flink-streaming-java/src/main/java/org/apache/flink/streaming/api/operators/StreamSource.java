@@ -154,7 +154,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 					public void onProcessingTime(long timestamp) throws Exception {
 						try {
 							// ProcessingTimeService callbacks are executed under the checkpointing lock
-							output.emitLatencyMarker(new LatencyMarker(timestamp, operatorId, subtaskIndex));
+							output.emitLatencyMarker(new LatencyMarker(processingTimeService.getCurrentProcessingTime(), operatorId, subtaskIndex));
 						} catch (Throwable t) {
 							// we catch the Throwables here so that we don't trigger the processing
 							// timer services async exception handler
