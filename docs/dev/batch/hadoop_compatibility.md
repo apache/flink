@@ -31,8 +31,9 @@ You can:
 - use Hadoop's `Writable` [data types]({{ site.baseurl }}/dev/api_concepts.html#supported-data-types) in Flink programs.
 - use any Hadoop `InputFormat` as a [DataSource](index.html#data-sources).
 - use any Hadoop `OutputFormat` as a [DataSink](index.html#data-sinks).
-- use a Hadoop `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
+- use a Hadoop mapred `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
 - use a Hadoop `Reducer` as [GroupReduceFunction](dataset_transformations.html#groupreduce-on-grouped-dataset).
+- use a Hadoop mapreduce `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
 
 This document shows how to use existing Hadoop MapReduce code with Flink. Please refer to the
 [Connecting to other systems]({{ site.baseurl }}/dev/batch/connectors.html) guide for reading from Hadoop supported file systems.
@@ -176,15 +177,16 @@ hadoopResult.output(hadoopOF)
 
 ### Using Hadoop Mappers and Reducers
 
-Hadoop Mappers are semantically equivalent to Flink's [FlatMapFunctions](dataset_transformations.html#flatmap) and Hadoop Reducers are equivalent to Flink's [GroupReduceFunctions](dataset_transformations.html#groupreduce-on-grouped-dataset). Flink provides wrappers for implementations of Hadoop MapReduce's `Mapper` and `Reducer` interfaces, i.e., you can reuse your Hadoop Mappers and Reducers in regular Flink programs. At the moment, only the Mapper and Reduce interfaces of Hadoop's mapred API (`org.apache.hadoop.mapred`) are supported.
+Hadoop Mappers are semantically equivalent to Flink's [FlatMapFunctions](dataset_transformations.html#flatmap) and Hadoop Reducers are equivalent to Flink's [GroupReduceFunctions](dataset_transformations.html#groupreduce-on-grouped-dataset). Flink provides wrappers for implementations of Hadoop MapReduce's `Mapper` and `Reducer` interfaces, i.e., you can reuse your Hadoop Mappers and Reducers in regular Flink programs. At the moment, only the Mapper, Reducer interfaces of Hadoop's mapred API (`org.apache.hadoop.mapred`) and Mapper interface of Hadoop's mapreduce API (`org.apache.hadoop.mapreduce`) are supported.
 
 The wrappers take a `DataSet<Tuple2<KEYIN,VALUEIN>>` as input and produce a `DataSet<Tuple2<KEYOUT,VALUEOUT>>` as output where `KEYIN` and `KEYOUT` are the keys and `VALUEIN` and `VALUEOUT` are the values of the Hadoop key-value pairs that are processed by the Hadoop functions. For Reducers, Flink offers a wrapper for a GroupReduceFunction with (`HadoopReduceCombineFunction`) and without a Combiner (`HadoopReduceFunction`). The wrappers accept an optional `JobConf` object to configure the Hadoop Mapper or Reducer.
 
 Flink's function wrappers are
 
 - `org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction`,
-- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction`, and
-- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction`.
+- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction`,
+- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction`,
+- `org.apache.flink.hadoopcompatibility.mapreduce.HadoopMapFunction`
 
 and can be used as regular Flink [FlatMapFunctions](dataset_transformations.html#flatmap) or [GroupReduceFunctions](dataset_transformations.html#groupreduce-on-grouped-dataset).
 

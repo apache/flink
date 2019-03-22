@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
+import org.apache.flink.test.hadoopcompatibility.HadoopTestData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 
 import org.apache.hadoop.io.IntWritable;
