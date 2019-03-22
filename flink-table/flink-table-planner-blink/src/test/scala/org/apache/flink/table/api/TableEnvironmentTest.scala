@@ -51,7 +51,7 @@ class TableEnvironmentTest {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
     val scanTable = tableEnv.scan("MyTable")
-    val actual = RelOptUtil.toString(scanTable.getRelNode)
+    val actual = RelOptUtil.toString(scanTable.asInstanceOf[TableImpl].getRelNode)
     val expected = "LogicalTableScan(table=[[MyTable]])\n"
     assertEquals(expected, actual)
 
@@ -66,7 +66,7 @@ class TableEnvironmentTest {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
-    val actual = RelOptUtil.toString(queryTable.getRelNode)
+    val actual = RelOptUtil.toString(queryTable.asInstanceOf[TableImpl].getRelNode)
     val expected = "LogicalProject(a=[$0], c=[$2], d=[$3])\n" +
       "  LogicalTableScan(table=[[MyTable]])\n"
     assertEquals(expected, actual)

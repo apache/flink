@@ -19,9 +19,8 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{TableConfig, TableImpl}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-
 import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -44,7 +43,7 @@ class FlinkRelOptUtilTest {
         |SELECT * FROM t1 JOIN t2 ON t1.a = t2.a
       """.stripMargin
     val result = tableEnv.sqlQuery(sqlQuery)
-    val rel = result.getRelNode
+    val rel = result.asInstanceOf[TableImpl].getRelNode
 
     val expected1 =
       """

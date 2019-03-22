@@ -181,13 +181,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   def registerTable(name: String, table: Table): Unit = {
 
     // check that table belongs to this table environment
-    if (table.tableEnv != this) {
+    if (table.asInstanceOf[TableImpl].tableEnv != this) {
       throw new TableException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
     checkValidTableName(name)
-    val tableTable = new RelTable(table.getRelNode)
+    val tableTable = new RelTable(table.asInstanceOf[TableImpl].getRelNode)
     registerTableInternal(name, tableTable)
   }
 
@@ -247,7 +247,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val table = schema.getTable(tableName)
       if (table != null) {
         val scan = relBuilder.scan(JArrays.asList(tablePath: _*)).build()
-        return Some(new Table(this, scan))
+        return Some(new TableImpl(this, scan))
       }
     }
     None
@@ -351,7 +351,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new Table(this, relational.project())
+      new TableImpl(this, relational.project())
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
