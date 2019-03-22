@@ -45,8 +45,6 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 
 		this.function = function;
 		this.defaultName = defaultName;
-
-		UdfOperatorUtils.analyzeSingleInputUdf(this, FlatMapFunction.class, defaultName, function, null);
 	}
 
 	@Override
