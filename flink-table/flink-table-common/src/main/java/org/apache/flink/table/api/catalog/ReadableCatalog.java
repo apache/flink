@@ -86,7 +86,7 @@ public interface ReadableCatalog {
 	 * @return A list of the names of all tables and views in this database
 	 * @throws DatabaseNotExistException if the database does not exist
 	 */
-	List<ObjectPath> listTables(String dbName) throws DatabaseNotExistException;
+	List<String> listTables(String dbName) throws DatabaseNotExistException;
 
 	/**
 	 * Gets a CatalogTable or CatalogView identified by objectPath.
@@ -111,7 +111,7 @@ public interface ReadableCatalog {
 	 * @return the list of the names of all views in the given database
 	 * @throws DatabaseNotExistException if the database does not exist
 	 */
-	List<ObjectPath> listViews(String databaseName) throws DatabaseNotExistException;
+	List<String> listViews(String databaseName) throws DatabaseNotExistException;
 
 
 	/**
