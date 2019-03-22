@@ -25,6 +25,8 @@ if [ -z "${HERE}" ] ; then
 	exit 1  # fail
 fi
 
+SCRIPT=$1
+
 ARTIFACTS_DIR="${HERE}/artifacts"
 
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
