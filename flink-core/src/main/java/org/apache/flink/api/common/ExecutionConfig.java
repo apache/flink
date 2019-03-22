@@ -56,10 +56,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *         handling <i>generic types</i> and <i>POJOs</i>. This is usually only needed
  *         when the functions return not only the types declared in their signature, but
  *         also subclasses of those types.</li>
- *     <li>The {@link CodeAnalysisMode} of the program: Enable hinting/optimizing or disable
- *         the "static code analyzer". The static code analyzer pre-interprets user-defined functions in order to
- *         get implementation insights for program improvements that can be printed to the log or
- *         automatically applied.</li>
  * </ul>
  */
 @Public
@@ -699,23 +695,18 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 	
 	/**
-	 * Sets the {@link CodeAnalysisMode} of the program. Specifies to which extent user-defined
-	 * functions are analyzed in order to give the Flink optimizer an insight of UDF internals
-	 * and inform the user about common implementation mistakes. The static code analyzer pre-interprets
-	 * user-defined functions in order to get implementation insights for program improvements
-	 * that can be printed to the log, automatically applied, or disabled.
-	 * 
-	 * @param codeAnalysisMode see {@link CodeAnalysisMode}
+	 * @deprecated The code analysis code has been removed and this method has no effect.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
-		this.codeAnalysisMode = codeAnalysisMode;
 	}
 	
 	/**
-	 * Returns the {@link CodeAnalysisMode} of the program.
+	 * @deprecated The code analysis code has been removed and this method does not return anything interesting.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public CodeAnalysisMode getCodeAnalysisMode() {
 		return codeAnalysisMode;
 	}
