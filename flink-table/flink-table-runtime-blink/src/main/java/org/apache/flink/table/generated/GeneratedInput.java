@@ -29,6 +29,17 @@ public final class GeneratedInput<F extends InputFormat<?, ?>> extends Generated
 
 	private static final long serialVersionUID = -7355875544905245676L;
 
+
+	/**
+	 * Creates a GeneratedInput.
+	 *
+	 * @param className class name of the generated Function.
+	 * @param code code of the generated Function.
+	 */
+	public GeneratedInput(String className, String code) {
+		super(className, code, new Object[0]);
+	}
+
 	/**
 	 * Creates a GeneratedInput.
 	 *

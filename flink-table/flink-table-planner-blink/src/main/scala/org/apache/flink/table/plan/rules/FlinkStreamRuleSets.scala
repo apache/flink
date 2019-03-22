@@ -215,7 +215,8 @@ object FlinkStreamRuleSets {
     StreamExecTableSourceScanRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
     StreamExecCalcRule.INSTANCE,
-    StreamExecUnionRule.INSTANCE
+    StreamExecUnionRule.INSTANCE,
+    StreamExecSinkRule.INSTANCE
   )
 
 }

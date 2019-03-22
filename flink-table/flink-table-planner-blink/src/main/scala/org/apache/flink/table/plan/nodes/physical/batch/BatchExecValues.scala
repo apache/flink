@@ -18,12 +18,20 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import com.google.common.collect.ImmutableList
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.codegen.ValuesCodeGenerator
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexLiteral
+
+import com.google.common.collect.ImmutableList
 
 import java.util
 
@@ -38,7 +46,8 @@ class BatchExecValues(
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
-  with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   override def deriveRowType(): RelDataType = outputRowType
 
@@ -49,6 +58,36 @@ class BatchExecValues(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("values", getRowType.getFieldNames.toList.mkString(", "))
+  }
+
+  /**
+    * Returns [[DamBehavior]] of this node.
+    */
+  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+
+  /**
+    * Internal method, translates this node into a Flink operator.
+    *
+    * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
+    */
+  override protected def translateToPlanInternal(
+    tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    val inputFormat = ValuesCodeGenerator.generatorInputFormat(
+      tableEnv,
+      getRowType,
+      tuples,
+      getRelTypeName)
+    tableEnv.streamEnv.createInput(inputFormat, inputFormat.getProducedType).getTransformation
+  }
+
+  /**
+    * Returns an array of this node's inputs. If there are no inputs,
+    * returns an empty list, not null.
+    *
+    * @return Array of this node's inputs
+    */
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
+    new util.ArrayList[ExecNode[BatchTableEnvironment, _]]()
   }
 
 }

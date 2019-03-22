@@ -765,4 +765,9 @@ object CodeGeneratorContext {
   def apply(config: TableConfig): CodeGeneratorContext = {
     new CodeGeneratorContext(config)
   }
+
+  val DEFAULT_OUT_RECORD_TERM = "out"
+
+  val DEFAULT_OUT_RECORD_WRITER_TERM = "outWriter"
+
 }

@@ -238,4 +238,9 @@ public class TypeConverters {
 			throw new UnsupportedOperationException("Not support yet: " + type);
 		}
 	}
+
+	public static BaseRowTypeInfo toBaseRowTypeInfo(RowType t) {
+		return new BaseRowTypeInfo(t.getFieldTypes(), t.getFieldNames());
+	}
+
 }

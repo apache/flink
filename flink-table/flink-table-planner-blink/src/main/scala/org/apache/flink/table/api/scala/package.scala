@@ -60,6 +60,10 @@ import _root_.scala.language.implicitConversions
   */
 package object scala {
 
+  implicit def table2TableConversions(table: Table): TableConversions = {
+    new TableConversions(table)
+  }
+
   implicit def dataStream2DataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {
     new DataStreamConversions[T](set, set.dataType)
   }

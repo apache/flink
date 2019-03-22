@@ -28,6 +28,16 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class TableConfigOptions {
 
 	// ------------------------------------------------------------------------
+	//  Source Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Boolean> SQL_EXEC_SOURCE_VALUES_INPUT_ENABLED =
+			key("sql.exec.source.values-input.enabled")
+					.defaultValue(false)
+					.withDescription("Whether support values source input. The reason for disabling this " +
+									"feature is that checkpoint will not work properly when source finished.");
+
+	// ------------------------------------------------------------------------
 	//  Sort Options
 	// ------------------------------------------------------------------------
 
