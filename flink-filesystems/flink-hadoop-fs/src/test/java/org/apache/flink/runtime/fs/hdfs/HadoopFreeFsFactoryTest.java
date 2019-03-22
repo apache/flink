@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.util.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -25,6 +26,7 @@ import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.net.URLClassLoader;
 
 /**
@@ -43,8 +45,10 @@ public class HadoopFreeFsFactoryTest extends TestLogger {
 
 		final String testClassName = "org.apache.flink.runtime.fs.hdfs.HadoopFreeTests";
 
-		URLClassLoader parent = (URLClassLoader) getClass().getClassLoader();
-		ClassLoader hadoopFreeClassLoader = new HadoopFreeClassLoader(parent);
+		final URL[] urls = ClassLoaderUtils.getClasspathURLs();
+
+		ClassLoader parent = getClass().getClassLoader();
+		ClassLoader hadoopFreeClassLoader = new HadoopFreeClassLoader(urls, parent);
 		Class<?> testClass = Class.forName(testClassName, false, hadoopFreeClassLoader);
 		Method m = testClass.getDeclaredMethod("test");
 
@@ -62,8 +66,8 @@ public class HadoopFreeFsFactoryTest extends TestLogger {
 
 		private final ClassLoader properParent;
 
-		HadoopFreeClassLoader(URLClassLoader parent) {
-			super(parent.getURLs(), null);
+		HadoopFreeClassLoader(URL[] urls, ClassLoader parent) {
+			super(urls, null);
 			properParent = parent;
 		}
 
