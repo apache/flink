@@ -66,7 +66,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Invocation handler to be used with an {@link AkkaRpcActor}. The invocation handler wraps the rpc
- * in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
+ * in an {@link RpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
 class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, RpcServer {
