@@ -102,7 +102,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<flink.shaded.version>6.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
-		<akka.version>2.4.20</akka.version>
+		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
 		<slf4j.version>1.7.15</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
@@ -531,6 +531,12 @@ under the License.
 				<groupId>com.typesafe.akka</groupId>
 				<artifactId>akka-camel_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.scala-lang.modules</groupId>
+				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+				<version>1.1.1</version>
 			</dependency>
 
 			<dependency>

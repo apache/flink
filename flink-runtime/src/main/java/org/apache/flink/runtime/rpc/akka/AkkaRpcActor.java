@@ -38,9 +38,10 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Status;
-import akka.actor.UntypedActor;
+import akka.japi.pf.ReceiveBuilder;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> Type of the {@link RpcEndpoint}
  */
-class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
+class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -135,12 +136,16 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	}
 
 	@Override
-	public void onReceive(final Object message) {
-		if (message instanceof RemoteHandshakeMessage) {
-			handleHandshakeMessage((RemoteHandshakeMessage) message);
-		} else if (message instanceof ControlMessages) {
-			handleControlMessage(((ControlMessages) message));
-		} else if (state.isRunning()) {
+	public Receive createReceive() {
+		return ReceiveBuilder.create()
+			.match(RemoteHandshakeMessage.class, this::handleHandshakeMessage)
+			.match(ControlMessages.class, this::handleControlMessage)
+			.matchAny(this::handleMessage)
+			.build();
+	}
+
+	private void handleMessage(final Object message) {
+		if (state.isRunning()) {
 			mainThreadValidator.enterMainThread();
 
 			try {
