@@ -169,6 +169,9 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 			numberLatencyMarkers + 1, // + 1 is the final watermark element
 			output.size());
 
+		long timestamp = 0L;
+		int expectedLatencyIndex = 0;
+
 		int i = 0;
 		// verify that its only latency markers + a final watermark
 		for (; i < numberLatencyMarkers; i++) {
@@ -176,6 +179,16 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 			Assert.assertTrue(se.isLatencyMarker());
 			Assert.assertEquals(operator.getOperatorID(), se.asLatencyMarker().getOperatorId());
 			Assert.assertEquals(0, se.asLatencyMarker().getSubtaskIndex());
+
+			// determines the next latency mark that should've been emitted
+			// latency marks are emitted once per latencyMarkInterval,
+			// as a result of which we never emit both 10 and 11
+			while (timestamp > processingTimes.get(expectedLatencyIndex)) {
+				expectedLatencyIndex++;
+			}
+			Assert.assertEquals(processingTimes.get(expectedLatencyIndex).longValue(), se.asLatencyMarker().getMarkedTime());
+
+			timestamp += latencyMarkInterval;
 		}
 
 		Assert.assertTrue(output.get(i).isWatermark());
