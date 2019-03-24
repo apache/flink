@@ -41,7 +41,6 @@ flink-streaming-scala"
 MODULES_CORE_JDK9_EXCLUSIONS="\
 !flink-state-backends/flink-statebackend-rocksdb,\
 !flink-clients,\
-!flink-java,\
 !flink-runtime,\
 !flink-scala,\
 !flink-scala-shell"
