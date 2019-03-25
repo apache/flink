@@ -212,7 +212,7 @@ function start_local_zk {
 function wait_dispatcher_running {
   # wait at most 10 seconds until the dispatcher is up
   local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
-  local TIMEOUT=10
+  local TIMEOUT=20
   for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
     QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
