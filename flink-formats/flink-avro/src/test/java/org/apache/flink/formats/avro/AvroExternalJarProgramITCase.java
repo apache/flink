@@ -68,7 +68,7 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 		String jarFile = JAR_FILE;
 		try {
-			JobWithJars.checkJarFile(new File(jarFile).toURL());
+			JobWithJars.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
 		} catch (IOException e) {
 			jarFile = "target/".concat(jarFile);
 		}
