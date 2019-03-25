@@ -1802,8 +1802,8 @@ public class TypeExtractor {
 				if((methodNameLow.equals("set"+fieldNameLow) || methodNameLow.equals(fieldNameLow+"_$eq")) &&
 					m.getParameterTypes().length == 1 && // one parameter of the field's type
 					(m.getGenericParameterTypes()[0].equals( fieldType ) || (fieldTypeWrapper != null && m.getParameterTypes()[0].equals( fieldTypeWrapper )) || (fieldTypeGeneric != null && m.getGenericParameterTypes()[0].equals(fieldTypeGeneric) ) )&&
-					// return type is void.
-					m.getReturnType().equals(Void.TYPE)
+					// return type is void (or the class self).
+					(m.getReturnType().equals(Void.TYPE) || m.getReturnType().equals(clazz))
 				) {
 					hasSetter = true;
 				}
