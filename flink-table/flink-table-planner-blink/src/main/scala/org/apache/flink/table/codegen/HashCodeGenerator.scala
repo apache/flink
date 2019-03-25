@@ -103,10 +103,10 @@ object HashCodeGenerator {
 
   private def hashExpr(expr: GeneratedExpression): String = {
     val util = classOf[HashUtil].getCanonicalName
-    s"$util.hash${hashNameInBinaryUtil(expr.resultType)}(${expr.resultTerm})"
+    s"$util.hash${hashNameInHashUtil(expr.resultType)}(${expr.resultTerm})"
   }
 
-  private def hashNameInBinaryUtil(t: InternalType): String = t match {
+  private def hashNameInHashUtil(t: InternalType): String = t match {
     case InternalTypes.INT => "Int"
     case InternalTypes.LONG => "Long"
     case InternalTypes.SHORT => "Short"
