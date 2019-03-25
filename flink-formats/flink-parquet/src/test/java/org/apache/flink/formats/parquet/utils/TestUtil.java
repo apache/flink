@@ -19,6 +19,10 @@
 package org.apache.flink.formats.parquet.utils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.generated.ArrayItem;
@@ -52,10 +56,32 @@ import java.util.UUID;
  * Utilities for testing schema conversion and test parquet file creation.
  */
 public class TestUtil {
+	private static final TypeInformation<Row[]> nestedArray = Types.OBJECT_ARRAY(Types.ROW_NAMED(
+		new String[] {"type", "value"}, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+
+	@SuppressWarnings("unchecked")
+	private static final TypeInformation<Map<String, Row>> nestedMap = Types.MAP(BasicTypeInfo.STRING_TYPE_INFO,
+		Types.ROW_NAMED(new String[] {"type", "value"},
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+
 	@ClassRule
 	public static TemporaryFolder tempRoot = new TemporaryFolder();
 	public static final Schema NESTED_SCHEMA = getTestSchema("nested.avsc");
 	public static final Schema SIMPLE_SCHEMA = getTestSchema("simple.avsc");
+
+	public static final TypeInformation<Row> SIMPLE_ROW_TYPE = Types.ROW_NAMED(new String[] {"foo", "bar", "arr"},
+		BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO);
+
+	@SuppressWarnings("unchecked")
+	public static final TypeInformation<Row> NESTED_ROW_TYPE = Types.ROW_NAMED(
+		new String[] {"foo", "spamMap", "bar", "arr", "strArray", "nestedMap", "nestedArray"},
+		BasicTypeInfo.LONG_TYPE_INFO,
+		Types.MAP(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+		Types.ROW_NAMED(new String[] {"spam"}, BasicTypeInfo.LONG_TYPE_INFO),
+		BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO,
+		BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
+		nestedMap,
+		nestedArray);
 
 	public static Path createTempParquetFile(File folder, Schema schema, List<IndexedRecord> records) throws IOException {
 		Path path = new Path(folder.getPath(), UUID.randomUUID().toString());

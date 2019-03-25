@@ -35,6 +35,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
@@ -84,6 +85,8 @@ public abstract class ParquetInputFormat<E>
 	private TypeInformation[] fieldTypes;
 
 	private String[] fieldNames;
+
+	private FilterPredicate filterPredicate;
 
 	private transient Counter recordConsumed;
 
@@ -143,6 +146,10 @@ public abstract class ParquetInputFormat<E>
 		this.fieldTypes = selectFieldTypes;
 	}
 
+	public void setFilterPredicate(FilterPredicate filterPredicate) {
+		this.filterPredicate = filterPredicate;
+	}
+
 	@Override
 	public Tuple2<Long, Long> getCurrentState() {
 		return parquetRecordReader.getCurrentReadPosition();
@@ -164,7 +171,8 @@ public abstract class ParquetInputFormat<E>
 				"Escaped the file split [%s] due to mismatch of file schema to expected result schema",
 				split.getPath().toString()));
 		} else {
-			this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
+			this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema,
+				filterPredicate == null ? FilterCompat.NOOP : FilterCompat.get(filterPredicate));
 			this.parquetRecordReader.initialize(fileReader, configuration);
 			this.parquetRecordReader.setSkipCorruptedRecord(this.skipCorruptedRecord);
 
