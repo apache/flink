@@ -85,7 +85,7 @@ public class AkkaRpcService implements RpcService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcService.class);
 
-	static final int VERSION = 1;
+	private static final int VERSION = 1;
 
 	private final Object lock = new Object();
 
@@ -222,14 +222,9 @@ public class AkkaRpcService implements RpcService {
 
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
-		final String akkaAddress = AkkaUtils.getAkkaURL(actorSystem, actorRef);
-		final String hostname;
-		Option<String> host = actorRef.path().address().host();
-		if (host.isEmpty()) {
-			hostname = "localhost";
-		} else {
-			hostname = host.get();
-		}
+		Tuple2<String, String> addressHostname = extractAddressHostname(actorRef);
+		final String akkaAddress = addressHostname.f0;
+		final String hostname = addressHostname.f1;
 
 		Set<Class<?>> implementedRpcGateways = new HashSet<>(RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass()));
 
@@ -265,13 +260,10 @@ public class AkkaRpcService implements RpcService {
 		// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
 		ClassLoader classLoader = getClass().getClassLoader();
 
-		@SuppressWarnings("unchecked")
-		RpcServer server = (RpcServer) Proxy.newProxyInstance(
+		return (RpcServer) Proxy.newProxyInstance(
 			classLoader,
-			implementedRpcGateways.toArray(new Class<?>[implementedRpcGateways.size()]),
+			implementedRpcGateways.toArray(new Class<?>[0]),
 			akkaInvocationHandler);
-
-		return server;
 	}
 
 	@Override
@@ -407,7 +399,7 @@ public class AkkaRpcService implements RpcService {
 
 	@Override
 	public <T> CompletableFuture<T> execute(Callable<T> callable) {
-		Future<T> scalaFuture = Futures.<T>future(callable, actorSystem.dispatcher());
+		Future<T> scalaFuture = Futures.future(callable, actorSystem.dispatcher());
 
 		return FutureUtils.toJava(scalaFuture);
 	}
@@ -442,7 +434,7 @@ public class AkkaRpcService implements RpcService {
 
 		final Future<ActorIdentity> identify = Patterns
 			.ask(actorSel, new Identify(42), configuration.getTimeout().toMilliseconds())
-			.<ActorIdentity>mapTo(ClassTag$.MODULE$.<ActorIdentity>apply(ActorIdentity.class));
+			.mapTo(ClassTag$.MODULE$.apply(ActorIdentity.class));
 
 		final CompletableFuture<ActorIdentity> identifyFuture = FutureUtils.toJava(identify);
 
@@ -459,7 +451,7 @@ public class AkkaRpcService implements RpcService {
 			(ActorRef actorRef) -> FutureUtils.toJava(
 				Patterns
 					.ask(actorRef, new RemoteHandshakeMessage(clazz, getVersion()), configuration.getTimeout().toMilliseconds())
-					.<HandshakeSuccessMessage>mapTo(ClassTag$.MODULE$.<HandshakeSuccessMessage>apply(HandshakeSuccessMessage.class))));
+					.mapTo(ClassTag$.MODULE$.apply(HandshakeSuccessMessage.class))));
 
 		return actorRefFuture.thenCombineAsync(
 			handshakeFuture,
