@@ -38,9 +38,9 @@ class CollectTableSink[T](produceOutputType: (Array[TypeInformation[_]] => TypeI
   private var collectOutputFormat: CollectOutputFormat[T] = _
 
   override def emitBoundedStream(
-    boundedStream: DataStream[T],
-    tableConfig: TableConfig,
-    executionConfig: ExecutionConfig): DataStreamSink[T] = {
+      boundedStream: DataStream[T],
+      tableConfig: TableConfig,
+      executionConfig: ExecutionConfig): DataStreamSink[T] = {
     boundedStream.writeUsingOutputFormat(collectOutputFormat)
     .name("collect")
   }

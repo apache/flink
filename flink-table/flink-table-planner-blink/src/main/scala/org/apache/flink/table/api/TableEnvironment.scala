@@ -163,9 +163,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @tparam T The data type that the [[TableSink]] expects.
     */
   private[table] def writeToSink[T](
-    table: Table,
-    sink: TableSink[T],
-    sinkName: String = null): Unit
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String = null): Unit
+
   /**
     * Generates the optimized [[RelNode]] dag from the original relational nodes.
     *

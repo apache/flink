@@ -84,4 +84,13 @@ public class TableConfigOptions {
 					.defaultValue(Long.MIN_VALUE)
 					.withDescription("MiniBatch allow latency(ms). Value > 0 means MiniBatch enabled.");
 
+	// ------------------------------------------------------------------------
+	//  STATE BACKEND Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Boolean> SQL_EXEC_STATE_BACKEND_ON_HEAP =
+			key("sql.exec.statebackend.onheap")
+					.defaultValue(false)
+					.withDescription("Whether the statebackend is on heap.");
+
 }

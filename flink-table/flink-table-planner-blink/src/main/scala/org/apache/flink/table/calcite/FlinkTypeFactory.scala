@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.table.`type`._
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
@@ -360,11 +358,6 @@ object FlinkTypeFactory {
 
   def isRowtimeIndicatorType(relDataType: RelDataType): Boolean = relDataType match {
     case ti: TimeIndicatorRelDataType if ti.isEventTime => true
-    case _ => false
-  }
-
-  def isRowtimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
-    case ti: TimeIndicatorTypeInfo if ti.isEventTime => true
     case _ => false
   }
 

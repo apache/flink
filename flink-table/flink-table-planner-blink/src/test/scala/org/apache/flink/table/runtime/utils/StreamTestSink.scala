@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.BaseRowUtil
 
 import _root_.java.util.TimeZone
 import _root_.java.util.concurrent.atomic.AtomicInteger
@@ -118,14 +119,15 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
 }
 
 final class TestingAppendBaseRowSink(
-  rowTypeInfo: BaseRowTypeInfo, tz: TimeZone)
+    rowTypeInfo: BaseRowTypeInfo, tz: TimeZone)
   extends AbstractExactlyOnceSink[BaseRow] {
+
   def this(rowTypeInfo: BaseRowTypeInfo) {
     this(rowTypeInfo, TimeZone.getTimeZone("UTC"))
   }
 
   def invoke(value: BaseRow): Unit = localResults +=
-    TestSinkUtil.baseRowToString(value, rowTypeInfo, tz)
+    BaseRowUtil.baseRowToString(value, rowTypeInfo, tz)
 
   def getAppendResults: List[String] = getResults
 

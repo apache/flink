@@ -62,13 +62,10 @@ class StreamExecValues(
     new StreamExecValues(cluster, traitSet, getTuples, outputRowType)
   }
 
-  /**
-    * Internal method, translates this node into a Flink operator.
-    *
-    * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    */
+  //~ ExecNode methods -----------------------------------------------------------
+
   override protected def translateToPlanInternal(
-    tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
     if (tableEnv.getConfig.getConf.getBoolean(
       TableConfigOptions.SQL_EXEC_SOURCE_VALUES_INPUT_ENABLED)) {
       val inputFormat = ValuesCodeGenerator.generatorInputFormat(
@@ -84,12 +81,6 @@ class StreamExecValues(
     }
   }
 
-  /**
-    * Returns an array of this node's inputs. If there are no inputs,
-    * returns an empty list, not null.
-    *
-    * @return Array of this node's inputs
-    */
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     new util.ArrayList[ExecNode[StreamTableEnvironment, _]]()
   }

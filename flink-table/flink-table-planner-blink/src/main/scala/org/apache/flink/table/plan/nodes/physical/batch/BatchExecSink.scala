@@ -53,71 +53,53 @@ class BatchExecSink[T](
     new BatchExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
 
-  /**
-    * Returns [[DamBehavior]] of this node.
-    */
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+  //~ ExecNode methods -----------------------------------------------------------
 
   /**
-    * Returns an array of this node's inputs. If there are no inputs,
-    * returns an empty list, not null.
+    * For sink operator, the records will not pass through it, so it's DamBehavior is FULL_DAM.
     *
-    * @return Array of this node's inputs
+    * @return Returns [[DamBehavior]] of Sink.
     */
+  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
+
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
   }
 
-  /**
-    * Internal method, translates this node into a Flink operator.
-    *
-    * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
-    */
   override protected def translateToPlanInternal(
-    tableEnv: BatchTableEnvironment): StreamTransformation[Any] = {
+      tableEnv: BatchTableEnvironment): StreamTransformation[Any] = {
     val convertTransformation = sink match {
       case _: BatchTableSink[T] =>
-        translate(withChangeFlag = false, tableEnv)
+        val transformation = translateToStreamTransformation(withChangeFlag = false, tableEnv)
+        val stream = new DataStream(tableEnv.streamEnv, transformation)
+        emitBoundedStreamSink(stream, tableEnv).getTransformation
       case streamTableSink: DataStreamTableSink[T] =>
-        translate(withChangeFlag = streamTableSink.withChangeFlag, tableEnv)
+        // In case of table to bounded stream through BatchTableEnvironment#toBoundedStream, we
+        // insert a DataStreamTableSink then wrap it as a LogicalSink, there is no real batch table
+        // sink, so we do not need to invoke TableSink#emitBoundedStream and set resource, just a
+        // translation to StreamTransformation is ok.
+        translateToStreamTransformation(withChangeFlag = streamTableSink.withChangeFlag, tableEnv)
       case _ =>
-        throw new TableException("Only Support BatchTableSink or BatchCompatibleStreamTableSink")
+        throw new TableException("Only Support BatchTableSink or DataStreamTableSink!")
     }
-    // In case of table to bounded stream through BatchTableEnvironment#toBoundedStream, we insert a
-    // DataStreamTableSink then wrap it as a LogicalSink, there is no real batch table sink, so
-    // we do not need to invoke TableSink#emitBoundedStream and set resource, just a translation to
-    // StreamTransformation is ok.
-    val resultTransformation = if (sink.isInstanceOf[DataStreamTableSink[T]]) {
-      convertTransformation
-    } else {
-      val stream = new DataStream(tableEnv.streamEnv, convertTransformation)
-      emitBoundedStreamSink(stream, tableEnv).getTransformation
-    }
-    resultTransformation.asInstanceOf[StreamTransformation[Any]]
+    convertTransformation.asInstanceOf[StreamTransformation[Any]]
   }
 
   private def emitBoundedStreamSink(
-    boundedStream: DataStream[T],
-    tableEnv: BatchTableEnvironment): DataStreamSink[_] = {
+      boundedStream: DataStream[T],
+      tableEnv: BatchTableEnvironment): DataStreamSink[_] = {
     val config = tableEnv.getConfig
     sink match {
       case sinkBatch: BatchTableSink[T] =>
         sinkBatch.emitBoundedStream(boundedStream, config, tableEnv.streamEnv.getConfig)
 
-      case _ => throw new TableException("BatchTableSink or CompatibleStreamTableSink " +
-                                           "required to emit batch exec Table")
+      case _ => throw new TableException("BatchTableSink required to emit batch exec Table.")
     }
   }
 
-  /**
-    * Translates a logical [[RelNode]] into a [[StreamTransformation]].
-    * Converts to target type if necessary.
-    *
-    * @return The [[StreamTransformation]] that corresponds to the translated [[Table]].
-    */
-  private def translate(
-    withChangeFlag: Boolean,
-    tableEnv: BatchTableEnvironment): StreamTransformation[T] = {
+  private def translateToStreamTransformation(
+      withChangeFlag: Boolean,
+      tableEnv: BatchTableEnvironment): StreamTransformation[T] = {
     val resultType = sink.getOutputType
     TableEnvironment.validateType(resultType)
     val inputNode = getInputNodes.get(0)
@@ -130,9 +112,7 @@ class BatchExecSink[T](
         if (CodeGenUtils.isInternalClass(typeClass, resultType)) {
           plan.asInstanceOf[StreamTransformation[T]]
         } else {
-          throw new TableException(
-            s"Not support SinkConvention now."
-          )
+          throw new TableException(s"Not support SinkConvention now.")
         }
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

@@ -117,17 +117,16 @@ class BatchTableEnvironment(
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
     */
   override private[table] def writeToSink[T](
-    table: Table,
-    sink: TableSink[T],
-    sinkName: String): Unit = {
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String): Unit = {
     mergeParameters()
 
     val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
     val optimizedPlan = optimize(sinkNode)
     val optimizedNodes = translateNodeDag(Seq(optimizedPlan))
-    translateNodeDag(Seq(optimizedPlan))
     require(optimizedNodes.size() == 1)
-    translate(optimizedNodes.head)
+    translateToPlan(optimizedNodes.head)
   }
 
   /**
@@ -137,7 +136,7 @@ class BatchTableEnvironment(
     * @param node        The plan to translate.
     * @return The [[StreamTransformation]] that corresponds to the given node.
     */
-  private def translate(node: ExecNode[_, _]): StreamTransformation[_] = {
+  private def translateToPlan(node: ExecNode[_, _]): StreamTransformation[_] = {
     node match {
       case node: BatchExecNode[_] => node.translateToPlan(this)
       case _ =>

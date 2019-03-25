@@ -34,10 +34,10 @@ import org.apache.flink.table.api.{Table, TableException}
   */
 @Internal
 class DataStreamTableSink[T](
-  table: Table,
-  outputType: TypeInformation[T],
-  val updatesAsRetraction: Boolean,
-  val withChangeFlag: Boolean) extends TableSink[T] {
+    table: Table,
+    outputType: TypeInformation[T],
+    val updatesAsRetraction: Boolean,
+    val withChangeFlag: Boolean) extends TableSink[T] {
 
   private lazy val tableSchema = table.getSchema
 
@@ -57,8 +57,8 @@ class DataStreamTableSink[T](
   override def getFieldNames: Array[String] = tableSchema.getFieldNames
 
   override def configure(
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]]): TableSink[T] = {
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): TableSink[T] = {
     throw new TableException(s"configure is not supported.")
   }
 

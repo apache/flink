@@ -27,10 +27,10 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.RelNode
 
 class BatchExecSinkRule extends ConverterRule(
-  classOf[FlinkLogicalSink],
-  FlinkConventions.LOGICAL,
-  FlinkConventions.BATCH_PHYSICAL,
-  "BatchExecSinkRule") {
+    classOf[FlinkLogicalSink],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.BATCH_PHYSICAL,
+    "BatchExecSinkRule") {
 
   def convert(rel: RelNode): RelNode = {
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]

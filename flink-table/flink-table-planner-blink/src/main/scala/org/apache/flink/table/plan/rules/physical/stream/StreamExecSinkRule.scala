@@ -27,10 +27,10 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.RelNode
 
 class StreamExecSinkRule extends ConverterRule(
-  classOf[FlinkLogicalSink],
-  FlinkConventions.LOGICAL,
-  FlinkConventions.STREAM_PHYSICAL,
-  "StreamExecSinkRule") {
+    classOf[FlinkLogicalSink],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.STREAM_PHYSICAL,
+    "StreamExecSinkRule") {
 
   def convert(rel: RelNode): RelNode = {
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]

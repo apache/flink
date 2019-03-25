@@ -42,13 +42,13 @@ object InputFormatCodeGenerator {
     * @return instance of GeneratedFunction
     */
   def generateValuesInputFormat[T](
-    ctx: CodeGeneratorContext,
-    name: String,
-    records: Seq[String],
-    returnType: InternalType,
-    outRecordTerm: String = CodeGeneratorContext.DEFAULT_OUT_RECORD_TERM,
-    outRecordWriterTerm: String = CodeGeneratorContext.DEFAULT_OUT_RECORD_WRITER_TERM)
-  : GeneratedInput[GenericInputFormat[T]] = {
+      ctx: CodeGeneratorContext,
+      name: String,
+      records: Seq[String],
+      returnType: InternalType,
+      outRecordTerm: String = CodeGenUtils.DEFAULT_OUT_RECORD_TERM,
+      outRecordWriterTerm: String = CodeGenUtils.DEFAULT_OUT_RECORD_WRITER_TERM)
+    : GeneratedInput[GenericInputFormat[T]] = {
     val funcName = newName(name)
 
     ctx.addReusableOutputRecord(returnType, classOf[GenericRow], outRecordTerm,
@@ -61,7 +61,7 @@ object InputFormatCodeGenerator {
 
         ${ctx.reuseMemberCode()}
 
-        public $funcName() throws Exception {
+        public $funcName(Object[] references) throws Exception {
           ${ctx.reuseInitCode()}
         }
 
@@ -74,12 +74,12 @@ object InputFormatCodeGenerator {
         public Object nextRecord(Object reuse) {
           switch (nextIdx) {
             ${records.zipWithIndex.map { case (r, i) =>
-      s"""
-         |case $i:
-         |  $r
-         |break;
+              s"""
+                 |case $i:
+                 |  $r
+                 |break;
                        """.stripMargin
-    }.mkString("\n")}
+            }.mkString("\n")}
           }
           nextIdx++;
           return $outRecordTerm;
@@ -87,7 +87,7 @@ object InputFormatCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedInput(funcName, funcCode)
+    new GeneratedInput(funcName, funcCode, ctx.references.toArray)
   }
 
 }

@@ -28,6 +28,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.sinks.{CollectTableSink, TableSinkBase}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.BaseRowUtil
 import org.apache.flink.util.AbstractID
 
 import _root_.java.util.{TimeZone, ArrayList => JArrayList}
@@ -68,7 +69,7 @@ class BatchTestBase {
     val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
     val datas: Seq[BaseRow] = SerializedListAccumulator.deserializeList(accResult, typeSerializer)
     val tz = TimeZone.getTimeZone("UTC")
-    datas.map(TestSinkUtil.baseRowToString(_, outType, tz, false))
+    datas.map(BaseRowUtil.baseRowToString(_, outType, tz, false))
   }
 
 }

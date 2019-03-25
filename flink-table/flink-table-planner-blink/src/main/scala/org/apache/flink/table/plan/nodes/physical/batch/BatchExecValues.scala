@@ -60,18 +60,12 @@ class BatchExecValues(
       .item("values", getRowType.getFieldNames.toList.mkString(", "))
   }
 
-  /**
-    * Returns [[DamBehavior]] of this node.
-    */
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
-  /**
-    * Internal method, translates this node into a Flink operator.
-    *
-    * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
-    */
   override protected def translateToPlanInternal(
-    tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val inputFormat = ValuesCodeGenerator.generatorInputFormat(
       tableEnv,
       getRowType,
@@ -80,12 +74,6 @@ class BatchExecValues(
     tableEnv.streamEnv.createInput(inputFormat, inputFormat.getProducedType).getTransformation
   }
 
-  /**
-    * Returns an array of this node's inputs. If there are no inputs,
-    * returns an empty list, not null.
-    *
-    * @return Array of this node's inputs
-    */
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
     new util.ArrayList[ExecNode[BatchTableEnvironment, _]]()
   }

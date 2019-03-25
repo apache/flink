@@ -30,7 +30,7 @@ import java.lang.{Boolean => JBool}
   * If the [[Table]] does not have a unique key and is not append-only, a
   * [[org.apache.flink.table.api.TableException]] will be thrown.
   *
-  * The unique key of the table is configured by the [[BaseUpsertStreamTableSink#setKeyFields()]]
+  * The unique key of the table is configured by the [[UpsertStreamTableSink#setKeyFields()]]
   * method.
   *
   * If the table is append-only, all messages will have a true flag and must be interpreted
@@ -38,7 +38,7 @@ import java.lang.{Boolean => JBool}
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-trait BaseUpsertStreamTableSink[T] extends StreamTableSink[T] {
+trait UpsertStreamTableSink[T] extends StreamTableSink[T] {
 
   /**
     * Configures the unique key fields of the [[Table]] to write.

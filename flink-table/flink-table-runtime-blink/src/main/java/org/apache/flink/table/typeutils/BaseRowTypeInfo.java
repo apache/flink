@@ -142,4 +142,9 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 	public BaseRowSerializer createSerializer(ExecutionConfig config) {
 		return new BaseRowSerializer(config, internalTypes);
 	}
+
+	public InternalType[] getInternalTypes() {
+		return internalTypes;
+	}
+
 }

@@ -29,7 +29,8 @@ import org.apache.flink.table.api._
 trait BatchTableSink[T] extends TableSink[T] {
 
   /** Emits the DataStream. */
-  def emitBoundedStream(boundedStream: DataStream[T],
-    tableConfig: TableConfig,
-    executionConfig: ExecutionConfig): DataStreamSink[_]
+  def emitBoundedStream(
+      boundedStream: DataStream[T],
+      tableConfig: TableConfig,
+      executionConfig: ExecutionConfig): DataStreamSink[_]
 }

@@ -20,6 +20,8 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
+import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -36,7 +38,6 @@ import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.table.util.StateUtil
 
 import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.calcite.rel.RelCollationTraitDef
@@ -119,9 +120,13 @@ abstract class StreamTableEnvironment(
           kv => parameters.setString(kv._1, kv._2)
         }
       }
-      parameters.setBoolean(
-        StateUtil.STATE_BACKEND_ON_HEAP,
-        StateUtil.isHeapState(execEnv.getStateBackend))
+      val isHeapState = Option(execEnv.getStateBackend) match {
+        case Some(backend) if backend.isInstanceOf[MemoryStateBackend] ||
+          backend.isInstanceOf[FsStateBackend]=> true
+        case None => true
+        case _ => false
+      }
+      parameters.setBoolean(TableConfigOptions.SQL_EXEC_STATE_BACKEND_ON_HEAP, isHeapState)
       execEnv.getConfig.setGlobalJobParameters(parameters)
       isConfigMerged = true
     }
@@ -138,9 +143,9 @@ abstract class StreamTableEnvironment(
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
     */
   override private[table] def writeToSink[T](
-    table: Table,
-    sink: TableSink[T],
-    sinkName: String): Unit = {
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String): Unit = {
     val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
     translateSink(sinkNode)
   }
@@ -160,10 +165,10 @@ abstract class StreamTableEnvironment(
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
   protected def translateToDataStream[T](
-    table: Table,
-    updatesAsRetraction: Boolean,
-    withChangeFlag: Boolean,
-    resultType: TypeInformation[T]): DataStream[T] = {
+      table: Table,
+      updatesAsRetraction: Boolean,
+      withChangeFlag: Boolean,
+      resultType: TypeInformation[T]): DataStream[T] = {
     val sink = new DataStreamTableSink[T](table, resultType, updatesAsRetraction, withChangeFlag)
     val sinkName = createUniqueTableName()
     val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
@@ -176,9 +181,8 @@ abstract class StreamTableEnvironment(
 
     val optimizedPlan = optimize(sink)
     val optimizedNodes = translateNodeDag(Seq(optimizedPlan))
-    translateNodeDag(Seq(optimizedPlan))
     require(optimizedNodes.size() == 1)
-    translate(optimizedNodes.head)
+    translateToPlan(optimizedNodes.head)
   }
 
   /**
@@ -187,7 +191,7 @@ abstract class StreamTableEnvironment(
     * @param node The plan to translate.
     * @return The [[StreamTransformation]] of type [[BaseRow]].
     */
-  private def translate(node: ExecNode[_, _]): StreamTransformation[_] = {
+  private def translateToPlan(node: ExecNode[_, _]): StreamTransformation[_] = {
     node match {
       case node: StreamExecNode[_] => node.translateToPlan(this)
       case _ =>

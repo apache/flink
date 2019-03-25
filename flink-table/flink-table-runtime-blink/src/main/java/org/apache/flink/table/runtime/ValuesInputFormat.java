@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.generated;
+package org.apache.flink.table.runtime;
 
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.generated.GeneratedInput;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.slf4j.Logger;
