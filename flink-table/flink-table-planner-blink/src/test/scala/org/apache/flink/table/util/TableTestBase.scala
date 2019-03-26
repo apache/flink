@@ -25,9 +25,9 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
-import org.apache.flink.table.api.{BatchTableEnvironment => _, StreamTableEnvironment => _, _}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -337,42 +337,6 @@ abstract class TableTestUtil(test: TableTestBase) {
       diffRepository.expand(test.name.getMethodName, tag, actual)
     }
   }
-
-  def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
-    val tableEnv = getTableEnv
-    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConf)
-    var startRemove = false
-    program.getProgramNames.foreach {
-      name =>
-        if (name.equals(firstProgramNameToRemove)) {
-          startRemove = true
-        }
-        if (startRemove) {
-          program.remove(name)
-        }
-    }
-    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(program).build()
-    tableEnv.getConfig.setCalciteConfig(calciteConfig)
-  }
-
-  def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
-    val tableEnv = getTableEnv
-    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConf)
-    var startRemove = false
-    program.getProgramNames.foreach {
-      name =>
-        if (name.equals(firstProgramNameToRemove)) {
-          startRemove = true
-        }
-        if (startRemove) {
-          program.remove(name)
-        }
-    }
-    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
-      .replaceStreamProgram(program).build()
-    tableEnv.getConfig.setCalciteConfig(calciteConfig)
-  }
 }
 
 /**
@@ -412,6 +376,23 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
       withRowType = false,
       printPlanBefore = true)
   }
+
+  def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
+    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConf)
+    var startRemove = false
+    program.getProgramNames.foreach {
+      name =>
+        if (name.equals(firstProgramNameToRemove)) {
+          startRemove = true
+        }
+        if (startRemove) {
+          program.remove(name)
+        }
+    }
+    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
+      .replaceStreamProgram(program).build()
+    tableEnv.getConfig.setCalciteConfig(calciteConfig)
+  }
 }
 
 /**
@@ -428,6 +409,23 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
   // TODO implements this method when a DataStream could be converted into a Table
   override def addDataStream[T: TypeInformation](
       name: String, fields: Symbol*): Table = ???
+
+  def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
+    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConf)
+    var startRemove = false
+    program.getProgramNames.foreach {
+      name =>
+        if (name.equals(firstProgramNameToRemove)) {
+          startRemove = true
+        }
+        if (startRemove) {
+          program.remove(name)
+        }
+    }
+    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
+      .replaceBatchProgram(program).build()
+    tableEnv.getConfig.setCalciteConfig(calciteConfig)
+  }
 }
 
 /**
