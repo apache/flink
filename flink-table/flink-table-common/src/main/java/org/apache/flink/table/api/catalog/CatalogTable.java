@@ -24,5 +24,9 @@ import org.apache.flink.table.plan.stats.TableStats;
  * Represents a table in a catalog.
  */
 public interface CatalogTable extends CommonTable {
+	/**
+	 * Get the statistics of the table.
+	 * @return table statistics
+	 */
 	TableStats getStatistics();
 }

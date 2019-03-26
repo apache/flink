@@ -18,28 +18,15 @@
 
 package org.apache.flink.table.api.catalog;
 
-import java.util.HashMap;
 import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Represents a database object in a catalog.
  */
-public class CatalogDatabase {
-	// Property map for the database.
-	private final Map<String, String> properties;
-
-	public CatalogDatabase() {
-		this(new HashMap<>());
-	}
-
-	public CatalogDatabase(Map<String, String> properties) {
-		this.properties = checkNotNull(properties, "properties cannot be null");
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
-	}
+public interface CatalogDatabase {
+	/**
+	 * Get a map of properties associated with the database.
+	 */
+	Map<String, String> getProperties();
 
 }

@@ -36,9 +36,9 @@ public interface CatalogView extends CommonTable {
 	 * lost after the session, in which view is defined, is gone.
 	 * Expanded query text takes care of this, as an example.
 	 *
-	 * <p>For example, for a view that is defined in the context of "default" database with a query "select * from test1",
-	 * the expanded query text might become "select `test1`.`name`, `test1`.`value` from `default`.`test1`", where
-	 * table test1 resides in database "default" and has two columns ("name" and "value").
+	 * <p>For example, for a view that is defined in the context of "default" database with a query {@code select * from
+	 * test1}, the expanded query text might become {@code select `test1`.`name`, `test1`.`value` from `default`.`test1`},
+	 * where table test1 resides in database "default" and has two columns ("name" and "value").
 	 *
 	 * @return the view definition in expanded text.
 	 */

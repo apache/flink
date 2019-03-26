@@ -143,7 +143,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *
 	 * @param viewPath		Path of the view to be created
 	 * @param view			The view definition
-	 * @param ignoreIfExists    Flag to specify behavior when a table/view already exists at the given path:
+	 * @param ignoreIfExists Flag to specify behavior when a table/view already exists at the given path:
 	 *                       if set to false, it throws a TableAlreadyExistException,
 	 *                       if set to true, do nothing.
 	 * @throws TableAlreadyExistException if a table/view already exists and ignoreIfExists is false
@@ -164,4 +164,15 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void alterView(ObjectPath viewPath, CatalogView newView, boolean ignoreIfNotExists) throws TableNotExistException;
 
+	/**
+	 * Rename an existing view.
+	 *
+	 * @param viewPath          Path of the view to be renamed
+	 * @param newViewName       the new name of the view
+	 * @param ignoreIfNotExists Flag to specify behavior when the view does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, do nothing.
+	 * @throws TableNotExistException if the given view does not exist
+	 */
+	void renameView(ObjectPath viewPath, String newViewName, boolean ignoreIfNotExists) throws TableNotExistException;
 }

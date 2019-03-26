@@ -20,7 +20,6 @@ package org.apache.flink.table.api.catalog;
 
 import org.apache.flink.table.api.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.api.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.List;
 
@@ -112,15 +111,5 @@ public interface ReadableCatalog {
 	 * @throws DatabaseNotExistException if the database does not exist
 	 */
 	List<String> listViews(String databaseName) throws DatabaseNotExistException;
-
-
-	/**
-	 * Gets the statistics of a table.
-	 *
-	 * @param tablePath		Path of the table
-	 * @return The statistics of the given table
-	 * @throws TableNotExistException if the table does not exist
-	 */
-	TableStats getTableStatistics(ObjectPath tablePath) throws TableNotExistException;
 
 }
