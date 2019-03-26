@@ -79,15 +79,15 @@ public final class InputSelection {
 		 * Selects an input identified by the given {@code inputId}.
 		 *
 		 * @param inputId
-		 *     the input id numbered starting from 1 to 63, and `1` indicates the first input.
+		 *     the input id numbered starting from 1 to 64, and `1` indicates the first input.
 		 *     Specially, `-1` indicates all inputs.
 		 * @return
 		 */
 		public InputSelectionBuilder select(long inputId) {
 			if (inputId > 0 && inputId <= 64){
-				inputMask |= 1 << (inputId - 1);
-			} else if (inputId == -1) {
-				inputMask = -1;
+				inputMask |= 1L << (inputId - 1);
+			} else if (inputId == -1L) {
+				inputMask = -1L;
 			} else {
 				throw new IllegalArgumentException("The inputId must be in the range of 1 to 64, or be -1.");
 			}
