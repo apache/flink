@@ -56,15 +56,14 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
+import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
-import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
@@ -214,9 +213,9 @@ public class RestClusterClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testJobSubmitCancelStop() throws Exception {
+	public void testJobSubmitCancel() throws Exception {
 		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
-		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
+		TestJobCancellationHandler terminationHandler = new TestJobCancellationHandler();
 		TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
@@ -286,24 +285,16 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
-	private class TestJobTerminationHandler extends TestHandler<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+	private class TestJobCancellationHandler extends TestHandler<EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> {
 		private volatile boolean jobCanceled = false;
-		private volatile boolean jobStopped = false;
 
-		private TestJobTerminationHandler() {
-			super(JobTerminationHeaders.getInstance());
+		private TestJobCancellationHandler() {
+			super(JobCancellationHeaders.getInstance());
 		}
 
 		@Override
-		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, JobTerminationMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-			switch (request.getQueryParameter(TerminationModeQueryParameter.class).get(0)) {
-				case CANCEL:
-					jobCanceled = true;
-					break;
-				case STOP:
-					jobStopped = true;
-					break;
-			}
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, JobCancellationMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			jobCanceled = true;
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
 	}

@@ -62,7 +62,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -935,50 +934,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
-	//  Stopping / Canceling / Failing the task from the outside
+	//  Canceling / Failing the task from the outside
 	// ----------------------------------------------------------------------------------------------------------------
-
-	/**
-	 * Stops the executing task by calling {@link StoppableTask#stop()}.
-	 * <p>
-	 * This method never blocks.
-	 * </p>
-	 *
-	 * @throws UnsupportedOperationException if the {@link AbstractInvokable} does not implement {@link StoppableTask}
-	 * @throws IllegalStateException if the {@link Task} is not yet running
-	 */
-	public void stopExecution() {
-		// copy reference to stack, to guard against concurrent setting to null
-		final AbstractInvokable invokable = this.invokable;
-
-		if (invokable != null) {
-			if (invokable instanceof StoppableTask) {
-				LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
-				final StoppableTask stoppable = (StoppableTask) invokable;
-
-				Runnable runnable = () -> {
-					try {
-						stoppable.stop();
-					} catch (Throwable t) {
-						LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, t);
-						taskManagerActions.failTask(executionId, t);
-					}
-				};
-				executeAsyncCallRunnable(
-						runnable,
-						String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId),
-						false);
-			} else {
-				throw new UnsupportedOperationException(String.format("Stopping not supported by task %s (%s).", taskNameWithSubtask, executionId));
-			}
-		} else {
-			throw new IllegalStateException(
-				String.format(
-					"Cannot stop task %s (%s) because it is not running.",
-					taskNameWithSubtask,
-					executionId));
-		}
-	}
 
 	/**
 	 * Cancels the task execution. If the task is already in a terminal state

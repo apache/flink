@@ -27,7 +27,6 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -1090,21 +1089,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				// no need to treat other states
 				return;
 			}
-		}
-	}
-
-	public void stop() throws StoppingException {
-
-		assertRunningInJobMasterMainThread();
-
-		if (isStoppable) {
-			for (ExecutionVertex ev : this.getAllExecutionVertices()) {
-				if (ev.getNumberOfInputs() == 0) { // send signal to sources only
-					ev.stop();
-				}
-			}
-		} else {
-			throw new StoppingException("This job is not stoppable.");
 		}
 	}
 

@@ -53,10 +53,8 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
-import org.apache.flink.runtime.taskexecutor.exceptions.TaskException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
-import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
@@ -190,94 +188,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.CANCELED);
 			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
-		}
-	}
-
-	/**
-	 * Tests that we can stop the task of the TaskManager given that we've submitted it.
-	 */
-	@Test(timeout = 10000L)
-	public void testTaskSubmissionAndStop() throws Exception {
-		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
-		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
-
-		final TaskDeploymentDescriptor tdd1 = createTestTaskDeploymentDescriptor("test task", eid1, StoppableInvokable.class);
-		final TaskDeploymentDescriptor tdd2 = createTestTaskDeploymentDescriptor("test task", eid2, BlockingNoOpInvokable.class);
-
-		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> task1FinishedFuture = new CompletableFuture<>();
-
-		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.Builder(jobId)
-				.setSlotSize(2)
-				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
-				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, task1FinishedFuture)
-				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
-
-			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
-			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
-			task1RunningFuture.get();
-
-			taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
-			tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
-			task2RunningFuture.get();
-
-			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.RUNNING);
-			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
-
-			tmGateway.stopTask(eid1, timeout);
-			task1FinishedFuture.get();
-
-			// task 2 does not implement StoppableTask which should cause the stop operation to fail
-			CompletableFuture<Acknowledge> acknowledgeOfTask2 =	tmGateway.stopTask(eid2, timeout);
-			boolean hasTaskException = false;
-			try {
-				acknowledgeOfTask2.get();
-			} catch (Throwable e) {
-				hasTaskException = ExceptionUtils.findThrowable(e, TaskException.class).isPresent();
-			}
-
-			assertTrue(hasTaskException);
-			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FINISHED);
-			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
-		}
-	}
-
-	/**
-	 * Tests that the TaskManager sends a proper exception back to the sender if the stop task
-	 * message fails.
-	 */
-	@Test(timeout = 10000L)
-	public void testStopTaskFailure() throws Exception {
-		final ExecutionAttemptID eid = new ExecutionAttemptID();
-
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
-
-		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
-
-		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.Builder(jobId)
-				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
-				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
-
-			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			taskRunningFuture.get();
-
-			CompletableFuture<Acknowledge> stopFuture = tmGateway.stopTask(eid, timeout);
-			try {
-				stopFuture.get();
-			} catch (Exception e) {
-				assertTrue(e.getCause() instanceof TaskException);
-				assertThat(e.getCause().getMessage(), startsWith("Cannot stop task for execution"));
-			}
 		}
 	}
 

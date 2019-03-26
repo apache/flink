@@ -28,7 +28,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -384,17 +383,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
 		executionGraph.cancel();
-
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> stop(Time timeout) {
-		try {
-			executionGraph.stop();
-		} catch (StoppingException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}

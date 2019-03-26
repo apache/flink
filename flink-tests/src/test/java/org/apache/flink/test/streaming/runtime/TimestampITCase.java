@@ -21,7 +21,6 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
@@ -797,7 +796,7 @@ public class TimestampITCase extends TestLogger {
 		public void cancel() {}
 	}
 
-	private static class MyTimestampSourceInfinite implements SourceFunction<Integer>, StoppableFunction {
+	private static class MyTimestampSourceInfinite implements SourceFunction<Integer> {
 
 		private final long initialTime;
 		private final int numWatermarks;
@@ -823,11 +822,6 @@ public class TimestampITCase extends TestLogger {
 
 		@Override
 		public void cancel() {
-			running = false;
-		}
-
-		@Override
-		public void stop() {
 			running = false;
 		}
 	}

@@ -46,7 +46,6 @@ import java.util.function.Supplier;
 public class TestingRestfulGateway implements RestfulGateway {
 
 	static final Function<JobID, CompletableFuture<Acknowledge>> DEFAULT_CANCEL_JOB_FUNCTION = jobId -> CompletableFuture.completedFuture(Acknowledge.get());
-	static final Function<JobID, CompletableFuture<Acknowledge>> DEFAULT_STOP_JOB_FUNCTION = jobId -> CompletableFuture.completedFuture(Acknowledge.get());
 	static final Function<JobID, CompletableFuture<JobResult>> DEFAULT_REQUEST_JOB_RESULT_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Function<JobID, CompletableFuture<ArchivedExecutionGraph>> DEFAULT_REQUEST_JOB_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Function<JobID, CompletableFuture<JobStatus>> DEFAULT_REQUEST_JOB_STATUS_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -66,8 +65,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 	protected String restAddress;
 
 	protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
-
-	protected Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
 
 	protected Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction;
 
@@ -94,7 +91,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 			LOCALHOST,
 			LOCALHOST,
 			DEFAULT_CANCEL_JOB_FUNCTION,
-			DEFAULT_STOP_JOB_FUNCTION,
 			DEFAULT_REQUEST_JOB_FUNCTION,
 			DEFAULT_REQUEST_JOB_RESULT_FUNCTION,
 			DEFAULT_REQUEST_JOB_STATUS_FUNCTION,
@@ -111,7 +107,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 			String address,
 			String hostname,
 			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
-			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
 			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
 			Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
 			Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
@@ -125,7 +120,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelJobFunction = cancelJobFunction;
-		this.stopJobFunction = stopJobFunction;
 		this.requestJobFunction = requestJobFunction;
 		this.requestJobResultFunction = requestJobResultFunction;
 		this.requestJobStatusFunction = requestJobStatusFunction;
@@ -141,11 +135,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 	@Override
 	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
 		return cancelJobFunction.apply(jobId);
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
-		return stopJobFunction.apply(jobId);
 	}
 
 	@Override
@@ -219,7 +208,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected String address = LOCALHOST;
 		protected String hostname = LOCALHOST;
 		protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
-		protected Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
 		protected Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction;
 		protected Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
 		protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
@@ -234,7 +222,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 		public Builder() {
 			cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;
-			stopJobFunction = DEFAULT_STOP_JOB_FUNCTION;
 			requestJobFunction = DEFAULT_REQUEST_JOB_FUNCTION;
 			requestJobResultFunction = DEFAULT_REQUEST_JOB_RESULT_FUNCTION;
 			requestJobStatusFunction = DEFAULT_REQUEST_JOB_STATUS_FUNCTION;
@@ -302,11 +289,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return this;
 		}
 
-		public Builder setStopJobFunction(Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction) {
-			this.stopJobFunction = stopJobFunction;
-			return this;
-		}
-
 		public Builder setTriggerSavepointFunction(BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction) {
 			this.triggerSavepointFunction = triggerSavepointFunction;
 			return this;
@@ -322,7 +304,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 				address,
 				hostname,
 				cancelJobFunction,
-				stopJobFunction,
 				requestJobFunction,
 				requestJobResultFunction,
 				requestJobStatusFunction,

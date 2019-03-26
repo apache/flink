@@ -19,20 +19,20 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
+import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for the {@link JobTerminationHandler}.
+ * Message headers for the {@link JobCancellationHandler}.
  */
-public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+public class JobCancellationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> {
 
 	public static final String URL = "/jobs/:jobid";
 
-	private static final JobTerminationHeaders INSTANCE = new JobTerminationHeaders();
+	private static final JobCancellationHeaders INSTANCE = new JobCancellationHeaders();
 
-	private JobTerminationHeaders() {}
+	private JobCancellationHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -50,8 +50,8 @@ public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, E
 	}
 
 	@Override
-	public JobTerminationMessageParameters getUnresolvedMessageParameters() {
-		return new JobTerminationMessageParameters();
+	public JobCancellationMessageParameters getUnresolvedMessageParameters() {
+		return new JobCancellationMessageParameters();
 	}
 
 	@Override
@@ -64,7 +64,7 @@ public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, E
 		return URL;
 	}
 
-	public static JobTerminationHeaders getInstance() {
+	public static JobCancellationHeaders getInstance() {
 		return INSTANCE;
 	}
 

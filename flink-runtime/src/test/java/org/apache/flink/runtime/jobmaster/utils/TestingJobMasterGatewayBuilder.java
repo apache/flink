@@ -76,7 +76,6 @@ public class TestingJobMasterGatewayBuilder {
 	private String address = "akka.tcp://flink@localhost:6130/user/jobmanager";
 	private String hostname = "localhost";
 	private Supplier<CompletableFuture<Acknowledge>> cancelFunction = () -> CompletableFuture.completedFuture(Acknowledge.get());
-	private Supplier<CompletableFuture<Acknowledge>> stopFunction = () -> CompletableFuture.completedFuture(Acknowledge.get());
 	private BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
 	private TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction = (ignoredA, ignoredB, ignoredC) -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -117,11 +116,6 @@ public class TestingJobMasterGatewayBuilder {
 
 	public TestingJobMasterGatewayBuilder setCancelFunction(Supplier<CompletableFuture<Acknowledge>> cancelFunction) {
 		this.cancelFunction = cancelFunction;
-		return this;
-	}
-
-	public TestingJobMasterGatewayBuilder setStopFunction(Supplier<CompletableFuture<Acknowledge>> stopFunction) {
-		this.stopFunction = stopFunction;
 		return this;
 	}
 
@@ -261,6 +255,6 @@ public class TestingJobMasterGatewayBuilder {
 	}
 
 	public TestingJobMasterGateway build() {
-		return new TestingJobMasterGateway(address, hostname, cancelFunction, stopFunction, rescalingJobFunction, rescalingOperatorsFunction, updateTaskExecutionStateFunction, requestNextInputSplitFunction, requestPartitionStateFunction, scheduleOrUpdateConsumersFunction, disconnectTaskManagerFunction, disconnectResourceManagerConsumer, classloadingPropsSupplier, offerSlotsFunction, failSlotConsumer, registerTaskManagerFunction, taskManagerHeartbeatConsumer, resourceManagerHeartbeatConsumer, requestJobDetailsSupplier, requestJobSupplier, triggerSavepointFunction, stopWithSavepointFunction, requestOperatorBackPressureStatsFunction, notifyAllocationFailureConsumer, acknowledgeCheckpointConsumer, declineCheckpointConsumer, fencingTokenSupplier, requestKvStateLocationFunction, notifyKvStateRegisteredFunction, notifyKvStateUnregisteredFunction, updateAggregateFunction);
+		return new TestingJobMasterGateway(address, hostname, cancelFunction, rescalingJobFunction, rescalingOperatorsFunction, updateTaskExecutionStateFunction, requestNextInputSplitFunction, requestPartitionStateFunction, scheduleOrUpdateConsumersFunction, disconnectTaskManagerFunction, disconnectResourceManagerConsumer, classloadingPropsSupplier, offerSlotsFunction, failSlotConsumer, registerTaskManagerFunction, taskManagerHeartbeatConsumer, resourceManagerHeartbeatConsumer, requestJobDetailsSupplier, requestJobSupplier, triggerSavepointFunction, stopWithSavepointFunction, requestOperatorBackPressureStatsFunction, notifyAllocationFailureConsumer, acknowledgeCheckpointConsumer, declineCheckpointConsumer, fencingTokenSupplier, requestKvStateLocationFunction, notifyKvStateRegisteredFunction, notifyKvStateUnregisteredFunction, updateAggregateFunction);
 	}
 }
