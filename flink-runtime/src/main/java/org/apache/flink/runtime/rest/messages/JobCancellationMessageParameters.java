@@ -16,22 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.util.FlinkException;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Indicates that a job is not stoppable.
+ * Parameters for job related REST handlers.
+ *
+ * <p>A job related REST handler always requires a {@link JobIDPathParameter}.
  */
-public class StoppingException extends FlinkException {
+public class JobCancellationMessageParameters extends MessageParameters {
 
-	private static final long serialVersionUID = -721315728140810694L;
+	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	public final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
 
-	public StoppingException(String msg) {
-		super(msg);
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singleton(jobPathParameter);
 	}
 
-	public StoppingException(String message, Throwable cause) {
-		super(message, cause);
+	@Override
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.singleton(terminationModeQueryParameter);
 	}
 }

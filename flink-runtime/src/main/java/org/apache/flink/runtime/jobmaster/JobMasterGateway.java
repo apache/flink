@@ -66,14 +66,6 @@ public interface JobMasterGateway extends
 	CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
 
 	/**
-	 * Cancel the currently executed job.
-	 *
-	 * @param timeout of this operation
-	 * @return Future acknowledge if the cancellation was successful
-	 */
-	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
-
-	/**
 	 * Triggers rescaling of the executed job.
 	 *
 	 * @param newParallelism new parallelism of the job

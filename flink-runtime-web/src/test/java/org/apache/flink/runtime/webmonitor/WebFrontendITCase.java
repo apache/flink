@@ -29,7 +29,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -252,7 +251,7 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
-	public void testStop() throws Exception {
+	public void testCancel() throws Exception {
 		// this only works if there is no active job at this point
 		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
 
@@ -280,8 +279,8 @@ public class WebFrontendITCase extends TestLogger {
 		final Deadline deadline = testTimeout.fromNow();
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			// stop the job
-			client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
+			// cancel the job
+			client.sendPatchRequest("/jobs/" + jid + "/", deadline.timeLeft());
 			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
@@ -311,7 +310,7 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
-	public void testStopYarn() throws Exception {
+	public void testCancelYarn() throws Exception {
 		// this only works if there is no active job at this point
 		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
 
@@ -340,7 +339,7 @@ public class WebFrontendITCase extends TestLogger {
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
+			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", deadline.timeLeft());
 
 			HttpTestClient.SimpleHttpResponse response = client
 				.getNextResponse(deadline.timeLeft());
@@ -367,9 +366,9 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	/**
-	 * Test invokable that is stoppable and allows waiting for all subtasks to be running.
+	 * Test invokable that allows waiting for all subtasks to be running.
 	 */
-	public static class BlockingInvokable extends AbstractInvokable implements StoppableTask {
+	public static class BlockingInvokable extends AbstractInvokable {
 
 		private static CountDownLatch latch = new CountDownLatch(2);
 
@@ -388,7 +387,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		@Override
-		public void stop() {
+		public void cancel() {
 			this.isRunning = false;
 		}
 

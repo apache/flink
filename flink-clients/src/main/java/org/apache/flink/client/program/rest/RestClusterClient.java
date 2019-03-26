@@ -56,9 +56,9 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
+import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
-import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -389,11 +389,11 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 	@Override
 	public void cancel(JobID jobID) throws Exception {
-		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
+		JobCancellationMessageParameters params = new JobCancellationMessageParameters();
 		params.jobPathParameter.resolve(jobID);
 		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
 		CompletableFuture<EmptyResponseBody> responseFuture = sendRequest(
-			JobTerminationHeaders.getInstance(),
+			JobCancellationHeaders.getInstance(),
 			params);
 		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}

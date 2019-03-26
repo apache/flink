@@ -28,8 +28,8 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -48,15 +48,15 @@ import java.util.concurrent.TimeoutException;
 /**
  * Request handler for the cancel and stop request.
  */
-public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+public class JobCancellationHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> {
 
 	private final TerminationModeQueryParameter.TerminationMode defaultTerminationMode;
 
-	public JobTerminationHandler(
+	public JobCancellationHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
-			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders,
+			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> messageHeaders,
 			TerminationModeQueryParameter.TerminationMode defaultTerminationMode) {
 		super(leaderRetriever, timeout, headers, messageHeaders);
 
@@ -64,7 +64,7 @@ public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, E
 	}
 
 	@Override
-	public CompletableFuture<EmptyResponseBody> handleRequest(HandlerRequest<EmptyRequestBody, JobTerminationMessageParameters> request, RestfulGateway gateway) {
+	public CompletableFuture<EmptyResponseBody> handleRequest(HandlerRequest<EmptyRequestBody, JobCancellationMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
 		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 		final List<TerminationModeQueryParameter.TerminationMode> terminationModes = request.getQueryParameter(TerminationModeQueryParameter.class);
 		final TerminationModeQueryParameter.TerminationMode terminationMode;
@@ -83,8 +83,7 @@ public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, E
 				terminationFuture = gateway.cancelJob(jobId, timeout);
 				break;
 			case STOP:
-				terminationFuture = gateway.stopJob(jobId, timeout);
-				break;
+				throw new RestHandlerException("The \"stop\" command has been removed. Please use \"stop-with-savepoint\" instead.", HttpResponseStatus.PERMANENT_REDIRECT);
 			default:
 				terminationFuture = FutureUtils.completedExceptionally(new RestHandlerException("Unknown termination mode " + terminationMode + '.', HttpResponseStatus.BAD_REQUEST));
 		}
@@ -97,7 +96,7 @@ public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, E
 					if (error instanceof TimeoutException) {
 						throw new CompletionException(
 							new RestHandlerException(
-								"Job termination (" + terminationMode + ") timed out.",
+								"Job cancellation timed out.",
 								HttpResponseStatus.REQUEST_TIMEOUT, error));
 					} else if (error instanceof FlinkJobNotFoundException) {
 						throw new CompletionException(
@@ -107,7 +106,7 @@ public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, E
 					} else {
 						throw new CompletionException(
 							new RestHandlerException(
-								"Job termination (" + terminationMode + ") failed: " + error.getMessage(),
+								"Job cancellation failed: " + error.getMessage(),
 								HttpResponseStatus.INTERNAL_SERVER_ERROR, error));
 					}
 				} else {
