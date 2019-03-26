@@ -16,19 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks
+package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.table.api.Table
+import org.apache.flink.table.runtime.utils.BatchTestBase
 
-/**
-  * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
-  * changes.
-  *
-  * @tparam T Type of records that this [[TableSink]] expects and supports.
-  */
-trait BaseRetractStreamTableSink[T] extends StreamTableSink[T] {
+import org.junit.Assert._
+import org.junit.Test
 
-  /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[T]): DataStreamSink[_]
+class ValuesITCase extends BatchTestBase {
+
+  @Test
+  def testValues(): Unit = {
+    val sqlQuery = "SELECT * FROM (VALUES (1, 2, 3)) T(a, b, c)"
+    val table = tEnv.sqlQuery(sqlQuery)
+    val actual = collectResults(table)
+    val expected = List("1,2,3")
+    assertEquals(expected.sorted, actual.sorted)
+  }
+
 }

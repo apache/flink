@@ -17,9 +17,13 @@
  */
 package org.apache.flink.table.api
 
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.plan.nodes.calcite.LogicalSink
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.optimize.{BatchOptimizer, Optimizer}
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, TableSourceSinkTable, TableSourceTable}
@@ -31,6 +35,8 @@ import org.apache.flink.table.sources._
 import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.sql.SqlExplainLevel
+
+import _root_.scala.collection.JavaConversions._
 
 /**
   *  A session to construct between [[Table]] and [[DataStream]], its main function is:
@@ -76,6 +82,66 @@ class BatchTableEnvironment(
         throw new TableException(s"Illegal Table name. " +
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
+    }
+  }
+
+  /**
+    * Merge global job parameters and table config parameters,
+    * and set the merged result to GlobalJobParameters
+    */
+  private def mergeParameters(): Unit = {
+    if (streamEnv != null && streamEnv.getConfig != null) {
+      val parameters = new Configuration()
+      if (config != null && config.getConf != null) {
+        parameters.addAll(config.getConf)
+      }
+
+      if (streamEnv.getConfig.getGlobalJobParameters != null) {
+        streamEnv.getConfig.getGlobalJobParameters.toMap.foreach {
+          kv => parameters.setString(kv._1, kv._2)
+        }
+      }
+
+      streamEnv.getConfig.setGlobalJobParameters(parameters)
+    }
+  }
+
+  /**
+    * Writes a [[Table]] to a [[TableSink]].
+    *
+    * Internally, the [[Table]] is translated into a [[DataStream]] and handed over to the
+    * [[TableSink]] to write it.
+    *
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
+    */
+  override private[table] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String): Unit = {
+    mergeParameters()
+
+    val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
+    val optimizedPlan = optimize(sinkNode)
+    val optimizedNodes = translateNodeDag(Seq(optimizedPlan))
+    require(optimizedNodes.size() == 1)
+    translateToPlan(optimizedNodes.head)
+  }
+
+  /**
+    * Translates a [[BatchExecNode]] plan into a [[StreamTransformation]].
+    * Converts to target type if necessary.
+    *
+    * @param node        The plan to translate.
+    * @return The [[StreamTransformation]] that corresponds to the given node.
+    */
+  private def translateToPlan(node: ExecNode[_, _]): StreamTransformation[_] = {
+    node match {
+      case node: BatchExecNode[_] => node.translateToPlan(this)
+      case _ =>
+        throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
+                                   "This is a bug and should not happen. Please file an issue.")
     }
   }
 

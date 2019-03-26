@@ -18,21 +18,32 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
+import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.calcite.LogicalSink
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.optimize.{Optimizer, StreamOptimizer}
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.sql.SqlExplainLevel
+
+import _root_.scala.collection.JavaConversions._
 
 /**
   * The base class for stream TableEnvironments.
@@ -59,6 +70,8 @@ abstract class StreamTableEnvironment(
 
   // the naming pattern for internally registered tables.
   private val internalNamePattern = "^_DataStreamTable_[0-9]+$".r
+
+  private var isConfigMerged: Boolean = false
 
   override def queryConfig: StreamQueryConfig = new StreamQueryConfig
 
@@ -90,6 +103,102 @@ abstract class StreamTableEnvironment(
       UpdateAsRetractionTraitDef.INSTANCE,
       AccModeTraitDef.INSTANCE)
   )
+
+  /**
+    * Merge global job parameters and table config parameters,
+    * and set the merged result to GlobalJobParameters
+    */
+  private def mergeParameters(): Unit = {
+    if (!isConfigMerged && execEnv != null && execEnv.getConfig != null) {
+      val parameters = new Configuration()
+      if (config != null && config.getConf != null) {
+        parameters.addAll(config.getConf)
+      }
+
+      if (execEnv.getConfig.getGlobalJobParameters != null) {
+        execEnv.getConfig.getGlobalJobParameters.toMap.foreach {
+          kv => parameters.setString(kv._1, kv._2)
+        }
+      }
+      val isHeapState = Option(execEnv.getStateBackend) match {
+        case Some(backend) if backend.isInstanceOf[MemoryStateBackend] ||
+          backend.isInstanceOf[FsStateBackend]=> true
+        case None => true
+        case _ => false
+      }
+      parameters.setBoolean(TableConfigOptions.SQL_EXEC_STATE_BACKEND_ON_HEAP, isHeapState)
+      execEnv.getConfig.setGlobalJobParameters(parameters)
+      isConfigMerged = true
+    }
+  }
+
+  /**
+    * Writes a [[Table]] to a [[TableSink]].
+    *
+    * Internally, the [[Table]] is translated into a [[DataStream]] and handed over to the
+    * [[TableSink]] to write it.
+    *
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
+    */
+  override private[table] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String): Unit = {
+    val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
+    translateSink(sinkNode)
+  }
+
+  /**
+    * Translates a [[Table]] into a [[DataStream]].
+    *
+    * The transformation involves optimizing the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
+    *
+    * @param table               The root node of the relational expression tree.
+    * @param updatesAsRetraction Set to true to encode updates as retraction messages.
+    * @param withChangeFlag      Set to true to emit records with change flags.
+    * @param resultType          The [[org.apache.flink.api.common.typeinfo.TypeInformation[_]] of
+    *                            the resulting [[DataStream]].
+    * @tparam T The type of the resulting [[DataStream]].
+    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    */
+  protected def translateToDataStream[T](
+      table: Table,
+      updatesAsRetraction: Boolean,
+      withChangeFlag: Boolean,
+      resultType: TypeInformation[T]): DataStream[T] = {
+    val sink = new DataStreamTableSink[T](table, resultType, updatesAsRetraction, withChangeFlag)
+    val sinkName = createUniqueTableName()
+    val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
+    val transformation = translateSink(sinkNode)
+    new DataStream(execEnv, transformation).asInstanceOf[DataStream[T]]
+  }
+
+  private def translateSink(sink: LogicalSink): StreamTransformation[_] = {
+    mergeParameters()
+
+    val optimizedPlan = optimize(sink)
+    val optimizedNodes = translateNodeDag(Seq(optimizedPlan))
+    require(optimizedNodes.size() == 1)
+    translateToPlan(optimizedNodes.head)
+  }
+
+  /**
+    * Translates a [[StreamExecNode]] plan into a [[StreamTransformation]].
+    *
+    * @param node The plan to translate.
+    * @return The [[StreamTransformation]] of type [[BaseRow]].
+    */
+  private def translateToPlan(node: ExecNode[_, _]): StreamTransformation[_] = {
+    node match {
+      case node: StreamExecNode[_] => node.translateToPlan(this)
+      case _ =>
+        throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
+                                   "This is a bug and should not happen. Please file an issue.")
+    }
+  }
 
   /**
     * Returns the AST of the specified Table API and SQL queries and the execution plan to compute

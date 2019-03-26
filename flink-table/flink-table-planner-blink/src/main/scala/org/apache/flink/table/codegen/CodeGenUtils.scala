@@ -25,6 +25,7 @@ import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.types.Row
 
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Character => JChar, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
@@ -162,6 +163,14 @@ object CodeGenUtils {
 
     case _ => "null"
   }
+
+  /**
+    * If it's internally compatible, don't need to DataStructure converter.
+    * clazz != classOf[Row] => Row can only infer GenericType[Row].
+    */
+  def isInternalClass(clazz: Class[_], t: TypeInformation[_]): Boolean =
+    clazz != classOf[Object] && clazz != classOf[Row] &&
+      (classOf[BaseRow].isAssignableFrom(clazz) || clazz == t.getTypeClass)
 
   // -------------------------- Method & Enum ---------------------------------------
 

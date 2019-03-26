@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
@@ -25,9 +26,12 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.cost.FlinkCostFactory
+import org.apache.flink.table.plan.nodes.exec.ExecNode
+import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 
@@ -152,6 +156,18 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def getOptimizer: Optimizer
 
   /**
+    * Writes a [[Table]] to a [[TableSink]].
+    *
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @tparam T The data type that the [[TableSink]] expects.
+    */
+  private[table] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String = null): Unit
+
+  /**
     * Generates the optimized [[RelNode]] dag from the original relational nodes.
     *
     * @param roots The root nodes of the relational expression tree.
@@ -170,6 +186,17 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(root: RelNode): RelNode = optimize(Seq(root)).head
+
+  /**
+    * Convert [[org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel]] DAG
+    * to [[ExecNode]] DAG and translate them.
+    */
+  @VisibleForTesting
+  private[flink] def translateNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
+    require(rels.nonEmpty && rels.forall(_.isInstanceOf[FlinkPhysicalRel]))
+    // convert FlinkPhysicalRel DAG to ExecNode DAG
+    rels.map(_.asInstanceOf[ExecNode[_, _]])
+  }
 
   /**
     * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.

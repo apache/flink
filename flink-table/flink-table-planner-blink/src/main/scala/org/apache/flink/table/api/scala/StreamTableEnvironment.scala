@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.asScalaStream
+import org.apache.flink.streaming.api.scala.{createTypeInformation => _, _}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 
@@ -127,6 +131,49 @@ class StreamTableEnvironment @deprecated(
     registerDataStreamInternal(name, dataStream.javaStream, exprs)
   }
 
+  /**
+    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
+    *
+    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
+    * by update or delete changes, the conversion will fail.
+    *
+    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
+    * types must match.
+    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param table The [[Table]] to convert.
+    * @tparam T The type of the resulting [[DataStream]].
+    * @return The converted [[DataStream]].
+    */
+  def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
+    val returnType = createTypeInformation[T]
+    asScalaStream(translateToDataStream[T](
+      table,
+      updatesAsRetraction = false,
+      withChangeFlag = false,
+      returnType))
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataStream]] of add and retract messages.
+    * The message will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag,
+    * the second field holds the record of the specified type [[T]].
+    *
+    * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
+    *
+    * @param table The [[Table]] to convert.
+    * @tparam T The type of the requested data type.
+    * @return The converted [[DataStream]].
+    */
+  def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
+    val returnType = createTypeInformation[(Boolean, T)]
+    asScalaStream(translateToDataStream[(Boolean, T)](
+      table,
+      updatesAsRetraction = true,
+      withChangeFlag = true,
+      returnType))
+  }
 
 }
 

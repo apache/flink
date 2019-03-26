@@ -66,4 +66,16 @@ public abstract class GeneratedClass<T> implements Serializable {
 		}
 		return compiledClass;
 	}
+
+	public String getClassName() {
+		return className;
+	}
+
+	public String getCode() {
+		return code;
+	}
+
+	public Object[] getReferences() {
+		return references;
+	}
 }

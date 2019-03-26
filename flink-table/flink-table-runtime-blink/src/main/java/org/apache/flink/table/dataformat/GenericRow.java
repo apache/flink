@@ -117,6 +117,10 @@ public final class GenericRow extends ObjectArrayRow {
 		this.fields[ordinal] = value;
 	}
 
+	public Object getField(int ordinal) {
+		return this.fields[ordinal];
+	}
+
 	public static GenericRow of(Object... values) {
 		GenericRow row = new GenericRow(values.length);
 

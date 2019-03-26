@@ -209,6 +209,7 @@ object FlinkBatchRuleSets {
     BatchExecScanTableSourceRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
     BatchExecCalcRule.INSTANCE,
-    BatchExecUnionRule.INSTANCE
+    BatchExecUnionRule.INSTANCE,
+    BatchExecSinkRule.INSTANCE
   )
 }

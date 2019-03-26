@@ -21,6 +21,7 @@ package org.apache.flink.table.calcite
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._

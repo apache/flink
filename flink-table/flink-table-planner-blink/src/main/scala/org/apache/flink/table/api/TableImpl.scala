@@ -18,9 +18,14 @@
 
 package org.apache.flink.table.api
 
-import org.apache.calcite.rel.RelNode
+import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeInfoFromInternalType
+
+import org.apache.calcite.rel.RelNode
+
+import _root_.scala.collection.JavaConversions._
 
 /**
   * The implementation of the [[Table]].
@@ -35,12 +40,22 @@ import org.apache.flink.table.functions.TemporalTableFunction
   */
 class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table {
 
+  private lazy val tableSchema: TableSchema = {
+    val rowType = relNode.getRowType
+    val fieldNames = rowType.getFieldList.map(_.getName)
+    val fieldTypes = rowType.getFieldList map { tp =>
+      val internalType = toInternalType(tp.getType)
+      createInternalTypeInfoFromInternalType(internalType)
+    }
+    new TableSchema(fieldNames.toArray, fieldTypes.toArray)
+  }
+
   /**
     * Returns the Calcite RelNode represent this Table.
     */
   def getRelNode: RelNode = relNode
 
-  override def getSchema: TableSchema = ???
+  override def getSchema: TableSchema = tableSchema
 
   override def printSchema(): Unit = ???
 
