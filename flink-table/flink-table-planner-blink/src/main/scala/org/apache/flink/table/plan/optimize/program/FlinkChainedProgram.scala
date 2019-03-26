@@ -19,10 +19,10 @@
 package org.apache.flink.table.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 
 import java.util
@@ -64,7 +64,7 @@ class FlinkChainedProgram[OC <: FlinkOptimizeContext]
 
         if (LOG.isDebugEnabled) {
           LOG.debug(s"optimize $name cost ${end - start} ms.\n" +
-            s"optimize result: \n${RelOptUtil.toString(result)}")
+            s"optimize result: \n${FlinkRelOptUtil.toString(result)}")
         }
 
         result

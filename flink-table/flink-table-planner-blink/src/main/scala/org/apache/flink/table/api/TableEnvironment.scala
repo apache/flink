@@ -21,7 +21,7 @@ package org.apache.flink.table.api
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
@@ -48,7 +48,7 @@ import org.apache.flink.types.Row
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
@@ -94,10 +94,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     // set the executor to evaluate constant expressions
     // .executor(new ExpressionReducer(config))
     .context(new FlinkContextImpl(config))
+    .traitDefs(getTraitDefs: _*)
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = createRelBuilder
+  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
 
   // the planner instance used to optimize queries of this TableEnvironment
   private lazy val planner: RelOptPlanner = relBuilder.getPlanner
@@ -165,8 +166,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   /** Returns the [[QueryConfig]] depends on the concrete type of this TableEnvironment. */
   private[flink] def queryConfig: QueryConfig
 
-  /** Returns specific [[FlinkRelBuilder]] depends on the concrete type of this TableEnvironment. */
-  protected def createRelBuilder: FlinkRelBuilder
+  /** Returns specific RelTraitDefs depends on the concrete type of this TableEnvironment. */
+  protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]]
 
   /** Returns specific query [[Optimizer]] depends on the concrete type of this TableEnvironment. */
   protected def getOptimizer: Optimizer
@@ -671,12 +672,15 @@ abstract class TableEnvironment(val config: TableConfig) {
         // determine schema definition mode (by position or by name)
         val isRefByPos = isReferenceByPosition(t, fields)
 
-        fields.zipWithIndex flatMap { case (name, idx) =>
-          if (isRefByPos) {
-            Some((idx, name))
-          } else {
-            referenceByName(name, t).map((_, name))
-          }
+        fields.zipWithIndex flatMap {
+          case ("proctime" | "rowtime", _) =>
+            None
+          case (name, idx) =>
+            if (isRefByPos) {
+              Some((idx, name))
+            } else {
+              referenceByName(name, t).map((_, name))
+            }
         }
 
       case p: PojoTypeInfo[A] =>

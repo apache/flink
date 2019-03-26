@@ -25,20 +25,25 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
-import org.apache.flink.table.api.{BatchTableEnvironment => _, StreamTableEnvironment => _, _}
+import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, _}
+import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
+
+import _root_.scala.collection.JavaConversions._
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -213,9 +218,27 @@ abstract class TableTestUtil(test: TableTestBase) {
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
+    doVerifyPlan(
+      sql = sql,
+      explainLevel = explainLevel,
+      withRetractTraits = false,
+      withRowType = withRowType,
+      printPlanBefore = printPlanBefore)
+  }
+
+  def doVerifyPlan(
+      sql: String,
+      explainLevel: SqlExplainLevel,
+      withRetractTraits: Boolean,
+      withRowType: Boolean,
+      printPlanBefore: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(sql)
     val relNode = table.asInstanceOf[TableImpl].getRelNode
-    val optimizedPlan = getOptimizedPlan(relNode, explainLevel, withRowType = withRowType)
+    val optimizedPlan = getOptimizedPlan(
+      relNode,
+      explainLevel,
+      withRetractTraits = withRetractTraits,
+      withRowType = withRowType)
 
     assertEqualsOrExpand("sql", sql)
 
@@ -237,8 +260,26 @@ abstract class TableTestUtil(test: TableTestBase) {
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
+    doVerifyPlan(
+      table = table,
+      explainLevel = explainLevel,
+      withRetractTraits = false,
+      withRowType = withRowType,
+      printPlanBefore = printPlanBefore)
+  }
+
+  def doVerifyPlan(
+      table: Table,
+      explainLevel: SqlExplainLevel,
+      withRowType: Boolean,
+      withRetractTraits: Boolean,
+      printPlanBefore: Boolean): Unit = {
     val relNode = table.asInstanceOf[TableImpl].getRelNode
-    val optimizedPlan = getOptimizedPlan(relNode, explainLevel, withRowType = withRowType)
+    val optimizedPlan = getOptimizedPlan(
+      relNode,
+      explainLevel,
+      withRetractTraits = withRetractTraits,
+      withRowType = withRowType)
 
     if (printPlanBefore) {
       val planBefore = SystemUtils.LINE_SEPARATOR +
@@ -264,9 +305,14 @@ abstract class TableTestUtil(test: TableTestBase) {
   private def getOptimizedPlan(
       relNode: RelNode,
       explainLevel: SqlExplainLevel,
+      withRetractTraits: Boolean,
       withRowType: Boolean): String = {
     val optimized = getTableEnv.optimize(relNode)
-    FlinkRelOptUtil.toString(optimized, detailLevel = explainLevel, withRowType = withRowType)
+    FlinkRelOptUtil.toString(
+      optimized,
+      detailLevel = explainLevel,
+      withRetractTraits = withRetractTraits,
+      withRowType = withRowType)
   }
 
   /* Stage {id} is ignored, because id keeps incrementing in test class
@@ -312,6 +358,41 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
     tableEnv.registerTable(name, table)
     tableEnv.scan(name)
   }
+
+  def verifyPlanWithTrait(sql: String): Unit = {
+    doVerifyPlan(
+      sql,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRetractTraits = true,
+      withRowType = false,
+      printPlanBefore = true)
+  }
+
+  def verifyPlanWithTrait(table: Table): Unit = {
+    doVerifyPlan(
+      table,
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRetractTraits = true,
+      withRowType = false,
+      printPlanBefore = true)
+  }
+
+  def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
+    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConf)
+    var startRemove = false
+    program.getProgramNames.foreach {
+      name =>
+        if (name.equals(firstProgramNameToRemove)) {
+          startRemove = true
+        }
+        if (startRemove) {
+          program.remove(name)
+        }
+    }
+    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
+      .replaceStreamProgram(program).build()
+    tableEnv.getConfig.setCalciteConfig(calciteConfig)
+  }
 }
 
 /**
@@ -328,6 +409,23 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
   // TODO implements this method when a DataStream could be converted into a Table
   override def addDataStream[T: TypeInformation](
       name: String, fields: Symbol*): Table = ???
+
+  def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
+    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConf)
+    var startRemove = false
+    program.getProgramNames.foreach {
+      name =>
+        if (name.equals(firstProgramNameToRemove)) {
+          startRemove = true
+        }
+        if (startRemove) {
+          program.remove(name)
+        }
+    }
+    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
+      .replaceBatchProgram(program).build()
+    tableEnv.getConfig.setCalciteConfig(calciteConfig)
+  }
 }
 
 /**

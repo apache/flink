@@ -24,25 +24,25 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
 import java.util
 
-import scala.collection.JavaConversions._
-
 /**
   * Stream physical RelNode which deduplicate on keys and keeps only first row or last row.
+  * This node is an optimization of [[StreamExecRank]] for some special cases.
+  * Compared to [[StreamExecRank]], this node could use mini-batch and access less state.
   * <p>NOTES: only supports sort on proctime now.
   */
-class StreamExecFirstLastRow(
+class StreamExecDeduplicate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     uniqueKeys: Array[Int],
     isRowtime: Boolean,
-    isLastRowMode: Boolean)
+    keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 
-  override def producesUpdates: Boolean = isLastRowMode
+  override def producesUpdates: Boolean = keepLastRow
 
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
 
@@ -55,20 +55,20 @@ class StreamExecFirstLastRow(
   override def deriveRowType(): RelDataType = getInput.getRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecFirstLastRow(
+    new StreamExecDeduplicate(
       cluster,
       traitSet,
       inputs.get(0),
       uniqueKeys,
       isRowtime,
-      isLastRowMode)
+      keepLastRow)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val fieldNames = getRowType.getFieldNames
     val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
     super.explainTerms(pw)
-      .item("mode", if (isLastRowMode) "LastRow" else "FirstRow")
+      .item("keepLastRow", keepLastRow)
       .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
       .item("order", orderString)
   }

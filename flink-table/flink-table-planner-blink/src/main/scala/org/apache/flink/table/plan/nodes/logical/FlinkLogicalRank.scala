@@ -18,14 +18,14 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
 import org.apache.flink.table.plan.nodes.calcite.{LogicalRank, Rank, RankRange}
 import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
-import org.apache.calcite.sql.SqlRankFunction
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -40,29 +40,31 @@ class FlinkLogicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    rankFunction: SqlRankFunction,
     partitionKey: ImmutableBitSet,
-    sortCollation: RelCollation,
+    orderKey: RelCollation,
+    rankType: RankType,
     rankRange: RankRange,
-    val outputRankFunColumn: Boolean)
-  extends Rank(cluster, traitSet, input, rankFunction, partitionKey, sortCollation, rankRange)
+    rankNumberType: RelDataTypeField,
+    outputRankNumber: Boolean)
+  extends Rank(
+    cluster,
+    traitSet,
+    input,
+    partitionKey,
+    orderKey,
+    rankType,
+    rankRange,
+    rankNumberType,
+    outputRankNumber)
   with FlinkLogicalRel {
-
-  override def deriveRowType(): RelDataType = {
-    if (outputRankFunColumn) {
-      super.deriveRowType()
-    } else {
-      input.getRowType
-    }
-  }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputFieldNames = input.getRowType.getFieldNames
     pw.item("input", getInput)
-      .item("rankFunction", rankFunction)
-      .item("partitionBy", partitionKey.map(inputFieldNames.get(_)).mkString(","))
-      .item("orderBy", RelExplainUtil.collationToString(sortCollation, input.getRowType))
+      .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputFieldNames))
+      .item("partitionBy", partitionKey.map(inputFieldNames.get(_)).mkString(","))
+      .item("orderBy", RelExplainUtil.collationToString(orderKey, input.getRowType))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
@@ -71,11 +73,12 @@ class FlinkLogicalRank(
       cluster,
       traitSet,
       inputs.get(0),
-      rankFunction,
       partitionKey,
-      sortCollation,
+      orderKey,
+      rankType,
       rankRange,
-      outputRankFunColumn)
+      rankNumberType,
+      outputRankNumber)
   }
 
 }
@@ -90,11 +93,12 @@ private class FlinkLogicalRankConverter extends ConverterRule(
     val newInput = RelOptRule.convert(rank.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalRank.create(
       newInput,
-      rank.rankFunction,
       rank.partitionKey,
-      rank.sortCollation,
+      rank.orderKey,
+      rank.rankType,
       rank.rankRange,
-      outputRankFunColumn = true
+      rank.rankNumberType,
+      rank.outputRankNumber
     )
   }
 }
@@ -104,14 +108,23 @@ object FlinkLogicalRank {
 
   def create(
       input: RelNode,
-      rankFunction: SqlRankFunction,
       partitionKey: ImmutableBitSet,
-      sortCollation: RelCollation,
+      orderKey: RelCollation,
+      rankType: RankType,
       rankRange: RankRange,
-      outputRankFunColumn: Boolean): FlinkLogicalRank = {
+      rankNumberType: RelDataTypeField,
+      outputRankNumber: Boolean): FlinkLogicalRank = {
     val cluster = input.getCluster
     val traits = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalRank(cluster, traits, input, rankFunction, partitionKey,
-      sortCollation, rankRange, outputRankFunColumn)
+    new FlinkLogicalRank(
+      cluster,
+      traits,
+      input,
+      partitionKey,
+      orderKey,
+      rankType,
+      rankRange,
+      rankNumberType,
+      outputRankNumber)
   }
 }
