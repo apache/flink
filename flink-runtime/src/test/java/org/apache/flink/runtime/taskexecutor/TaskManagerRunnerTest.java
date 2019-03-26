@@ -22,16 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.testutils.SecurityManagerContext;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.RunnableWithException;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
-
-import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -45,44 +43,44 @@ public class TaskManagerRunnerTest extends TestLogger {
 	@Rule
 	public final Timeout timeout = Timeout.seconds(30);
 
+	private SystemExitTrackingSecurityManager systemExitTrackingSecurityManager;
+	private TaskManagerRunner taskManagerRunner;
+
+	@Before
+	public void before() {
+		systemExitTrackingSecurityManager = new SystemExitTrackingSecurityManager();
+		System.setSecurityManager(systemExitTrackingSecurityManager);
+	}
+
+	@After
+	public void after() throws Exception {
+		System.setSecurityManager(null);
+		if (taskManagerRunner != null) {
+			taskManagerRunner.close();
+		}
+	}
+
 	@Test
 	public void testShouldShutdownOnFatalError() throws Exception {
-		try (TaskManagerRunner taskManagerRunner = createTaskManagerRunner(createConfiguration())) {
-			taskManagerRunner.start();
+		Configuration configuration = createConfiguration();
+		// very high timeout, to ensure that we don't fail because of registration timeouts
+		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "42 h");
+		taskManagerRunner = createTaskManagerRunner(configuration);
 
-			final SystemExitTrackingSecurityManager systemExitTrackingSecurityManager =
-				runWithSystemExitTracking(() -> {
-					taskManagerRunner.onFatalError(new RuntimeException());
-					taskManagerRunner.getTerminationFuture().get(30, TimeUnit.SECONDS);
-				});
+		taskManagerRunner.onFatalError(new RuntimeException());
 
-			assertThat(systemExitTrackingSecurityManager.getCount(), is(equalTo(1)));
-			assertThat(systemExitTrackingSecurityManager.getStatus(), is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-		}
+		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
 	}
 
 	@Test
 	public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
-		final Configuration configuration = createConfiguration();
+		Configuration configuration = createConfiguration();
 		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
+		taskManagerRunner = createTaskManagerRunner(configuration);
 
-		try (TaskManagerRunner taskManagerRunner = createTaskManagerRunner(configuration)) {
-
-			final SystemExitTrackingSecurityManager systemExitTrackingSecurityManager =
-				runWithSystemExitTracking(() -> {
-					taskManagerRunner.start();
-					taskManagerRunner.getTerminationFuture().get();
-				});
-
-			assertThat(systemExitTrackingSecurityManager.getCount(), is(equalTo(1)));
-			assertThat(systemExitTrackingSecurityManager.getStatus(), is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-		}
-	}
-
-	private static SystemExitTrackingSecurityManager runWithSystemExitTracking(final RunnableWithException runnable) {
-		final SystemExitTrackingSecurityManager systemExitTrackingSecurityManager = new SystemExitTrackingSecurityManager();
-		SecurityManagerContext.runWithSecurityManager(systemExitTrackingSecurityManager, runnable);
-		return systemExitTrackingSecurityManager;
+		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
 	}
 
 	private static Configuration createConfiguration() {
@@ -93,6 +91,8 @@ public class TaskManagerRunnerTest extends TestLogger {
 	}
 
 	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration) throws Exception {
-		return new TaskManagerRunner(configuration, ResourceID.generate());
+		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate());
+		taskManagerRunner.start();
+		return taskManagerRunner;
 	}
 }
