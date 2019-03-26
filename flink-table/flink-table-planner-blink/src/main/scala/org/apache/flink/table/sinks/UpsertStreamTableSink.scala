@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.table.api.Table
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.api.{Table, Types}
 
 import java.lang.{Boolean => JBool}
+
 
 /**
   * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
@@ -38,7 +41,7 @@ import java.lang.{Boolean => JBool}
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-trait UpsertStreamTableSink[T] extends StreamTableSink[T] {
+trait UpsertStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
 
   /**
     * Configures the unique key fields of the [[Table]] to write.
@@ -59,6 +62,9 @@ trait UpsertStreamTableSink[T] extends StreamTableSink[T] {
     */
   def setIsAppendOnly(isAppendOnly: JBool): Unit
 
-  /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[T]): DataStreamSink[_]
+  /** Returns the requested record type */
+  def getRecordType: TypeInformation[T]
+
+  override def getOutputType = new TupleTypeInfo(Types.BOOLEAN, getRecordType)
+
 }

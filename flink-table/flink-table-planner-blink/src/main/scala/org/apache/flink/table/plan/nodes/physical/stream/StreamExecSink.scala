@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -75,48 +74,50 @@ class StreamExecSink[T](
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[Any] = {
-    val convertTransformation = sink match {
+    val resultTransformation = sink match {
+      case streamTableSink: StreamTableSink[T] =>
+        val transformation = streamTableSink match {
+          case _: RetractStreamTableSink[T] =>
+            translateToStreamTransformation(withChangeFlag = true, tableEnv)
 
-      case _: RetractStreamTableSink[T] =>
-        // translate the Table into a DataStream and provide the type that the TableSink expects.
-        translateToStreamTransformation(withChangeFlag = true, tableEnv)
+          case upsertSink: UpsertStreamTableSink[T] =>
+            // check for append only table
+            val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
+            upsertSink.setIsAppendOnly(isAppendOnlyTable)
+            translateToStreamTransformation(withChangeFlag = true, tableEnv)
 
-      case upsertSink: UpsertStreamTableSink[T] =>
-        // check for append only table
-        val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
-        upsertSink.setIsAppendOnly(isAppendOnlyTable)
-        // translate the Table into a DataStream and provide the type that the TableSink expects.
-        translateToStreamTransformation(withChangeFlag = true, tableEnv)
+          case _: AppendStreamTableSink[T] =>
+            // verify table is an insert-only (append-only) table
+            if (!UpdatingPlanChecker.isAppendOnly(this)) {
+              throw new TableException(
+                "AppendStreamTableSink requires that Table has only insert changes.")
+            }
 
-      case _: AppendStreamTableSink[T] =>
-        // verify table is an insert-only (append-only) table
-        if (!UpdatingPlanChecker.isAppendOnly(this)) {
-          throw new TableException(
-            "AppendStreamTableSink requires that Table has only insert changes.")
+            val accMode = this.getTraitSet.getTrait(AccModeTraitDef.INSTANCE).getAccMode
+            if (accMode == AccMode.AccRetract) {
+              throw new TableException(
+                "AppendStreamTableSink can not be used to output retraction messages.")
+            }
+            translateToStreamTransformation(withChangeFlag = false, tableEnv)
+
+          case _ =>
+            throw new TableException(
+              "Stream Tables can only be emitted by AppendStreamTableSink, " +
+                "RetractStreamTableSink, or UpsertStreamTableSink.")
         }
+        val dataStream = new DataStream(tableEnv.execEnv, transformation)
+        streamTableSink.emitDataStream(dataStream).getTransformation
 
-        val accMode = this.getTraitSet.getTrait(AccModeTraitDef.INSTANCE).getAccMode
-        if (accMode == AccMode.AccRetract) {
-          throw new TableException(
-            "AppendStreamTableSink can not be used to output retraction messages.")
-        }
-
-        // translate the Table into a DataStream and provide the type that the TableSink expects.
-        translateToStreamTransformation(withChangeFlag = false, tableEnv)
-
-      case s: DataStreamTableSink[_] =>
+      case streamTableSink: DataStreamTableSink[_] =>
         // In case of table to stream through BatchTableEnvironment#translateToDataStream,
         // we insert a DataStreamTableSink then wrap it as a LogicalSink, there is no real batch
         // table sink, so we do not need to invoke TableSink#emitBoundedStream and set resource,
         // just a translation to StreamTransformation is ok.
-        return translateToStreamTransformation(s.withChangeFlag, tableEnv)
-               .asInstanceOf[StreamTransformation[Any]]
+        translateToStreamTransformation(streamTableSink.withChangeFlag, tableEnv)
+
       case _ =>
-        throw new TableException("Stream Tables can only be emitted by AppendStreamTableSink, " +
-                                   "RetractStreamTableSink, or UpsertStreamTableSink.")
+        throw new TableException("Only Support StreamTableSink or DataStreamTableSink!")
     }
-    val stream = new DataStream(tableEnv.execEnv, convertTransformation)
-    val resultTransformation = emitDataStream(tableEnv.getConfig.getConf, stream).getTransformation
     resultTransformation.asInstanceOf[StreamTransformation[Any]]
   }
 
@@ -166,34 +167,6 @@ class StreamExecSink[T](
       throw new TableException(s"Not support SinkConvention now.")
     }
 
-  }
-
-  /**
-    * emit [[DataStream]].
-    *
-    * @param dataStream The [[DataStream]] to emit.
-    */
-  private def emitDataStream(
-      tableConf: Configuration,
-      dataStream: DataStream[T]) : DataStreamSink[_] = {
-    sink match {
-
-      case retractSink: RetractStreamTableSink[T] =>
-        // Give the DataStream to the TableSink to emit it.
-        retractSink.emitDataStream(dataStream)
-
-      case upsertSink: UpsertStreamTableSink[T] =>
-        // Give the DataStream to the TableSink to emit it.
-        upsertSink.emitDataStream(dataStream)
-
-      case appendSink: AppendStreamTableSink[T] =>
-        // Give the DataStream to the TableSink to emit it.
-        appendSink.emitDataStream(dataStream)
-
-      case _ =>
-        throw new TableException("Stream Tables can only be emitted by AppendStreamTableSink, " +
-                                   "RetractStreamTableSink, or UpsertStreamTableSink.")
-    }
   }
 
 }

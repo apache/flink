@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.runtime.ValuesInputFormat
+import org.apache.flink.table.runtime.values.ValuesInputFormat
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
