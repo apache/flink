@@ -171,6 +171,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
       this.listOfJar = data.files;
       this.address = data.address;
       this.cdr.markForCheck();
+      this.noAccess = Boolean(data.error);
     }, () => {
       this.isLoading = false;
       this.noAccess = true;

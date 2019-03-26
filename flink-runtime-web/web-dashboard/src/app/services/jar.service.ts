@@ -40,6 +40,7 @@ export class JarService {
     return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(catchError(() => {
       return of({
         address: '',
+        error  : true,
         files  : []
       });
     }));

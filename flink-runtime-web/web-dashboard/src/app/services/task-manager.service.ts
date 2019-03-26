@@ -18,7 +18,7 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, ReplaySubject } from 'rxjs';
+import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { BASE_URL } from 'config';
 import { TaskManagerListInterface, TaskManagerDetailInterface } from 'interfaces';
@@ -35,7 +35,7 @@ export class TaskManagerService {
   loadManagers() {
     return this.httpClient.get<TaskManagerListInterface>(`${BASE_URL}/taskmanagers`).pipe(
       map(data => data.taskmanagers || []),
-      catchError(() => EMPTY)
+      catchError(() => of([]))
     );
   }
 

@@ -70,6 +70,10 @@
         <span [hidden]="online$ | async">
           <strong class="offline">Lost Connection, Reconnecting Now...</strong>
         </span>
+        <nz-divider nzType="vertical"></nz-divider>
+        <a target="_blank" nz-tooltip nzTitle="Go back to the old version" href="./old-version/index.html" class="text action">
+          <i nz-icon nzType="interation" nzTheme="twotone" [twoToneColor]="'#EF5749'"></i>
+        </a>
       </div>
     </nz-header>
     <nz-content>

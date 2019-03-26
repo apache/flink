@@ -1,0 +1,114 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<nav class="navbar navbar-default navbar-fixed-top navbar-main">
+  <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
+  <div class="navbar-title">Submit new Job</div>
+</nav>
+<div id="content-inner" ng-if="noaccess">
+  <pre>{{noaccess}}</pre>
+</div>
+<div id="content-inner" ng-if="!noaccess &amp;&amp; yarn">
+  <pre ng-if="!address">Yarn's AM proxy doesn't allow file uploads. Please wait while we fetch an alternate url for you to use</pre>
+  <pre ng-if="address">Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;<a href="{{address}}/#/submit">here</a>&nbsp;to access this functionality.</pre>
+</div>
+<div id="content-inner" ng-if="!noaccess &amp;&amp; jars &amp;&amp; !yarn">
+  <div ng-if="error">
+    <h3>We're sorry, something went wrong. The server responded with:</h3>
+    <pre>{{error}}</pre>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Uploaded Jars</h3>
+    </div>
+    <div class="panel-body">
+      <table class="table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Name</th>
+            <th>Upload Time</th>
+            <th>Entry Class</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="jar in jars track by jar.id">
+            <td><span class="icon-wrapper"><i ng-click="selectJar(jar.id)" ng-class="state.selected | getJarSelectClass:jar.id" class="show-pointer fa"></i></span></td>
+            <td>{{jar.name}}</td>
+            <td>{{jar.uploaded | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+            <td>
+              <div ng-repeat="entries in jar.entry"><span title="{{entries.description}}" ng-click="loadEntryClass(entries.name)" class="btn btn-default row-button">{{entries.name}}</span></div>
+            </td>
+            <td><span class="icon-wrapper"><i title="Delete" ng-click="deleteJar($event, jar.id)" class="show-pointer fa fa-remove"></i></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <table id="job-submit-table" ng-if="state.selected" class="table table-no-border">
+    <tbody>
+      <tr>
+        <td class="td-large">
+          <input type="text" placeholder="Entry Class" title="Entry Class" ng-model="state['entry-class']" class="form-control"/>
+        </td>
+        <td>
+          <input type="text" placeholder="Parallelism" title="Parallelism" ng-model="state.parallelism" class="form-control"/>
+        </td>
+        <td><span id="fetch-plan" ng-click="getPlan()" class="btn btn-default">{{state['plan-button']}}</span>&nbsp;<i ng-if="state['plan-button'] == 'Getting Plan'" class="fa fa-spin fa-spinner"></i></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="td-large">
+          <input type="text" placeholder="Program Arguments" title="Program Arguments" ng-model="state['program-args']" class="form-control"/>
+        </td>
+        <td><span id="job-submit" ng-click="runJob()" class="btn btn-success btn-sm">{{state['submit-button']}}</span>&nbsp;<i ng-if="state['submit-button'] == 'Submitting'" class="fa fa-spin fa-spinner"></i></td>
+      </tr>
+      <tr>
+        <td>
+          <input type="text" placeholder="Savepoint Path" title="Savepoint Path" ng-model="state['savepointPath']" class="form-control"/>
+        </td>
+        <td>
+          <label class="checkbox-inline">
+            <input type="checkbox" ng-model="state['allowNonRestoredState']" class="checkbox-inline"/>Allow Non Restored State
+          </label>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <table ng-if="jid" class="table table-no-border">
+    <tbody>
+      <tr>
+        <td class="text-center">Job was successfully submitted. To monitor,&nbsp;<a href="{{'#/jobs/' + jid}}">click here.</a></td>
+      </tr>
+    </tbody>
+  </table>
+  <div ng-if="plan" class="canvas-wrapper">
+    <div job-plan="job-plan" plan="plan" jobid="{{plan.jid}}" set-node="changeNode(nodeid)" class="main-canvas"></div>
+  </div>
+  <table id="add-file-table" ng-if="!state.selected" class="table table-no-border">
+    <tbody>
+      <tr>
+        <td id="add-file-button"><span ng-click="clearFiles()" class="btn btn-default btn-file">Add New&nbsp;<i class="fa fa-plus"></i>
+            <input type="file" onchange="angular.element(this).scope().uploadFiles(this.files)"/></span></td>
+        <td id="add-file-name" ng-if="uploader.file" title="{{uploader.file.name}}">{{uploader.file.name}}</td>
+        <td id="add-file-status" ng-if="uploader.file"><span ng-if="uploader.error" class="error-area"><i>{{uploader.error}}</i></span><span ng-click="startUpload()" ng-if="uploader.upload" class="btn btn-success">&nbsp;Upload&nbsp;</span><span ng-if="uploader.success">{{uploader.success}}</span><span ng-if="uploader.progress" class="btn btn-progress-bar"><span ng-style="{width: uploader.progress + '%'}" class="btn btn-success btn-progress">{{uploader.progress}}%</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>

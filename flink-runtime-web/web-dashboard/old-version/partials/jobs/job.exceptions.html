@@ -1,0 +1,45 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<div ng-if="exceptions['root-exception']" class="panel panel-default panel-multi">
+  <div class="panel-heading clearfix">
+    <div class="panel-title">Root exception</div>
+  </div>
+  <div class="panel-heading clearfix">
+    <div ng-if="exceptions['timestamp'] != -1" class="panel-info thin last"><strong>Timestamp:</strong> {{ exceptions['timestamp'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+    </div>
+  </div>
+  <div class="panel-body">
+    <pre class="exception">{{ exceptions['root-exception'] }}</pre>
+  </div>
+</div>
+<div ng-repeat="exception in exceptions['all-exceptions']" class="panel panel-default panel-multi">
+  <div class="panel-heading clearfix">
+    <div class="panel-title">{{ exception.task }}</div>
+  </div>
+  <div class="panel-heading clearfix">
+    <div ng-if="exception.timestamp != -1" class="panel-info thin"><strong>Timestamp:</strong> {{ exception.timestamp | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+    </div>
+    <div class="panel-info thin last"><strong>Location:</strong> {{ exception.location }}
+    </div>
+  </div>
+  <div class="panel-body">
+    <pre class="exception">{{ exception.exception }}</pre>
+  </div>
+</div>

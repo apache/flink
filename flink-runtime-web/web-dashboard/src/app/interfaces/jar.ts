@@ -19,6 +19,7 @@
 export interface JarListInterface {
   address: string;
   files: JarFilesItemInterface[];
+  error?: boolean;
 }
 
 export interface JarFilesItemInterface {
