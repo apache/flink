@@ -19,6 +19,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
@@ -26,21 +27,20 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.optimize.{Optimizer, StreamOptimizer}
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
-import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.rel.RelCollationTraitDef
+import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.sql.SqlExplainLevel
 
 import _root_.scala.collection.JavaConversions._
@@ -75,6 +75,15 @@ abstract class StreamTableEnvironment(
 
   override def queryConfig: StreamQueryConfig = new StreamQueryConfig
 
+  override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
+    Array(
+      ConventionTraitDef.INSTANCE,
+      FlinkRelDistributionTraitDef.INSTANCE,
+      MiniBatchIntervalTraitDef.INSTANCE,
+      UpdateAsRetractionTraitDef.INSTANCE,
+      AccModeTraitDef.INSTANCE)
+  }
+
   override protected def getOptimizer: Optimizer = new StreamOptimizer(this)
 
   /**
@@ -91,18 +100,6 @@ abstract class StreamTableEnvironment(
       case None =>
     }
   }
-
-  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  override protected def createRelBuilder: FlinkRelBuilder = FlinkRelBuilder.create(
-    frameworkConfig,
-    Array(
-      ConventionTraitDef.INSTANCE,
-      FlinkRelDistributionTraitDef.INSTANCE,
-      RelCollationTraitDef.INSTANCE,
-      MiniBatchIntervalTraitDef.INSTANCE,
-      UpdateAsRetractionTraitDef.INSTANCE,
-      AccModeTraitDef.INSTANCE)
-  )
 
   /**
     * Merge global job parameters and table config parameters,
@@ -288,14 +285,12 @@ abstract class StreamTableEnvironment(
       dataStream: DataStream[T],
       fields: Array[String]): Unit = {
 
-    val streamType = dataStream.getType
-
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo(dataStream.getType, fields)
 
     // TODO: validate and extract time attributes after we introduce [Expression],
     //  return None currently
-    val (rowtime, proctime) = (None, None)
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(dataStream.getType, fields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
@@ -314,6 +309,128 @@ abstract class StreamTableEnvironment(
       namesWithIndicatorFields
     )
     registerTableInternal(name, dataStreamTable)
+  }
+
+  /**
+    * Checks for at most one rowtime and proctime attribute.
+    * Returns the time attributes.
+    *
+    * @return rowtime attribute and proctime attribute
+    */
+  // TODO: we should support Expression fields after we introduce [Expression]
+  private[flink] def validateAndExtractTimeAttributes(
+      streamType: TypeInformation[_],
+      fields: Array[String]): (Option[(Int, String)], Option[(Int, String)]) = {
+
+    val (isRefByPos, fieldTypes) = streamType match {
+      case c: CompositeType[_] =>
+        // determine schema definition mode (by position or by name)
+        (isReferenceByPosition(c, fields), (0 until c.getArity).map(i => c.getTypeAt(i)).toArray)
+      case t: TypeInformation[_] =>
+        (false, Array(t))
+    }
+
+    var fieldNames: List[String] = Nil
+    var rowtime: Option[(Int, String)] = None
+    var proctime: Option[(Int, String)] = None
+
+    def checkRowtimeType(typeInfo: TypeInformation[_]): Unit = {
+      val t = TypeConverters.createInternalTypeFromTypeInfo(typeInfo)
+      if (!(TypeCheckUtils.isLong(t) || TypeCheckUtils.isTimePoint(t))) {
+        throw new TableException(
+          s"The rowtime attribute can only replace a field with a valid time type, " +
+            s"such as Timestamp or Long. But was: $typeInfo")
+      }
+    }
+
+    def extractRowtime(idx: Int, name: String, origName: Option[String]): Unit = {
+      if (rowtime.isDefined) {
+        throw new TableException(
+          "The rowtime attribute can only be defined once in a table schema.")
+      } else {
+        // if the fields are referenced by position,
+        // it is possible to replace an existing field or append the time attribute at the end
+        if (isRefByPos) {
+          // aliases are not permitted
+          if (origName.isDefined) {
+            throw new TableException(
+              s"Invalid alias '${origName.get}' because fields are referenced by position.")
+          }
+          // check type of field that is replaced
+          if (idx < fieldTypes.length) {
+            checkRowtimeType(fieldTypes(idx))
+          }
+        }
+        // check reference-by-name
+        else {
+          val aliasOrName = origName.getOrElse(name)
+          streamType match {
+            // both alias and reference must have a valid type if they replace a field
+            case ct: CompositeType[_] if ct.hasField(aliasOrName) =>
+              val t = ct.getTypeAt(ct.getFieldIndex(aliasOrName))
+              checkRowtimeType(t)
+            // alias could not be found
+            case _ if origName.isDefined =>
+              throw new TableException(s"Alias '${origName.get}' must reference an existing field.")
+            case _ => // ok
+          }
+        }
+
+        rowtime = Some(idx, name)
+      }
+    }
+
+    def extractProctime(idx: Int, name: String): Unit = {
+      if (proctime.isDefined) {
+        throw new TableException(
+          "The proctime attribute can only be defined once in a table schema.")
+      } else {
+        // if the fields are referenced by position,
+        // it is only possible to append the time attribute at the end
+        if (isRefByPos) {
+
+          // check that proctime is only appended
+          if (idx < fieldTypes.length) {
+            throw new TableException(
+              "The proctime attribute can only be appended to the table schema and not replace " +
+                s"an existing field. Please move '$name' to the end of the schema.")
+          }
+        }
+        // check reference-by-name
+        else {
+          streamType match {
+            // proctime attribute must not replace a field
+            case ct: CompositeType[_] if ct.hasField(name) =>
+              throw new TableException(
+                s"The proctime attribute '$name' must not replace an existing field.")
+            case _ => // ok
+          }
+        }
+        proctime = Some(idx, name)
+      }
+    }
+
+    fields.zipWithIndex.foreach {
+      case ("rowtime", idx) =>
+        extractRowtime(idx, "rowtime", None)
+
+      case ("proctime", idx) =>
+        extractProctime(idx, "proctime")
+
+      case (name, _) => fieldNames = name :: fieldNames
+    }
+
+    if (rowtime.isDefined && fieldNames.contains(rowtime.get._2)) {
+      throw new TableException(
+        "The rowtime attribute may not have the same name as an another field.")
+    }
+
+    if (proctime.isDefined && fieldNames.contains(proctime.get._2)) {
+      throw new TableException(
+        "The proctime attribute may not have the same name as an another field.")
+    }
+
+    (rowtime, proctime)
   }
 
   /**

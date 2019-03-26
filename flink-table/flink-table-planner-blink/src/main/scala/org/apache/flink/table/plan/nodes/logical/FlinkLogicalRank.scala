@@ -60,9 +60,9 @@ class FlinkLogicalRank(
     val inputFieldNames = input.getRowType.getFieldNames
     pw.item("input", getInput)
       .item("rankFunction", rankFunction)
+      .item("rankRange", rankRange.toString(inputFieldNames))
       .item("partitionBy", partitionKey.map(inputFieldNames.get(_)).mkString(","))
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, input.getRowType))
-      .item("rankRange", rankRange.toString(inputFieldNames))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

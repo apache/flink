@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.annotation.Experimental
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -38,15 +38,21 @@ import org.apache.calcite.rex.RexNode
   * <p>''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
   * <p>''SELECT * FROM TABLE ORDER BY a LIMIT 2'' will be converted to [[StreamExecRank]]
   * <p>''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
+  * <p>''SELECT * FROM TABLE ORDER BY ROWTIME OFFSET 2'' will be converted to [[StreamExecSort]]
+  * <p>''SELECT * FROM TABLE ORDER BY a LIMIT 0'' will be converted to [[StreamExecSort]]
   */
 @Experimental
 class StreamExecSort(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    sortCollation: RelCollation)
-  extends Sort(cluster, traitSet, inputRel, sortCollation)
+    sortCollation: RelCollation,
+    offset: RexNode,
+    fetch: RexNode)
+  extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel {
+
+  private val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
 
   override def producesUpdates: Boolean = false
 
@@ -64,12 +70,14 @@ class StreamExecSort(
       newCollation: RelCollation,
       offset: RexNode,
       fetch: RexNode): Sort = {
-    new StreamExecSort(cluster, traitSet, input, newCollation)
+    new StreamExecSort(cluster, traitSet, input, newCollation, offset, fetch)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput())
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
+      .itemIf("offset", limitStart, offset != null)
+      .itemIf("fetch", RelExplainUtil.fetchToString(fetch), fetch != null)
   }
 
 }

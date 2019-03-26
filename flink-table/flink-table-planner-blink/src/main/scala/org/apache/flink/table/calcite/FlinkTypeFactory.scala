@@ -366,6 +366,11 @@ object FlinkTypeFactory {
     case _ => false
   }
 
+  def isProctimeIndicatorType(relDataType: RelDataType): Boolean = relDataType match {
+    case ti: TimeIndicatorRelDataType if !ti.isEventTime => true
+    case _ => false
+  }
+
   def toInternalType(relDataType: RelDataType): InternalType = relDataType.getSqlTypeName match {
     case BOOLEAN => InternalTypes.BOOLEAN
     case TINYINT => InternalTypes.BYTE

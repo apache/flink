@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.{InternalType, RowType, TypeConverters}
+import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -65,11 +65,33 @@ abstract class InlineTable[T](
             s"Arity of type (" + rt.getFieldNames.deep + ") " +
               "must not be greater than number of field names " + fieldNames.deep + ".")
         }
-        fieldIndexes.map(i => rt.getTypeAt(i))
+        fieldIndexes.map {
+          case InternalTypes.ROWTIME_STREAM_MARKER =>
+            InternalTypes.ROWTIME_INDICATOR
+          case InternalTypes.PROCTIME_STREAM_MARKER =>
+            InternalTypes.PROCTIME_INDICATOR
+          case InternalTypes.ROWTIME_BATCH_MARKER =>
+            InternalTypes.TIMESTAMP
+          case InternalTypes.PROCTIME_BATCH_MARKER =>
+            InternalTypes.TIMESTAMP
+          case i => rt.getTypeAt(i)
+        }
 
       case t: InternalType =>
-        val cnt = fieldIndexes.length
-        val types = Array(t)
+        var cnt = 0
+        val types = fieldIndexes.map {
+          case InternalTypes.ROWTIME_STREAM_MARKER =>
+            InternalTypes.ROWTIME_INDICATOR
+          case InternalTypes.PROCTIME_STREAM_MARKER =>
+            InternalTypes.PROCTIME_INDICATOR
+          case InternalTypes.ROWTIME_BATCH_MARKER =>
+            InternalTypes.TIMESTAMP
+          case InternalTypes.PROCTIME_BATCH_MARKER =>
+            InternalTypes.TIMESTAMP
+          case _ =>
+            cnt += 1
+            t
+        }
         // ensure that the atomic type is matched at most once.
         if (cnt > 1) {
           throw new TableException(
