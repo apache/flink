@@ -138,11 +138,6 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
-
-	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
 		return cancelTaskFunction.apply(executionAttemptID);
 	}

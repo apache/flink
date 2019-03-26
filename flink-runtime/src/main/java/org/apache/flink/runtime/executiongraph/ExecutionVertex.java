@@ -692,10 +692,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return currentExecution.suspend();
 	}
 
-	public void stop() {
-		currentExecution.stop();
-	}
-
 	public void fail(Throwable t) {
 		currentExecution.fail(t);
 	}

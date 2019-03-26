@@ -82,9 +82,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final Supplier<CompletableFuture<Acknowledge>> cancelFunction;
 
 	@Nonnull
-	private final Supplier<CompletableFuture<Acknowledge>> stopFunction;
-
-	@Nonnull
 	private final BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction;
 
 	@Nonnull
@@ -169,7 +166,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull String address,
 			@Nonnull String hostname,
 			@Nonnull Supplier<CompletableFuture<Acknowledge>> cancelFunction,
-			@Nonnull Supplier<CompletableFuture<Acknowledge>> stopFunction,
 			@Nonnull BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction,
 			@Nonnull TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction,
 			@Nonnull Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction,
@@ -200,7 +196,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelFunction = cancelFunction;
-		this.stopFunction = stopFunction;
 		this.rescalingJobFunction = rescalingJobFunction;
 		this.rescalingOperatorsFunction = rescalingOperatorsFunction;
 		this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
@@ -233,11 +228,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
 		return cancelFunction.get();
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> stop(Time timeout) {
-		return stopFunction.get();
 	}
 
 	@Override

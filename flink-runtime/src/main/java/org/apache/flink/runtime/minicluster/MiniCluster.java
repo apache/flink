@@ -551,10 +551,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.cancelJob(jobId, rpcTimeout));
 	}
 
-	public CompletableFuture<Acknowledge> stopJob(JobID jobId) {
-		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.stopJob(jobId, rpcTimeout));
-	}
-
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, String targetDirectory, boolean cancelJob) {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.triggerSavepoint(jobId, targetDirectory, cancelJob, rpcTimeout));
 	}

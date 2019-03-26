@@ -600,25 +600,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	@Override
-	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		final Task task = taskSlotTable.getTask(executionAttemptID);
-
-		if (task != null) {
-			try {
-				task.stopExecution();
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			} catch (Throwable t) {
-				return FutureUtils.completedExceptionally(new TaskException("Cannot stop task for execution " + executionAttemptID + '.', t));
-			}
-		} else {
-			final String message = "Cannot find task to stop for execution " + executionAttemptID + '.';
-
-			log.debug(message);
-			return FutureUtils.completedExceptionally(new TaskException(message));
-		}
-	}
-
 	// ----------------------------------------------------------------------
 	// Partition lifecycle RPCs
 	// ----------------------------------------------------------------------

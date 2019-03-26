@@ -49,7 +49,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -70,7 +69,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -78,7 +76,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -103,7 +100,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	 */
 	private static OneShotLatch notifyCheckpointCompleteLatch;
 
-	/** Triggered on {@link ContextClassLoaderInterceptingInvokable#stop()}}. */
+	/** Triggered on {@link ContextClassLoaderInterceptingInvokable#cancel()}. */
 	private static OneShotLatch stopLatch;
 
 	private static final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
@@ -178,26 +175,10 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testThrowExceptionIfStopInvokedWithNotStoppableTask() throws Exception {
-		Task task = createTask(CheckpointsInOrderInvokable.class);
-		try (TaskCleaner ignored = new TaskCleaner(task)) {
-			task.startTaskThread();
-			awaitLatch.await();
-
-			try {
-				task.stopExecution();
-				fail("Expected exception not thrown");
-			} catch (UnsupportedOperationException e) {
-				assertThat(e.getMessage(), containsString("Stopping not supported by task"));
-			}
-		}
-	}
-
 	/**
 	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)},
-	 * {@link AbstractInvokable#notifyCheckpointComplete(long)}, and {@link StoppableTask#stop()} are
-	 * invoked by a thread whose context class loader is set to the user code class loader.
+	 * and {@link AbstractInvokable#notifyCheckpointComplete(long)} are invoked by a thread whose context
+	 * class loader is set to the user code class loader.
 	 */
 	@Test
 	public void testSetsUserCodeClassLoader() throws Exception {
@@ -213,12 +194,12 @@ public class TaskAsyncCallTest extends TestLogger {
 			triggerLatch.await();
 
 			task.notifyCheckpointComplete(1);
-			task.stopExecution();
+			task.cancelExecution();
 
 			notifyCheckpointCompleteLatch.await();
 			stopLatch.await();
 
-			assertThat(classLoaders, hasSize(greaterThanOrEqualTo(3)));
+			assertThat(classLoaders, hasSize(greaterThanOrEqualTo(2)));
 			assertThat(classLoaders, everyItem(instanceOf(TestUserCodeClassLoader.class)));
 		}
 	}
@@ -364,7 +345,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	 *
 	 * @see #testSetsUserCodeClassLoader()
 	 */
-	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable implements StoppableTask {
+	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable {
 
 		public ContextClassLoaderInterceptingInvokable(Environment environment) {
 			super(environment);
@@ -385,8 +366,7 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public void stop() {
-			classLoaders.add(Thread.currentThread().getContextClassLoader());
+		public void cancel() {
 			stopLatch.trigger();
 		}
 
