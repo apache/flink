@@ -34,8 +34,8 @@ import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.sql.SqlKind
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] which sort field is proc-time attribute type and
-  * fetch only one record start from 0, and converts it to [[StreamExecFirstLastRow]].
+  * Rule that matches [[FlinkLogicalSort]] which is sorted by proc-time attribute and
+  * fetches only one record started from 0, and converts it to [[StreamExecFirstLastRow]].
   */
 class StreamExecFirstLastRowFromSortRule
   extends ConverterRule(
@@ -76,7 +76,7 @@ class StreamExecFirstLastRowFromSortRule
 }
 
 /**
-  * Rule that matches [[FlinkLogicalRank]] which sorts on proc-time attribute and
+  * Rule that matches [[FlinkLogicalRank]] which is sorted by proc-time attribute and
   * limits 1 and its RankFunction is ROW_NUMBER, and converts it to [[StreamExecFirstLastRow]].
   */
 class StreamExecFirstLastRowFromRankRule
@@ -122,10 +122,10 @@ object StreamExecFirstLastRowRule {
   val RANK_INSTANCE = new StreamExecFirstLastRowFromRankRule
 
   /**
-    * Whether the rank could be converted to [[StreamExecFirstLastRow]].
+    * Whether the given rank could be converted to [[StreamExecFirstLastRow]].
     *
-    * Returns true if sorts on proc-time attribute and limits 1 and RankFunction
-    * is ROW_NUMBER, else false.
+    * Returns true if the given rank is sorted by proc-time attribute and limits 1
+    * and its RankFunction is ROW_NUMBER, else false.
     *
     * @param rank The [[FlinkLogicalRank]] node
     * @return True if the input rank could be converted to [[StreamExecFirstLastRow]]
@@ -148,10 +148,10 @@ object StreamExecFirstLastRowRule {
   }
 
   /**
-    * Whether the sort could be converted to [[StreamExecFirstLastRow]].
+    * Whether the given sort could be converted to [[StreamExecFirstLastRow]].
     *
-    * Return true if first sort field is proc-time attribute type and
-    * fetch only one record start from 0, else false.
+    * Return true if the given sort is sorted by proc-time attribute and
+    * fetches only one record started from 0, else false.
     *
     * @param sort the [[Sort]] node
     * @return True if the input sort could be converted to [[StreamExecFirstLastRow]]

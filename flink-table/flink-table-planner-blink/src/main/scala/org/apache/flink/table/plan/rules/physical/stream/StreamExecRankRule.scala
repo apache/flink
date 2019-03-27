@@ -34,7 +34,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableBitSet
 
 /**
-  * Rule that converts [[FlinkLogicalSort]] with fetch to [[StreamExecRank]].
+  * Rule that converts [[FlinkLogicalSort]] with non-null `fetch` to [[StreamExecRank]].
   * NOTES: the sort can not be converted to [[StreamExecFirstLastRow]].
   */
 class StreamExecRankFromSortRule
@@ -46,8 +46,8 @@ class StreamExecRankFromSortRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
-    val canConvertToRank = sort.fetch != null && RexLiteral.intValue(sort.fetch) > 0
-    canConvertToRank && !StreamExecFirstLastRowRule.canConvertToFirstLastRow(sort)
+    StreamExecRankRule.canConvertToRank(sort) &&
+      !StreamExecFirstLastRowRule.canConvertToFirstLastRow(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -129,4 +129,16 @@ class StreamExecRankFromRankRule
 object StreamExecRankRule {
   val SORT_INSTANCE: RelOptRule = new StreamExecRankFromSortRule
   val RANK_INSTANCE: RelOptRule = new StreamExecRankFromRankRule
+
+  /**
+    * Whether the given sort could be converted to [[StreamExecRank]].
+    *
+    * Return true if `fetch` is not null and is greater than 0, else false.
+    *
+    * @param sort the [[FlinkLogicalSort]] node
+    * @return True if the input sort could be converted to [[StreamExecRank]]
+    */
+  def canConvertToRank(sort: FlinkLogicalSort): Boolean = {
+    sort.fetch != null && RexLiteral.intValue(sort.fetch) > 0
+  }
 }

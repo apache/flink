@@ -28,8 +28,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] which first sort field is time attribute type and
-  * its order is ascending, and converts it to [[StreamExecTemporalSort]].
+  * Rule that matches [[FlinkLogicalSort]] which is sorted by time attribute in ascending order
+  * and its `fetch` and `offset` are null, and converts it to [[StreamExecTemporalSort]].
   */
 class StreamExecTemporalSortRule
   extends ConverterRule(
@@ -40,22 +40,7 @@ class StreamExecTemporalSortRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
-    val fieldCollations = sort.collation.getFieldCollations
-    if (sort.fetch != null || sort.offset != null) {
-      return false
-    }
-
-    if (fieldCollations.isEmpty) {
-      false
-    } else {
-      // get type of first sort field
-      val firstSortField = fieldCollations.get(0)
-      val inputRowType = sort.getInput.getRowType
-      val firstSortFieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
-      // checks if first sort attribute is time attribute type and order is ascending
-      FlinkTypeFactory.isTimeIndicatorType(firstSortFieldType) &&
-        firstSortField.direction == Direction.ASCENDING
-    }
+    StreamExecTemporalSortRule.canConvertToTemporalSort(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -75,4 +60,32 @@ class StreamExecTemporalSortRule
 
 object StreamExecTemporalSortRule {
   val INSTANCE: RelOptRule = new StreamExecTemporalSortRule
+
+  /**
+    * Whether the given sort could be converted to [[StreamExecTemporalSort]].
+    *
+    * Return true if the given sort is sorted by time attribute in ascending order
+    * and its `fetch` and `offset` are null, else false.
+    *
+    * @param sort the [[FlinkLogicalSort]] node
+    * @return True if the input sort could be converted to [[StreamExecTemporalSort]]
+    */
+  def canConvertToTemporalSort(sort: FlinkLogicalSort): Boolean = {
+    val fieldCollations = sort.collation.getFieldCollations
+    if (sort.fetch != null || sort.offset != null) {
+      return false
+    }
+
+    if (fieldCollations.isEmpty) {
+      false
+    } else {
+      // get type of first sort field
+      val firstSortField = fieldCollations.get(0)
+      val inputRowType = sort.getInput.getRowType
+      val firstSortFieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+      // checks if first sort attribute is time attribute type and order is ascending
+      FlinkTypeFactory.isTimeIndicatorType(firstSortFieldType) &&
+        firstSortField.direction == Direction.ASCENDING
+    }
+  }
 }

@@ -22,7 +22,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSort
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSort
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexLiteral
@@ -40,7 +40,12 @@ class StreamExecSortRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
-    sort.fetch == null || RexLiteral.intValue(sort.fetch) == 0
+    (sort.fetch == null || RexLiteral.intValue(sort.fetch) == 0) &&
+      // add this check to make sure that the sort can be correctly converted to expected rel
+      // TODO choose correct rel by cost model ?? add `computeSelfCost` method for these rels
+      !StreamExecTemporalSortRule.canConvertToTemporalSort(sort) &&
+      !StreamExecFirstLastRowRule.canConvertToFirstLastRow(sort) &&
+      !StreamExecRankRule.canConvertToRank(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
