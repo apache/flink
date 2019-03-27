@@ -18,85 +18,15 @@
 
 package org.apache.flink.table.codegen.agg
 
-import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.table.`type`.InternalTypes
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.java.StreamTableEnvironment
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.GenericRow
-import org.apache.flink.table.dataview.DataViewSpec
-import org.apache.flink.table.functions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.generated.AggsHandleFunction
-import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.tools.FrameworkConfig
+
 import org.junit.{Assert, Test}
-import org.powermock.api.mockito.PowerMockito.{mock, when}
+
 import java.lang
 
-import org.apache.flink.table.runtime.context.ExecutionContext
-
-class AggsHandlerCodeGeneratorTest {
-
-  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
-  private val env = new LocalStreamEnvironment
-  private val conf = new TableConfig
-  private val tEnv = new StreamTableEnvironment(env, conf)
-  private val frameworkConfig: FrameworkConfig = tEnv.getFrameworkConfig
-  private val inputNames = Array("f0", "f1", "f2", "f3")
-  private val inputTypes = Array(
-    InternalTypes.STRING,
-    InternalTypes.LONG, InternalTypes.DOUBLE, InternalTypes.LONG)
-  private val relBuilder = FlinkRelBuilder.create(frameworkConfig).values(
-    typeFactory.buildLogicalRowType(inputNames, inputTypes))
-  private val aggInfo1 = {
-    val aggInfo = mock(classOf[AggregateInfo])
-    val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg1")
-    when(aggInfo, "function").thenReturn(new IntegralAvgAggFunction)
-    when(aggInfo, "externalAccTypes").thenReturn(Array(Types.LONG, Types.LONG))
-    when(aggInfo, "argIndexes").thenReturn(Array(1))
-    when(aggInfo, "aggIndex").thenReturn(0)
-    aggInfo
-  }
-
-  private val aggInfo2 = {
-    val aggInfo = mock(classOf[AggregateInfo])
-    val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg2")
-    when(aggInfo, "function").thenReturn(new DoubleAvgAggFunction)
-    when(aggInfo, "externalAccTypes").thenReturn(Array(Types.DOUBLE, Types.LONG))
-    when(aggInfo, "argIndexes").thenReturn(Array(2))
-    when(aggInfo, "aggIndex").thenReturn(1)
-    aggInfo
-  }
-
-  private val imperativeAggFunc = new TestLongAvgFunc
-  private val aggInfo3 = {
-    val aggInfo = mock(classOf[AggregateInfo])
-    val call = mock(classOf[AggregateCall])
-    when(aggInfo, "agg").thenReturn(call)
-    when(call, "getName").thenReturn("avg3")
-    when(aggInfo, "function").thenReturn(imperativeAggFunc)
-    when(aggInfo, "externalAccTypes").thenReturn(Array(imperativeAggFunc.getAccumulatorType))
-    when(aggInfo, "externalResultType").thenReturn(Types.DOUBLE)
-    when(aggInfo, "viewSpecs").thenReturn(Array[DataViewSpec]())
-    when(aggInfo, "argIndexes").thenReturn(Array(3))
-    when(aggInfo, "aggIndex").thenReturn(2)
-    aggInfo
-  }
-
-  private val aggInfoList = AggregateInfoList(
-    Array(aggInfo1, aggInfo2, aggInfo3), None, count1AggInserted = false, Array())
-  private val ctx = new CodeGeneratorContext(conf)
-  private val classLoader = Thread.currentThread().getContextClassLoader
-  private val context = mock(classOf[ExecutionContext])
-  when(context, "getRuntimeContext").thenReturn(mock(classOf[RuntimeContext]))
+class AggsHandlerCodeGeneratorTest extends AggTestBase {
 
   @Test
   def testAvg(): Unit = {

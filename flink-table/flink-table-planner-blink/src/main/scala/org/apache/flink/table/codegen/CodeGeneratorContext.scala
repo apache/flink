@@ -560,7 +560,13 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       obj: AnyRef,
       fieldNamePrefix: String,
       fieldTypeTerm: String = null): String = {
-    val fieldTerm = newName(fieldNamePrefix)
+    addReusableObjectWithName(obj, newName(fieldNamePrefix), fieldTypeTerm)
+  }
+
+  def addReusableObjectWithName(
+      obj: AnyRef,
+      fieldTerm: String,
+      fieldTypeTerm: String = null): String = {
     val clsName = Option(fieldTypeTerm).getOrElse(obj.getClass.getCanonicalName)
     addReusableObjectInternal(obj, fieldTerm, clsName)
     fieldTerm
