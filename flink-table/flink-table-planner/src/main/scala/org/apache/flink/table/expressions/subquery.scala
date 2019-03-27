@@ -24,7 +24,8 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableImpl
+import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.plan.logical.LogicalNode
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -39,8 +40,10 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
     // check if this is a sub-query expression or an element list
     elements.head match {
 
-      case TableReference(_, table: TableImpl) =>
-        RexSubQuery.in(table.getRelNode, ImmutableList.of(expression.toRexNode))
+      case TableReference(_, tableOperation: TableOperation) =>
+        RexSubQuery.in(
+          tableOperation.asInstanceOf[LogicalNode].toRelNode(relBuilder),
+          ImmutableList.of(expression.toRexNode))
 
       case _ =>
         relBuilder.call(SqlStdOperatorTable.IN, children.map(_.toRexNode): _*)
@@ -51,11 +54,11 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
     // check if this is a sub-query expression or an element list
     elements.head match {
 
-      case TableReference(name, table: TableImpl) =>
+      case TableReference(name, tableOperation: TableOperation) =>
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }
-        val tableSchema = table.operationTree.getTableSchema
+        val tableSchema = tableOperation.getTableSchema
         if (tableSchema.getFieldCount > 1) {
           return ValidationFailure(
             s"The sub-query table '$name' must not have more than one column.")

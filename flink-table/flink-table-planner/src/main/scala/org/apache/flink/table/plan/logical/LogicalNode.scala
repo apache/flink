@@ -118,7 +118,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] with TableOperation {
 
     // try to resolve a table
     tableEnv.scanInternal(Array(name)) match {
-      case Some(table) => Some(TableReference(name, table))
+      case Some(table) => Some(TableReference(name, table.getTableOperation))
       case None => None
     }
   }
