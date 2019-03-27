@@ -29,7 +29,6 @@ import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
@@ -384,13 +383,6 @@ public class TaskManagerServicesConfiguration {
 			ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE);
 
-		final IOManager.IOMode ioMode;
-		if (syncOrAsync.equals("async")) {
-			ioMode = IOManager.IOMode.ASYNC;
-		} else {
-			ioMode = IOManager.IOMode.SYNC;
-		}
-
 		int initialRequestBackoff = configuration.getInteger(
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
 		int maxRequestBackoff = configuration.getInteger(
@@ -406,7 +398,6 @@ public class TaskManagerServicesConfiguration {
 			networkBufMin,
 			networkBufMax,
 			pageSize,
-			ioMode,
 			initialRequestBackoff,
 			maxRequestBackoff,
 			buffersPerChannel,
