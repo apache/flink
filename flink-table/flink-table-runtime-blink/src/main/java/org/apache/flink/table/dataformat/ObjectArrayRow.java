@@ -126,4 +126,16 @@ public abstract class ObjectArrayRow implements BaseRow {
 			return false;
 		}
 	}
+
+	public boolean equalsWithoutHeader(BaseRow o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || !(o instanceof ObjectArrayRow)) {
+			return false;
+		}
+
+		ObjectArrayRow row = (ObjectArrayRow) o;
+		return Arrays.equals(fields, row.fields);
+	}
 }

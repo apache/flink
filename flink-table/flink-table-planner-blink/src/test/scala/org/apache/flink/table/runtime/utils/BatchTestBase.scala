@@ -27,7 +27,6 @@ import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableE
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
-import org.apache.flink.table.runtime.utils.BatchTestBase.PARALLELISM
 import org.apache.flink.table.util.DiffRepository
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row

@@ -16,34 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.generated;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
 
+import java.io.Serializable;
+
 /**
- * A ExecutionContext contains information about the context in which functions are executed and
- * the APIs to create state.
+ * Record equaliser for BaseRow which can compare two BaseRows and returns whether they are equal.
  */
-public interface ExecutionContext {
-
-	// TODO add create state method.
+public interface RecordEqualiser extends Serializable {
 
 	/**
-	 * @return the key serializer of state key
+	 * Returns {@code true} if the rows are equal to each other
+	 * and {@code false} otherwise.
 	 */
-	<K> TypeSerializer<K> getKeySerializer();
+	boolean equals(BaseRow row1, BaseRow row2);
 
 	/**
-	 * @return key of the current processed element.
+	 * Returns {@code true} if the rows are equal to each other without header compare
+	 * and {@code false} otherwise.
 	 */
-	BaseRow currentKey();
-
-	/**
-	 * Sets current key.
-	 */
-	void setCurrentKey(BaseRow key);
-
-	RuntimeContext getRuntimeContext();
+	boolean equalsWithoutHeader(BaseRow row1, BaseRow row2);
 }

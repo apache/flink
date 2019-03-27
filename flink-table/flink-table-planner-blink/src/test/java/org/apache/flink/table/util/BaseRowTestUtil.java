@@ -33,7 +33,7 @@ import java.util.TimeZone;
 /**
  * Utility for BaseRow.
  */
-public class BaseRowUtil {
+public class BaseRowTestUtil {
 
 	public static String baseRowToString(BaseRow value, BaseRowTypeInfo rowTypeInfo, TimeZone tz) {
 		return baseRowToString(value, rowTypeInfo, tz, true);
