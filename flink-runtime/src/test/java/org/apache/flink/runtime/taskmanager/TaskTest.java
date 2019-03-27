@@ -60,6 +60,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
@@ -608,7 +609,7 @@ public class TaskTest extends TestLogger {
 			final Task task =  new TaskBuilder()
 				.setInvokable(InvokableBlockingInInvoke.class)
 				.setNetworkEnvironment(network)
-				.setKvStateService(KvStateService.build())
+				.setKvStateService(new KvStateService(new KvStateRegistry(), null, null))
 				.setConsumableNotifier(consumableNotifier)
 				.setPartitionProducerStateChecker(partitionChecker)
 				.setExecutor(Executors.directExecutor())
@@ -950,7 +951,7 @@ public class TaskTest extends TestLogger {
 			when(networkEnvironment.getResultPartitionManager()).thenReturn(partitionManager);
 			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
-			kvStateService = KvStateService.build();
+			kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 
 			executor = TestingUtils.defaultExecutor();
 

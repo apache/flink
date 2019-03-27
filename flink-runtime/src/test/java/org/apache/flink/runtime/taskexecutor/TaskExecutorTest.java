@@ -71,6 +71,7 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -266,7 +267,7 @@ public class TaskExecutorTest extends TestLogger {
 			true);
 		networkEnvironment.start();
 
-		final KvStateService kvStateService = KvStateService.build();
+		final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 		kvStateService.start();
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
@@ -755,9 +756,11 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
 
+		final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
+
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setNetworkEnvironment(networkEnvironment)
-			.setKvStateService(KvStateService.build())
+			.setKvStateService(kvStateService)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobManagerTable(jobManagerTable)
 			.setTaskStateManager(localStateStoresManager)

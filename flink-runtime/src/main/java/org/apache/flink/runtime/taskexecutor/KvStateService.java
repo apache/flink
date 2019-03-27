@@ -52,7 +52,7 @@ public class KvStateService {
 
 	private boolean isShutdown;
 
-	KvStateService(KvStateRegistry kvStateRegistry, KvStateServer kvStateServer, KvStateClientProxy kvStateClientProxy) {
+	public KvStateService(KvStateRegistry kvStateRegistry, KvStateServer kvStateServer, KvStateClientProxy kvStateClientProxy) {
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
 		this.kvStateServer = kvStateServer;
 		this.kvStateClientProxy = kvStateClientProxy;
@@ -184,9 +184,5 @@ public class KvStateService {
 		}
 
 		return new KvStateService(kvStateRegistry, kvStateServer, kvClientProxy);
-	}
-
-	public static KvStateService build() {
-		return new KvStateService(new KvStateRegistry(), null, null);
 	}
 }

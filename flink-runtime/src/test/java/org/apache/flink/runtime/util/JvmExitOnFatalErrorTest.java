@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -207,7 +208,7 @@ public class JvmExitOnFatalErrorTest {
 						memoryManager,
 						ioManager,
 						networkEnvironment,
-						KvStateService.build(),
+						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
 						slotStateManager,
 						new NoOpTaskManagerActions(),
