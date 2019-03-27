@@ -191,10 +191,13 @@ public class ZooKeeperHaServicesTest extends TestLogger {
 			final LeaderElectionService resourceManagerLeaderElectionService = zooKeeperHaServices.getResourceManagerLeaderElectionService();
 			final RunningJobsRegistry runningJobsRegistry = zooKeeperHaServices.getRunningJobsRegistry();
 
-			resourceManagerLeaderRetriever.start(new TestingListener());
+			final TestingListener listener = new TestingListener();
+			resourceManagerLeaderRetriever.start(listener);
 			resourceManagerLeaderElectionService.start(new TestingContender("foobar", resourceManagerLeaderElectionService));
 			final JobID jobId = new JobID();
 			runningJobsRegistry.setJobRunning(jobId);
+
+			listener.waitForNewLeader(2000L);
 
 			resourceManagerLeaderRetriever.stop();
 			resourceManagerLeaderElectionService.stop();
