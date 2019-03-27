@@ -33,6 +33,7 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -50,24 +51,34 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -75,15 +86,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.function.Function;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -662,6 +676,107 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the {@link ExecutionGraph} is deployed in topological order.
+	 */
+	@Test
+	public void testExecutionGraphIsDeployedInTopologicalOrder() throws Exception {
+		final int sourceParallelism = 2;
+		final int sinkParallelism = 1;
+
+		final JobVertex sourceVertex = new JobVertex("source");
+		sourceVertex.setInvokableClass(NoOpInvokable.class);
+		sourceVertex.setParallelism(sourceParallelism);
+
+		final JobVertex sinkVertex = new JobVertex("sink");
+		sinkVertex.setInvokableClass(NoOpInvokable.class);
+		sinkVertex.setParallelism(sinkParallelism);
+
+		sinkVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+		final JobID jobId = new JobID();
+		final int numberTasks = sourceParallelism + sinkParallelism;
+		final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue = new ArrayBlockingQueue<>(numberTasks);
+		TestingTaskExecutorGatewayBuilder testingTaskExecutorGatewayBuilder = new TestingTaskExecutorGatewayBuilder();
+		testingTaskExecutorGatewayBuilder.setSubmitTaskConsumer((taskDeploymentDescriptor, jobMasterId) -> {
+			submittedTasksQueue.offer(taskDeploymentDescriptor.getExecutionAttemptId());
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		});
+
+		final TestingTaskExecutorGateway taskExecutorGateway = testingTaskExecutorGatewayBuilder.createTestingTaskExecutorGateway();
+		final RpcTaskManagerGateway taskManagerGateway = new RpcTaskManagerGateway(taskExecutorGateway, JobMasterId.generate());
+
+		final Collection<CompletableFuture<LogicalSlot>> slotFutures = new ArrayList<>(numberTasks);
+		for (int i = 0; i < numberTasks; i++) {
+			slotFutures.add(new CompletableFuture<>());
+		}
+
+		final SlotProvider slotProvider = new IteratorTestingSlotProvider(slotFutures.iterator());
+
+		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createExecutionGraph(
+			jobId,
+			slotProvider,
+			new NoRestartStrategy(),
+			new DirectScheduledExecutorService(),
+			sourceVertex,
+			sinkVertex);
+		executionGraph.setScheduleMode(ScheduleMode.EAGER);
+		executionGraph.setQueuedSchedulingAllowed(true);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		executionGraph.scheduleForExecution();
+
+		// change the order in which the futures are completed
+		final List<CompletableFuture<LogicalSlot>> shuffledFutures = new ArrayList<>(slotFutures);
+		Collections.shuffle(shuffledFutures);
+
+		for (CompletableFuture<LogicalSlot> slotFuture : shuffledFutures) {
+			slotFuture.complete(new TestingLogicalSlot(taskManagerGateway));
+		}
+
+		final List<ExecutionAttemptID> submittedTasks = new ArrayList<>(numberTasks);
+
+		for (int i = 0; i < numberTasks; i++) {
+			submittedTasks.add(submittedTasksQueue.take());
+		}
+
+		final Collection<ExecutionAttemptID> firstStage = new ArrayList<>(sourceParallelism);
+		for (ExecutionVertex taskVertex : executionGraph.getJobVertex(sourceVertex.getID()).getTaskVertices()) {
+			firstStage.add(taskVertex.getCurrentExecutionAttempt().getAttemptId());
+		}
+
+		final Collection<ExecutionAttemptID> secondStage = new ArrayList<>(sinkParallelism);
+		for (ExecutionVertex taskVertex : executionGraph.getJobVertex(sinkVertex.getID()).getTaskVertices()) {
+			secondStage.add(taskVertex.getCurrentExecutionAttempt().getAttemptId());
+		}
+
+		assertThat(submittedTasks, new ExecutionStageMatcher(Arrays.asList(firstStage, secondStage)));
+	}
+
+	private static final class IteratorTestingSlotProvider extends TestingSlotProvider {
+		private IteratorTestingSlotProvider(final Iterator<CompletableFuture<LogicalSlot>> slotIterator) {
+			super(new IteratorSlotFutureFunction(slotIterator));
+		}
+
+		private static class IteratorSlotFutureFunction implements Function<SlotRequestId, CompletableFuture<LogicalSlot>> {
+			final Iterator<CompletableFuture<LogicalSlot>> slotIterator;
+
+			IteratorSlotFutureFunction(Iterator<CompletableFuture<LogicalSlot>> slotIterator) {
+				this.slotIterator = slotIterator;
+			}
+
+			@Override
+			public CompletableFuture<LogicalSlot> apply(SlotRequestId slotRequestId) {
+				if (slotIterator.hasNext()) {
+					return slotIterator.next();
+				} else {
+					return FutureUtils.completedExceptionally(new FlinkException("No more slots available."));
+				}
+			}
+		}
+	}
+
 	private SimpleSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
 		return new SimpleSlot(
 			mock(SlotOwner.class),
@@ -706,5 +821,39 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			blobWriter,
 			timeout,
 			LoggerFactory.getLogger(getClass()));
+	}
+
+	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {
+		private final List<Collection<ExecutionAttemptID>> executionStages;
+
+		private ExecutionStageMatcher(List<Collection<ExecutionAttemptID>> executionStages) {
+			this.executionStages = executionStages;
+		}
+
+		@Override
+		protected boolean matchesSafely(List<ExecutionAttemptID> submissionOrder) {
+			final Iterator<ExecutionAttemptID> submissionIterator = submissionOrder.iterator();
+
+			for (Collection<ExecutionAttemptID> stage : executionStages) {
+				final Collection<ExecutionAttemptID> currentStage = new ArrayList<>(stage);
+
+				while (!currentStage.isEmpty() && submissionIterator.hasNext()) {
+					if (!currentStage.remove(submissionIterator.next())) {
+						return false;
+					}
+				}
+
+				if (!currentStage.isEmpty()) {
+					return false;
+				}
+			}
+
+			return !submissionIterator.hasNext();
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendValueList("<[", ", ", "]>", executionStages);
+		}
 	}
 }

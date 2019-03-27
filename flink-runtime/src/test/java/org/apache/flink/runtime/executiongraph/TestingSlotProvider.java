@@ -38,7 +38,7 @@ import java.util.function.Function;
 /**
  * {@link SlotProvider} implementation for testing purposes.
  */
-public final class TestingSlotProvider implements SlotProvider {
+public class TestingSlotProvider implements SlotProvider {
 
 	private final ConcurrentMap<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutures;
 
