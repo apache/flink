@@ -233,7 +233,7 @@ class DeclarativeAggCodeGen(
       typeLiteral
     }
 
-    private def visitUnresolvedFieldReference(input: UnresolvedFieldReferenceExpression)
+    private def visitUnresolvedReference(input: UnresolvedReferenceExpression)
       : Expression = {
       function.aggBufferAttributes.indexOf(input) match {
         case -1 =>
@@ -287,7 +287,7 @@ class DeclarativeAggCodeGen(
 
     override def visit(other: Expression): Expression = {
       other match {
-        case u : UnresolvedFieldReferenceExpression => visitUnresolvedFieldReference(u)
+        case u : UnresolvedReferenceExpression => visitUnresolvedReference(u)
         case _ => other
       }
     }

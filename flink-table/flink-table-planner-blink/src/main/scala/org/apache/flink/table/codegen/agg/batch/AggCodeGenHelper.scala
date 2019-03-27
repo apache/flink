@@ -28,7 +28,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForExternalType
 import org.apache.flink.table.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedFieldReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
@@ -281,7 +281,7 @@ object AggCodeGenHelper {
     }
 
     private def visitUnresolvedFieldReference(
-        input: UnresolvedFieldReferenceExpression): Expression = {
+        input: UnresolvedReferenceExpression): Expression = {
       agg.aggBufferAttributes.indexOf(input) match {
         case -1 =>
           // We always use UnresolvedFieldReference to represent reference of input field.
@@ -303,7 +303,7 @@ object AggCodeGenHelper {
 
     override def visit(other: Expression): Expression = {
       other match {
-        case u : UnresolvedFieldReferenceExpression => visitUnresolvedFieldReference(u)
+        case u : UnresolvedReferenceExpression => visitUnresolvedFieldReference(u)
         case _ => other
       }
     }

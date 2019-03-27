@@ -21,7 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedFieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
@@ -35,7 +35,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
  * built-in min aggregate function.
  */
 public abstract class MinAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedFieldReferenceExpression min = new UnresolvedFieldReferenceExpression("min");
+	private UnresolvedReferenceExpression min = new UnresolvedReferenceExpression("min");
 
 	@Override
 	public int operandCount() {
@@ -43,8 +43,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public UnresolvedFieldReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedFieldReferenceExpression[] { min };
+	public UnresolvedReferenceExpression[] aggBufferAttributes() {
+		return new UnresolvedReferenceExpression[] { min };
 	}
 
 	@Override
