@@ -162,10 +162,6 @@ pick the Scala version that matches their application's Scala version.
 Please refer to the [build guide]({{ site.baseurl }}/flinkDev/building.html#scala-versions)
 for details on how to build Flink for a specific Scala version.
 
-**Note:** Because of major breaking changes in Scala 2.12, Flink 1.5 currently builds only for Scala 2.11.
-We aim to add support for Scala 2.12 in the next versions.
-
-
 ## Hadoop Dependencies
 
 **General rule: It should never be necessary to add Hadoop dependencies directly to your application.**
