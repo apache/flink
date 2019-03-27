@@ -303,7 +303,7 @@ public class NetworkEnvironment {
 				for (SingleInputGate gate : inputGates) {
 					try {
 						if (gate != null) {
-							gate.releaseAllResources();
+							gate.close();
 						}
 					}
 					catch (IOException e) {

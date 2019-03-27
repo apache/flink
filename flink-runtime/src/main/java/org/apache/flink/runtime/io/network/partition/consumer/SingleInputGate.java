@@ -421,7 +421,8 @@ public class SingleInputGate implements InputGate {
 		}
 	}
 
-	public void releaseAllResources() throws IOException {
+	@Override
+	public void close() throws IOException {
 		boolean released = false;
 		synchronized (requestLock) {
 			if (!isReleased) {

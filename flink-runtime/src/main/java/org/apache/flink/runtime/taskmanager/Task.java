@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionMetrics;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -1442,7 +1443,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		private final Thread executer;
 		private final String taskName;
 		private final ResultPartition[] producedPartitions;
-		private final SingleInputGate[] inputGates;
+		private final InputGate[] inputGates;
 
 		public TaskCanceler(
 				Logger logger,
@@ -1450,7 +1451,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				Thread executer,
 				String taskName,
 				ResultPartition[] producedPartitions,
-				SingleInputGate[] inputGates) {
+				InputGate[] inputGates) {
 
 			this.logger = logger;
 			this.invokable = invokable;
@@ -1488,9 +1489,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					}
 				}
 
-				for (SingleInputGate inputGate : inputGates) {
+				for (InputGate inputGate : inputGates) {
 					try {
-						inputGate.releaseAllResources();
+						inputGate.close();
 					} catch (Throwable t) {
 						ExceptionUtils.rethrowIfFatalError(t);
 						LOG.error("Failed to release input gate for task {}.", taskName, t);

@@ -298,7 +298,7 @@ public class SingleInputGateTest {
 		assertTrue("Did not trigger blocking buffer request.", success);
 
 		// Release the input gate
-		inputGate.releaseAllResources();
+		inputGate.close();
 
 		// Wait for Thread to finish and verify expected Exceptions. If the
 		// input gate status is not properly checked during requests, this
@@ -388,7 +388,7 @@ public class SingleInputGateTest {
 				assertFalse(ch.increaseBackoff());
 			}
 		} finally {
-			gate.releaseAllResources();
+			gate.close();
 			netEnv.shutdown();
 		}
 	}
@@ -426,7 +426,7 @@ public class SingleInputGateTest {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
 		} finally {
-			inputGate.releaseAllResources();
+			inputGate.close();
 			network.shutdown();
 		}
 	}
@@ -479,7 +479,7 @@ public class SingleInputGateTest {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
 		} finally {
-			inputGate.releaseAllResources();
+			inputGate.close();
 			network.shutdown();
 		}
 	}
@@ -530,7 +530,7 @@ public class SingleInputGateTest {
 			assertThat(inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
 				is(instanceOf((LocalInputChannel.class))));
 		} finally {
-			inputGate.releaseAllResources();
+			inputGate.close();
 			network.shutdown();
 		}
 	}
