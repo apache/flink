@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
 public class KvStateService {
 	private static final Logger LOG = LoggerFactory.getLogger(KvStateService.class);
 
+	private final Object lock = new Object();
+
 	/** Registry for {@link InternalKvState} instances. */
 	private final KvStateRegistry kvStateRegistry;
 
@@ -47,6 +49,8 @@ public class KvStateService {
 
 	/** Proxy for the queryable state client. */
 	private KvStateClientProxy kvStateClientProxy;
+
+	private boolean isShutdown;
 
 	KvStateService(KvStateRegistry kvStateRegistry, KvStateServer kvStateServer, KvStateClientProxy kvStateClientProxy) {
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
@@ -79,44 +83,60 @@ public class KvStateService {
 	// --------------------------------------------------------------------------------------------
 
 	public void start() {
-		if (kvStateServer != null) {
-			try {
-				kvStateServer.start();
-			} catch (Throwable ie) {
-				kvStateServer.shutdown();
-				kvStateServer = null;
-				LOG.error("Failed to start the Queryable State Data Server.", ie);
-			}
-		}
+		synchronized (lock) {
+			Preconditions.checkState(!isShutdown, "The KvStateService has already been shut down.");
 
-		if (kvStateClientProxy != null) {
-			try {
-				kvStateClientProxy.start();
-			} catch (Throwable ie) {
-				kvStateClientProxy.shutdown();
-				kvStateClientProxy = null;
-				LOG.error("Failed to start the Queryable State Client Proxy.", ie);
+			LOG.info("Starting the kvState service and its components.");
+
+			if (kvStateServer != null) {
+				try {
+					kvStateServer.start();
+				} catch (Throwable ie) {
+					kvStateServer.shutdown();
+					kvStateServer = null;
+					LOG.error("Failed to start the Queryable State Data Server.", ie);
+				}
+			}
+
+			if (kvStateClientProxy != null) {
+				try {
+					kvStateClientProxy.start();
+				} catch (Throwable ie) {
+					kvStateClientProxy.shutdown();
+					kvStateClientProxy = null;
+					LOG.error("Failed to start the Queryable State Client Proxy.", ie);
+				}
 			}
 		}
 	}
 
 	public void shutdown() {
-		if (kvStateClientProxy != null) {
-			try {
-				LOG.debug("Shutting down Queryable State Client Proxy.");
-				kvStateClientProxy.shutdown();
-			} catch (Throwable t) {
-				LOG.warn("Cannot shut down Queryable State Client Proxy.", t);
+		synchronized (lock) {
+			if (isShutdown) {
+				return;
 			}
-		}
 
-		if (kvStateServer != null) {
-			try {
-				LOG.debug("Shutting down Queryable State Data Server.");
-				kvStateServer.shutdown();
-			} catch (Throwable t) {
-				LOG.warn("Cannot shut down Queryable State Data Server.", t);
+			LOG.info("Shutting down the kvState service and its components.");
+
+			if (kvStateClientProxy != null) {
+				try {
+					LOG.debug("Shutting down Queryable State Client Proxy.");
+					kvStateClientProxy.shutdown();
+				} catch (Throwable t) {
+					LOG.warn("Cannot shut down Queryable State Client Proxy.", t);
+				}
 			}
+
+			if (kvStateServer != null) {
+				try {
+					LOG.debug("Shutting down Queryable State Data Server.");
+					kvStateServer.shutdown();
+				} catch (Throwable t) {
+					LOG.warn("Cannot shut down Queryable State Data Server.", t);
+				}
+			}
+
+			isShutdown = true;
 		}
 	}
 
