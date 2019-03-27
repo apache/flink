@@ -27,7 +27,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{binaryRowFieldSetAccess, bin
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator, SortCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedFieldReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.generated.{NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
@@ -362,7 +362,7 @@ object HashAggCodeGenHelper {
     }
 
     private def visitUnresolvedFieldReference(
-        input: UnresolvedFieldReferenceExpression): Expression = {
+        input: UnresolvedReferenceExpression): Expression = {
       agg.aggBufferAttributes.indexOf(input) match {
         case -1 =>
           // We always use UnresolvedFieldReference to represent reference of input field.
@@ -381,7 +381,7 @@ object HashAggCodeGenHelper {
 
     override def visit(other: Expression): Expression = {
       other match {
-        case u : UnresolvedFieldReferenceExpression => visitUnresolvedFieldReference(u)
+        case u : UnresolvedReferenceExpression => visitUnresolvedFieldReference(u)
         case _ => other
       }
     }

@@ -21,7 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedFieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 
@@ -35,7 +35,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  * built-in count aggregate function.
  */
 public class CountAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedFieldReferenceExpression count = new UnresolvedFieldReferenceExpression("count");
+	private UnresolvedReferenceExpression count = new UnresolvedReferenceExpression("count");
 
 	@Override
 	public int operandCount() {
@@ -43,8 +43,8 @@ public class CountAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public UnresolvedFieldReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedFieldReferenceExpression[] { count };
+	public UnresolvedReferenceExpression[] aggBufferAttributes() {
+		return new UnresolvedReferenceExpression[] { count };
 	}
 
 	@Override

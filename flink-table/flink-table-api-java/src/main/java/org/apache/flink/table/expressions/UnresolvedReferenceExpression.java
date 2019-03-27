@@ -26,16 +26,17 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An unresolved reference to a field.
+ * An unresolved reference to a field or table.
  *
- * <p>This is a purely API facing expression that will be resolved into {@link FieldReferenceExpression}.
+ * <p>This is a purely API facing expression that will be resolved into
+ * {@link FieldReferenceExpression} or {@link TableReferenceExpression}.
  */
 @PublicEvolving
-public final class UnresolvedFieldReferenceExpression implements Expression {
+public final class UnresolvedReferenceExpression implements Expression {
 
 	private final String name;
 
-	public UnresolvedFieldReferenceExpression(String name) {
+	public UnresolvedReferenceExpression(String name) {
 		this.name = Preconditions.checkNotNull(name);
 	}
 
@@ -61,7 +62,7 @@ public final class UnresolvedFieldReferenceExpression implements Expression {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		UnresolvedFieldReferenceExpression that = (UnresolvedFieldReferenceExpression) o;
+		UnresolvedReferenceExpression that = (UnresolvedReferenceExpression) o;
 		return Objects.equals(name, that.name);
 	}
 

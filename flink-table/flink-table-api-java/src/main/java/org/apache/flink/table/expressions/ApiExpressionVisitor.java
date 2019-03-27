@@ -30,15 +30,15 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
 	public abstract R visitLookupCall(LookupCallExpression lookupCall);
 
-	public abstract R visitUnresolvedField(UnresolvedFieldReferenceExpression unresolvedField);
+	public abstract R visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference);
 
 	public final R visit(Expression other) {
 		if (other instanceof TableReferenceExpression) {
 			return visitTableReference((TableReferenceExpression) other);
 		} else if (other instanceof LookupCallExpression) {
 			return visitLookupCall((LookupCallExpression) other);
-		} else if (other instanceof UnresolvedFieldReferenceExpression) {
-			return visitUnresolvedField((UnresolvedFieldReferenceExpression) other);
+		} else if (other instanceof UnresolvedReferenceExpression) {
+			return visitUnresolvedReference((UnresolvedReferenceExpression) other);
 		}
 		return visitNonApiExpression(other);
 	}

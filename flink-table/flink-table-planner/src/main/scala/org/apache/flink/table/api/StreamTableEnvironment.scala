@@ -313,7 +313,7 @@ abstract class StreamTableEnvironment(
     * Internally, the [[Table]] is translated into a [[DataStream]] and handed over to the
     * [[TableSink]] to write it.
     *
-    * @param table The [[Table]] to write.
+    * @param inputTable The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
     * @param queryConfig The configuration for the query to generate.
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
