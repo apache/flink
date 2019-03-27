@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
+import org.apache.flink.table.operations.TableOperation;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
@@ -82,6 +83,11 @@ public interface Table {
 	 * Prints the schema of this table to the console in a tree format.
 	 */
 	void printSchema();
+
+	/**
+	 * Returns underlying logical representation of this table.
+	 */
+	TableOperation getTableOperation();
 
 	/**
 	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
