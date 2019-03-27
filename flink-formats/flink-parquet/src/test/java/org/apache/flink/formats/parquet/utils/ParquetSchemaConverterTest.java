@@ -75,8 +75,8 @@ public class ParquetSchemaConverterTest extends TestUtil {
 		org.apache.parquet.schema.Types.optionalGroup().addField(org.apache.parquet.schema.Types.repeatedGroup()
 			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
 				.as(OriginalType.UTF8).named("type"))
-			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
-				.as(OriginalType.UTF8).named("value"))
+			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED)
+				.as(OriginalType.INT_64).named("value"))
 			.named("element")).as(OriginalType.LIST)
 			.named("nestedArray")
 	};

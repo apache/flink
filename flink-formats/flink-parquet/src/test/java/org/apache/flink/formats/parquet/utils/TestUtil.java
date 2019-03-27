@@ -57,7 +57,7 @@ import java.util.UUID;
  */
 public class TestUtil {
 	private static final TypeInformation<Row[]> nestedArray = Types.OBJECT_ARRAY(Types.ROW_NAMED(
-		new String[] {"type", "value"}, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+		new String[] {"type", "value"}, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO));
 
 	@SuppressWarnings("unchecked")
 	private static final TypeInformation<Map<String, Row>> nestedMap = Types.MAP(BasicTypeInfo.STRING_TYPE_INFO,
@@ -122,7 +122,7 @@ public class TestUtil {
 
 		final ArrayItem arrayItem = ArrayItem.newBuilder()
 			.setType("color")
-			.setValue("yellow").build();
+			.setValue(1L).build();
 
 		final MapItem mapItem = MapItem.newBuilder()
 			.setType("map")
@@ -155,7 +155,7 @@ public class TestUtil {
 
 		final Row arrayItemRow = new Row(2);
 		arrayItemRow.setField(0, "color");
-		arrayItemRow.setField(1, "yellow");
+		arrayItemRow.setField(1, 1L);
 
 		final Row mapItemRow = new Row(2);
 		mapItemRow.setField(0, "map");

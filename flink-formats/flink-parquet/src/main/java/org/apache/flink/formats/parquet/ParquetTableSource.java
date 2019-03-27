@@ -147,7 +147,7 @@ public class ParquetTableSource
 		if (predicate != null) {
 			parquetRowInputFormat.setFilterPredicate(predicate);
 		}
-		return executionEnvironment.createInput(buildParquetInputFormat()).name(explainSource());
+		return executionEnvironment.createInput(parquetRowInputFormat).name(explainSource());
 	}
 
 	@Override
