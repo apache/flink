@@ -563,9 +563,6 @@ public class FutureUtils {
 		/** The total number of futures in the conjunction. */
 		private final int numTotal;
 
-		/** The next free index in the results arrays. */
-		private final AtomicInteger nextIndex = new AtomicInteger(0);
-
 		/** The number of futures in the conjunction that are already complete. */
 		private final AtomicInteger numCompleted = new AtomicInteger(0);
 
@@ -575,12 +572,10 @@ public class FutureUtils {
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
-		private void handleCompletedFuture(T value, Throwable throwable) {
+		private void handleCompletedFuture(int index, T value, Throwable throwable) {
 			if (throwable != null) {
 				completeExceptionally(throwable);
 			} else {
-				int index = nextIndex.getAndIncrement();
-
 				results[index] = value;
 
 				if (numCompleted.incrementAndGet() == numTotal) {
@@ -598,8 +593,11 @@ public class FutureUtils {
 				complete(Collections.emptyList());
 			}
 			else {
+				int counter = 0;
 				for (CompletableFuture<? extends T> future : resultFutures) {
-					future.whenComplete(this::handleCompletedFuture);
+					final int index = counter;
+					counter++;
+					future.whenComplete((value, throwable) -> handleCompletedFuture(index, value, throwable));
 				}
 			}
 		}
