@@ -44,7 +44,9 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadManager(taskManagerId: string) {
-    return this.httpClient.get<TaskManagerDetailInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}`).pipe(catchError(() => EMPTY));
+    return this.httpClient
+      .get<TaskManagerDetailInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}`)
+      .pipe(catchError(() => EMPTY));
   }
 
   /**
@@ -63,6 +65,5 @@ export class TaskManagerService {
     return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, { responseType: 'text' });
   }
 
-  constructor(private httpClient: HttpClient) {
-  }
+  constructor(private httpClient: HttpClient) {}
 }

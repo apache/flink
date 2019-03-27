@@ -24,9 +24,9 @@ import { VertexTaskManagerDetailInterface } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
-  selector   : 'flink-job-overview-drawer-taskmanagers',
+  selector: 'flink-job-overview-drawer-taskmanagers',
   templateUrl: './job-overview-drawer-taskmanagers.component.html',
-  styleUrls  : [ './job-overview-drawer-taskmanagers.component.less' ]
+  styleUrls: ['./job-overview-drawer-taskmanagers.component.less']
 })
 export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy {
   listOfTaskManager: VertexTaskManagerDetailInterface[] = [];
@@ -39,7 +39,7 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
     return node.host;
   }
 
-  sort(sort: { key: string, value: string }) {
+  sort(sort: { key: string; value: string }) {
     this.sortName = sort.key;
     this.sortValue = sort.value;
     this.search();
@@ -47,34 +47,38 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
 
   search() {
     if (this.sortName) {
-      this.listOfTaskManager = [ ...this.listOfTaskManager.sort(
-        (pre, next) => {
+      this.listOfTaskManager = [
+        ...this.listOfTaskManager.sort((pre, next) => {
           if (this.sortValue === 'ascend') {
-            return (deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1);
+            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
           } else {
-            return (deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1);
+            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
           }
-        }) ];
+        })
+      ];
     }
   }
 
-
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(data => this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id))
-    ).subscribe(data => {
-      this.listOfTaskManager = data.taskmanagers;
-      this.isLoading = false;
-      this.search();
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(data => this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id))
+      )
+      .subscribe(
+        data => {
+          this.listOfTaskManager = data.taskmanagers;
+          this.isLoading = false;
+          this.search();
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {

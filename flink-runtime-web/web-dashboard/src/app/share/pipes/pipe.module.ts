@@ -24,21 +24,8 @@ import { HumanizeDurationPipe } from './humanize-duration.pipe';
 import { HumanizeDatePipe } from './humanize-date.pipe';
 
 @NgModule({
-  imports     : [
-    CommonModule
-  ],
-  declarations: [
-    HumanizeDurationPipe,
-    HumanizeDatePipe,
-    HumanizeBytesPipe,
-    HumanizeWatermarkPipe
-  ],
-  exports     : [
-    HumanizeDurationPipe,
-    HumanizeDatePipe,
-    HumanizeBytesPipe,
-    HumanizeWatermarkPipe
-  ]
+  imports: [CommonModule],
+  declarations: [HumanizeDurationPipe, HumanizeDatePipe, HumanizeBytesPipe, HumanizeWatermarkPipe],
+  exports: [HumanizeDurationPipe, HumanizeDatePipe, HumanizeBytesPipe, HumanizeWatermarkPipe]
 })
-export class PipeModule {
-}
+export class PipeModule {}

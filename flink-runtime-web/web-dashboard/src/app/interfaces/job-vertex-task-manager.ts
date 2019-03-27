@@ -17,19 +17,19 @@
  */
 
 export interface JobVertexTaskManagerInterface {
-  'id': string;
-  'name': string;
-  'now': number;
-  'taskmanagers': VertexTaskManagerDetailInterface[];
+  id: string;
+  name: string;
+  now: number;
+  taskmanagers: VertexTaskManagerDetailInterface[];
 }
 
 export interface VertexTaskManagerDetailInterface {
-  'host': string;
-  'status': string;
+  host: string;
+  status: string;
   'start-time': number;
   'end-time': number;
-  'duration': number;
-  'metrics': {
+  duration: number;
+  metrics: {
     'read-bytes': number;
     'read-bytes-complete': boolean;
     'write-bytes': number;
@@ -51,4 +51,3 @@ export interface VertexTaskManagerDetailInterface {
     SCHEDULED: number;
   };
 }
-

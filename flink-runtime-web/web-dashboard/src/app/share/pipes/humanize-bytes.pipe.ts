@@ -23,18 +23,17 @@ import { isNil } from 'utils';
   name: 'humanizeBytes'
 })
 export class HumanizeBytesPipe implements PipeTransform {
-
   transform(value: number): any {
     if (isNil(value)) {
       return '-';
     }
-    const units = [ 'B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB' ];
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
     const converter = (v: number, p: number): string => {
       const base = Math.pow(1024, p);
       if (v < base) {
-        return (v / base).toFixed(2) + ' ' + units[ p ];
+        return (v / base).toFixed(2) + ' ' + units[p];
       } else if (v < base * 1000) {
-        return (v / base).toPrecision(3) + ' ' + units[ p ];
+        return (v / base).toPrecision(3) + ' ' + units[p];
       } else {
         return converter(v, p + 1);
       }
@@ -45,6 +44,4 @@ export class HumanizeBytesPipe implements PipeTransform {
       return converter(value, 1);
     }
   }
-
 }
-

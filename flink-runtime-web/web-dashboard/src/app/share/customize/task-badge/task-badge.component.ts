@@ -21,9 +21,9 @@ import { COLOR_MAP } from 'config';
 import { TaskStatusInterface } from 'interfaces';
 
 @Component({
-  selector       : 'flink-task-badge',
-  templateUrl    : './task-badge.component.html',
-  styleUrls      : [ './task-badge.component.less' ],
+  selector: 'flink-task-badge',
+  templateUrl: './task-badge.component.html',
+  styleUrls: ['./task-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskBadgeComponent {

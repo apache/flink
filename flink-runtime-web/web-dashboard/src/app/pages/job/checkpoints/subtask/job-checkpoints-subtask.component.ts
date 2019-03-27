@@ -23,22 +23,21 @@ import { JobService } from 'services';
 import { deepFind } from 'utils';
 
 @Component({
-  selector       : 'flink-job-checkpoints-subtask',
-  templateUrl    : './job-checkpoints-subtask.component.html',
-  styleUrls      : [ './job-checkpoints-subtask.component.less' ],
+  selector: 'flink-job-checkpoints-subtask',
+  templateUrl: './job-checkpoints-subtask.component.html',
+  styleUrls: ['./job-checkpoints-subtask.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsSubtaskComponent implements OnInit {
   @Input() vertex: VerticesItemInterface;
   @Input() checkPointId: number;
   subTaskCheckPoint: CheckPointSubTaskInterface;
-  listOfSubTaskCheckPoint: Array<{ 'index': number; 'status': string; }> = [];
+  listOfSubTaskCheckPoint: Array<{ index: number; status: string }> = [];
   isLoading = true;
   sortName: string;
   sortValue: string;
 
-
-  sort(sort: { key: string, value: string }) {
+  sort(sort: { key: string; value: string }) {
     this.sortName = sort.key;
     this.sortValue = sort.value;
     this.search();
@@ -46,34 +45,34 @@ export class JobCheckpointsSubtaskComponent implements OnInit {
 
   search() {
     if (this.sortName) {
-      this.listOfSubTaskCheckPoint = [ ...this.listOfSubTaskCheckPoint.sort(
-        (pre, next) => {
+      this.listOfSubTaskCheckPoint = [
+        ...this.listOfSubTaskCheckPoint.sort((pre, next) => {
           if (this.sortValue === 'ascend') {
-            return (deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1);
+            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
           } else {
-            return (deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1);
+            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
           }
-        }) ];
+        })
+      ];
     }
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$.pipe(
-      first()
-    ).subscribe(job => {
-      this.jobService.loadCheckpointSubtaskDetails(job.jid, this.checkPointId, this.vertex.id).subscribe(data => {
-        this.subTaskCheckPoint = data;
-        this.listOfSubTaskCheckPoint = (data && data.subtasks) || [];
-        this.isLoading = false;
-        this.cdr.markForCheck();
-      }, () => {
-        this.isLoading = false;
-        this.cdr.markForCheck();
-      });
+    this.jobService.jobDetail$.pipe(first()).subscribe(job => {
+      this.jobService.loadCheckpointSubtaskDetails(job.jid, this.checkPointId, this.vertex.id).subscribe(
+        data => {
+          this.subTaskCheckPoint = data;
+          this.listOfSubTaskCheckPoint = (data && data.subtasks) || [];
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
     });
   }
 }
-

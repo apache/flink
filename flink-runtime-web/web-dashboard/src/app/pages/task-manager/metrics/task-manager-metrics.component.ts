@@ -23,17 +23,16 @@ import { takeUntil } from 'rxjs/operators';
 import { TaskManagerService } from 'services';
 
 @Component({
-  selector       : 'flink-task-manager-metrics',
-  templateUrl    : './task-manager-metrics.component.html',
-  styleUrls      : [ './task-manager-metrics.component.less' ],
+  selector: 'flink-task-manager-metrics',
+  templateUrl: './task-manager-metrics.component.html',
+  styleUrls: ['./task-manager-metrics.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject();
   taskManagerDetail: TaskManagerDetailInterface;
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
@@ -46,5 +45,4 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

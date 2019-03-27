@@ -34,16 +34,16 @@ import { takeUntil } from 'rxjs/operators';
 import { isNil } from 'utils';
 
 export enum ResizeModeEnums {
-  Vertical   = 'vertical',
+  Vertical = 'vertical',
   Horizontal = 'horizontal'
 }
 
 export type ResizeMode = ResizeModeEnums | 'vertical' | 'horizontal';
 
 @Component({
-  selector       : 'flink-resize',
-  templateUrl    : './resize.component.html',
-  styleUrls      : [ './resize.component.less' ],
+  selector: 'flink-resize',
+  templateUrl: './resize.component.html',
+  styleUrls: ['./resize.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ResizeComponent implements OnInit, OnDestroy {
@@ -56,7 +56,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
   @Input() mode: ResizeMode = ResizeModeEnums.Vertical;
   @Output() leftChange = new EventEmitter();
   @Output() topChange = new EventEmitter();
-  @Output() resizeEnd = new EventEmitter<{ left: number, top: number }>();
+  @Output() resizeEnd = new EventEmitter<{ left: number; top: number }>();
   @ViewChild('trigger') trigger: ElementRef<HTMLDivElement>;
 
   startMove() {
@@ -74,7 +74,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
         if (!isNil(elem!.offsetTop)) {
           innerOffsetTop += elem!.offsetTop;
         }
-      } while (elem = elem!.offsetParent as HTMLElement);
+      } while ((elem = elem!.offsetParent as HTMLElement));
       return innerOffsetTop;
     };
     const offsetTop = getOffsetTop(this.baseElement.nativeElement);
@@ -100,7 +100,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
         if (!isNil(elem!.offsetLeft)) {
           innerOffsetLeft += elem!.offsetLeft;
         }
-      } while (elem = elem!.offsetParent as HTMLElement);
+      } while ((elem = elem!.offsetParent as HTMLElement));
       return innerOffsetLeft;
     };
     const offsetLeft = getOffsetLeft(this.baseElement.nativeElement);
@@ -115,37 +115,37 @@ export class ResizeComponent implements OnInit, OnDestroy {
     return newLeft;
   }
 
-  constructor(@Inject(DOCUMENT) private document: any) {
-
-  }
+  constructor(@Inject(DOCUMENT) private document: any) {}
 
   ngOnInit(): void {
-    fromEvent<MouseEvent>(this.document, 'mouseup').pipe(takeUntil(this.destroy$)).subscribe(e => {
-      this.isMoving = false;
-      if (e.target === this.trigger.nativeElement) {
-        e.stopPropagation();
-        this.resizeEnd.emit({ left: this.left, top: this.top });
-      }
-    });
-    fromEvent<MouseEvent>(this.document, 'mousemove').pipe(takeUntil(this.destroy$)).subscribe(e => {
-      if (!this.isMoving) {
-        return;
-      }
-      e.preventDefault();
-      if (this.mode === ResizeModeEnums.Vertical) {
-        this.left = this.getResizeLeft(e);
-        this.leftChange.emit(this.left);
-      } else {
-        this.top = this.getResizeTop(e);
-        this.topChange.emit(this.top);
-      }
-    });
+    fromEvent<MouseEvent>(this.document, 'mouseup')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(e => {
+        this.isMoving = false;
+        if (e.target === this.trigger.nativeElement) {
+          e.stopPropagation();
+          this.resizeEnd.emit({ left: this.left, top: this.top });
+        }
+      });
+    fromEvent<MouseEvent>(this.document, 'mousemove')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(e => {
+        if (!this.isMoving) {
+          return;
+        }
+        e.preventDefault();
+        if (this.mode === ResizeModeEnums.Vertical) {
+          this.left = this.getResizeLeft(e);
+          this.leftChange.emit(this.left);
+        } else {
+          this.top = this.getResizeTop(e);
+          this.topChange.emit(this.top);
+        }
+      });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }
-

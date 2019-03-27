@@ -19,17 +19,17 @@
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
 @Component({
-  selector       : 'flink-backpressure-badge',
-  templateUrl    : './backpressure-badge.component.html',
-  styleUrls      : [ './backpressure-badge.component.less' ],
+  selector: 'flink-backpressure-badge',
+  templateUrl: './backpressure-badge.component.html',
+  styleUrls: ['./backpressure-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BackpressureBadgeComponent {
   @Input() state: any;
   colorMap: any = {
     'in-progress': '#f5222d',
-    ok           : '#52c41a',
-    low          : '#faad14',
-    high         : '#f5222d'
+    ok: '#52c41a',
+    low: '#faad14',
+    high: '#f5222d'
   };
 }

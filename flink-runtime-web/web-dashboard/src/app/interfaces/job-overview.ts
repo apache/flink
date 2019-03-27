@@ -33,14 +33,14 @@ export interface JobsItemInterface {
 }
 
 export interface TaskStatusInterface {
-  'CANCELED': number;
-  'CANCELING': number;
-  'CREATED': number;
-  'DEPLOYING': number;
-  'FAILED': number;
-  'FINISHED': number;
-  'RECONCILING': number;
-  'RUNNING': number;
-  'SCHEDULED': number;
-  'TOTAL': number;
+  CANCELED: number;
+  CANCELING: number;
+  CREATED: number;
+  DEPLOYING: number;
+  FAILED: number;
+  FINISHED: number;
+  RECONCILING: number;
+  RUNNING: number;
+  SCHEDULED: number;
+  TOTAL: number;
 }

@@ -23,20 +23,19 @@ import { takeUntil } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-overview-drawer-detail',
-  templateUrl    : './job-overview-drawer-detail.component.html',
+  selector: 'flink-job-overview-drawer-detail',
+  templateUrl: './job-overview-drawer-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls      : [ './job-overview-drawer-detail.component.less' ]
+  styleUrls: ['./job-overview-drawer-detail.component.less']
 })
 export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
   node: NodesItemCorrectInterface | null;
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.selectedVertex$.pipe(takeUntil(this.destroy$)).subscribe((node) => {
+    this.jobService.selectedVertex$.pipe(takeUntil(this.destroy$)).subscribe(node => {
       this.node = node;
       this.cdr.markForCheck();
     });

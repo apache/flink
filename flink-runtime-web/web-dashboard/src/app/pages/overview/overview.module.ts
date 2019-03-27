@@ -24,12 +24,7 @@ import { OverviewComponent } from './overview.component';
 import { OverviewStatisticComponent } from './statistic/overview-statistic.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    ShareModule,
-    OverviewRoutingModule
-  ],
-  declarations: [ OverviewComponent, OverviewStatisticComponent ]
+  imports: [CommonModule, ShareModule, OverviewRoutingModule],
+  declarations: [OverviewComponent, OverviewStatisticComponent]
 })
-export class OverviewModule {
-}
+export class OverviewModule {}

@@ -22,16 +22,13 @@ import { Directive, EventEmitter, HostListener, Output } from '@angular/core';
   selector: '[flinkFileRead]'
 })
 export class FileReadDirective {
-
   @Output() fileRead = new EventEmitter();
 
-  @HostListener('change', [ '$event' ])
+  @HostListener('change', ['$event'])
   onChange(changeEvent: Event) {
     const target = changeEvent.target as HTMLInputElement;
-    this.fileRead.emit(target!.files![ 0 ]);
+    this.fileRead.emit(target!.files![0]);
   }
 
-  constructor() {
-  }
-
+  constructor() {}
 }

@@ -33,9 +33,9 @@ import { JobService } from 'services';
 import { DagreComponent } from 'share/common/dagre/dagre.component';
 
 @Component({
-  selector       : 'flink-job-overview',
-  templateUrl    : './job-overview.component.html',
-  styleUrls      : [ './job-overview.component.less' ],
+  selector: 'flink-job-overview',
+  templateUrl: './job-overview.component.html',
+  styleUrls: ['./job-overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
@@ -50,7 +50,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
 
   onNodeClick(node: NodesItemCorrectInterface) {
     if (!(this.selectedNode && this.selectedNode.id === node.id)) {
-      this.router.navigate([ node.id ], { relativeTo: this.activatedRoute }).then();
+      this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
     }
   }
 
@@ -67,31 +67,31 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     private router: Router,
     private activatedRoute: ActivatedRoute,
     public elementRef: ElementRef,
-    private cdr: ChangeDetectorRef) {
-  }
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$.pipe(
-      filter(job => job.jid === this.activatedRoute.parent!.parent!.snapshot.params.jid),
-      takeUntil(this.destroy$)
-    ).subscribe(data => {
-      if (this.jobId !== data.plan.jid) {
-        this.nodes = data.plan.nodes;
-        this.links = data.plan.links;
-        this.jobId = data.plan.jid;
-        this.dagreComponent.flush(this.nodes, this.links, true).then();
-      } else {
-        this.nodes = data.plan.nodes;
-        this.nodes.forEach(node => {
-          this.dagreComponent.updateNode(node.id, node);
-        });
-      }
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobDetail$
+      .pipe(
+        filter(job => job.jid === this.activatedRoute.parent!.parent!.snapshot.params.jid),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        if (this.jobId !== data.plan.jid) {
+          this.nodes = data.plan.nodes;
+          this.links = data.plan.links;
+          this.jobId = data.plan.jid;
+          this.dagreComponent.flush(this.nodes, this.links, true).then();
+        } else {
+          this.nodes = data.plan.nodes;
+          this.nodes.forEach(node => {
+            this.dagreComponent.updateNode(node.id, node);
+          });
+        }
+        this.cdr.markForCheck();
+      });
 
-    this.jobService.selectedVertex$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(data => {
+    this.jobService.selectedVertex$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       if (data) {
         this.dagreComponent.focusNode(data);
       } else if (this.selectedNode) {

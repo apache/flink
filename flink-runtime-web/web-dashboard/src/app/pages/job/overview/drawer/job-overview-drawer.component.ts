@@ -24,10 +24,10 @@ import { JobService } from 'services';
 import { trigger, animate, style, transition } from '@angular/animations';
 
 @Component({
-  selector       : 'flink-job-overview-drawer',
-  templateUrl    : './job-overview-drawer.component.html',
-  styleUrls      : [ './job-overview-drawer.component.less' ],
-  animations     : [
+  selector: 'flink-job-overview-drawer',
+  templateUrl: './job-overview-drawer.component.html',
+  styleUrls: ['./job-overview-drawer.component.less'],
+  animations: [
     trigger('drawer', [
       transition('void => *', [
         style({ transform: 'translateX(100%)' }),
@@ -39,8 +39,8 @@ import { trigger, animate, style, transition } from '@angular/animations';
       ])
     ])
   ],
-  host           : {
-    '[@drawer]'         : '',
+  host: {
+    '[@drawer]': '',
     '[class.full-width]': 'fullScreen'
   },
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -56,41 +56,38 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     { title: 'Metrics', path: 'metrics' }
   ];
   fullScreen = false;
-  private cachePath = this.listOfNavigation[ 0 ].path;
+  private cachePath = this.listOfNavigation[0].path;
   private destroy$ = new Subject();
 
   closeDrawer() {
     if (this.fullScreen) {
       this.fullScreen = false;
     } else {
-      this.router.navigate([ '../../' ], { relativeTo: this.activatedRoute }).then();
+      this.router.navigate(['../../'], { relativeTo: this.activatedRoute }).then();
     }
   }
-
 
   fullDrawer() {
     this.fullScreen = true;
   }
 
-  constructor(private activatedRoute: ActivatedRoute, private router: Router, private jobService: JobService) {
-  }
+  constructor(private activatedRoute: ActivatedRoute, private router: Router, private jobService: JobService) {}
 
   ngOnInit() {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));
-    combineLatest(
-      this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)),
-      nodeId$
-    ).pipe(takeUntil(this.destroy$)).subscribe(data => {
-      const [ nodes, nodeId ] = data;
-      if (!this.activatedRoute.firstChild) {
-        this.router.navigate([ this.cachePath ], { relativeTo: this.activatedRoute });
-      } else {
-        this.cachePath = this.activatedRoute.firstChild.snapshot.data.path;
-      }
-      if (nodes && nodeId) {
-        this.jobService.selectedVertex$.next(nodes.find(item => item.id === nodeId));
-      }
-    });
+    combineLatest(this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        const [nodes, nodeId] = data;
+        if (!this.activatedRoute.firstChild) {
+          this.router.navigate([this.cachePath], { relativeTo: this.activatedRoute });
+        } else {
+          this.cachePath = this.activatedRoute.firstChild.snapshot.data.path;
+        }
+        if (nodes && nodeId) {
+          this.jobService.selectedVertex$.next(nodes.find(item => item.id === nodeId));
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -98,5 +95,4 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     this.jobService.selectedVertex$.next(null);
   }
-
 }

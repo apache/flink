@@ -23,31 +23,35 @@ import { flatMap, takeUntil } from 'rxjs/operators';
 import { OverviewService, StatusService } from 'services';
 
 @Component({
-  selector       : 'flink-overview-statistic',
-  templateUrl    : './overview-statistic.component.html',
-  styleUrls      : [ './overview-statistic.component.less' ],
+  selector: 'flink-overview-statistic',
+  templateUrl: './overview-statistic.component.html',
+  styleUrls: ['./overview-statistic.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
   statistic: OverviewInterface | null;
   destroy$ = new Subject();
 
-  constructor(private statusService: StatusService, private overviewService: OverviewService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(
+    private statusService: StatusService,
+    private overviewService: OverviewService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
-    this.statusService.refresh$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(() => this.overviewService.loadOverview())
-    ).subscribe(data => {
-      this.statistic = data;
-      this.cdr.markForCheck();
-    });
+    this.statusService.refresh$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(() => this.overviewService.loadOverview())
+      )
+      .subscribe(data => {
+        this.statistic = data;
+        this.cdr.markForCheck();
+      });
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

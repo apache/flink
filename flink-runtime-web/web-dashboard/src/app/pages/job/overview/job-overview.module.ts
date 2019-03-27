@@ -33,13 +33,8 @@ import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overv
 import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-drawer-watermarks.component';
 
 @NgModule({
-  imports        : [
-    CommonModule,
-    FormsModule,
-    ShareModule,
-    JobOverviewRoutingModule
-  ],
-  declarations   : [
+  imports: [CommonModule, FormsModule, ShareModule, JobOverviewRoutingModule],
+  declarations: [
     JobOverviewComponent,
     JobOverviewDrawerComponent,
     JobOverviewListComponent,
@@ -52,5 +47,4 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     JobOverviewDrawerBackpressureComponent
   ]
 })
-export class JobOverviewModule {
-}
+export class JobOverviewModule {}

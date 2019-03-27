@@ -25,13 +25,7 @@ import { SubmitRoutingModule } from './submit-routing.module';
 import { SubmitComponent } from './submit.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    ReactiveFormsModule,
-    SubmitRoutingModule,
-    ShareModule
-  ],
-  declarations: [ SubmitComponent ]
+  imports: [CommonModule, ReactiveFormsModule, SubmitRoutingModule, ShareModule],
+  declarations: [SubmitComponent]
 })
-export class SubmitModule {
-}
+export class SubmitModule {}

@@ -25,42 +25,41 @@ import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component
 
 const routes: Routes = [
   {
-    path     : '',
+    path: '',
     component: JobManagerComponent,
-    children : [
+    children: [
       {
-        path     : 'config',
+        path: 'config',
         component: JobManagerConfigurationComponent,
-        data     : {
+        data: {
           path: 'config'
         }
       },
       {
-        path     : 'logs',
+        path: 'logs',
         component: JobManagerLogsComponent,
-        data     : {
+        data: {
           path: 'logs'
         }
       },
       {
-        path     : 'stdout',
+        path: 'stdout',
         component: JobManagerStdoutComponent,
-        data     : {
+        data: {
           path: 'stdout'
         }
       },
       {
-        path      : '**',
+        path: '**',
         redirectTo: 'config',
-        pathMatch : 'full'
+        pathMatch: 'full'
       }
     ]
   }
 ];
 
 @NgModule({
-  imports: [ RouterModule.forChild(routes) ],
-  exports: [ RouterModule ]
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule]
 })
-export class JobManagerRoutingModule {
-}
+export class JobManagerRoutingModule {}

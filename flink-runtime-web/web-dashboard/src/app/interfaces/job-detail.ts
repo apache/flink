@@ -17,15 +17,15 @@
  */
 
 export interface JobStatusCountsInterface {
-  'CREATED': number;
-  'SCHEDULED': number;
-  'CANCELED': number;
-  'DEPLOYING': number;
-  'RUNNING': number;
-  'CANCELING': number;
-  'FINISHED': number;
-  'FAILED': number;
-  'RECONCILING': number;
+  CREATED: number;
+  SCHEDULED: number;
+  CANCELED: number;
+  DEPLOYING: number;
+  RUNNING: number;
+  CANCELING: number;
+  FINISHED: number;
+  FAILED: number;
+  RECONCILING: number;
 }
 
 interface TimestampsStatus {
@@ -43,18 +43,18 @@ interface TimestampsStatus {
 }
 
 export interface JobDetailInterface {
-  'jid': string;
-  'name': string;
-  'isStoppable': boolean;
-  'state': string;
+  jid: string;
+  name: string;
+  isStoppable: boolean;
+  state: string;
   'start-time': number;
   'end-time': number;
-  'duration': number;
-  'now': number;
-  'timestamps': TimestampsStatus;
-  'vertices': VerticesItemInterface[];
+  duration: number;
+  now: number;
+  timestamps: TimestampsStatus;
+  vertices: VerticesItemInterface[];
   'status-counts': JobStatusCountsInterface;
-  'plan': Plan;
+  plan: Plan;
 }
 
 interface Plan {
@@ -116,13 +116,13 @@ interface MetricsStatus {
 }
 
 export interface NodesItemInterface {
-  'id': string;
-  'parallelism': number;
-  'operator': string;
-  'operator_strategy': string;
-  'description': string;
-  'inputs'?: InputsItem[];
-  'optimizer_properties': {};
+  id: string;
+  parallelism: number;
+  operator: string;
+  operator_strategy: string;
+  description: string;
+  inputs?: InputsItem[];
+  optimizer_properties: {};
   width?: number;
   height?: number;
 }
@@ -141,7 +141,7 @@ export interface NodesItemLinkInterface {
 }
 
 export interface JobDetailCorrectInterface extends JobDetailInterface {
-  'plan': {
+  plan: {
     jid: string;
     name: string;
     nodes: NodesItemCorrectInterface[];

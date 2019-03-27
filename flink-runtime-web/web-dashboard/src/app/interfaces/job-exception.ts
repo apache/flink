@@ -25,10 +25,10 @@ export interface JobExceptionInterface {
 
 export interface JobExceptionItemInterface {
   'attempt-num': number;
-  'exception': string;
-  'location': string;
+  exception: string;
+  location: string;
   'subtask-index': number;
-  'task': string;
-  'timestamp': number;
+  task: string;
+  timestamp: number;
   'vertex-id': string;
 }

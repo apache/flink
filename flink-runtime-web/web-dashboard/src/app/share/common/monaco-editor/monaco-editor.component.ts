@@ -25,9 +25,9 @@ import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.se
 import IStandaloneCodeEditor = monaco.editor.IStandaloneCodeEditor;
 
 @Component({
-  selector       : 'flink-monaco-editor',
-  template       : ``,
-  styleUrls      : [ './monaco-editor.component.less' ],
+  selector: 'flink-monaco-editor',
+  template: ``,
+  styleUrls: ['./monaco-editor.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
@@ -51,11 +51,11 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
     const hostElement = this.elementRef.nativeElement;
     this.editor = monaco.editor.create(hostElement, {
       scrollBeyondLastLine: false,
-      glyphMargin         : true,
-      language            : 'apex',
-      wordWrap            : 'on',
-      readOnly            : true,
-      minimap             : {
+      glyphMargin: true,
+      language: 'apex',
+      wordWrap: 'on',
+      readOnly: true,
+      minimap: {
         enabled: false
       }
     });
@@ -70,8 +70,7 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  constructor(private elementRef: ElementRef, private monacoEditorService: MonacoEditorService) {
-  }
+  constructor(private elementRef: ElementRef, private monacoEditorService: MonacoEditorService) {}
 
   ngAfterViewInit() {
     if ((window as any).monaco) {
@@ -84,7 +83,7 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
         const onGotAmdLoader = () => {
           // Load monaco
           (window as any).require.config({ paths: { vs: 'libs/vs' } });
-          (window as any).require([ 'vs/editor/editor.main' ], () => {
+          (window as any).require(['vs/editor/editor.main'], () => {
             setTimeout(() => this.setupMonaco());
           });
         };
@@ -93,15 +92,14 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
       // Add the script tag to the page in order to start loading monaco
       document.body.appendChild(script);
     }
-    merge(
-      fromEvent(window, 'resize'),
-      this.monacoEditorService.layout$
-    ).pipe(
-      takeUntil(this.destroy$),
-      debounceTime(200)
-    ).subscribe(() => {
-      this.layout();
-    });
+    merge(fromEvent(window, 'resize'), this.monacoEditorService.layout$)
+      .pipe(
+        takeUntil(this.destroy$),
+        debounceTime(200)
+      )
+      .subscribe(() => {
+        this.layout();
+      });
   }
 
   ngOnDestroy() {
@@ -109,5 +107,4 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
     this.destroy$.complete();
     this.editor.dispose();
   }
-
 }

@@ -19,12 +19,7 @@
 import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BASE_URL } from 'config';
-import {
-  JarListInterface,
-  NodesItemCorrectInterface,
-  PlanInterface,
-  VerticesLinkInterface
-} from 'interfaces';
+import { JarListInterface, NodesItemCorrectInterface, PlanInterface, VerticesLinkInterface } from 'interfaces';
 import { of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
@@ -32,18 +27,19 @@ import { catchError, map } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class JarService {
-
   /**
    * Get uploaded jar list
    */
   loadJarList() {
-    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(catchError(() => {
-      return of({
-        address: '',
-        error  : true,
-        files  : []
-      });
-    }));
+    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(
+      catchError(() => {
+        return of({
+          address: '',
+          error: true,
+          files: []
+        });
+      })
+    );
   }
 
   /**
@@ -77,7 +73,12 @@ export class JarService {
    * @param allowNonRestoredState
    */
   runJob(
-    jarId: string, entryClass: string, parallelism: string, programArgs: string, savepointPath: string, allowNonRestoredState: string
+    jarId: string,
+    entryClass: string,
+    parallelism: string,
+    programArgs: string,
+    savepointPath: string,
+    allowNonRestoredState: string
   ) {
     const requestParam = { entryClass, parallelism, programArgs, savepointPath, allowNonRestoredState };
     let params = new HttpParams();
@@ -122,7 +123,7 @@ export class JarService {
         const links: VerticesLinkInterface[] = [];
         let nodes: NodesItemCorrectInterface[] = [];
         if (data.plan.nodes.length) {
-          nodes = data.plan.nodes.map((node) => {
+          nodes = data.plan.nodes.map(node => {
             return {
               ...node,
               detail: undefined
@@ -130,16 +131,16 @@ export class JarService {
           });
           nodes.forEach(node => {
             if (node.inputs && node.inputs.length) {
-              node.inputs.forEach((input) => {
+              node.inputs.forEach(input => {
                 links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
               });
             }
           });
         }
         return { nodes, links };
-      }));
+      })
+    );
   }
 
-  constructor(private httpClient: HttpClient) {
-  }
+  constructor(private httpClient: HttpClient) {}
 }

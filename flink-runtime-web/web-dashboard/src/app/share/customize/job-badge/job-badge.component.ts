@@ -20,9 +20,9 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { COLOR_MAP } from 'config';
 
 @Component({
-  selector       : 'flink-job-badge',
-  templateUrl    : './job-badge.component.html',
-  styleUrls      : [ './job-badge.component.less' ],
+  selector: 'flink-job-badge',
+  templateUrl: './job-badge.component.html',
+  styleUrls: ['./job-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobBadgeComponent {
@@ -30,7 +30,6 @@ export class JobBadgeComponent {
 
   backgroundColor(state: string) {
     // @ts-ignore
-    return COLOR_MAP[ state ];
+    return COLOR_MAP[state];
   }
-
 }

@@ -23,9 +23,9 @@ import { distinctUntilChanged, flatMap } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-exceptions',
-  templateUrl    : './job-exceptions.component.html',
-  styleUrls      : [ './job-exceptions.component.less' ],
+  selector: 'flink-job-exceptions',
+  templateUrl: './job-exceptions.component.html',
+  styleUrls: ['./job-exceptions.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobExceptionsComponent implements OnInit {
@@ -36,23 +36,23 @@ export class JobExceptionsComponent implements OnInit {
     return node.timestamp;
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$.pipe(
-      distinctUntilChanged((pre, next) => pre.jid === next.jid),
-      flatMap(job => this.jobService.loadExceptions(job.jid))
-    ).subscribe(data => {
-      // @ts-ignore
-      if (data[ 'root-exception' ]) {
-        this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data[ 'root-exception' ];
-      } else {
-        this.rootException = 'No Root Exception';
-      }
-      this.listOfException = data[ 'all-exceptions' ];
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobDetail$
+      .pipe(
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        flatMap(job => this.jobService.loadExceptions(job.jid))
+      )
+      .subscribe(data => {
+        // @ts-ignore
+        if (data['root-exception']) {
+          this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
+        } else {
+          this.rootException = 'No Root Exception';
+        }
+        this.listOfException = data['all-exceptions'];
+        this.cdr.markForCheck();
+      });
   }
-
 }

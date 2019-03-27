@@ -1,9 +1,7 @@
 [
   {
-    "context": [
-      "/"
-    ],
-    "target": "http://localhost:8082",
+    "context": ["/"],
+    "target": "http://localhost:8081",
     "secure": false
   }
 ]

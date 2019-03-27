@@ -38,14 +38,14 @@ import { NodeComponent } from './node.component';
 import { SvgContainerComponent } from './svg-container.component';
 
 enum Visibility {
-  Hidden  = 'hidden',
+  Hidden = 'hidden',
   Visible = 'visible'
 }
 
 @Component({
-  selector       : 'flink-dagre',
-  templateUrl    : './dagre.component.html',
-  styleUrls      : [ './dagre.component.less' ],
+  selector: 'flink-dagre',
+  templateUrl: './dagre.component.html',
+  styleUrls: ['./dagre.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DagreComponent extends NzGraph {
@@ -138,8 +138,8 @@ export class DagreComponent extends NzGraph {
    */
   flush(nodes: NodesItemCorrectInterface[], links: NodesItemLinkInterface[], isResizeNode = false): Promise<void> {
     return new Promise(resolve => {
-      this.cacheNodes = [ ...nodes ];
-      this.cacheLinks = [ ...links ];
+      this.cacheNodes = [...nodes];
+      this.cacheLinks = [...links];
       this.zone.run(() => {
         this.selectedNodeId = null;
         this.createGraph({ compound: true });
@@ -179,8 +179,7 @@ export class DagreComponent extends NzGraph {
    * Calculate node size
    */
   resetNodeSize() {
-    this.graphElement.nativeElement.querySelectorAll(`.node-group`)
-    .forEach((nodeEle: HTMLElement) => {
+    this.graphElement.nativeElement.querySelectorAll(`.node-group`).forEach((nodeEle: HTMLElement) => {
       const contentEle = nodeEle.querySelector('.content-wrap');
       if (contentEle) {
         const height = contentEle.getBoundingClientRect().height;
@@ -205,12 +204,12 @@ export class DagreComponent extends NzGraph {
       if (l) {
         const linkSelection = select(linkEl.nativeElement).select('.edge');
         linkSelection
-        .attr('d', l.options.oldLine)
-        .attr('stroke-width', l.options.oldWidth)
-        .transition()
-        .duration(animate ? 500 : 0)
-        .attr('d', l.options.line)
-        .attr('stroke-width', l.options.width);
+          .attr('d', l.options.oldLine)
+          .attr('stroke-width', l.options.oldWidth)
+          .transition()
+          .duration(animate ? 500 : 0)
+          .attr('d', l.options.line)
+          .attr('stroke-width', l.options.width);
       }
     });
   }
@@ -225,14 +224,17 @@ export class DagreComponent extends NzGraph {
       if (node) {
         const nodeGroupSelection = select(nodeEl.nativeElement);
         if (animate) {
-          nodeGroupSelection.attr('transform', `${node.options.oldTransform},scale(${node.options.oldScale}, ${node.options.oldScale})`)
-          .transition()
-          .duration(500)
-          .attr('transform', `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`);
+          nodeGroupSelection
+            .attr('transform', `${node.options.oldTransform},scale(${node.options.oldScale}, ${node.options.oldScale})`)
+            .transition()
+            .duration(500)
+            .attr('transform', `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`);
         } else {
-          nodeGroupSelection.attr('transform', `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`);
+          nodeGroupSelection.attr(
+            'transform',
+            `${node.options.transform},scale(${node.options.scale}, ${node.options.scale})`
+          );
         }
-
       }
     });
   }
@@ -259,33 +261,31 @@ export class DagreComponent extends NzGraph {
       }
       this.selectedNodeId = node.id;
       const hostDims = this.elementRef.nativeElement.getBoundingClientRect();
-      const x: number = (hostDims.width / this.xCenter - this.svgContainer.containerTransform.x);
-      const y: number = (hostDims.height / this.yCenter - this.svgContainer.containerTransform.y);
+      const x: number = hostDims.width / this.xCenter - this.svgContainer.containerTransform.x;
+      const y: number = hostDims.height / this.yCenter - this.svgContainer.containerTransform.y;
       this.zone.run(() => {
         this.zoomFocusLayout({
           x,
           y,
           transform: this.svgContainer.containerTransform,
-          nodeId   : node.id,
-          zoom     : this.svgContainer ? this.svgContainer.zoom : 1
+          nodeId: node.id,
+          zoom: this.svgContainer ? this.svgContainer.zoom : 1
         }).then(({ transform, focusedLinkIds, circularNodeIds }) => {
-          this.focusedLinkIds = [ ...focusedLinkIds ];
-          this.circleNodeIds = [ ...circularNodeIds ];
+          this.focusedLinkIds = [...focusedLinkIds];
+          this.circleNodeIds = [...circularNodeIds];
           requestAnimationFrame(() => {
             const t = zoomIdentity.translate(transform.x, transform.y).scale(transform.k);
             this.svgContainer.setPositionByTransform(t, true);
             this.redrawNodes(!force);
           });
           this.graphElement.nativeElement.appendChild(this.overlayElement.nativeElement);
-          this.graphElement.nativeElement.querySelectorAll(`.link-group`)
-          .forEach((LinkEle: Element) => {
+          this.graphElement.nativeElement.querySelectorAll(`.link-group`).forEach((LinkEle: Element) => {
             if (this.focusedLinkIds.indexOf(LinkEle.id) !== -1) {
               this.graphElement.nativeElement.appendChild(LinkEle);
             }
           });
-          this.graphElement.nativeElement.querySelectorAll(`.node-group`)
-          .forEach((nodeEle: Element) => {
-            if ([ this.selectedNodeId, ...this.circleNodeIds ].indexOf(nodeEle.id) !== -1) {
+          this.graphElement.nativeElement.querySelectorAll(`.node-group`).forEach((nodeEle: Element) => {
+            if ([this.selectedNodeId, ...this.circleNodeIds].indexOf(nodeEle.id) !== -1) {
               this.graphElement.nativeElement.appendChild(nodeEle);
             }
           });
@@ -321,7 +321,7 @@ export class DagreComponent extends NzGraph {
    * Handle svg container transform event
    * @param $event
    */
-  onTransform($event: { x: number, y: number, k: number }) {
+  onTransform($event: { x: number; y: number; k: number }) {
     this.cd.detectChanges();
     this.cacheTransform.x = $event.x;
     this.cacheTransform.y = $event.y;
@@ -353,16 +353,14 @@ export class DagreComponent extends NzGraph {
 
     this.graphElement.nativeElement.appendChild(this.overlayElement.nativeElement);
 
-    this.graphElement.nativeElement.querySelectorAll(`.link-group`)
-    .forEach((e: Element) => {
+    this.graphElement.nativeElement.querySelectorAll(`.link-group`).forEach((e: Element) => {
       if (this.focusedLinkIds.indexOf(e.id) !== -1) {
         this.graphElement.nativeElement.appendChild(e);
       }
     });
 
-    this.graphElement.nativeElement.querySelectorAll(`.node-group`)
-    .forEach((e: Element) => {
-      if ([ this.selectedNodeId, ...this.circleNodeIds ].indexOf(e.id) !== -1) {
+    this.graphElement.nativeElement.querySelectorAll(`.node-group`).forEach((e: Element) => {
+      if ([this.selectedNodeId, ...this.circleNodeIds].indexOf(e.id) !== -1) {
         this.graphElement.nativeElement.appendChild(e);
       }
     });
@@ -373,5 +371,4 @@ export class DagreComponent extends NzGraph {
   constructor(protected cd: ChangeDetectorRef, protected zone: NgZone, private elementRef: ElementRef) {
     super();
   }
-
 }

@@ -23,7 +23,6 @@ import { LONG_MIN_VALUE } from 'config';
   name: 'humanizeWatermark'
 })
 export class HumanizeWatermarkPipe implements PipeTransform {
-
   transform(value: any): any {
     if (isNaN(value) || value <= LONG_MIN_VALUE) {
       return 'No Watermark';
@@ -31,5 +30,4 @@ export class HumanizeWatermarkPipe implements PipeTransform {
       return value;
     }
   }
-
 }

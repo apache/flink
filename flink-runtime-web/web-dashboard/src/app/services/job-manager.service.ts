@@ -24,12 +24,11 @@ import { BASE_URL } from 'config';
   providedIn: 'root'
 })
 export class JobManagerService {
-
   /**
    * Load JM config
    */
   loadConfig() {
-    return this.httpClient.get<Array<{ key: string; value: string; }>>(`${BASE_URL}/jobmanager/config`);
+    return this.httpClient.get<Array<{ key: string; value: string }>>(`${BASE_URL}/jobmanager/config`);
   }
 
   /**
@@ -46,6 +45,5 @@ export class JobManagerService {
     return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, { responseType: 'text' });
   }
 
-  constructor(private httpClient: HttpClient) {
-  }
+  constructor(private httpClient: HttpClient) {}
 }

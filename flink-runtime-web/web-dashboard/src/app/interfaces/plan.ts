@@ -19,7 +19,7 @@
 import { NodesItemInterface } from './job-detail';
 
 export interface PlanInterface {
-  'plan': {
+  plan: {
     jid: string;
     name: string;
     nodes: NodesItemInterface[];

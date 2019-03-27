@@ -29,11 +29,7 @@ import { TaskManagerLogsComponent } from './logs/task-manager-logs.component';
 import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    ShareModule,
-    TaskManagerRoutingModule
-  ],
+  imports: [CommonModule, ShareModule, TaskManagerRoutingModule],
   declarations: [
     TaskManagerListComponent,
     TaskManagerMetricsComponent,
@@ -43,5 +39,4 @@ import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.compone
     TaskManagerStdoutComponent
   ]
 })
-export class TaskManagerModule {
-}
+export class TaskManagerModule {}

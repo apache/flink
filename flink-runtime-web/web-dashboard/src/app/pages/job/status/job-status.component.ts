@@ -23,9 +23,9 @@ import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-status',
-  templateUrl    : './job-status.component.html',
-  styleUrls      : [ './job-status.component.less' ],
+  selector: 'flink-job-status',
+  templateUrl: './job-status.component.html',
+  styleUrls: ['./job-status.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobStatusComponent implements OnInit, OnDestroy {
@@ -35,23 +35,23 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   jobDetail: JobDetailCorrectInterface;
   listOfNavigation = [
     {
-      path : 'overview',
+      path: 'overview',
       title: 'Overview'
     },
     {
-      path : 'exceptions',
+      path: 'exceptions',
       title: 'Exceptions'
     },
     {
-      path : 'timeline',
+      path: 'timeline',
       title: 'TimeLine'
     },
     {
-      path : 'checkpoints',
+      path: 'checkpoints',
       title: 'Checkpoints'
     },
     {
-      path : 'configuration',
+      path: 'configuration',
       title: 'Configuration'
     }
   ];
@@ -70,8 +70,7 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     });
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     const jobDetail$ = this.jobService.jobDetail$.pipe(takeUntil(this.destroy$));
@@ -79,9 +78,7 @@ export class JobStatusComponent implements OnInit, OnDestroy {
       this.jobDetail = data;
       this.cdr.markForCheck();
     });
-    jobDetail$.pipe(
-      distinctUntilKeyChanged('state')
-    ).subscribe(() => {
+    jobDetail$.pipe(distinctUntilKeyChanged('state')).subscribe(() => {
       this.statusTips = '';
     });
   }
@@ -90,5 +87,4 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

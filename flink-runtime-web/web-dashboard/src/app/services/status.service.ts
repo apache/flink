@@ -62,19 +62,29 @@ export class StatusService {
    * @param router
    */
   boot(router: Router): Promise<ConfigurationInterface> {
-    return this.httpClient.get<ConfigurationInterface>(`${BASE_URL}/config`).pipe(tap((data) => {
-      this.configuration = data;
-      const navigationEnd$ = router.events.pipe(filter(item => item instanceof NavigationEnd), mapTo(true));
-      const interval$ = interval(this.configuration[ 'refresh-interval' ]).pipe(mapTo(true), startWith(true));
-      this.refresh$ = merge(this.visibility$, this.forceRefresh$, navigationEnd$).pipe(
-        startWith(true),
-        debounceTime(300),
-        switchMap(active => active ? interval$ : EMPTY),
-        share()
-      );
-    })).toPromise();
+    return this.httpClient
+      .get<ConfigurationInterface>(`${BASE_URL}/config`)
+      .pipe(
+        tap(data => {
+          this.configuration = data;
+          const navigationEnd$ = router.events.pipe(
+            filter(item => item instanceof NavigationEnd),
+            mapTo(true)
+          );
+          const interval$ = interval(this.configuration['refresh-interval']).pipe(
+            mapTo(true),
+            startWith(true)
+          );
+          this.refresh$ = merge(this.visibility$, this.forceRefresh$, navigationEnd$).pipe(
+            startWith(true),
+            debounceTime(300),
+            switchMap(active => (active ? interval$ : EMPTY)),
+            share()
+          );
+        })
+      )
+      .toPromise();
   }
 
-  constructor(private httpClient: HttpClient) {
-  }
+  constructor(private httpClient: HttpClient) {}
 }

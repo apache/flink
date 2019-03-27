@@ -22,13 +22,13 @@ import { SubmitComponent } from './submit.component';
 
 const routes: Routes = [
   {
-    path: '', component: SubmitComponent
+    path: '',
+    component: SubmitComponent
   }
 ];
 
 @NgModule({
-  imports: [ RouterModule.forChild(routes) ],
-  exports: [ RouterModule ]
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule]
 })
-export class SubmitRoutingModule {
-}
+export class SubmitRoutingModule {}

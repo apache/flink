@@ -23,17 +23,16 @@ import { flatMap, share, takeUntil } from 'rxjs/operators';
 import { StatusService, JobService } from 'services';
 
 @Component({
-  selector       : 'flink-overview',
-  templateUrl    : './overview.component.html',
-  styleUrls      : [ './overview.component.less' ],
+  selector: 'flink-overview',
+  templateUrl: './overview.component.html',
+  styleUrls: ['./overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewComponent implements OnInit, OnDestroy {
   jobData$: Observable<JobsItemInterface[]>;
   destroy$ = new Subject();
 
-  constructor(private statusService: StatusService, private jobService: JobService) {
-  }
+  constructor(private statusService: StatusService, private jobService: JobService) {}
 
   ngOnInit() {
     this.jobData$ = this.statusService.refresh$.pipe(
@@ -47,5 +46,4 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

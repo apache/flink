@@ -25,8 +25,11 @@
     "core-js": "^2.5.4",
     "d3": "^5.9.1",
     "dagre": "^0.8.4",
+    "husky": "^1.3.1",
+    "lint-staged": "^8.1.5",
     "monaco-editor": "^0.16.0",
     "ng-zorro-antd": "^7.0.3",
+    "prettier": "^1.16.4",
     "rxjs": "~6.3.3",
     "tslib": "^1.9.0",
     "zone.js": "~0.8.26"
@@ -51,5 +54,16 @@
     "ts-node": "~7.0.0",
     "tslint": "~5.11.0",
     "typescript": "~3.2.2"
+  },
+  "lint-staged": {
+    "*.{ts,js,less,json}": [
+      "./node_modules/.bin/prettier --write",
+      "git add"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   }
 }

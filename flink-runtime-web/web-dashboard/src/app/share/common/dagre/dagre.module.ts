@@ -25,13 +25,8 @@ import { DagreComponent } from './dagre.component';
 import { SvgContainerComponent } from './svg-container.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    FormsModule,
-    NgZorroAntdModule
-  ],
-  declarations: [ DagreComponent, SvgContainerComponent, NodeComponent ],
-  exports     : [ DagreComponent, SvgContainerComponent, NodeComponent ]
+  imports: [CommonModule, FormsModule, NgZorroAntdModule],
+  declarations: [DagreComponent, SvgContainerComponent, NodeComponent],
+  exports: [DagreComponent, SvgContainerComponent, NodeComponent]
 })
-export class DagreModule {
-}
+export class DagreModule {}

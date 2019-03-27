@@ -59,7 +59,7 @@ export class JobService {
    */
   jobWithVertex$ = combineLatest(this.jobDetail$, this.selectedVertex$).pipe(
     map(data => {
-      const [ job, vertex ] = data;
+      const [job, vertex] = data;
       return { job, vertex };
     }),
     filter(data => !!data.vertex)
@@ -69,8 +69,7 @@ export class JobService {
    */
   metricsCacheMap = new Map();
 
-  constructor(private httpClient: HttpClient) {
-  }
+  constructor(private httpClient: HttpClient) {}
 
   /**
    * Uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
@@ -95,14 +94,14 @@ export class JobService {
    */
   loadJobs() {
     return this.httpClient.get<JobOverviewInterface>(`${BASE_URL}/jobs/overview`).pipe(
-      map((data) => {
-        data.jobs.forEach((job) => {
+      map(data => {
+        data.jobs.forEach(job => {
           for (const key in job.tasks) {
             const upperCaseKey = key.toUpperCase() as (keyof TaskStatusInterface);
-            job.tasks[ upperCaseKey ] = job.tasks[ key as (keyof TaskStatusInterface) ];
-            delete job.tasks[ key as (keyof TaskStatusInterface) ];
+            job.tasks[upperCaseKey] = job.tasks[key as (keyof TaskStatusInterface)];
+            delete job.tasks[key as (keyof TaskStatusInterface)];
           }
-          job.completed = [ 'FINISHED', 'FAILED', 'CANCELED' ].indexOf(job.state) > -1;
+          job.completed = ['FINISHED', 'FAILED', 'CANCELED'].indexOf(job.state) > -1;
         });
         return data.jobs || [];
       }),
@@ -138,21 +137,28 @@ export class JobService {
    * @param vertexId
    */
   loadAccumulators(jobId: string, vertexId: string) {
-    return this.httpClient.get<{ 'user-accumulators': UserAccumulatorsInterface[] }>
-    (`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/accumulators`).pipe(
-      flatMap((data) => {
-        const accumulators = data[ 'user-accumulators' ];
-        return this.httpClient.get<{ subtasks: SubTaskAccumulatorsInterface[] }>(
-          `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/accumulators`
-        ).pipe(
-          map((item) => {
-            const subtaskAccumulators = item.subtasks;
-            return {
-              main    : accumulators,
-              subtasks: subtaskAccumulators
-            };
-          }));
-      }));
+    return this.httpClient
+      .get<{ 'user-accumulators': UserAccumulatorsInterface[] }>(
+        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/accumulators`
+      )
+      .pipe(
+        flatMap(data => {
+          const accumulators = data['user-accumulators'];
+          return this.httpClient
+            .get<{ subtasks: SubTaskAccumulatorsInterface[] }>(
+              `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/accumulators`
+            )
+            .pipe(
+              map(item => {
+                const subtaskAccumulators = item.subtasks;
+                return {
+                  main: accumulators,
+                  subtasks: subtaskAccumulators
+                };
+              })
+            );
+        })
+      );
   }
 
   /**
@@ -178,9 +184,9 @@ export class JobService {
    * @param vertexId
    */
   loadSubTasks(jobId: string, vertexId: string) {
-    return this.httpClient.get<{ subtasks: JobSubTaskInterface[] }>(
-      `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}`).pipe(map(data => data && data.subtasks || [])
-    );
+    return this.httpClient
+      .get<{ subtasks: JobSubTaskInterface[] }>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}`)
+      .pipe(map(data => (data && data.subtasks) || []));
   }
 
   /**
@@ -198,7 +204,9 @@ export class JobService {
    * @param vertexId
    */
   loadTaskManagers(jobId: string, vertexId: string) {
-    return this.httpClient.get<JobVertexTaskManagerInterface>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/taskmanagers`);
+    return this.httpClient.get<JobVertexTaskManagerInterface>(
+      `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/taskmanagers`
+    );
   }
 
   /**
@@ -223,7 +231,9 @@ export class JobService {
    * @param checkPointId
    */
   loadCheckpointDetails(jobId: string, checkPointId: number) {
-    return this.httpClient.get<CheckPointDetailInterface>(`${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`);
+    return this.httpClient.get<CheckPointDetailInterface>(
+      `${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`
+    );
   }
 
   /**
@@ -246,10 +256,10 @@ export class JobService {
     const links: VerticesLinkInterface[] = [];
     let nodes: NodesItemCorrectInterface[] = [];
     if (job.plan.nodes.length) {
-      nodes = job.plan.nodes.map((node) => {
+      nodes = job.plan.nodes.map(node => {
         let detail;
         if (job.vertices && job.vertices.length) {
-          detail = job.vertices.find((vertex) => vertex.id === node.id);
+          detail = job.vertices.find(vertex => vertex.id === node.id);
         }
         return {
           ...node,
@@ -258,7 +268,7 @@ export class JobService {
       });
       nodes.forEach(node => {
         if (node.inputs && node.inputs.length) {
-          node.inputs.forEach((input) => {
+          node.inputs.forEach(input => {
             links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
           });
         }

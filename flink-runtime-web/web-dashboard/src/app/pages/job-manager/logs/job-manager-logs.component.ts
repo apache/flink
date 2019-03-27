@@ -21,9 +21,9 @@ import { JobManagerService } from 'services';
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
 @Component({
-  selector       : 'flink-job-manager-logs',
-  templateUrl    : './job-manager-logs.component.html',
-  styleUrls      : [ './job-manager-logs.component.less' ],
+  selector: 'flink-job-manager-logs',
+  templateUrl: './job-manager-logs.component.html',
+  styleUrls: ['./job-manager-logs.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogsComponent implements OnInit {
@@ -38,11 +38,9 @@ export class JobManagerLogsComponent implements OnInit {
     });
   }
 
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.reload();
   }
-
 }

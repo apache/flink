@@ -22,34 +22,30 @@ import { flatMap } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-configuration',
-  templateUrl    : './job-configuration.component.html',
-  styleUrls      : [ './job-configuration.component.less' ],
+  selector: 'flink-job-configuration',
+  templateUrl: './job-configuration.component.html',
+  styleUrls: ['./job-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobConfigurationComponent implements OnInit {
   config: JobConfigInterface;
-  listOfUserConfig: Array<{ key: string, value: string }> = [];
+  listOfUserConfig: Array<{ key: string; value: string }> = [];
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$.pipe(
-      flatMap(job => this.jobService.loadJobConfig(job.jid))
-    ).subscribe(data => {
+    this.jobService.jobDetail$.pipe(flatMap(job => this.jobService.loadJobConfig(job.jid))).subscribe(data => {
       this.config = data;
-      const userConfig = this.config[ 'execution-config' ][ 'user-config' ];
+      const userConfig = this.config['execution-config']['user-config'];
       const array = [];
       for (const key in userConfig) {
         array.push({
           key,
-          value: userConfig[ key ]
+          value: userConfig[key]
         });
       }
       this.listOfUserConfig = array;
       this.cdr.markForCheck();
     });
   }
-
 }

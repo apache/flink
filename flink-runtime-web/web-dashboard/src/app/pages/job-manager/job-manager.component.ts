@@ -19,9 +19,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 @Component({
-  selector       : 'flink-job-manager',
-  templateUrl    : './job-manager.component.html',
-  styleUrls      : [ './job-manager.component.less' ],
+  selector: 'flink-job-manager',
+  templateUrl: './job-manager.component.html',
+  styleUrls: ['./job-manager.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerComponent {

@@ -25,9 +25,9 @@ import { StatusService, TaskManagerService } from 'services';
 import { deepFind } from 'utils';
 
 @Component({
-  selector       : 'flink-task-manager-list',
-  templateUrl    : './task-manager-list.component.html',
-  styleUrls      : [ './task-manager-list.component.less' ],
+  selector: 'flink-task-manager-list',
+  templateUrl: './task-manager-list.component.html',
+  styleUrls: ['./task-manager-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
@@ -37,7 +37,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   sortName: string;
   sortValue: string;
 
-  sort(sort: { key: string, value: string }) {
+  sort(sort: { key: string; value: string }) {
     this.sortName = sort.key;
     this.sortValue = sort.value;
     this.search();
@@ -45,14 +45,15 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
 
   search() {
     if (this.sortName) {
-      this.listOfTaskManager = [ ...this.listOfTaskManager.sort(
-        (pre, next) => {
+      this.listOfTaskManager = [
+        ...this.listOfTaskManager.sort((pre, next) => {
           if (this.sortValue === 'ascend') {
-            return (deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1);
+            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
           } else {
-            return (deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1);
+            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
           }
-        }) ];
+        })
+      ];
     }
   }
 
@@ -61,7 +62,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   }
 
   navigateTo(taskManager: TaskmanagersItemInterface) {
-    this.router.navigate([ taskManager.id, 'metrics' ], { relativeTo: this.activatedRoute }).then();
+    this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
   }
 
   constructor(
@@ -69,22 +70,27 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
     private statusService: StatusService,
     private taskManagerService: TaskManagerService,
     private router: Router,
-    private activatedRoute: ActivatedRoute) {
-  }
+    private activatedRoute: ActivatedRoute
+  ) {}
 
   ngOnInit() {
-    this.statusService.refresh$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(() => this.taskManagerService.loadManagers())
-    ).subscribe(data => {
-      this.isLoading = false;
-      this.listOfTaskManager = data;
-      this.search();
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.statusService.refresh$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(() => this.taskManagerService.loadManagers())
+      )
+      .subscribe(
+        data => {
+          this.isLoading = false;
+          this.listOfTaskManager = data;
+          this.search();
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {

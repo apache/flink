@@ -27,9 +27,9 @@ import { first } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-checkpoints-detail',
-  templateUrl    : './job-checkpoints-detail.component.html',
-  styleUrls      : [ './job-checkpoints-detail.component.less' ],
+  selector: 'flink-job-checkpoints-detail',
+  templateUrl: './job-checkpoints-detail.component.html',
+  styleUrls: ['./job-checkpoints-detail.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsDetailComponent implements OnInit {
@@ -57,27 +57,26 @@ export class JobCheckpointsDetailComponent implements OnInit {
   refresh() {
     this.isLoading = true;
     if (this.jobDetail.jid) {
-      this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id).subscribe(data => {
-        this.checkPointDetail = data;
-        this.isLoading = false;
-      }, () => {
-        this.isLoading = false;
-      });
+      this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id).subscribe(
+        data => {
+          this.checkPointDetail = data;
+          this.isLoading = false;
+        },
+        () => {
+          this.isLoading = false;
+        }
+      );
     }
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$.pipe(
-      first()
-    ).subscribe(data => {
+    this.jobService.jobDetail$.pipe(first()).subscribe(data => {
       this.jobDetail = data;
       this.listOfVertex = data!.vertices;
       this.cdr.markForCheck();
       this.refresh();
     });
   }
-
 }

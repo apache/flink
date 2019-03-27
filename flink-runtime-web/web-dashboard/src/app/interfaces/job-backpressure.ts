@@ -28,4 +28,3 @@ export interface JobBackpressureSubtaskInterface {
   'backpressure-level': string;
   ratio: number;
 }
-

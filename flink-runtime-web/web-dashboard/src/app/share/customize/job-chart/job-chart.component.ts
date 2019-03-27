@@ -18,7 +18,6 @@
 
 /// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
 
-
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -36,9 +35,9 @@ import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
 
 @Component({
-  selector       : 'flink-job-chart',
-  templateUrl    : './job-chart.component.html',
-  styleUrls      : [ './job-chart.component.less' ],
+  selector: 'flink-job-chart',
+  templateUrl: './job-chart.component.html',
+  styleUrls: ['./job-chart.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobChartComponent implements AfterViewInit, OnDestroy {
@@ -47,18 +46,18 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
   @ViewChild('chart') chart: ElementRef;
   size = 'small';
   chartInstance: Chart;
-  data: Array<{ time: number, value: number, type: string }> = [];
+  data: Array<{ time: number; value: number; type: string }> = [];
 
   @HostBinding('class.big')
   get isBig() {
     return this.size === 'big';
   }
 
-  refresh(res: { timestamp: number, values: { [ id: string ]: number } }) {
+  refresh(res: { timestamp: number; values: { [id: string]: number } }) {
     this.data.push({
-      time : res.timestamp,
-      value: res.values[ this.title ],
-      type : this.title
+      time: res.timestamp,
+      value: res.values[this.title],
+      type: this.title
     });
 
     if (this.data.length > 20) {
@@ -79,35 +78,40 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     this.closed.emit(this.title);
   }
 
-  constructor(private cdr: ChangeDetectorRef) {
-  }
+  constructor(private cdr: ChangeDetectorRef) {}
 
   ngAfterViewInit() {
     this.cdr.detach();
     G2.track(false);
     this.chartInstance = new G2.Chart({
       container: this.chart.nativeElement,
-      height   : 150,
-      forceFit : true,
-      padding  : 'auto'
+      height: 150,
+      forceFit: true,
+      padding: 'auto'
     });
     this.chartInstance.legend(false);
     this.chartInstance.source(this.data, {
       time: {
-        alias    : 'Time',
-        type     : 'time',
-        mask     : 'HH:mm:ss',
+        alias: 'Time',
+        type: 'time',
+        mask: 'HH:mm:ss',
         tickCount: 3
       },
       type: {
         type: 'cat'
       }
     });
-    this.chartInstance.line().position('time*value').shape('smooth').color('type').size(2).animate({
-      update: {
-        duration: 0
-      }
-    });
+    this.chartInstance
+      .line()
+      .position('time*value')
+      .shape('smooth')
+      .color('type')
+      .size(2)
+      .animate({
+        update: {
+          duration: 0
+        }
+      });
     this.chartInstance.render();
   }
 
@@ -116,5 +120,4 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
       this.chartInstance.destroy();
     }
   }
-
 }

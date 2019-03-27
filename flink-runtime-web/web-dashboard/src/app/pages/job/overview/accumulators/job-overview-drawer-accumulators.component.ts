@@ -23,9 +23,9 @@ import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from 'interfa
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-overview-drawer-accumulators',
-  templateUrl    : './job-overview-drawer-accumulators.component.html',
-  styleUrls      : [ './job-overview-drawer-accumulators.component.less' ],
+  selector: 'flink-job-overview-drawer-accumulators',
+  templateUrl: './job-overview-drawer-accumulators.component.html',
+  styleUrls: ['./job-overview-drawer-accumulators.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy {
@@ -41,27 +41,30 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
     return node.subtask;
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(data => this.jobService.loadAccumulators(data.job.jid, data.vertex!.id))
-    ).subscribe(data => {
-      this.isLoading = false;
-      this.listOfAccumulator = data.main;
-      this.listOfSubTaskAccumulator = data.subtasks || [];
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(data => this.jobService.loadAccumulators(data.job.jid, data.vertex!.id))
+      )
+      .subscribe(
+        data => {
+          this.isLoading = false;
+          this.listOfAccumulator = data.main;
+          this.listOfSubTaskAccumulator = data.subtasks || [];
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

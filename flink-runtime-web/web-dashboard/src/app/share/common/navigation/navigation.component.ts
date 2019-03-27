@@ -22,34 +22,35 @@ import { Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
 @Component({
-  selector       : 'flink-navigation',
-  templateUrl    : './navigation.component.html',
-  styleUrls      : [ './navigation.component.less' ],
+  selector: 'flink-navigation',
+  templateUrl: './navigation.component.html',
+  styleUrls: ['./navigation.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NavigationComponent implements OnInit, OnDestroy {
-  @Input() listOfNavigation: Array<{ path: string, title: string }> = [];
+  @Input() listOfNavigation: Array<{ path: string; title: string }> = [];
   @Input() tabBarGutter = 8;
   @Input() size = 'default';
   navIndex = 0;
   destroy$ = new Subject();
 
   navigateTo(path: string) {
-    this.router.navigate([ path ], { relativeTo: this.activatedRoute }).then();
+    this.router.navigate([path], { relativeTo: this.activatedRoute }).then();
   }
 
-  constructor(private activatedRoute: ActivatedRoute, private router: Router, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private activatedRoute: ActivatedRoute, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     if (this.activatedRoute && this.activatedRoute.firstChild) {
-      this.activatedRoute.firstChild.data.pipe(
-        takeUntil(this.destroy$),
-        map((data) => data.path)
-      ).subscribe(data => {
-        this.navIndex = this.listOfNavigation.map(nav => nav.path).indexOf(data);
-        this.cdr.markForCheck();
-      });
+      this.activatedRoute.firstChild.data
+        .pipe(
+          takeUntil(this.destroy$),
+          map(data => data.path)
+        )
+        .subscribe(data => {
+          this.navIndex = this.listOfNavigation.map(nav => nav.path).indexOf(data);
+          this.cdr.markForCheck();
+        });
     }
   }
 
@@ -57,5 +58,4 @@ export class NavigationComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

@@ -23,7 +23,6 @@ import { isNil } from 'utils';
   name: 'humanizeDuration'
 })
 export class HumanizeDurationPipe implements PipeTransform {
-
   transform(value: number): any {
     if (isNil(value)) {
       return '-';
@@ -58,5 +57,4 @@ export class HumanizeDurationPipe implements PipeTransform {
       }
     }
   }
-
 }

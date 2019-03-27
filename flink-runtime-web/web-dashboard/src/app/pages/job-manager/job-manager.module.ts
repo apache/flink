@@ -27,11 +27,7 @@ import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
 import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    ShareModule,
-    JobManagerRoutingModule
-  ],
+  imports: [CommonModule, ShareModule, JobManagerRoutingModule],
   declarations: [
     JobManagerComponent,
     JobManagerConfigurationComponent,
@@ -39,5 +35,4 @@ import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component
     JobManagerStdoutComponent
   ]
 })
-export class JobManagerModule {
-}
+export class JobManagerModule {}

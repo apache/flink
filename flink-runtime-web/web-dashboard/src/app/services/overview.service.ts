@@ -27,9 +27,7 @@ import { OverviewInterface } from 'interfaces';
   providedIn: 'root'
 })
 export class OverviewService {
-
-  constructor(private httpClient: HttpClient) {
-  }
+  constructor(private httpClient: HttpClient) {}
 
   /**
    * Get cluster overview status

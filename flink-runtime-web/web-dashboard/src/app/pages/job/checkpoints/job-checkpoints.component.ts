@@ -27,9 +27,9 @@ import { distinctUntilChanged } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-checkpoints',
-  templateUrl    : './job-checkpoints.component.html',
-  styleUrls      : [ './job-checkpoints.component.less' ],
+  selector: 'flink-job-checkpoints',
+  templateUrl: './job-checkpoints.component.html',
+  styleUrls: ['./job-checkpoints.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsComponent implements OnInit {
@@ -42,17 +42,14 @@ export class JobCheckpointsComponent implements OnInit {
   }
 
   refresh() {
-    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => this.checkPointStats = data);
-    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => this.checkPointConfig = data);
+    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => (this.checkPointStats = data));
+    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => (this.checkPointConfig = data));
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$.pipe(
-      distinctUntilChanged((pre, next) => pre.jid === next.jid)
-    ).subscribe(data => {
+    this.jobService.jobDetail$.pipe(distinctUntilChanged((pre, next) => pre.jid === next.jid)).subscribe(data => {
       this.jobDetail = data;
       this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(stats => {
         this.checkPointStats = stats;

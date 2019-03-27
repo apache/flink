@@ -23,8 +23,7 @@ import { formatDate } from '@angular/common';
   name: 'humanizeDate'
 })
 export class HumanizeDatePipe implements PipeTransform {
-  constructor(@Inject(LOCALE_ID) private locale: string) {
-  }
+  constructor(@Inject(LOCALE_ID) private locale: string) {}
 
   transform(value: any, format = 'mediumDate', timezone?: string, locale?: string): string | null | undefined {
     if (value == null || value === '' || value !== value || value < 0) {
@@ -33,7 +32,6 @@ export class HumanizeDatePipe implements PipeTransform {
 
     try {
       return formatDate(value, format, locale || this.locale, timezone);
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 }

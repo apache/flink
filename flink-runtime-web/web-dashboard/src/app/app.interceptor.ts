@@ -25,23 +25,26 @@ import { StatusService } from 'services';
 
 @Injectable()
 export class AppInterceptor implements HttpInterceptor {
-  constructor(private injector: Injector) {
-  }
+  constructor(private injector: Injector) {}
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     /**
      * Error response from below url should be ignored
      */
-    const ignoreErrorUrlEndsList = [ 'checkpoints/config', 'checkpoints' ];
-    const ignoreErrorMessage = [ 'File not found.' ];
+    const ignoreErrorUrlEndsList = ['checkpoints/config', 'checkpoints'];
+    const ignoreErrorMessage = ['File not found.'];
     return next.handle(req).pipe(
-      catchError((res) => {
-        const errorMessage = res && res.error && res.error.errors && res.error.errors[ 0 ];
-        if (errorMessage &&
+      catchError(res => {
+        const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
+        if (
+          errorMessage &&
           ignoreErrorUrlEndsList.every(url => !res.url.endsWith(url)) &&
-          ignoreErrorMessage.every(message => errorMessage !== message)) {
+          ignoreErrorMessage.every(message => errorMessage !== message)
+        ) {
           this.injector.get<StatusService>(StatusService).listOfErrorMessage.push(errorMessage);
-          this.injector.get<NzNotificationService>(NzNotificationService).info('Server Response Message:', errorMessage);
+          this.injector
+            .get<NzNotificationService>(NzNotificationService)
+            .info('Server Response Message:', errorMessage);
         }
         return throwError(res);
       })

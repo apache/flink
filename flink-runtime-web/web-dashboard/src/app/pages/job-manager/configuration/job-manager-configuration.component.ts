@@ -20,16 +20,15 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@
 import { JobManagerService } from 'services';
 
 @Component({
-  selector       : 'flink-job-manager-configuration',
-  templateUrl    : './job-manager-configuration.component.html',
-  styleUrls      : [ './job-manager-configuration.component.less' ],
+  selector: 'flink-job-manager-configuration',
+  templateUrl: './job-manager-configuration.component.html',
+  styleUrls: ['./job-manager-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerConfigurationComponent implements OnInit {
-  listOfConfig: Array<{ key: string, value: string }> = [];
+  listOfConfig: Array<{ key: string; value: string }> = [];
 
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.jobManagerService.loadConfig().subscribe(data => {
@@ -37,6 +36,4 @@ export class JobManagerConfigurationComponent implements OnInit {
       this.cdr.markForCheck();
     });
   }
-
 }
-

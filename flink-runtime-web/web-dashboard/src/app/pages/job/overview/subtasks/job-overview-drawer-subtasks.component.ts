@@ -24,9 +24,9 @@ import { JobSubTaskInterface } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-overview-drawer-subtasks',
-  templateUrl    : './job-overview-drawer-subtasks.component.html',
-  styleUrls      : [ './job-overview-drawer-subtasks.component.less' ],
+  selector: 'flink-job-overview-drawer-subtasks',
+  templateUrl: './job-overview-drawer-subtasks.component.html',
+  styleUrls: ['./job-overview-drawer-subtasks.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
@@ -40,7 +40,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
     return node.subtask;
   }
 
-  sort(sort: { key: string, value: string }) {
+  sort(sort: { key: string; value: string }) {
     this.sortName = sort.key;
     this.sortValue = sort.value;
     this.search();
@@ -48,33 +48,38 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
 
   search() {
     if (this.sortName) {
-      this.listOfTask = [ ...this.listOfTask.sort(
-        (pre, next) => {
+      this.listOfTask = [
+        ...this.listOfTask.sort((pre, next) => {
           if (this.sortValue === 'ascend') {
-            return (deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1);
+            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
           } else {
-            return (deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1);
+            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
           }
-        }) ];
+        })
+      ];
     }
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      flatMap((data) => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id))
-    ).subscribe(data => {
-      this.listOfTask = data;
-      this.isLoading = false;
-      this.search();
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id))
+      )
+      .subscribe(
+        data => {
+          this.listOfTask = data;
+          this.isLoading = false;
+          this.search();
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {

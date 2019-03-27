@@ -23,9 +23,9 @@ import { flatMap, takeUntil } from 'rxjs/operators';
 import { StatusService, TaskManagerService } from 'services';
 
 @Component({
-  selector       : 'flink-task-manager',
-  templateUrl    : './task-manager.component.html',
-  styleUrls      : [ './task-manager.component.less' ],
+  selector: 'flink-task-manager',
+  templateUrl: './task-manager.component.html',
+  styleUrls: ['./task-manager.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerComponent implements OnInit, OnDestroy {
@@ -36,21 +36,26 @@ export class TaskManagerComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private activatedRoute: ActivatedRoute,
     private taskManagerService: TaskManagerService,
-    private statusService: StatusService) {
-  }
+    private statusService: StatusService
+  ) {}
 
   ngOnInit() {
-    this.statusService.refresh$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId))
-    ).subscribe(data => {
-      this.taskManagerService.taskManagerDetail$.next(data);
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.statusService.refresh$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId))
+      )
+      .subscribe(
+        data => {
+          this.taskManagerService.taskManagerDetail$.next(data);
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {

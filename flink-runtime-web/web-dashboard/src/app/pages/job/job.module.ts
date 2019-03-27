@@ -31,12 +31,7 @@ import { JobStatusComponent } from './status/job-status.component';
 import { JobTimelineComponent } from './timeline/job-timeline.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    FormsModule,
-    ShareModule,
-    JobRoutingModule
-  ],
+  imports: [CommonModule, FormsModule, ShareModule, JobRoutingModule],
   declarations: [
     JobComponent,
     JobStatusComponent,
@@ -48,5 +43,4 @@ import { JobTimelineComponent } from './timeline/job-timeline.component';
     JobTimelineComponent
   ]
 })
-export class JobModule {
-}
+export class JobModule {}

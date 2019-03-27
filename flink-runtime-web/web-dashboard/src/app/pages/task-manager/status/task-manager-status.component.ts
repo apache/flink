@@ -23,9 +23,9 @@ import { takeUntil } from 'rxjs/operators';
 import { TaskManagerService } from 'services';
 
 @Component({
-  selector       : 'flink-task-manager-status',
-  templateUrl    : './task-manager-status.component.html',
-  styleUrls      : [ './task-manager-status.component.less' ],
+  selector: 'flink-task-manager-status',
+  templateUrl: './task-manager-status.component.html',
+  styleUrls: ['./task-manager-status.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerStatusComponent implements OnInit, OnDestroy {
@@ -38,8 +38,7 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   taskManagerDetail: TaskManagerDetailInterface;
   private destroy$ = new Subject();
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
@@ -52,7 +51,4 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
-
 }
-

@@ -31,9 +31,9 @@ import { JobService, MetricsService } from 'services';
 import { JobChartComponent } from 'share/customize/job-chart/job-chart.component';
 
 @Component({
-  selector       : 'flink-job-overview-drawer-chart',
-  templateUrl    : './job-overview-drawer-chart.component.html',
-  styleUrls      : [ './job-overview-drawer-chart.component.less' ],
+  selector: 'flink-job-overview-drawer-chart',
+  templateUrl: './job-overview-drawer-chart.component.html',
+  styleUrls: ['./job-overview-drawer-chart.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
@@ -56,7 +56,7 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
   }
 
   updateMetric(metric: string) {
-    this.listOfSelectedMetric = [ ...this.listOfSelectedMetric, metric ];
+    this.listOfSelectedMetric = [...this.listOfSelectedMetric, metric];
     this.jobService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
     this.updateUnselectedMetricList();
   }
@@ -71,33 +71,35 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
   }
 
-  constructor(private metricsService: MetricsService, private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private metricsService: MetricsService, private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      distinctUntilChanged((x, y) => x.vertex!.id === y.vertex!.id)
-    ).subscribe(data => {
-      this.loadMetricList(data.job.jid, data.vertex!.id);
-    });
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      filter(() => this.listOfSelectedMetric.length > 0),
-      flatMap(data => this.metricsService.getMetrics(data.job.jid, data.vertex!.id, this.listOfSelectedMetric))
-    ).subscribe((res) => {
-      if (this.listOfJobChartComponent && this.listOfJobChartComponent.length) {
-        this.listOfJobChartComponent.forEach(chart => {
-          chart.refresh(res);
-        });
-      }
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        distinctUntilChanged((x, y) => x.vertex!.id === y.vertex!.id)
+      )
+      .subscribe(data => {
+        this.loadMetricList(data.job.jid, data.vertex!.id);
+      });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        filter(() => this.listOfSelectedMetric.length > 0),
+        flatMap(data => this.metricsService.getMetrics(data.job.jid, data.vertex!.id, this.listOfSelectedMetric))
+      )
+      .subscribe(res => {
+        if (this.listOfJobChartComponent && this.listOfJobChartComponent.length) {
+          this.listOfJobChartComponent.forEach(chart => {
+            chart.refresh(res);
+          });
+        }
+        this.cdr.markForCheck();
+      });
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

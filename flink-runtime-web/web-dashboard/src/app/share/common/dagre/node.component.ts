@@ -20,9 +20,9 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input } from '@a
 import { NodesItemCorrectInterface } from 'interfaces';
 
 @Component({
-  selector       : '[flink-node]',
-  templateUrl    : './node.component.html',
-  styleUrls      : [ './node.component.less' ],
+  selector: '[flink-node]',
+  templateUrl: './node.component.html',
+  styleUrls: ['./node.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NodeComponent {
@@ -47,15 +47,14 @@ export class NodeComponent {
     this.parallelism = value.parallelism;
     this.height = value.height || 0;
     this.id = value.id;
-    if (description && (description.length > 300)) {
+    if (description && description.length > 300) {
       this.description = description.slice(0, 300) + '...';
     } else {
       this.description = description;
     }
   }
 
-  constructor(protected cd: ChangeDetectorRef) {
-  }
+  constructor(protected cd: ChangeDetectorRef) {}
 
   /**
    * Update and check node component

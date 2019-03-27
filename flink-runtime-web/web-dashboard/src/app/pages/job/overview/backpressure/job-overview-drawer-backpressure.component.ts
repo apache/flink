@@ -19,18 +19,14 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil, tap } from 'rxjs/operators';
-import {
-  JobBackpressureInterface,
-  JobBackpressureSubtaskInterface,
-  NodesItemCorrectInterface
-} from 'interfaces';
+import { JobBackpressureInterface, JobBackpressureSubtaskInterface, NodesItemCorrectInterface } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
-  selector       : 'flink-job-overview-drawer-backpressure',
-  templateUrl    : './job-overview-drawer-backpressure.component.html',
+  selector: 'flink-job-overview-drawer-backpressure',
+  templateUrl: './job-overview-drawer-backpressure.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls      : [ './job-overview-drawer-backpressure.component.less' ]
+  styleUrls: ['./job-overview-drawer-backpressure.component.less']
 })
 export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
@@ -40,32 +36,35 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
   backpressure = {} as JobBackpressureInterface;
   listOfSubTaskBackpressure: JobBackpressureSubtaskInterface[] = [];
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
   trackBackPressureBy(_: number, node: JobBackpressureSubtaskInterface) {
     return node.subtask;
   }
 
   ngOnInit() {
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      tap(data => this.selectedVertex = data.vertex),
-      flatMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id))
-    ).subscribe(data => {
-      this.isLoading = false;
-      this.now = Date.now();
-      this.backpressure = data;
-      this.listOfSubTaskBackpressure = data.subtasks || [];
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        tap(data => (this.selectedVertex = data.vertex)),
+        flatMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id))
+      )
+      .subscribe(
+        data => {
+          this.isLoading = false;
+          this.now = Date.now();
+          this.backpressure = data;
+          this.listOfSubTaskBackpressure = data.subtasks || [];
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

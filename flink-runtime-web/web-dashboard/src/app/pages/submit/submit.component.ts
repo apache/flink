@@ -27,9 +27,9 @@ import { JarService, StatusService } from 'services';
 import { DagreComponent } from 'share/common/dagre/dagre.component';
 
 @Component({
-  selector       : 'flink-submit',
-  templateUrl    : './submit.component.html',
-  styleUrls      : [ './submit.component.less' ],
+  selector: 'flink-submit',
+  templateUrl: './submit.component.html',
+  styleUrls: ['./submit.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SubmitComponent implements OnInit, OnDestroy {
@@ -51,18 +51,21 @@ export class SubmitComponent implements OnInit, OnDestroy {
    * @param file
    */
   uploadJar(file: File) {
-    this.jarService.uploadJar(file).subscribe(event => {
-      if (event.type === HttpEventType.UploadProgress && event.total) {
-        this.isUploading = true;
-        this.progress = Math.round(100 * event.loaded / event.total);
-      } else if (event.type === HttpEventType.Response) {
+    this.jarService.uploadJar(file).subscribe(
+      event => {
+        if (event.type === HttpEventType.UploadProgress && event.total) {
+          this.isUploading = true;
+          this.progress = Math.round((100 * event.loaded) / event.total);
+        } else if (event.type === HttpEventType.Response) {
+          this.isUploading = false;
+          this.statusService.forceRefresh();
+        }
+      },
+      () => {
         this.isUploading = false;
-        this.statusService.forceRefresh();
+        this.progress = 0;
       }
-    }, () => {
-      this.isUploading = false;
-      this.progress = 0;
-    });
+    );
   }
 
   /**
@@ -90,8 +93,8 @@ export class SubmitComponent implements OnInit, OnDestroy {
       });
       this.expandedMap.set(jar.id, true);
     }
-    if (jar.entry && jar.entry[ 0 ] && jar.entry[ 0 ].name) {
-      this.validateForm.get('entryClass')!.setValue(jar.entry[ 0 ].name);
+    if (jar.entry && jar.entry[0] && jar.entry[0].name) {
+      this.validateForm.get('entryClass')!.setValue(jar.entry[0].name);
     } else {
       this.validateForm.get('entryClass')!.setValue(null);
     }
@@ -102,14 +105,17 @@ export class SubmitComponent implements OnInit, OnDestroy {
    * @param jar
    */
   showPlan(jar: JarFilesItemInterface) {
-    this.jarService.getPlan(
-      jar.id,
-      this.validateForm.get('entryClass')!.value,
-      this.validateForm.get('parallelism')!.value,
-      this.validateForm.get('programArgs')!.value).subscribe(data => {
-      this.planVisible = true;
-      this.dagreComponent.flush(data.nodes, data.links, true);
-    });
+    this.jarService
+      .getPlan(
+        jar.id,
+        this.validateForm.get('entryClass')!.value,
+        this.validateForm.get('parallelism')!.value,
+        this.validateForm.get('programArgs')!.value
+      )
+      .subscribe(data => {
+        this.planVisible = true;
+        this.dagreComponent.flush(data.nodes, data.links, true);
+      });
   }
 
   /**
@@ -119,22 +125,23 @@ export class SubmitComponent implements OnInit, OnDestroy {
     this.planVisible = false;
   }
 
-
   /**
    * Submit job
    * @param jar
    */
   submitJob(jar: JarFilesItemInterface) {
-    this.jarService.runJob(
-      jar.id,
-      this.validateForm.get('entryClass')!.value,
-      this.validateForm.get('parallelism')!.value,
-      this.validateForm.get('programArgs')!.value,
-      this.validateForm.get('savepointPath')!.value,
-      this.validateForm.get('allowNonRestoredState')!.value
-    ).subscribe(data => {
-      this.router.navigate([ 'job', data.jobid ]).then();
-    });
+    this.jarService
+      .runJob(
+        jar.id,
+        this.validateForm.get('entryClass')!.value,
+        this.validateForm.get('parallelism')!.value,
+        this.validateForm.get('programArgs')!.value,
+        this.validateForm.get('savepointPath')!.value,
+        this.validateForm.get('allowNonRestoredState')!.value
+      )
+      .subscribe(data => {
+        this.router.navigate(['job', data.jobid]).then();
+      });
   }
 
   /**
@@ -151,37 +158,41 @@ export class SubmitComponent implements OnInit, OnDestroy {
     private statusService: StatusService,
     private fb: FormBuilder,
     private router: Router,
-    private cdr: ChangeDetectorRef) {
-  }
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     this.isYarn = window.location.href.indexOf('/proxy/application_') !== -1;
     this.validateForm = this.fb.group({
-      entryClass           : [ null ],
-      parallelism          : [ null ],
-      programArgs          : [ null ],
-      savepointPath        : [ null ],
-      allowNonRestoredState: [ null ]
+      entryClass: [null],
+      parallelism: [null],
+      programArgs: [null],
+      savepointPath: [null],
+      allowNonRestoredState: [null]
     });
-    this.statusService.refresh$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(() => this.jarService.loadJarList())
-    ).subscribe(data => {
-      this.isLoading = false;
-      this.listOfJar = data.files;
-      this.address = data.address;
-      this.cdr.markForCheck();
-      this.noAccess = Boolean(data.error);
-    }, () => {
-      this.isLoading = false;
-      this.noAccess = true;
-      this.cdr.markForCheck();
-    });
+    this.statusService.refresh$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(() => this.jarService.loadJarList())
+      )
+      .subscribe(
+        data => {
+          this.isLoading = false;
+          this.listOfJar = data.files;
+          this.address = data.address;
+          this.cdr.markForCheck();
+          this.noAccess = Boolean(data.error);
+        },
+        () => {
+          this.isLoading = false;
+          this.noAccess = true;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

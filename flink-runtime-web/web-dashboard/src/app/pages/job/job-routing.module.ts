@@ -27,57 +27,57 @@ import { JobTimelineComponent } from './timeline/job-timeline.component';
 
 const routes: Routes = [
   {
-    path     : 'running',
+    path: 'running',
     component: JobListComponent,
-    data     : {
-      title    : 'Running Jobs',
+    data: {
+      title: 'Running Jobs',
       completed: false
     }
   },
   {
-    path     : 'completed',
+    path: 'completed',
     component: JobListComponent,
-    data     : {
-      title    : 'Completed Jobs',
+    data: {
+      title: 'Completed Jobs',
       completed: true
     }
   },
   {
-    path     : ':jid',
+    path: ':jid',
     component: JobComponent,
-    children : [
+    children: [
       {
-        path        : 'overview',
+        path: 'overview',
         loadChildren: './overview/job-overview.module#JobOverviewModule',
-        data        : {
+        data: {
           path: 'overview'
         }
       },
       {
-        path     : 'timeline',
+        path: 'timeline',
         component: JobTimelineComponent,
-        data     : {
+        data: {
           path: 'timeline'
         }
       },
       {
-        path     : 'exceptions',
+        path: 'exceptions',
         component: JobExceptionsComponent,
-        data     : {
+        data: {
           path: 'exceptions'
         }
       },
       {
-        path     : 'checkpoints',
+        path: 'checkpoints',
         component: JobCheckpointsComponent,
-        data     : {
+        data: {
           path: 'checkpoints'
         }
       },
       {
-        path     : 'configuration',
+        path: 'configuration',
         component: JobConfigurationComponent,
-        data     : {
+        data: {
           path: 'configuration'
         }
       },
@@ -87,8 +87,7 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [ RouterModule.forChild(routes) ],
-  exports: [ RouterModule ]
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule]
 })
-export class JobRoutingModule {
-}
+export class JobRoutingModule {}

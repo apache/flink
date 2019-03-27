@@ -39,13 +39,12 @@ export interface LayoutNodeOptions {
 }
 
 export interface LayoutLink extends NodesItemLinkInterface {
-  [ key: string ]: any;
+  [key: string]: any;
 
   detail: any;
   options: LayoutLinkOptions;
-  points: Array<{ x: number, y: number }>;
+  points: Array<{ x: number; y: number }>;
 }
-
 
 export interface LayoutLinkOptions {
   line: string;
@@ -73,8 +72,8 @@ export interface ZoomFocusLayoutOpt {
 export class NzGraph {
   graph: Graph;
   config = {
-    ranker : 'network-simplex',
-    align  : 'DL',
+    ranker: 'network-simplex',
+    align: 'DL',
     marginx: 20,
     marginy: 20,
     edgesep: 150,
@@ -162,9 +161,9 @@ export class NzGraph {
       node.options = {
         transform,
         oldTransform: transform,
-        scale       : 1,
-        oldScale    : 1,
-        focused     : false
+        scale: 1,
+        oldScale: 1,
+        focused: false
       };
 
       this.layoutNodes.push({ ...node, options: { ...node.options } });
@@ -175,19 +174,19 @@ export class NzGraph {
       const edge = this.graph.edge(e) as (LayoutLink & GraphEdge);
       const initLine = this.generateLine(edge.points) as string;
       const link: LayoutLink = {
-        id     : edge.id,
-        source : edge.source,
-        target : edge.target,
-        points : [ ...edge.points ] as Array<{ x: number, y: number }>,
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        points: [...edge.points] as Array<{ x: number; y: number }>,
         options: {
-          line            : initLine,
-          oldLine         : initLine,
-          width           : 1,
-          oldWidth        : 1,
-          focused         : false,
+          line: initLine,
+          oldLine: initLine,
+          width: 1,
+          oldWidth: 1,
+          focused: false,
           dominantBaseline: this.getDominantBaseline(edge)
         },
-        detail : { ...edge }
+        detail: { ...edge }
       };
       this.layoutLinks.push({ ...link, options: { ...link.options } });
       this.copyLayoutLinks.push({ ...link, options: { ...link.options } });
@@ -201,8 +200,8 @@ export class NzGraph {
    * @param edge
    */
   getDominantBaseline(edge: GraphEdge) {
-    const firstPoint = edge.points[ 0 ];
-    const lastPoint = edge.points[ edge.points.length - 1 ];
+    const firstPoint = edge.points[0];
+    const lastPoint = edge.points[edge.points.length - 1];
     return lastPoint.x < firstPoint.x ? 'rtl' : 'ltr';
   }
 
@@ -244,7 +243,7 @@ export class NzGraph {
       return Promise.resolve({
         focusedLinkIds,
         circularNodeIds: circularNodes.map(n => n!.id),
-        transform      : {
+        transform: {
           x: opt.transform.x + opt.x - x,
           y: opt.transform.y + opt.y - y,
           k: 1
@@ -253,7 +252,6 @@ export class NzGraph {
     } else {
       return Promise.reject();
     }
-
   }
 
   /**
@@ -276,17 +274,15 @@ export class NzGraph {
       link.options.focused = false;
       const oldLink = this.copyLayoutLinks.find(ol => ol.id === link.id);
       if (oldLink) {
-        link.points = [ ...oldLink.points ];
+        link.points = [...oldLink.points];
         link.options.oldLine = link.options.line;
         link.options.line = oldLink.options.line;
         link.options.oldWidth = link.options.width;
         link.options.width = 1;
       }
-
     });
     return Promise.resolve();
   }
-
 
   /**
    * Get circle node from selected node
@@ -310,9 +306,12 @@ export class NzGraph {
    * Generate Line from points
    * @param points
    */
-  generateLine(points: Array<{ x: number, y: number }>): string | null {
+  generateLine(points: Array<{ x: number; y: number }>): string | null {
     const transformPoints = points as any;
-    const lineFunction = line().x((d: any) => d.x).y((d: any) => d.y).curve(curveLinear);
+    const lineFunction = line()
+      .x((d: any) => d.x)
+      .y((d: any) => d.y)
+      .curve(curveLinear);
     return lineFunction(transformPoints);
   }
 }

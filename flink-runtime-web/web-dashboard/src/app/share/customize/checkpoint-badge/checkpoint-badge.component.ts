@@ -20,9 +20,9 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { COLOR_MAP } from 'config';
 
 @Component({
-  selector       : 'flink-checkpoint-badge',
-  templateUrl    : './checkpoint-badge.component.html',
-  styleUrls      : [ './checkpoint-badge.component.less' ],
+  selector: 'flink-checkpoint-badge',
+  templateUrl: './checkpoint-badge.component.html',
+  styleUrls: ['./checkpoint-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CheckpointBadgeComponent {
@@ -31,6 +31,4 @@ export class CheckpointBadgeComponent {
   get colorMap(): any {
     return COLOR_MAP;
   }
-
 }
-

@@ -22,9 +22,9 @@ import { flatMap, takeUntil } from 'rxjs/operators';
 import { JobService, MetricsService } from 'services';
 
 @Component({
-  selector       : 'flink-job-overview-drawer-watermarks',
-  templateUrl    : './job-overview-drawer-watermarks.component.html',
-  styleUrls      : [ './job-overview-drawer-watermarks.component.less' ],
+  selector: 'flink-job-overview-drawer-watermarks',
+  templateUrl: './job-overview-drawer-watermarks.component.html',
+  styleUrls: ['./job-overview-drawer-watermarks.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
@@ -36,33 +36,36 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     return node.subTaskIndex;
   }
 
-  constructor(private jobService: JobService, private metricsService: MetricsService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private metricsService: MetricsService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobWithVertex$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id, data.vertex!.parallelism))
-    ).subscribe(data => {
-      const list = [];
-      this.isLoading = false;
-      for (const key in data.watermarks) {
-        list.push({
-          subTaskIndex: +key + 1,
-          watermark   : data.watermarks[ key ]
-        });
-      }
-      this.listOfWaterMark = list;
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.jobService.jobWithVertex$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id, data.vertex!.parallelism))
+      )
+      .subscribe(
+        data => {
+          const list = [];
+          this.isLoading = false;
+          for (const key in data.watermarks) {
+            list.push({
+              subTaskIndex: +key + 1,
+              watermark: data.watermarks[key]
+            });
+          }
+          this.listOfWaterMark = list;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

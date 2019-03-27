@@ -67,42 +67,35 @@ import {
   PicCenterOutline
 } from '@ant-design/icons-angular/icons';
 
-
 import { StatusService } from 'services';
 import { ConfigurationInterface } from 'interfaces';
 import { AppInterceptor } from './app.interceptor';
 
 registerLocaleData(en);
 
-export function AppInitServiceFactory(statusService: StatusService, injector: Injector): () => Promise<ConfigurationInterface> {
+export function AppInitServiceFactory(
+  statusService: StatusService,
+  injector: Injector
+): () => Promise<ConfigurationInterface> {
   return () => {
     return statusService.boot(injector.get<Router>(Router));
   };
 }
 
 @NgModule({
-  declarations: [
-    AppComponent
-  ],
-  imports     : [
-    BrowserModule,
-    AppRoutingModule,
-    NgZorroAntdModule,
-    FormsModule,
-    HttpClientModule,
-    BrowserAnimationsModule
-  ],
-  providers   : [
+  declarations: [AppComponent],
+  imports: [BrowserModule, AppRoutingModule, NgZorroAntdModule, FormsModule, HttpClientModule, BrowserAnimationsModule],
+  providers: [
     {
-      provide : NZ_I18N,
+      provide: NZ_I18N,
       useValue: en_US
     },
     {
-      provide : NZ_NOTIFICATION_CONFIG,
+      provide: NZ_NOTIFICATION_CONFIG,
       useValue: { nzMaxStack: 1 }
     },
     {
-      provide : NZ_ICONS,
+      provide: NZ_ICONS,
       useValue: [
         BarsOutline,
         BuildOutline,
@@ -143,18 +136,17 @@ export function AppInitServiceFactory(statusService: StatusService, injector: In
       ]
     },
     {
-      provide : HTTP_INTERCEPTORS,
+      provide: HTTP_INTERCEPTORS,
       useClass: AppInterceptor,
-      multi   : true
+      multi: true
     },
     {
-      provide   : APP_INITIALIZER,
+      provide: APP_INITIALIZER,
       useFactory: AppInitServiceFactory,
-      deps      : [ StatusService, Injector ],
-      multi     : true
+      deps: [StatusService, Injector],
+      multi: true
     }
   ],
-  bootstrap   : [ AppComponent ]
+  bootstrap: [AppComponent]
 })
-export class AppModule {
-}
+export class AppModule {}

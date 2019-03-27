@@ -24,9 +24,9 @@ import { StatusService } from 'services';
 import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
 
 @Component({
-  selector   : 'flink-root',
+  selector: 'flink-root',
   templateUrl: './app.component.html',
-  styleUrls  : [ './app.component.less' ]
+  styleUrls: ['./app.component.less']
 })
 export class AppComponent implements OnInit {
   collapsed = false;
@@ -56,19 +56,21 @@ export class AppComponent implements OnInit {
     private router: Router,
     private activatedRoute: ActivatedRoute,
     public statusService: StatusService,
-    private monacoEditorService: MonacoEditorService) {
-  }
+    private monacoEditorService: MonacoEditorService
+  ) {}
 
   /**
    * Auto collapse sidebar when routing data matched
    */
   ngOnInit(): void {
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      filter(() => this.activatedRoute.firstChild && this.activatedRoute.firstChild.snapshot.data.collapse),
-      first()
-    ).subscribe(() => {
-      this.collapsed = true;
-    });
+    this.router.events
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        filter(() => this.activatedRoute.firstChild && this.activatedRoute.firstChild.snapshot.data.collapse),
+        first()
+      )
+      .subscribe(() => {
+        this.collapsed = true;
+      });
   }
 }

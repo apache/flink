@@ -34,12 +34,7 @@ import { RefreshDownloadComponent } from 'share/customize/refresh-download/refre
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 
 @NgModule({
-  imports     : [
-    CommonModule,
-    NgZorroAntdModule,
-    PipeModule,
-    DagreModule
-  ],
+  imports: [CommonModule, NgZorroAntdModule, PipeModule, DagreModule],
   declarations: [
     JobBadgeComponent,
     TaskBadgeComponent,
@@ -53,7 +48,7 @@ import { BackpressureBadgeComponent } from './customize/backpressure-badge/backp
     CheckpointBadgeComponent,
     BackpressureBadgeComponent
   ],
-  exports     : [
+  exports: [
     JobListComponent,
     NgZorroAntdModule,
     PipeModule,
@@ -70,5 +65,4 @@ import { BackpressureBadgeComponent } from './customize/backpressure-badge/backp
     BackpressureBadgeComponent
   ]
 })
-export class ShareModule {
-}
+export class ShareModule {}

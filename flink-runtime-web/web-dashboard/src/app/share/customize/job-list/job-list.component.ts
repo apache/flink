@@ -25,9 +25,9 @@ import { JobService, StatusService } from 'services';
 import { deepFind, isNil } from 'utils';
 
 @Component({
-  selector       : 'flink-job-list',
-  templateUrl    : './job-list.component.html',
-  styleUrls      : [ './job-list.component.less' ],
+  selector: 'flink-job-list',
+  templateUrl: './job-list.component.html',
+  styleUrls: ['./job-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobListComponent implements OnInit, OnDestroy {
@@ -40,7 +40,7 @@ export class JobListComponent implements OnInit, OnDestroy {
   @Input() title: string;
   @Input() jobData$: Observable<JobsItemInterface[]>;
 
-  sort(sort: { key: string, value: string }) {
+  sort(sort: { key: string; value: string }) {
     this.sortName = sort.key;
     this.sortValue = sort.value;
     this.search();
@@ -48,24 +48,24 @@ export class JobListComponent implements OnInit, OnDestroy {
 
   search() {
     if (this.sortName) {
-      this.listOfJob = [ ...this.listOfJob.sort(
-        (pre, next) => {
+      this.listOfJob = [
+        ...this.listOfJob.sort((pre, next) => {
           if (this.sortValue === 'ascend') {
             return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
           } else {
             return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
           }
-        }) ];
+        })
+      ];
     }
   }
-
 
   trackJobBy(_: number, node: JobsItemInterface) {
     return node.jid;
   }
 
   navigateToJob(jid: string) {
-    this.router.navigate([ 'job', jid ]).then();
+    this.router.navigate(['job', jid]).then();
   }
 
   constructor(
@@ -73,18 +73,24 @@ export class JobListComponent implements OnInit, OnDestroy {
     private jobService: JobService,
     private activatedRoute: ActivatedRoute,
     private cdr: ChangeDetectorRef,
-    private router: Router) {
-  }
+    private router: Router
+  ) {}
 
   ngOnInit() {
     if (this.activatedRoute.snapshot.data) {
-      this.completed = isNil(this.activatedRoute.snapshot.data.completed) ? this.completed : this.activatedRoute.snapshot.data.completed;
-      this.title = isNil(this.activatedRoute.snapshot.data.title) ? this.title : this.activatedRoute.snapshot.data.title;
+      this.completed = isNil(this.activatedRoute.snapshot.data.completed)
+        ? this.completed
+        : this.activatedRoute.snapshot.data.completed;
+      this.title = isNil(this.activatedRoute.snapshot.data.title)
+        ? this.title
+        : this.activatedRoute.snapshot.data.title;
     }
-    this.jobData$ = this.jobData$ || this.statusService.refresh$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(() => this.jobService.loadJobs())
-    );
+    this.jobData$ =
+      this.jobData$ ||
+      this.statusService.refresh$.pipe(
+        takeUntil(this.destroy$),
+        flatMap(() => this.jobService.loadJobs())
+      );
     this.jobData$.subscribe(data => {
       this.isLoading = false;
       this.listOfJob = data.filter(item => item.completed === this.completed);
@@ -97,5 +103,4 @@ export class JobListComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

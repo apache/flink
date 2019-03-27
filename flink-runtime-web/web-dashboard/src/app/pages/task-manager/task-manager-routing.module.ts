@@ -26,46 +26,45 @@ import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.compone
 
 const routes: Routes = [
   {
-    path     : '',
+    path: '',
     component: TaskManagerListComponent
   },
   {
-    path     : ':taskManagerId',
+    path: ':taskManagerId',
     component: TaskManagerComponent,
-    children : [
+    children: [
       {
-        path     : 'metrics',
+        path: 'metrics',
         component: TaskManagerMetricsComponent,
-        data     : {
+        data: {
           path: 'metrics'
         }
       },
       {
-        path     : 'logs',
+        path: 'logs',
         component: TaskManagerLogsComponent,
-        data     : {
+        data: {
           path: 'logs'
         }
       },
       {
-        path     : 'stdout',
+        path: 'stdout',
         component: TaskManagerStdoutComponent,
-        data     : {
+        data: {
           path: 'stdout'
         }
       },
       {
-        path      : '**',
+        path: '**',
         redirectTo: 'metrics',
-        pathMatch : 'full'
+        pathMatch: 'full'
       }
     ]
   }
 ];
 
 @NgModule({
-  imports: [ RouterModule.forChild(routes) ],
-  exports: [ RouterModule ]
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule]
 })
-export class TaskManagerRoutingModule {
-}
+export class TaskManagerRoutingModule {}

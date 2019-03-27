@@ -23,9 +23,9 @@ import { flatMap, takeUntil } from 'rxjs/operators';
 import { JobService, StatusService } from 'services';
 
 @Component({
-  selector       : 'flink-job',
-  templateUrl    : './job.component.html',
-  styleUrls      : [ './job.component.less' ],
+  selector: 'flink-job',
+  templateUrl: './job.component.html',
+  styleUrls: ['./job.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobComponent implements OnInit, OnDestroy {
@@ -36,25 +36,29 @@ export class JobComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private activatedRoute: ActivatedRoute,
     private jobService: JobService,
-    private statusService: StatusService) {
-  }
+    private statusService: StatusService
+  ) {}
 
   ngOnInit() {
-    this.statusService.refresh$.pipe(
-      takeUntil(this.destroy$),
-      flatMap(() => this.jobService.loadJob(this.activatedRoute.snapshot.params.jid))
-    ).subscribe(() => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    }, () => {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    });
+    this.statusService.refresh$
+      .pipe(
+        takeUntil(this.destroy$),
+        flatMap(() => this.jobService.loadJob(this.activatedRoute.snapshot.params.jid))
+      )
+      .subscribe(
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
 }

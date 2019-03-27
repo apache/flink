@@ -23,9 +23,9 @@ import { TaskManagerService } from 'services';
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
 @Component({
-  selector       : 'flink-task-manager-logs',
-  templateUrl    : './task-manager-logs.component.html',
-  styleUrls      : [ './task-manager-logs.component.less' ],
+  selector: 'flink-task-manager-logs',
+  templateUrl: './task-manager-logs.component.html',
+  styleUrls: ['./task-manager-logs.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerLogsComponent implements OnInit {
@@ -35,27 +35,26 @@ export class TaskManagerLogsComponent implements OnInit {
 
   reload() {
     if (this.taskManagerDetail) {
-      this.taskManagerService.loadLogs(this.taskManagerDetail.id).subscribe(data => {
-        this.monacoEditorComponent.layout();
-        this.logs = data;
-        this.cdr.markForCheck();
-      }, () => {
-        this.cdr.markForCheck();
-      });
+      this.taskManagerService.loadLogs(this.taskManagerDetail.id).subscribe(
+        data => {
+          this.monacoEditorComponent.layout();
+          this.logs = data;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.cdr.markForCheck();
+        }
+      );
     }
   }
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.taskManagerService.taskManagerDetail$.pipe(
-      first()
-    ).subscribe(data => {
+    this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
       this.reload();
       this.cdr.markForCheck();
     });
   }
-
 }

@@ -21,9 +21,9 @@ import { JobManagerService } from 'services';
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
 @Component({
-  selector       : 'flink-job-manager-stdout',
-  templateUrl    : './job-manager-stdout.component.html',
-  styleUrls      : [ './job-manager-stdout.component.less' ],
+  selector: 'flink-job-manager-stdout',
+  templateUrl: './job-manager-stdout.component.html',
+  styleUrls: ['./job-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerStdoutComponent implements OnInit {
@@ -38,8 +38,7 @@ export class JobManagerStdoutComponent implements OnInit {
     });
   }
 
-  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.reload();
