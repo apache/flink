@@ -18,13 +18,25 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.{CalcCodeGenerator, CodeGeneratorContext}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonCalc
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.runtime.AbstractProcessStreamOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for [[Calc]].
@@ -36,7 +48,8 @@ class StreamExecCalc(
     calcProgram: RexProgram,
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 
@@ -54,4 +67,51 @@ class StreamExecCalc(
     new StreamExecCalc(cluster, traitSet, child, program, outputRowType)
   }
 
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] =
+    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+
+  override def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    val config = tableEnv.getConfig
+    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    // materialize time attributes in condition
+    val condition = if (calcProgram.getCondition != null) {
+      Some(calcProgram.expandLocalRef(calcProgram.getCondition))
+    } else {
+      None
+    }
+
+    // TODO deal time indicators.
+//    val condition = if (calcProgram.getCondition != null) {
+//      val materializedCondition = RelTimeIndicatorConverter.convertExpression(
+//        calcProgram.expandLocalRef(calcProgram.getCondition),
+//        input.getRowType,
+//        cluster.getRexBuilder)
+//      Some(materializedCondition)
+//    } else {
+//      None
+//    }
+
+    val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
+      classOf[AbstractProcessStreamOperator[BaseRow]])
+    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val substituteStreamOperator = CalcCodeGenerator.generateCalcOperator(
+      ctx,
+      cluster,
+      inputTransform,
+      outputType,
+      config,
+      calcProgram,
+      condition,
+      retainHeader = true,
+      "StreamExecCalc"
+    )
+    new OneInputTransformation(
+      inputTransform,
+      RelExplainUtil.calcToString(calcProgram, getExpressionString),
+      substituteStreamOperator,
+      outputType.toTypeInfo,
+      inputTransform.getParallelism)
+  }
 }

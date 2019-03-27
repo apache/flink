@@ -19,14 +19,17 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.FlinkJoinRelType
+import org.apache.flink.table.plan.nodes.ExpressionFormat
+import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
 
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode, RexWindowBound}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode, RexProgram, RexWindowBound}
 
 import java.util
 
@@ -563,4 +566,62 @@ object RelExplainUtil {
     buf.toString
   }
 
+  def calcToString(
+      calcProgram: RexProgram,
+      f: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String): String = {
+    val inFields = calcProgram.getInputRowType.getFieldNames.toList
+    val localExprs = calcProgram.getExprList.toList
+    val selectionStr = selectionToString(calcProgram, f, ExpressionFormat.Infix)
+    val cond = calcProgram.getCondition
+    val name = s"${
+      if (cond != null) {
+        s"where: ${
+          f(cond, inFields, Some(localExprs), ExpressionFormat.Infix)}, "
+      } else {
+        ""
+      }
+    }select: ($selectionStr)"
+    s"Calc($name)"
+  }
+
+  def selectionToString(
+      calcProgram: RexProgram,
+      expression: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String,
+      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix): String = {
+
+    val proj = calcProgram.getProjectList.toList
+    val inFields = calcProgram.getInputRowType.getFieldNames.toList
+    val localExprs = calcProgram.getExprList.toList
+    val outFields = calcProgram.getOutputRowType.getFieldNames.toList
+
+    proj.map(expression(_, inFields, Some(localExprs), expressionFormat))
+        .zip(outFields).map { case (e, o) =>
+      if (e != o) {
+        e + " AS " + o
+      } else {
+        e
+      }
+    }.mkString(", ")
+  }
+
+  def correlateOpName(
+      inputType: RelDataType,
+      rexCall: RexCall,
+      sqlFunction: TableSqlFunction,
+      rowType: RelDataType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    s"correlate: ${correlateToString(inputType, rexCall, sqlFunction, expression)}," +
+        s" select: ${rowType.getFieldNames.mkString(",")}"
+  }
+
+  def correlateToString(
+      inputType: RelDataType,
+      rexCall: RexCall,
+      sqlFunction: TableSqlFunction,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    val inFields = inputType.getFieldNames.toList
+    val udtfName = sqlFunction.toString
+    val operands = rexCall.getOperands.map(expression(_, inFields, None)).mkString(",")
+    s"table($udtfName($operands))"
+  }
 }

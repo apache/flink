@@ -210,6 +210,8 @@ object FlinkBatchRuleSets {
     BatchExecValuesRule.INSTANCE,
     BatchExecCalcRule.INSTANCE,
     BatchExecUnionRule.INSTANCE,
-    BatchExecSinkRule.INSTANCE
+    BatchExecSinkRule.INSTANCE,
+    BatchExecCorrelateRule.INSTANCE,
+    BatchExecUnionRule.INSTANCE
   )
 }

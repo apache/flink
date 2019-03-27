@@ -19,17 +19,18 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenUtils
-import org.apache.flink.table.codegen.SinkCodeGenerator.extractTableSinkTypeClass
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
+import org.apache.flink.table.codegen.SinkCodeGenerator.{extractTableSinkTypeClass, generateRowConverterOperator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -159,12 +160,26 @@ class StreamExecSink[T](
           s"DataStream by casting all other fields to TIMESTAMP.")
     }
     val resultType = sink.getOutputType
-    // TODO support SinkConversion after FLINK-11974 is done
     val typeClass = extractTableSinkTypeClass(sink)
     if (CodeGenUtils.isInternalClass(typeClass, resultType)) {
       parTransformation.asInstanceOf[StreamTransformation[T]]
     } else {
-      throw new TableException(s"Not support SinkConvention now.")
+      val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
+        CodeGeneratorContext(tableEnv.getConfig),
+        tableEnv.getConfig,
+        parTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo],
+        "SinkConversion",
+        None,
+        withChangeFlag,
+        resultType,
+        sink
+      )
+      new OneInputTransformation(
+        parTransformation,
+        s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
+        converterOperator,
+        outputTypeInfo,
+        parTransformation.getParallelism)
     }
 
   }

@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.core.memory.MemorySegment
+import org.apache.flink.table.`type`.InternalTypeUtils.getInternalClassForType
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
@@ -170,7 +171,8 @@ object CodeGenUtils {
     */
   def isInternalClass(clazz: Class[_], t: TypeInformation[_]): Boolean =
     clazz != classOf[Object] && clazz != classOf[Row] &&
-      (classOf[BaseRow].isAssignableFrom(clazz) || clazz == t.getTypeClass)
+      (classOf[BaseRow].isAssignableFrom(clazz) ||
+          clazz == getInternalClassForType(createInternalTypeFromTypeInfo(t)))
 
   // -------------------------- Method & Enum ---------------------------------------
 
@@ -523,6 +525,18 @@ object CodeGenUtils {
     }
   }
 
+  def genToInternalIfNeeded(
+      ctx: CodeGeneratorContext,
+      t: TypeInformation[_],
+      clazz: Class[_],
+      term: String): String = {
+    if (isInternalClass(clazz, t)) {
+      s"(${boxedTypeTermForType(createInternalTypeFromTypeInfo(t))}) $term"
+    } else {
+      genToInternal(ctx, t, term)
+    }
+  }
+
   def genToExternal(ctx: CodeGeneratorContext, t: TypeInformation[_], term: String): String = {
     val iTerm = boxedTypeTermForType(createInternalTypeFromTypeInfo(t))
     if (isConverterIdentity(t)) {
@@ -533,6 +547,18 @@ object CodeGenUtils {
         DataFormatConverters.getConverterForTypeInfo(t),
         "converter")
       s"($eTerm) $converter.toExternal(($iTerm) $term)"
+    }
+  }
+
+  def genToExternalIfNeeded(
+      ctx: CodeGeneratorContext,
+      t: TypeInformation[_],
+      clazz: Class[_],
+      term: String): String = {
+    if (isInternalClass(clazz, t)) {
+      s"(${boxedTypeTermForType(createInternalTypeFromTypeInfo(t))}) $term"
+    } else {
+      genToExternal(ctx, t, term)
     }
   }
 }

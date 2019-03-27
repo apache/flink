@@ -21,11 +21,12 @@ package org.apache.flink.table.runtime.utils
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.{Before, Rule}
 
-class StreamingTestBase {
+class StreamingTestBase extends AbstractTestBase {
 
   var env: StreamExecutionEnvironment = _
   var tEnv: StreamTableEnvironment = _

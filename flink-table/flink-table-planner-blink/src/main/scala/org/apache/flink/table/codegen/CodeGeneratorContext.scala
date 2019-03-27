@@ -27,6 +27,7 @@ import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.runtime.TableStreamOperator
 import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.util.InstantiationUtil
 
@@ -81,7 +82,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
-  private val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
+  val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
     mutable.Map[(String, Int), GeneratedExpression]()
 
   // set of constructor statements that will be added only once
@@ -115,6 +116,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // method_name -> local_variable_statements
   private val reusableLocalVariableStatements = mutable.Map[String, mutable.LinkedHashSet[String]](
     (currentMethodNameForLocalVariables, mutable.LinkedHashSet[String]()))
+
+  /**
+    * the class is used as the  generated operator code's base class.
+    */
+  private var operatorBaseClass: Class[_] = classOf[TableStreamOperator[_]]
 
   // ---------------------------------------------------------------------------------
   // Getter
@@ -286,6 +292,13 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |""".stripMargin
     }.mkString("\n")
   }
+
+  def setOperatorBaseClass(operatorBaseClass: Class[_]): CodeGeneratorContext = {
+    this.operatorBaseClass = operatorBaseClass
+    this
+  }
+
+  def getOperatorBaseClass: Class[_] = this.operatorBaseClass
 
   // ---------------------------------------------------------------------------------
   // add reusable code blocks

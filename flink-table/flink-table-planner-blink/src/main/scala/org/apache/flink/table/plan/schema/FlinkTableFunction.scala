@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.plan.schema
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.functions
 
@@ -52,7 +53,7 @@ abstract class FlinkTableFunction(
     */
   def getExternalResultType(
       arguments: Array[AnyRef],
-      argTypes: Array[Class[_]]): InternalType
+      argTypes: Array[Class[_]]): TypeInformation[_]
 
   def getRowType(
       typeFactory: RelDataTypeFactory,

@@ -76,6 +76,16 @@ public class TableConfigOptions {
 							" the better the compression ratio, but the more memory consumption.");
 
 	// ------------------------------------------------------------------------
+	//  Resource Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_DEFAULT_PARALLELISM =
+			key("sql.resource.default.parallelism")
+					.defaultValue(-1)
+					.withDescription("Default parallelism of the job. If any node do not have special parallelism, use it." +
+							"Its default value is the num of cpu cores in the client host.");
+
+	// ------------------------------------------------------------------------
 	//  MiniBatch Options
 	// ------------------------------------------------------------------------
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.type;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
@@ -92,6 +93,10 @@ public class RowType implements InternalType {
 			}
 		}
 		return -1;
+	}
+
+	public BaseRowTypeInfo toTypeInfo() {
+		return new BaseRowTypeInfo(types, fieldNames);
 	}
 
 	@Override

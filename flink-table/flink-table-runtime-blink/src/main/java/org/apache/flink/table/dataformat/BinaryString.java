@@ -129,7 +129,7 @@ public class BinaryString extends LazyBinaryFormat<String> implements Comparable
 		ensureMaterialized();
 		byte[] copy = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
 		return new BinaryString(new MemorySegment[] {MemorySegmentFactory.wrap(copy)},
-				offset, sizeInBytes, javaObject);
+				0, sizeInBytes, javaObject);
 	}
 
 	/**

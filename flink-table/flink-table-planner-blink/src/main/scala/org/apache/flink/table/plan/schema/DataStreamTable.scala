@@ -19,7 +19,10 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
 /**
   * The class that wraps [[DataStream]] as a Calcite Table.
@@ -30,7 +33,8 @@ class DataStreamTable[T](
     val isAccRetract: Boolean,
     override val fieldIndexes: Array[Int],
     override val fieldNames: Array[String],
-    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN,
+    fieldNullables: Option[Array[Boolean]] = None)
   extends InlineTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic) {
 
   // This is only used for bounded stream now, we supply default statistic.
@@ -39,6 +43,22 @@ class DataStreamTable[T](
       fieldIndexes: Array[Int],
       fieldNames: Array[String]) {
     this(stream, false, false, fieldIndexes, fieldNames)
+  }
+
+  def this(
+      stream: DataStream[T],
+      fieldIndexes: Array[Int],
+      fieldNames: Array[String],
+      fieldNullables: Option[Array[Boolean]]) {
+    this(stream, false, false, fieldIndexes, fieldNames, fieldNullables = fieldNullables)
+  }
+
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    fieldNullables match {
+      case Some(nulls) => typeFactory.asInstanceOf[FlinkTypeFactory]
+          .buildLogicalRowType(fieldNames, fieldTypes, nulls)
+      case _ => super.getRowType(typeFactory)
+    }
   }
 
   /**

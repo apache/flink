@@ -50,7 +50,7 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 
 	public BaseRowTypeInfo(InternalType[] internalTypes, String[] fieldNames) {
 		super(BaseRow.class, Arrays.stream(internalTypes)
-				.map(TypeConverters::createInternalTypeInfoFromInternalType)
+				.map(TypeConverters::createExternalTypeInfoFromInternalType)
 				.toArray(TypeInformation[]::new));
 		this.internalTypes = internalTypes;
 		checkNotNull(fieldNames, "FieldNames should not be null.");
