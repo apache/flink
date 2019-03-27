@@ -28,17 +28,17 @@ public final class InputSelection {
 	/**
 	 * The {@code InputSelection} instance which indicates to select all inputs.
 	 */
-	public static final InputSelection ALL = new InputSelectionBuilder().select(-1).build();
+	public static final InputSelection ALL = new Builder().select(-1).build();
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select the first input.
 	 */
-	public static final InputSelection FIRST = new InputSelectionBuilder().select(1).build();
+	public static final InputSelection FIRST = new Builder().select(1).build();
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select the second input.
 	 */
-	public static final InputSelection SECOND = new InputSelectionBuilder().select(2).build();
+	public static final InputSelection SECOND = new Builder().select(2).build();
 
 	private final long inputMask;
 
@@ -71,7 +71,7 @@ public final class InputSelection {
 	/**
 	 * Utility class for creating {@link InputSelection}.
 	 */
-	public static final class InputSelectionBuilder {
+	public static final class Builder {
 
 		private long inputMask = 0;
 
@@ -83,7 +83,7 @@ public final class InputSelection {
 		 *     Specially, `-1` indicates all inputs.
 		 * @return
 		 */
-		public InputSelectionBuilder select(long inputId) {
+		public Builder select(int inputId) {
 			if (inputId > 0 && inputId <= 64){
 				inputMask |= 1L << (inputId - 1);
 			} else if (inputId == -1L) {
