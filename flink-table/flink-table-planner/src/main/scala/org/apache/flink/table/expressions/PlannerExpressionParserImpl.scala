@@ -17,14 +17,16 @@
  */
 package org.apache.flink.table.expressions
 
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util.{List => JList}
+
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 
-import _root_.java.util.{List => JList}
+import _root_.scala.collection.JavaConversions._
 import _root_.scala.language.implicitConversions
 import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
-import _root_.scala.collection.JavaConversions._
 
 /**
   * The implementation of a [[PlannerExpressionParser]] which parsers expressions inside a String.
@@ -194,8 +196,8 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
     """-?(\d+(\.\d+)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]?""".r
 
   lazy val numberLiteral: PackratParser[Expression] =
-    (wholeNumber <~ ("l" | "L")) ^^ { n => Literal(n.toLong) } |
-      (decimalNumber <~ ("p" | "P")) ^^ { n => Literal(BigDecimal(n)) } |
+    (wholeNumber <~ ("l" | "L")) ^^ { n => valueLiteral(n.toLong) } |
+      (decimalNumber <~ ("p" | "P")) ^^ { n => valueLiteral(new JBigDecimal(n)) } |
       (floatingPointNumberFlink | decimalNumber) ^^ {
         n =>
           if (n.matches("""-?\d+""")) {
