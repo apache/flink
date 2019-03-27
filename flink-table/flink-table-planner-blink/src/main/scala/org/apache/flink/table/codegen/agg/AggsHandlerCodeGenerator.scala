@@ -46,7 +46,8 @@ class AggsHandlerCodeGenerator(
     relBuilder: RelBuilder,
     inputFieldTypes: Seq[InternalType],
     needRetract: Boolean,
-    copyInputField: Boolean) {
+    copyInputField: Boolean,
+    needAccumulate: Boolean = true) {
 
   private val inputType = new RowType(inputFieldTypes: _*)
 
@@ -142,7 +143,7 @@ class AggsHandlerCodeGenerator(
   def withMerging(
       mergedAccOffset: Int,
       mergedAccOnHeap: Boolean,
-      mergedAccExternalTypes: Array[TypeInformation[_]]): AggsHandlerCodeGenerator = {
+      mergedAccExternalTypes: Array[TypeInformation[_]] = null): AggsHandlerCodeGenerator = {
     this.mergedAccOffset = mergedAccOffset
     this.mergedAccOnHeap = mergedAccOnHeap
     this.mergedAccExternalTypes = mergedAccExternalTypes
@@ -545,21 +546,26 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genAccumulate(): String = {
-    // validation check
-    checkNeededMethods(needAccumulate = true)
+    if (needAccumulate) {
+      // validation check
+      checkNeededMethods(needAccumulate = true)
 
-    val methodName = "accumulate"
-    ctx.startNewLocalVariableStatement(methodName)
+      val methodName = "accumulate"
+      ctx.startNewLocalVariableStatement(methodName)
 
-    // bind input1 as inputRow
-    val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-        .bindInput(inputType, inputTerm = ACCUMULATE_INPUT_TERM)
-    val body = aggActionCodeGens.map(_.accumulate(exprGenerator)).mkString("\n")
-    s"""
-       |${ctx.reuseLocalVariableCode(methodName)}
-       |${ctx.reuseInputUnboxingCode(ACCUMULATE_INPUT_TERM)}
-       |$body
-    """.stripMargin
+      // bind input1 as inputRow
+      val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+          .bindInput(inputType, inputTerm = ACCUMULATE_INPUT_TERM)
+      val body = aggActionCodeGens.map(_.accumulate(exprGenerator)).mkString("\n")
+      s"""
+         |${ctx.reuseLocalVariableCode(methodName)}
+         |${ctx.reuseInputUnboxingCode(ACCUMULATE_INPUT_TERM)}
+         |$body
+         |""".stripMargin
+    } else {
+      genThrowException(
+        "This function not require accumulate method, but the accumulate method is called.")
+    }
   }
 
   private def genRetract(): String = {

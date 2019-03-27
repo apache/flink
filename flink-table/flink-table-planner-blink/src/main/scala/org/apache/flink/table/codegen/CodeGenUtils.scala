@@ -26,6 +26,7 @@ import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
+import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.util.MurmurHashUtil
 import org.apache.flink.types.Row
@@ -67,6 +68,8 @@ object CodeGenUtils {
   val BINARY_MAP: String = className[BinaryMap]
 
   val BASE_ROW: String = className[BaseRow]
+
+  val JOINED_ROW: String = className[JoinedRow]
 
   val GENERIC_ROW: String = className[GenericRow]
 
@@ -644,4 +647,9 @@ object CodeGenUtils {
       genToExternal(ctx, t, term)
     }
   }
+
+  def udfFieldName(udf: UserDefinedFunction): String = s"function_${udf.functionIdentifier}"
+
+  def genLogInfo(logTerm: String, format: String, argTerm: String): String =
+    s"""$logTerm.info("$format", $argTerm);"""
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.runtime;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -52,6 +53,11 @@ public class OneInputOperatorWrapper<IN, OUT>
 			Output<StreamRecord<OUT>> output) {
 		operator = generatedClass.newInstance(containingTask.getUserCodeClassLoader());
 		operator.setup(containingTask, config, output);
+	}
+
+	@VisibleForTesting
+	public OneInputStreamOperator<IN, OUT> getOperator() {
+		return operator;
 	}
 
 	@Override

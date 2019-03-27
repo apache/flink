@@ -22,6 +22,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.RowType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.StringUtils;
 
@@ -40,7 +41,7 @@ public class BaseRowTestUtil {
 	}
 
 	public static String baseRowToString(BaseRow value, BaseRowTypeInfo rowTypeInfo, TimeZone tz, boolean withHeader) {
-		GenericRow genericRow = toGenericRow(value, rowTypeInfo);
+		GenericRow genericRow = toGenericRowDeeply(value, rowTypeInfo.getInternalTypes());
 		return genericRowToString(genericRow, tz, withHeader);
 	}
 
@@ -67,19 +68,23 @@ public class BaseRowTestUtil {
 		return sb.toString();
 	}
 
-	private static GenericRow toGenericRow(BaseRow baseRow, BaseRowTypeInfo baseRowTypeInfo) {
+	public static GenericRow toGenericRowDeeply(BaseRow baseRow, InternalType[] types) {
 		if (baseRow instanceof GenericRow) {
 			return (GenericRow) baseRow;
 		} else {
 			int fieldNum = baseRow.getArity();
 			GenericRow row = new GenericRow(fieldNum);
 			row.setHeader(baseRow.getHeader());
-			InternalType[] internalTypes = baseRowTypeInfo.getInternalTypes();
 			for (int i = 0; i < fieldNum; i++) {
 				if (baseRow.isNullAt(i)) {
 					row.setField(i, null);
 				} else {
-					row.setField(i, TypeGetterSetters.get(baseRow, i, internalTypes[i]));
+					InternalType type = types[i];
+					Object o = TypeGetterSetters.get(baseRow, i, type);
+					if (type instanceof RowType) {
+						o = toGenericRowDeeply((BaseRow) o, ((RowType) type).getFieldTypes());
+					}
+					row.setField(i, o);
 				}
 			}
 			return row;
