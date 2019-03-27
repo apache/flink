@@ -318,7 +318,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		Tuple2<ExecutionGraph, Map<ExecutionAttemptID, Execution>> graphAndExecutions = setupExecution(v1, 1, v2, 1);
 		ExecutionGraph graph = graphAndExecutions.f0;
-		
+
 		// verify behavior for canceled executions
 		Execution execution1 = graphAndExecutions.f1.values().iterator().next();
 
@@ -326,15 +326,15 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		Map<String, Accumulator<?, ?>> accumulators = new HashMap<>();
 		accumulators.put("acc", new IntCounter(4));
 		AccumulatorSnapshot accumulatorSnapshot = new AccumulatorSnapshot(graph.getJobID(), execution1.getAttemptId(), accumulators);
-		
+
 		TaskExecutionState state = new TaskExecutionState(graph.getJobID(), execution1.getAttemptId(), ExecutionState.CANCELED, null, accumulatorSnapshot, ioMetrics);
-		
+
 		graph.updateState(state);
-		
+
 		assertEquals(ioMetrics, execution1.getIOMetrics());
 		assertNotNull(execution1.getUserAccumulators());
 		assertEquals(4, execution1.getUserAccumulators().get("acc").getLocalValue());
-		
+
 		// verify behavior for failed executions
 		Execution execution2 = graphAndExecutions.f1.values().iterator().next();
 
@@ -365,14 +365,14 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		JobVertex v2 = new JobVertex("v2", jid2);
 
 		Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 1, v2, 1).f1;
-		
+
 		IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
 		Map<String, Accumulator<?, ?>> accumulators = Collections.emptyMap();
 
 		Execution execution1 = executions.values().iterator().next();
 		execution1.cancel();
 		execution1.completeCancelling(accumulators, ioMetrics);
-		
+
 		assertEquals(ioMetrics, execution1.getIOMetrics());
 		assertEquals(accumulators, execution1.getUserAccumulators());
 
@@ -540,7 +540,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		checkJobOffloaded(eg);
 
 		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
-		
+
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
@@ -668,19 +668,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			taskManagerLocation,
 			index,
 			new SimpleAckingTaskManagerGateway());
-	}
-
-	@SuppressWarnings("serial")
-	public static class FailingFinalizeJobVertex extends JobVertex {
-
-		public FailingFinalizeJobVertex(String name, JobVertexID id) {
-			super(name, id);
-		}
-
-		@Override
-		public void finalizeOnMaster(ClassLoader cl) throws Exception {
-			throw new Exception();
-		}
 	}
 
 	private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {
