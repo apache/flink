@@ -21,7 +21,7 @@ package org.apache.flink.table.generated;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.functions.ExecutionContext;
+import org.apache.flink.table.runtime.context.ExecutionContext;
 
 /**
  * The base class for handling aggregate functions.

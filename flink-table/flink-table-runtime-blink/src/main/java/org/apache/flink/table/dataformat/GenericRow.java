@@ -130,5 +130,12 @@ public final class GenericRow extends ObjectArrayRow {
 
 		return row;
 	}
+
+	public static GenericRow copyReference(GenericRow row) {
+		final GenericRow newRow = new GenericRow(row.fields.length);
+		System.arraycopy(row.fields, 0, newRow.fields, 0, row.fields.length);
+		newRow.setHeader(row.getHeader());
+		return newRow;
+	}
 }
 

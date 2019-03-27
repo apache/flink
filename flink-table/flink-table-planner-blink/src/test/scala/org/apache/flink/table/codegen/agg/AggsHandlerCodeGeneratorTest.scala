@@ -31,14 +31,13 @@ import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.functions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.generated.AggsHandleFunction
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
-import org.apache.flink.table.runtime.functions.ExecutionContext
-
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.FrameworkConfig
 import org.junit.{Assert, Test}
 import org.powermock.api.mockito.PowerMockito.{mock, when}
-
 import java.lang
+
+import org.apache.flink.table.runtime.context.ExecutionContext
 
 class AggsHandlerCodeGeneratorTest {
 
