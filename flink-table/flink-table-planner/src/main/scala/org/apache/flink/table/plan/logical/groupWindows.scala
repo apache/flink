@@ -18,14 +18,9 @@
 
 package org.apache.flink.table.plan.logical
 
-import java.util.Optional
-import java.util.{List => JList}
+import java.util.{Optional, List => JList}
 
-import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment}
-import org.apache.flink.table.expressions.PlannerExpressionUtils.{isRowCountLiteral, isRowtimeAttribute, isTimeAttribute, isTimeIntervalLiteral}
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isLong, isTimePoint}
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.expressions.{Expression, PlannerExpression}
 
 // ------------------------------------------------------------------------------------------------
 // Over windows
@@ -39,164 +34,39 @@ case class LogicalOverWindow(
     following: Optional[Expression])
 
 // ------------------------------------------------------------------------------------------------
-// Tumbling group windows
+// Group windows
 // ------------------------------------------------------------------------------------------------
+
+sealed trait LogicalWindow {
+  def timeAttribute: PlannerExpression
+  def aliasAttribute: PlannerExpression
+}
 
 case class TumblingGroupWindow(
-    alias: PlannerExpression,
-    timeField: PlannerExpression,
+    aliasAttribute: PlannerExpression,
+    timeAttribute: PlannerExpression,
     size: PlannerExpression)
-  extends LogicalWindow(
-    alias,
-    timeField) {
+  extends LogicalWindow {
 
-  override def resolveExpressions(
-      resolve: (PlannerExpression) => PlannerExpression): LogicalWindow =
-    TumblingGroupWindow(
-      resolve(alias),
-      resolve(timeField),
-      resolve(size))
-
-  override def validate(tableEnv: TableEnvironment): ValidationResult =
-    super.validate(tableEnv).orElse(
-      tableEnv match {
-
-        // check size
-        case _ if !isTimeIntervalLiteral(size) && !isRowCountLiteral(size) =>
-          ValidationFailure(
-            "Tumbling window expects size literal of type Interval of Milliseconds " +
-              "or Interval of Rows.")
-
-        // check time attribute
-        case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
-          ValidationFailure(
-            "Tumbling window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment
-          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
-          ValidationFailure(
-            "Tumbling window expects a time attribute for grouping in a batch environment.")
-
-        // check row intervals on event-time
-        case _: StreamTableEnvironment
-            if isRowCountLiteral(size) && isRowtimeAttribute(timeField) =>
-          ValidationFailure(
-            "Event-time grouping windows on row intervals in a stream environment " +
-              "are currently not supported.")
-
-        case _ =>
-          ValidationSuccess
-      }
-    )
-
-  override def toString: String = s"TumblingGroupWindow($alias, $timeField, $size)"
+  override def toString: String = s"TumblingGroupWindow($aliasAttribute, $timeAttribute, $size)"
 }
-
-// ------------------------------------------------------------------------------------------------
-// Sliding group windows
-// ------------------------------------------------------------------------------------------------
 
 case class SlidingGroupWindow(
-    alias: PlannerExpression,
-    timeField: PlannerExpression,
+    aliasAttribute: PlannerExpression,
+    timeAttribute: PlannerExpression,
     size: PlannerExpression,
     slide: PlannerExpression)
-  extends LogicalWindow(
-    alias,
-    timeField) {
+  extends LogicalWindow {
 
-  override def resolveExpressions(
-      resolve: (PlannerExpression) => PlannerExpression): LogicalWindow =
-    SlidingGroupWindow(
-      resolve(alias),
-      resolve(timeField),
-      resolve(size),
-      resolve(slide))
-
-  override def validate(tableEnv: TableEnvironment): ValidationResult =
-    super.validate(tableEnv).orElse(
-      tableEnv match {
-
-        // check size
-        case _ if !isTimeIntervalLiteral(size) && !isRowCountLiteral(size) =>
-          ValidationFailure(
-            "Sliding window expects size literal of type Interval of Milliseconds " +
-              "or Interval of Rows.")
-
-        // check slide
-        case _ if !isTimeIntervalLiteral(slide) && !isRowCountLiteral(slide) =>
-          ValidationFailure(
-            "Sliding window expects slide literal of type Interval of Milliseconds " +
-              "or Interval of Rows.")
-
-        // check same type of intervals
-        case _ if isTimeIntervalLiteral(size) != isTimeIntervalLiteral(slide) =>
-          ValidationFailure("Sliding window expects same type of size and slide.")
-
-        // check time attribute
-        case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
-          ValidationFailure(
-            "Sliding window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment
-          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
-          ValidationFailure(
-            "Sliding window expects a time attribute for grouping in a stream environment.")
-
-        // check row intervals on event-time
-        case _: StreamTableEnvironment
-            if isRowCountLiteral(size) && isRowtimeAttribute(timeField) =>
-          ValidationFailure(
-            "Event-time grouping windows on row intervals in a stream environment " +
-              "are currently not supported.")
-
-        case _ =>
-          ValidationSuccess
-      }
-    )
-
-  override def toString: String = s"SlidingGroupWindow($alias, $timeField, $size, $slide)"
+  override def toString: String = s"SlidingGroupWindow($aliasAttribute, $timeAttribute, $size, " +
+    s"$slide)"
 }
 
-// ------------------------------------------------------------------------------------------------
-// Session group windows
-// ------------------------------------------------------------------------------------------------
-
 case class SessionGroupWindow(
-    alias: PlannerExpression,
-    timeField: PlannerExpression,
+    aliasAttribute: PlannerExpression,
+    timeAttribute: PlannerExpression,
     gap: PlannerExpression)
-  extends LogicalWindow(
-    alias,
-    timeField) {
+  extends LogicalWindow {
 
-  override def resolveExpressions(
-      resolve: (PlannerExpression) => PlannerExpression): LogicalWindow =
-    SessionGroupWindow(
-      resolve(alias),
-      resolve(timeField),
-      resolve(gap))
-
-  override def validate(tableEnv: TableEnvironment): ValidationResult =
-    super.validate(tableEnv).orElse(
-      tableEnv match {
-
-        // check size
-        case _ if !isTimeIntervalLiteral(gap) =>
-          ValidationFailure(
-            "Session window expects size literal of type Interval of Milliseconds.")
-
-        // check time attribute
-        case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
-          ValidationFailure(
-            "Session window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment
-          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
-          ValidationFailure(
-            "Session window expects a time attribute for grouping in a stream environment.")
-
-        case _ =>
-          ValidationSuccess
-      }
-    )
-
-  override def toString: String = s"SessionGroupWindow($alias, $timeField, $gap)"
+  override def toString: String = s"SessionGroupWindow($aliasAttribute, $timeAttribute, $gap)"
 }
