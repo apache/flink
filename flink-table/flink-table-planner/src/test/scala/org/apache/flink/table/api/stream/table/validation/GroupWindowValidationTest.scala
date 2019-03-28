@@ -73,6 +73,22 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
+  @Test
+  def testInvalidTumblingSizeType(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Tumbling window expects size literal of type Interval of " +
+      "Milliseconds or Interval of Rows.")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      // row interval is not valid for session windows
+      .window(Tumble over 10 on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+  }
+
   @Test(expected = classOf[ValidationException])
   def testTumbleUdAggWithInvalidArgs(): Unit = {
     val util = streamTestUtil()
@@ -108,6 +124,22 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
+  @Test
+  def testInvalidSlidingizeType(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Sliding window expects size literal of type Interval of " +
+      "Milliseconds or Interval of Rows.")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      // row interval is not valid for session windows
+      .window(Slide over 10 every 10.milli  on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+  }
+
   @Test(expected = classOf[ValidationException])
   def testSlideUdAggWithInvalidArgs(): Unit = {
     val util = streamTestUtil()
@@ -128,6 +160,22 @@ class GroupWindowValidationTest extends TableTestBase {
     table
       // row interval is not valid for session windows
       .window(Session withGap 10.rows on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+  }
+
+  @Test
+  def testInvalidSessionGapType(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Session window expects gap literal of type Interval of " +
+      "Milliseconds.")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      // row interval is not valid for session windows
+      .window(Session withGap 10 on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
   }
