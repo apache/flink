@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 
-import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 
 import javax.management.MBeanServer;
@@ -34,6 +33,7 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryType;
 import java.lang.management.MemoryUsage;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A thread the periodically logs statistics about:
@@ -57,14 +57,14 @@ public class MemoryLogger extends Thread {
 
 	private final BufferPoolMXBean directBufferBean;
 	
-	private final ActorSystem monitored;
+	private final CompletableFuture<Void> monitored;
 	
 	private volatile boolean running = true;
 
 	public static void startIfConfigured(
 			Logger logger,
 			Configuration configuration,
-			ActorSystem taskManagerSystem) {
+			CompletableFuture<Void> taskManagerTerminationFuture) {
 		if (!logger.isInfoEnabled() || !configuration.getBoolean(TaskManagerOptions.DEBUG_MEMORY_LOG)) {
 			return;
 		}
@@ -73,19 +73,19 @@ public class MemoryLogger extends Thread {
 		new MemoryLogger(
 			logger,
 			configuration.getLong(TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS),
-			taskManagerSystem).start();
+			taskManagerTerminationFuture).start();
 	}
 	
 	/**
-	 * Creates a new memory logger that logs in the given interval and lives as long as the
-	 * given actor system.
+	 * Creates a new memory logger that logs in the given interval and lives until the
+	 * given termination future completes.
 	 *
 	 * @param logger The logger to use for outputting the memory statistics.
 	 * @param interval The interval in which the thread logs.
-	 * @param monitored The actor system to whose life the thread is bound. The thread terminates
-	 *                  once the actor system terminates.
+	 * @param monitored termination future for the system to whose life the thread is bound. The thread terminates
+	 *                  once the system terminates.
 	 */
-	public MemoryLogger(Logger logger, long interval, ActorSystem monitored) {
+	public MemoryLogger(Logger logger, long interval, CompletableFuture<Void> monitored) {
 		super("Memory Logger");
 		setDaemon(true);
 		setPriority(Thread.MIN_PRIORITY);
@@ -125,7 +125,7 @@ public class MemoryLogger extends Thread {
 	@Override
 	public void run() {
 		try {
-			while (running && (monitored == null || !monitored.whenTerminated().isCompleted())) {
+			while (running && (monitored == null || !monitored.isDone())) {
 				logger.info(getMemoryUsageStatsAsString(memoryBean));
 				logger.info(getDirectMemoryStatsAsString(directBufferBean));
 				logger.info(getMemoryPoolStatsAsString(poolBeans));

@@ -159,7 +159,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		this.terminationFuture = new CompletableFuture<>();
 		this.shutdown = false;
 
-		MemoryLogger.startIfConfigured(LOG, configuration, metricQueryServiceActorSystem);
+		MemoryLogger.startIfConfigured(LOG, configuration, terminationFuture);
 	}
 
 	// --------------------------------------------------------------------------------------------
