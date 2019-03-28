@@ -23,9 +23,9 @@ import java.security.Permission;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * SecurityManager implementation intercepts calls to {@link System#exit(int)}. On the first call,
- * we complete the future that can be retrieved via {@link #getSystemExitFuture()} and disallow the
- * call. Any further calls would throw a {@link RuntimeException}.
+ * {@link SecurityManager} implementation blocks calls to {@link System#exit(int)}. On the first
+ * call to {@link System#exit(int)}, we complete the future that can be retrieved via {@link
+ * #getSystemExitFuture()}.
  */
 public class SystemExitTrackingSecurityManager extends SecurityManager {
 
@@ -33,20 +33,14 @@ public class SystemExitTrackingSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkPermission(final Permission perm) {
-
 	}
 
 	@Override
 	public void checkPermission(final Permission perm, final Object context) {
-
 	}
 
 	@Override
 	public synchronized void checkExit(final int status) {
-		if (systemExitFuture.isDone()) {
-			throw new RuntimeException("Only one call is allowed.");
-		}
-
 		systemExitFuture.complete(status);
 		throw new SecurityException(
 				"SystemExitTrackingSecurityManager is installed. JVM will not exit");
