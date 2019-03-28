@@ -1156,7 +1156,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskExecutor = new TaskExecutor(
+		final TestingTaskExecutor taskExecutor = new TestingTaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			haServices,
@@ -1169,6 +1169,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			taskExecutor.start();
+			taskExecutor.waitUntilStarted();
 
 			ArgumentCaptor<JobLeaderListener> jobLeaderListenerArgumentCaptor = ArgumentCaptor.forClass(JobLeaderListener.class);
 
