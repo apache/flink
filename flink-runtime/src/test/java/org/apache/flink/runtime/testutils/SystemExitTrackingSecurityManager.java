@@ -20,17 +20,16 @@
 package org.apache.flink.runtime.testutils;
 
 import java.security.Permission;
-
-import static org.apache.flink.util.Preconditions.checkState;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * SecurityManager implementation that forbids and tracks calls to {@link System#exit(int)}.
+ * SecurityManager implementation intercepts calls to {@link System#exit(int)}. On the first call,
+ * we complete the future that can be retrieved via {@link #getSystemExitFuture()} and disallow the
+ * call. Any further calls would throw a {@link RuntimeException}.
  */
 public class SystemExitTrackingSecurityManager extends SecurityManager {
 
-	private int status;
-
-	private int count;
+	private final CompletableFuture<Integer> systemExitFuture = new CompletableFuture<>();
 
 	@Override
 	public void checkPermission(final Permission perm) {
@@ -44,22 +43,20 @@ public class SystemExitTrackingSecurityManager extends SecurityManager {
 
 	@Override
 	public synchronized void checkExit(final int status) {
-		this.status = status;
-		++count;
-		throw new SecurityException("SystemExitTrackingSecurityManager is installed. JVM will not exit");
+		if (systemExitFuture.isDone()) {
+			throw new RuntimeException("Only one call is allowed.");
+		}
+
+		systemExitFuture.complete(status);
+		throw new SecurityException(
+				"SystemExitTrackingSecurityManager is installed. JVM will not exit");
 	}
 
-	public synchronized int getStatus() {
-		checkState(isSystemExitCalled());
-		return status;
+	/**
+	 * Returns a {@link CompletableFuture} that is completed with the exit code when {@link
+	 * System#exit(int)} is called.
+	 */
+	public CompletableFuture<Integer> getSystemExitFuture() {
+		return systemExitFuture;
 	}
-
-	public synchronized boolean isSystemExitCalled() {
-		return getCount() > 0;
-	}
-
-	public synchronized int getCount() {
-		return count;
-	}
-
 }

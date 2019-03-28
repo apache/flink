@@ -66,10 +66,8 @@ public class TaskManagerRunnerTest extends TestLogger {
 
 		taskManagerRunner.onFatalError(new RuntimeException());
 
-		eventually(() -> {
-			assertThat(systemExitTrackingSecurityManager.getCount(), is(equalTo(1)));
-			assertThat(systemExitTrackingSecurityManager.getStatus(), is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-		});
+		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
 	}
 
 	@Test
@@ -79,10 +77,8 @@ public class TaskManagerRunnerTest extends TestLogger {
 
 		taskManagerRunner = createTaskManagerRunner(configuration);
 
-		eventually(() -> {
-			assertThat(systemExitTrackingSecurityManager.getCount(), is(equalTo(1)));
-			assertThat(systemExitTrackingSecurityManager.getStatus(), is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-		});
+		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
 	}
 
 	private static Configuration createConfiguration() {
@@ -96,17 +92,5 @@ public class TaskManagerRunnerTest extends TestLogger {
 		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate());
 		taskManagerRunner.start();
 		return taskManagerRunner;
-	}
-
-	private static void eventually(Runnable body) throws InterruptedException {
-		while (true) {
-			try {
-				body.run();
-				return;
-			}
-			catch (AssertionError e) {
-				Thread.sleep(1);
-			}
-		}
 	}
 }
