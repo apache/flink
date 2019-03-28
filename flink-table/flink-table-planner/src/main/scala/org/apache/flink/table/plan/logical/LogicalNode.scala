@@ -25,17 +25,7 @@ import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.TreeNode
 
 /**
-  * LogicalNode is created and validated as we construct query plan using Table API.
-  *
-  * The main validation procedure is separated into two phases:
-  *
-  * LogicalNode validation ([[validate]]):
-  *
-  * - check no [[UnresolvedFieldReference]] exists any more
-  * - check if all expressions have children of needed type
-  * - check each logical operator have desired input
-  *
-  * Once we pass the validation phase, we can safely convert LogicalNode into Calcite's RelNode.
+  * LogicalNode is a logical representation of a table that can translate itself into [[RelNode]].
   */
 abstract class LogicalNode extends TreeNode[LogicalNode] with TableOperation {
   def output: Seq[Attribute]
@@ -48,8 +38,6 @@ abstract class LogicalNode extends TreeNode[LogicalNode] with TableOperation {
   final def toRelNode(relBuilder: RelBuilder): RelNode = construct(relBuilder).build()
 
   protected[logical] def construct(relBuilder: RelBuilder): RelBuilder
-
-  def validate(tableEnv: TableEnvironment): LogicalNode = this
 
   protected def failValidation(msg: String): Nothing = {
     throw new ValidationException(msg)

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.logical
 
-import java.util.{Collections, List => JList}
+import java.util.{Collections, Optional, List => JList}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -25,16 +25,15 @@ import org.apache.calcite.rel.core.{CorrelationId, JoinRelType}
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.operations.JoinOperationFactory.JoinType
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -163,7 +162,7 @@ case class Join(
     left: LogicalNode,
     right: LogicalNode,
     joinType: JoinType,
-    condition: Option[PlannerExpression],
+    condition: Optional[PlannerExpression],
     correlated: Boolean) extends BinaryNode {
 
   override def output: Seq[Attribute] = {
@@ -212,7 +211,7 @@ case class Join(
         left,
         right)
     }
-    condition.map(_.postOrderTransform(partialFunction))
+    JavaScalaConversionUtil.toScala(condition).map(_.postOrderTransform(partialFunction))
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -224,9 +223,10 @@ case class Join(
       corSet += relBuilder.peek().getCluster.createCorrel()
     }
 
+    val resolvedCondition = resolveCondition()
     relBuilder.join(
       convertJoinType(joinType),
-      condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
+      resolvedCondition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
       corSet.asJava)
   }
 
@@ -235,74 +235,6 @@ case class Join(
     case JoinType.LEFT_OUTER => JoinRelType.LEFT
     case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
     case JoinType.FULL_OUTER => JoinRelType.FULL
-  }
-
-  private def ambiguousName: Set[String] =
-    left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet)
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (!condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
-      failValidation(s"Filter operator requires a boolean expression as input, " +
-        s"but $condition is of type $joinType")
-    } else if (ambiguousName.nonEmpty) {
-      failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
-    }
-
-    val resolvedCondition = resolveCondition()
-    resolvedCondition.foreach(testJoinCondition)
-    Join(left, right, joinType, resolvedCondition, correlated)
-  }
-
-  private def testJoinCondition(expression: PlannerExpression): Unit = {
-
-    def checkIfJoinCondition(exp: BinaryComparison) = exp.children match {
-      case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil
-        if x.isFromLeftInput != y.isFromLeftInput => true
-      case _ => false
-    }
-
-    def checkIfFilterCondition(exp: BinaryComparison) = exp.children match {
-      case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil => false
-      case (x: JoinFieldReference) :: (_) :: Nil => true
-      case (_) :: (y: JoinFieldReference) :: Nil => true
-      case _ => false
-    }
-
-    var equiJoinPredicateFound = false
-    // Whether the predicate is literal true.
-    val alwaysTrue = expression match {
-      case x: Literal if x.value.equals(true) => true
-      case _ => false
-    }
-
-    def validateConditions(exp: PlannerExpression, isAndBranch: Boolean): Unit = exp match {
-      case x: And => x.children.foreach(validateConditions(_, isAndBranch))
-      case x: Or => x.children.foreach(validateConditions(_, isAndBranch = false))
-      case x: EqualTo =>
-        if (isAndBranch && checkIfJoinCondition(x)) {
-          equiJoinPredicateFound = true
-        }
-      case x: BinaryComparison =>
-      // The boolean literal should be a valid condition type.
-      case x: Literal if x.resultType == Types.BOOLEAN =>
-      case x => failValidation(
-        s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
-    }
-
-    validateConditions(expression, isAndBranch = true)
-
-    // Due to a bug in Apache Calcite (see CALCITE-2004 and FLINK-7865) we cannot accept join
-    // predicates except literal true for TableFunction left outer join.
-    if (correlated && right.isInstanceOf[CalculatedTable] && joinType != JoinType.INNER ) {
-      if (!alwaysTrue) failValidation("TableFunction left outer join predicate can only be " +
-        "empty or literal true.")
-    } else {
-      if (!equiJoinPredicateFound) {
-        failValidation(
-          s"Invalid join condition: $expression. At least one equi-join predicate is " +
-            s"required.")
-      }
-    }
   }
 }
 
