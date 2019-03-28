@@ -142,8 +142,7 @@ final class TestingAppendBaseRowSink(
 
 }
 
-final class TestingAppendSink(tz: TimeZone)
-    extends AbstractExactlyOnceSink[Row] {
+final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row] {
   def this() {
     this(TimeZone.getTimeZone("UTC"))
   }
@@ -151,9 +150,8 @@ final class TestingAppendSink(tz: TimeZone)
   def getAppendResults: List[String] = getResults
 }
 
-final class TestingAppendTableSink(tz: TimeZone)
-    extends AppendStreamTableSink[Row]
-        with BatchTableSink[Row]{
+final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[Row]
+  with BatchTableSink[Row]{
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
   var sink = new TestingAppendSink(tz)
@@ -179,8 +177,7 @@ final class TestingAppendTableSink(tz: TimeZone)
 
   override def configure(
       fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]])
-  : TestingAppendTableSink = {
+      fieldTypes: Array[TypeInformation[_]]): TestingAppendTableSink = {
     val copy = new TestingAppendTableSink(tz)
     copy.fNames = fieldNames
     copy.fTypes = fieldTypes
@@ -199,7 +196,7 @@ final class TestingAppendTableSink(tz: TimeZone)
 }
 
 class TestingOutputFormat[T](tz: TimeZone)
-    extends OutputFormat[T] {
+  extends OutputFormat[T] {
 
   val index: Int = StreamTestSink.getNewSinkId
   var localRetractResults: ArrayBuffer[String] = _

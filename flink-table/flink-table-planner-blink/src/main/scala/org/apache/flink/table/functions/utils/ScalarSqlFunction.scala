@@ -21,9 +21,9 @@ package org.apache.flink.table.functions.utils
 import org.apache.flink.table.`type`.{InternalTypeUtils, TypeConverters}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
-import org.apache.flink.table.functions.ScalarFunction
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
@@ -36,23 +36,23 @@ import scala.collection.JavaConverters._
 /**
   * Calcite wrapper for user-defined scalar functions.
   *
-  * @param name function name (used by SQL parser)
-  * @param displayName name to be displayed in operator name
+  * @param name           function name (used by SQL parser)
+  * @param displayName    name to be displayed in operator name
   * @param scalarFunction scalar function to be called
-  * @param typeFactory type factory for converting Flink's between Calcite's types
+  * @param typeFactory    type factory for converting Flink's between Calcite's types
   */
 class ScalarSqlFunction(
     name: String,
     displayName: String,
     scalarFunction: ScalarFunction,
     typeFactory: FlinkTypeFactory)
-    extends SqlFunction(
-      new SqlIdentifier(name, SqlParserPos.ZERO),
-      createReturnTypeInference(name, scalarFunction, typeFactory),
-      createOperandTypeInference(name, scalarFunction, typeFactory),
-      createOperandTypeChecker(name, scalarFunction),
-      null,
-      SqlFunctionCategory.USER_DEFINED_FUNCTION) {
+  extends SqlFunction(
+    new SqlIdentifier(name, SqlParserPos.ZERO),
+    createReturnTypeInference(name, scalarFunction, typeFactory),
+    createOperandTypeInference(name, scalarFunction, typeFactory),
+    createOperandTypeChecker(name, scalarFunction),
+    null,
+    SqlFunctionCategory.USER_DEFINED_FUNCTION) {
 
   def getScalarFunction: ScalarFunction = scalarFunction
 
@@ -66,8 +66,7 @@ object ScalarSqlFunction {
   private[flink] def createReturnTypeInference(
       name: String,
       scalarFunction: ScalarFunction,
-      typeFactory: FlinkTypeFactory)
-  : SqlReturnTypeInference = {
+      typeFactory: FlinkTypeFactory): SqlReturnTypeInference = {
     /**
       * Return type inference based on [[ScalarFunction]] given information.
       */
@@ -94,6 +93,24 @@ object ScalarSqlFunction {
     }
   }
 
+  private[flink] def createOperandTypeInference(
+      name: String,
+      scalarFunction: ScalarFunction,
+      typeFactory: FlinkTypeFactory): SqlOperandTypeInference = {
+    /**
+      * Operand type inference based on [[ScalarFunction]] given information.
+      */
+    new SqlOperandTypeInference {
+      override def inferOperandTypes(
+          callBinding: SqlCallBinding,
+          returnType: RelDataType,
+          operandTypes: Array[RelDataType]): Unit = {
+        ScalarSqlFunction.inferOperandTypes(
+          name, scalarFunction, typeFactory, callBinding, returnType, operandTypes)
+      }
+    }
+  }
+
   def inferOperandTypes(
       name: String,
       func: ScalarFunction,
@@ -114,29 +131,9 @@ object ScalarSqlFunction {
         }
   }
 
-  private[flink] def createOperandTypeInference(
-      name: String,
-      scalarFunction: ScalarFunction,
-      typeFactory: FlinkTypeFactory)
-  : SqlOperandTypeInference = {
-    /**
-      * Operand type inference based on [[ScalarFunction]] given information.
-      */
-    new SqlOperandTypeInference {
-      override def inferOperandTypes(
-          callBinding: SqlCallBinding,
-          returnType: RelDataType,
-          operandTypes: Array[RelDataType]): Unit = {
-        ScalarSqlFunction.inferOperandTypes(
-          name, scalarFunction, typeFactory, callBinding, returnType, operandTypes)
-      }
-    }
-  }
-
   private[flink] def createOperandTypeChecker(
       name: String,
-      scalarFunction: ScalarFunction)
-  : SqlOperandTypeChecker = {
+      scalarFunction: ScalarFunction): SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(scalarFunction, "eval")
 

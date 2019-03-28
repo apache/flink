@@ -538,8 +538,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   def registerFunction[T, ACC](
       name: String,
-      f: AggregateFunction[T, ACC])
-  : Unit = {
+      f: AggregateFunction[T, ACC]): Unit = {
     implicit val typeInfo: TypeInformation[T] = TypeExtractor
         .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
         .asInstanceOf[TypeInformation[T]]

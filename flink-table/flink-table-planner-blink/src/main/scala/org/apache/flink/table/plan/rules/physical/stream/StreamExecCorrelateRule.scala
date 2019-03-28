@@ -29,11 +29,11 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
 
 class StreamExecCorrelateRule
-    extends ConverterRule(
-      classOf[FlinkLogicalCorrelate],
-      FlinkConventions.LOGICAL,
-      FlinkConventions.STREAM_PHYSICAL,
-      "StreamExecCorrelateRule") {
+  extends ConverterRule(
+    classOf[FlinkLogicalCorrelate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.STREAM_PHYSICAL,
+    "StreamExecCorrelateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalCorrelate = call.rel(0).asInstanceOf[FlinkLogicalCorrelate]

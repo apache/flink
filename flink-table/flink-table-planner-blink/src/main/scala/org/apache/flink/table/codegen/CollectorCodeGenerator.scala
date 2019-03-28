@@ -51,8 +51,7 @@ object CollectorCodeGenerator {
       config: TableConfig,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
-      converter: String => String = (a) => a)
-    : GeneratedCollector[TableFunctionCollector[_]] = {
+      converter: String => String = (a) => a): GeneratedCollector[TableFunctionCollector[_]] = {
 
     val className = newName(name)
     val input1TypeClass = boxedTypeTermForType(inputType)

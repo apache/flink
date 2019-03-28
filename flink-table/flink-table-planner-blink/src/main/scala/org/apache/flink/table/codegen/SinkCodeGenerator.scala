@@ -62,8 +62,7 @@ object SinkCodeGenerator {
       rowtimeField: Option[Int],
       withChangeFlag: Boolean,
       resultType: TypeInformation[_],
-      sink: TableSink[_])
-  : (OneInputOperatorWrapper[BaseRow, OUT], TypeInformation[OUT]) = {
+      sink: TableSink[_]): (OneInputOperatorWrapper[BaseRow, OUT], TypeInformation[OUT]) = {
 
     val requestedTypeInfo = if (withChangeFlag) {
       resultType match {

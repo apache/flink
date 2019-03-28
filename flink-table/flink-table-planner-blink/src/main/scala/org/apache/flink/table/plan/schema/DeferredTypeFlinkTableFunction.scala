@@ -40,9 +40,9 @@ class DeferredTypeFlinkTableFunction(
   override def getExternalResultType(
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): TypeInformation[_] = {
-    //T ODO
+    // TODO
 //    val resultType = tableFunction.getResultType(arguments, argTypes)
-    val resultType = tableFunction.getResultType()
+    val resultType = tableFunction.getResultType
     if (resultType != null) {
       resultType
     } else {

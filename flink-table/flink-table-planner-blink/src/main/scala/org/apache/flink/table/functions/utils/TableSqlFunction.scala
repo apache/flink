@@ -39,12 +39,11 @@ import java.util
 /**
   * Calcite wrapper for user-defined table functions.
   *
-  *
-  * @param name function name (used by SQL parser)
-  * @param udtf user-defined table function to be called
+  * @param name               function name (used by SQL parser)
+  * @param udtf               user-defined table function to be called
   * @param implicitResultType Implicit result type information
-  * @param typeFactory type factory for converting Flink's between Calcite's types
-  * @param functionImpl Calcite table function schema
+  * @param typeFactory        type factory for converting Flink's between Calcite's types
+  * @param functionImpl       Calcite table function schema
   * @return [[TableSqlFunction]]
   */
 class TableSqlFunction(
@@ -54,13 +53,13 @@ class TableSqlFunction(
     implicitResultType: TypeInformation[_],
     typeFactory: FlinkTypeFactory,
     functionImpl: FlinkTableFunction)
-    extends SqlUserDefinedTableFunction(
-      new SqlIdentifier(name, SqlParserPos.ZERO),
-      ReturnTypes.CURSOR,
-      createOperandTypeInference(name, udtf, typeFactory),
-      createOperandTypeChecker(name, udtf),
-      null,
-      functionImpl) {
+  extends SqlUserDefinedTableFunction(
+    new SqlIdentifier(name, SqlParserPos.ZERO),
+    ReturnTypes.CURSOR,
+    createOperandTypeInference(name, udtf, typeFactory),
+    createOperandTypeChecker(name, udtf),
+    null,
+    functionImpl) {
 
   /**
     * Get the user-defined table function.
@@ -94,8 +93,7 @@ object TableSqlFunction {
   private[flink] def createOperandTypeInference(
       name: String,
       udtf: TableFunction[_],
-      typeFactory: FlinkTypeFactory)
-  : SqlOperandTypeInference = {
+      typeFactory: FlinkTypeFactory): SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[TableFunction]] given information.
       */
@@ -132,8 +130,7 @@ object TableSqlFunction {
 
   private[flink] def createOperandTypeChecker(
       name: String,
-      udtf: TableFunction[_])
-  : SqlOperandTypeChecker = {
+      udtf: TableFunction[_]): SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(udtf, "eval")
 
@@ -149,7 +146,7 @@ object TableSqlFunction {
         var min = 254
         var max = -1
         var isVarargs = false
-        methods.foreach( m => {
+        methods.foreach(m => {
           var len = m.getParameterTypes.length
           if (len > 0 && m.isVarArgs && m.getParameterTypes()(len - 1).isArray) {
             isVarargs = true
@@ -168,7 +165,7 @@ object TableSqlFunction {
       override def checkOperandTypes(
           callBinding: SqlCallBinding,
           throwOnFailure: Boolean)
-      : Boolean = {
+        : Boolean = {
         val operandTypes = getOperandType(callBinding)
 
         if (getEvalUserDefinedMethod(udtf, operandTypes).isEmpty) {

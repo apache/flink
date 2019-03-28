@@ -426,8 +426,7 @@ object UserDefinedFunctionUtils {
       name: String,
       displayName: String,
       function: ScalarFunction,
-      typeFactory: FlinkTypeFactory)
-  : SqlFunction = {
+      typeFactory: FlinkTypeFactory): SqlFunction = {
     new ScalarSqlFunction(name, displayName, function, typeFactory)
   }
 
@@ -458,8 +457,7 @@ object UserDefinedFunctionUtils {
       displayName: String,
       tableFunction: TableFunction[_],
       implicitResultType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-  : TableSqlFunction = {
+      typeFactory: FlinkTypeFactory): TableSqlFunction = {
     // we don't know the exact result type yet.
     val function = new DeferredTypeFlinkTableFunction(tableFunction, implicitResultType)
     new TableSqlFunction(name, displayName, tableFunction, implicitResultType,

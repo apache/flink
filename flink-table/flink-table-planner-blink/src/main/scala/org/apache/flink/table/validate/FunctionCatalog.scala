@@ -43,8 +43,7 @@ class FunctionCatalog() {
   def registerScalarFunction(
       name: String,
       function: ScalarFunction,
-      typeFactory: FlinkTypeFactory)
-  : Unit = {
+      typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
       new ScalarFunctionDefinition(name, function),
@@ -56,8 +55,7 @@ class FunctionCatalog() {
       name: String,
       function: TableFunction[_],
       implicitResultType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-  : Unit = {
+      typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
       new TableFunctionDefinition(name, function, implicitResultType),
@@ -70,8 +68,7 @@ class FunctionCatalog() {
       function: AggregateFunction[_, _],
       resultType: TypeInformation[_],
       accType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-  : Unit = {
+      typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
       new AggregateFunctionDefinition(name, function, resultType, accType),
