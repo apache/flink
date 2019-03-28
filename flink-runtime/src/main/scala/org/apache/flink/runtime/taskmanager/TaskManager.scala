@@ -1885,8 +1885,6 @@ object TaskManager {
         )
       }
 
-      MemoryLogger.startIfConfigured(LOG.logger, configuration, taskManagerSystem)
-
       // block until everything is done
       Await.ready(taskManagerSystem.whenTerminated, Duration.Inf)
     } catch {
