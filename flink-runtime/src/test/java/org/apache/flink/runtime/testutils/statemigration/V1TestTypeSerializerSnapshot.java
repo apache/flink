@@ -40,6 +40,8 @@ public class V1TestTypeSerializerSnapshot implements TypeSerializerSnapshot<Test
 	public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(TypeSerializer<TestType> newSerializer) {
 		if (newSerializer instanceof TestType.V1TestTypeSerializer) {
 			return TypeSerializerSchemaCompatibility.compatibleAsIs();
+		} else if (newSerializer instanceof TestType.TestTypeSerializerForForceMigration) {
+			return TypeSerializerSchemaCompatibility.unknown();
 		} else if (newSerializer instanceof TestType.V2TestTypeSerializer) {
 			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
 		} else if (newSerializer instanceof TestType.ReconfigurationRequiringTestTypeSerializer) {

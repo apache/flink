@@ -87,7 +87,26 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			new ValueStateDescriptor<>(
 				stateName,
 				// restore with a V2 serializer that has a different schema
-				new TestType.V2TestTypeSerializer()));
+				new TestType.V2TestTypeSerializer()),
+			false);
+	}
+
+	@Test
+	public void testForceMigration() throws Exception {
+		final String stateName = "test-name";
+
+		ValueStateDescriptor<TestType> initialDesc = new ValueStateDescriptor<>(stateName,
+			new TestType.V1TestTypeSerializer());
+		ValueStateDescriptor<TestType> newDesc = new ValueStateDescriptor<>(stateName,
+			new TestType.TestTypeSerializerForForceMigration());
+		try {
+			testKeyedValueStateUpgrade(initialDesc, newDesc, false);
+			Assert.fail("Should have caught exception w/o force migration but not.");
+		} catch (StateMigrationException e) {
+			// expected
+		}
+		newDesc.setForceMigrationIfSchemaCompatibilityUnknown(true);
+		testKeyedValueStateUpgrade(initialDesc, newDesc, false);
 	}
 
 	@Test
@@ -101,7 +120,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			new ValueStateDescriptor<>(
 				stateName,
 				// the test fails if this serializer is used instead of a reconfigured new serializer
-				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+				new TestType.ReconfigurationRequiringTestTypeSerializer()),
+			true);
 	}
 
 	@Test
@@ -115,7 +135,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					new TestType.V1TestTypeSerializer()),
 				new ValueStateDescriptor<>(
 					stateName,
-					new TestType.IncompatibleTestTypeSerializer()));
+					new TestType.IncompatibleTestTypeSerializer()),
+				false);
 
 			Assert.fail("should have failed");
 		} catch (Exception expected) {
@@ -124,8 +145,9 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	}
 
 	private void testKeyedValueStateUpgrade(
-			ValueStateDescriptor<TestType> initialAccessDescriptor,
-			ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore) throws Exception {
+		ValueStateDescriptor<TestType> initialAccessDescriptor,
+		ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore,
+		boolean reconfigureSerializer) throws Exception {
 
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
@@ -169,6 +191,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.setCurrentKey(3);
 			Assert.assertEquals(new TestType("hello", 189), valueState.value());
 			valueState.update(new TestType("newValue3", 444));
+
+			if (!reconfigureSerializer) {
+				// make sure the new serializer is registered if not reconfigured.
+				Assert.assertEquals(newAccessDescriptorAfterRestore.getSerializer(),
+					backend.getRegisteredStateMetaInfo(initialAccessDescriptor.getName()).getStateSerializer());
+			}
 
 			// do another snapshot to verify the snapshot logic after migration
 			snapshot = runSnapshot(

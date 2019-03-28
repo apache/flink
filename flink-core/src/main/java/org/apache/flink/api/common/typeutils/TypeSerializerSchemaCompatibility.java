@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -67,7 +69,13 @@ public class TypeSerializerSchemaCompatibility<T> {
 		 * This normally implies that the deserialized Java class can not be commonly recognized
 		 * by the previous and new serializer.
 		 */
-		INCOMPATIBLE
+		INCOMPATIBLE,
+
+		/**
+		 * This indicates that the new serializer MIGHT be compatible after migration but we
+		 * are not sure, for example from {@link KryoSerializer} to {@link PojoSerializer}
+		 */
+		UNKNOWN
 	}
 
 	/**
@@ -125,6 +133,17 @@ public class TypeSerializerSchemaCompatibility<T> {
 		return new TypeSerializerSchemaCompatibility<>(Type.INCOMPATIBLE, null);
 	}
 
+	/**
+	 * Returns a result that indicates the new serializer might be compatible after migration but we are not sure.
+	 * For example from {@link KryoSerializer} to {@link PojoSerializer}
+	 *
+	 * @param <T> the type of data serialized by the serializer that was being checked.
+	 * @return a result that indicates unknown compatibility between the new and previous serializer.
+	 */
+	public static <T> TypeSerializerSchemaCompatibility<T> unknown() {
+		return new TypeSerializerSchemaCompatibility<>(Type.UNKNOWN, null);
+	}
+
 	private TypeSerializerSchemaCompatibility(Type resultType, @Nullable TypeSerializer<T> reconfiguredNewSerializer) {
 		this.resultType = Preconditions.checkNotNull(resultType);
 		this.reconfiguredNewSerializer = reconfiguredNewSerializer;
@@ -176,6 +195,15 @@ public class TypeSerializerSchemaCompatibility<T> {
 	 */
 	public boolean isIncompatible() {
 		return resultType == Type.INCOMPATIBLE;
+	}
+
+	/**
+	 * Returns whether or not the type of the compatibility is {@link Type#UNKNOWN}.
+	 *
+	 * @return whether or not the type of the compatibility is {@link Type#UNKNOWN}.
+	 */
+	public boolean isUnknown() {
+		return resultType == Type.UNKNOWN;
 	}
 
 	@Override

@@ -194,6 +194,13 @@ public class TestType implements HeapPriorityQueueElement, PriorityComparable<Te
 		}
 	}
 
+	/**
+	 * A serializer whose compatibility is marked as unknown but actually compatible after migration,
+	 * to test force migration.
+	 */
+	public static class TestTypeSerializerForForceMigration extends V2TestTypeSerializer {
+	}
+
 	public static abstract class TestTypeSerializerBase extends TypeSerializer<TestType> {
 
 		private static final long serialVersionUID = 256299937766275871L;

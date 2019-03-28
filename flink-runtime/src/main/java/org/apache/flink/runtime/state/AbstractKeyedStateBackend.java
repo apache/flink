@@ -361,4 +361,12 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		return false;
 	}
 
+	/**
+	 * Returns the meta info of the state.
+	 *
+	 * @param stateName name of the state.
+	 * @return meta info of the state.
+	 */
+	@VisibleForTesting
+	public abstract RegisteredKeyValueStateBackendMetaInfo getRegisteredStateMetaInfo(String stateName);
 }

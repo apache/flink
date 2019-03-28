@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
@@ -159,6 +160,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public boolean requiresLegacySynchronousTimerSnapshots() {
 		return false;
+	}
+
+	@Override
+	public RegisteredKeyValueStateBackendMetaInfo getRegisteredStateMetaInfo(String stateName) {
+		return null;
 	}
 
 	@Override
