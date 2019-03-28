@@ -609,7 +609,6 @@ public class TaskTest extends TestLogger {
 			final Task task =  new TaskBuilder()
 				.setInvokable(InvokableBlockingInInvoke.class)
 				.setNetworkEnvironment(network)
-				.setKvStateService(new KvStateService(new KvStateRegistry(), null, null))
 				.setConsumableNotifier(consumableNotifier)
 				.setPartitionProducerStateChecker(partitionChecker)
 				.setExecutor(Executors.directExecutor())

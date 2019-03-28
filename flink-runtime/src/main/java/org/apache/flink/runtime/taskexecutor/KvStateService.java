@@ -140,6 +140,12 @@ public class KvStateService {
 		}
 	}
 
+	public boolean isShutdown() {
+		synchronized (lock) {
+			return isShutdown;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Static factory methods for kvState service
 	// --------------------------------------------------------------------------------------------

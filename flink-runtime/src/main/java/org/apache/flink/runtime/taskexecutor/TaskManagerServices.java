@@ -85,16 +85,16 @@ public class TaskManagerServices {
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
 
 	TaskManagerServices(
-			TaskManagerLocation taskManagerLocation,
-			MemoryManager memoryManager,
-			IOManager ioManager,
-			NetworkEnvironment networkEnvironment,
-			KvStateService kvStateService,
-			BroadcastVariableManager broadcastVariableManager,
-			TaskSlotTable taskSlotTable,
-			JobManagerTable jobManagerTable,
-			JobLeaderService jobLeaderService,
-			TaskExecutorLocalStateStoresManager taskManagerStateStore) {
+		TaskManagerLocation taskManagerLocation,
+		MemoryManager memoryManager,
+		IOManager ioManager,
+		NetworkEnvironment networkEnvironment,
+		KvStateService kvStateService,
+		BroadcastVariableManager broadcastVariableManager,
+		TaskSlotTable taskSlotTable,
+		JobManagerTable jobManagerTable,
+		JobLeaderService jobLeaderService,
+		TaskExecutorLocalStateStoresManager taskManagerStateStore) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);

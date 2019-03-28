@@ -305,6 +305,7 @@ public class TaskExecutorTest extends TestLogger {
 		assertThat(memoryManager.isShutdown(), is(true));
 		assertThat(networkEnvironment.isShutdown(), is(true));
 		assertThat(ioManager.isProperlyShutDown(), is(true));
+		assertThat(kvStateService.isShutdown(), is(true));
 	}
 
 	@Test
@@ -756,11 +757,8 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
 
-		final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
-
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setNetworkEnvironment(networkEnvironment)
-			.setKvStateService(kvStateService)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobManagerTable(jobManagerTable)
 			.setTaskStateManager(localStateStoresManager)
