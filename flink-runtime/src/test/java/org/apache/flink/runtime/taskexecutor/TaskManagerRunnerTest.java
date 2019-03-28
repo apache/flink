@@ -62,7 +62,10 @@ public class TaskManagerRunnerTest extends TestLogger {
 
 	@Test
 	public void testShouldShutdownOnFatalError() throws Exception {
-		taskManagerRunner = createTaskManagerRunner(createConfiguration());
+		Configuration configuration = createConfiguration();
+		// very high timeout, to ensure that we don't fail because of registration timeouts
+		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "42 h");
+		taskManagerRunner = createTaskManagerRunner(configuration);
 
 		taskManagerRunner.onFatalError(new RuntimeException());
 
@@ -74,7 +77,6 @@ public class TaskManagerRunnerTest extends TestLogger {
 	public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
 		Configuration configuration = createConfiguration();
 		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
-
 		taskManagerRunner = createTaskManagerRunner(configuration);
 
 		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
