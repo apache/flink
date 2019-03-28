@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.logical
 
-import java.lang.reflect.Method
 import java.util.{Collections, List => JList}
 
 import org.apache.calcite.rel.RelNode
@@ -31,13 +30,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.PlannerExpressionUtils.isRowCountLiteral
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
-import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -118,12 +115,12 @@ case class Filter(condition: PlannerExpression, child: LogicalNode) extends Unar
 }
 
 case class Aggregate(
-    groupingExpressions: Seq[PlannerExpression],
-    aggregateExpressions: Seq[PlannerExpression],
+    groupingExpressions: JList[PlannerExpression],
+    aggregateExpressions: JList[PlannerExpression],
     child: LogicalNode) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
-    (groupingExpressions ++ aggregateExpressions) map {
+    (groupingExpressions.asScala ++ aggregateExpressions.asScala) map {
       case ne: NamedExpression => ne.toAttribute
       case e => Alias(e, e.toString).toAttribute
     }
@@ -132,60 +129,11 @@ case class Aggregate(
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.aggregate(
-      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
-      aggregateExpressions.map {
+      relBuilder.groupKey(groupingExpressions.asScala.map(_.toRexNode(relBuilder)).asJava),
+      aggregateExpressions.asScala.map {
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
-    val groupingExprs = groupingExpressions
-    val aggregateExprs = aggregateExpressions
-    aggregateExprs.foreach(validateAggregateExpression)
-    groupingExprs.foreach(validateGroupingExpression)
-
-    def validateAggregateExpression(expr: PlannerExpression): Unit = expr match {
-      case distinctExpr: DistinctAgg =>
-        distinctExpr.child match {
-          case _: DistinctAgg => failValidation(
-            "Chained distinct operators are not supported!")
-          case aggExpr: Aggregation => validateAggregateExpression(aggExpr)
-          case _ => failValidation(
-            "Distinct operator can only be applied to aggregation expressions!")
-        }
-      // check aggregate function
-      case aggExpr: Aggregation
-        if aggExpr.getSqlAggFunction.requiresOver =>
-        failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
-      // check no nested aggregation exists.
-      case aggExpr: Aggregation =>
-        aggExpr.children.foreach { child =>
-          child.preOrderVisit {
-            case agg: Aggregation =>
-              failValidation(
-                "It's not allowed to use an aggregate function as " +
-                  "input of another aggregate function")
-            case _ => // OK
-          }
-        }
-      case a: Attribute if !groupingExprs.exists(_.checkEquals(a)) =>
-        failValidation(
-          s"expression '$a' is invalid because it is neither" +
-            " present in group by nor an aggregate function")
-      case e if groupingExprs.exists(_.checkEquals(e)) => // OK
-      case e => e.children.foreach(validateAggregateExpression)
-    }
-
-    def validateGroupingExpression(expr: PlannerExpression): Unit = {
-      if (!expr.resultType.isKeyType) {
-        failValidation(
-          s"expression $expr cannot be used as a grouping expression " +
-            "because it's not a valid key type which must be hashable and comparable")
-      }
-    }
-    this
   }
 }
 
@@ -463,15 +411,17 @@ case class LogicalRelNode(
 }
 
 case class WindowAggregate(
-    groupingExpressions: Seq[PlannerExpression],
+    groupingExpressions: JList[PlannerExpression],
     window: LogicalWindow,
-    propertyExpressions: Seq[PlannerExpression],
-    aggregateExpressions: Seq[PlannerExpression],
+    propertyExpressions: JList[PlannerExpression],
+    aggregateExpressions: JList[PlannerExpression],
     child: LogicalNode)
   extends UnaryNode {
 
   override def output: Seq[Attribute] = {
-    (groupingExpressions ++ aggregateExpressions ++ propertyExpressions) map {
+    val expressions = groupingExpressions.asScala ++ aggregateExpressions.asScala ++
+      propertyExpressions.asScala
+    expressions map {
       case ne: NamedExpression => ne.toAttribute
       case e => Alias(e, e.toString).toAttribute
     }
@@ -482,81 +432,15 @@ case class WindowAggregate(
     child.construct(flinkRelBuilder)
     flinkRelBuilder.aggregate(
       window,
-      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
-      propertyExpressions.map {
+      relBuilder.groupKey(groupingExpressions.asScala.map(_.toRexNode(relBuilder)).asJava),
+      propertyExpressions.asScala.map {
         case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)
         case _ => throw new RuntimeException("This should never happen.")
       },
-      aggregateExpressions.map {
+      aggregateExpressions.asScala.map {
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
-    val groupingExprs = groupingExpressions
-    val aggregateExprs = aggregateExpressions
-    aggregateExprs.foreach(validateAggregateExpression)
-    groupingExprs.foreach(validateGroupingExpression)
-
-    def validateAggregateExpression(expr: PlannerExpression): Unit = expr match {
-      // check aggregate function
-      case aggExpr: Aggregation
-        if aggExpr.getSqlAggFunction.requiresOver =>
-        failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
-      case aggExpr: DistinctAgg =>
-        validateAggregateExpression(aggExpr.child)
-      // check no nested aggregation exists.
-      case aggExpr: Aggregation =>PlannerExpressionConverter
-        aggExpr.children.foreach { child =>
-          child.preOrderVisit {
-            case agg: Aggregation =>
-              failValidation(
-                "It's not allowed to use an aggregate function as " +
-                  "input of another aggregate function")
-            case _ => // ok
-          }
-        }
-      case a: Attribute if !groupingExprs.exists(_.checkEquals(a)) =>
-        failValidation(
-          s"Expression '$a' is invalid because it is neither" +
-            " present in group by nor an aggregate function")
-      case e if groupingExprs.exists(_.checkEquals(e)) => // ok
-      case e => e.children.foreach(validateAggregateExpression)
-    }
-
-    def validateGroupingExpression(expr: PlannerExpression): Unit = {
-      if (!expr.resultType.isKeyType) {
-        failValidation(
-          s"Expression $expr cannot be used as a grouping expression " +
-            "because it's not a valid key type which must be hashable and comparable")
-      }
-    }
-
-    // validate window
-    window.validate(tableEnv) match {
-      case ValidationFailure(msg) =>
-        failValidation(s"$window is invalid: $msg")
-      case ValidationSuccess => // ok
-    }
-
-    // validate property
-    if (propertyExpressions.nonEmpty) {
-      window match {
-        case TumblingGroupWindow(_, _, size) if isRowCountLiteral(size) =>
-          failValidation("Window start and Window end cannot be selected " +
-                           "for a row-count Tumbling window.")
-
-        case SlidingGroupWindow(_, _, size, _) if isRowCountLiteral(size) =>
-          failValidation("Window start and Window end cannot be selected " +
-                           "for a row-count Sliding window.")
-
-        case _ => // ok
-      }
-    }
-
-    this
   }
 }
 

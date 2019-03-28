@@ -83,7 +83,7 @@ class ColumnFunctionsValidationTest extends TableTestBase {
   def testInvalidWindowTimeField(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Group Window only supports a single time field column.")
+      "A group window only supports a single time field column.")
 
     val t = util.addTable[(Int, Long, String, Int)]('a, 'b.rowtime, 'c, 'd)
     val tab = t
