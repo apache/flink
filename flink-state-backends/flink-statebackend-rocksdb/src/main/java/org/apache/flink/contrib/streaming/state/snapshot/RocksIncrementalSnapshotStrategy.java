@@ -209,7 +209,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			}
 		} else {
 			// create a "temporary" snapshot directory because local recovery is inactive.
-			Path path = new Path(instanceBasePath.getAbsolutePath(), "chk-" + checkpointId);
+			File snapshotDir = new File(instanceBasePath, "chk-" + checkpointId);
+			Path path = new Path(snapshotDir.toURI());
 			return SnapshotDirectory.temporary(path);
 		}
 	}
