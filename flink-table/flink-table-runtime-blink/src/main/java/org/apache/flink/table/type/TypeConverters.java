@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
 import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
@@ -170,6 +171,9 @@ public class TypeConverters {
 		} else if (typeInfo instanceof BinaryArrayTypeInfo) {
 			BinaryArrayTypeInfo arrayType = (BinaryArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(arrayType.getElementType());
+		} else if (typeInfo instanceof BigDecimalTypeInfo) {
+			BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
+			return new DecimalType(decimalType.precision(), decimalType.scale());
 		} else {
 			return InternalTypes.createGenericType(typeInfo);
 		}
@@ -235,7 +239,8 @@ public class TypeConverters {
 					createExternalTypeInfoFromInternalType(mapType.getKeyType()),
 					createExternalTypeInfoFromInternalType(mapType.getValueType()));
 		} else if (type instanceof DecimalType) {
-			return BasicTypeInfo.BIG_DEC_TYPE_INFO;
+			DecimalType decimalType = (DecimalType) type;
+			return new BigDecimalTypeInfo(decimalType.precision(), decimalType.scale());
 		}  else if (type instanceof GenericType) {
 			GenericType genericType = (GenericType) type;
 			return genericType.getTypeInfo();

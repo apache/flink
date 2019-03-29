@@ -39,6 +39,7 @@ import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
 import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
@@ -151,6 +152,9 @@ public class DataFormatConverters {
 		} else if (typeInfo instanceof DecimalTypeInfo) {
 			DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
 			return new DecimalConverter(decimalType.precision(), decimalType.scale());
+		} else if (typeInfo instanceof BigDecimalTypeInfo) {
+			BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
+			return new BigDecimalConverter(decimalType.precision(), decimalType.scale());
 		} else if (typeInfo instanceof BinaryGenericTypeInfo) {
 			return BinaryGenericConverter.INSTANCE;
 		} else {
