@@ -71,7 +71,7 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -267,11 +267,15 @@ public class TaskExecutorTest extends TestLogger {
 			true);
 		networkEnvironment.start();
 
+		final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
+		kvStateService.start();
+
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
 			.setMemoryManager(memoryManager)
 			.setIoManager(ioManager)
 			.setNetworkEnvironment(networkEnvironment)
+			.setKvStateService(kvStateService)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobLeaderService(jobLeaderService)
 			.setTaskStateManager(localStateStoresManager)
@@ -301,6 +305,7 @@ public class TaskExecutorTest extends TestLogger {
 		assertThat(memoryManager.isShutdown(), is(true));
 		assertThat(networkEnvironment.isShutdown(), is(true));
 		assertThat(ioManager.isProperlyShutDown(), is(true));
+		assertThat(kvStateService.isShutdown(), is(true));
 	}
 
 	@Test
@@ -748,7 +753,6 @@ public class TaskExecutorTest extends TestLogger {
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 		final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 
-		when(networkEnvironment.createKvStateTaskRegistry(eq(jobId), eq(jobVertexId))).thenReturn(mock(TaskKvStateRegistry.class));
 		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();

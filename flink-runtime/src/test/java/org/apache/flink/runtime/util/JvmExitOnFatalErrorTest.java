@@ -54,12 +54,13 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -167,7 +168,6 @@ public class JvmExitOnFatalErrorTest {
 				final IOManager ioManager = new IOManagerAsync();
 
 				final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-				when(networkEnvironment.createKvStateTaskRegistry(jid, jobVertexId)).thenReturn(mock(TaskKvStateRegistry.class));
 				TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 				when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
@@ -208,6 +208,7 @@ public class JvmExitOnFatalErrorTest {
 						memoryManager,
 						ioManager,
 						networkEnvironment,
+						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
 						slotStateManager,
 						new NoOpTaskManagerActions(),

@@ -24,7 +24,6 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -40,10 +39,6 @@ import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.query.KvStateClientProxy;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateServer;
-import org.apache.flink.runtime.query.QueryableStateUtils;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -82,6 +77,7 @@ public class TaskManagerServices {
 	private final MemoryManager memoryManager;
 	private final IOManager ioManager;
 	private final NetworkEnvironment networkEnvironment;
+	private final KvStateService kvStateService;
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final TaskSlotTable taskSlotTable;
 	private final JobManagerTable jobManagerTable;
@@ -93,6 +89,7 @@ public class TaskManagerServices {
 		MemoryManager memoryManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
+		KvStateService kvStateService,
 		BroadcastVariableManager broadcastVariableManager,
 		TaskSlotTable taskSlotTable,
 		JobManagerTable jobManagerTable,
@@ -103,6 +100,7 @@ public class TaskManagerServices {
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
+		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
 		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
@@ -124,6 +122,10 @@ public class TaskManagerServices {
 
 	public NetworkEnvironment getNetworkEnvironment() {
 		return networkEnvironment;
+	}
+
+	public KvStateService getKvStateService() {
+		return kvStateService;
 	}
 
 	public TaskManagerLocation getTaskManagerLocation() {
@@ -186,6 +188,12 @@ public class TaskManagerServices {
 		}
 
 		try {
+			kvStateService.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
 			taskSlotTable.stop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -229,6 +237,9 @@ public class TaskManagerServices {
 
 		final NetworkEnvironment network = createNetworkEnvironment(taskManagerServicesConfiguration, maxJvmHeapMemory);
 		network.start();
+
+		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
+		kvStateService.start();
 
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(
 			resourceID,
@@ -277,6 +288,7 @@ public class TaskManagerServices {
 			memoryManager,
 			ioManager,
 			network,
+			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
 			jobManagerTable,
@@ -415,51 +427,12 @@ public class TaskManagerServices {
 		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-		KvStateRegistry kvStateRegistry = new KvStateRegistry();
-
-		QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
-
-		KvStateClientProxy kvClientProxy = null;
-		KvStateServer kvStateServer = null;
-
-		if (qsConfig != null) {
-			int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyServerThreads();
-
-			int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyQueryThreads();
-
-			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
-				taskManagerServicesConfiguration.getTaskManagerAddress(),
-				qsConfig.getProxyPortRange(),
-				numProxyServerNetworkThreads,
-				numProxyServerQueryThreads,
-				new DisabledKvStateRequestStats());
-
-			int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateServerThreads();
-
-			int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateQueryThreads();
-
-			kvStateServer = QueryableStateUtils.createKvStateServer(
-				taskManagerServicesConfiguration.getTaskManagerAddress(),
-				qsConfig.getStateServerPortRange(),
-				numStateServerNetworkThreads,
-				numStateServerQueryThreads,
-				kvStateRegistry,
-				new DisabledKvStateRequestStats());
-		}
-
 		// we start the network first, to make sure it can allocate its buffers first
 		return new NetworkEnvironment(
 			networkBufferPool,
 			connectionManager,
 			resultPartitionManager,
 			taskEventDispatcher,
-			kvStateRegistry,
-			kvStateServer,
-			kvClientProxy,
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
 			networkEnvironmentConfiguration.networkBuffersPerChannel(),
