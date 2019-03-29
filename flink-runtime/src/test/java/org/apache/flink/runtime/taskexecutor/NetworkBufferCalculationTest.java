@@ -91,7 +91,6 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			networkBufMin,
 			networkBufMax,
 			checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()),
-			null,
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
 			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
