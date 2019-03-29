@@ -211,8 +211,10 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 
 	private static void addDirectoryToClassPath(File directory) {
 		try {
-			URLClassLoader classLoader = new URLClassLoader(new URL[]{directory.toURI().toURL()});
-			if (!(classLoader instanceof URLClassLoader)) {
+			// Get the classloader actually used by HBaseConfiguration
+			ClassLoader classLoader = HBaseConfiguration.create().getClassLoader();
+			URLClassLoader urlClassLoader = new URLClassLoader(new URL[]{directory.toURI().toURL()}, classLoader);
+			if (!(urlClassLoader instanceof URLClassLoader)) {
 				fail("We should get a URLClassLoader");
 			}
 
@@ -221,7 +223,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 			method.setAccessible(true);
 
 			// Add the directory where we put the hbase-site.xml to the classpath
-			method.invoke(classLoader, directory.toURI().toURL());
+			method.invoke(urlClassLoader, directory.toURI().toURL());
 		} catch (MalformedURLException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			fail("Unable to add " + directory + " to classpath because of this exception: " + e.getMessage());
 		}
