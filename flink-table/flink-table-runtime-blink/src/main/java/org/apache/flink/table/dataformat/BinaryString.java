@@ -1615,12 +1615,12 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		//
 		// As BigDecimal(char[], int, int) is faster than BigDecimal(String, int, int),
 		// we extract char[] from the memory segment and pass it to the constructor of BigDecimal.
-		char[] chars = SegmentsUtil.allocateChars(sizeInBytes);
+		char[] chars = SegmentsUtil.allocateReuseChars(sizeInBytes);
 		int len;
 		if (segments.length == 1) {
 			len = StringUtf8Utils.decodeUTF8Strict(segments[0], offset, sizeInBytes, chars);
 		} else {
-			byte[] bytes = SegmentsUtil.allocateBytes(sizeInBytes);
+			byte[] bytes = SegmentsUtil.allocateReuseBytes(sizeInBytes);
 			ensureMaterialized();
 			SegmentsUtil.copyToBytes(segments, offset, bytes, 0, sizeInBytes);
 			len = StringUtf8Utils.decodeUTF8Strict(bytes, 0, sizeInBytes, chars);

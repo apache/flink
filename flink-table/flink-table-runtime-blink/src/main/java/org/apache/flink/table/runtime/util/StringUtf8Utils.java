@@ -22,8 +22,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
-import static org.apache.flink.table.util.SegmentsUtil.allocateBytes;
-import static org.apache.flink.table.util.SegmentsUtil.allocateChars;
+import static org.apache.flink.table.util.SegmentsUtil.allocateReuseBytes;
+import static org.apache.flink.table.util.SegmentsUtil.allocateReuseChars;
 
 /**
  * String utf-8 utils.
@@ -39,7 +39,7 @@ public class StringUtf8Utils {
 	 * This method must have the same result with JDK's String.getBytes.
 	 */
 	public static byte[] encodeUTF8(String str) {
-		byte[] bytes = allocateBytes(str.length() * MAX_BYTES_PER_CHAR);
+		byte[] bytes = allocateReuseBytes(str.length() * MAX_BYTES_PER_CHAR);
 		int len = encodeUTF8(str, bytes);
 		return Arrays.copyOf(bytes, len);
 	}
@@ -123,7 +123,7 @@ public class StringUtf8Utils {
 	}
 
 	public static String decodeUTF8(byte[] input, int offset, int byteLen) {
-		char[] chars = allocateChars(byteLen);
+		char[] chars = allocateReuseChars(byteLen);
 		int len = decodeUTF8Strict(input, offset, byteLen, chars);
 		if (len < 0) {
 			return defaultDecodeUTF8(input, offset, byteLen);
@@ -209,10 +209,10 @@ public class StringUtf8Utils {
 	}
 
 	public static String decodeUTF8(MemorySegment input, int offset, int byteLen) {
-		char[] chars = allocateChars(byteLen);
+		char[] chars = allocateReuseChars(byteLen);
 		int len = decodeUTF8Strict(input, offset, byteLen, chars);
 		if (len < 0) {
-			byte[] bytes = allocateBytes(byteLen);
+			byte[] bytes = allocateReuseBytes(byteLen);
 			input.get(offset, bytes, 0, byteLen);
 			return defaultDecodeUTF8(bytes, 0, byteLen);
 		}

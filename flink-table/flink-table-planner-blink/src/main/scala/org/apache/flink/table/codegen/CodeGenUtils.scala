@@ -28,7 +28,6 @@ import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.util.MurmurHashUtil
-import org.apache.flink.table.util.MurmurHashUtil.DEFAULT_SEED
 import org.apache.flink.types.Row
 
 import java.lang.reflect.Method
@@ -188,7 +187,7 @@ object CodeGenUtils {
     case InternalTypes.CHAR => s"${className[JChar]}.hashCode($term)"
     case InternalTypes.STRING => s"$term.hashCode()"
     case InternalTypes.BINARY => s"${className[MurmurHashUtil]}.hashUnsafeBytes(" +
-      s"$term, $BYTE_ARRAY_BASE_OFFSET, $term.length, $DEFAULT_SEED)"
+      s"$term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
     case _: DecimalType => s"$term.hashCode()"
     case _: DateType => s"${className[JInt]}.hashCode($term)"
     case InternalTypes.TIME => s"${className[JInt]}.hashCode($term)"

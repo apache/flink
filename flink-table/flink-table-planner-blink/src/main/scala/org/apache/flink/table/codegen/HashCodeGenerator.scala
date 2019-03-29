@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.{ArrayType, DateType, DecimalType, InternalType, InternalTypes, TimestampType}
-import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName}
+import org.apache.flink.table.`type`.InternalType
+import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, hashCodeForType, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.dataformat.util.HashUtil
 import org.apache.flink.table.generated.{GeneratedHashFunction, HashFunction}
 import org.apache.flink.util.MathUtils
 
@@ -59,7 +58,7 @@ object HashCodeGenerator {
     val accessExprs = hashFields.map(
       idx => GenerateUtils.generateFieldAccess(ctx, input, inputTerm, idx))
 
-    val (hashBody, resultTerm) = generateCodeBody(accessExprs)
+    val (hashBody, resultTerm) = generateCodeBody(ctx, accessExprs)
     val code =
       j"""
       public class $className implements ${baseClass.getCanonicalName} {
@@ -82,16 +81,18 @@ object HashCodeGenerator {
     new GeneratedHashFunction(className, code, ctx.references.toArray)
   }
 
-  private def generateCodeBody(accessExprs: Seq[GeneratedExpression]): (String, String) = {
+  private def generateCodeBody(
+      ctx: CodeGeneratorContext,
+      accessExprs: Seq[GeneratedExpression]): (String, String) = {
     val hashIntTerm = CodeGenUtils.newName("hashCode")
     var i = -1
-    val hashBodyCode = accessExprs.map((expr) => {
+    val hashBodyCode = accessExprs.map(expr => {
       i = i + 1
       s"""
          |$hashIntTerm *= ${HASH_SALT(i & 0x1F)};
          |${expr.code}
          |if (!${expr.nullTerm}) {
-         | $hashIntTerm += ${hashExpr(expr)};
+         | $hashIntTerm += ${hashCodeForType(ctx, expr.resultType, expr.resultTerm)};
          |}
          |""".stripMargin
 
@@ -99,31 +100,5 @@ object HashCodeGenerator {
     (s"""
         |int $hashIntTerm = 0;
         |$hashBodyCode""".stripMargin, hashIntTerm)
-  }
-
-  private def hashExpr(expr: GeneratedExpression): String = {
-    val util = classOf[HashUtil].getCanonicalName
-    s"$util.hash${hashNameInHashUtil(expr.resultType)}(${expr.resultTerm})"
-  }
-
-  private def hashNameInHashUtil(t: InternalType): String = t match {
-    case InternalTypes.INT => "Int"
-    case InternalTypes.LONG => "Long"
-    case InternalTypes.SHORT => "Short"
-    case InternalTypes.BYTE => "Byte"
-    case InternalTypes.FLOAT => "Float"
-    case InternalTypes.DOUBLE => "Double"
-    case InternalTypes.BOOLEAN => "Boolean"
-    case InternalTypes.CHAR => "Char"
-    case InternalTypes.STRING => "String"
-    // decimal
-    case _: DecimalType => "Decimal"
-    // Sql time is Unboxing.
-    case _: DateType => "Int"
-    case InternalTypes.TIME => "Int"
-    case _: TimestampType => "Long"
-    case InternalTypes.BINARY => "Binary"
-    case _: ArrayType => throw new IllegalArgumentException(s"Not support type to hash: $t")
-    case _ => "Object"
   }
 }

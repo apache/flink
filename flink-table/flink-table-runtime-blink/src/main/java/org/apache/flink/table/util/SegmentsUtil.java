@@ -76,24 +76,7 @@ public class SegmentsUtil {
 		return bytes;
 	}
 
-	public static byte[] allocateBytes(int length) {
-		byte[] bytes = BYTES_LOCAL.get();
-
-		if (bytes == null) {
-			if (length <= MAX_BYTES_LENGTH) {
-				bytes = new byte[MAX_BYTES_LENGTH];
-				BYTES_LOCAL.set(bytes);
-			} else {
-				bytes = new byte[length];
-			}
-		} else if (bytes.length < length) {
-			bytes = new byte[length];
-		}
-
-		return bytes;
-	}
-
-	public static char[] allocateChars(int length) {
+	public static char[] allocateReuseChars(int length) {
 		char[] chars = CHARS_LOCAL.get();
 
 		if (chars == null) {
