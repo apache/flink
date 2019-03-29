@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
+package org.apache.flink.table.catalog.exceptions;
 
-import org.apache.flink.table.api.TableSchema;
-
-import java.util.Map;
+import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * CommonTable is the common parent of table and view. It has a map of
- * key-value pairs defining the properties of the table.
+ * Exception for trying to create a table (or view) that already exists.
  */
-public interface CommonTable {
-	/**
-	 * Get the properties of the table.
-	 * @return table property map
-	 */
-	Map<String, String> getProperties();
+public class TableAlreadyExistException extends RuntimeException {
 
-	/**
-	 * Get the schema of the table.
-	 * @return schema of the table
-	 */
-	TableSchema getSchema();
+	private static final String MSG = "Table (or view) %s already exists in Catalog %s.";
+
+	public TableAlreadyExistException(String catalogName, ObjectPath tablePath) {
+		this(catalogName, tablePath, null);
+	}
+
+	public TableAlreadyExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
+		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+	}
+
 }

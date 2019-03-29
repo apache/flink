@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog.exceptions;
+package org.apache.flink.table.catalog;
+
+import org.apache.flink.table.plan.stats.TableStats;
 
 /**
- * Exception for trying to operate on a database that doesn't exist.
- *
+ * Represents a table in a catalog.
  */
-public class DatabaseNotExistException extends RuntimeException {
-	private static final String MSG = "Database %s does not exist in Catalog %s.";
-
-	public DatabaseNotExistException(String catalog, String database, Throwable cause) {
-		super(String.format(MSG, database, catalog), cause);
-	}
-
-	public DatabaseNotExistException(String catalog, String database) {
-		this(catalog, database, null);
-	}
+public interface CatalogTable extends CommonTable {
+	/**
+	 * Get the statistics of the table.
+	 * @return table statistics
+	 */
+	TableStats getStatistics();
 }

@@ -16,23 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog.exceptions;
-
-import org.apache.flink.table.api.catalog.ObjectPath;
+package org.apache.flink.table.catalog.exceptions;
 
 /**
- * Exception for trying to operate on a table (or view) that doesn't exist.
+ * Exception for trying to drop on a database that is not empty.
+ *
  */
-public class TableNotExistException extends RuntimeException {
+public class DatabaseNotEmptyException extends RuntimeException {
+	private static final String MSG = "Database %s in Catalog %s is not empty.";
 
-	private static final String MSG = "Table (or view) %s does not exist in Catalog %s.";
-
-	public TableNotExistException(String catalogName, ObjectPath tablePath) {
-		this(catalogName, tablePath, null);
+	public DatabaseNotEmptyException(String catalog, String database, Throwable cause) {
+		super(String.format(MSG, database, catalog), cause);
 	}
 
-	public TableNotExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
-		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+	public DatabaseNotEmptyException(String catalog, String database) {
+		this(catalog, database, null);
 	}
-
 }

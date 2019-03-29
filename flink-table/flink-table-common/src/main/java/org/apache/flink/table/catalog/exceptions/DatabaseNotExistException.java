@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
-
-import java.util.Map;
+package org.apache.flink.table.catalog.exceptions;
 
 /**
- * Represents a database object in a catalog.
+ * Exception for trying to operate on a database that doesn't exist.
+ *
  */
-public interface CatalogDatabase {
-	/**
-	 * Get a map of properties associated with the database.
-	 */
-	Map<String, String> getProperties();
+public class DatabaseNotExistException extends RuntimeException {
+	private static final String MSG = "Database %s does not exist in Catalog %s.";
 
+	public DatabaseNotExistException(String catalog, String database, Throwable cause) {
+		super(String.format(MSG, database, catalog), cause);
+	}
+
+	public DatabaseNotExistException(String catalog, String database) {
+		this(catalog, database, null);
+	}
 }

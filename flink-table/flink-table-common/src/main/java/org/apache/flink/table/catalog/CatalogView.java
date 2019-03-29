@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
+package org.apache.flink.table.catalog;
 
 /**
  * Represents a view in a catalog.

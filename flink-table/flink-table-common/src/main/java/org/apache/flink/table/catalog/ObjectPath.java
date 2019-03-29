@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
+package org.apache.flink.table.catalog;
 
 import java.util.Objects;
 

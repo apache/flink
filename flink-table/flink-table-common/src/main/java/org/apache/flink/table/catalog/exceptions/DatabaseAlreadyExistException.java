@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog.exceptions;
+package org.apache.flink.table.catalog.exceptions;
 
 /**
  * Exception for trying to create a database that already exists.

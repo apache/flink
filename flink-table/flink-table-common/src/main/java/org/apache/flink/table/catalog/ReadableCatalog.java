@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
+package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.api.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 import java.util.List;
 

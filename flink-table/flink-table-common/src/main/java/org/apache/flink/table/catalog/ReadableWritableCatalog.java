@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
+package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.catalog.exceptions.DatabaseAlreadyExistException;
-import org.apache.flink.table.api.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.api.catalog.exceptions.TableAlreadyExistException;
-import org.apache.flink.table.api.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 /**
  * An interface responsible for manipulating catalog metadata.
@@ -106,7 +106,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
 	 * @throws DatabaseNotExistException if the database in tablePath doesn't exist
 	 */
-	void createTable(ObjectPath tablePath, CatalogTable table, boolean ignoreIfExists)
+	void createTable(ObjectPath tablePath, CommonTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException;
 
 	/**
@@ -119,7 +119,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
 	 */
-	void alterTable(ObjectPath tableName, CatalogTable newTable, boolean ignoreIfNotExists)
+	void alterTable(ObjectPath tableName, CommonTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException;
 
 	/**

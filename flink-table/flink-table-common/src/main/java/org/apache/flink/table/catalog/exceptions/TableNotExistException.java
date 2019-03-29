@@ -16,17 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog;
+package org.apache.flink.table.catalog.exceptions;
 
-import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * Represents a table in a catalog.
+ * Exception for trying to operate on a table (or view) that doesn't exist.
  */
-public interface CatalogTable extends CommonTable {
-	/**
-	 * Get the statistics of the table.
-	 * @return table statistics
-	 */
-	TableStats getStatistics();
+public class TableNotExistException extends RuntimeException {
+
+	private static final String MSG = "Table (or view) %s does not exist in Catalog %s.";
+
+	public TableNotExistException(String catalogName, ObjectPath tablePath) {
+		this(catalogName, tablePath, null);
+	}
+
+	public TableNotExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
+		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+	}
+
 }

@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.catalog.exceptions;
+package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.catalog.ObjectPath;
+import java.util.Map;
 
 /**
- * Exception for trying to create a table (or view) that already exists.
+ * Represents a database object in a catalog.
  */
-public class TableAlreadyExistException extends RuntimeException {
+public interface CatalogDatabase {
+	/**
+	 * Get a map of properties associated with the database.
+	 */
+	Map<String, String> getProperties();
 
-	private static final String MSG = "Table (or view) %s already exists in Catalog %s.";
-
-	public TableAlreadyExistException(String catalogName, ObjectPath tablePath) {
-		this(catalogName, tablePath, null);
-	}
-
-	public TableAlreadyExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
-		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
-	}
-
+	/**
+	 * Get a deep copy of the CatalogDatabase instance.
+	 *
+	 * @return a copy of CatalogDatabase instance
+	 */
+	CatalogDatabase copy();
 }
