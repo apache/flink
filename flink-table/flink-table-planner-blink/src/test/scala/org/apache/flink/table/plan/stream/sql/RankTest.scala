@@ -255,16 +255,6 @@ class RankTest extends TableTestBase {
   }
 
   @Test
-  def testOrderByLimit(): Unit = {
-    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10")
-  }
-
-  @Test
-  def testOrderByFetch(): Unit = {
-    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b DESC FETCH FIRST 10 ROWS ONLY")
-  }
-
-  @Test
   def testTopN(): Unit = {
     val sql =
       """

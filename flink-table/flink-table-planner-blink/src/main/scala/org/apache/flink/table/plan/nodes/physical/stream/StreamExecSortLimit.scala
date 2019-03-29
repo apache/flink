@@ -17,40 +17,32 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
-import org.apache.flink.table.plan.nodes.calcite.{Rank, RankRange}
-import org.apache.flink.table.plan.util.{ProcessStrategy, RelExplainUtil, RetractStrategy}
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, ProcessStrategy, RelExplainUtil, RetractStrategy}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel._
+import org.apache.calcite.rel.core.Sort
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util.ImmutableBitSet
 
-import java.util
-
-import scala.collection.JavaConversions._
-
 /**
-  * Stream physical RelNode for [[Rank]].
-  */
-class StreamExecRank(
+  * Stream physical RelNode for [[Sort]].
+  *
+  * This RelNode take the `limit` elements beginning with the first `offset` elements.
+  **/
+class StreamExecSortLimit(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    partitionKey: ImmutableBitSet,
-    orderKey: RelCollation,
-    rankType: RankType,
-    rankRange: RankRange,
-    outputRankNumber: Boolean)
-  extends Rank(
-    cluster,
-    traitSet,
-    inputRel,
-    partitionKey,
-    orderKey,
-    rankType,
-    rankRange,
-    outputRankNumber)
+    sortCollation: RelCollation,
+    offset: RexNode,
+    fetch: RexNode)
+  extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel {
+
+  private val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
+  private val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
 
   /** please uses [[getStrategy]] instead of this field */
   private var strategy: ProcessStrategy = _
@@ -58,7 +50,7 @@ class StreamExecRank(
   def getStrategy(forceRecompute: Boolean = false): ProcessStrategy = {
     if (strategy == null || forceRecompute) {
       strategy = ProcessStrategy.analyzeProcessStrategy(
-        inputRel, partitionKey, orderKey, cluster.getMetadataQuery)
+        inputRel, ImmutableBitSet.of(), sortCollation, cluster.getMetadataQuery)
     }
     strategy
   }
@@ -75,26 +67,35 @@ class StreamExecRank(
 
   override def requireWatermark: Boolean = false
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecRank(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      partitionKey,
-      orderKey,
-      rankType,
-      rankRange,
-      outputRankNumber)
+  override def copy(
+      traitSet: RelTraitSet,
+      newInput: RelNode,
+      newCollation: RelCollation,
+      offset: RexNode,
+      fetch: RexNode): Sort = {
+    new StreamExecSortLimit(cluster, traitSet, newInput, newCollation, offset, fetch)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val inputRowType = inputRel.getRowType
     pw.input("input", getInput)
-      .item("strategy", getStrategy())
-      .item("rankType", rankType)
-      .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
-      .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
-      .item("orderBy", RelExplainUtil.collationToString(orderKey, inputRowType))
-      .item("select", getRowType.getFieldNames.mkString(", "))
+      .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
+      .item("offset", limitStart)
+      .item("fetch", RelExplainUtil.fetchToString(fetch))
   }
+
+  override def estimateRowCount(mq: RelMetadataQuery): Double = {
+    val inputRows = mq.getRowCount(this.getInput)
+    if (inputRows == null) {
+      inputRows
+    } else {
+      val rowCount = (inputRows - limitStart).max(1.0)
+      if (fetch != null) {
+        rowCount.min(RexLiteral.intValue(fetch))
+      } else {
+        rowCount
+      }
+    }
+  }
+
+  // TODO check `fetch` is not null in translateToPlan
 }

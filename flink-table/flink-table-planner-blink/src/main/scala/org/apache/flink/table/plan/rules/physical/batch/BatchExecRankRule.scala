@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.ConstantRankRange
+import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, RankType}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
 import org.apache.flink.table.plan.util.RelFieldCollationUtil
@@ -29,7 +29,6 @@ import org.apache.flink.table.plan.util.RelFieldCollationUtil
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollations, RelNode}
-import org.apache.calcite.sql.SqlKind
 
 import scala.collection.JavaConversions._
 
@@ -53,7 +52,7 @@ class BatchExecRankRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
     // Only support rank() now
-    rank.rankFunction.kind == SqlKind.RANK && rank.rankRange.isInstanceOf[ConstantRankRange]
+    rank.rankType == RankType.RANK && rank.rankRange.isInstanceOf[ConstantRankRange]
   }
 
   def convert(rel: RelNode): RelNode = {
@@ -66,7 +65,7 @@ class BatchExecRankRule
     val cluster = rel.getCluster
     val emptyTraits = cluster.getPlanner.emptyTraitSet().replace(FlinkConventions.BATCH_PHYSICAL)
     val sortFieldCollations = rank.partitionKey.asList().map(RelFieldCollationUtil.of(_)) ++
-      rank.sortCollation.getFieldCollations
+      rank.orderKey.getFieldCollations
     val sortCollation = RelCollations.of(sortFieldCollations: _*)
     val localRequiredTraitSet = emptyTraits.replace(sortCollation)
     val newLocalInput = RelOptRule.convert(rank.getInput, localRequiredTraitSet)
@@ -77,11 +76,11 @@ class BatchExecRankRule
       cluster,
       emptyTraits,
       newLocalInput,
-      rank.rankFunction,
       rank.partitionKey,
-      rank.sortCollation,
+      rank.orderKey,
+      rank.rankType,
       localRankRange,
-      outputRankFunColumn = false,
+      outputRankNumber = false,
       isGlobal = false
     )
 
@@ -102,11 +101,11 @@ class BatchExecRankRule
       cluster,
       emptyTraits,
       newGlobalInput,
-      rank.rankFunction,
       rank.partitionKey,
-      rank.sortCollation,
+      rank.orderKey,
+      rank.rankType,
       rank.rankRange,
-      rank.outputRankFunColumn,
+      rank.outputRankNumber,
       isGlobal = true
     )
     globalRank

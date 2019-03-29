@@ -41,7 +41,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
   * }}}
   * when fetch is not null, or
   * {{{
-  * BatchExecLimit (global)
+  * BatchExecLimit
   * +- BatchExecExchange (singleton)
   *    +- input of sort
   * }}}

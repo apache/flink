@@ -16,44 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testOrderByFetch">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a, b DESC FETCH FIRST 10 ROWS ONLY]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
-   +- LogicalTableScan(table=[[MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[a ASC, b DESC], select=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOrderByLimit">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
-   +- LogicalTableScan(table=[[MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[a ASC, b DESC], select=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRankEndLessThan1">
     <Resource name="sql">
       <![CDATA[
@@ -76,7 +38,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, w0$o0])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -104,7 +66,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastRank], rankFunction=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime ASC], select=[a, b, c, proctime, rowtime])
++- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime ASC], select=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -132,7 +94,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime ASC], select=[a, b, c, proctime, rowtime])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime ASC], select=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -160,7 +122,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastRank], rankFunction=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime DESC], select=[a, b, c, proctime, rowtime])
++- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime DESC], select=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -244,7 +206,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, b, c, proctime, rowtime])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -272,7 +234,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
@@ -300,7 +262,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
@@ -330,7 +292,7 @@ LogicalProject(row_num=[$3], a=[$0], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[w0$o0 AS row_num, a, c], where=[IS NOT NULL(b)], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
       +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)], updateAsRetraction=[false], accMode=[Acc])
          +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
@@ -359,7 +321,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[AppendFastRank], rankFunction=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, proctime, rowtime, rk], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>

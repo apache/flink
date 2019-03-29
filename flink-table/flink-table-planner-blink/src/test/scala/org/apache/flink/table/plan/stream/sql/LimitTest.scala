@@ -27,7 +27,7 @@ import org.junit.Test
 class LimitTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
   // TODO optimize `limit 0`
 
   @Test
@@ -90,4 +90,123 @@ class LimitTest extends TableTestBase {
     util.verifyPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS")
   }
 
+  @Test
+  def testLimitWithRowTime(): Unit = {
+    util.verifyPlan("SELECT rowtime, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimit0WithRowTime(): Unit = {
+    util.verifyPlan("SELECT rowtime, c FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testOffsetWithRowTime(): Unit = {
+    util.verifyPlan("SELECT rowtime, c FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithProcessingTime(): Unit = {
+    util.verifyPlan("SELECT proctime, c FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithProcessingTime(): Unit = {
+    util.verifyPlan("SELECT proctime, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithProcessingTime(): Unit = {
+    util.verifyPlan("SELECT proctime, c FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithRowTimeSecond(): Unit = {
+    util.verifyPlan("SELECT c, rowtime FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithRowTimeSecond(): Unit = {
+    util.verifyPlan("SELECT c, rowtime FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithRowTimeSecond(): Unit = {
+    util.verifyPlan("SELECT c, rowtime FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithProcessingTimeSecond(): Unit = {
+    util.verifyPlan("SELECT c, proctime FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithProcessingTimeSecond(): Unit = {
+    util.verifyPlan("SELECT c, proctime FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithProcessingTimeSecond(): Unit = {
+    util.verifyPlan("SELECT c, proctime FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithRowTimeDesc(): Unit = {
+    util.verifyPlan("SELECT rowtime desc, c FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithRowTimeDesc(): Unit = {
+    util.verifyPlan("SELECT rowtime desc, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithRowTimeDesc(): Unit = {
+    util.verifyPlan("SELECT rowtime desc, c FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithProcessingTimeDesc(): Unit = {
+    util.verifyPlan("SELECT proctime desc, c FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithProcessingTimeDesc(): Unit = {
+    util.verifyPlan("SELECT proctime desc, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithProcessingTimeDesc(): Unit = {
+    util.verifyPlan("SELECT proctime desc, c FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithRowTimeDescSecond(): Unit = {
+    util.verifyPlan("SELECT c, rowtime desc FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithRowTimeDescSecond(): Unit = {
+    util.verifyPlan("SELECT c, rowtime desc FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithRowTimeDescSecond(): Unit = {
+    util.verifyPlan("SELECT c, rowtime desc FROM MyTable OFFSET 2")
+  }
+
+  @Test
+  def testLimit0WithProcessingTimeDescSecond(): Unit = {
+    util.verifyPlan("SELECT c, proctime desc FROM MyTable LIMIT 0")
+  }
+
+  @Test
+  def testLimitWithProcessingTimeDescSecond(): Unit = {
+    util.verifyPlan("SELECT c, proctime desc FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testOffsetWithProcessingTimeDescSecond(): Unit = {
+    util.verifyPlan("SELECT c, proctime desc FROM MyTable OFFSET 2")
+  }
 }

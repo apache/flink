@@ -19,13 +19,14 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkContext
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, ConstantRankRangeWithoutEnd}
+import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalOverWindow, FlinkLogicalRank}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rex.{RexProgramBuilder, RexUtil}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 
 import scala.collection.JavaConversions._
@@ -65,9 +66,9 @@ abstract class FlinkLogicalRankRuleBase
     val exprList = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
 
     val inputFields = RelOptUtil.InputFinder.bits(exprList, null).toList
-    val outputRankFunColumn = inputFields.contains(rankFieldIndex)
+    val outputRankNumber = inputFields.contains(rankFieldIndex)
 
-    val rankRowType = if (outputRankFunColumn) {
+    val rankRowType = if (outputRankNumber) {
       window.getRowType
     } else {
       val typeBuilder = rexBuilder.getTypeFactory.builder()
@@ -81,15 +82,22 @@ abstract class FlinkLogicalRankRuleBase
       case _ => // do nothing
     }
 
+    val rankType = rankFun match {
+      case SqlStdOperatorTable.RANK => RankType.RANK
+      case SqlStdOperatorTable.ROW_NUMBER => RankType.ROW_NUMBER
+      case SqlStdOperatorTable.DENSE_RANK => RankType.DENSE_RANK
+      case _ => throw new TableException(s"Unsupported rank function: $rankFun")
+    }
+
     val rank = new FlinkLogicalRank(
       cluster,
       window.getTraitSet,
       window.getInput,
-      rankFun,
       group.keys,
       group.orderKeys,
+      rankType,
       rankRange.get,
-      outputRankFunColumn)
+      outputRankNumber)
 
     val newRel = if (RexUtil.isIdentity(exprList, rankRowType) && remainingPreds.isEmpty) {
       // project is trivial and filter is empty, remove the Calc

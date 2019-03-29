@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.plan.nodes.calcite
 
+import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
+
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelCollation, RelNode}
-import org.apache.calcite.sql.SqlRankFunction
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -36,28 +37,31 @@ final class LogicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    rankFunction: SqlRankFunction,
     partitionKey: ImmutableBitSet,
-    sortCollation: RelCollation,
-    rankRange: RankRange)
+    orderKey: RelCollation,
+    rankType: RankType,
+    rankRange: RankRange,
+    outputRankNumber: Boolean)
   extends Rank(
     cluster,
     traitSet,
     input,
-    rankFunction,
     partitionKey,
-    sortCollation,
-    rankRange) {
+    orderKey,
+    rankType,
+    rankRange,
+    outputRankNumber) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new LogicalRank(
       cluster,
       traitSet,
       inputs.head,
-      rankFunction,
       partitionKey,
-      sortCollation,
-      rankRange
+      orderKey,
+      rankType,
+      rankRange,
+      outputRankNumber
     )
   }
 }
@@ -66,19 +70,21 @@ object LogicalRank {
 
   def create(
       input: RelNode,
-      rankFunction: SqlRankFunction,
       partitionKey: ImmutableBitSet,
-      sortCollation: RelCollation,
-      rankRange: RankRange): LogicalRank = {
+      orderKey: RelCollation,
+      rankType: RankType,
+      rankRange: RankRange,
+      outputRankNumber: Boolean): LogicalRank = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalRank(
       input.getCluster,
       traits,
       input,
-      rankFunction,
       partitionKey,
-      sortCollation,
-      rankRange
+      orderKey,
+      rankType,
+      rankRange,
+      outputRankNumber
     )
   }
 }

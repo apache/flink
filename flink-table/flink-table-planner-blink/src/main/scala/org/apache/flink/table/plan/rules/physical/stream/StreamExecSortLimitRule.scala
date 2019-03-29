@@ -20,33 +20,33 @@ package org.apache.flink.table.plan.rules.physical.stream
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSort
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSortLimit
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rex.RexLiteral
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] which `fetch` is null or `fetch` is 0,
-  * and converts it to [[StreamExecSort]].
+  * Rule that matches [[FlinkLogicalSort]] with non-empty sort fields and non-null fetch or offset,
+  * and converts it to [[StreamExecSortLimit]].
   */
-class StreamExecSortRule
+class StreamExecSortLimitRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecSortRule") {
+    "StreamExecSortLimitRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
-    !sort.getCollation.getFieldCollations.isEmpty && sort.fetch == null && sort.offset == null &&
-      !StreamExecTemporalSortRule.canConvertToTemporalSort(sort)
+    // only matches Sort with non-empty sort fields and non-null fetch
+    !sort.getCollation.getFieldCollations.isEmpty && (sort.fetch != null || sort.offset != null) &&
+      !StreamExecFirstLastRowRule.canConvertToFirstLastRow(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
-    val input = sort.getInput(0)
+    val input = sort.getInput
     val requiredTraitSet = input.getTraitSet
       .replace(FlinkRelDistribution.SINGLETON)
       .replace(FlinkConventions.STREAM_PHYSICAL)
@@ -55,14 +55,16 @@ class StreamExecSortRule
       .replace(FlinkConventions.STREAM_PHYSICAL)
 
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
-    new StreamExecSort(
+    new StreamExecSortLimit(
       rel.getCluster,
       providedTraitSet,
       newInput,
-      sort.collation)
+      sort.collation,
+      sort.offset,
+      sort.fetch)
   }
 }
 
-object StreamExecSortRule {
-  val INSTANCE: RelOptRule = new StreamExecSortRule
+object StreamExecSortLimitRule {
+  val INSTANCE: RelOptRule = new StreamExecSortLimitRule
 }

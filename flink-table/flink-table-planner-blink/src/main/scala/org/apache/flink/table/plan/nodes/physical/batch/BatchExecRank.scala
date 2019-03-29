@@ -20,14 +20,13 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, Rank, RankRange}
+import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
+import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, Rank, RankRange, RankType}
 import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -37,50 +36,33 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for [[Rank]].
   *
-  * This node is an optimization of [[BatchExecOverAggregate]] for some special cases,
-  * because this node supports two-stage(local and global) rank to reduce data-shuffling.
-  *
-  * NOTES: Different from [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecRank]],
-  * Only OVER query with RANK function and constant filter will be converted to this node.
-  * e.g.
-  * {{{
-  * SELECT * FROM (
-  *  SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
-  * WHERE rk < 10
-  * }}}
+  * This node supports two-stage(local and global) rank to reduce data-shuffling.
   */
 class BatchExecRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    rankFunction: SqlRankFunction,
     partitionKey: ImmutableBitSet,
-    sortCollation: RelCollation,
+    orderKey: RelCollation,
+    rankType: RankType,
     rankRange: RankRange,
-    val outputRankFunColumn: Boolean,
+    outputRankNumber: Boolean,
     val isGlobal: Boolean)
   extends Rank(
     cluster,
     traitSet,
     inputRel,
-    rankFunction,
     partitionKey,
-    sortCollation,
-    rankRange)
+    orderKey,
+    rankType,
+    rankRange,
+    outputRankNumber)
   with BatchPhysicalRel {
 
-  require(rankFunction.kind == SqlKind.RANK, "Only RANK function is supported now")
+  require(rankType == RankType.RANK, "Only RANK is supported now")
   val (rankStart, rankEnd) = rankRange match {
     case r: ConstantRankRange => (r.rankStart, r.rankEnd)
     case o => throw new TableException(s"$o is not supported now")
-  }
-
-  override def deriveRowType(): RelDataType = {
-    if (outputRankFunColumn) {
-      super.deriveRowType()
-    } else {
-      inputRel.getRowType
-    }
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -88,11 +70,11 @@ class BatchExecRank(
       cluster,
       traitSet,
       inputs.get(0),
-      rankFunction,
       partitionKey,
-      sortCollation,
+      orderKey,
+      rankType,
       rankRange,
-      outputRankFunColumn,
+      outputRankNumber,
       isGlobal
     )
   }
@@ -100,10 +82,10 @@ class BatchExecRank(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = inputRel.getRowType
     pw.item("input", getInput)
-      .item("rankFunction", rankFunction)
+      .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
-      .item("orderBy", RelExplainUtil.collationToString(sortCollation, inputRowType))
+      .item("orderBy", RelExplainUtil.collationToString(orderKey, inputRowType))
       .item("global", isGlobal)
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
