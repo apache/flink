@@ -22,6 +22,7 @@ import static java.lang.Math.min;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.BooleanComparator;
+import org.apache.flink.util.Preconditions;
 
 @Internal
 public class BooleanPrimitiveArrayComparator extends PrimitiveArrayComparator<boolean[], BooleanComparator> {
@@ -40,6 +41,8 @@ public class BooleanPrimitiveArrayComparator extends PrimitiveArrayComparator<bo
 
 	@Override
 	public int compare(boolean[] first, boolean[] second) {
+		Preconditions.checkNotNull(first, "The first array must not be null");
+		Preconditions.checkNotNull(second, "The second array must not be null");
 		for (int x = 0; x < min(first.length, second.length); x++) {
 			int cmp = (second[x] == first[x] ? 0 : (first[x] ? 1 : -1));
 			if (cmp != 0) {

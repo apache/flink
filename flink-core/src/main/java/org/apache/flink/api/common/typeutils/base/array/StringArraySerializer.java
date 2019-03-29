@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.Preconditions;
 
 
 /**
@@ -53,6 +54,7 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 
 	@Override
 	public String[] copy(String[] from) {
+		Preconditions.checkNotNull(from, "The from array must not be null.");
 		String[] target = new String[from.length];
 		System.arraycopy(from, 0, target, 0, from.length);
 		return target;

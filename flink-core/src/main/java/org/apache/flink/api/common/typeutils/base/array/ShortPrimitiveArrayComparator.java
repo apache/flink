@@ -22,6 +22,7 @@ import static java.lang.Math.min;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.ShortComparator;
+import org.apache.flink.util.Preconditions;
 
 @Internal
 public class ShortPrimitiveArrayComparator extends PrimitiveArrayComparator<short[], ShortComparator> {
@@ -40,6 +41,8 @@ public class ShortPrimitiveArrayComparator extends PrimitiveArrayComparator<shor
 
 	@Override
 	public int compare(short[] first, short[] second) {
+		Preconditions.checkNotNull(first, "The first array must not be null");
+		Preconditions.checkNotNull(second, "The second array must not be null");
 		for (int x = 0; x < min(first.length, second.length); x++) {
 			int cmp = first[x] - second[x];
 			if (cmp != 0) {

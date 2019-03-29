@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A serializer for boolean arrays.
@@ -51,6 +52,7 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 
 	@Override
 	public boolean[] copy(boolean[] from) {
+		Preconditions.checkNotNull(from, "The from array must not be null.");
 		boolean[] copy = new boolean[from.length];
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A serializer for int arrays.
@@ -51,6 +52,7 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 
 	@Override
 	public int[] copy(int[] from) {
+		Preconditions.checkNotNull(from, "The from array must not be null.");
 		int[] copy = new int[from.length];
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;

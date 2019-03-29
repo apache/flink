@@ -22,6 +22,7 @@ import static java.lang.Math.min;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.DoubleComparator;
+import org.apache.flink.util.Preconditions;
 
 @Internal
 public class DoublePrimitiveArrayComparator extends PrimitiveArrayComparator<double[], DoubleComparator> {
@@ -41,6 +42,8 @@ public class DoublePrimitiveArrayComparator extends PrimitiveArrayComparator<dou
 
 	@Override
 	public int compare(double[] first, double[] second) {
+		Preconditions.checkNotNull(first, "The first array must not be null");
+		Preconditions.checkNotNull(second, "The second array must not be null");
 		for (int x = 0; x < min(first.length, second.length); x++) {
 			int cmp = Double.compare(first[x], second[x]);
 			if (cmp != 0) {
