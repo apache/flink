@@ -34,7 +34,6 @@ import java.util.Collection;
 public abstract class AbstractKeyedStateBackendBuilder<K>
 	implements StateBackendBuilder<AbstractKeyedStateBackend, BackendBuildingException> {
 	protected final TaskKvStateRegistry kvStateRegistry;
-	protected final TypeSerializer<K> keySerializer;
 	protected final StateSerializerProvider<K> keySerializerProvider;
 	protected final ClassLoader userCodeClassLoader;
 	protected final int numberOfKeyGroups;
@@ -57,7 +56,6 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
 		StreamCompressionDecorator keyGroupCompressionDecorator,
 		CloseableRegistry cancelStreamRegistry) {
 		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializer = keySerializer;
 		this.keySerializerProvider = StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.numberOfKeyGroups = numberOfKeyGroups;

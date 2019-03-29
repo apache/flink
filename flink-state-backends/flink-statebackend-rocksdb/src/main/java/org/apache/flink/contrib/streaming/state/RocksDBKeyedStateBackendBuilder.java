@@ -425,7 +425,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy = new RocksFullSnapshotStrategy<>(
 			db,
 			rocksDBResourceGuard,
-			keySerializer,
+			keySerializerProvider.currentSchemaSerializer(),
 			kvStateInformation,
 			keyGroupRange,
 			keyGroupPrefixBytes,
@@ -438,7 +438,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			checkpointSnapshotStrategy = new RocksIncrementalSnapshotStrategy<>(
 				db,
 				rocksDBResourceGuard,
-				keySerializer,
+				keySerializerProvider.currentSchemaSerializer(),
 				kvStateInformation,
 				keyGroupRange,
 				keyGroupPrefixBytes,

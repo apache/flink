@@ -72,7 +72,7 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 		restoreOperation.restore();
 		return new MockKeyedStateBackend<>(
 			kvStateRegistry,
-			keySerializer,
+			keySerializerProvider.currentSchemaSerializer(),
 			userCodeClassLoader,
 			numberOfKeyGroups,
 			keyGroupRange,
