@@ -122,7 +122,7 @@ Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-l
 Since version 1.7 Flink builds with Scala version 2.11 (default) and 2.12.
 
 To build FLink against Scala 2.12, issue the following command:
-{% hightlight bash %}
+{% highlight bash %}
 mvn clean install -DskipTests -Dscala-2.12
 {% endhighlight %}
 
