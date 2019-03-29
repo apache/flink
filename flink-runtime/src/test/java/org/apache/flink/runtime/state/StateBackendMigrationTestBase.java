@@ -157,8 +157,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				CustomVoidNamespaceSerializer.INSTANCE,
 				newAccessDescriptorAfterRestore);
 
-			snapshot.discardState();
-
 			// make sure that reading and writing each key state works with the new serializer
 			backend.setCurrentKey(1);
 			Assert.assertEquals(new TestType("foo", 1456), valueState.value());
@@ -171,6 +169,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.setCurrentKey(3);
 			Assert.assertEquals(new TestType("hello", 189), valueState.value());
 			valueState.update(new TestType("newValue3", 444));
+
+			// do another snapshot to verify the snapshot logic after migration
+			snapshot = runSnapshot(
+				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			snapshot.discardState();
 		} finally {
 			backend.dispose();
 		}
@@ -266,8 +270,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				CustomVoidNamespaceSerializer.INSTANCE,
 				newAccessDescriptorAfterRestore);
 
-			snapshot.discardState();
-
 			// make sure that reading and writing each key state works with the new serializer
 			backend.setCurrentKey(1);
 			Iterator<TestType> iterable1 = listState.get().iterator();
@@ -289,6 +291,13 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			Assert.assertEquals(new TestType("key-3", 2), iterable3.next());
 			Assert.assertFalse(iterable3.hasNext());
 			listState.add(new TestType("new-key-3", 777));
+
+			// do another snapshot to verify the snapshot logic after migration
+			snapshot = runSnapshot(
+				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			snapshot.discardState();
+
 		} finally {
 			backend.dispose();
 		}
@@ -405,6 +414,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.setCurrentKey(new TestType("bar", 456));
 			Assert.assertEquals(5, valueState.value().intValue());
 
+			// do another snapshot to verify the snapshot logic after migration
+			snapshot = runSnapshot(
+				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
 			snapshot.discardState();
 		} finally {
 			backend.dispose();
@@ -493,6 +506,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.setCurrentKey(5);
 			Assert.assertEquals(50, valueState.value().intValue());
 
+			// do another snapshot to verify the snapshot logic after migration
+			snapshot = runSnapshot(
+				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
 			snapshot.discardState();
 		} finally {
 			backend.dispose();
