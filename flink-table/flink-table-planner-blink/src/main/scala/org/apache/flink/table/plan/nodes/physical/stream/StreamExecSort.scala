@@ -29,7 +29,8 @@ import org.apache.calcite.rex.RexNode
 /**
   * Stream physical RelNode for [[Sort]].
   *
-  * <p><b>NOTES:</b> This class is used for testing now.
+  * <p><b>NOTES:</b> This class is used for testing with bounded source now.
+  * If a query is converted to this node in product environment, an exception will be thrown.
   *
   * @see [[StreamExecRank]] which must be with `limit` order by.
   * @see [[StreamExecTemporalSort]] which must be time-ascending-order sort without `limit`.

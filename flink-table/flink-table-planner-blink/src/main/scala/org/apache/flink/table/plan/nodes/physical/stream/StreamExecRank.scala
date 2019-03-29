@@ -34,6 +34,25 @@ import scala.collection.JavaConversions._
 /**
   * Stream physical RelNode for [[Rank]].
   *
+  * NOTES: Different from batch, there are no StreamExecSortLimit or StreamExecLimit nodes,
+  * all those functionality is unified into this node.
+  * So queries with LIMIT, OVER with filter could be converted to this node.
+  * e.g.
+  * 1. SELECT * FROM TABLE LIMIT 2
+  * 2. SELECT * FROM MyTable ORDER BY a LIMIT 10 OFFSET 2
+  * 3. {{{
+  * SELECT a, b, c FROM (
+  *   SELECT a, b, c,
+  *          ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) as row_num
+  *   FROM MyTable
+  * ) WHERE row_num <= 10
+  * }}}
+  * 4. {{{
+  * SELECT * FROM (
+  *  SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+  * WHERE rk < a
+  * }}}
+  *
   * @see [[StreamExecTemporalSort]] which must be time-ascending-order sort without `limit`.
   * @see [[StreamExecSort]] which can be used for testing now, its sort key can be any type.
   */

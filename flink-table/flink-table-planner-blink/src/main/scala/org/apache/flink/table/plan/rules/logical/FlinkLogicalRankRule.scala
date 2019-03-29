@@ -112,7 +112,21 @@ abstract class FlinkLogicalRankRuleBase
 }
 
 /**
-  * This rule handles RANK function and rank range with end.
+  * This rule handles [[SqlRankFunction]] and rank range with end.
+  *
+  * The following two example queries could be converted to Rank by this rule:
+  * 1. constant range (rn <= 2):
+  * {{{
+  * SELECT * FROM (
+  *   SELECT a, b, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
+  * WHERE rn <= 2
+  * }}}
+  * 2. variable range (rk < a):
+  * {{{
+  * SELECT * FROM (
+  *   SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+  * WHERE rk < a
+  * }}}
   */
 class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
 
@@ -174,6 +188,11 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
 
 /**
   * This rule only handles RANK function and constant rank range.
+  *
+  * The following example query could be converted to Rank by this rule:
+  * SELECT * FROM (
+  * SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
+  * WHERE rn <= 2
   */
 class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
   override def matches(call: RelOptRuleCall): Boolean = {

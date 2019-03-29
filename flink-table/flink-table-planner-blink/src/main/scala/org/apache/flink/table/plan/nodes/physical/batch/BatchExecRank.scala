@@ -36,6 +36,18 @@ import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for [[Rank]].
+  *
+  * This node is an optimization of [[BatchExecOverAggregate]] for some special cases,
+  * because this node supports two-stage(local and global) rank to reduce data-shuffling.
+  *
+  * NOTES: Different from [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecRank]],
+  * Only OVER query with RANK function and constant filter will be converted to this node.
+  * e.g.
+  * {{{
+  * SELECT * FROM (
+  *  SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+  * WHERE rk < 10
+  * }}}
   */
 class BatchExecRank(
     cluster: RelOptCluster,

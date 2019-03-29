@@ -23,7 +23,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.ConstantRankRange
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalRank, FlinkLogicalSort}
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecFirstLastRow
+import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecFirstLastRow, StreamExecRank}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -36,6 +36,14 @@ import org.apache.calcite.sql.SqlKind
 /**
   * Rule that matches [[FlinkLogicalSort]] which is sorted by proc-time attribute and
   * fetches only one record started from 0, and converts it to [[StreamExecFirstLastRow]].
+  *
+  * NOTES: Queries that can be converted to [[StreamExecFirstLastRow]] could be converted to
+  * [[StreamExecRank]] too. [[StreamExecFirstLastRow]] is more efficient than [[StreamExecRank]]
+  * due to mini-batch and less state access.
+  *
+  * e.g.
+  * 1. ''SELECT a FROM MyTable ORDER BY proctime LIMIT 1'' will be converted to FirstRow
+  * 2. ''SELECT a FROM MyTable ORDER BY proctime desc LIMIT 1'' will be converted to LastRow
   */
 class StreamExecFirstLastRowFromSortRule
   extends ConverterRule(
@@ -78,6 +86,26 @@ class StreamExecFirstLastRowFromSortRule
 /**
   * Rule that matches [[FlinkLogicalRank]] which is sorted by proc-time attribute and
   * limits 1 and its RankFunction is ROW_NUMBER, and converts it to [[StreamExecFirstLastRow]].
+  *
+  * NOTES: Queries that can be converted to [[StreamExecFirstLastRow]] could be converted to
+  * [[StreamExecRank]] too. [[StreamExecFirstLastRow]] is more efficient than [[StreamExecRank]]
+  * due to mini-batch and less state access.
+  *
+  * e.g.
+  * 1. {{{
+  * SELECT a, b, c FROM (
+  *   SELECT a, b, c, proctime,
+  *          ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as row_num
+  *   FROM MyTable
+  * ) WHERE row_num <= 1
+  * }}} will be converted to FirstRow
+  * 2. {{{
+  * SELECT a, b, c FROM (
+  *   SELECT a, b, c, proctime,
+  *          ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as row_num
+  *   FROM MyTable
+  * ) WHERE row_num <= 1
+  * }}} will be converted to LastRow
   */
 class StreamExecFirstLastRowFromRankRule
   extends ConverterRule(

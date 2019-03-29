@@ -26,7 +26,7 @@ import org.junit.Test
 class RankTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addTableSource[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
+  util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
 
   @Test
   def testRankEndMustSpecified(): Unit = {
@@ -62,15 +62,126 @@ class RankTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
+  @Test
+  def testRankEndLessThan1(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT a, b, c,
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
+        |  FROM MyTable)
+        |WHERE row_num <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRowNumberWithRankEndLessThan1OrderByProctimeAsc(): Unit = {
+    // be converted to FirstLastRow
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT a, b, c, proctime,
+        |       ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as row_num
+        |  FROM MyTable)
+        |WHERE row_num <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRowNumberWithRankEndLessThan1OrderByProctimeDesc(): Unit = {
+    // be converted to FirstLastRow
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT a, b, c, proctime,
+        |       ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as row_num
+        |  FROM MyTable)
+        |WHERE row_num <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRowNumberWithRankEndLessThan1OrderByRowtimeAsc(): Unit = {
+    // can not be converted to FirstLastRow
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT a, b, c, rowtime,
+        |       ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as row_num
+        |  FROM MyTable)
+        |WHERE row_num <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRowNumberWithRankEndLessThan1OrderByRowtimeDesc(): Unit = {
+    // can not be converted to FirstLastRow
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT a, b, c, rowtime,
+        |       ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as row_num
+        |  FROM MyTable)
+        |WHERE row_num <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRankWithRankEndLessThan1OrderByProctimeAsc(): Unit = {
+    // can not be converted to FirstLastRow
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT a, b, c, proctime,
+        |       RANK() OVER (PARTITION BY a ORDER BY proctime ASC) as rk
+        |  FROM MyTable)
+        |WHERE rk <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRankWithRankEndLessThan1OrderByProctimeDesc(): Unit = {
+    // can not be converted to FirstLastRow
+    val sql =
+      """
+        |SELECT a, b, c
+        |FROM (
+        |  SELECT a, b, c, proctime,
+        |       RANK() OVER (PARTITION BY a ORDER BY proctime DESC) as rk
+        |  FROM MyTable)
+        |WHERE rk <= 1
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
   @Test(expected = classOf[RuntimeException])
   def testRowNumberWithOutOrderBy(): Unit = {
     val sql =
       """
         |SELECT *
         |FROM (
-        |  SELECT a, ROW_NUMBER() OVER (PARTITION BY b) as rank_num
+        |  SELECT a, ROW_NUMBER() OVER (PARTITION BY b) as row_num
         |  FROM MyTable)
-        |WHERE rank_num <= a
+        |WHERE row_num <= a
       """.stripMargin
     util.verifyPlan(sql)
   }
@@ -81,9 +192,9 @@ class RankTest extends TableTestBase {
       """
         |SELECT *
         |FROM (
-        |  SELECT a, RANK() OVER (PARTITION BY b) as rank_num
+        |  SELECT a, RANK() OVER (PARTITION BY b) as rk
         |  FROM MyTable)
-        |WHERE rank_num <= a
+        |WHERE rk <= a
       """.stripMargin
     util.verifyPlan(sql)
   }
@@ -94,9 +205,9 @@ class RankTest extends TableTestBase {
       """
         |SELECT *
         |FROM (
-        |  SELECT a, DENSE_RANK() OVER (PARTITION BY b) as rank_num
+        |  SELECT a, DENSE_RANK() OVER (PARTITION BY b) as rk
         |  FROM MyTable)
-        |WHERE rank_num <= a
+        |WHERE rk <= a
       """.stripMargin
     util.verifyPlan(sql)
   }
@@ -107,10 +218,10 @@ class RankTest extends TableTestBase {
       """
         |SELECT *
         |FROM (
-        |  SELECT a, ROW_NUMBER() OVER (PARTITION BY b order by a) as rank_num,
-        |         ROW_NUMBER() OVER (PARTITION BY a) as rank_num1
+        |  SELECT a, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) as row_num,
+        |         ROW_NUMBER() OVER (PARTITION BY a) as row_num1
         |  FROM MyTable)
-        |WHERE rank_num <= a
+        |WHERE row_num <= a
       """.stripMargin
     util.verifyPlan(sql)
   }
@@ -121,10 +232,10 @@ class RankTest extends TableTestBase {
       """
         |SELECT *
         |FROM (
-        |  SELECT a, RANK() OVER (PARTITION BY b order by a) as rank_num,
-        |         RANK() OVER (PARTITION BY a) as rank_num1
+        |  SELECT a, RANK() OVER (PARTITION BY b ORDER BY a) as rk,
+        |         RANK() OVER (PARTITION BY a) as rk1
         |  FROM MyTable)
-        |WHERE rank_num <= a
+        |WHERE rk <= a
       """.stripMargin
     util.verifyPlan(sql)
   }
@@ -135,22 +246,22 @@ class RankTest extends TableTestBase {
       """
         |SELECT *
         |FROM (
-        |  SELECT a, DENSE_RANK() OVER (PARTITION BY b order by a) as rank_num,
-        |         DENSE_RANK() OVER (PARTITION BY a) as rank_num1
+        |  SELECT a, DENSE_RANK() OVER (PARTITION BY b ORDER BY a) as rk,
+        |         DENSE_RANK() OVER (PARTITION BY a) as rk1
         |  FROM MyTable)
-        |WHERE rank_num <= a
+        |WHERE rk <= a
       """.stripMargin
     util.verifyPlan(sql)
   }
 
   @Test
   def testOrderByLimit(): Unit = {
-    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b desc LIMIT 10")
+    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10")
   }
 
   @Test
   def testOrderByFetch(): Unit = {
-    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b desc FETCH FIRST 10 ROWS ONLY")
+    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b DESC FETCH FIRST 10 ROWS ONLY")
   }
 
   @Test
@@ -160,9 +271,9 @@ class RankTest extends TableTestBase {
         |SELECT *
         |FROM (
         |  SELECT a, b, c,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as rank_num
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
         |  FROM MyTable)
-        |WHERE rank_num <= 10
+        |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -176,9 +287,9 @@ class RankTest extends TableTestBase {
         |SELECT *
         |FROM (
         |  SELECT a, b, c,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as rank_num
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
         |  FROM MyTable)
-        |WHERE 10 >= rank_num
+        |WHERE 10 >= row_num
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -191,9 +302,9 @@ class RankTest extends TableTestBase {
         |SELECT *
         |FROM (
         |  SELECT a, b, c,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as rank_num
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
         |  FROM MyTable)
-        |WHERE rank_num = 10
+        |WHERE row_num = 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -203,13 +314,13 @@ class RankTest extends TableTestBase {
   def testTopNWithFilter(): Unit = {
     val sql =
       """
-        |SELECT rank_num, a, c
+        |SELECT row_num, a, c
         |FROM (
         |  SELECT a, b, c,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as rank_num
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as row_num
         |  FROM MyTable
         |  WHERE c > 1000)
-        |WHERE rank_num <= 10 AND b IS NOT NULL
+        |WHERE row_num <= 10 AND b IS NOT NULL
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -230,9 +341,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -253,9 +364,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -270,13 +381,13 @@ class RankTest extends TableTestBase {
         |SELECT *
         |FROM (
         |  SELECT category, shopId, max_price,
-        |      ROW_NUMBER() OVER (PARTITION BY category ORDER BY max_price ASC) as rank_num
+        |      ROW_NUMBER() OVER (PARTITION BY category ORDER BY max_price ASC) as row_num
         |  FROM (
-        |     SELECT category, shopId, max(price) as max_price
+        |     SELECT category, shopId, MAX(price) as max_price
         |     FROM T
         |     GROUP BY category, shopId
         |  ))
-        |WHERE rank_num <= 3
+        |WHERE row_num <= 3
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -297,9 +408,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, count_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY count_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY count_c DESC) as row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     val sql2 =
@@ -315,7 +426,7 @@ class RankTest extends TableTestBase {
   def testTopNOrderBySumWithCond(): Unit = {
     val subquery =
       """
-        |SELECT a, b, SUM(c) as sum_c
+        |SELECT a, b, SUM(c) AS sum_c
         |FROM MyTable
         |WHERE c >= 0
         |GROUP BY a, b
@@ -326,9 +437,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -339,7 +450,7 @@ class RankTest extends TableTestBase {
   def testTopNOrderBySumWithCaseWhen(): Unit = {
     val subquery =
       """
-        |SELECT a, b, SUM(case when c > 10 then 1 when c < 0 then 0 else null end) as sum_c
+        |SELECT a, b, SUM(CASE WHEN c > 10 THEN 1 WHEN c < 0 THEN 0 ELSE null END) AS sum_c
         |FROM MyTable
         |GROUP BY a, b
       """.stripMargin
@@ -349,9 +460,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlan(sql)
@@ -372,9 +483,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlan(sql)
@@ -395,9 +506,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlan(sql)
@@ -408,7 +519,7 @@ class RankTest extends TableTestBase {
   def testTopNOrderBySumWithFilterClause2(): Unit = {
     val subquery =
       """
-        |SELECT a, b, SUM(c) filter (where c <= 0 and a < 0) as sum_c
+        |SELECT a, b, SUM(c) FILTER (WHERE c <= 0 AND a < 0) AS sum_c
         |FROM MyTable
         |GROUP BY a, b
       """.stripMargin
@@ -418,9 +529,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c ASC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c ASC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlan(sql)
@@ -431,7 +542,7 @@ class RankTest extends TableTestBase {
   def testTopNOrderByCountAndOtherField(): Unit = {
     val subquery =
       """
-        |SELECT a, b, COUNT(*) as count_c
+        |SELECT a, b, COUNT(*) AS count_c
         |FROM MyTable
         |GROUP BY a, b
       """.stripMargin
@@ -441,9 +552,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, count_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY count_c DESC, a ASC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY count_c DESC, a ASC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -454,9 +565,9 @@ class RankTest extends TableTestBase {
   def testTopNWithGroupByConstantKey(): Unit = {
     val subquery =
       """
-        |SELECT a, b, COUNT(*) as count_c
+        |SELECT a, b, COUNT(*) AS count_c
         |FROM (
-        |SELECT *, 'cn' as cn
+        |SELECT *, 'cn' AS cn
         |FROM MyTable
         |)
         |GROUP BY a, b, cn
@@ -467,9 +578,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, count_c,
-         |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY count_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY count_c DESC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -490,9 +601,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
@@ -516,9 +627,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, count_c,
-         |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY count_c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY count_c DESC) AS row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= 10
+         |WHERE row_num <= 10
       """.stripMargin
 
     val sql =
@@ -552,9 +663,9 @@ class RankTest extends TableTestBase {
          |SELECT *
          |FROM (
          |  SELECT a, b, c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) as rank_num
+         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) as row_num
          |  FROM ($subquery))
-         |WHERE rank_num <= a
+         |WHERE row_num <= a
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)
