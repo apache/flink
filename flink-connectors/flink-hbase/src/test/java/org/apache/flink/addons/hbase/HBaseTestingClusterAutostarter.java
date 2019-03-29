@@ -211,8 +211,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 
 	private static void addDirectoryToClassPath(File directory) {
 		try {
-			// Get the classloader actually used by HBaseConfiguration
-			ClassLoader classLoader = HBaseConfiguration.create().getClassLoader();
+			URLClassLoader classLoader = new URLClassLoader(new URL[]{directory.toURI().toURL()});
 			if (!(classLoader instanceof URLClassLoader)) {
 				fail("We should get a URLClassLoader");
 			}
