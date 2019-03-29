@@ -284,6 +284,12 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY = "taskmanager.memory.segment-size";
 
 	/**
+	 * @deprecated Not used anymore
+	 */
+	@Deprecated
+	public static final String TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "taskmanager.network.defaultIOMode";
+
+	/**
 	 * The config parameter defining the number of task slots of a task manager.
 	 *
 	 * @deprecated use {@link TaskManagerOptions#NUM_TASK_SLOTS} instead
@@ -1427,6 +1433,12 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE = 32768;
+
+	/**
+	 * @deprecated Not used anymore
+	 */
+	@Deprecated
+	public static final String DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "sync";
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
