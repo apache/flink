@@ -119,25 +119,21 @@ public class ZooKeeperHaServicesTest extends TestLogger {
 	 */
 	@Test
 	public void testSimpleCloseAndCleanupAllData() throws Exception {
-		int repetitions = 100;
+		final Configuration configuration = createConfiguration("/foo/bar/flink");
 
-		for (int i = 0; i < repetitions; i++) {
-			final Configuration configuration = createConfiguration("/foo/bar/flink");
+		final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
 
-			final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
+		final List<String> initialChildren = client.getChildren().forPath("/");
 
-			final List<String> initialChildren = client.getChildren().forPath("/");
+		runCleanupTest(
+			configuration,
+			blobStoreService,
+			ZooKeeperHaServices::closeAndCleanupAllData);
 
-			runCleanupTest(
-				configuration,
-				blobStoreService,
-				ZooKeeperHaServices::closeAndCleanupAllData);
+		assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
 
-			assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
-
-			final List<String> children = client.getChildren().forPath("/");
-			assertThat(children, is(equalTo(initialChildren)));
-		}
+		final List<String> children = client.getChildren().forPath("/");
+		assertThat(children, is(equalTo(initialChildren)));
 	}
 
 	/**
@@ -145,28 +141,24 @@ public class ZooKeeperHaServicesTest extends TestLogger {
 	 */
 	@Test
 	public void testCloseAndCleanupAllDataWithUncle() throws Exception {
-		int repetitions = 100;
+		final String prefix = "/foo/bar";
+		final String flinkPath = prefix + "/flink";
+		final Configuration configuration = createConfiguration(flinkPath);
 
-		for (int i = 0; i < repetitions; i++) {
-			final String prefix = "/foo/bar" + i;
-			final String flinkPath = prefix + "/flink";
-			final Configuration configuration = createConfiguration(flinkPath);
+		final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
 
-			final TestingBlobStoreService blobStoreService = new TestingBlobStoreService();
+		final String unclePath = prefix + "/foobar";
+		client.create().creatingParentContainersIfNeeded().forPath(unclePath);
 
-			final String unclePath = prefix + "/foobar";
-			client.create().creatingParentContainersIfNeeded().forPath(unclePath);
+		runCleanupTest(
+			configuration,
+			blobStoreService,
+			ZooKeeperHaServices::closeAndCleanupAllData);
 
-			runCleanupTest(
-				configuration,
-				blobStoreService,
-				ZooKeeperHaServices::closeAndCleanupAllData);
+		assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
 
-			assertThat(blobStoreService.isClosedAndCleanedUpAllData(), is(true));
-
-			assertThat(client.checkExists().forPath(flinkPath), is(nullValue()));
-			assertThat(client.checkExists().forPath(unclePath), is(notNullValue()));
-		}
+		assertThat(client.checkExists().forPath(flinkPath), is(nullValue()));
+		assertThat(client.checkExists().forPath(unclePath), is(notNullValue()));
 	}
 
 	private static CuratorFramework startCuratorFramework() {
