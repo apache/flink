@@ -55,19 +55,19 @@ class AggSqlFunction(
     val externalAccType: TypeInformation[_],
     typeFactory: FlinkTypeFactory,
     requiresOver: Boolean)
-    extends SqlUserDefinedAggFunction(
-      new SqlIdentifier(name, SqlParserPos.ZERO),
-      createReturnTypeInference(createInternalTypeFromTypeInfo(externalResultType), typeFactory),
-      createOperandTypeInference(name, aggregateFunction, typeFactory),
-      createOperandTypeChecker(name, aggregateFunction),
-      // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
-      // will be generated when translating the calcite relnode to flink runtime execution plan
-      null,
-      false,
-      requiresOver,
-      Optionality.FORBIDDEN,
-      typeFactory
-    ) {
+  extends SqlUserDefinedAggFunction(
+    new SqlIdentifier(name, SqlParserPos.ZERO),
+    createReturnTypeInference(createInternalTypeFromTypeInfo(externalResultType), typeFactory),
+    createOperandTypeInference(name, aggregateFunction, typeFactory),
+    createOperandTypeChecker(name, aggregateFunction),
+    // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
+    // will be generated when translating the calcite relnode to flink runtime execution plan
+    null,
+    false,
+    requiresOver,
+    Optionality.FORBIDDEN,
+    typeFactory
+  ) {
 
   def getFunction: AggregateFunction[_, _] = aggregateFunction
 
@@ -102,8 +102,7 @@ object AggSqlFunction {
   private[flink] def createOperandTypeInference(
       name: String,
       aggregateFunction: AggregateFunction[_, _],
-      typeFactory: FlinkTypeFactory)
-  : SqlOperandTypeInference = {
+      typeFactory: FlinkTypeFactory): SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[AggregateFunction]] given information.
       */
@@ -141,8 +140,7 @@ object AggSqlFunction {
 
   private[flink] def createReturnTypeInference(
       resultType: InternalType,
-      typeFactory: FlinkTypeFactory)
-  : SqlReturnTypeInference = {
+      typeFactory: FlinkTypeFactory): SqlReturnTypeInference = {
 
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
@@ -153,8 +151,7 @@ object AggSqlFunction {
 
   private[flink] def createOperandTypeChecker(
       name: String,
-      aggregateFunction: AggregateFunction[_, _])
-  : SqlOperandTypeChecker = {
+      aggregateFunction: AggregateFunction[_, _]): SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
@@ -191,8 +188,7 @@ object AggSqlFunction {
 
       override def checkOperandTypes(
           callBinding: SqlCallBinding,
-          throwOnFailure: Boolean)
-      : Boolean = {
+          throwOnFailure: Boolean): Boolean = {
         val operandTypeInfo = getOperandType(callBinding)
 
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)

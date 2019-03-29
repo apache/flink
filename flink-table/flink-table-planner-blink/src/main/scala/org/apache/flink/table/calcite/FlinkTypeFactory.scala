@@ -356,6 +356,11 @@ object FlinkTypeFactory {
     case _ => false
   }
 
+  def isTimeIndicatorType(relDataType: RelDataType): Boolean = relDataType match {
+    case _: TimeIndicatorRelDataType => true
+    case _ => false
+  }
+
   def isRowtimeIndicatorType(relDataType: RelDataType): Boolean = relDataType match {
     case ti: TimeIndicatorRelDataType if ti.isEventTime => true
     case _ => false
@@ -396,6 +401,11 @@ object FlinkTypeFactory {
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
     // are represented as Enum
     case SYMBOL => InternalTypes.createGenericType(classOf[Enum[_]])
+
+    // extract encapsulated Type
+    case ANY if relDataType.isInstanceOf[GenericRelDataType] =>
+      val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
+      genericRelDataType.genericType
 
     case ROW if relDataType.isInstanceOf[RowRelDataType] =>
       val compositeRelDataType = relDataType.asInstanceOf[RowRelDataType]

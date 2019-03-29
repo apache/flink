@@ -19,19 +19,17 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.table.runtime.utils.BatchTestBase
+import org.apache.flink.table.runtime.utils.BatchTestBase.row
 
-import org.junit.Assert._
 import org.junit.Test
 
 class ValuesITCase extends BatchTestBase {
 
   @Test
   def testValues(): Unit = {
-    val sqlQuery = "SELECT * FROM (VALUES (1, 2, 3)) T(a, b, c)"
-    val table = tEnv.sqlQuery(sqlQuery)
-    val actual = collectResults(table)
-    val expected = List("1,2,3")
-    assertEquals(expected.sorted, actual.sorted)
+    checkResult(
+      "SELECT * FROM (VALUES (1, 2, 3)) T(a, b, c)",
+      Seq(row(1, 2, 3))
+    )
   }
-
 }

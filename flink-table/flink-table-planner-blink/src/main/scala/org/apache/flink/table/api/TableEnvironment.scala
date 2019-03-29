@@ -23,8 +23,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
+import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
@@ -32,7 +40,10 @@ import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sinks.CollectTableSink
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 
 import org.apache.calcite.config.Lex
@@ -43,6 +54,7 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
+import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable}
 import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
 
@@ -51,6 +63,7 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 import _root_.java.util.{Arrays => JArrays}
 
 import _root_.scala.annotation.varargs
+import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -64,6 +77,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   // we disable caching here to prevent side effects
   private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
   private val rootSchema: SchemaPlus = internalSchema.plus()
+  private val functionCatalog = new FunctionCatalog
 
   // the configuration to create a Calcite planner
   protected lazy val frameworkConfig: FrameworkConfig = Frameworks
@@ -73,7 +87,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     .costFactory(new FlinkCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .sqlToRelConverterConfig(getSqlToRelConverterConfig)
-    .operatorTable(FlinkSqlOperatorTable.instance())
+    .operatorTable(ChainedSqlOperatorTable.of(
+      new ListSqlOperatorTable(functionCatalog.sqlFunctions),
+      FlinkSqlOperatorTable.instance()))
     // TODO: introduce ExpressionReducer after codegen
     // set the executor to evaluate constant expressions
     // .executor(new ExpressionReducer(config))
@@ -465,6 +481,102 @@ abstract class TableEnvironment(val config: TableConfig) {
     getTableFromSchema(rootSchema, pathNames)
   }
 
+  /**
+    * Registers a [[ScalarFunction]] under a unique name. Replaces already existing
+    * user-defined functions under this name.
+    */
+  def registerFunction(name: String, function: ScalarFunction): Unit = {
+    // check if class could be instantiated
+    checkForInstantiation(function.getClass)
+
+    functionCatalog.registerScalarFunction(
+      name,
+      function,
+      typeFactory)
+  }
+
+  /**
+    * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param tf The TableFunction to register.
+    * @tparam T The type of the output row.
+    */
+  def registerFunction[T](name: String, tf: TableFunction[T]): Unit = {
+    implicit val typeInfo: TypeInformation[T] =
+      UserDefinedFunctionUtils.extractResultTypeFromTableFunction(tf)
+    registerTableFunctionInternal(name, tf)
+  }
+
+  /**
+    * Registers a [[TableFunction]] under a unique name. Replaces already existing
+    * user-defined functions under this name.
+    */
+  private[flink] def registerTableFunctionInternal[T: TypeInformation](
+      name: String, function: TableFunction[T]): Unit = {
+    // check if class not Scala object
+    checkNotSingleton(function.getClass)
+    // check if class could be instantiated
+    checkForInstantiation(function.getClass)
+
+    functionCatalog.registerTableFunction(
+      name,
+      function,
+      implicitly[TypeInformation[T]],
+      typeFactory)
+  }
+
+  /**
+    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The AggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T, ACC](
+      name: String,
+      f: AggregateFunction[T, ACC]): Unit = {
+    implicit val typeInfo: TypeInformation[T] = TypeExtractor
+        .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
+        .asInstanceOf[TypeInformation[T]]
+
+    implicit val accTypeInfo: TypeInformation[ACC] = TypeExtractor
+        .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 1)
+        .asInstanceOf[TypeInformation[ACC]]
+
+    registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+
+  /**
+    * Registers an [[AggregateFunction]] under a unique name. Replaces already existing
+    * user-defined functions under this name.
+    */
+  private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
+      name: String, function: AggregateFunction[T, ACC]): Unit = {
+    // check if class not Scala object
+    checkNotSingleton(function.getClass)
+    // check if class could be instantiated
+    checkForInstantiation(function.getClass)
+
+    val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
+      function,
+      implicitly[TypeInformation[T]])
+
+    val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
+      function,
+      implicitly[TypeInformation[ACC]])
+
+    functionCatalog.registerAggregateFunction(
+      name,
+      function,
+      resultTypeInfo,
+      accTypeInfo,
+      typeFactory)
+  }
+
   /** Returns a unique temporary attribute name. */
   private[flink] def createUniqueAttributeName(): String = {
     "TMP_" + attrNameCntr.getAndIncrement()
@@ -546,13 +658,15 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     val indexedNames: Array[(Int, String)] = inputType match {
 
-      case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
+      case g: GenericTypeInfo[A]
+        if g.getTypeClass == classOf[Row] || g.getTypeClass == classOf[BaseRow] =>
         throw new TableException(
           "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
             "Please specify the type of the input with a RowTypeInfo.")
 
       case t: TupleTypeInfoBase[A] if t.isInstanceOf[TupleTypeInfo[A]] ||
-        t.isInstanceOf[CaseClassTypeInfo[A]] || t.isInstanceOf[RowTypeInfo] =>
+        t.isInstanceOf[CaseClassTypeInfo[A]] || t.isInstanceOf[RowTypeInfo] ||
+          t.isInstanceOf[BaseRowTypeInfo] =>
 
         // determine schema definition mode (by position or by name)
         val isRefByPos = isReferenceByPosition(t, fields)
@@ -696,5 +810,95 @@ object TableEnvironment {
       case ct: CompositeType[_] => 0.until(ct.getArity).map(i => ct.getTypeAt(i)).toArray
       case t: TypeInformation[_] => Array(t.asInstanceOf[TypeInformation[_]])
     }
+  }
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Java [[JavaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Java batch ExecutionEnvironment.
+    */
+  def getBatchTableEnvironment(
+      executionEnvironment: JavaStreamExecEnv): JavaBatchTableEnvironment = {
+    new JavaBatchTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Java [[JavaStreamExecEnv]] and a given
+    * [[TableConfig]].
+    *
+    * @param executionEnvironment The Java batch ExecutionEnvironment.
+    * @param tableConfig          The TableConfig for the new TableEnvironment.
+    */
+  def getBatchTableEnvironment(
+      executionEnvironment: JavaStreamExecEnv,
+      tableConfig: TableConfig): JavaBatchTableEnvironment = {
+    new JavaBatchTableEnvironment(executionEnvironment, tableConfig)
+  }
+
+  /**
+    * Returns a [[ScalaBatchTableEnvironment]] for a Scala stream [[ScalaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    */
+  def getBatchTableEnvironment(
+      executionEnvironment: ScalaStreamExecEnv): ScalaBatchTableEnvironment = {
+    new ScalaBatchTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[ScalaBatchTableEnvironment]] for a Scala stream [[ScalaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def getBatchTableEnvironment(
+      executionEnvironment: ScalaStreamExecEnv,
+      tableConfig: TableConfig): ScalaBatchTableEnvironment = {
+
+    new ScalaBatchTableEnvironment(executionEnvironment, tableConfig)
+  }
+
+  /**
+    * Returns a [[JavaStreamTableEnv]] for a Java [[JavaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Java StreamExecutionEnvironment.
+    */
+  def getTableEnvironment(executionEnvironment: JavaStreamExecEnv): JavaStreamTableEnv = {
+    new JavaStreamTableEnv(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[JavaStreamTableEnv]] for a Java [[JavaStreamExecEnv]] and a given [[TableConfig]].
+    *
+    * @param executionEnvironment The Java StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def getTableEnvironment(
+      executionEnvironment: JavaStreamExecEnv,
+      tableConfig: TableConfig): JavaStreamTableEnv = {
+
+    new JavaStreamTableEnv(executionEnvironment, tableConfig)
+  }
+
+  /**
+    * Returns a [[ScalaStreamTableEnv]] for a Scala stream [[ScalaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    */
+  def getTableEnvironment(executionEnvironment: ScalaStreamExecEnv): ScalaStreamTableEnv = {
+    new ScalaStreamTableEnv(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[ScalaStreamTableEnv]] for a Scala stream [[ScalaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def getTableEnvironment(
+      executionEnvironment: ScalaStreamExecEnv,
+      tableConfig: TableConfig): ScalaStreamTableEnv = {
+
+    new ScalaStreamTableEnv(executionEnvironment, tableConfig)
   }
 }

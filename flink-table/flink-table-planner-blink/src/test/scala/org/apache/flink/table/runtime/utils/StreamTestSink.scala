@@ -18,14 +18,23 @@
 
 package org.apache.flink.table.runtime.utils
 
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSink}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.BaseRowUtil
+import org.apache.flink.types.Row
 
 import _root_.java.util.TimeZone
 import _root_.java.util.concurrent.atomic.AtomicInteger
@@ -131,4 +140,105 @@ final class TestingAppendBaseRowSink(
 
   def getAppendResults: List[String] = getResults
 
+}
+
+final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row] {
+  def this() {
+    this(TimeZone.getTimeZone("UTC"))
+  }
+  def invoke(value: Row): Unit = localResults += TestSinkUtil.rowToString(value, tz)
+  def getAppendResults: List[String] = getResults
+}
+
+final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[Row]
+  with BatchTableSink[Row]{
+  var fNames: Array[String] = _
+  var fTypes: Array[TypeInformation[_]] = _
+  var sink = new TestingAppendSink(tz)
+  var outputFormat = new TestingOutputFormat[Row](tz)
+
+  def this() {
+    this(TimeZone.getTimeZone("UTC"))
+  }
+
+  override def emitDataStream(dataStream: DataStream[Row]): DataStreamSink[Row] = {
+    dataStream.addSink(sink).name("TestingAppendTableSink")
+        .setParallelism(dataStream.getParallelism)
+  }
+
+  override def emitBoundedStream(
+      boundedStream: DataStream[Row],
+      tableConfig: TableConfig,
+      executionConfig: ExecutionConfig): DataStreamSink[Row] = {
+    boundedStream.writeUsingOutputFormat(outputFormat).name("appendTableSink")
+  }
+
+  override def getOutputType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
+
+  override def configure(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): TestingAppendTableSink = {
+    val copy = new TestingAppendTableSink(tz)
+    copy.fNames = fieldNames
+    copy.fTypes = fieldTypes
+    copy.outputFormat = outputFormat
+    copy.sink = sink
+    copy
+  }
+
+  override def getFieldNames: Array[String] = fNames
+
+  override def getFieldTypes: Array[TypeInformation[_]] = fTypes
+
+  def getAppendResults: List[String] = sink.getAppendResults
+
+  def getResults: List[String] = outputFormat.getResults
+}
+
+class TestingOutputFormat[T](tz: TimeZone)
+  extends OutputFormat[T] {
+
+  val index: Int = StreamTestSink.getNewSinkId
+  var localRetractResults: ArrayBuffer[String] = _
+
+  def this() {
+    this(TimeZone.getTimeZone("UTC"))
+  }
+
+  protected var globalResults: mutable.Map[Int, ArrayBuffer[String]] = _
+
+  def configure(var1: Configuration): Unit = {}
+
+  def open(taskNumber: Int, numTasks: Int): Unit = {
+    localRetractResults = mutable.ArrayBuffer.empty[String]
+    StreamTestSink.synchronized{
+      StreamTestSink.globalResults(index) += (taskNumber -> localRetractResults)
+    }
+  }
+
+  def writeRecord(value: T): Unit = localRetractResults += { value match {
+    case r: Row => TestSinkUtil.rowToString(r, tz)
+    case tp: JTuple2[java.lang.Boolean, Row]  =>
+      "(" + tp.f0.toString + "," + TestSinkUtil.rowToString(tp.f1, tz) + ")"
+    case _ => ""
+  }}
+
+  def close(): Unit = {}
+
+  protected def clearAndStashGlobalResults(): Unit = {
+    if (globalResults == null) {
+      StreamTestSink.synchronized{
+        globalResults = StreamTestSink.globalResults.remove(index).get
+      }
+    }
+  }
+
+  def getResults: List[String] = {
+    clearAndStashGlobalResults()
+    val result = ArrayBuffer.empty[String]
+    this.globalResults.foreach {
+      case (_, list) => result ++= list
+    }
+    result.toList
+  }
 }

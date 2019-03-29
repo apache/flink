@@ -20,14 +20,15 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment, TableException}
-import org.apache.flink.table.codegen.CodeGenUtils
 import org.apache.flink.table.codegen.SinkCodeGenerator._
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.calcite.Sink
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.sinks.{BatchTableSink, DataStreamTableSink, TableSink}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -98,12 +99,26 @@ class BatchExecSink[T](
       // Sink's input must be BatchExecNode[BaseRow] now.
       case node: BatchExecNode[BaseRow] =>
         val plan = node.translateToPlan(tableEnv)
-        // TODO support SinkConversion after FLINK-11974 is done
         val typeClass = extractTableSinkTypeClass(sink)
         if (CodeGenUtils.isInternalClass(typeClass, resultType)) {
           plan.asInstanceOf[StreamTransformation[T]]
         } else {
-          throw new TableException(s"Not support SinkConvention now.")
+          val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
+            CodeGeneratorContext(tableEnv.getConfig),
+            tableEnv.getConfig,
+            plan.getOutputType.asInstanceOf[BaseRowTypeInfo],
+            "SinkConversion",
+            None,
+            withChangeFlag,
+            resultType,
+            sink
+          )
+          new OneInputTransformation(
+            plan,
+            s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
+            converterOperator,
+            outputTypeInfo,
+            plan.getParallelism)
         }
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

@@ -41,4 +41,12 @@ public class InternalTypeUtils {
 	public static Class getInternalClassForType(InternalType type) {
 		return TypeConverters.createInternalTypeInfoFromInternalType(type).getTypeClass();
 	}
+
+	public static RowType toRowType(InternalType t) {
+		if (t instanceof RowType) {
+			return (RowType) t;
+		} else {
+			return new RowType(new InternalType[] {t});
+		}
+	}
 }

@@ -121,7 +121,7 @@ object ProjectionCodeGenerator {
 
     val setFieldsCode = codeBuffer.mkString("\n")
 
-    val outRowInitCode ={
+    val outRowInitCode = {
       val initCode = generateRecordStatement(
         outType, outClass, outRecordTerm, Some(outRecordWriterTerm))
       if (reusedOutRecord) {

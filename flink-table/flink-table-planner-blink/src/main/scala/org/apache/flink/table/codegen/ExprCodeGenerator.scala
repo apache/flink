@@ -28,9 +28,11 @@ import org.apache.flink.table.calcite.{FlinkTypeFactory, RexAggLocalVariable, Re
 import org.apache.flink.table.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.codegen.GenerateUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.codegen.calls.{ScalarFunctionCallGen, TableFunctionCallGen}
 import org.apache.flink.table.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
+import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
@@ -703,6 +705,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case STREAMRECORD_TIMESTAMP =>
         generateRowtimeAccess(ctx, contextTerm)
+
+      case ssf: ScalarSqlFunction =>
+        new ScalarFunctionCallGen(ssf.getScalarFunction).generate(ctx, operands, resultType)
+
+      case tsf: TableSqlFunction =>
+        new TableFunctionCallGen(tsf.getTableFunction).generate(ctx, operands, resultType)
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>

@@ -28,9 +28,13 @@ import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationE
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.schema.DeferredTypeFlinkTableFunction
 import org.apache.flink.types.Row
+import org.apache.flink.util.InstantiationUtil
 
 import com.google.common.primitives.Primitives
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
 
@@ -41,7 +45,41 @@ import java.sql.{Date, Time, Timestamp}
 import scala.collection.mutable
 import scala.language.postfixOps
 
+import scala.collection.JavaConversions._
+
 object UserDefinedFunctionUtils {
+
+  /**
+    * Checks if a user-defined function can be easily instantiated.
+    */
+  def checkForInstantiation(clazz: Class[_]): Unit = {
+    if (!InstantiationUtil.isPublic(clazz)) {
+      throw new ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
+    }
+    else if (!InstantiationUtil.isProperClass(clazz)) {
+      throw new ValidationException(
+        s"Function class ${clazz.getCanonicalName} is no proper class," +
+            " it is either abstract, an interface, or a primitive type.")
+    }
+    else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
+      throw new ValidationException(
+        s"The class ${clazz.getCanonicalName} is an inner class, but" +
+            " not statically accessible.")
+    }
+  }
+
+  /**
+    * Check whether this is a Scala object. It is forbidden to use [[TableFunction]] implemented
+    * by a Scala object, since concurrent risks.
+    */
+  def checkNotSingleton(clazz: Class[_]): Unit = {
+    // TODO it is not a good way to check singleton. Maybe improve it further.
+    if (clazz.getFields.map(_.getName) contains "MODULE$") {
+      throw new ValidationException(
+        s"TableFunction implemented by class ${clazz.getCanonicalName} " +
+            s"is a Scala object, it is forbidden since concurrent risks.")
+    }
+  }
 
   // ----------------------------------------------------------------------------------------------
   // Utilities for user-defined methods
@@ -73,6 +111,24 @@ object UserDefinedFunctionUtils {
       }
     }
     paramClasses.toArray
+  }
+
+  def getEvalMethodSignature(
+      func: ScalarFunction,
+      expectedTypes: Array[InternalType]): Array[Class[_]] = {
+    val method = getEvalUserDefinedMethod(func, expectedTypes).getOrElse(
+      throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
+    )
+    getParamClassesConsiderVarArgs(method.isVarArgs, method.getParameterTypes, expectedTypes.length)
+  }
+
+  def getEvalMethodSignature(
+      func: TableFunction[_],
+      expectedTypes: Array[InternalType]): Array[Class[_]] = {
+    val method = getEvalUserDefinedMethod(func, expectedTypes).getOrElse(
+      throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
+    )
+    getParamClassesConsiderVarArgs(method.isVarArgs, method.getParameterTypes, expectedTypes.length)
   }
 
   def getAggUserDefinedInputTypes(
@@ -359,6 +415,56 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
+    * Create [[SqlFunction]] for a [[ScalarFunction]]
+    *
+    * @param name function name
+    * @param function scalar function
+    * @param typeFactory type factory
+    * @return the ScalarSqlFunction
+    */
+  def createScalarSqlFunction(
+      name: String,
+      displayName: String,
+      function: ScalarFunction,
+      typeFactory: FlinkTypeFactory): SqlFunction = {
+    new ScalarSqlFunction(name, displayName, function, typeFactory)
+  }
+
+  /**
+    * Create [[SqlFunction]] for a [[TableFunction]].
+    *
+    * Caution that the implicitResultType is only expect to be passed explicitly by Scala implicit
+    * type inference.
+    *
+    * The entrance in BatchTableEnvironment.scala and StreamTableEnvironment.scala
+    * {{{
+    *   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T])
+    * }}}
+    *
+    * The implicitResultType would be inferred from type `T`.
+    *
+    * For all the other cases, please use
+    * createTableSqlFunction (String, String, TableFunction, FlinkTypeFactory) instead.
+    *
+    * @param name function name
+    * @param tableFunction table function
+    * @param implicitResultType the implicit type information of returned table
+    * @param typeFactory type factory
+    * @return the TableSqlFunction
+    */
+  def createTableSqlFunction(
+      name: String,
+      displayName: String,
+      tableFunction: TableFunction[_],
+      implicitResultType: TypeInformation[_],
+      typeFactory: FlinkTypeFactory): TableSqlFunction = {
+    // we don't know the exact result type yet.
+    val function = new DeferredTypeFlinkTableFunction(tableFunction, implicitResultType)
+    new TableSqlFunction(name, displayName, tableFunction, implicitResultType,
+      typeFactory, function)
+  }
+
+  /**
     * Create [[SqlFunction]] for an [[AggregateFunction]]
     *
     * @param name function name
@@ -471,6 +577,44 @@ object UserDefinedFunctionUtils {
       classOf[AggregateFunction[_, _]],
       aggregateFunction.getClass,
       parameterTypePos)
+  }
+
+  def getResultTypeOfScalarFunction(
+      function: ScalarFunction,
+      arguments: Array[AnyRef],
+      argTypes: Array[InternalType]): TypeInformation[_] = {
+//    val userDefinedTypeInfo = function.getResultType(
+//      arguments, getEvalMethodSignature(function, argTypes))
+    val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
+    if (userDefinedTypeInfo != null) {
+      userDefinedTypeInfo
+    } else {
+      extractTypeFromScalarFunc(function, argTypes)
+    }
+  }
+
+  private[flink] def extractTypeFromScalarFunc(
+      function: ScalarFunction,
+      argTypes: Array[InternalType]): TypeInformation[_] = {
+    try {TypeExtractor.getForClass(
+      getResultTypeClassOfScalarFunction(function, argTypes))
+    } catch {
+      case _: InvalidTypesException =>
+        throw new ValidationException(
+          s"Return type of scalar function '${function.getClass.getCanonicalName}' cannot be " +
+              s"automatically determined. Please provide type information manually.")
+    }
+  }
+
+  /**
+    * Returns the return type of the evaluation method matching the given signature.
+    */
+  def getResultTypeClassOfScalarFunction(
+      function: ScalarFunction,
+      argTypes: Array[InternalType]): Class[_] = {
+    // find method for signature
+    getEvalUserDefinedMethod(function, argTypes).getOrElse(
+      throw new IllegalArgumentException("Given signature is invalid.")).getReturnType
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -589,5 +733,100 @@ object UserDefinedFunctionUtils {
         FlinkTypeFactory.toInternalType(operandType)
       }
     }
+  }
+
+  /**
+    * Transform the rex nodes to Objects
+    * Only literal rex nodes will be transformed, non-literal rex nodes will be
+    * translated to nulls.
+    *
+    * @param rexNodes actual parameters of the function
+    * @return A Array of the Objects
+    */
+  private[table] def transformRexNodes(
+      rexNodes: java.util.List[RexNode]): Array[AnyRef] = {
+    rexNodes.map {
+      case rexNode: RexLiteral =>
+        val value = rexNode.getValue2
+        rexNode.getType.getSqlTypeName match {
+          case SqlTypeName.INTEGER =>
+            value.asInstanceOf[Long].toInt.asInstanceOf[AnyRef]
+          case SqlTypeName.SMALLINT =>
+            value.asInstanceOf[Long].toShort.asInstanceOf[AnyRef]
+          case SqlTypeName.TINYINT =>
+            value.asInstanceOf[Long].toByte.asInstanceOf[AnyRef]
+          case SqlTypeName.FLOAT =>
+            value.asInstanceOf[Double].toFloat.asInstanceOf[AnyRef]
+          case SqlTypeName.REAL =>
+            value.asInstanceOf[Double].toFloat.asInstanceOf[AnyRef]
+          case _ =>
+            value.asInstanceOf[AnyRef]
+        }
+      case _ =>
+        null
+    }.toArray
+  }
+
+  private[table] def buildRelDataType(
+      typeFactory: RelDataTypeFactory,
+      resultType: InternalType,
+      fieldNames: Array[String],
+      fieldIndexes: Array[Int]): RelDataType = {
+
+    if (fieldIndexes.length != fieldNames.length) {
+      throw new TableException(
+        "Number of field indexes and field names must be equal.")
+    }
+
+    // check uniqueness of field names
+    if (fieldNames.length != fieldNames.toSet.size) {
+      throw new TableException(
+        "Table field names must be unique.")
+    }
+
+    val fieldTypes: Array[InternalType] =
+      resultType match {
+        case bt: RowType =>
+          if (fieldNames.length != bt.getArity) {
+            throw new TableException(
+              s"Arity of type (" + bt.getFieldNames.deep + ") " +
+                  "not equal to number of field names " + fieldNames.deep + ".")
+          }
+          fieldIndexes.map(i => bt.getTypeAt(i))
+        case _ =>
+          if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
+            throw new TableException(
+              "Non-composite input type may have only a single field and its index must be 0.")
+          }
+          Array(resultType)
+      }
+
+    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+    val builder = flinkTypeFactory.builder
+    fieldNames
+        .zip(fieldTypes)
+        .foreach { f =>
+          builder.add(f._1, flinkTypeFactory.createTypeFromInternalType(f._2, isNullable = true))
+        }
+    builder.build
+  }
+
+  /**
+    * Extract implicit type from table function through reflection,
+    *
+    * Broadly, We would consider CustomTypeDefinedFunction#getResultType first, this function
+    * should always be considered as a fallback.
+    *
+    * @return Inferred implicit [[TypeInformation]], if [[InvalidTypesException]] throws, return
+    *         GenericTypeInfo(classOf[AnyRef]) as fallback
+    */
+  def extractResultTypeFromTableFunction[T](tf: TableFunction[T]): TypeInformation[T] = {
+    val implicitResultType = try {
+      TypeExtractor.createTypeInfo(tf, classOf[TableFunction[_]], tf.getClass, 0)
+    } catch {
+      case _: InvalidTypesException =>
+        new GenericTypeInfo(classOf[AnyRef])
+    }
+    implicitResultType.asInstanceOf[TypeInformation[T]]
   }
 }
