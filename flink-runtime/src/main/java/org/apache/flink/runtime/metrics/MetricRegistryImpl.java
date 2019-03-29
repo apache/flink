@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -85,10 +86,14 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	private boolean isShutdown;
 
+	public MetricRegistryImpl(MetricRegistryConfiguration config) {
+		this(config, Collections.emptyList());
+	}
+
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
-	public MetricRegistryImpl(MetricRegistryConfiguration config) {
+	public MetricRegistryImpl(MetricRegistryConfiguration config, List<ReporterSetup> reporterConfigurations) {
 		this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
 		this.scopeFormats = config.getScopeFormats();
 		this.globalDelimiter = config.getDelimiter();
@@ -98,8 +103,6 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>(4);
-
-		List<MetricRegistryConfiguration.ReporterSetup> reporterConfigurations = config.getReporterSetups();
 
 		this.executor = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-MetricRegistry"));
 
@@ -111,7 +114,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
 		} else {
-			for (MetricRegistryConfiguration.ReporterSetup reporterSetup : reporterConfigurations) {
+			for (ReporterSetup reporterSetup : reporterConfigurations) {
 				final String namedReporter = reporterSetup.getName();
 				final MetricConfig metricConfig = reporterSetup.getConfiguration();
 
@@ -133,11 +136,8 @@ public class MetricRegistryImpl implements MetricRegistry {
 						}
 					}
 
-					final MetricReporter reporterInstance = reporterSetup.getSupplier().get();
+					final MetricReporter reporterInstance = reporterSetup.getReporter();
 					final String className = reporterInstance.getClass().getName();
-
-					LOG.info("Configuring {} with {}.", namedReporter, metricConfig);
-					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
 						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
