@@ -17,12 +17,16 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * {@link MetricQueryServiceRetriever} implementation for rpc based {@link MetricQueryService}.
+ */
 public class RpcMetricQueryServiceRetriever implements MetricQueryServiceRetriever {
 
 	private RpcService rpcService;
