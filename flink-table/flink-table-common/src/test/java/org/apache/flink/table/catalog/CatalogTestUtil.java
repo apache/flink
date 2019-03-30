@@ -30,7 +30,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test util for catalogs.
+ * Utility class for catalog testing.
  */
 public class CatalogTestUtil {
 

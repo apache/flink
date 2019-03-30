@@ -68,10 +68,6 @@ public class GenericInMemoryCatalogTest {
 
 	private static ReadableWritableCatalog catalog;
 
-	public String getTableType() {
-		return "csv";
-	}
-
 	@Before
 	public void setUp() {
 		catalog = new GenericInMemoryCatalog(db1);
