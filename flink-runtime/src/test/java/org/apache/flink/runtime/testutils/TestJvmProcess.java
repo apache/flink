@@ -256,7 +256,8 @@ public abstract class TestJvmProcess {
 
 		try {
 			Class<? extends Process> clazz = process.getClass();
-			if (clazz.getName().equals("java.lang.UNIXProcess")) {
+			if (clazz.getName().equals("java.lang.UNIXProcess")
+				|| clazz.getName().equals("java.lang.ProcessImpl")) {
 				Field pidField = clazz.getDeclaredField("pid");
 				pidField.setAccessible(true);
 				return pidField.getLong(process);
