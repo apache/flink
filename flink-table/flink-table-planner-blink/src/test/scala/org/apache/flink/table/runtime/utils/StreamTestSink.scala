@@ -31,9 +31,9 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSink}
+import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.util.BaseRowUtil
+import org.apache.flink.table.util.BaseRowTestUtil
 import org.apache.flink.types.Row
 
 import _root_.java.util.TimeZone
@@ -136,7 +136,7 @@ final class TestingAppendBaseRowSink(
   }
 
   def invoke(value: BaseRow): Unit = localResults +=
-    BaseRowUtil.baseRowToString(value, rowTypeInfo, tz)
+    BaseRowTestUtil.baseRowToString(value, rowTypeInfo, tz)
 
   def getAppendResults: List[String] = getResults
 
