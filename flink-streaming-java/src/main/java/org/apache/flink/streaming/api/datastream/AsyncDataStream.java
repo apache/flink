@@ -84,7 +84,7 @@ public class AsyncDataStream {
 			bufSize,
 			mode);
 
-		return in.transform("async wait operator", outTypeInfo, operator);
+		return in.transform("AsyncWaitOperator", outTypeInfo, operator);
 	}
 
 	/**
