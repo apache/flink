@@ -58,14 +58,16 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
     val argTypeInfo = FlinkTypeFactory.toInternalType(argType)
     val avgType = FlinkTypeSystem.deriveAvgAggType(argTypeInfo)
-    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(avgType, argType.isNullable)
+    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(
+      avgType, argType.isNullable)
   }
 
   override def deriveSumType(
       typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
     val argTypeInfo = FlinkTypeFactory.toInternalType(argType)
     val sumType = FlinkTypeSystem.deriveSumType(argTypeInfo)
-    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(sumType, argType.isNullable)
+    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(
+      sumType, argType.isNullable)
   }
 }
 
