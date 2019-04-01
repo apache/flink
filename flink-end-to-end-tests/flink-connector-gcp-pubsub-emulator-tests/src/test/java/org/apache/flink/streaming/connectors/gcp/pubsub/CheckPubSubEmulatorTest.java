@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.Assert.assertEquals;
@@ -81,7 +82,7 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 	}
 
 	@Test
-	public void testPush() throws Exception {
+	public void testPub() throws Exception {
 		List<PubsubMessage> receivedMessages = new ArrayList<>();
 		Subscriber subscriber = pubsubHelper.
 			subscribeToSubscription(
@@ -99,7 +100,8 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 			.get();
 
 		LOG.info("Waiting a while to receive the message...");
-		Thread.sleep(1000);
+
+		waitUntill(() -> receivedMessages.size() > 0);
 
 		assertEquals(1, receivedMessages.size());
 		assertEquals("Hello World", receivedMessages.get(0).getData().toStringUtf8());
@@ -110,6 +112,20 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 			// Yeah, whatever. Don't care about clean shutdown here.
 		}
 		publisher.shutdown();
+	}
+
+	/*
+	 * Returns when predicate returns true or if 10 seconds have passed
+	 */
+	private void waitUntill(Supplier<Boolean> predicate) {
+		int retries = 0;
+
+		while (!predicate.get() && retries < 100) {
+			retries++;
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) { }
+		}
 	}
 
 }

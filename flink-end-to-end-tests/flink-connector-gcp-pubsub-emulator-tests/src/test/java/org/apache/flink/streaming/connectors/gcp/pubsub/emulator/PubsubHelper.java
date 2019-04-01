@@ -89,23 +89,23 @@ public class PubsubHelper {
 	}
 
 	public void deleteTopic(ProjectTopicName topicName) throws IOException {
-//        LOG.info("CreateTopic {}", topicName);
 		TopicAdminClient adminClient = getTopicAdminClient();
 		try {
-			Topic existingTopic = adminClient.getTopic(topicName);
-
-			// If it exists we delete all subscriptions and the topic itself.
-			LOG.info("DeleteTopic {} first delete old subscriptions.", topicName);
-			adminClient
-				.listTopicSubscriptions(topicName)
-				.iterateAllAsProjectSubscriptionName()
-				.forEach(subscriptionAdminClient::deleteSubscription);
-			LOG.info("DeleteTopic {}", topicName);
-			adminClient
-				.deleteTopic(topicName);
+			adminClient.getTopic(topicName);
 		} catch (NotFoundException e) {
 			// Doesn't exist. Good.
+			return;
 		}
+
+		// If it exists we delete all subscriptions and the topic itself.
+		LOG.info("DeleteTopic {} first delete old subscriptions.", topicName);
+		adminClient
+			.listTopicSubscriptions(topicName)
+			.iterateAllAsProjectSubscriptionName()
+			.forEach(subscriptionAdminClient::deleteSubscription);
+		LOG.info("DeleteTopic {}", topicName);
+		adminClient
+			.deleteTopic(topicName);
 	}
 
 	public SubscriptionAdminClient getSubscriptionAdminClient() throws IOException {

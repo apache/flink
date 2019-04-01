@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -56,7 +55,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  * This ensures every message will get acknowledged at least once.
  */
 public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, String>
-		implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, StoppableFunction {
+		implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
 	protected final PubSubDeserializationSchema<OUT> deserializationSchema;
 	protected final PubSubSubscriberFactory pubSubSubscriberFactory;
@@ -132,12 +131,10 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 				processMessage(sourceContext, messages);
 			} catch (InterruptedException | CancellationException e) {
-				awaitSubscriberTermination();
-				return;
+				isRunning = false;
 			}
 		}
-
-		awaitSubscriberTermination();
+		shutdownSubscriber();
 	}
 
 	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws Exception {
@@ -153,7 +150,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 				OUT deserializedMessage = deserializationSchema.deserialize(pubsubMessage);
 				if (deserializationSchema.isEndOfStream(deserializedMessage)) {
-					stop();
+					cancel();
 					return;
 				}
 
@@ -172,22 +169,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	public void cancel() {
-		stop();
-	}
-
-	@Override
-	public void stop() {
 		isRunning = false;
-		if (messagesFuture != null) {
-			messagesFuture.cancel(true);
-		}
-		if (subscriber != null) {
-			subscriber.shutdownNow();
-		}
-
-		if (eventLoopGroup != null) {
-			eventLoopGroup.shutdownGracefully();
-		}
 	}
 
 	@Override
@@ -199,7 +181,9 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	 * If we don't wait for the subscriber to terminate all background threads
 	 * ClassNotFoundExceptions will be thrown when Flink starts unloading classes.
 	 */
-	private void awaitSubscriberTermination() {
+	private void shutdownSubscriber() {
+		subscriber.shutdownNow();
+		eventLoopGroup.shutdownGracefully();
 		//Wait for the subscriber to terminate, to prevent leaking threads
 		while (!subscriber.isTerminated() || !eventLoopGroup.isTerminated()) {
 			try {

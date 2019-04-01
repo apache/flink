@@ -164,8 +164,7 @@ public class PubSubSourceTest {
 		List<String> input = asList("firstAckId", "secondAckId");
 
 		pubSubSource.open(null);
-		pubSubSource.stop();
-		verify(subscriberStub, times(1)).shutdownNow();
+		pubSubSource.cancel();
 
 		pubSubSource.acknowledgeSessionIDs(input);
 		verifyZeroInteractions(subscriberStub);
