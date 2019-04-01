@@ -18,6 +18,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
+import org.apache.flink.table.api.OperatorType.OperatorType
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.util.Preconditions
 
@@ -144,9 +145,34 @@ class TableConfig {
   def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
     this.calciteConfig = Preconditions.checkNotNull(calciteConfig)
   }
-
+  /**
+    * Returns true if given [[OperatorType]] is enabled, else false.
+    */
+  def isOperatorEnabled(operator: OperatorType): Boolean = {
+    val disableOperators = conf.getString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS)
+      .split(",")
+      .map(_.trim)
+    if (disableOperators.contains("HashJoin") &&
+      (operator == OperatorType.BroadcastHashJoin ||
+        operator == OperatorType.ShuffleHashJoin)) {
+      false
+    } else {
+      !disableOperators.contains(operator.toString)
+    }
+  }
 }
 
 object TableConfig {
   def DEFAULT = new TableConfig()
 }
+
+object OperatorType extends Enumeration {
+  type OperatorType = Value
+  val NestedLoopJoin, ShuffleHashJoin, BroadcastHashJoin, SortMergeJoin, HashAgg, SortAgg = Value
+}
+
+object AggPhaseEnforcer extends Enumeration {
+  type AggPhaseEnforcer = Value
+  val NONE, ONE_PHASE, TWO_PHASE = Value
+}
+

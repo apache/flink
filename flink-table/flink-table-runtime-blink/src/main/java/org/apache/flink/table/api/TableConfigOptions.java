@@ -66,6 +66,17 @@ public class TableConfigOptions {
 					.withDescription("Whether to asynchronously merge sort spill files.");
 
 	// ------------------------------------------------------------------------
+	//  Join Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_EXEC_HASH_JOIN_BROADCAST_THRESHOLD =
+			key("sql.exec.hash-join.broadcast.threshold")
+					.defaultValue(1024 * 1024L)
+					.withDescription("Maximum size in bytes for data that could be broadcast to each parallel instance " +
+							"that holds a partition of all data when performing a hash join. " +
+							"Broadcast will be disabled if the value is -1.");
+
+	// ------------------------------------------------------------------------
 	//  Spill Options
 	// ------------------------------------------------------------------------
 
@@ -114,5 +125,18 @@ public class TableConfigOptions {
 			key("sql.exec.statebackend.onheap")
 					.defaultValue(false)
 					.withDescription("Whether the statebackend is on heap.");
+
+	// ------------------------------------------------------------------------
+	//  Other Exec Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<String> SQL_EXEC_DISABLED_OPERATORS =
+			key("sql.exec.disabled-operators")
+					.defaultValue("")
+					.withDescription("Mainly for testing. A comma-separated list of name of the OperatorType, each name " +
+							"means a kind of disabled operator. Its default value is empty that means no operators are disabled. " +
+							"If the configure's value is \"NestedLoopJoin, ShuffleHashJoin\", NestedLoopJoin and ShuffleHashJoin " +
+							"are disabled. If the configure's value is \"HashJoin\", " +
+							"ShuffleHashJoin and BroadcastHashJoin are disabled.");
 
 }
