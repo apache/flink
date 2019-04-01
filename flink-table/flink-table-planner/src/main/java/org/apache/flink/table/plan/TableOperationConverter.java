@@ -36,6 +36,7 @@ import org.apache.flink.table.operations.CalculatedTableOperation;
 import org.apache.flink.table.operations.CatalogTableOperation;
 import org.apache.flink.table.operations.DistinctTableOperation;
 import org.apache.flink.table.operations.FilterTableOperation;
+import org.apache.flink.table.operations.PlannerTableOperation;
 import org.apache.flink.table.operations.ProjectTableOperation;
 import org.apache.flink.table.operations.SetTableOperation;
 import org.apache.flink.table.operations.SortTableOperation;
@@ -165,15 +166,6 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitOther(TableOperation other) {
-			if (other instanceof LogicalNode) {
-				return ((LogicalNode) other).toRelNode(relBuilder);
-			}
-
-			throw new TableException("Unknown table operation: " + other);
-		}
-
-		@Override
 		public <U> RelNode visitCalculatedTable(CalculatedTableOperation<U> calculatedTable) {
 			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
 			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
@@ -208,6 +200,17 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		@Override
 		public RelNode visitCatalogTable(CatalogTableOperation catalogTable) {
 			return relBuilder.scan(catalogTable.getTablePath()).build();
+		}
+
+		@Override
+		public RelNode visitOther(TableOperation other) {
+			if (other instanceof LogicalNode) {
+				return ((LogicalNode) other).toRelNode(relBuilder);
+			} else if (other instanceof PlannerTableOperation) {
+				return ((PlannerTableOperation) other).getCalciteTree();
+			}
+
+			throw new TableException("Unknown table operation: " + other);
 		}
 
 		private RexNode convertToRexNode(Expression expression) {
