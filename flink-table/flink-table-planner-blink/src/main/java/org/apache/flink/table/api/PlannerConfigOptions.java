@@ -38,4 +38,29 @@ public class PlannerConfigOptions {
 							" exceeds this threshold; the threshold is expressed in terms of number of nodes " +
 							"(only count RexCall node, including leaves and interior nodes). Negative number to" +
 							" use the default threshold: double of number of nodes.");
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED =
+			key("sql.optimizer.shuffle.partial-key.enabled")
+					.defaultValue(false)
+					.withDescription("Enables shuffle by partial partition keys. " +
+							"For example, A join with join condition: L.c1 = R.c1 and L.c2 = R.c2. " +
+							"If this flag is enabled, there are 3 shuffle strategy:\n " +
+							"1. L and R shuffle by c1 \n" +
+							"2. L and R shuffle by c2\n" +
+							"3. L and R shuffle by c1 and c2\n" +
+							"It can reduce some shuffle cost someTimes.");
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLE =
+			key("sql.optimizer.smj.remove-sort.enable")
+					.defaultValue(false)
+					.withDescription("When true, the optimizer will try to remove redundant sort for SortMergeJoin. " +
+							"However that will increase optimization time. Default value is false.");
+
+	public static final ConfigOption<Long> SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD =
+			key("sql.optimizer.hash-join.broadcast.threshold")
+					.defaultValue(1024 * 1024L)
+					.withDescription("Maximum size in bytes for data that could be broadcast to each parallel " +
+							"instance that holds a partition of all data when performing a hash join. " +
+							"Broadcast will be disabled if the value is -1.");
+
 }

@@ -15,15 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink
 
-package object table {
+package org.apache.flink.table.plan.batch.sql.join
 
-  type JDouble = java.lang.Double
+import org.apache.flink.table.api.TableConfigOptions
 
-  type JList[T] = java.util.List[T]
-  type JArrayList[T] = java.util.ArrayList[T]
+import org.junit.Before
 
-  type CalcitePair[T, R] = org.apache.calcite.util.Pair[T, R]
+class NestedLoopJoinTest extends JoinTestBase {
 
+  @Before
+  def before(): Unit = {
+    util.tableEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin, HashJoin")
+  }
 }

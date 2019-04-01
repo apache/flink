@@ -115,4 +115,17 @@ public class TableConfigOptions {
 					.defaultValue(false)
 					.withDescription("Whether the statebackend is on heap.");
 
+	// ------------------------------------------------------------------------
+	//  Other Exec Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<String> SQL_EXEC_DISABLED_OPERATORS =
+			key("sql.exec.disabled-operators")
+					.defaultValue("")
+					.withDescription("Mainly for testing. A comma-separated list of name of the OperatorType, each name " +
+							"means a kind of disabled operator. Its default value is empty that means no operators are disabled. " +
+							"If the configure's value is \"NestedLoopJoin, ShuffleHashJoin\", NestedLoopJoin and ShuffleHashJoin " +
+							"are disabled. If the configure's value is \"HashJoin\", " +
+							"ShuffleHashJoin and BroadcastHashJoin are disabled.");
+
 }
