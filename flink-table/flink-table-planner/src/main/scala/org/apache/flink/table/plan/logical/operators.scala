@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.logical
 import java.util.{Optional, List => JList}
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{CorrelationId, JoinRelType}
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
@@ -109,20 +108,6 @@ case class Join(
     case JoinType.LEFT_OUTER => JoinRelType.LEFT
     case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
     case JoinType.FULL_OUTER => JoinRelType.FULL
-  }
-}
-
-case class CatalogNode(
-    tablePath: Seq[String],
-    rowType: RelDataType) extends LeafNode {
-
-  override def getTableSchema: TableSchema = new TableSchema(
-    rowType.getFieldNames.asScala.toArray,
-    rowType.getFieldList.asScala.map(f => FlinkTypeFactory.toTypeInfo(f.getType)).toArray
-  )
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.scan(tablePath.asJava).build()
   }
 }
 
