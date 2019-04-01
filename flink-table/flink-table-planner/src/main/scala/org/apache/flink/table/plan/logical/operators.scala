@@ -24,22 +24,42 @@ import org.apache.calcite.rel.core.{CorrelationId, JoinRelType}
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.api.{TableException, TableSchema}
+import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.operations.JoinOperationFactory.JoinType
-import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.operations.{TableOperation, TableOperationVisitor}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+/**
+  * Legacy logical representation of a [[org.apache.flink.table.api.Table]]. Should be subsumed by
+  * [[TableOperation]].
+  */
+abstract class LogicalNode extends TableOperation {
+  protected def output: Seq[Attribute]
+
+  override def getTableSchema: TableSchema = {
+    val attributes = output
+    new TableSchema(attributes.map(_.name).toArray, attributes.map(_.resultType).toArray)
+  }
+
+  def toRelNode(relBuilder: RelBuilder): RelNode
+
+  override def accept[T](visitor: TableOperationVisitor[T]): T = visitor.visitOther(this)
+}
 
 case class Join(
     left: TableOperation,
     right: TableOperation,
     joinType: JoinType,
     condition: Optional[PlannerExpression],
-    correlated: Boolean) extends BinaryNode {
+    correlated: Boolean) extends LogicalNode {
+
+  override def output: Seq[Attribute] = throw new TableException(
+    "Should never be called. Call getTableSchema instead.")
 
   override def getTableSchema: TableSchema = new TableSchema(
     left.getTableSchema.getFieldNames ++ right.getTableSchema.getFieldNames,
@@ -79,7 +99,7 @@ case class Join(
     }
   }
 
-  def resolveCondition(): Option[PlannerExpression] = {
+  def replaceFieldReferences(): Option[PlannerExpression] = {
     val partialFunction: PartialFunction[PlannerExpression, PlannerExpression] = {
       case field: ResolvedFieldReference => JoinFieldReference(
         field.name,
@@ -96,11 +116,12 @@ case class Join(
       corSet += relBuilder.peek().getCluster.createCorrel()
     }
 
-    val resolvedCondition = resolveCondition()
+    val resolvedCondition = replaceFieldReferences()
     relBuilder.join(
       convertJoinType(joinType),
       resolvedCondition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
-      corSet.asJava).build()
+      corSet.asJava)
+      .build()
   }
 
   private def convertJoinType(joinType: JoinType) = joinType match {
@@ -109,31 +130,17 @@ case class Join(
     case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
     case JoinType.FULL_OUTER => JoinRelType.FULL
   }
-}
 
-/**
-  * Wrapper for valid logical plans generated from SQL String.
-  */
-case class LogicalRelNode(
-    relNode: RelNode) extends LeafNode {
-
-  override def getTableSchema: TableSchema = new TableSchema(
-    relNode.getRowType.getFieldNames.asScala.toArray,
-    relNode.getRowType.getFieldList.asScala.map(f => FlinkTypeFactory.toTypeInfo(f.getType)).toArray
-  )
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.push(relNode).build()
-  }
+  override def getChildren: JList[TableOperation] = (left +: right +: Nil).asJava
 }
 
 case class WindowAggregate(
-    groupingExpressions: JList[PlannerExpression],
+  groupingExpressions: JList[PlannerExpression],
     window: LogicalWindow,
     propertyExpressions: JList[PlannerExpression],
     aggregateExpressions: JList[PlannerExpression],
     child: TableOperation)
-  extends UnaryNode {
+  extends LogicalNode {
 
   override def output: Seq[Attribute] = {
     val expressions = groupingExpressions.asScala ++ aggregateExpressions.asScala ++
@@ -158,4 +165,6 @@ case class WindowAggregate(
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava).build()
   }
+
+  override def getChildren: JList[TableOperation] = (child +: Nil).asJava
 }
