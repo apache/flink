@@ -39,6 +39,16 @@ public class PlannerConfigOptions {
 							"(only count RexCall node, including leaves and interior nodes). Negative number to" +
 							" use the default threshold: double of number of nodes.");
 
+	public static final ConfigOption<String> SQL_OPTIMIZER_AGG_PHASE_ENFORCER =
+			key("sql.optimizer.agg.phase.enforcer")
+					.defaultValue("NONE")
+					.withDescription("Strategy for agg phase. Only NONE, TWO_PHASE or ONE_PHASE can be set.\n" +
+							"NONE: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one" +
+							" stage aggregate depends on cost. \n" +
+							"TWO_PHASE: Enforce to use two stage aggregate which has localAggregate and globalAggregate. " +
+							"NOTE: If aggregate call does not support split into two phase, still use one stage aggregate.\n" +
+							"ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.");
+
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED =
 			key("sql.optimizer.shuffle.partial-key.enabled")
 					.defaultValue(false)

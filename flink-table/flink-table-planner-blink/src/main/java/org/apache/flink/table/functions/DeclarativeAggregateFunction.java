@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedFieldReferenceExpression;
+import org.apache.flink.table.type.InternalType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -56,6 +57,11 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 	 * All fields of the aggregate buffer.
 	 */
 	public abstract UnresolvedFieldReferenceExpression[] aggBufferAttributes();
+
+	/**
+	 * All types of the aggregate buffer.
+	 */
+	public abstract InternalType[] getAggBufferTypes();
 
 	/**
 	 * The result type of the function.

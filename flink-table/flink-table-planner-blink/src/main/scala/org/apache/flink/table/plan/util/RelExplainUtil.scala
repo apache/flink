@@ -21,6 +21,7 @@ import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
@@ -188,9 +189,13 @@ object RelExplainUtil {
               val argList = List(offset)
               offset = offset + 1
               argList
+            case daf: DeclarativeAggregateFunction =>
+              val aggBufferTypes = daf.getAggBufferTypes
+              val argList = aggBufferTypes.indices.map(offset + _).toList
+              offset = offset + aggBufferTypes.length
+              argList
             case _ =>
-              // TODO supports DeclarativeAggregateFunction
-              throw new TableException("Unsupported now")
+              throw new TableException(s"Unsupported function: $udf")
           }
         }
         val argListNames = if (aggToDistinctMapping.contains(index)) {
@@ -209,7 +214,7 @@ object RelExplainUtil {
         }
     }
 
-    //output for agg
+    // output for agg
     val aggFunctions = aggCallToAggFunction.map(_._2)
     offset = fullGrouping.length
     val outFieldNames = aggFunctions.map { udf =>
@@ -223,9 +228,15 @@ object RelExplainUtil {
             val name = outputFieldNames(offset)
             offset = offset + 1
             name
+          case daf: DeclarativeAggregateFunction =>
+            val aggBufferTypes = daf.getAggBufferTypes
+            val name = aggBufferTypes.indices
+              .map(i => outputFieldNames(offset + i))
+              .mkString(", ")
+            offset = offset + aggBufferTypes.length
+            if (aggBufferTypes.length > 1) s"($name)" else name
           case _ =>
-            // TODO supports DeclarativeAggregateFunction
-            throw new TableException("Unsupported now")
+            throw new TableException(s"Unsupported function: $udf")
         }
       }
       outFieldName
@@ -412,9 +423,15 @@ object RelExplainUtil {
           val name = accNames(offset)
           offset = offset + 1
           name
+        case daf: DeclarativeAggregateFunction =>
+          val aggBufferTypes = daf.getAggBufferTypes
+          val name = aggBufferTypes.indices
+            .map(i => accNames(offset + i))
+            .mkString(", ")
+          offset = offset + aggBufferTypes.length
+          if (aggBufferTypes.length > 1) s"($name)" else name
         case _ =>
-          // TODO supports DeclarativeAggregateFunction
-          throw new TableException("Unsupported now")
+          throw new TableException(s"Unsupported function: ${info.function}")
       }
     }
     val distinctFieldNames = (offset until accNames.length).map(accNames)

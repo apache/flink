@@ -222,6 +222,8 @@ object FlinkBatchRuleSets {
     BatchExecLimitRule.INSTANCE,
     BatchExecSortLimitRule.INSTANCE,
     BatchExecRankRule.INSTANCE,
+    BatchExecHashAggRule.INSTANCE,
+    BatchExecSortAggRule.INSTANCE,
     BatchExecHashJoinRule.INSTANCE,
     BatchExecSortMergeJoinRule.INSTANCE,
     BatchExecNestedLoopJoinRule.INSTANCE,
