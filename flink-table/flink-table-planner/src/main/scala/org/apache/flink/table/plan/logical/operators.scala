@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.logical
 
 import java.lang.reflect.Method
-import java.util
+import java.util.{Collections, List => JList}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -43,45 +43,23 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 case class Project(
-    projectList: Seq[PlannerExpression],
+    projectList: JList[PlannerExpression],
     child: LogicalNode,
     explicitAlias: Boolean = false)
   extends UnaryNode {
 
-  override def output: Seq[Attribute] = projectList.map(_.asInstanceOf[NamedExpression].toAttribute)
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val names: mutable.Set[String] = mutable.Set()
-
-    def checkName(name: String): Unit = {
-      if (names.contains(name)) {
-        failValidation(s"Duplicate field name $name.")
-      } else {
-        names.add(name)
-      }
-    }
-
-    projectList.foreach {
-      case n: Alias =>
-        // explicit name
-        checkName(n.name)
-      case r: ResolvedFieldReference =>
-        // simple field forwarding
-        checkName(r.name)
-      case _ => // Do nothing
-    }
-    this
-  }
+  override def output: Seq[Attribute] = projectList.asScala
+    .map(_.asInstanceOf[NamedExpression].toAttribute)
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
 
-    val projectNames = projectList.map(_.asInstanceOf[NamedExpression].name).asJava
+    val projectNames = projectList.asScala.map(_.asInstanceOf[NamedExpression].name).asJava
     val exprs = if (explicitAlias) {
-      projectList
+      projectList.asScala
     } else {
       // remove AS expressions, according to Calcite they should not be in a final RexNode
-      projectList.map {
+      projectList.asScala.map {
         case Alias(e: PlannerExpression, _, _) => e
         case e: PlannerExpression => e
       }
@@ -111,9 +89,11 @@ case class AliasNode(aliasList: Seq[PlannerExpression], child: LogicalNode) exte
     } else {
       val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
       val input = child.output
+      val expressions = names.zip(input).map { case (name, attr) =>
+        Alias(attr, name)
+      } ++ input.drop(names.length)
       Project(
-        names.zip(input).map { case (name, attr) =>
-          Alias(attr, name)} ++ input.drop(names.length),
+        expressions.toList.map(_.asInstanceOf[PlannerExpression]).asJava,
         child,
         explicitAlias = true)
     }
@@ -697,7 +677,7 @@ case class LogicalTableFunctionCall(
 
     val scan = LogicalTableFunctionScan.create(
       relBuilder.peek().getCluster,
-      new util.ArrayList[RelNode](),
+      Collections.emptyList(),
       relBuilder.call(sqlFunction, parameters.map(_.toRexNode(relBuilder)).asJava),
       function.getElementType(null),
       function.getRowType(relBuilder.getTypeFactory, null),
