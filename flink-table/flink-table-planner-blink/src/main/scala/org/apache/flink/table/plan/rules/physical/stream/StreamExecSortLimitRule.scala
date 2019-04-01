@@ -40,8 +40,7 @@ class StreamExecSortLimitRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
     // only matches Sort with non-empty sort fields and non-null fetch
-    !sort.getCollation.getFieldCollations.isEmpty && (sort.fetch != null || sort.offset != null) &&
-      !StreamExecFirstLastRowRule.canConvertToFirstLastRow(sort)
+    !sort.getCollation.getFieldCollations.isEmpty && (sort.fetch != null || sort.offset != null)
   }
 
   override def convert(rel: RelNode): RelNode = {

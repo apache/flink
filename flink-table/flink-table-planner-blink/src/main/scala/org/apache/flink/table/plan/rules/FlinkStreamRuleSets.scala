@@ -231,8 +231,7 @@ object FlinkStreamRuleSets {
     StreamExecSortLimitRule.INSTANCE,
     StreamExecRankRule.INSTANCE,
     StreamExecTemporalSortRule.INSTANCE,
-    StreamExecFirstLastRowRule.SORT_INSTANCE,
-    StreamExecFirstLastRowRule.RANK_INSTANCE,
+    StreamExecDeduplicateRule.RANK_INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE
   )

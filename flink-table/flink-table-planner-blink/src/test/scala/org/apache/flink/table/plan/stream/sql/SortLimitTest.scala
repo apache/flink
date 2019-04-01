@@ -31,55 +31,46 @@ class SortLimitTest extends TableTestBase {
 
   @Test
   def testSortProcessingTimeAscWithOffSet0AndLimit1(): Unit = {
-    // be converted to FirstRow
     util.verifyPlan("SELECT a FROM MyTable ORDER BY proctime LIMIT 1 OFFSET 0")
   }
 
   @Test
   def testSortProcessingTimeDescWithOffSet0AndLimit1(): Unit = {
-    // be converted to LastRow
     util.verifyPlan("SELECT a FROM MyTable ORDER BY proctime DESC LIMIT 1 OFFSET 0")
   }
 
   @Test
   def testSortProcessingTimeAscWithLimit1(): Unit = {
-    // be converted to FirstRow
     util.verifyPlan("SELECT a FROM MyTable ORDER BY proctime LIMIT 1")
   }
 
   @Test
   def testSortProcessingTimeFirstDescWithLimit1(): Unit = {
-    // be converted to LastRow
     util.verifyPlan("SELECT a FROM MyTable ORDER BY proctime DESC LIMIT 1")
   }
 
   @Test
   def testSortRowTimeFirstDescWithLimit0(): Unit = {
-    // FirstLastRow does not support sort on rowtime now, so it is translated to SortLimit currently
     util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime DESC LIMIT 0")
   }
 
   @Test
   def testSortRowTimeAscWithOffSet0AndLimit1(): Unit = {
-    // FirstLastRow does not support sort on rowtime now, so it is translated to SortLimit currently
     util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime LIMIT 1 OFFSET 0")
   }
 
   @Test
   def testSortRowTimeAscWithLimit1(): Unit = {
-    // FirstLastRow does not support sort on rowtime now, so it is translated to SortLimit currently
     util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime LIMIT 1")
   }
 
   @Test
   def testSortRowTimeFirstDescWithLimit1(): Unit = {
-    // FirstLastRow does not support sort on rowtime now, so it is translated to SortLimit currently
     util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime DESC LIMIT 1")
   }
 
   @Test
   def testSortRowTimeDescWithOffSet0AndLimit1(): Unit = {
-    // FirstLastRow does not support sort on rowtime now, so it is translated to SortLimit currently
     util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime DESC LIMIT 1 OFFSET 0")
   }
 

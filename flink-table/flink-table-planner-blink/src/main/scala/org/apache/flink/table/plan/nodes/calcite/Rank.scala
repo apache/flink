@@ -98,6 +98,8 @@ abstract class Rank(
     // rank number column is always the last column, and its type is BIGINT NOT NULL
     val allFieldNames = new util.HashSet[String]()
     allFieldNames.addAll(input.getRowType.getFieldNames)
+    // TODO use the field name specified by user
+    // currently, the field name may be dropped by `ProjectToWindowRule`. so use 'rk' now
     val rankFieldName = FlinkRelOptUtil.buildUniqueFieldName(allFieldNames, "rk")
     val bigIntType = typeFactory.createSqlType(SqlTypeName.BIGINT)
     typeBuilder.add(rankFieldName, typeFactory.createTypeWithNullability(bigIntType, false))

@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
 import org.apache.flink.table.plan.nodes.calcite.{Rank, RankRange}
-import org.apache.flink.table.plan.util.{ProcessStrategy, RelExplainUtil, RetractStrategy}
+import org.apache.flink.table.plan.util.{RankProcessStrategy, RelExplainUtil, RetractStrategy}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -53,11 +53,11 @@ class StreamExecRank(
   with StreamPhysicalRel {
 
   /** please uses [[getStrategy]] instead of this field */
-  private var strategy: ProcessStrategy = _
+  private var strategy: RankProcessStrategy = _
 
-  def getStrategy(forceRecompute: Boolean = false): ProcessStrategy = {
+  def getStrategy(forceRecompute: Boolean = false): RankProcessStrategy = {
     if (strategy == null || forceRecompute) {
-      strategy = ProcessStrategy.analyzeProcessStrategy(
+      strategy = RankProcessStrategy.analyzeRankProcessStrategy(
         inputRel, partitionKey, orderKey, cluster.getMetadataQuery)
     }
     strategy

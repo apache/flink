@@ -21,7 +21,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalOverWindow, FlinkLogicalRank}
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.RankUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
@@ -52,7 +52,7 @@ abstract class FlinkLogicalRankRuleBase
     val predicate = calc.getProgram.expandLocalRef(condition)
 
     val config = calc.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    val (rankRange, remainingPreds) = FlinkRelOptUtil.extractRankRange(
+    val (rankRange, remainingPreds) = RankUtil.extractRankRange(
       predicate,
       rankFieldIndex,
       calc.getCluster.getRexBuilder,
@@ -166,7 +166,7 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
         // the rank function is the last field of FlinkLogicalOverWindow
         val rankFieldIndex = window.getRowType.getFieldCount - 1
         val config = calc.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-        val (rankRange, remainingPreds) = FlinkRelOptUtil.extractRankRange(
+        val (rankRange, remainingPreds) = RankUtil.extractRankRange(
           predicate,
           rankFieldIndex,
           calc.getCluster.getRexBuilder,
@@ -182,7 +182,7 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
 
         // remaining predicate must not access rank field attributes
         val remainingPredsAccessRank = remainingPreds.isDefined &&
-          FlinkRelOptUtil.accessesRankField(remainingPreds.get, rankFieldIndex)
+          RankUtil.accessesRankField(remainingPreds.get, rankFieldIndex)
 
         rankRange.isDefined && !remainingPredsAccessRank
       } else {
@@ -199,8 +199,8 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
   *
   * The following example query could be converted to Rank by this rule:
   * SELECT * FROM (
-  * SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
-  * WHERE rn <= 2
+  * SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t
+  * WHERE rk <= 2
   */
 class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -231,7 +231,7 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
         // the rank function is the last field of FlinkLogicalOverWindow
         val rankFieldIndex = window.getRowType.getFieldCount - 1
         val config = calc.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-        val (rankRange, remainingPreds) = FlinkRelOptUtil.extractRankRange(
+        val (rankRange, remainingPreds) = RankUtil.extractRankRange(
           predicate,
           rankFieldIndex,
           calc.getCluster.getRexBuilder,
@@ -239,7 +239,7 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
 
         // remaining predicate must not access rank field attributes
         val remainingPredsAccessRank = remainingPreds.isDefined &&
-          FlinkRelOptUtil.accessesRankField(remainingPreds.get, rankFieldIndex)
+          RankUtil.accessesRankField(remainingPreds.get, rankFieldIndex)
 
         // only support constant rank range
         rankRange.exists(_.isInstanceOf[ConstantRankRange]) && !remainingPredsAccessRank

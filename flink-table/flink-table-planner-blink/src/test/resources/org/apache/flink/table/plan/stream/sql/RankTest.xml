@@ -150,7 +150,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- FirstLastRow(mode=[FirstRow], key=[a], order=[PROCTIME])
++- Deduplicate(keepLastRow=[false], key=[a], order=[PROCTIME])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -178,7 +178,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- FirstLastRow(mode=[LastRow], key=[a], order=[PROCTIME])
++- Deduplicate(keepLastRow=[true], key=[a], order=[PROCTIME])
    +- Exchange(distribution=[hash[a]])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>

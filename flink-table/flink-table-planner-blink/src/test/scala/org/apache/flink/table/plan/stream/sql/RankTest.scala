@@ -79,7 +79,7 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByProctimeAsc(): Unit = {
-    // be converted to FirstLastRow
+    // be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -95,7 +95,7 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByProctimeDesc(): Unit = {
-    // be converted to FirstLastRow
+    // be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -111,7 +111,7 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeAsc(): Unit = {
-    // can not be converted to FirstLastRow
+    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -127,7 +127,7 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeDesc(): Unit = {
-    // can not be converted to FirstLastRow
+    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -143,7 +143,7 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRankWithRankEndLessThan1OrderByProctimeAsc(): Unit = {
-    // can not be converted to FirstLastRow
+    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -159,7 +159,7 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRankWithRankEndLessThan1OrderByProctimeDesc(): Unit = {
-    // can not be converted to FirstLastRow
+    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -458,7 +458,7 @@ class RankTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   // FIXME remove expected exception after IF added
   def testTopNOrderBySumWithIf(): Unit = {
     val subquery =

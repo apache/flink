@@ -26,32 +26,32 @@ import org.apache.calcite.util.ImmutableBitSet
 import scala.collection.JavaConversions._
 
 /**
-  * Base class of Strategy to choose different process function.
+  * Base class of Strategy to choose different rank process function.
   */
-sealed trait ProcessStrategy
+sealed trait RankProcessStrategy
 
-case object AppendFastStrategy extends ProcessStrategy
+case object AppendFastStrategy extends RankProcessStrategy
 
-case object RetractStrategy extends ProcessStrategy
+case object RetractStrategy extends RankProcessStrategy
 
-case class UpdateFastStrategy(primaryKeys: Array[Int]) extends ProcessStrategy {
+case class UpdateFastStrategy(primaryKeys: Array[Int]) extends RankProcessStrategy {
   override def toString: String = "UpdateFastStrategy" + primaryKeys.mkString("[", ",", "]")
 }
 
-case class UnaryUpdateStrategy(primaryKeys: Array[Int]) extends ProcessStrategy {
+case class UnaryUpdateStrategy(primaryKeys: Array[Int]) extends RankProcessStrategy {
   override def toString: String = "UnaryUpdateStrategy" + primaryKeys.mkString("[", ",", "]")
 }
 
-object ProcessStrategy {
+object RankProcessStrategy {
 
   /**
-    * Gets [[ProcessStrategy]] based on input, partitionKey and orderKey.
+    * Gets [[RankProcessStrategy]] based on input, partitionKey and orderKey.
     */
-  def analyzeProcessStrategy(
+  def analyzeRankProcessStrategy(
       input: RelNode,
       partitionKey: ImmutableBitSet,
       orderKey: RelCollation,
-      mq: RelMetadataQuery): ProcessStrategy = {
+      mq: RelMetadataQuery): RankProcessStrategy = {
 
     val fieldCollations = orderKey.getFieldCollations
     val isUpdateStream = !UpdatingPlanChecker.isAppendOnly(input)

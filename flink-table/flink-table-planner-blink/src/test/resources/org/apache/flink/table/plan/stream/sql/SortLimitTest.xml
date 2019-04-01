@@ -69,7 +69,7 @@ LogicalProject(a=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- FirstLastRow(mode=[FirstRow], key=[], order=[PROCTIME])
++- SortLimit(orderBy=[proctime ASC], offset=[0], fetch=[1])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -90,7 +90,7 @@ LogicalProject(a=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- FirstLastRow(mode=[FirstRow], key=[], order=[PROCTIME])
++- SortLimit(orderBy=[proctime ASC], offset=[0], fetch=[1])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -174,7 +174,7 @@ LogicalProject(a=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- FirstLastRow(mode=[LastRow], key=[], order=[PROCTIME])
++- SortLimit(orderBy=[proctime DESC], offset=[0], fetch=[1])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -321,7 +321,7 @@ LogicalProject(a=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- FirstLastRow(mode=[LastRow], key=[], order=[PROCTIME])
++- SortLimit(orderBy=[proctime DESC], offset=[0], fetch=[1])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>

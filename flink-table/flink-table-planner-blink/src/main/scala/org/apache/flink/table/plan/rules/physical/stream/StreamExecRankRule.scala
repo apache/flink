@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.rules.physical.stream
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecFirstLastRow, StreamExecRank}
+import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamExecRank}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -29,7 +29,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 /**
   * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamExecRank]].
-  * NOTES: the rank can not be converted to [[StreamExecFirstLastRow]].
+  * NOTES: the rank can not be converted to [[StreamExecDeduplicate]].
   */
 class StreamExecRankRule
   extends ConverterRule(
@@ -40,7 +40,7 @@ class StreamExecRankRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
-    !StreamExecFirstLastRowRule.canConvertToFirstLastRow(rank)
+    !StreamExecDeduplicateRule.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
