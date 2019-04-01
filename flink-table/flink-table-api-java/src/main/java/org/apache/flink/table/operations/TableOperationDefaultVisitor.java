@@ -59,6 +59,11 @@ public abstract class TableOperationDefaultVisitor<T> implements TableOperationV
 	}
 
 	@Override
+	public T visitCalculatedTable(CalculatedTableOperation calculatedTable) {
+		return defaultMethod(calculatedTable);
+	}
+
+	@Override
 	public T visitOther(TableOperation other) {
 		return defaultMethod(other);
 	}

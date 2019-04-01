@@ -19,15 +19,20 @@
 package org.apache.flink.table.plan;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.expressions.Aggregation;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateTableOperation;
+import org.apache.flink.table.operations.CalculatedTableOperation;
 import org.apache.flink.table.operations.DistinctTableOperation;
 import org.apache.flink.table.operations.FilterTableOperation;
 import org.apache.flink.table.operations.ProjectTableOperation;
@@ -37,14 +42,18 @@ import org.apache.flink.table.operations.TableOperation;
 import org.apache.flink.table.operations.TableOperationDefaultVisitor;
 import org.apache.flink.table.operations.TableOperationVisitor;
 import org.apache.flink.table.plan.logical.LogicalNode;
+import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
@@ -161,6 +170,38 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 			}
 
 			throw new TableException("Unknown table operation: " + other);
+		}
+
+		@Override
+		public <U> RelNode visitCalculatedTable(CalculatedTableOperation<U> calculatedTable) {
+			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
+			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
+			TypeInformation<U> resultType = calculatedTable.getResultType();
+
+			FlinkTableFunctionImpl function = new FlinkTableFunctionImpl<>(
+				resultType,
+				fieldIndices,
+				fieldNames);
+			TableFunction<?> tableFunction = calculatedTable.getTableFunction();
+
+			FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
+			TableSqlFunction sqlFunction = new TableSqlFunction(
+				tableFunction.functionIdentifier(),
+				tableFunction.toString(),
+				tableFunction,
+				resultType,
+				typeFactory,
+				function);
+
+			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
+
+			return LogicalTableFunctionScan.create(
+				relBuilder.peek().getCluster(),
+				Collections.emptyList(),
+				relBuilder.call(sqlFunction, parameters),
+				function.getElementType(null),
+				function.getRowType(typeFactory, null),
+				null);
 		}
 
 		private RexNode convertToRexNode(Expression expression) {
