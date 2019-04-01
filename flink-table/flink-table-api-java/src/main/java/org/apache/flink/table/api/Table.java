@@ -702,7 +702,7 @@ public interface Table {
 	/**
 	 * Intersects two {@link Table}s with duplicate records removed. Intersect returns records that
 	 * exist in both tables. If a record is present in one or both tables more than once, it is
-	 * returned just once, i.e., the resulting table has no duplicate records. Similar to an
+	 * returned just once, i.e., the resulting table has no duplicate records. Similar to a
 	 * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
@@ -939,7 +939,7 @@ public interface Table {
 	Table addOrReplaceColumns(Expression... fields);
 
 	/**
-	 * Renames existing columns. Similar to an field alias statement. The field expressions
+	 * Renames existing columns. Similar to a field alias statement. The field expressions
 	 * should be alias expressions, and only the existing fields can be renamed.
 	 *
 	 * <p>Example:
@@ -953,7 +953,7 @@ public interface Table {
 	Table renameColumns(String fields);
 
 	/**
-	 * Renames existing columns. Similar to an field alias statement. The field expressions
+	 * Renames existing columns. Similar to a field alias statement. The field expressions
 	 * should be alias expressions, and only the existing fields can be renamed.
 	 *
 	 * <p>Scala Example:

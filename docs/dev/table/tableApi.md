@@ -221,7 +221,7 @@ Table result = orders.addOrReplaceColumns("concat(c, 'sunny') as desc");
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field drop operation.</p>
+                  <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.dropColumns("b, c");
@@ -234,7 +234,7 @@ Table result = orders.dropColumns("b, c");
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field rename operation.</p>
+                  <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.renameColumns("b as b2, c as c2");
@@ -349,7 +349,7 @@ val result = orders.addOrReplaceColumns(concat('c, "Sunny") as 'desc)
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                    <p>Performs a field drop operation.</p>
+                    <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
 {% highlight scala %}
 val orders = tableEnv.scan("Orders");
 val result = orders.dropColumns('b, 'c)
@@ -362,7 +362,7 @@ val result = orders.dropColumns('b, 'c)
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                    <p>Performs a field rename operation.</p>
+                    <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
 {% highlight scala %}
 val orders = tableEnv.scan("Orders");
 val result = orders.renameColumns('b as 'b2, 'c as 'c2)
