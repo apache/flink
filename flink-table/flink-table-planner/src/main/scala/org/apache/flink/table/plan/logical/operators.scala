@@ -26,89 +26,58 @@ import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.operations.JoinOperationFactory.JoinType
+import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class Project(
-    projectList: JList[PlannerExpression],
-    child: LogicalNode,
-    explicitAlias: Boolean = false)
-  extends UnaryNode {
+case class Distinct(child: TableOperation) extends UnaryNode {
 
-  override def output: Seq[Attribute] = projectList.asScala
-    .map(_.asInstanceOf[NamedExpression].toAttribute)
+  override def getTableSchema: TableSchema = child.getTableSchema
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
-
-    val projectNames = projectList.asScala.map(_.asInstanceOf[NamedExpression].name).asJava
-    val exprs = if (explicitAlias) {
-      projectList.asScala
-    } else {
-      // remove AS expressions, according to Calcite they should not be in a final RexNode
-      projectList.asScala.map {
-        case Alias(e: PlannerExpression, _, _) => e
-        case e: PlannerExpression => e
-      }
-    }
-
-    relBuilder.project(
-      exprs.map(_.toRexNode(relBuilder)).asJava,
-      projectNames,
-      true)
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
+    relBuilder.distinct().build()
   }
 }
 
-case class Distinct(child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+case class Sort(order: JList[PlannerExpression], child: TableOperation) extends UnaryNode {
+  override def getTableSchema: TableSchema = child.getTableSchema
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
-    relBuilder.distinct()
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
+    relBuilder.sort(order.asScala.map(_.toRexNode(relBuilder)).asJava).build()
   }
 }
 
-case class Sort(order: JList[PlannerExpression], child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+case class Limit(offset: Int, fetch: Int = -1, child: TableOperation) extends UnaryNode {
+  override def getTableSchema: TableSchema = child.getTableSchema
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
-    relBuilder.sort(order.asScala.map(_.toRexNode(relBuilder)).asJava)
-  }
-}
-
-case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
-    relBuilder.limit(offset, fetch)
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
+    relBuilder.limit(offset, fetch).build()
   }
 
 }
 
-case class Filter(condition: PlannerExpression, child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+case class Filter(condition: PlannerExpression, child: TableOperation) extends UnaryNode {
+  override def getTableSchema: TableSchema = child.getTableSchema
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
-    relBuilder.filter(condition.toRexNode(relBuilder))
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
+    relBuilder.filter(condition.toRexNode(relBuilder)).build()
   }
 }
 
 case class Aggregate(
     groupingExpressions: JList[PlannerExpression],
     aggregateExpressions: JList[PlannerExpression],
-    child: LogicalNode) extends UnaryNode {
+    child: TableOperation) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
     (groupingExpressions.asScala ++ aggregateExpressions.asScala) map {
@@ -117,72 +86,41 @@ case class Aggregate(
     }
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
     relBuilder.aggregate(
       relBuilder.groupKey(groupingExpressions.asScala.map(_.toRexNode(relBuilder)).asJava),
       aggregateExpressions.asScala.map {
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
-      }.asJava)
-  }
-}
-
-case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
-  override def output: Seq[Attribute] = left.output
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    left.construct(relBuilder)
-    right.construct(relBuilder)
-    relBuilder.minus(all)
-  }
-}
-
-case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
-  override def output: Seq[Attribute] = left.output
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    left.construct(relBuilder)
-    right.construct(relBuilder)
-    relBuilder.union(all)
-  }
-}
-
-case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
-  override def output: Seq[Attribute] = left.output
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    left.construct(relBuilder)
-    right.construct(relBuilder)
-    relBuilder.intersect(all)
+      }.asJava).build()
   }
 }
 
 case class Join(
-    left: LogicalNode,
-    right: LogicalNode,
+    left: TableOperation,
+    right: TableOperation,
     joinType: JoinType,
     condition: Optional[PlannerExpression],
     correlated: Boolean) extends BinaryNode {
 
-  override def output: Seq[Attribute] = {
-    left.output ++ right.output
-  }
+  override def getTableSchema: TableSchema = new TableSchema(
+    left.getTableSchema.getFieldNames ++ right.getTableSchema.getFieldNames,
+    left.getTableSchema.getFieldTypes ++ right.getTableSchema.getFieldTypes)
 
   private case class JoinFieldReference(
     name: String,
     resultType: TypeInformation[_],
-    left: LogicalNode,
-    right: LogicalNode) extends Attribute {
+    left: TableOperation,
+    right: TableOperation) extends Attribute {
 
-    val isFromLeftInput: Boolean = left.output.map(_.name).contains(name)
+    val isFromLeftInput: Boolean = left.getTableSchema.getFieldNames.contains(name)
 
     val (indexInInput, indexInJoin) = if (isFromLeftInput) {
-      val indexInLeft = left.output.map(_.name).indexOf(name)
+      val indexInLeft = left.getTableSchema.getFieldNames.indexOf(name)
       (indexInLeft, indexInLeft)
     } else {
-      val indexInRight = right.output.map(_.name).indexOf(name)
-      (indexInRight, indexInRight + left.output.length)
+      val indexInRight = right.getTableSchema.getFieldNames.indexOf(name)
+      (indexInRight, indexInRight + left.getTableSchema.getFieldCount)
     }
 
     override def toString = s"'$name"
@@ -214,10 +152,7 @@ case class Join(
     JavaScalaConversionUtil.toScala(condition).map(_.postOrderTransform(partialFunction))
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    left.construct(relBuilder)
-    right.construct(relBuilder)
-
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
     val corSet = mutable.Set[CorrelationId]()
     if (correlated) {
       corSet += relBuilder.peek().getCluster.createCorrel()
@@ -227,7 +162,7 @@ case class Join(
     relBuilder.join(
       convertJoinType(joinType),
       resolvedCondition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
-      corSet.asJava)
+      corSet.asJava).build()
   }
 
   private def convertJoinType(joinType: JoinType) = joinType match {
@@ -242,12 +177,13 @@ case class CatalogNode(
     tablePath: Seq[String],
     rowType: RelDataType) extends LeafNode {
 
-  val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
-    ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
-  }
+  override def getTableSchema: TableSchema = new TableSchema(
+    rowType.getFieldNames.asScala.toArray,
+    rowType.getFieldList.asScala.map(f => FlinkTypeFactory.toTypeInfo(f.getType)).toArray
+  )
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    relBuilder.scan(tablePath.asJava)
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
+    relBuilder.scan(tablePath.asJava).build()
   }
 }
 
@@ -257,12 +193,13 @@ case class CatalogNode(
 case class LogicalRelNode(
     relNode: RelNode) extends LeafNode {
 
-  val output: Seq[Attribute] = relNode.getRowType.getFieldList.asScala.map { field =>
-    ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
-  }
+  override def getTableSchema: TableSchema = new TableSchema(
+    relNode.getRowType.getFieldNames.asScala.toArray,
+    relNode.getRowType.getFieldList.asScala.map(f => FlinkTypeFactory.toTypeInfo(f.getType)).toArray
+  )
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    relBuilder.push(relNode)
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
+    relBuilder.push(relNode).build()
   }
 }
 
@@ -271,7 +208,7 @@ case class WindowAggregate(
     window: LogicalWindow,
     propertyExpressions: JList[PlannerExpression],
     aggregateExpressions: JList[PlannerExpression],
-    child: LogicalNode)
+    child: TableOperation)
   extends UnaryNode {
 
   override def output: Seq[Attribute] = {
@@ -283,9 +220,8 @@ case class WindowAggregate(
     }
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
     val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
-    child.construct(flinkRelBuilder)
     flinkRelBuilder.aggregate(
       window,
       relBuilder.groupKey(groupingExpressions.asScala.map(_.toRexNode(relBuilder)).asJava),
@@ -296,7 +232,7 @@ case class WindowAggregate(
       aggregateExpressions.asScala.map {
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
-      }.asJava)
+      }.asJava).build()
   }
 }
 
@@ -306,15 +242,13 @@ case class WindowAggregate(
   * @param tableFunction table function to be called (might be overloaded)
   * @param parameters actual parameters
   * @param fieldNames output field names
-  * @param child child logical node
   */
 case class CalculatedTable(
     tableFunction: TableFunction[_],
     parameters: JList[PlannerExpression],
     resultType: TypeInformation[_],
-    fieldNames: Array[String],
-    child: LogicalNode)
-  extends UnaryNode {
+    fieldNames: Array[String])
+  extends LeafNode {
 
   private val (generatedNames, _, fieldTypes) = getFieldInfo(resultType)
 
@@ -330,7 +264,7 @@ case class CalculatedTable(
     }
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override def toRelNode(relBuilder: RelBuilder): RelNode = {
     val fieldIndexes = getFieldInfo(resultType)._2
     val function = new FlinkTableFunctionImpl(
       resultType,
@@ -346,14 +280,12 @@ case class CalculatedTable(
       typeFactory,
       function)
 
-    val scan = LogicalTableFunctionScan.create(
+    LogicalTableFunctionScan.create(
       relBuilder.peek().getCluster,
       Collections.emptyList(),
       relBuilder.call(sqlFunction, parameters.asScala.map(_.toRexNode(relBuilder)).asJava),
       function.getElementType(null),
       function.getRowType(relBuilder.getTypeFactory, null),
       null)
-
-    relBuilder.push(scan)
   }
 }

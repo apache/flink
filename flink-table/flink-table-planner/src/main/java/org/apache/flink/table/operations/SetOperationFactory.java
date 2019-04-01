@@ -20,35 +20,22 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.plan.logical.Intersect;
-import org.apache.flink.table.plan.logical.LogicalNode;
-import org.apache.flink.table.plan.logical.Minus;
-import org.apache.flink.table.plan.logical.Union;
+import org.apache.flink.table.operations.SetTableOperation.SetTableOperationType;
 
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.operations.SetOperationFactory.SetTableOperationType.UNION;
+import static org.apache.flink.table.operations.SetTableOperation.SetTableOperationType.UNION;
 
 /**
- * Utility class for creating a valid algebraic operation such as {@link Minus}, {@link Intersect} or {@link Union}.
+ * Utility class for creating a valid {@link SetTableOperation}.
  */
 @Internal
 public class SetOperationFactory {
 
 	private final boolean isStreaming;
-
-	/**
-	 * Describes what kind of operation should be created.
-	 */
-	public enum SetTableOperationType {
-		INTERSECT,
-		MINUS,
-		UNION
-	}
 
 	public SetOperationFactory(boolean isStreaming) {
 		this.isStreaming = isStreaming;
@@ -68,19 +55,9 @@ public class SetOperationFactory {
 			TableOperation left,
 			TableOperation right,
 			boolean all) {
-		LogicalNode leftNode = (LogicalNode) left;
-		LogicalNode rightNode = (LogicalNode) right;
 		failIfStreaming(type, all);
-		validateSetOperation(type, leftNode, right);
-		switch (type) {
-			case INTERSECT:
-				return new Intersect(leftNode, rightNode, all);
-			case MINUS:
-				return new Minus(leftNode, rightNode, all);
-			case UNION:
-				return new Union(leftNode, rightNode, all);
-		}
-		throw new TableException("Unknown set operation type: " + type);
+		validateSetOperation(type, left, right);
+		return new SetTableOperation(left, right, type, all);
 	}
 
 	private void validateSetOperation(
