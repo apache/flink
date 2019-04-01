@@ -28,7 +28,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types}
+import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
@@ -137,27 +137,6 @@ case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
     right.construct(relBuilder)
     relBuilder.minus(all)
   }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Minus on stream tables is currently not supported.")
-    }
-
-    val resolvedMinus = super.validate(tableEnv).asInstanceOf[Minus]
-    if (left.output.length != right.output.length) {
-      failValidation(s"Minus two table of different column sizes:" +
-        s" ${left.output.size} and ${right.output.size}")
-    }
-    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType
-    }
-    if (!sameSchema) {
-      failValidation(s"Minus two table of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
-    }
-    resolvedMinus
-  }
 }
 
 case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
@@ -168,27 +147,6 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
     right.construct(relBuilder)
     relBuilder.union(all)
   }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment] && !all) {
-      failValidation(s"Union on stream tables is currently not supported.")
-    }
-
-    val resolvedUnion = super.validate(tableEnv).asInstanceOf[Union]
-    if (left.output.length != right.output.length) {
-      failValidation(s"Union two tables of different column sizes:" +
-        s" ${left.output.size} and ${right.output.size}")
-    }
-    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType
-    }
-    if (!sameSchema) {
-      failValidation(s"Union two tables of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
-    }
-    resolvedUnion
-  }
 }
 
 case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
@@ -198,28 +156,6 @@ case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extend
     left.construct(relBuilder)
     right.construct(relBuilder)
     relBuilder.intersect(all)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Intersect on stream tables is currently not supported.")
-    }
-
-    val resolvedIntersect = super.validate(tableEnv).asInstanceOf[Intersect]
-    if (left.output.length != right.output.length) {
-      failValidation(s"Intersect two tables of different column sizes:" +
-        s" ${left.output.size} and ${right.output.size}")
-    }
-    // allow different column names between tables
-    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType
-    }
-    if (!sameSchema) {
-      failValidation(s"Intersect two tables of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
-    }
-    resolvedIntersect
   }
 }
 
@@ -381,8 +317,6 @@ case class CatalogNode(
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     relBuilder.scan(tablePath.asJava)
   }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = this
 }
 
 /**
@@ -398,8 +332,6 @@ case class LogicalRelNode(
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     relBuilder.push(relNode)
   }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = this
 }
 
 case class WindowAggregate(
