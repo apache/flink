@@ -21,7 +21,7 @@ package org.apache.flink.runtime.testingUtils
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
-import org.apache.flink.runtime.io.network.NetworkEnvironment
+import org.apache.flink.runtime.io.network.{NetworkEnvironment, TaskEventDispatcher}
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
@@ -40,6 +40,7 @@ class TestingTaskManager(
     ioManager: IOManager,
     network: NetworkEnvironment,
     kvStateService: KvStateService,
+    taskEventDispatcher: TaskEventDispatcher,
     taskManagerStateStore: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
@@ -52,6 +53,7 @@ class TestingTaskManager(
     ioManager,
     network,
     kvStateService,
+    taskEventDispatcher,
     taskManagerStateStore,
     numberOfSlots,
     highAvailabilityServices,
@@ -65,6 +67,7 @@ class TestingTaskManager(
     ioManager: IOManager,
     network: NetworkEnvironment,
     kvStateService: KvStateService,
+    taskEventDispatcher: TaskEventDispatcher,
     taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
@@ -77,6 +80,7 @@ class TestingTaskManager(
       ioManager,
       network,
       kvStateService,
+      taskEventDispatcher,
       taskManagerLocalStateStoresManager,
       numberOfSlots,
       highAvailabilityServices,

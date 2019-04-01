@@ -50,7 +50,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.A
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
-import org.apache.flink.runtime.io.network.NetworkEnvironment
+import org.apache.flink.runtime.io.network.{NetworkEnvironment, TaskEventDispatcher}
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
@@ -128,6 +128,7 @@ class TaskManager(
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
     protected val kvStateService: KvStateService,
+    protected val taskEventDispatcher: TaskEventDispatcher,
     protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
@@ -1238,6 +1239,7 @@ class TaskManager(
         network,
         kvStateService,
         bcVarManager,
+        taskEventDispatcher,
         taskStateManager,
         taskManagerConnection,
         inputSplitProvider,

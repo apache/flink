@@ -83,6 +83,7 @@ public class TaskManagerServices {
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
+	private final TaskEventDispatcher taskEventDispatcher;
 
 	TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
@@ -94,7 +95,8 @@ public class TaskManagerServices {
 		TaskSlotTable taskSlotTable,
 		JobManagerTable jobManagerTable,
 		JobLeaderService jobLeaderService,
-		TaskExecutorLocalStateStoresManager taskManagerStateStore) {
+		TaskExecutorLocalStateStoresManager taskManagerStateStore,
+		TaskEventDispatcher taskEventDispatcher) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
@@ -106,6 +108,7 @@ public class TaskManagerServices {
 		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
 		this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
+		this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -150,6 +153,10 @@ public class TaskManagerServices {
 
 	public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
 		return taskManagerStateStore;
+	}
+
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -205,6 +212,8 @@ public class TaskManagerServices {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
+		taskEventDispatcher.clearAll();
+
 		if (exception != null) {
 			throw new FlinkException("Could not properly shut down the TaskManager services.", exception);
 		}
@@ -235,7 +244,10 @@ public class TaskManagerServices {
 		// pre-start checks
 		checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final NetworkEnvironment network = createNetworkEnvironment(taskManagerServicesConfiguration, maxJvmHeapMemory);
+		final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
+
+		final NetworkEnvironment network = createNetworkEnvironment(
+			taskManagerServicesConfiguration, maxJvmHeapMemory, taskEventDispatcher);
 		network.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
@@ -293,7 +305,8 @@ public class TaskManagerServices {
 			taskSlotTable,
 			jobManagerTable,
 			jobLeaderService,
-			taskStateManager);
+			taskStateManager,
+			taskEventDispatcher);
 	}
 
 	/**
@@ -396,7 +409,8 @@ public class TaskManagerServices {
 	 */
 	private static NetworkEnvironment createNetworkEnvironment(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
-			long maxJvmHeapMemory) {
+			long maxJvmHeapMemory,
+			TaskEventDispatcher taskEventDispatcher) {
 
 		NetworkEnvironmentConfiguration networkEnvironmentConfiguration = taskManagerServicesConfiguration.getNetworkConfig();
 
@@ -425,7 +439,6 @@ public class TaskManagerServices {
 		}
 
 		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
-		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
 		// we start the network first, to make sure it can allocate its buffers first
 		return new NetworkEnvironment(
