@@ -19,8 +19,10 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration parameters for REST communication.
@@ -62,13 +64,17 @@ public class RestOptions {
 			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
-	 * The port that the client connects to.
+	 * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
+	 * has not been specified.
 	 */
 	public static final ConfigOption<Integer> PORT =
 		key(REST_PORT_KEY)
 			.defaultValue(8081)
 			.withDeprecatedKeys(WebOptions.PORT.key())
-			.withDescription("The port that the client connects to.");
+			.withDescription(
+				Description.builder()
+					.text("The port that the client connects to. If %s has not been specified, then the REST server will bind to this port.", text(BIND_PORT.key()))
+					.build());
 
 	/**
 	 * The time in ms that the client waits for the leader address, e.g., Dispatcher or
