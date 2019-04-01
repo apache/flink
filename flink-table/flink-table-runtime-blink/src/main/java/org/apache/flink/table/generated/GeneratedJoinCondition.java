@@ -19,20 +19,20 @@
 package org.apache.flink.table.generated;
 
 /**
- * Describes a generated {@link Projection}.
+ * Describes a generated {@link JoinCondition}.
  */
-public class GeneratedProjection extends GeneratedClass<Projection> {
+public class GeneratedJoinCondition extends GeneratedClass<JoinCondition> {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Creates a GeneratedProjection.
+	 * Creates a GeneratedJoinCondition.
 	 *
-	 * @param className class name of the generated Function.
-	 * @param code code of the generated Function.
-	 * @param references referenced objects of the generated Function.
+	 * @param className class name of the generated JoinCondition.
+	 * @param code code of the generated JoinCondition.
+	 * @param references referenced objects of the generated JoinCondition.
 	 */
-	public GeneratedProjection(String className, String code, Object[] references) {
+	public GeneratedJoinCondition(String className, String code, Object[] references) {
 		super(className, code, references);
 	}
 }
