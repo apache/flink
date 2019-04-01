@@ -41,9 +41,9 @@ import _root_.scala.collection.JavaConverters._
 class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] = tableEnv.expressionBridge
-  private val projectionOperationUtils = new ProjectionOperationUtils
   private val functionCatalog: FunctionDefinitionCatalog = tableEnv.functionCatalog
 
+  private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
   private val noWindowPropertyChecker = new NoWindowPropertyChecker(
     "Window start and end properties are not available for Over windows.")
 
@@ -97,14 +97,11 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       explicitAlias: Boolean,
       overWindows: JList[OverWindow])
     : LogicalNode = {
-
     val resolver = resolverFor(tableCatalog, functionCatalog, child).withOverWindows(overWindows)
       .build
     val projections = resolver.resolve(projectList)
-    val namedProjections = projectionOperationUtils.nameExpressions(projections)
 
-    Project(namedProjections.asScala.map(bridgeExpression), child, explicitAlias)
-      .validate(tableEnv)
+    projectionOperationFactory.create(projections, child, explicitAlias)
   }
 
   /**

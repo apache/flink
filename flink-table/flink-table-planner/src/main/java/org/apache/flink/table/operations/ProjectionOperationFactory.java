@@ -20,19 +20,28 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.plan.logical.LogicalNode;
+import org.apache.flink.table.plan.logical.Project;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -42,14 +51,44 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GET;
 
 /**
- * Utility class for projection specific expressions transformations.
+ * Utility class for creating valid {@link Project} operation.
  */
 @Internal
-public final class ProjectionOperationUtils {
+public final class ProjectionOperationFactory {
 
 	private final ExtractNameVisitor extractNameVisitor = new ExtractNameVisitor();
 	private final NamingVisitor namingVisitor = new NamingVisitor();
 	private int currentFieldIndex = 0;
+
+	private final ExpressionBridge<PlannerExpression> expressionBridge;
+
+	public ProjectionOperationFactory(ExpressionBridge<PlannerExpression> expressionBridge) {
+		this.expressionBridge = expressionBridge;
+	}
+
+	public Project create(
+			List<Expression> projectList,
+			LogicalNode childNode,
+			boolean explicitAlias) {
+		List<Expression> namedExpressions = nameExpressions(projectList);
+		validateNames(namedExpressions);
+		List<PlannerExpression> convertedExpressions = namedExpressions.stream()
+			.map(expressionBridge::bridge)
+			.collect(Collectors.toList());
+
+		return new Project(convertedExpressions, childNode, explicitAlias);
+	}
+
+	private void validateNames(List<Expression> namedExpressions) {
+		final Set<String> names = new HashSet<>();
+		namedExpressions.stream().map(expr -> expr.accept(extractNameVisitor))
+			.map(name -> name.orElseThrow(() -> new TableException("Could not name a field in a projection.")))
+			.forEach(name -> {
+				if (!names.add(name)) {
+					throw new ValidationException("Ambiguous column name: " + name);
+				}
+			});
+	}
 
 	/**
 	 * Ensures that all expressions have a derivable name. There is a few categories and naming
@@ -66,7 +105,7 @@ public final class ProjectionOperationUtils {
 	 *     the index within given expressions</li>
 	 * </ul>
 	 */
-	public List<Expression> nameExpressions(List<Expression> expression) {
+	private List<Expression> nameExpressions(List<Expression> expression) {
 		return IntStream.range(0, expression.size())
 			.mapToObj(idx -> {
 				currentFieldIndex = idx;
@@ -95,14 +134,15 @@ public final class ProjectionOperationUtils {
 		}
 
 		private Optional<String> nameForGet(CallExpression call) {
-			return Optional.of(call.accept(extractNameVisitor).orElseGet(ProjectionOperationUtils.this::getUniqueName));
+			return Optional.of(call.accept(extractNameVisitor)
+				.orElseGet(ProjectionOperationFactory.this::getUniqueName));
 		}
 
 		private Optional<String> nameForCast(CallExpression call) {
 			Optional<String> innerName = call.getChildren().get(0).accept(extractNameVisitor);
 			Expression type = call.getChildren().get(1);
 			return Optional.of(innerName.map(n -> String.format("%s-%s", n, type))
-				.orElseGet(ProjectionOperationUtils.this::getUniqueName));
+				.orElseGet(ProjectionOperationFactory.this::getUniqueName));
 		}
 
 		@Override
@@ -122,7 +162,9 @@ public final class ProjectionOperationUtils {
 		public Optional<String> visitCall(CallExpression call) {
 			if (call.getFunctionDefinition().equals(GET)) {
 				return extractNameFromGet(call);
-			} else {
+			} else if (call.getFunctionDefinition().equals(AS)) {
+				return ApiExpressionUtils.extractValue(call.getChildren().get(1), Types.STRING);
+			} else  {
 				return Optional.empty();
 			}
 		}
