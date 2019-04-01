@@ -17,24 +17,19 @@
  */
 package org.apache.flink.table.plan.logical
 
-import java.util.{Collections, Optional, List => JList}
+import java.util.{Optional, List => JList}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{CorrelationId, JoinRelType}
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.functions.utils.TableSqlFunction
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.operations.JoinOperationFactory.JoinType
 import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import scala.collection.JavaConverters._
@@ -177,59 +172,5 @@ case class WindowAggregate(
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava).build()
-  }
-}
-
-/**
-  * LogicalNode for calling a user-defined table functions.
-  *
-  * @param tableFunction table function to be called (might be overloaded)
-  * @param parameters actual parameters
-  * @param fieldNames output field names
-  */
-case class CalculatedTable(
-    tableFunction: TableFunction[_],
-    parameters: JList[PlannerExpression],
-    resultType: TypeInformation[_],
-    fieldNames: Array[String])
-  extends LeafNode {
-
-  private val (generatedNames, _, fieldTypes) = getFieldInfo(resultType)
-
-  override def output: Seq[Attribute] = {
-    if (fieldNames.isEmpty) {
-      generatedNames.zip(fieldTypes).map {
-        case (n, t) => ResolvedFieldReference(n, t)
-      }
-    } else {
-      fieldNames.zip(fieldTypes).map {
-        case (n, t) => ResolvedFieldReference(n, t)
-      }
-    }
-  }
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    val fieldIndexes = getFieldInfo(resultType)._2
-    val function = new FlinkTableFunctionImpl(
-      resultType,
-      fieldIndexes,
-      if (fieldNames.isEmpty) generatedNames else fieldNames
-    )
-    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val sqlFunction = new TableSqlFunction(
-      tableFunction.functionIdentifier,
-      tableFunction.toString,
-      tableFunction,
-      resultType,
-      typeFactory,
-      function)
-
-    LogicalTableFunctionScan.create(
-      relBuilder.peek().getCluster,
-      Collections.emptyList(),
-      relBuilder.call(sqlFunction, parameters.asScala.map(_.toRexNode(relBuilder)).asJava),
-      function.getElementType(null),
-      function.getRowType(relBuilder.getTypeFactory, null),
-      null)
   }
 }
