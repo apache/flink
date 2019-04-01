@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.plan.logical.{Minus => LMinus, _}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
@@ -297,10 +298,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation)
     : TableOperation = {
 
-    val childNode = child.asInstanceOf[LogicalNode]
-    val convertedFields = fields.asScala.map(expressionBridge.bridge)
+    val newFields = createAliasList(fields, child)
 
-    AliasNode(convertedFields, childNode).validate(tableEnv)
+    project(newFields, child, explicitAlias = true)
   }
 
   def filter(

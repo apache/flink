@@ -29,7 +29,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types, UnresolvedException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions.PlannerExpressionUtils.isRowCountLiteral
 import org.apache.flink.table.expressions._
@@ -69,34 +69,6 @@ case class Project(
       exprs.map(_.toRexNode(relBuilder)).asJava,
       projectNames,
       true)
-  }
-}
-
-case class AliasNode(aliasList: Seq[PlannerExpression], child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] =
-    throw UnresolvedException("Invalid call to output on AliasNode")
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder =
-    throw UnresolvedException("Invalid call to toRelNode on AliasNode")
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (aliasList.length > child.output.length) {
-      failValidation("Aliasing more fields than we actually have")
-    } else if (!aliasList.forall(_.isInstanceOf[UnresolvedFieldReference])) {
-      failValidation("Alias only accept name expressions as arguments")
-    } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
-      failValidation("Alias can not accept '*' as name")
-    } else {
-      val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
-      val input = child.output
-      val expressions = names.zip(input).map { case (name, attr) =>
-        Alias(attr, name)
-      } ++ input.drop(names.length)
-      Project(
-        expressions.toList.map(_.asInstanceOf[PlannerExpression]).asJava,
-        child,
-        explicitAlias = true)
-    }
   }
 }
 
