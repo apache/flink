@@ -19,23 +19,29 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
-
-import java.util.List;
 
 /**
- * Base class for representing the operation structure behind a user-facing {@link Table} API.
+ * A utility {@link TableOperationVisitor} that calls
+ * {@link TableOperationDefaultVisitor#defaultMethod(TableOperation)}
+ * by default, unless other methods are overridden explicitly.
  */
 @Internal
-public interface TableOperation {
+public abstract class TableOperationDefaultVisitor<T> implements TableOperationVisitor<T> {
 
-	/**
-	 * Resolved schema of this operation.
-	 */
-	TableSchema getTableSchema();
+	@Override
+	public T visitProject(ProjectTableOperation projection) {
+		return defaultMethod(projection);
+	}
 
-	List<TableOperation> getChildren();
+	@Override
+	public T visitSetOperation(SetTableOperation setOperation) {
+		return defaultMethod(setOperation);
+	}
 
-	<T> T accept(TableOperationVisitor<T> visitor);
+	@Override
+	public T visitOther(TableOperation other) {
+		return defaultMethod(other);
+	}
+
+	public abstract T defaultMethod(TableOperation other);
 }

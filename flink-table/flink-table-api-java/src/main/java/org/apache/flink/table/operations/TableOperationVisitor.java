@@ -19,23 +19,18 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
-
-import java.util.List;
 
 /**
- * Base class for representing the operation structure behind a user-facing {@link Table} API.
+ * Class that implements visitor pattern. It allows type safe logic on top of tree
+ * of {@link TableOperation}s.
  */
 @Internal
-public interface TableOperation {
+public interface TableOperationVisitor<T> {
 
-	/**
-	 * Resolved schema of this operation.
-	 */
-	TableSchema getTableSchema();
+	T visitProject(ProjectTableOperation projection);
 
-	List<TableOperation> getChildren();
+	T visitSetOperation(SetTableOperation setOperation);
 
-	<T> T accept(TableOperationVisitor<T> visitor);
+	T visitOther(TableOperation other);
+
 }

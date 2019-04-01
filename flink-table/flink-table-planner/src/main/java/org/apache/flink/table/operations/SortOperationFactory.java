@@ -26,7 +26,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.plan.logical.Limit;
-import org.apache.flink.table.plan.logical.LogicalNode;
 import org.apache.flink.table.plan.logical.Sort;
 
 import java.util.List;
@@ -70,7 +69,7 @@ public class SortOperationFactory {
 			.map(f -> f.accept(orderWrapper))
 			.map(expressionBridge::bridge)
 			.collect(Collectors.toList());
-		return new Sort(convertedOrders, (LogicalNode) child);
+		return new Sort(convertedOrders, child);
 	}
 
 	/**
@@ -90,7 +89,7 @@ public class SortOperationFactory {
 			throw new ValidationException("Offset should be greater than or equal to zero.");
 		}
 
-		return new Limit(offset, fetch, (LogicalNode) child);
+		return new Limit(offset, fetch, child);
 	}
 
 	private void failIfStreaming() {
