@@ -26,7 +26,7 @@ import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
-import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan.{Contexts, Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
@@ -54,6 +54,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.operations.OperationTreeBuilder
+import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -93,12 +94,22 @@ abstract class TableEnvironment(val config: TableConfig) {
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
     .sqlToRelConverterConfig(getSqlToRelConverterConfig)
+    // the converter is needed when calling temporal table functions from SQL, because
+    // they reference a history table represented with a tree of table operations
+    .context(Contexts.of(
+      new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
+    ))
     // set the executor to evaluate constant expressions
     .executor(new ExpressionReducer(config))
     .build
 
+  // temporary bridge between API and planner
+  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
+    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
+
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
+  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder
+    .create(frameworkConfig, expressionBridge)
 
   // the planner instance used to optimize queries of this TableEnvironment
   private lazy val planner: RelOptPlanner = relBuilder.getPlanner
@@ -110,10 +121,6 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // registered external catalog names -> catalog
   private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
-
-  // temporary bridge between API and planner
-  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
@@ -142,7 +149,7 @@ abstract class TableEnvironment(val config: TableConfig) {
           .withTrimUnusedFields(false)
           .withConvertTableAccess(false)
           .withInSubQueryThreshold(Integer.MAX_VALUE)
-          .withRelBuilderFactory(FlinkRelBuilderFactory)
+          .withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
           .build()
 
       case Some(c) => c

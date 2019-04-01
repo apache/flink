@@ -31,7 +31,6 @@ import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.TableFunctionDefinition;
 import org.apache.flink.table.plan.logical.CalculatedTable;
-import org.apache.flink.table.plan.logical.LogicalNode;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,6 +46,7 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_F
 public class CalculatedTableFactory {
 
 	private final ExpressionBridge<PlannerExpression> bridge;
+	private FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor();
 
 	public CalculatedTableFactory(ExpressionBridge<PlannerExpression> bridge) {
 		this.bridge = bridge;
@@ -56,20 +56,13 @@ public class CalculatedTableFactory {
 	 * Creates a valid {@link CalculatedTable} operation.
 	 *
 	 * @param callExpr call to table function as expression
-	 * @param child relational expression on top of which to apply the {@link CalculatedTable}
 	 * @return valid calculated table
 	 */
-	public CalculatedTable create(Expression callExpr, TableOperation child) {
-		return callExpr.accept(new FunctionTableCallVisitor(child));
+	public CalculatedTable create(Expression callExpr) {
+		return callExpr.accept(calculatedTableCreator);
 	}
 
 	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedTable> {
-
-		private final TableOperation operation;
-
-		private FunctionTableCallVisitor(TableOperation operation) {
-			this.operation = operation;
-		}
 
 		@Override
 		public CalculatedTable visitCall(CallExpression call) {
@@ -132,8 +125,7 @@ public class CalculatedTableFactory {
 				tableFunctionDefinition.getTableFunction(),
 				parameters.stream().map(bridge::bridge).collect(toList()),
 				tableFunctionDefinition.getResultType(),
-				fieldNames,
-				(LogicalNode) operation);
+				fieldNames);
 		}
 
 		boolean isTableFunctionCall(Expression expression) {

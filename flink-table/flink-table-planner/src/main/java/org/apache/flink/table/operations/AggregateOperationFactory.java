@@ -44,7 +44,6 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.plan.logical.Aggregate;
-import org.apache.flink.table.plan.logical.LogicalNode;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.plan.logical.SlidingGroupWindow;
@@ -96,13 +95,12 @@ public class AggregateOperationFactory {
 			List<Expression> groupings,
 			List<Expression> aggregates,
 			TableOperation child) {
-		LogicalNode childNode = (LogicalNode) child;
 		validateGroupings(groupings);
 		validateAggregates(groupings, aggregates);
 
 		List<PlannerExpression> convertedGroupings = bridge(groupings);
 		List<PlannerExpression> convertedAggregates = bridge(aggregates);
-		return new Aggregate(convertedGroupings, convertedAggregates, childNode);
+		return new Aggregate(convertedGroupings, convertedAggregates, child);
 	}
 
 	/**
@@ -121,7 +119,6 @@ public class AggregateOperationFactory {
 			List<Expression> windowProperties,
 			ResolvedGroupWindow window,
 			TableOperation child) {
-		LogicalNode childNode = (LogicalNode) child;
 		validateGroupings(groupings);
 		validateAggregates(groupings, aggregates);
 
@@ -136,7 +133,7 @@ public class AggregateOperationFactory {
 			toLogicalWindow(window),
 			convertedWindowProperties,
 			convertedAggregates,
-			childNode);
+			child);
 	}
 
 	/**

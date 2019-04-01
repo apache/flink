@@ -26,7 +26,6 @@ import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFun
 import org.apache.flink.table.operations.JoinOperationFactory.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
-import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
 import _root_.scala.collection.JavaConversions._
@@ -55,8 +54,7 @@ class TableImpl(
 
   var tableName: String = _
 
-  def getRelNode: RelNode = operationTree.asInstanceOf[LogicalNode]
-    .toRelNode(tableEnv.getRelBuilder)
+  def getRelNode: RelNode = tableEnv.getRelBuilder.tableOperation(operationTree).build()
 
   override def getSchema: TableSchema = tableSchema
 

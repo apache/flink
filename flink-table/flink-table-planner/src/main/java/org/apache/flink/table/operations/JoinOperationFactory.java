@@ -32,7 +32,6 @@ import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.plan.logical.CalculatedTable;
 import org.apache.flink.table.plan.logical.Join;
-import org.apache.flink.table.plan.logical.LogicalNode;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -81,7 +80,7 @@ public class JoinOperationFactory {
 	 * @param correlated if the join should be a correlated join
 	 * @return valid join operation
 	 */
-	public LogicalNode create(
+	public TableOperation create(
 			TableOperation left,
 			TableOperation right,
 			JoinType joinType,
@@ -92,7 +91,7 @@ public class JoinOperationFactory {
 		validateCondition(right, joinType, condition, correlated);
 
 		PlannerExpression plannerExpression = expressionBridge.bridge(condition);
-		return new Join((LogicalNode) left, (LogicalNode) right, joinType, Optional.of(plannerExpression), correlated);
+		return new Join(left, right, joinType, Optional.of(plannerExpression), correlated);
 	}
 
 	private void validateCondition(TableOperation right, JoinType joinType, Expression condition, boolean correlated) {

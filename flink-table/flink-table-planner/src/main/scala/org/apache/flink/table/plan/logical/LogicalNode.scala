@@ -17,46 +17,50 @@
  */
 package org.apache.flink.table.plan.logical
 
+import java.util
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.api.{TableEnvironment, TableSchema, ValidationException}
+import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.TreeNode
+import org.apache.flink.table.operations.{TableOperation, TableOperationVisitor}
+
+import scala.collection.JavaConverters._
 
 /**
   * LogicalNode is a logical representation of a table that can translate itself into [[RelNode]].
   */
-abstract class LogicalNode extends TreeNode[LogicalNode] with TableOperation {
-  def output: Seq[Attribute]
+abstract class LogicalNode extends TableOperation {
+  def output: Seq[Attribute] = throw new TableException("Should not be called. Unless overridden")
+
+  def children: Seq[TableOperation]
 
   override def getTableSchema: TableSchema = {
     val attributes = output
     new TableSchema(attributes.map(_.name).toArray, attributes.map(_.resultType).toArray)
   }
 
-  final def toRelNode(relBuilder: RelBuilder): RelNode = construct(relBuilder).build()
+  def toRelNode(relBuilder: RelBuilder): RelNode
 
-  protected[logical] def construct(relBuilder: RelBuilder): RelBuilder
+  override def getChildren: util.List[TableOperation] = children.asJava
 
-  protected def failValidation(msg: String): Nothing = {
-    throw new ValidationException(msg)
-  }
+  override def accept[T](visitor: TableOperationVisitor[T]): T = visitor.visitOther(this)
+
 }
 
 abstract class LeafNode extends LogicalNode {
-  override def children: Seq[LogicalNode] = Nil
+  override def children: Seq[TableOperation] = Nil
 }
 
 abstract class UnaryNode extends LogicalNode {
-  def child: LogicalNode
+  def child: TableOperation
 
-  override def children: Seq[LogicalNode] = child :: Nil
+  override def children: Seq[TableOperation] = child :: Nil
 }
 
 abstract class BinaryNode extends LogicalNode {
-  def left: LogicalNode
-  def right: LogicalNode
+  def left: TableOperation
+  def right: TableOperation
 
-  override def children: Seq[LogicalNode] = left :: right :: Nil
+  override def children: Seq[TableOperation] = left :: right :: Nil
 }

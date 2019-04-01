@@ -30,7 +30,7 @@ import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.logical.LogicalNode
+import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
 import org.apache.flink.util.Preconditions.checkState
@@ -87,8 +87,9 @@ class LogicalCorrelateToTemporalTableJoinRule
           leftNode.getTable.getRelOptSchema)
         val rexBuilder = cluster.getRexBuilder
 
-        val rightNode: RelNode = underlyingHistoryTable.asInstanceOf[LogicalNode]
-          .toRelNode(relBuilder)
+        val converter = call.getPlanner.getContext
+          .unwrap(classOf[TableOperationConverter.ToRelConverterSupplier]).get(relBuilder)
+        val rightNode: RelNode = underlyingHistoryTable.accept(converter)
 
         val rightTimeIndicatorExpression = createRightExpression(
           rexBuilder,
