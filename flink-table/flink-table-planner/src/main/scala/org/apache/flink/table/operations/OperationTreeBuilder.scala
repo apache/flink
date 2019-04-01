@@ -317,9 +317,13 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
     val childNode = child.asInstanceOf[LogicalNode]
     val resolver = resolverFor(tableCatalog, functionCatalog, childNode).build()
-    val convertedFields = expressionBridge.bridge(resolveSingleExpression(condition, resolver))
+    val convertedCondition = expressionBridge.bridge(resolveSingleExpression(condition, resolver))
+    if (convertedCondition.resultType != Types.BOOLEAN) {
+      throw new ValidationException(s"Filter operator requires a boolean expression as input," +
+        s" but $condition is of type ${convertedCondition.resultType}")
+    }
 
-    Filter(convertedFields, childNode).validate(tableEnv)
+    Filter(convertedCondition, childNode)
   }
 
   def distinct(

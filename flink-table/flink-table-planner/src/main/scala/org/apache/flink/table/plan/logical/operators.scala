@@ -104,14 +104,6 @@ case class Filter(condition: PlannerExpression, child: LogicalNode) extends Unar
     child.construct(relBuilder)
     relBuilder.filter(condition.toRexNode(relBuilder))
   }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (condition.resultType != BOOLEAN_TYPE_INFO) {
-      failValidation(s"Filter operator requires a boolean expression as input," +
-        s" but $condition is of type ${condition.resultType}")
-    }
-    this
-  }
 }
 
 case class Aggregate(
