@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.calcite.rel.`type`.RelDataTypeSystemImpl
+import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes}
+import org.apache.flink.table.typeutils.TypeCheckUtils
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.table.`type`.DecimalType
 
 /**
   * Custom type system for Flink.
@@ -51,4 +53,43 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   // this fixes the problem of CASE WHEN with different length string literals but get wrong
   // result with additional space suffix
   override def shouldConvertRaggedUnionTypesToVarying(): Boolean = true
+
+  override def deriveAvgAggType(
+      typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
+    val argTypeInfo = FlinkTypeFactory.toInternalType(argType)
+    val avgType = FlinkTypeSystem.deriveAvgAggType(argTypeInfo)
+    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(
+      avgType, argType.isNullable)
+  }
+
+  override def deriveSumType(
+      typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
+    val argTypeInfo = FlinkTypeFactory.toInternalType(argType)
+    val sumType = FlinkTypeSystem.deriveSumType(argTypeInfo)
+    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(
+      sumType, argType.isNullable)
+  }
+}
+
+object FlinkTypeSystem {
+
+  def deriveAvgAggType(argType: InternalType): InternalType = argType match {
+    case dt: DecimalType =>
+      val result = DecimalType.inferAggAvgType(dt.scale())
+      DecimalType.of(result.precision(), result.scale())
+    case nt if TypeCheckUtils.isNumeric(nt) => InternalTypes.DOUBLE
+    case _ =>
+      throw new RuntimeException("Unsupported argType for AVG(): " + argType)
+  }
+
+  def deriveSumType(argType: InternalType): InternalType = argType match {
+    case dt: DecimalType =>
+      val result = DecimalType.inferAggSumType(dt.scale())
+      DecimalType.of(result.precision(), result.scale())
+    case nt if TypeCheckUtils.isNumeric(nt) =>
+      argType
+    case _ =>
+      throw new RuntimeException("Unsupported argType for SUM(): " + argType)
+  }
+
 }

@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TemporalTableFunction
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeInfoFromInternalType
 
 import org.apache.calcite.rel.RelNode
 
@@ -45,7 +45,7 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
     val fieldNames = rowType.getFieldList.map(_.getName)
     val fieldTypes = rowType.getFieldList map { tp =>
       val internalType = toInternalType(tp.getType)
-      createInternalTypeInfoFromInternalType(internalType)
+      createExternalTypeInfoFromInternalType(internalType)
     }
     new TableSchema(fieldNames.toArray, fieldTypes.toArray)
   }
