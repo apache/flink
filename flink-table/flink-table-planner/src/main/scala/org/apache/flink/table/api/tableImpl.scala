@@ -22,9 +22,9 @@ import _root_.java.util.function.Supplier
 
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.expressions.ApiExpressionUtils.{extractAggregationsAndProperties, extractFieldReferences, replaceAggregationsAndProperties}
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
+import org.apache.flink.table.operations.OperationExpressionsUtils.{extractAggregationsAndProperties, extractFieldReferences}
 import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
@@ -84,23 +84,16 @@ class TableImpl(
       expressionsWithResolvedCalls,
       getUniqueAttributeSupplier)
 
-    val aggNames = extracted.getAggregations
-    val propNames = extracted.getWindowProperties
-    if (!propNames.isEmpty) {
+    if (!extracted.getWindowProperties.isEmpty) {
       throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    if (!aggNames.isEmpty) {
-      val projectsOnAgg =
-        replaceAggregationsAndProperties(
-          expressionsWithResolvedCalls,
-          aggNames,
-          propNames)
+    if (!extracted.getAggregations.isEmpty) {
       val projectFields = extractFieldReferences(expressionsWithResolvedCalls)
 
       wrap(
-        operationTreeBuilder.project(projectsOnAgg,
-          operationTreeBuilder.aggregate(emptyList[Expression], aggNames,
+        operationTreeBuilder.project(extracted.getProjections,
+          operationTreeBuilder.aggregate(emptyList[Expression], extracted.getAggregations,
             operationTreeBuilder.project(projectFields, operationTree)
           )
         )
@@ -508,25 +501,18 @@ class GroupedTableImpl(
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls,
       tableImpl.getUniqueAttributeSupplier)
 
-    val aggNames = extracted.getAggregations
-    val propNames = extracted.getWindowProperties
-    if (!propNames.isEmpty) {
+    if (!extracted.getWindowProperties.isEmpty) {
       throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    val projectsOnAgg =
-      replaceAggregationsAndProperties(
-        expressionsWithResolvedCalls,
-        aggNames,
-        propNames)
     val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKey)
       .asJava)
 
     new TableImpl(tableImpl.tableEnv,
-      tableImpl.operationTreeBuilder.project(projectsOnAgg,
+      tableImpl.operationTreeBuilder.project(extracted.getProjections,
         tableImpl.operationTreeBuilder.aggregate(
           groupKey.asJava,
-          aggNames,
+          extracted.getAggregations,
           tableImpl.operationTreeBuilder.project(projectFields, tableImpl.operationTree)
         )
       ))
@@ -588,26 +574,18 @@ class WindowGroupedTableImpl(
       expressionsWithResolvedCalls,
       tableImpl.getUniqueAttributeSupplier)
 
-    val aggNames = extracted.getAggregations
-    val propNames = extracted.getWindowProperties
-
-    val projectsOnAgg =
-      replaceAggregationsAndProperties(
-        expressionsWithResolvedCalls,
-        aggNames,
-        propNames)
     val projectFields = extractFieldReferences(
       (expressionsWithResolvedCalls.asScala ++ groupKeys :+ this.window.getTimeField)
         .asJava)
 
     new TableImpl(tableImpl.tableEnv,
       tableImpl.operationTreeBuilder.project(
-        projectsOnAgg,
+        extracted.getProjections,
         tableImpl.operationTreeBuilder.windowAggregate(
           groupKeys.asJava,
           window,
-          propNames,
-          aggNames,
+          extracted.getWindowProperties,
+          extracted.getAggregations,
           tableImpl.operationTreeBuilder.project(projectFields, tableImpl.operationTree)
         ),
         // required for proper resolution of the time attribute in multi-windows
