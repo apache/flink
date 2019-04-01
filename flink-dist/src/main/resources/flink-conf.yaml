@@ -121,17 +121,20 @@ parallelism.default: 1
 # state.backend.incremental: false
 
 #==============================================================================
-# Web Frontend
+# Rest & web frontend
 #==============================================================================
 
-# The address under which the web-based runtime monitor listens.
+# The port to which the REST client connects to and the server binds to.
 #
-#web.address: 0.0.0.0
+#rest.port: 8081
 
-# The port under which the web-based runtime monitor listens.
-# A value of -1 deactivates the web server.
+# The address to which the REST client will connect to
+#
+#rest.address: 0.0.0.0
 
-rest.port: 8081
+# The address that the REST & web server binds to
+#
+#rest.bind-address: 0.0.0.0
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
