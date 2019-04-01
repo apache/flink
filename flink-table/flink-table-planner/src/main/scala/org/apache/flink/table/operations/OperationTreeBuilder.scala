@@ -44,7 +44,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   private val expressionBridge: ExpressionBridge[PlannerExpression] = tableEnv.expressionBridge
   private val functionCatalog: FunctionDefinitionCatalog = tableEnv.functionCatalog
 
+  private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
   private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
+  private val sortOperationFactory = new SortOperationFactory(expressionBridge, isStreaming)
   private val noWindowPropertyChecker = new NoWindowPropertyChecker(
     "Window start and end properties are not available for Over windows.")
 
@@ -260,13 +262,11 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       fields: JList[Expression],
       child: TableOperation)
     : TableOperation = {
-    val childNode = child.asInstanceOf[LogicalNode]
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, childNode).build()
-    val resolvedExpressions = resolver.resolve(fields)
-    val order = SortOperationUtils.wrapInOrder(resolvedExpressions).asScala.map(bridgeExpression)
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedFields = resolver.resolve(fields)
 
-    Sort(order, childNode).validate(tableEnv)
+    sortOperationFactory.createSort(resolvedFields, child)
   }
 
   def limitWithOffset(offset: Int, child: TableOperation): TableOperation = {
@@ -290,7 +290,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   }
 
   def limit(offset: Int, fetch: Int, child: TableOperation): TableOperation = {
-    Limit(offset, fetch, child.asInstanceOf[LogicalNode]).validate(tableEnv)
+    sortOperationFactory.createLimit(offset, fetch, child)
   }
 
   def alias(

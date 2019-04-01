@@ -333,6 +333,8 @@ public final class BuiltInFunctionDefinitions {
 		WINDOW_START, WINDOW_END, PROCTIME, ROWTIME
 	));
 
+	public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
+
 	public static List<FunctionDefinition> getDefinitions() {
 		final Field[] fields = BuiltInFunctionDefinitions.class.getFields();
 		final List<FunctionDefinition> list = new ArrayList<>(fields.length);

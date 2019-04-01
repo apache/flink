@@ -81,19 +81,12 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
   }
 }
 
-case class Sort(order: Seq[PlannerExpression], child: LogicalNode) extends UnaryNode {
+case class Sort(order: JList[PlannerExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
-    relBuilder.sort(order.map(_.toRexNode(relBuilder)).asJava)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Sort on stream tables is currently not supported.")
-    }
-    this
+    relBuilder.sort(order.asScala.map(_.toRexNode(relBuilder)).asJava)
   }
 }
 
@@ -105,18 +98,6 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
     relBuilder.limit(offset, fetch)
   }
 
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Limit on stream tables is currently not supported.")
-    }
-    if (!child.isInstanceOf[Sort]) {
-      failValidation(s"Limit operator must be preceded by an OrderBy operator.")
-    }
-    if (offset < 0) {
-      failValidation(s"Offset should be greater than or equal to zero.")
-    }
-    super.validate(tableEnv)
-  }
 }
 
 case class Filter(condition: PlannerExpression, child: LogicalNode) extends UnaryNode {
