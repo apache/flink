@@ -30,7 +30,7 @@ under the License.
 
 ### Start a long-running Flink cluster on YARN
 
-Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
+Start a YARN session with Task Managers (each with 4 GB of Heapspace):
 
 {% highlight bash %}
 # get the hadoop2 package from the Flink download page at
@@ -38,7 +38,7 @@ Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
-./bin/yarn-session.sh -n 4 -jm 1024m -tm 4096m
+./bin/yarn-session.sh -jm 1024m -tm 4096m
 {% endhighlight %}
 
 Specify the `-s` flag for the number of processing slots per Task Manager. We recommend to set the number of slots to the number of processors per machine.
@@ -53,7 +53,7 @@ Once the session has been started, you can submit jobs to the cluster using the 
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
-./bin/flink run -m yarn-cluster -yn 4 -yjm 1024m -ytm 4096m ./examples/batch/WordCount.jar
+./bin/flink run -m yarn-cluster -yjm 1024m -ytm 4096m ./examples/batch/WordCount.jar
 {% endhighlight %}
 
 ## Flink YARN Session
@@ -96,8 +96,6 @@ This command will show you the following overview:
 
 {% highlight bash %}
 Usage:
-   Required
-     -n,--container <arg>   Number of YARN container to allocate (=Number of Task Managers)
    Optional
      -D <arg>                        Dynamic properties
      -d,--detached                   Start detached
@@ -112,10 +110,10 @@ Usage:
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.
 
-**Example:** Issue the following command to allocate 10 Task Managers, with 8 GB of memory and 32 processing slots each:
+**Example:** Issue the following command to start a session, which will allocate Task Managers with 8 GB of memory and 32 processing slots when there is no slot available:
 
 {% highlight bash %}
-./bin/yarn-session.sh -n 10 -tm 8192 -s 32
+./bin/yarn-session.sh -tm 8192 -s 32
 {% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if you want to change something.
@@ -123,8 +121,6 @@ The system will use the configuration in `conf/flink-conf.yaml`. Please follow o
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `taskmanager.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelism.default` if the number of slots has been specified.
 
 If you don't want to change the configuration file to set configuration parameters, there is the option to pass dynamic properties via the `-D` flag. So you can pass parameters this way: `-Dfs.overwrite-files=true -Dtaskmanager.network.memory.min=536346624`.
-
-The example invocation starts 11 containers (even though only 10 containers were requested), since there is one additional container for the ApplicationMaster and Job Manager.
 
 Once Flink is deployed in your YARN cluster, it will show you the connection details of the Job Manager.
 
@@ -212,7 +208,7 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 wget -O LICENSE-2.0.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
 ./bin/flink run ./examples/batch/WordCount.jar \
-        hdfs:///..../LICENSE-2.0.txt hdfs:///.../wordcount-result.txt
+        --input hdfs:///..../LICENSE-2.0.txt --output hdfs:///.../wordcount-result.txt
 {% endhighlight %}
 
 If there is the following error, make sure that all TaskManagers started:
@@ -231,12 +227,11 @@ If the TaskManagers do not show up after a minute, you should investigate the is
 
 The documentation above describes how to start a Flink cluster within a Hadoop YARN environment. It is also possible to launch Flink within YARN only for executing a single job.
 
-Please note that the client then expects the `-yn` value to be set (number of TaskManagers).
 
 ***Example:***
 
 {% highlight bash %}
-./bin/flink run -m yarn-cluster -yn 2 ./examples/batch/WordCount.jar
+./bin/flink run -m yarn-cluster ./examples/batch/WordCount.jar
 {% endhighlight %}
 
 The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
