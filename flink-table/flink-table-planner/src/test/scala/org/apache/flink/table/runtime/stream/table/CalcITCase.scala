@@ -349,4 +349,48 @@ class CalcITCase extends AbstractTestBase {
       "{9=Comment#3}")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testAddColumns(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    StreamITCase.clear
+
+    val testData = new mutable.MutableList[(Int, Long, String)]
+    testData.+=((1, 1L, "Kevin"))
+    testData.+=((2, 2L, "Sunny"))
+
+    val t = env.fromCollection(testData).toTable(tEnv).as('a, 'b, 'c)
+
+    val result = t
+      // Adds simple column
+      .addColumns("concat(c, 'sunny') as kid")
+      // Adds columns by flattening
+      .addColumns(row(1, "str").flatten())
+      // If the added fields have duplicate field name, then the last one is used.
+      .addOrReplaceColumns(concat('c, "_kid") as 'kid, concat('c, "kid") as 'kid)
+      // Existing fields will be replaced.
+      .addOrReplaceColumns("concat(c, ' is a kid') as kid")
+      // Adds value literal column
+      .addColumns("'last'")
+      // Adds column without alias
+      .addColumns('a + 2)
+      // Renames columns
+      .renameColumns('a as 'a2, 'b as 'b2)
+      .renameColumns("c as c2")
+      // Drops columns
+      .dropColumns('b2)
+      .dropColumns("c2")
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,Kevin is a kid,1,str,last,3",
+      "2,Sunny is a kid,1,str,last,4"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
 }

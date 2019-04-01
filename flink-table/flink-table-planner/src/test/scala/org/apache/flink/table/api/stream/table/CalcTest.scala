@@ -138,6 +138,55 @@ class CalcTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testAddColumns(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable
+      .addColumns("concat(c, 'sunny') as kid")
+      .addColumns('a + 2, 'b as 'b2)
+      .addOrReplaceColumns(concat('c, "_kid") as 'kid, concat('c, "kid") as 'kid)
+      .addOrReplaceColumns("concat(c, '_kid_last') as kid")
+      .addColumns("'literal_value'")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term(
+        "select", "a", "b", "c", "CONCAT(c, '_kid_last') AS kid", "+(a, 2) AS _c4, b AS b2",
+        "'literal_value' AS _c6")
+    )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testRenameColumns(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.renameColumns('a as 'a2, 'b as 'b2).select('a2, 'b2)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a AS a2", "b AS b2")
+    )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testDropColumns(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.dropColumns('a, 'b)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "c")
+    )
+    util.verifyTable(resultTable, expected)
+  }
 }
 
 

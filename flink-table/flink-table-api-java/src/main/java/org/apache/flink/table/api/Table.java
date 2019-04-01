@@ -84,7 +84,7 @@ public interface Table {
 	void printSchema();
 
 	/**
-	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
 	 * <p>Example:
@@ -98,7 +98,7 @@ public interface Table {
 	Table select(String fields);
 
 	/**
-	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
 	 * <p>Scala Example:
@@ -279,7 +279,7 @@ public interface Table {
 	Table distinct();
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary. You can use
 	 * where and select clauses after a join to further specify the behaviour of the join.
 	 *
@@ -296,7 +296,7 @@ public interface Table {
 	Table join(Table right);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
@@ -312,7 +312,7 @@ public interface Table {
 	Table join(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
@@ -328,7 +328,7 @@ public interface Table {
 	Table join(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -345,7 +345,7 @@ public interface Table {
 	Table leftOuterJoin(Table right);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -362,7 +362,7 @@ public interface Table {
 	Table leftOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -379,7 +379,7 @@ public interface Table {
 	Table leftOuterJoin(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL right outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL right outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -396,7 +396,7 @@ public interface Table {
 	Table rightOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL right outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL right outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -413,7 +413,7 @@ public interface Table {
 	Table rightOuterJoin(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL full outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL full outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -430,7 +430,7 @@ public interface Table {
 	Table fullOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL full outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL full outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -649,7 +649,7 @@ public interface Table {
 	Table minus(Table right);
 
 	/**
-	 * Minus of two {@link Table}s. Similar to an SQL EXCEPT ALL.
+	 * Minus of two {@link Table}s. Similar to a SQL EXCEPT ALL.
 	 * Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
 	 * the right table. A record that is present n times in the left table and m times
 	 * in the right table is returned (n - m) times, i.e., as many duplicates as are present
@@ -669,7 +669,7 @@ public interface Table {
 
 	/**
 	 * Unions two {@link Table}s with duplicate records removed.
-	 * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
+	 * Similar to a SQL UNION. The fields of the two union operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
 	 *
@@ -684,7 +684,7 @@ public interface Table {
 	Table union(Table right);
 
 	/**
-	 * Unions two {@link Table}s. Similar to an SQL UNION ALL. The fields of the two union
+	 * Unions two {@link Table}s. Similar to a SQL UNION ALL. The fields of the two union
 	 * operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
@@ -702,7 +702,7 @@ public interface Table {
 	/**
 	 * Intersects two {@link Table}s with duplicate records removed. Intersect returns records that
 	 * exist in both tables. If a record is present in one or both tables more than once, it is
-	 * returned just once, i.e., the resulting table has no duplicate records. Similar to an
+	 * returned just once, i.e., the resulting table has no duplicate records. Similar to a
 	 * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
@@ -879,4 +879,117 @@ public interface Table {
 	 * @return An OverWindowedTable to specify the aggregations.
 	 */
 	OverWindowedTable window(OverWindow... overWindows);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
+	 * if the added fields already exist.
+	 *
+	 * <p>Example:
+	 * <pre>
+	 * {@code
+	 *   tab.addColumns("a + 1 as a1, concat(b, 'sunny') as b1")
+	 * }
+	 * </pre>
+	 */
+	Table addColumns(String fields);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
+	 * if the added fields already exist.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.addColumns('a + 1 as 'a1, concat('b, "sunny") as 'b1)
+	 * }
+	 * </pre>
+	 */
+	Table addColumns(Expression... fields);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
+     * replaced if add columns name is the same as the existing column name. Moreover, if the added
+     * fields have duplicate field name, then the last one is used.
+	 *
+	 * <p>Example:
+	 * <pre>
+	 * {@code
+	 *   tab.addOrReplaceColumns("a + 1 as a1, concat(b, 'sunny') as b1")
+	 * }
+	 * </pre>
+	 */
+	Table addOrReplaceColumns(String fields);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
+	 * replaced. If the added fields have duplicate field name, then the last one is used.
+	 *
+	 * <p>Scala Example:
+	 * <pre>
+	 * {@code
+	 *   tab.addOrReplaceColumns('a + 1 as 'a1, concat('b, "sunny") as 'b1)
+	 * }
+	 * </pre>
+	 */
+	Table addOrReplaceColumns(Expression... fields);
+
+	/**
+	 * Renames existing columns. Similar to a field alias statement. The field expressions
+	 * should be alias expressions, and only the existing fields can be renamed.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.renameColumns("a as a1, b as b1")
+	 * }
+	 * </pre>
+	 */
+	Table renameColumns(String fields);
+
+	/**
+	 * Renames existing columns. Similar to a field alias statement. The field expressions
+	 * should be alias expressions, and only the existing fields can be renamed.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.renameColumns('a as 'a1, 'b as 'b1)
+	 * }
+	 * </pre>
+	 */
+	Table renameColumns(Expression... fields);
+
+	/**
+	 * Drops existing columns. The field expressions
+	 * should be field reference expressions, and only existing fields can be dropped.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.dropColumns("a, b")
+	 * }
+	 * </pre>
+	 */
+	Table dropColumns(String fields);
+
+	/**
+	 * Drops existing columns. The field expressions
+	 * should be field reference expressions, and only existing fields can be dropped.
+	 *
+	 * <p>Scala Example:
+	 * <pre>
+	 * {@code
+	 *   tab.dropColumns('a, 'b)
+	 * }
+	 * </pre>
+	 */
+	Table dropColumns(Expression... fields);
 }
