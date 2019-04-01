@@ -26,8 +26,9 @@ import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
-import org.apache.calcite.plan.{Contexts, Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.schema
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
@@ -53,10 +54,10 @@ import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.OperationTreeBuilder
+import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder}
 import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.cost.DataSetCostFactory
-import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.table.plan.logical.LogicalRelNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
@@ -664,10 +665,19 @@ abstract class TableEnvironment(val config: TableConfig) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
       if (table != null) {
-        return Some(new TableImpl(this, CatalogNode(tablePath, table.getRowType(typeFactory))))
+        return Some(new TableImpl(this,
+          new CatalogTableOperation(tablePath.toList.asJava, extractTableSchema(table))))
       }
     }
     None
+  }
+
+  private def extractTableSchema(table: schema.Table): TableSchema = {
+    val relDataType = table.getRowType(typeFactory)
+    val fieldNames = relDataType.getFieldNames
+    val fieldTypes = relDataType.getFieldList.asScala
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
+    new TableSchema(fieldNames.asScala.toArray, fieldTypes.toArray)
   }
 
   private def getSchema(schemaPath: Array[String]): SchemaPlus = {

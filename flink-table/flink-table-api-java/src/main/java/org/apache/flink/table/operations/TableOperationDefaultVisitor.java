@@ -64,6 +64,11 @@ public abstract class TableOperationDefaultVisitor<T> implements TableOperationV
 	}
 
 	@Override
+	public T visitCatalogTable(CatalogTableOperation catalogTable) {
+		return defaultMethod(catalogTable);
+	}
+
+	@Override
 	public T visitOther(TableOperation other) {
 		return defaultMethod(other);
 	}
