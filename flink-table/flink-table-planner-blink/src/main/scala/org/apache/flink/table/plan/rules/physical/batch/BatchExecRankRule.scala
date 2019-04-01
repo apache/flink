@@ -80,6 +80,7 @@ class BatchExecRankRule
       rank.orderKey,
       rank.rankType,
       localRankRange,
+      rank.rankNumberType,
       outputRankNumber = false,
       isGlobal = false
     )
@@ -105,6 +106,7 @@ class BatchExecRankRule
       rank.orderKey,
       rank.rankType,
       rank.rankRange,
+      rank.rankNumberType,
       rank.outputRankNumber,
       isGlobal = true
     )

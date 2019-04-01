@@ -26,6 +26,7 @@ import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -46,6 +47,7 @@ class BatchExecRank(
     orderKey: RelCollation,
     rankType: RankType,
     rankRange: RankRange,
+    rankNumberType: RelDataTypeField,
     outputRankNumber: Boolean,
     val isGlobal: Boolean)
   extends Rank(
@@ -56,6 +58,7 @@ class BatchExecRank(
     orderKey,
     rankType,
     rankRange,
+    rankNumberType,
     outputRankNumber)
   with BatchPhysicalRel {
 
@@ -74,6 +77,7 @@ class BatchExecRank(
       orderKey,
       rankType,
       rankRange,
+      rankNumberType,
       outputRankNumber,
       isGlobal
     )

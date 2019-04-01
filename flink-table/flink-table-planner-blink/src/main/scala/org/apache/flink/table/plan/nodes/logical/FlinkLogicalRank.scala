@@ -23,6 +23,7 @@ import org.apache.flink.table.plan.nodes.calcite.{LogicalRank, Rank, RankRange}
 import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.util.ImmutableBitSet
@@ -43,6 +44,7 @@ class FlinkLogicalRank(
     orderKey: RelCollation,
     rankType: RankType,
     rankRange: RankRange,
+    rankNumberType: RelDataTypeField,
     outputRankNumber: Boolean)
   extends Rank(
     cluster,
@@ -52,6 +54,7 @@ class FlinkLogicalRank(
     orderKey,
     rankType,
     rankRange,
+    rankNumberType,
     outputRankNumber)
   with FlinkLogicalRel {
 
@@ -74,6 +77,7 @@ class FlinkLogicalRank(
       orderKey,
       rankType,
       rankRange,
+      rankNumberType,
       outputRankNumber)
   }
 
@@ -93,6 +97,7 @@ private class FlinkLogicalRankConverter extends ConverterRule(
       rank.orderKey,
       rank.rankType,
       rank.rankRange,
+      rank.rankNumberType,
       rank.outputRankNumber
     )
   }
@@ -107,6 +112,7 @@ object FlinkLogicalRank {
       orderKey: RelCollation,
       rankType: RankType,
       rankRange: RankRange,
+      rankNumberType: RelDataTypeField,
       outputRankNumber: Boolean): FlinkLogicalRank = {
     val cluster = input.getCluster
     val traits = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
@@ -118,6 +124,7 @@ object FlinkLogicalRank {
       orderKey,
       rankType,
       rankRange,
+      rankNumberType,
       outputRankNumber)
   }
 }

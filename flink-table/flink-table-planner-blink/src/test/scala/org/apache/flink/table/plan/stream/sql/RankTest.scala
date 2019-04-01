@@ -78,6 +78,17 @@ class RankTest extends TableTestBase {
   }
 
   @Test
+  def testRankFunctionInMiddle(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * FROM (
+        | SELECT a, RANK() OVER (PARTITION BY a ORDER BY a) rk, b, c FROM MyTable) t
+        |WHERE rk < 10
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testRowNumberWithRankEndLessThan1OrderByProctimeAsc(): Unit = {
     // be converted to StreamExecDeduplicate
     val sql =

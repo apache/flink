@@ -25,7 +25,8 @@ import org.apache.flink.table.plan.util.RankUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
-import org.apache.calcite.rex.{RexProgramBuilder, RexUtil}
+import org.apache.calcite.rel.`type`.RelDataTypeField
+import org.apache.calcite.rex.{RexInputRef, RexProgramBuilder, RexUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 
@@ -66,15 +67,22 @@ abstract class FlinkLogicalRankRuleBase
     val exprList = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
 
     val inputFields = RelOptUtil.InputFinder.bits(exprList, null).toList
+    // TODO use the field name specified by user
+    // the field name may be dropped by `ProjectToWindowRule`. so use field name in calc
+    // if the calc output rank number directly, otherwise use field name in window now
     val outputRankNumber = inputFields.contains(rankFieldIndex)
-
-    val rankRowType = if (outputRankNumber) {
-      window.getRowType
-    } else {
-      val typeBuilder = rexBuilder.getTypeFactory.builder()
-      window.getRowType.getFieldList.dropRight(1).foreach(typeBuilder.add)
-      typeBuilder.build()
+    var rankNumberType: Option[RelDataTypeField] = None
+    if (outputRankNumber) {
+      exprList.zipWithIndex.foreach {
+        case (ref: RexInputRef, index) if ref.getIndex == rankFieldIndex =>
+          rankNumberType = Some(calc.getRowType.getFieldList.get(index))
+        case _ => // do nothing
+      }
     }
+    if (rankNumberType.isEmpty) {
+      rankNumberType = Some(window.getRowType.getFieldList.get(rankFieldIndex))
+    }
+    require(rankNumberType.isDefined)
 
     rankRange match {
       case Some(ConstantRankRange(_, rankEnd)) if rankEnd <= 0 =>
@@ -97,7 +105,10 @@ abstract class FlinkLogicalRankRuleBase
       group.orderKeys,
       rankType,
       rankRange.get,
+      rankNumberType.get,
       outputRankNumber)
+
+    val rankRowType = rank.getRowType
 
     val newRel = if (RexUtil.isIdentity(exprList, rankRowType) && remainingPreds.isEmpty) {
       // project is trivial and filter is empty, remove the Calc

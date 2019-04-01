@@ -23,6 +23,7 @@ import org.apache.flink.table.plan.util.{RankProcessStrategy, RelExplainUtil, Re
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -40,6 +41,7 @@ class StreamExecRank(
     orderKey: RelCollation,
     rankType: RankType,
     rankRange: RankRange,
+    rankNumberType: RelDataTypeField,
     outputRankNumber: Boolean)
   extends Rank(
     cluster,
@@ -49,6 +51,7 @@ class StreamExecRank(
     orderKey,
     rankType,
     rankRange,
+    rankNumberType,
     outputRankNumber)
   with StreamPhysicalRel {
 
@@ -84,6 +87,7 @@ class StreamExecRank(
       orderKey,
       rankType,
       rankRange,
+      rankNumberType,
       outputRankNumber)
   }
 

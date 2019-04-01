@@ -23,13 +23,10 @@ import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
 import org.apache.flink.table.plan.util._
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -53,6 +50,7 @@ import scala.collection.JavaConversions._
   * @param orderKey         order keys (should not empty)
   * @param rankType         rank type to define how exactly generate rank number
   * @param rankRange        the expected range of rank number value
+  * @param rankNumberType   the field type of rank number
   * @param outputRankNumber whether output rank number
   */
 abstract class Rank(
@@ -63,6 +61,7 @@ abstract class Rank(
     val orderKey: RelCollation,
     val rankType: RankType,
     val rankRange: RankRange,
+    val rankNumberType: RelDataTypeField,
     val outputRankNumber: Boolean)
   extends SingleRel(cluster, traitSet, input) {
 
@@ -92,17 +91,11 @@ abstract class Rank(
     if (!outputRankNumber) {
       return input.getRowType
     }
+    // output row type = input row type + rank number type
     val typeFactory = cluster.getRexBuilder.getTypeFactory
     val typeBuilder = typeFactory.builder()
     input.getRowType.getFieldList.foreach(typeBuilder.add)
-    // rank number column is always the last column, and its type is BIGINT NOT NULL
-    val allFieldNames = new util.HashSet[String]()
-    allFieldNames.addAll(input.getRowType.getFieldNames)
-    // TODO use the field name specified by user
-    // currently, the field name may be dropped by `ProjectToWindowRule`. so use 'rk' now
-    val rankFieldName = FlinkRelOptUtil.buildUniqueFieldName(allFieldNames, "rk")
-    val bigIntType = typeFactory.createSqlType(SqlTypeName.BIGINT)
-    typeBuilder.add(rankFieldName, typeFactory.createTypeWithNullability(bigIntType, false))
+    typeBuilder.add(rankNumberType)
     typeBuilder.build()
   }
 

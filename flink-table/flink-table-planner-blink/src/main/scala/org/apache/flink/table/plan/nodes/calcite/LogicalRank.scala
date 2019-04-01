@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.nodes.calcite
 import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -41,6 +42,7 @@ final class LogicalRank(
     orderKey: RelCollation,
     rankType: RankType,
     rankRange: RankRange,
+    rankNumberType: RelDataTypeField,
     outputRankNumber: Boolean)
   extends Rank(
     cluster,
@@ -50,6 +52,7 @@ final class LogicalRank(
     orderKey,
     rankType,
     rankRange,
+    rankNumberType,
     outputRankNumber) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -61,6 +64,7 @@ final class LogicalRank(
       orderKey,
       rankType,
       rankRange,
+      rankNumberType,
       outputRankNumber
     )
   }
@@ -74,6 +78,7 @@ object LogicalRank {
       orderKey: RelCollation,
       rankType: RankType,
       rankRange: RankRange,
+      rankNumberType: RelDataTypeField,
       outputRankNumber: Boolean): LogicalRank = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalRank(
@@ -84,6 +89,7 @@ object LogicalRank {
       orderKey,
       rankType,
       rankRange,
+      rankNumberType,
       outputRankNumber
     )
   }

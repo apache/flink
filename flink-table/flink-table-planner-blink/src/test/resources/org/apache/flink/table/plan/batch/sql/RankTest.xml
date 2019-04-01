@@ -35,7 +35,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, w0$o0 AS $2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, rk, rk_0])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, rk, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b, rk])
@@ -65,11 +65,39 @@ LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, w0$o0 AS rk1, w0$o0 AS rk2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b, c])
             +- Sort(orderBy=[b ASC, a ASC])
+               +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankFunctionInMiddle">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, RANK() OVER (PARTITION BY a ORDER BY a) rk, b, c FROM MyTable) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
++- LogicalFilter(condition=[<($1, 10)])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS rk, b, c])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[false], select=[a, b, c])
+            +- Sort(orderBy=[a ASC])
                +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -93,7 +121,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, w0$o0 AS $2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c, rk])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC, c ASC])
       +- Exchange(distribution=[hash[b]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[false], select=[a, b, c])
@@ -121,7 +149,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, w0$o0 AS $2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
++- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
    +- Sort(orderBy=[b ASC, c ASC, a ASC])
       +- Exchange(distribution=[hash[b, c]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[false], select=[a, b, c])
@@ -149,7 +177,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, w0$o0], where=[>(a, 10)])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b, c])
@@ -177,7 +205,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, w0$o0 AS $2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[single])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b, c])

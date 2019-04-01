@@ -65,6 +65,7 @@ class StreamExecRankRule
       rank.orderKey,
       rank.rankType,
       rank.rankRange,
+      rank.rankNumberType,
       rank.outputRankNumber)
   }
 }
