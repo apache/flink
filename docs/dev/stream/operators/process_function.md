@@ -86,7 +86,7 @@ The following example maintains counts per key, and emits a key/count pair whene
     and emits the key/count if they match (i.e., no further update occurred during that minute)
 
 <span class="label label-info">Note</span> This simple example could have been implemented with
-session windows. We use `ProcessFunction` here to illustrate the basic pattern it provides.
+session windows. We use `KeyedProcessFunction` here to illustrate the basic pattern it provides.`KeyedProcessFunction`, as an extension of `ProcessFunction`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -96,9 +96,9 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.ProcessFunction.Context;
-import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.Context;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.OnTimerContext;
 import org.apache.flink.util.Collector;
 
 
@@ -123,7 +123,7 @@ public class CountWithTimestamp {
 /**
  * The implementation of the ProcessFunction that maintains the count and timeouts
  */
-public class CountWithTimeoutFunction extends ProcessFunction<Tuple2<String, String>, Tuple2<String, Long>> {
+public class CountWithTimeoutFunction extends KeyedProcessFunction<Tuple, Tuple2<String, String>, Tuple2<String, Long>> {
 
     /** The state that is maintained by this process function */
     private ValueState<CountWithTimestamp> state;
@@ -178,9 +178,9 @@ public class CountWithTimeoutFunction extends ProcessFunction<Tuple2<String, Str
 {% highlight scala %}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.ProcessFunction.Context
-import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.Context
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.OnTimerContext
 import org.apache.flink.util.Collector
 
 // the source data stream
@@ -199,14 +199,14 @@ case class CountWithTimestamp(key: String, count: Long, lastModified: Long)
 /**
   * The implementation of the ProcessFunction that maintains the count and timeouts
   */
-class CountWithTimeoutFunction extends ProcessFunction[(String, String), (String, Long)] {
+class CountWithTimeoutFunction extends KeyedProcessFunction[Tuple, (String, String), (String, Long)] {
 
   /** The state that is maintained by this process function */
   lazy val state: ValueState[CountWithTimestamp] = getRuntimeContext
     .getState(new ValueStateDescriptor[CountWithTimestamp]("myState", classOf[CountWithTimestamp]))
 
 
-  override def processElement(value: (String, String), ctx: Context, out: Collector[(String, Long)]): Unit = {
+  override def processElement(value: (String, String), ctx: KeyedProcessFunction[Tuple, (String, String), (String, Long)]#Context, out: Collector[(String, Long)]): Unit = {
     // initialize or retrieve/update the state
 
     val current: CountWithTimestamp = state.value match {
@@ -223,7 +223,7 @@ class CountWithTimeoutFunction extends ProcessFunction[(String, String), (String
     ctx.timerService.registerEventTimeTimer(current.lastModified + 60000)
   }
 
-  override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[(String, Long)]): Unit = {
+  override def onTimer(timestamp: Long, ctx: KeyedProcessFunction[Tuple, (String, String), (String, Long)]#OnTimerContext, out: Collector[(String, Long)]): Unit = {
     state.value match {
       case CountWithTimestamp(key, count, lastModified) if (timestamp == lastModified + 60000) =>
         out.collect((key, count))
