@@ -766,59 +766,6 @@ object UserDefinedFunctionUtils {
     (candidate.isArray && expected.isArray &&
       (candidate.getComponentType == expected.getComponentType))
 
-  /**
-    * Creates a [[LogicalTableFunctionCall]] by an expression.
-    *
-    * @param callExpr an expression of a TableFunctionCall, such as "split(c)"
-    * @param logicalNode child logical node
-    * @return A LogicalTableFunctionCall.
-    */
-  def createLogicalFunctionCall(
-      callExpr: PlannerExpression,
-      logicalNode: LogicalNode)
-    : LogicalTableFunctionCall = {
-
-    var alias: Option[Seq[String]] = None
-
-    // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: PlannerExpression): PlannerTableFunctionCall = expr match {
-      case Alias(child, name, extraNames) =>
-        alias = Some(Seq(name) ++ extraNames)
-        unwrap(child)
-      case c: PlannerTableFunctionCall => c
-      case _ =>
-        throw new TableException(
-          "A lateral join only accepts a string expression which defines a table function " +
-            "call that might be followed by some alias.")
-    }
-
-    val tableFunctionCall = unwrap(callExpr)
-
-    val originNames = getFieldInfo(tableFunctionCall.resultType)._1
-
-    // determine the final field names
-    val fieldNames = alias match {
-      case Some(aliasList) if aliasList.length != originNames.length =>
-        throw new ValidationException(
-          s"List of column aliases must have same degree as table; " +
-            s"the returned table of function '${tableFunctionCall.functionName}' has " +
-            s"${originNames.length} columns (${originNames.mkString(",")}), " +
-            s"whereas alias list has ${aliasList.length} columns")
-      case Some(aliasList) =>
-        aliasList.toArray
-      case _ =>
-        originNames
-    }
-
-    LogicalTableFunctionCall(
-      tableFunctionCall.functionName,
-      tableFunctionCall.tableFunction,
-      tableFunctionCall.parameters,
-      tableFunctionCall.resultType,
-      fieldNames,
-      logicalNode)
-  }
-
   def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {
     val operandTypes = for (i <- 0 until callBinding.getOperandCount)
       yield callBinding.getOperandType(i)

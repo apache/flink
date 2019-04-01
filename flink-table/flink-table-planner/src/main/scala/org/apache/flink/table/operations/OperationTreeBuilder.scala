@@ -27,7 +27,6 @@ import org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTIO
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.plan.logical.{Minus => LMinus, _}
 import org.apache.flink.table.util.JavaScalaConversionUtil
@@ -47,6 +46,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
   private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
   private val sortOperationFactory = new SortOperationFactory(expressionBridge, isStreaming)
+  private val calculatedTableFactory = new CalculatedTableFactory(expressionBridge)
   private val noWindowPropertyChecker = new NoWindowPropertyChecker(
     "Window start and end properties are not available for Over windows.")
 
@@ -232,15 +232,15 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     val resolver = resolverFor(tableCatalog, functionCatalog, leftNode).build()
     val resolvedFunction = resolveSingleExpression(tableFunction, resolver)
 
-    val temporalTable = UserDefinedFunctionUtils.createLogicalFunctionCall(
-      expressionBridge.bridge(resolvedFunction),
-      leftNode).validate(tableEnv)
+    val temporalTable = calculatedTableFactory.create(
+      resolvedFunction,
+      leftNode)
 
     join(left, temporalTable, joinType, condition, correlated = true)
   }
 
   def resolveExpression(expression: Expression, tableOperation: TableOperation*)
-    : PlannerExpression = {
+    : Expression = {
     val resolver = resolverFor(tableCatalog, functionCatalog, tableOperation: _*).build()
 
     resolveSingleExpression(expression, resolver)
@@ -249,12 +249,12 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   private def resolveSingleExpression(
       expression: Expression,
       resolver: ExpressionResolver)
-    : PlannerExpression = {
-    val resolvedTimeAttributes = resolver.resolve(List(expression).asJava)
-    if (resolvedTimeAttributes.size() != 1) {
+    : Expression = {
+    val resolvedExpression = resolver.resolve(List(expression).asJava)
+    if (resolvedExpression.size() != 1) {
       throw new ValidationException("Expected single expression")
     } else {
-      expressionBridge.bridge(resolvedTimeAttributes.get(0))
+      resolvedExpression.get(0)
     }
   }
 

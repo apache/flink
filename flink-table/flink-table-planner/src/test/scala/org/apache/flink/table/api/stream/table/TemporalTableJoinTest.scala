@@ -21,16 +21,18 @@ package org.apache.flink.table.api.stream.table
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.stream.table.TemporalTableJoinTest._
-import org.apache.flink.table.expressions.ResolvedFieldReference
+import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
+import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
-import org.hamcrest.Matchers.startsWith
-import org.junit.Assert.{assertArrayEquals, assertEquals, assertTrue}
+import org.hamcrest.Matchers.{equalTo, startsWith}
+import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
 
 class TemporalTableJoinTest extends TableTestBase {
@@ -156,18 +158,23 @@ class TemporalTableJoinTest extends TableTestBase {
       inputRates: TemporalTableFunction,
       proctime: Boolean = false): Unit = {
     val rates = inputRates.asInstanceOf[TemporalTableFunctionImpl]
-    assertTrue(rates.getPrimaryKey.isInstanceOf[ResolvedFieldReference])
-    assertEquals("currency", rates.getPrimaryKey.asInstanceOf[ResolvedFieldReference].name)
-    assertTrue(rates.getTimeAttribute.isInstanceOf[ResolvedFieldReference])
+    assertThat(rates.getPrimaryKey,
+      equalTo[Expression](new FieldReferenceExpression("currency", Types.STRING, 0, 0)))
+
+    val (timeFieldName, timeFieldType) =
+      if (proctime) {
+        ("proctime", PROCTIME_INDICATOR)
+      }
+      else {
+        ("rowtime", ROWTIME_INDICATOR)
+      }
+
+    assertThat(rates.getTimeAttribute,
+      equalTo[Expression](new FieldReferenceExpression(timeFieldName, timeFieldType, 0, 2)))
+
     assertEquals(
-      if (proctime) "proctime" else "rowtime",
-      rates.getTimeAttribute.asInstanceOf[ResolvedFieldReference].name)
-    assertArrayEquals(
-      expectedSchema.getFieldNames.asInstanceOf[Array[Object]],
-      rates.getResultType.getFieldNames.asInstanceOf[Array[Object]])
-    assertArrayEquals(
-      expectedSchema.getFieldTypes.asInstanceOf[Array[Object]],
-      rates.getResultType.getFieldTypes.asInstanceOf[Array[Object]])
+      expectedSchema.toRowType,
+      rates.getResultType)
   }
 }
 

@@ -31,6 +31,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.plan.logical.LogicalNode
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -296,6 +297,24 @@ case class PlannerTableFunctionCall(
   extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = parameters
+
+  override def validateInput(): ValidationResult = {
+    // check if not Scala object
+    checkNotSingleton(tableFunction.getClass)
+    // check if class could be instantiated
+    checkForInstantiation(tableFunction.getClass)
+    // look for a signature that matches the input types
+    val signature = parameters.map(_.resultType)
+    val foundMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
+    if (foundMethod.isEmpty) {
+      ValidationFailure(
+        s"Given parameters of function '$functionName' do not match any signature. \n" +
+          s"Actual: ${signatureToString(signature)} \n" +
+          s"Expected: ${signaturesToString(tableFunction, "eval")}")
+    } else {
+      ValidationSuccess
+    }
+  }
 
   override def toString =
     s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
