@@ -30,7 +30,7 @@ under the License.
 
 ### Start a long-running Flink cluster on YARN
 
-Start a YARN session with Task Managers (each with 4 GB of Heapspace):
+Start a YARN session which will allocate Task Managers with 4 GB of Heapspace when there is no slot available:
 
 {% highlight bash %}
 # get the hadoop2 package from the Flink download page at
