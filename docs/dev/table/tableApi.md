@@ -188,7 +188,59 @@ Table result = orders.select("*");
 {% endhighlight %}
       </td>
     </tr>
-
+  <tr>
+          <td>
+            <strong>AddColumns</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+          </td>
+          <td>
+          <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.addColumns("concat(c, 'sunny')");
+{% endhighlight %}
+</td>
+        </tr>
+        
+ <tr>
+     <td>
+                    <strong>AddOrReplaceColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.addOrReplaceColumns("concat(c, 'sunny') as desc");
+{% endhighlight %}
+                  </td>
+                </tr>
+         <tr>
+                  <td>
+                    <strong>DropColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                  <p>Performs a field drop operation.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.dropColumns("b, c");
+{% endhighlight %}
+                  </td>
+                </tr>
+         <tr>
+                  <td>
+                    <strong>RenameColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                  <p>Performs a field rename operation.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.renameColumns("b as b2, c as c2");
+{% endhighlight %}
+                  </td>
+                </tr>
     <tr>
       <td>
         <strong>As</strong><br>
@@ -265,7 +317,58 @@ val result = orders.select('*)
 {% endhighlight %}
       </td>
     </tr>
-
+     <tr>
+          <td>
+            <strong>AddColumns</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+          </td>
+          <td>
+            <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.addColumns(concat('c, "Sunny"))
+{% endhighlight %}
+          </td>
+        </tr>
+         <tr>
+                  <td>
+                    <strong>AddOrReplaceColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                     <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.addOrReplaceColumns(concat('c, "Sunny") as 'desc)
+{% endhighlight %}
+                  </td>
+                </tr>
+         <tr>
+                  <td>
+                    <strong>DropColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                    <p>Performs a field drop operation.</p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.dropColumns('b, 'c)
+{% endhighlight %}
+                  </td>
+                </tr>
+ <tr>
+                  <td>
+                    <strong>RenameColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                    <p>Performs a field rename operation.</p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.renameColumns('b as 'b2, 'c as 'c2)
+{% endhighlight %}
+                  </td>
+                </tr>                
     <tr>
       <td>
         <strong>As</strong><br>
