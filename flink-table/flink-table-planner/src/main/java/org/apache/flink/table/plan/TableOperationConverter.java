@@ -33,6 +33,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateTableOperation;
 import org.apache.flink.table.operations.CalculatedTableOperation;
+import org.apache.flink.table.operations.CatalogTableOperation;
 import org.apache.flink.table.operations.DistinctTableOperation;
 import org.apache.flink.table.operations.FilterTableOperation;
 import org.apache.flink.table.operations.ProjectTableOperation;
@@ -202,6 +203,11 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 				function.getElementType(null),
 				function.getRowType(typeFactory, null),
 				null);
+		}
+
+		@Override
+		public RelNode visitCatalogTable(CatalogTableOperation catalogTable) {
+			return relBuilder.scan(catalogTable.getTablePath()).build();
 		}
 
 		private RexNode convertToRexNode(Expression expression) {
