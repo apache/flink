@@ -30,7 +30,6 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.plan.logical.CalculatedTable;
 import org.apache.flink.table.plan.logical.Join;
 
 import java.util.HashSet;
@@ -102,7 +101,7 @@ public class JoinOperationFactory {
 		}
 
 		Boolean equiJoinExists = condition.accept(equiJoinExistsChecker);
-		if (correlated && right instanceof CalculatedTable && joinType != JoinType.INNER) {
+		if (correlated && right instanceof CalculatedTableOperation && joinType != JoinType.INNER) {
 			throw new ValidationException(
 				"Predicate for lateral left outer join with table function can only be empty or literal true.");
 		} else if (!equiJoinExists) {

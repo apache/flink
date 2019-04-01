@@ -39,5 +39,8 @@ public interface TableOperationVisitor<T> {
 
 	T visitSort(SortTableOperation sort);
 
+	<U> T visitCalculatedTable(CalculatedTableOperation<U> calculatedTable);
+
 	T visitOther(TableOperation other);
+
 }
