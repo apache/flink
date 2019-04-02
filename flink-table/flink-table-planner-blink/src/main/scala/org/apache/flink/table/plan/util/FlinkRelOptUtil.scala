@@ -47,7 +47,7 @@ object FlinkRelOptUtil {
     * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
     * @param withIdPrefix       whether including ID of RelNode as prefix
     * @param withRetractTraits  whether including Retraction Traits of RelNode (only apply to
-    *                           StreamPhysicalRel node at present)
+    * StreamPhysicalRel node at present)
     * @param withRowType        whether including output rowType
     * @return explain plan of RelNode
     */
@@ -122,7 +122,8 @@ object FlinkRelOptUtil {
     if (fetch != null) {
       getLimitStart(offset) + RexLiteral.intValue(fetch)
     } else {
-      Long.MaxValue
+      // TODO return Long.MaxValue when providing FlinkRelMdRowCount on Sort ?
+      Integer.MAX_VALUE
     }
   }
 
@@ -247,5 +248,4 @@ object FlinkRelOptUtil {
       JoinInfo.of(left, right, condition)
     }
   }
-
 }

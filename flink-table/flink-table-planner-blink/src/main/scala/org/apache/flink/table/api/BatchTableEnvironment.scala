@@ -21,10 +21,9 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.optimize.{BatchOptimizer, Optimizer}
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -32,7 +31,7 @@ import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources._
 
-import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.sql.SqlExplainLevel
 
@@ -59,16 +58,14 @@ class BatchTableEnvironment(
 
   override def queryConfig: QueryConfig = new BatchQueryConfig
 
-  override protected def getOptimizer: Optimizer = new BatchOptimizer(this)
-
-  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  override protected def createRelBuilder: FlinkRelBuilder = FlinkRelBuilder.create(
-    frameworkConfig,
+  override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
       ConventionTraitDef.INSTANCE,
       FlinkRelDistributionTraitDef.INSTANCE,
       RelCollationTraitDef.INSTANCE)
-  )
+  }
+
+  override protected def getOptimizer: Optimizer = new BatchOptimizer(this)
 
   /**
     * Checks if the chosen table name is valid.

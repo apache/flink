@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.convert.ConverterRule
@@ -28,6 +30,7 @@ import org.apache.calcite.rel.logical.LogicalSort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 /**
   * Sub-class of [[Sort]] that is a relational expression which imposes
@@ -38,9 +41,9 @@ class FlinkLogicalSort(
     traits: RelTraitSet,
     child: RelNode,
     collation: RelCollation,
-    offset: RexNode,
-    fetch: RexNode)
-  extends Sort(cluster, traits, child, collation, offset, fetch)
+    sortOffset: RexNode,
+    sortFetch: RexNode)
+  extends Sort(cluster, traits, child, collation, sortOffset, sortFetch)
   with FlinkLogicalRel {
 
   private lazy val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
@@ -100,8 +103,21 @@ class FlinkLogicalSortBatchConverter extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val sort = rel.asInstanceOf[LogicalSort]
     val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
-    // TODO supports range sort
-    FlinkLogicalSort.create(newInput, sort.getCollation, sort.offset, sort.fetch)
+    val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val enableRangeSort = config.getConf.getBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED)
+    val limitValue = config.getConf.getInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT)
+    val (offset, fetch) = if (sort.fetch == null && sort.offset == null
+      && !enableRangeSort && limitValue > 0) {
+      //force the sort add limit
+      val rexBuilder = rel.getCluster.getRexBuilder
+      val intType = rexBuilder.getTypeFactory.createSqlType(SqlTypeName.INTEGER)
+      val offset = rexBuilder.makeLiteral(0, intType, true)
+      val fetch = rexBuilder.makeLiteral(limitValue, intType, true)
+      (offset, fetch)
+    } else {
+      (sort.offset, sort.fetch)
+    }
+    FlinkLogicalSort.create(newInput, sort.getCollation, offset, fetch)
   }
 }
 

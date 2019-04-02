@@ -29,6 +29,8 @@ import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
 
 import java.util.{Collections, Properties}
 
+import scala.collection.JavaConversions._
+
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
   */
@@ -53,10 +55,7 @@ class FlinkRelBuilder(
 
 object FlinkRelBuilder {
 
-  def create(
-      config: FrameworkConfig,
-      traitDefs: Array[RelTraitDef[_ <: RelTrait]] = Array(ConventionTraitDef.INSTANCE)
-  ): FlinkRelBuilder = {
+  def create(config: FrameworkConfig): FlinkRelBuilder = {
 
     // create Flink type factory
     val typeSystem = config.getTypeSystem
@@ -66,7 +65,7 @@ object FlinkRelBuilder {
     val context = config.getContext
     val planner = new VolcanoPlanner(config.getCostFactory, context)
     planner.setExecutor(config.getExecutor)
-    traitDefs.foreach(planner.addRelTraitDef)
+    config.getTraitDefs.foreach(planner.addRelTraitDef)
 
     val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)

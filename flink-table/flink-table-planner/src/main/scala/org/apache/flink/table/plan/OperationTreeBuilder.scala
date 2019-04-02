@@ -22,7 +22,7 @@ import java.util.{Optional, List => JList, Map => JMap}
 
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge, Ordering, PlannerExpression, UnresolvedAlias, WindowProperty}
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge, Ordering, PlannerExpression, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.ProjectionTranslator.{expandProjectList, flattenExpression, resolveOverWindows}
@@ -52,6 +52,114 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       .map(UnresolvedAlias).toList
 
     Project(convertedProjectList, childNode, explicitAlias).validate(tableEnv)
+  }
+
+  /**
+    * Adds additional columns. Existing fields will be replaced if replaceIfExist is true.
+    */
+  def addColumns(
+      replaceIfExist: Boolean,
+      fieldLists: Seq[Expression],
+      child: TableOperation)
+  : TableOperation = {
+
+    val childNode = child.asInstanceOf[LogicalNode]
+    val childFields = childNode.output
+      .map(a => UnresolvedFieldReference(a.name).asInstanceOf[PlannerExpression])
+
+    val addFields = fieldLists.map(expressionBridge.bridge)
+
+    if (replaceIfExist) {
+      val finalFields = childFields.toBuffer
+
+      // replace field if exist.
+      addFields.foreach {
+        case e@Alias(_, name, _) =>
+          val index = finalFields.indexWhere(
+            p => p match {
+              case u: UnresolvedFieldReference => u.name.equals(name)
+              case a: Alias => a.name.equals(name)
+              case _ => false
+            })
+          if (index >= 0) {
+            finalFields(index) = e
+          } else {
+            finalFields.append(e)
+          }
+        case e =>
+          finalFields.append(e)
+      }
+
+      val convertedProjectList = finalFields.map(UnresolvedAlias).toList
+      Project(convertedProjectList, childNode).validate(tableEnv)
+    } else {
+      val convertedProjectList = (childFields ++ addFields)
+        .flatMap(expr => flattenExpression(expr, childNode, tableEnv))
+        .map(UnresolvedAlias)
+      Project(convertedProjectList, childNode).validate(tableEnv)
+    }
+  }
+
+  def renameColumns(
+      fieldLists: Seq[Expression],
+      child: TableOperation)
+  : TableOperation = {
+
+    val childNode = child.asInstanceOf[LogicalNode]
+    val finalFields = childNode.output
+      .map(a => UnresolvedFieldReference(a.name).asInstanceOf[PlannerExpression]).toArray
+
+    val renameFields = fieldLists.map(tableEnv.expressionBridge.bridge)
+
+    // Rename existing fields
+    renameFields.foreach {
+      case e@Alias(child: UnresolvedFieldReference, _, _) =>
+        val index = finalFields.indexWhere(
+          p => p match {
+            case u: UnresolvedFieldReference => u.name.equals(child.name)
+            case _ => false
+          })
+        if (index >= 0) {
+          finalFields(index) = e
+        } else {
+          throw new TableException(s"Rename field [${child.name}] does not exist in source table.")
+        }
+      case e =>
+        throw new TableException(
+          s"Unexpected field expression type [$e]. " +
+            s"Renaming must add an alias to the original field, e.g., a as a1.")
+    }
+
+    Project(finalFields.map(UnresolvedAlias), childNode).validate(tableEnv)
+  }
+
+  def dropColumns(
+      fieldLists: Seq[Expression],
+      child: TableOperation)
+  : TableOperation = {
+
+    val childNode = child.asInstanceOf[LogicalNode]
+    val finalFields = childNode.output.map(a => UnresolvedFieldReference(a.name)).toBuffer
+    val dropFields = fieldLists.map(tableEnv.expressionBridge.bridge).distinct
+
+    // Remove the fields which should be deleted in the final list
+    dropFields.foreach {
+      case UnresolvedFieldReference(name) =>
+        val index = finalFields.indexWhere(
+          p => p match {
+            case u: UnresolvedFieldReference => u.name.equalsIgnoreCase(name)
+            case _ => false
+          })
+
+        if (index >= 0) {
+          finalFields.remove(index)
+        } else {
+          throw new TableException(s"Drop field [$name] does not exist in source table.")
+        }
+      case e =>
+        throw new TableException(s"Unexpected field expression type [$e].")
+    }
+    Project(finalFields.map(UnresolvedAlias), childNode).validate(tableEnv)
   }
 
   def aggregate(

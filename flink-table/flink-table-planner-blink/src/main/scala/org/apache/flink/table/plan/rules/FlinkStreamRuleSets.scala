@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.rules.logical._
+import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.stream._
 
 import org.apache.calcite.rel.core.RelFactories
@@ -208,14 +209,29 @@ object FlinkStreamRuleSets {
   ).asJava)
 
   /**
+    * RuleSet to od rewrite on FlinkLogicalRel for Stream
+    */
+  val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
+    // transform over window to topn node
+    FlinkLogicalRankRule.INSTANCE
+  )
+
+  /**
     * RuleSet to do physical optimize for stream
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+    FlinkExpandConversionRule.STREAM_INSTANCE,
     StreamExecDataStreamScanRule.INSTANCE,
     StreamExecTableSourceScanRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
     StreamExecCalcRule.INSTANCE,
     StreamExecUnionRule.INSTANCE,
+    StreamExecSortRule.INSTANCE,
+    StreamExecLimitRule.INSTANCE,
+    StreamExecSortLimitRule.INSTANCE,
+    StreamExecRankRule.INSTANCE,
+    StreamExecTemporalSortRule.INSTANCE,
+    StreamExecDeduplicateRule.RANK_INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE
   )

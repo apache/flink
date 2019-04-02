@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.rules.logical._
+import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.batch._
 
 import org.apache.calcite.rel.core.RelFactories
@@ -64,6 +65,9 @@ object FlinkBatchRuleSets {
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     REDUCE_EXPRESSION_RULES.asScala ++
       List(
+        // slices a project into sections which contain window agg functions
+        // and sections which do not.
+        ProjectToWindowRule.PROJECT,
         //ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         //ensure intersect set operator have the same row type
@@ -162,6 +166,9 @@ object FlinkBatchRuleSets {
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
 
+    // rank rules
+    FlinkLogicalRankRule.CONSTANT_RANGE_INSTANCE,
+
     // calc rules
     FilterCalcMergeRule.INSTANCE,
     ProjectCalcMergeRule.INSTANCE,
@@ -205,13 +212,17 @@ object FlinkBatchRuleSets {
     * RuleSet to do physical optimize for batch
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+    FlinkExpandConversionRule.BATCH_INSTANCE,
     BatchExecBoundedStreamScanRule.INSTANCE,
     BatchExecScanTableSourceRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
     BatchExecCalcRule.INSTANCE,
     BatchExecUnionRule.INSTANCE,
-    BatchExecSinkRule.INSTANCE,
+    BatchExecSortRule.INSTANCE,
+    BatchExecLimitRule.INSTANCE,
+    BatchExecSortLimitRule.INSTANCE,
+    BatchExecRankRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
-    BatchExecUnionRule.INSTANCE
+    BatchExecSinkRule.INSTANCE
   )
 }

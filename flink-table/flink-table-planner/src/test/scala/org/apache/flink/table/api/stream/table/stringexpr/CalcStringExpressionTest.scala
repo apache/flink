@@ -123,4 +123,48 @@ class CalcStringExpressionTest extends TableTestBase {
     val resJava = t.filter("int % 2 === 0").select("int, string")
     verifyTableEquals(resJava, resScala)
   }
+
+  @Test
+  def testAddColumns(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+
+    val t1 = t.addColumns(concat('c, "Sunny") as 'kid).addColumns('b + 1)
+    val t2 = t.addColumns("concat(c, 'Sunny') as kid").addColumns("b + 1")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def addOrReplaceColumns(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+
+    var t1 = t.addOrReplaceColumns(concat('c, "Sunny") as 'kid).addColumns('b + 1)
+    var t2 = t.addOrReplaceColumns("concat(c, 'Sunny') as kid").addColumns("b + 1")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def testRenameColumns(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+
+    val t1 = t.renameColumns('a as 'a2, 'c as 'c2)
+    val t2 = t.renameColumns("a as a2, c as c2")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def testDropColumns(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+
+    val t1 = t.dropColumns('a, 'c)
+    val t2 = t.dropColumns("a,c")
+
+    verifyTableEquals(t1, t2)
+  }
 }
