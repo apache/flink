@@ -78,7 +78,7 @@ public class YarnEntrypointUtilsTest extends TestLogger {
 
 		final Configuration configuration = loadConfiguration(workingDirectory, initialConfiguration);
 
-		// having not specified the ports should set the rest bind port to 0
+		// if the bind port is not specified it should fall back to the rest port
 		assertThat(configuration.getString(RestOptions.BIND_PORT), is(equalTo(String.valueOf(port))));
 	}
 
@@ -96,7 +96,7 @@ public class YarnEntrypointUtilsTest extends TestLogger {
 
 		final Configuration configuration = loadConfiguration(workingDirectory, initialConfiguration);
 
-		// having not specified the ports should set the rest bind port to 0
+		// bind port should have precedence over the rest port
 		assertThat(configuration.getString(RestOptions.BIND_PORT), is(equalTo(bindingPortRange)));
 	}
 
