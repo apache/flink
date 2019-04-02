@@ -86,7 +86,7 @@ The following example maintains counts per key, and emits a key/count pair whene
     and emits the key/count if they match (i.e., no further update occurred during that minute)
 
 <span class="label label-info">Note</span> This simple example could have been implemented with
-session windows. We use `KeyedProcessFunction` here to illustrate the basic pattern it provides.`KeyedProcessFunction`, as an extension of `ProcessFunction`.
+session windows. We use `KeyedProcessFunction` here to illustrate the basic pattern it provides.`KeyedProcessFunction`, as an optimization of `ProcessFunction`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -94,6 +94,7 @@ session windows. We use `KeyedProcessFunction` here to illustrate the basic patt
 {% highlight java %}
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -178,6 +179,7 @@ public class CountWithTimeoutFunction extends KeyedProcessFunction<Tuple, Tuple2
 {% highlight scala %}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction.Context
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction.OnTimerContext
