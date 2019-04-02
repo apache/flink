@@ -26,9 +26,9 @@ import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
+import static org.apache.flink.table.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
-import static org.apache.flink.table.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 
 /**
@@ -90,7 +90,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Int Max aggregate function
+	 * Built-in Int Max aggregate function.
 	 */
 	public static class IntMaxAggFunction extends MaxAggFunction {
 
@@ -101,7 +101,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Byte Max aggregate function
+	 * Built-in Byte Max aggregate function.
 	 */
 	public static class ByteMaxAggFunction extends MaxAggFunction {
 		@Override
@@ -111,7 +111,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Short Max aggregate function
+	 * Built-in Short Max aggregate function.
 	 */
 	public static class ShortMaxAggFunction extends MaxAggFunction {
 		@Override
@@ -121,7 +121,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Long Max aggregate function
+	 * Built-in Long Max aggregate function.
 	 */
 	public static class LongMaxAggFunction extends MaxAggFunction {
 		@Override
@@ -131,7 +131,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Float Max aggregate function
+	 * Built-in Float Max aggregate function.
 	 */
 	public static class FloatMaxAggFunction extends MaxAggFunction {
 		@Override
@@ -141,7 +141,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Double Max aggregate function
+	 * Built-in Double Max aggregate function.
 	 */
 	public static class DoubleMaxAggFunction extends MaxAggFunction {
 		@Override
@@ -151,7 +151,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Decimal Max aggregate function
+	 * Built-in Decimal Max aggregate function.
 	 */
 	public static class DecimalMaxAggFunction extends MaxAggFunction {
 		private DecimalTypeInfo decimalType;

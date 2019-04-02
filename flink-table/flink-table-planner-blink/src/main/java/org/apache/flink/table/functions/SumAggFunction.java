@@ -24,7 +24,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedFieldReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
@@ -95,7 +94,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Int Sum aggregate function
+	 * Built-in Int Sum aggregate function.
 	 */
 	public static class IntSumAggFunction extends SumAggFunction {
 
@@ -106,7 +105,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Byte Sum aggregate function
+	 * Built-in Byte Sum aggregate function.
 	 */
 	public static class ByteSumAggFunction extends SumAggFunction {
 		@Override
@@ -116,7 +115,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Short Sum aggregate function
+	 * Built-in Short Sum aggregate function.
 	 */
 	public static class ShortSumAggFunction extends SumAggFunction {
 		@Override
@@ -126,7 +125,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Long Sum aggregate function
+	 * Built-in Long Sum aggregate function.
 	 */
 	public static class LongSumAggFunction extends SumAggFunction {
 		@Override
@@ -136,7 +135,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Float Sum aggregate function
+	 * Built-in Float Sum aggregate function.
 	 */
 	public static class FloatSumAggFunction extends SumAggFunction {
 		@Override
@@ -146,7 +145,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Double Sum aggregate function
+	 * Built-in Double Sum aggregate function.
 	 */
 	public static class DoubleSumAggFunction extends SumAggFunction {
 		@Override
@@ -156,7 +155,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Decimal Sum aggregate function
+	 * Built-in Decimal Sum aggregate function.
 	 */
 	public static class DecimalSumAggFunction extends SumAggFunction {
 		private DecimalTypeInfo decimalType;

@@ -32,7 +32,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
 
 /**
- * built-in count aggregate function
+ * built-in count aggregate function.
  */
 public class CountAggFunction extends DeclarativeAggregateFunction {
 	private UnresolvedFieldReferenceExpression count = new UnresolvedFieldReferenceExpression("count");

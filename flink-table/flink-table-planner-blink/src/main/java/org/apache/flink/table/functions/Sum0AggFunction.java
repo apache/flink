@@ -90,7 +90,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Int Sum0 aggregate function
+	 * Built-in Int Sum0 aggregate function.
 	 */
 	public static class IntSum0AggFunction extends Sum0AggFunction {
 
@@ -101,7 +101,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Byte Sum0 aggregate function
+	 * Built-in Byte Sum0 aggregate function.
 	 */
 	public static class ByteSum0AggFunction extends Sum0AggFunction {
 		@Override
@@ -111,7 +111,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Short Sum0 aggregate function
+	 * Built-in Short Sum0 aggregate function.
 	 */
 	public static class ShortSum0AggFunction extends Sum0AggFunction {
 		@Override
@@ -121,7 +121,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Long Sum0 aggregate function
+	 * Built-in Long Sum0 aggregate function.
 	 */
 	public static class LongSum0AggFunction extends Sum0AggFunction {
 		@Override
@@ -131,7 +131,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Float Sum0 aggregate function
+	 * Built-in Float Sum0 aggregate function.
 	 */
 	public static class FloatSum0AggFunction extends Sum0AggFunction {
 		@Override
@@ -148,7 +148,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Double Sum0 aggregate function
+	 * Built-in Double Sum0 aggregate function.
 	 */
 	public static class DoubleSum0AggFunction extends Sum0AggFunction {
 		@Override
@@ -165,7 +165,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Decimal Sum0 aggregate function
+	 * Built-in Decimal Sum0 aggregate function.
 	 */
 	public static class DecimalSum0AggFunction extends Sum0AggFunction {
 		private DecimalTypeInfo decimalType;

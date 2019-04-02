@@ -90,7 +90,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Int Min aggregate function
+	 * Built-in Int Min aggregate function.
 	 */
 	public static class IntMinAggFunction extends MinAggFunction {
 
@@ -101,7 +101,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Byte Min aggregate function
+	 * Built-in Byte Min aggregate function.
 	 */
 	public static class ByteMinAggFunction extends MinAggFunction {
 		@Override
@@ -111,7 +111,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Short Min aggregate function
+	 * Built-in Short Min aggregate function.
 	 */
 	public static class ShortMinAggFunction extends MinAggFunction {
 		@Override
@@ -121,7 +121,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Long Min aggregate function
+	 * Built-in Long Min aggregate function.
 	 */
 	public static class LongMinAggFunction extends MinAggFunction {
 		@Override
@@ -131,7 +131,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Float Min aggregate function
+	 * Built-in Float Min aggregate function.
 	 */
 	public static class FloatMinAggFunction extends MinAggFunction {
 		@Override
@@ -141,7 +141,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Double Min aggregate function
+	 * Built-in Double Min aggregate function.
 	 */
 	public static class DoubleMinAggFunction extends MinAggFunction {
 		@Override
@@ -151,7 +151,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Decimal Min aggregate function
+	 * Built-in Decimal Min aggregate function.
 	 */
 	public static class DecimalMinAggFunction extends MinAggFunction {
 		private DecimalTypeInfo decimalType;
