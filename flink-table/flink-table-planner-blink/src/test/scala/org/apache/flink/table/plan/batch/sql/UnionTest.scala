@@ -21,7 +21,6 @@ package org.apache.flink.table.plan.batch.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.util.TableTestBase
 
-import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.{Before, Test}
 
 // TODO add more union case after aggregation and join supported
@@ -60,10 +59,7 @@ class UnionTest extends TableTestBase {
         | UNION ALL
         | SELECT a, CAST(0 aS DECIMAL(2, 1)) FROM MyTable2)
       """.stripMargin
-    util.doVerifyPlan(sqlQuery,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = true,
-      printPlanBefore = true)
+    util.verifyPlanWithType(sqlQuery)
   }
 
 }

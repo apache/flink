@@ -15,12 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.functions.sql;
 
 import org.apache.flink.table.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 
 import org.apache.calcite.sql.SqlAggFunction;
 
+/**
+ * aggregate functions.
+ */
 public class AggSqlFunctions {
 
 	/**

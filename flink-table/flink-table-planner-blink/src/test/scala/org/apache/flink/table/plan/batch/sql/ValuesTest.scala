@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.table.util.TableTestBase
 
-import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Test
 
 class ValuesTest extends TableTestBase {
@@ -44,12 +43,7 @@ class ValuesTest extends TableTestBase {
 
   @Test
   def testDiffTypes(): Unit = {
-    val sql = "SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)"
-    util.doVerifyPlan(
-      sql,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = true,
-      printPlanBefore = true)
+    util.verifyPlanWithType("SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)")
   }
 
 }

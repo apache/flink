@@ -19,12 +19,11 @@ package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
-import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Test
 
 abstract class AggregateTestBase extends TableTestBase {
@@ -39,15 +38,9 @@ abstract class AggregateTestBase extends TableTestBase {
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
 
-  def verifyPlanWithType(sql: String): Unit = {
-    util.doVerifyPlan(sql, explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = true,
-      printPlanBefore = true)
-  }
-
   @Test
   def testAvg(): Unit = {
-    verifyPlanWithType(
+    util.verifyPlanWithType(
       """
         |SELECT AVG(`byte`),
         |       AVG(`short`),
@@ -63,7 +56,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testSum(): Unit = {
-    verifyPlanWithType(
+    util.verifyPlanWithType(
       """
         |SELECT SUM(`byte`),
         |       SUM(`short`),
@@ -79,7 +72,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testCount(): Unit = {
-    verifyPlanWithType(
+    util.verifyPlanWithType(
       """
         |SELECT COUNT(`byte`),
         |       COUNT(`short`),
@@ -100,12 +93,21 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testCountStart(): Unit = {
-    verifyPlanWithType("SELECT COUNT(*) FROM MyTable")
+    util.verifyPlanWithType("SELECT COUNT(*) FROM MyTable")
+  }
+
+
+  @Test
+  def testCannotCountOnMultiFields(): Unit = {
+    val sql = "SELECT b, COUNT(a, c) FROM MyTable GROUP BY b"
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("We now only support the count of one field")
+    util.verifyPlan(sql)
   }
 
   @Test
   def testMinWithFixLengthType(): Unit = {
-    verifyPlanWithType(
+    util.verifyPlanWithType(
       """
         |SELECT MIN(`byte`),
         |       MIN(`short`),
@@ -125,12 +127,12 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testMinWithVariableLengthType(): Unit = {
-    verifyPlanWithType("SELECT MIN(`string`) FROM MyTable")
+    util.verifyPlanWithType("SELECT MIN(`string`) FROM MyTable")
   }
 
   @Test
   def testMaxWithFixLengthType(): Unit = {
-    verifyPlanWithType(
+    util.verifyPlanWithType(
       """
         |SELECT MAX(`byte`),
         |       MAX(`short`),
@@ -150,7 +152,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testMaxWithVariableLengthType(): Unit = {
-    verifyPlanWithType("SELECT MAX(`string`) FROM MyTable")
+    util.verifyPlanWithType("SELECT MAX(`string`) FROM MyTable")
   }
 
   @Test

@@ -202,6 +202,14 @@ abstract class TableTestUtil(test: TableTestBase) {
       printPlanBefore = true)
   }
 
+  def verifyPlanWithType(sql: String): Unit = {
+    doVerifyPlan(
+      sql,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRowType = true,
+      printPlanBefore = true)
+  }
+
   def verifyExplain(): Unit = doVerifyExplain()
 
   def verifyExplain(sql: String): Unit = {
