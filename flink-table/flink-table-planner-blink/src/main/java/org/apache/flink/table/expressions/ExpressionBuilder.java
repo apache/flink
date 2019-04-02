@@ -25,8 +25,10 @@ import java.util.List;
 
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.EQUALS;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GREATER_THAN;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IS_NULL;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MINUS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS;
 
@@ -77,5 +79,13 @@ public class ExpressionBuilder {
 
 	public static Expression equalTo(Expression input1, Expression input2) {
 		return call(EQUALS, input1, input2);
+	}
+
+	public static Expression lessThan(Expression input1, Expression input2) {
+		return call(LESS_THAN, input1, input2);
+	}
+
+	public static Expression greaterThan(Expression input1, Expression input2) {
+		return call(GREATER_THAN, input1, input2);
 	}
 }

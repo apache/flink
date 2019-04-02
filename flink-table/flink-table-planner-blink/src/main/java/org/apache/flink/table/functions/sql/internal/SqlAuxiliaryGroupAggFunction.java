@@ -16,34 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.batch.sql
+package org.apache.flink.table.functions.sql.internal;
 
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.annotation.Internal;
 
-import org.junit.Test
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.OperandTypes;
+import org.apache.calcite.sql.type.ReturnTypes;
 
-class ValuesTest extends TableTestBase {
+/**
+ * An internal [[SqlAggFunction]] to represents auxiliary group keys
+ * which will not be computed as key and does not also affect the correctness of the final result.
+ */
+@Internal
+public class SqlAuxiliaryGroupAggFunction extends SqlAggFunction {
 
-  private val util = batchTestUtil()
-
-  @Test
-  def testNullValues(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES CAST(NULL AS INT))")
-  }
-
-  @Test
-  def testSingleRow(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)")
-  }
-
-  @Test
-  def testMultiRows(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES (1, 2), (3, CAST(NULL AS INT)), (4, 5)) AS T(a, b)")
-  }
-
-  @Test
-  def testDiffTypes(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)")
-  }
-
+	public SqlAuxiliaryGroupAggFunction() {
+		super("AUXILIARY_GROUP",
+				null,
+				SqlKind.OTHER_FUNCTION,
+				ReturnTypes.ARG0,
+				null,
+				OperandTypes.ANY,
+				SqlFunctionCategory.SYSTEM,
+				false,
+				false);
+	}
 }

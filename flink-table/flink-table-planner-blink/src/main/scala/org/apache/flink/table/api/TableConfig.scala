@@ -145,6 +145,7 @@ class TableConfig {
   def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
     this.calciteConfig = Preconditions.checkNotNull(calciteConfig)
   }
+
   /**
     * Returns true if given [[OperatorType]] is enabled, else false.
     */
@@ -175,4 +176,3 @@ object AggPhaseEnforcer extends Enumeration {
   type AggPhaseEnforcer = Value
   val NONE, ONE_PHASE, TWO_PHASE = Value
 }
-

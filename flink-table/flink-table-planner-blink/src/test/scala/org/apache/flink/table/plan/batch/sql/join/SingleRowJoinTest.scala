@@ -22,10 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.util.TableTestBase
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
-// FIXME
-@Ignore("remove this after aggregate supports")
 class SingleRowJoinTest extends TableTestBase {
 
   @Test
@@ -60,6 +58,8 @@ class SingleRowJoinTest extends TableTestBase {
         |  (SELECT min(b1) AS b1, max(b2) AS b2 FROM B)
         |WHERE a1 < b1 AND a2 = b2
       """.stripMargin
+    // TODO NestedLoopJoin is more efficient than HashJoin for this query,
+    //  check this plan after metadata handler introduced
     util.verifyPlan(query)
   }
 
@@ -68,6 +68,8 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Int)]("A", 'a1, 'a2)
     util.addTableSource[(Int, Int)]("B", 'b1, 'b2)
+    // TODO NestedLoopJoin is more efficient than HashJoin for this query,
+    //  check this plan after metadata handler introduced
     util.verifyPlan("SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt")
   }
 
@@ -84,6 +86,8 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Long)]("A", 'a1, 'a2)
     util.addTableSource[(Long, Long)]("B", 'b1, 'b2)
+    // TODO NestedLoopJoin is more efficient than HashJoin for this query,
+    //  check this plan after metadata handler introduced
     util.verifyPlan("SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a2")
   }
 

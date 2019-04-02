@@ -16,34 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.batch.sql
+package org.apache.flink.table.functions.sql;
 
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 
-import org.junit.Test
+import org.apache.calcite.sql.SqlAggFunction;
 
-class ValuesTest extends TableTestBase {
+/**
+ * aggregate functions.
+ */
+public class AggSqlFunctions {
 
-  private val util = batchTestUtil()
-
-  @Test
-  def testNullValues(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES CAST(NULL AS INT))")
-  }
-
-  @Test
-  def testSingleRow(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)")
-  }
-
-  @Test
-  def testMultiRows(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES (1, 2), (3, CAST(NULL AS INT)), (4, 5)) AS T(a, b)")
-  }
-
-  @Test
-  def testDiffTypes(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)")
-  }
+	/**
+	 * <code>AUXILIARY_GROUP</code> aggregate function.
+	 * Only be used in internally.
+	 */
+	public static final SqlAggFunction AUXILIARY_GROUP = new SqlAuxiliaryGroupAggFunction();
 
 }
