@@ -32,6 +32,7 @@ import org.apache.flink.table.operations.DistinctTableOperation;
 import org.apache.flink.table.operations.FilterTableOperation;
 import org.apache.flink.table.operations.ProjectTableOperation;
 import org.apache.flink.table.operations.SetTableOperation;
+import org.apache.flink.table.operations.SortTableOperation;
 import org.apache.flink.table.operations.TableOperation;
 import org.apache.flink.table.operations.TableOperationDefaultVisitor;
 import org.apache.flink.table.operations.TableOperationVisitor;
@@ -144,6 +145,13 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		@Override
 		public RelNode visitDistinct(DistinctTableOperation distinct) {
 			return relBuilder.distinct().build();
+		}
+
+		@Override
+		public RelNode visitSort(SortTableOperation sort) {
+			List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
+			return relBuilder.sortLimit(sort.getOffset(), sort.getFetch(), rexNodes)
+				.build();
 		}
 
 		@Override

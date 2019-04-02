@@ -40,23 +40,6 @@ import org.apache.flink.table.util.JavaScalaConversionUtil
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class Sort(order: JList[PlannerExpression], child: TableOperation) extends UnaryNode {
-  override def getTableSchema: TableSchema = child.getTableSchema
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.sort(order.asScala.map(_.toRexNode(relBuilder)).asJava).build()
-  }
-}
-
-case class Limit(offset: Int, fetch: Int = -1, child: TableOperation) extends UnaryNode {
-  override def getTableSchema: TableSchema = child.getTableSchema
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.limit(offset, fetch).build()
-  }
-
-}
-
 case class Join(
     left: TableOperation,
     right: TableOperation,
