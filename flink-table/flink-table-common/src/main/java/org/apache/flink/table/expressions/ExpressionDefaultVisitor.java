@@ -16,37 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations;
+package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
 
 /**
- * A utility {@link TableOperationVisitor} that calls
- * {@link TableOperationDefaultVisitor#defaultMethod(TableOperation)}
- * by default, unless other methods are overridden explicitly.
+ * Implementations of {@link ExpressionVisitor} that redirects all calls to
+ * {@link ExpressionDefaultVisitor#defaultMethod(Expression)}.
  */
 @Internal
-public abstract class TableOperationDefaultVisitor<T> implements TableOperationVisitor<T> {
+public abstract class ExpressionDefaultVisitor<T> implements ExpressionVisitor<T> {
 
 	@Override
-	public T visitProject(ProjectTableOperation projection) {
-		return defaultMethod(projection);
+	public T visitCall(CallExpression call) {
+		return defaultMethod(call);
 	}
 
 	@Override
-	public T visitAggregate(AggregateTableOperation aggregation) {
-		return defaultMethod(aggregation);
+	public T visitSymbol(SymbolExpression symbolExpression) {
+		return defaultMethod(symbolExpression);
 	}
 
 	@Override
-	public T visitSetOperation(SetTableOperation setOperation) {
-		return defaultMethod(setOperation);
+	public T visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
+		return defaultMethod(valueLiteralExpression);
 	}
 
 	@Override
-	public T visitOther(TableOperation other) {
+	public T visitFieldReference(FieldReferenceExpression fieldReference) {
+		return defaultMethod(fieldReference);
+	}
+
+	@Override
+	public T visitTypeLiteral(TypeLiteralExpression typeLiteral) {
+		return defaultMethod(typeLiteral);
+	}
+
+	@Override
+	public T visit(Expression other) {
 		return defaultMethod(other);
 	}
 
-	public abstract T defaultMethod(TableOperation other);
+	protected abstract T defaultMethod(Expression expression);
 }

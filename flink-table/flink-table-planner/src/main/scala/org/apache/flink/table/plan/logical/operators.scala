@@ -74,28 +74,6 @@ case class Filter(condition: PlannerExpression, child: TableOperation) extends U
   }
 }
 
-case class Aggregate(
-    groupingExpressions: JList[PlannerExpression],
-    aggregateExpressions: JList[PlannerExpression],
-    child: TableOperation) extends UnaryNode {
-
-  override def output: Seq[Attribute] = {
-    (groupingExpressions.asScala ++ aggregateExpressions.asScala) map {
-      case ne: NamedExpression => ne.toAttribute
-      case e => Alias(e, e.toString).toAttribute
-    }
-  }
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.aggregate(
-      relBuilder.groupKey(groupingExpressions.asScala.map(_.toRexNode(relBuilder)).asJava),
-      aggregateExpressions.asScala.map {
-        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
-        case _ => throw new RuntimeException("This should never happen.")
-      }.asJava).build()
-  }
-}
-
 case class Join(
     left: TableOperation,
     right: TableOperation,

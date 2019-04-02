@@ -29,8 +29,9 @@ public interface TableOperationVisitor<T> {
 
 	T visitProject(ProjectTableOperation projection);
 
+	T visitAggregate(AggregateTableOperation aggregation);
+
 	T visitSetOperation(SetTableOperation setOperation);
 
 	T visitOther(TableOperation other);
-
 }

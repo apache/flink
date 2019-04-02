@@ -23,10 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
+import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.TableFunctionDefinition;
@@ -37,6 +37,7 @@ import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_FUNCTION;
 
 /**
@@ -83,11 +84,11 @@ public class CalculatedTableFactory {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
-				.map(alias -> ApiExpressionUtils.extractValue(alias, Types.STRING)
+				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 
-			if (!isTableFunctionCall(children.get(0))) {
+			if (!isFunctionOfType(children.get(0), TABLE_FUNCTION)) {
 				throw fail();
 			}
 
@@ -126,11 +127,6 @@ public class CalculatedTableFactory {
 				parameters.stream().map(bridge::bridge).collect(toList()),
 				tableFunctionDefinition.getResultType(),
 				fieldNames);
-		}
-
-		boolean isTableFunctionCall(Expression expression) {
-			return (expression instanceof CallExpression) &&
-				((CallExpression) expression).getFunctionDefinition().getType() == TABLE_FUNCTION;
 		}
 
 		@Override
