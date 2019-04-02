@@ -33,5 +33,9 @@ public interface TableOperationVisitor<T> {
 
 	T visitSetOperation(SetTableOperation setOperation);
 
+	T visitFilter(FilterTableOperation filter);
+
+	T visitDistinct(DistinctTableOperation distinct);
+
 	T visitOther(TableOperation other);
 }

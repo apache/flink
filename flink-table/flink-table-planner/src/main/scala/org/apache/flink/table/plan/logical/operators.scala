@@ -40,15 +40,6 @@ import org.apache.flink.table.util.JavaScalaConversionUtil
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class Distinct(child: TableOperation) extends UnaryNode {
-
-  override def getTableSchema: TableSchema = child.getTableSchema
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.distinct().build()
-  }
-}
-
 case class Sort(order: JList[PlannerExpression], child: TableOperation) extends UnaryNode {
   override def getTableSchema: TableSchema = child.getTableSchema
 
@@ -64,14 +55,6 @@ case class Limit(offset: Int, fetch: Int = -1, child: TableOperation) extends Un
     relBuilder.limit(offset, fetch).build()
   }
 
-}
-
-case class Filter(condition: PlannerExpression, child: TableOperation) extends UnaryNode {
-  override def getTableSchema: TableSchema = child.getTableSchema
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    relBuilder.filter(condition.toRexNode(relBuilder)).build()
-  }
 }
 
 case class Join(

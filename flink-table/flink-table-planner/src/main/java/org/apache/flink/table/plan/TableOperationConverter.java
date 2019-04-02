@@ -28,6 +28,8 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.operations.AggregateTableOperation;
+import org.apache.flink.table.operations.DistinctTableOperation;
+import org.apache.flink.table.operations.FilterTableOperation;
 import org.apache.flink.table.operations.ProjectTableOperation;
 import org.apache.flink.table.operations.SetTableOperation;
 import org.apache.flink.table.operations.TableOperation;
@@ -134,12 +136,27 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
+		public RelNode visitFilter(FilterTableOperation filter) {
+			RexNode rexNode = convertToRexNode(filter.getCondition());
+			return relBuilder.filter(rexNode).build();
+		}
+
+		@Override
+		public RelNode visitDistinct(DistinctTableOperation distinct) {
+			return relBuilder.distinct().build();
+		}
+
+		@Override
 		public RelNode visitOther(TableOperation other) {
 			if (other instanceof LogicalNode) {
 				return ((LogicalNode) other).toRelNode(relBuilder);
 			}
 
 			throw new TableException("Unknown table operation: " + other);
+		}
+
+		private RexNode convertToRexNode(Expression expression) {
+			return expressionBridge.bridge(expression).toRexNode(relBuilder);
 		}
 
 		private List<RexNode> convertToRexNodes(List<Expression> expressions) {
