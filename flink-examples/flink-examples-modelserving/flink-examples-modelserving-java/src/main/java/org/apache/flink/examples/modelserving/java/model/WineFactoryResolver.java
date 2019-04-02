@@ -34,7 +34,7 @@ public class WineFactoryResolver implements ModelFacroriesResolver<Winerecord.Wi
 	private static final Map<Integer, ModelFactory> factories = new HashMap<Integer, ModelFactory>(){
 		{
 			put(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), WineTensorflowModelFactory.getInstance());
-			put(Modeldescriptor.ModelDescriptor.ModelType.PMML.getNumber(), WineTensorflowBundledModelFactory.getInstance());
+			put(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), WineTensorflowBundledModelFactory.getInstance());
 		}
 	};
 

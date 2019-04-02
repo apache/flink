@@ -145,6 +145,8 @@ public class DataConverter {
 		if (factory != null) {
 			return factory.create(model);
 		}
+		System.out.println("Did not find Model factory for type " + model.getModelType() +
+			" with number " + model.getModelType().getNumber());
 		return Optional.empty();
 	}
 }

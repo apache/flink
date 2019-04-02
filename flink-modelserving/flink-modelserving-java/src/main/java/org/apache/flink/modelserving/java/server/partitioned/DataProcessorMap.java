@@ -127,5 +127,8 @@ public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<Data
 			// Update current state
 			currentModels.put(model.getDataType(), m.get());
 		}
+		else {
+			System.out.println("Model creation for " + model + " failed");
+		}
 	}
 }
