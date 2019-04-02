@@ -290,19 +290,20 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     : TableOperation = {
 
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
-    val convertedCondition = expressionBridge.bridge(resolveSingleExpression(condition, resolver))
+    val resolvedExpression = resolveSingleExpression(condition, resolver)
+    val convertedCondition = expressionBridge.bridge(resolvedExpression)
     if (convertedCondition.resultType != Types.BOOLEAN) {
       throw new ValidationException(s"Filter operator requires a boolean expression as input," +
         s" but $condition is of type ${convertedCondition.resultType}")
     }
 
-    Filter(convertedCondition, child)
+    new FilterTableOperation(resolvedExpression, child)
   }
 
   def distinct(
       child: TableOperation)
     : TableOperation = {
-    Distinct(child)
+    new DistinctTableOperation(child)
   }
 
   def minus(

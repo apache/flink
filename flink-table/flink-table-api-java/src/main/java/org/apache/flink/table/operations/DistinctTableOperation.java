@@ -19,44 +19,35 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableSchema;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
- * A utility {@link TableOperationVisitor} that calls
- * {@link TableOperationDefaultVisitor#defaultMethod(TableOperation)}
- * by default, unless other methods are overridden explicitly.
+ * Removes duplicated rows of underlying relational operation.
  */
 @Internal
-public abstract class TableOperationDefaultVisitor<T> implements TableOperationVisitor<T> {
+public class DistinctTableOperation implements TableOperation {
 
-	@Override
-	public T visitProject(ProjectTableOperation projection) {
-		return defaultMethod(projection);
+	private final TableOperation child;
+
+	public DistinctTableOperation(TableOperation child) {
+		this.child = child;
 	}
 
 	@Override
-	public T visitAggregate(AggregateTableOperation aggregation) {
-		return defaultMethod(aggregation);
+	public TableSchema getTableSchema() {
+		return child.getTableSchema();
 	}
 
 	@Override
-	public T visitSetOperation(SetTableOperation setOperation) {
-		return defaultMethod(setOperation);
+	public List<TableOperation> getChildren() {
+		return Collections.singletonList(child);
 	}
 
 	@Override
-	public T visitFilter(FilterTableOperation filter) {
-		return defaultMethod(filter);
+	public <T> T accept(TableOperationVisitor<T> visitor) {
+		return visitor.visitDistinct(this);
 	}
-
-	@Override
-	public T visitDistinct(DistinctTableOperation distinct) {
-		return defaultMethod(distinct);
-	}
-
-	@Override
-	public T visitOther(TableOperation other) {
-		return defaultMethod(other);
-	}
-
-	public abstract T defaultMethod(TableOperation other);
 }
