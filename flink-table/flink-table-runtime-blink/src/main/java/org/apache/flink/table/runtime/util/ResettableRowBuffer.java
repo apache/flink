@@ -33,7 +33,7 @@ import java.io.IOException;
  * 4.multi {@link #newIterator()}
  * repeat the above steps or {@link #close()}.
  */
-public interface ResettableBuffer extends Closeable {
+public interface ResettableRowBuffer extends Closeable {
 
 	/**
 	 * Re-initialize the buffer state.

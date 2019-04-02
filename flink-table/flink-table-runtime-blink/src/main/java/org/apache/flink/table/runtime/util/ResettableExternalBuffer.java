@@ -63,7 +63,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * iterator fails quickly and cleanly, rather than risking arbitrary, non-deterministic behavior
  * at an undetermined time in the future.
  */
-public class ResettableExternalBuffer implements ResettableBuffer {
+public class ResettableExternalBuffer implements ResettableRowBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResettableExternalBuffer.class);
 
@@ -253,7 +253,7 @@ public class ResettableExternalBuffer implements ResettableBuffer {
 	/**
 	 * Iterator of external buffer.
 	 */
-	public class BufferIterator implements ResettableBuffer.ResettableIterator {
+	public class BufferIterator implements ResettableRowBuffer.ResettableIterator {
 
 		MutableObjectIterator<BinaryRow> currentIterator;
 
