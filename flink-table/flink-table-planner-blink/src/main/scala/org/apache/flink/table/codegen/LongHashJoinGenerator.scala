@@ -46,8 +46,8 @@ object LongHashJoinGenerator {
         filterNulls.forall(b => b) &&
         keyType.getFieldTypes.length == 1 && {
       val t = keyType.getTypeAt(0)
-      t == InternalTypes.LONG || t == InternalTypes.INT || t == InternalTypes.SHORT || t == InternalTypes.BYTE ||
-          t == InternalTypes.FLOAT || t == InternalTypes.DOUBLE ||
+      t == InternalTypes.LONG || t == InternalTypes.INT || t == InternalTypes.SHORT ||
+          t == InternalTypes.BYTE || t == InternalTypes.FLOAT || t == InternalTypes.DOUBLE ||
           t.isInstanceOf[DateType] || t.isInstanceOf[TimestampType] || t == InternalTypes.TIME
       // TODO decimal and multiKeys support.
       // TODO All HashJoinType support.
