@@ -275,6 +275,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * Inner join.
+	 * Output assembled {@link JoinedRow} when build side row matched probe side row.
 	 */
 	private static class InnerHashJoinOperator extends HashJoinOperator {
 
@@ -294,6 +295,9 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * BuildOuter join.
+	 * Output assembled {@link JoinedRow} when build side row matched probe side row.
+	 * And if there is no match in the probe table, output {@link JoinedRow} assembled by
+	 * build side row and nulls.
 	 */
 	private static class BuildOuterHashJoinOperator extends HashJoinOperator {
 
@@ -315,6 +319,9 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * ProbeOuter join.
+	 * Output assembled {@link JoinedRow} when probe side row matched build side row.
+	 * And if there is no match in the build table, output {@link JoinedRow} assembled by
+	 * nulls and probe side row.
 	 */
 	private static class ProbeOuterHashJoinOperator extends HashJoinOperator {
 
@@ -335,7 +342,10 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	/**
-	 * FullOuter join.
+	 * BuildOuter join.
+	 * Output assembled {@link JoinedRow} when build side row matched probe side row.
+	 * And if there is no match, output {@link JoinedRow} assembled by build side row and nulls or
+	 * nulls and probe side row.
 	 */
 	private static class FullOuterHashJoinOperator extends HashJoinOperator {
 
@@ -359,6 +369,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * Semi join.
+	 * Output probe side row when probe side row matched build side row.
 	 */
 	private static class SemiHashJoinOperator extends HashJoinOperator {
 
@@ -377,6 +388,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * Anti join.
+	 * Output probe side row when probe side row not matched build side row.
 	 */
 	private static class AntiHashJoinOperator extends HashJoinOperator {
 
@@ -395,6 +407,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * BuildLeftSemiOrAnti join.
+	 * BuildLeftSemiJoin: Output build side row when build side row matched probe side row.
+	 * BuildLeftAntiJoin: Output build side row when build side row not matched probe side row.
 	 */
 	private static class BuildLeftSemiOrAntiHashJoinOperator extends HashJoinOperator {
 
