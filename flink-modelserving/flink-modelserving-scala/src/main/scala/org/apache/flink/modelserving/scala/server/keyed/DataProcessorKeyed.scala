@@ -41,13 +41,9 @@ class DataProcessorKeyed[RECORD, RESULT] extends
 
   // current model state
   var modelState: ValueState[ModelToServeStats] = _
-  // New model state
-  var newModelState: ValueState[ModelToServeStats] = _
 
   // Current model
   var currentModel : ValueState[Option[Model[RECORD, RESULT]]] = _
-  // New model
-  var newModel : ValueState[Option[Model[RECORD, RESULT]]] = _
 
   /**
     * Open execution. Called when an instance is created.
@@ -63,24 +59,12 @@ class DataProcessorKeyed[RECORD, RESULT] extends
     modelStateDesc.setQueryable("currentModelState")      // Expose it for queryable state
     // Create Model state
     modelState = getRuntimeContext.getState(modelStateDesc)
-    // New Model state descriptor
-    val newModelStateDesc = new ValueStateDescriptor[ModelToServeStats](
-      "newModelState",                             // state name
-      createTypeInformation[ModelToServeStats])            // type information
-    // Create new model state
-    newModelState = getRuntimeContext.getState(newModelStateDesc)
     // Model descriptor
     val modelDesc = new ValueStateDescriptor[Option[Model[RECORD, RESULT]]](
       "currentModel",                               // state name
       new ModelTypeSerializer[RECORD, RESULT])              // type information
     // Create current model state
     currentModel = getRuntimeContext.getState(modelDesc)
-    // New model state descriptor
-    val newModelDesc = new ValueStateDescriptor[Option[Model[RECORD, RESULT]]](
-      "newModel",                                    // state name
-      new ModelTypeSerializer[RECORD, RESULT])               // type information
-    // Create new model state
-    newModel = getRuntimeContext.getState(newModelDesc)
   }
 
   /**
@@ -95,16 +79,19 @@ class DataProcessorKeyed[RECORD, RESULT] extends
                                out: Collector[ServingResult[RESULT]]): Unit = {
 
     // Ensure that the state is initialized
-    if(newModel.value == null) newModel.update(None)
     if(currentModel.value == null) currentModel.update(None)
 
     println(s"New model - $model")
     // Create a model
     ModelToServe.toModel[RECORD, RESULT](model) match {
       case Some(md) =>
-        newModel.update (Some(md))                            // Create a new model
-        newModelState.update (new ModelToServeStats (model))  // Create a new model state
+        // close current model first
+        currentModel.value.foreach(_.cleanup())
+        // Update model
+        currentModel.update(Some(md))                     // Create a new model
+        modelState.update(new ModelToServeStats (model))  // Create a new model state
       case _ =>   // Model creation failed, continue
+        println(s"Model creation for model $model failed")
     }
   }
 
@@ -120,18 +107,7 @@ class DataProcessorKeyed[RECORD, RESULT] extends
                                out: Collector[ServingResult[RESULT]]): Unit = {
 
     // Ensure that the state is initialized
-    if(newModel.value == null) newModel.update(None)
     if(currentModel.value == null) currentModel.update(None)
-
-    // See if we have update for the model
-    newModel.value.foreach { model =>
-      // close current model first
-      currentModel.value.foreach(_.cleanup())
-      // Update model
-      currentModel.update(newModel.value)
-      modelState.update(newModelState.value())
-      newModel.update(None)
-    }
 
     // Actually process data
     currentModel.value match {

@@ -49,7 +49,7 @@ public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<Mode
 	 * @param obj another object.
 	 * @return boolean specifying whether serializires can be equal.
 	 */
-	@Override
+//	@Override
 	public boolean canEqual(Object obj) {
 
 		return obj instanceof ModelWithTypeSerializer;
@@ -73,7 +73,6 @@ public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<Mode
 	@Override
 	public void serialize(ModelWithType<RECORD, RESULT> model, DataOutputView target)
 		throws IOException {
-		target.writeBoolean(model.isCurrent());
 		target.writeUTF(model.getDataType());
 		if (model.getModel().isPresent()) {
 			target.writeBoolean(true);
@@ -141,7 +140,7 @@ public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<Mode
 	@Override
 	public ModelWithType<RECORD, RESULT> copy(ModelWithType<RECORD, RESULT> from) {
 		Model<RECORD, RESULT> model = DataConverter.copy(from.getModel().orElse(null));
-		return new ModelWithType(from.isCurrent(), from.getDataType(),
+		return new ModelWithType(from.getDataType(),
 			(model == null) ? Optional.empty() : Optional.of(model));
 	}
 
@@ -163,7 +162,6 @@ public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<Mode
 	 */
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeBoolean(source.readBoolean());
 		target.writeUTF(source.readUTF());
 		boolean exist = source.readBoolean();
 		target.writeBoolean(exist);
@@ -185,7 +183,6 @@ public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<Mode
 	 */
 	@Override
 	public ModelWithType deserialize(DataInputView source) throws IOException {
-		boolean current = source.readBoolean();
 		String dataType = source.readUTF();
 		boolean exist = source.readBoolean();
 		Optional<Model> model = Optional.empty();
@@ -199,8 +196,7 @@ public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<Mode
 				model = Optional.of(m);
 			}
 		}
-		return new ModelWithType(current, dataType, model);
-	}
+		return new ModelWithType(dataType, model);	}
 
 	/**
 	 * Deserialize byte array message (with reuse).

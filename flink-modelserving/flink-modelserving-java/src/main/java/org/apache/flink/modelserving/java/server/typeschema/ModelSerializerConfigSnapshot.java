@@ -18,9 +18,9 @@
 
 package org.apache.flink.modelserving.java.server.typeschema;
 
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.modelserving.java.model.Model;
@@ -32,7 +32,8 @@ import java.io.IOException;
  * Type serializer snapshot for model - used by Flink checkpointing.
  * See https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/typeutils/SimpleTypeSerializerSnapshot.java
  */
-public class ModelSerializerConfigSnapshot<RECORD, RESULT> extends SimpleTypeSerializerSnapshot<Model<RECORD, RESULT>> {
+public class ModelSerializerConfigSnapshot<RECORD, RESULT>
+	implements TypeSerializerSnapshot<Model<RECORD, RESULT>> {
 
     // Version
 	private static final int VERSION = 1;

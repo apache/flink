@@ -25,8 +25,6 @@ import java.util.Optional;
  */
 public class ModelWithType<RECORD, RESULT> {
 
-	// Is model current
-	private boolean current;
 	// Model data type
 	private String dataType;
 	// Model
@@ -36,7 +34,6 @@ public class ModelWithType<RECORD, RESULT> {
 	 * Model with type default constructor.
 	 */
 	public ModelWithType(){
-		current = false;
 		dataType = "";
 		this.model = Optional.empty();
 	}
@@ -44,23 +41,12 @@ public class ModelWithType<RECORD, RESULT> {
 	/**
 	 * Create Model with type.
 	 *
-	 * @param current Model currently in use.
 	 * @param dataType Model data type.
 	 * @param model model itself.
 	 */
-	public ModelWithType(boolean current, String dataType, Optional<Model<RECORD, RESULT>> model){
-		this.current = current;
+	public ModelWithType(String dataType, Optional<Model<RECORD, RESULT>> model){
 		this.dataType = dataType;
 		this.model = model;
-	}
-
-	/**
-	 * Get model's state.
-	 *
-	 * @return model's state.
-	 */
-	public boolean isCurrent() {
-		return current;
 	}
 
 	/**
@@ -116,7 +102,7 @@ public class ModelWithType<RECORD, RESULT> {
 					modelEqual = true;
 				}
 			}
-			return modelEqual && (dataType.equals(other.getDataType())) && (current == other.isCurrent());
+			return modelEqual && (dataType.equals(other.getDataType()));
 		}
 		return false;
 	}
@@ -129,7 +115,6 @@ public class ModelWithType<RECORD, RESULT> {
 	@Override
 	public String toString() {
 		return "ModelWithType{" +
-			"current=" + current +
 			", dataType='" + dataType + '\'' +
 			", model=" + model +
 			'}';

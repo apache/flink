@@ -37,7 +37,7 @@ class ModelWithTypeSerializer[RECORD, RESULT]
     * @return model's instance.
     */
   override def createInstance(): ModelWithType[RECORD, RESULT] =
-    new ModelWithType[RECORD, RESULT](false, "", null)
+    new ModelWithType[RECORD, RESULT]("", null)
 
   /**
     * Check if Type serializers can be equal.
@@ -45,7 +45,7 @@ class ModelWithTypeSerializer[RECORD, RESULT]
     * @param obj another object.
     * @return boolean specifying whether serializires can be equal.
     */
-  override def canEqual(obj: scala.Any): Boolean =
+  def canEqual(obj: scala.Any): Boolean =
     obj.isInstanceOf[ModelWithTypeSerializer[RECORD, RESULT]]
 
   /**
@@ -62,7 +62,6 @@ class ModelWithTypeSerializer[RECORD, RESULT]
     * @param target output.
     */
   override def serialize(model: ModelWithType[RECORD, RESULT], target: DataOutputView): Unit = {
-    target.writeBoolean(model.isCurrent)
     target.writeUTF(model.dataType)
     model.model match {
       case Some(m) =>
@@ -103,7 +102,7 @@ class ModelWithTypeSerializer[RECORD, RESULT]
     * @return model's with state copy.
     */
   override def copy(from: ModelWithType[RECORD, RESULT]): ModelWithType[RECORD, RESULT] =
-    new ModelWithType[RECORD, RESULT](from.isCurrent, from.dataType, ModelToServe.copy(from.model))
+    new ModelWithType[RECORD, RESULT](from.dataType, from.model)
 
   /**
     * Copy model with state (with reuse).
@@ -122,7 +121,6 @@ class ModelWithTypeSerializer[RECORD, RESULT]
     * @param target resulting data stream.
     */
   override def copy(source: DataInputView, target: DataOutputView): Unit = {
-    target.writeBoolean(source.readBoolean())
     target.writeUTF(source.readUTF())
     val exist = source.readBoolean()
     target.writeBoolean(exist)
@@ -145,7 +143,6 @@ class ModelWithTypeSerializer[RECORD, RESULT]
     * @return deserialized model with state.
     */
   override def deserialize(source: DataInputView): ModelWithType[RECORD, RESULT] = {
-    val current = source.readBoolean()
     val dataType = source.readUTF()
     source.readBoolean() match {
       case true =>
@@ -154,8 +151,8 @@ class ModelWithTypeSerializer[RECORD, RESULT]
         val content = new Array[Byte](size)
         source.read(content)
         new ModelWithType[RECORD, RESULT](
-          current, dataType, ModelToServe.restore[RECORD, RESULT](t, content))
-      case _ => new ModelWithType[RECORD, RESULT](current, dataType, None)
+          dataType, ModelToServe.restore[RECORD, RESULT](t, content))
+      case _ => new ModelWithType[RECORD, RESULT](dataType, None)
     }
   }
 
@@ -200,12 +197,12 @@ object ModelWithTypeSerializerConfigSnapshot{
 /**
   * Type serializer snapshot for model with state - used by Flink checkpointing.
   * */
-class ModelWithTypeSerializerConfigSnapshot[RECORD, RESULT]
-  extends SimpleTypeSerializerSnapshot[ModelWithType[RECORD, RESULT]]{
+class ModelWithTypeSerializerConfigSnapshot[RECORD, RESULT] extends
+  TypeSerializerSnapshot[ModelWithType[RECORD, RESULT]]{
 
   import ModelWithTypeSerializerConfigSnapshot._
 
-  private var serializerClass = classOf[ModelWithTypeSerializer[RECORD, RESULT]]
+  private var serializerClazz = classOf[ModelWithTypeSerializer[RECORD, RESULT]]
 
   /**
     * Get current snapshot version.
@@ -220,7 +217,7 @@ class ModelWithTypeSerializerConfigSnapshot[RECORD, RESULT]
     * @param out output stream.
     */
   override def writeSnapshot(out: DataOutputView): Unit = {
-    out.writeUTF(serializerClass.getName)
+    out.writeUTF(serializerClazz.getName)
   }
 
   /**
@@ -247,7 +244,7 @@ class ModelWithTypeSerializerConfigSnapshot[RECORD, RESULT]
     * @return type serializer.
     */
   override def restoreSerializer(): TypeSerializer[ModelWithType[RECORD, RESULT]] =
-    InstantiationUtil.instantiate(serializerClass)
+    InstantiationUtil.instantiate(serializerClazz)
 
   /**
     * Support method to resolve class name.
@@ -260,7 +257,7 @@ class ModelWithTypeSerializerConfigSnapshot[RECORD, RESULT]
   override def resolveSchemaCompatibility(newSerializer:
                                           TypeSerializer[ModelWithType[RECORD, RESULT]]):
   TypeSerializerSchemaCompatibility[ModelWithType[RECORD, RESULT]] =
-    if (newSerializer.getClass eq serializerClass) {
+    if (newSerializer.getClass eq serializerClazz) {
       TypeSerializerSchemaCompatibility.compatibleAsIs()
     }
     else {
@@ -278,7 +275,7 @@ class ModelWithTypeSerializerConfigSnapshot[RECORD, RESULT]
   private def resolveClassName(className: String, cl: ClassLoader, allowCanonicalName: Boolean):
   Unit =
     try
-      serializerClass = cast(Class.forName(className, false, cl))
+      serializerClazz = cast(Class.forName(className, false, cl))
     catch {
       case e: Throwable =>
         throw new IOException(s"Failed to read SimpleTypeSerializerSnapshot: Serializer class " +

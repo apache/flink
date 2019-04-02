@@ -44,8 +44,6 @@ class DataProcessorMap[RECORD, RESULT] extends
 
   // Current models
   private var currentModels = Map[String, Model[RECORD, RESULT]]()
-  // New models
-  private var newModels = Map[String, Model[RECORD, RESULT]]()
 
   // Checkpointing state
   @transient private var checkpointedState: ListState[ModelWithType[RECORD, RESULT]] = _
@@ -59,10 +57,8 @@ class DataProcessorMap[RECORD, RESULT] extends
     // Clear checkpointing state
     checkpointedState.clear()
     // Populate checkpointing state
-    currentModels.foreach(entry => checkpointedState.
-      add(new ModelWithType[RECORD, RESULT](true, entry._1, Some(entry._2))))
-    newModels.foreach(entry => checkpointedState.
-      add(new ModelWithType[RECORD, RESULT](false, entry._1, Some(entry._2))))
+    currentModels.foreach(entry => if(entry._2 != null) checkpointedState.
+      add(new ModelWithType[RECORD, RESULT](entry._1, Some(entry._2))))
   }
 
   /**
@@ -81,22 +77,8 @@ class DataProcessorMap[RECORD, RESULT] extends
     // If restored
     if (context.isRestored) {
       // Create state
-      val nm = new ListBuffer[(String, Model[RECORD, RESULT])]()
-      val cm = new ListBuffer[(String, Model[RECORD, RESULT])]()
-      checkpointedState.get().iterator().asScala.foreach(modelWithType => {
-        // For each model in the checkpointed state
-        modelWithType.model match {
-          case Some(model) =>                     // Model is present
-            modelWithType.isCurrent match {
-              case true => cm += (modelWithType.dataType -> model)  // Its a current model
-              case _ => nm += (modelWithType.dataType -> model)     // Its a new model
-            }
-          case _ =>
-        }
-      })
-      // Convert lists into maps
-      currentModels = Map(cm: _*)
-      newModels = Map(nm: _*)
+      currentModels = Map(checkpointedState.get().iterator().asScala.toList.map(modelWithType =>
+        (modelWithType.dataType -> modelWithType.model.get)): _*)
     }
   }
 
@@ -110,7 +92,12 @@ class DataProcessorMap[RECORD, RESULT] extends
 
     println(s"New model - $model")
     ModelToServe.toModel[RECORD, RESULT](model) match {     // Inflate model
-      case Some(md) => newModels += (model.dataType -> md)  // Save a new model
+      case Some(md) =>
+        currentModels.get(model.dataType).map(_.cleanup())
+
+        // Now update the current models with the new model for the record type
+        // and remove the new model from new models temporary placeholder.
+        currentModels += (model.dataType -> md)
       case _ =>
     }
   }
@@ -123,18 +110,6 @@ class DataProcessorMap[RECORD, RESULT] extends
     */
   override def flatMap1(record: DataToServe[RECORD], out: Collector[ServingResult[RESULT]]):
   Unit = {
-    // See if we need to update
-    newModels.contains(record.getType) match {    // There is a new model for this type
-      case true =>
-        currentModels.contains(record.getType) match { // There is currently a model for this type
-          case true => currentModels(record.getType).cleanup()  // Cleanup
-          case _ =>
-        }
-        // Update current models and remove a model from new models
-        currentModels += (record.getType -> newModels(record.getType))
-        newModels -= record.getType
-      case _ =>
-    }
     // actually process
     currentModels.get(record.getType) match {
       case Some(model) =>

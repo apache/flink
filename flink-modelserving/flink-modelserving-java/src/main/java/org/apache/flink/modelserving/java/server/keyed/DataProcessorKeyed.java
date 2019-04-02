@@ -46,12 +46,8 @@ public class DataProcessorKeyed<RECORD, RESULT> extends CoProcessFunction<DataTo
 
     // current model state
 	ValueState<ModelToServeStats> modelState;
-    // new model state
-	ValueState<ModelToServeStats> newModelState;
     // Current model
 	ValueState<Model<RECORD, RESULT>> currentModel;
-    // New model
-	ValueState<Model<RECORD, RESULT>> newModel;
 
 	/**
 	 * Open execution. Called when an instance is created.
@@ -67,24 +63,12 @@ public class DataProcessorKeyed<RECORD, RESULT> extends CoProcessFunction<DataTo
 		modeStatelDesc.setQueryable("currentModelState");
         // Create model state
 		modelState = getRuntimeContext().getState(modeStatelDesc);
-        // New model descriptor
-		ValueStateDescriptor<ModelToServeStats> newModelStateDesc = new ValueStateDescriptor<>(
-			"newModelState",         // state name
-			TypeInformation.of(new TypeHint<ModelToServeStats>() {})); // type information
-        // Created new Model state
-		newModelState = getRuntimeContext().getState(newModelStateDesc);
         // Current model descriptor
 		ValueStateDescriptor<Model<RECORD, RESULT>> currentModelDesc = new ValueStateDescriptor<>(
 			"currentModel",         // state name
 			new ModelTypeSerializer()); // type information
         // Create current model
 		currentModel = getRuntimeContext().getState(currentModelDesc);
-        // New model descriptor
-		ValueStateDescriptor<Model<RECORD, RESULT>> newModelDesc = new ValueStateDescriptor<>(
-			"newModel",         // state name
-			new ModelTypeSerializer()); // type information
-        // Create new model
-		newModel = getRuntimeContext().getState(newModelDesc);
 	}
 
 	/**
@@ -96,17 +80,6 @@ public class DataProcessorKeyed<RECORD, RESULT> extends CoProcessFunction<DataTo
 	@Override
 	public void processElement1(DataToServe<RECORD> value, Context ctx, Collector<ServingResult<RESULT>> out) throws Exception {
 
-        // See if we have update for the model
-		if (newModel.value() != null){
-            // Clean up current model
-			if (currentModel.value() != null){
-				currentModel.value().cleanup();
-			}
-            // Update model
-			currentModel.update(newModel.value());
-			modelState.update(newModelState.value());
-			newModel.update(null);
-		}
         // Process data
 		if (currentModel.value() != null){
 			long start = System.currentTimeMillis();
@@ -131,9 +104,16 @@ public class DataProcessorKeyed<RECORD, RESULT> extends CoProcessFunction<DataTo
 		System.out.println("New model - " + model);
 		Optional<Model<RECORD, RESULT>> m = DataConverter.toModel(model);    // Create a new model
 		if (m.isPresent()) {
-            // Update new state
-			newModelState.update(new ModelToServeStats(model));
-			newModel.update(m.get());
+			// Clean up current model
+			if (currentModel.value() != null){
+				currentModel.value().cleanup();
+			}
+			// Update model
+			currentModel.update(m.get());
+			modelState.update(new ModelToServeStats(model));
+		}
+		else {
+			System.out.println("Model creation for " + model + " failed");
 		}
 	}
 }

@@ -63,9 +63,9 @@ class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType[Doubl
       ModelDescriptor.ModelType.TENSORFLOWSAVED.value, location.getBytes)
 
     Array[ModelWithType[Double,Double]](
-      new ModelWithType[Double, Double](false, dataType, None),
-      new ModelWithType[Double, Double](false, dataType, tfoptimized),
-      new ModelWithType[Double, Double](false, dataType, tfbundled))
+      new ModelWithType[Double, Double](dataType, None),
+      new ModelWithType[Double, Double](dataType, tfoptimized),
+      new ModelWithType[Double, Double](dataType, tfbundled))
   }
 
   private def getModel(fileName: String) : Array[Byte] = {

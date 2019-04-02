@@ -43,7 +43,7 @@ class ModelTypeSerializer[RECORD, RESULT] extends TypeSerializer[Option[Model[RE
     * @param obj another object.
     * @return boolean specifying whether serializires can be equal.
     */
-  override def canEqual(obj: scala.Any): Boolean =
+  def canEqual(obj: scala.Any): Boolean =
     obj.isInstanceOf[ModelTypeSerializer[RECORD, RESULT]]
 
   /**

@@ -42,12 +42,11 @@ import java.util.Optional;
  * Data Processer (map) - the main implementation, that brings together model and data to process.
  * Model is distributed to all instances, while data is send to arbitrary one.
  */
-public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<DataToServe<RECORD>, ModelToServe, ServingResult<RESULT>> implements CheckpointedFunction {
+public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<DataToServe<RECORD>,
+	ModelToServe, ServingResult<RESULT>> implements CheckpointedFunction {
 
     // Current models
 	Map<String, Model<RECORD, RESULT>> currentModels = new HashMap<>();
-    // New models
-	Map<String, Model<RECORD, RESULT>> newModels = new HashMap<>();
 
     // Checkpointing state
 	private transient ListState<ModelWithType<RECORD, RESULT>> checkpointedState = null;
@@ -61,11 +60,11 @@ public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<Data
         // Clear checkponting state
 		checkpointedState.clear();
         // Copy current state
-		for (Map.Entry<String, Model<RECORD, RESULT>> entry : currentModels.entrySet()){
-			checkpointedState.add(new ModelWithType(true, entry.getKey(), Optional.of(entry.getValue())));
-		}
-		for (Map.Entry<String, Model<RECORD, RESULT>> entry : newModels.entrySet()){
-			checkpointedState.add(new ModelWithType(false, entry.getKey(), Optional.of(entry.getValue())));
+		for (Map.Entry<String, Model<RECORD, RESULT>> entry : currentModels.entrySet()) {
+			if (entry.getValue() != null){
+				checkpointedState.add(
+					new ModelWithType(entry.getKey(), Optional.of(entry.getValue())));
+			}
 		}
 	}
 
@@ -76,7 +75,8 @@ public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<Data
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
         // Descriptor
-		ListStateDescriptor<ModelWithType<RECORD, RESULT>> descriptor = new ListStateDescriptor<>("modelState", new ModelWithTypeSerializer<RECORD, RESULT>());
+		ListStateDescriptor<ModelWithType<RECORD, RESULT>> descriptor = new ListStateDescriptor<>(
+			"modelState", new ModelWithTypeSerializer<RECORD, RESULT>());
         // Read checkpoint
 		checkpointedState = context.getOperatorStateStore().getListState (descriptor);
 		if (context.isRestored()) {                 // If restored
@@ -84,13 +84,7 @@ public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<Data
 			while (iterator.hasNext()){              // For every restored
 				ModelWithType<RECORD, RESULT> current = iterator.next();
 				if (current.getModel().isPresent()){ // It contains model
-					// Update both current and new model
-					if (current.isCurrent()){
-						currentModels.put(current.getDataType(), current.getModel().get());
-					}
-					else {
-						newModels.put(current.getDataType(), current.getModel().get());
-					}
+					currentModels.put(current.getDataType(), current.getModel().get());
 				}
 			}
 		}
@@ -102,18 +96,10 @@ public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<Data
 	 * @param out result's collector.
 	 */
 	@Override
-	public void flatMap1(DataToServe<RECORD> record, Collector<ServingResult<RESULT>> out) throws Exception {
-        // See if we need to update
-		if (newModels.containsKey(record.getType())){
-            // If there is currently model of this type in use?
-			if (currentModels.containsKey(record.getType())){
-				currentModels.get(record.getType()).cleanup();
-			}
-            // Update current state
-			currentModels.put(record.getType(), newModels.get(record.getType()));
-			newModels.remove(record.getType());
-		}
-		if (currentModels.containsKey(record.getType())){        // We have the model for this data type
+	public void flatMap1(DataToServe<RECORD> record, Collector<ServingResult<RESULT>> out)
+		throws Exception {
+		if (currentModels.containsKey(record.getType())){
+			// We have the model for this data type
 			long start = System.currentTimeMillis();
             // Actually serve data
 			Object result = currentModels.get(record.getType()).score(record.getRecord());
@@ -134,8 +120,12 @@ public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<Data
         // Create model
 		Optional<Model<RECORD, RESULT>> m = DataConverter.toModel(model);
 		if (m.isPresent()) {               // If creation successful
-			// Update new model
-			newModels.put(model.getDataType(), m.get());
+			// If there is currently model of this type in use?
+			if (currentModels.containsKey(model.getDataType())){
+				currentModels.get(model.getDataType()).cleanup();
+			}
+			// Update current state
+			currentModels.put(model.getDataType(), m.get());
 		}
 	}
 }

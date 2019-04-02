@@ -21,25 +21,19 @@ package org.apache.flink.modelserving.scala.model
 /**
   * Representation of the model serving statistics.
   */
-class ModelWithType[RECORD, RESULT]
-    (current : Boolean, dType: String, m: Option[Model[RECORD, RESULT]]) {
 
-  val isCurrent = current
+class ModelWithType[RECORD, RESULT](dType: String, m: Option[Model[RECORD, RESULT]]) {
+
   val dataType = dType
   val model = m
 
   /**
-    * Create Model with type.
+    * Compare models with type.
     *
-    * @param current  Model currently in use.
-    * @param dataType Model data type.
-    * @param model    model itself.
     */
   override def equals(obj: Any): Boolean = obj match {
     case modelWithType: ModelWithType[RECORD, RESULT] =>
-      modelWithType.isCurrent == isCurrent &&
-        modelWithType.dataType == dataType &&
-        (modelWithType.model match {
+      modelWithType.dataType == dataType && (modelWithType.model match {
           case Some(m) =>
             model match {
               case Some(n) => m == n
@@ -48,5 +42,4 @@ class ModelWithType[RECORD, RESULT]
           case _ => model.isEmpty
         })
     case _ => false
-  }
-}
+  }}

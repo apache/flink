@@ -46,7 +46,7 @@ public class ModelTypeSerializer<RECORD, RESULT> extends TypeSerializer<Model<RE
 	 * @param obj another object.
 	 * @return boolean specifying whether serializires can be equal.
 	 */
-	@Override
+//	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ModelTypeSerializer;
 	}
