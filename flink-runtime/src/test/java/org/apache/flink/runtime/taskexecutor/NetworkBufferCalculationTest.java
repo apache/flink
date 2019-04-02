@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -32,8 +33,8 @@ import static org.junit.Assert.assertEquals;
 public class NetworkBufferCalculationTest extends TestLogger {
 
 	/**
-	 * Test for {@link TaskManagerServicesConfiguration#calculateNetworkBufferMemory(Configuration, long)}
-	 * using the same (manual) test cases as in {@link TaskManagerServicesTest#calculateHeapSizeMB()}.
+	 * Test for {@link NetworkEnvironmentConfiguration#calculateNewNetworkBufferMemory(Configuration, long)}
+	 * using the same (manual) test cases as in {@link NetworkEnvironmentConfigurationTest#calculateHeapSizeMB()}.
 	 */
 	@Test
 	public void calculateNetworkBufFromHeapSize() {
@@ -44,23 +45,23 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, false);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServicesConfiguration.calculateNetworkBufferMemory(config, 900L << 20)); // 900MB
+			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 900L << 20)); // 900MB
 
 		config = getConfig(
 			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.2f, 60L << 20, 1L << 30, false);
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
-			TaskManagerServicesConfiguration.calculateNetworkBufferMemory(config, 800L << 20)); // 800MB
+			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 800L << 20)); // 800MB
 
 		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, true);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServicesConfiguration.calculateNetworkBufferMemory(config, 890L << 20)); // 890MB
+			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 890L << 20)); // 890MB
 
 		config = getConfig(0, 0.1f, 0.1f, 60L << 20, 1L << 30, true);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServicesConfiguration.calculateNetworkBufferMemory(config, 810L << 20)); // 810MB
+			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 810L << 20)); // 810MB
 	}
 
 	/**

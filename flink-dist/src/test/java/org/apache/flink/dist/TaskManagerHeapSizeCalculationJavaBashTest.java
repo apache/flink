@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
@@ -69,8 +70,8 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} has the same
-	 * result as the shell script.
+	 * Tests that {@link NetworkEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)}
+	 * has the same result as the shell script.
 	 */
 	@Test
 	public void compareNetworkBufShellScriptWithJava() throws Exception {
@@ -200,7 +201,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 			Configuration config = getConfig(javaMemMB, useOffHeap, frac, min, max, managedMemSize, managedMemFrac);
 			long totalJavaMemorySize = ((long) javaMemMB) << 20; // megabytes to bytes
 			final int networkBufMB =
-				(int) (TaskManagerServices.calculateNetworkBufferMemory(totalJavaMemorySize, config) >> 20);
+				(int) (NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(totalJavaMemorySize, config) >> 20);
 			// max (exclusive): total - netbuf
 			managedMemSize = Math.min(javaMemMB - networkBufMB - 1, ran.nextInt(Integer.MAX_VALUE));
 		} else {
@@ -226,7 +227,8 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		final long totalJavaMemorySizeMB = config.getLong(KEY_TASKM_MEM_SIZE, 0L);
 
-		long javaNetworkBufMem = TaskManagerServices.calculateNetworkBufferMemory(totalJavaMemorySizeMB << 20, config);
+		long javaNetworkBufMem = NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(
+			totalJavaMemorySizeMB << 20, config);
 
 		String[] command = {"src/test/bin/calcTMNetBufMem.sh",
 			totalJavaMemorySizeMB + "m",
