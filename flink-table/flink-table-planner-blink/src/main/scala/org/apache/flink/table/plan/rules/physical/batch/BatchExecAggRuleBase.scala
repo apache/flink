@@ -24,7 +24,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.util.{AggregateUtil, FlinkRelOptUtil, RelFieldCollationUtil}
+import org.apache.flink.table.plan.util.{AggregateUtil, RelFieldCollationUtil}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Aggregate
@@ -152,7 +152,7 @@ trait BatchExecAggRuleBase {
   }
 
   protected def isAggBufferFixedLength(agg: Aggregate): Boolean = {
-    val (_, aggCallsWithoutAuxGroupCalls) = FlinkRelOptUtil.checkAndSplitAggCalls(agg)
+    val (_, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
     val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
       aggCallsWithoutAuxGroupCalls, agg.getInput.getRowType)
 

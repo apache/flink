@@ -15,25 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.sql.internal
 
-import org.apache.flink.annotation.Internal
+package org.apache.flink.table.functions.sql.internal;
 
-import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlOperandTypeInference}
-import org.apache.calcite.sql.{SqlAggFunction, SqlFunctionCategory, SqlIdentifier, SqlKind}
+import org.apache.flink.annotation.Internal;
+
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.OperandTypes;
+import org.apache.calcite.sql.type.ReturnTypes;
 
 /**
-  * An internal [[SqlAggFunction]] to represents auxiliary group keys
-  * which will not be computed as key and does not also affect the correctness of the final result.
-  */
+ * An internal [[SqlAggFunction]] to represents auxiliary group keys
+ * which will not be computed as key and does not also affect the correctness of the final result.
+ */
 @Internal
-object SqlAuxiliaryGroupAggFunction extends SqlAggFunction(
-  "AUXILIARY_GROUP",
-  null.asInstanceOf[SqlIdentifier],
-  SqlKind.OTHER_FUNCTION,
-  ReturnTypes.ARG0,
-  null.asInstanceOf[SqlOperandTypeInference],
-  OperandTypes.ANY,
-  SqlFunctionCategory.SYSTEM,
-  false,
-  false)
+public class SqlAuxiliaryGroupAggFunction extends SqlAggFunction {
+
+	public SqlAuxiliaryGroupAggFunction() {
+		super("AUXILIARY_GROUP",
+				null,
+				SqlKind.OTHER_FUNCTION,
+				ReturnTypes.ARG0,
+				null,
+				OperandTypes.ANY,
+				SqlFunctionCategory.SYSTEM,
+				false,
+				false);
+	}
+}

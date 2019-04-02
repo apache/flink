@@ -24,12 +24,13 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
+import org.apache.flink.table.functions.sql.AggSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
 
 import org.apache.calcite.rel.`type`._
-import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.sql.SqlRankFunction
 import org.apache.calcite.sql.fun._
 
@@ -40,6 +41,59 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil extends Enumeration {
+
+  /**
+    * Check whether AUXILIARY_GROUP aggCalls is in the front of the given agg's aggCallList,
+    * and whether aggCallList contain AUXILIARY_GROUP when the given agg's groupSet is empty
+    * or the indicator is true.
+    * Returns AUXILIARY_GROUP aggCalls' args and other aggCalls.
+    *
+    * @param agg aggregate
+    * @return returns AUXILIARY_GROUP aggCalls' args and other aggCalls
+    */
+  def checkAndSplitAggCalls(agg: Aggregate): (Array[Int], Seq[AggregateCall]) = {
+    var nonAuxGroupCallsStartIdx = -1
+
+    val aggCalls = agg.getAggCallList
+    aggCalls.zipWithIndex.foreach {
+      case (call, idx) =>
+        if (call.getAggregation == AggSqlFunctions.AUXILIARY_GROUP) {
+          require(call.getArgList.size == 1)
+        }
+        if (nonAuxGroupCallsStartIdx >= 0) {
+          // the left aggCalls should not be AUXILIARY_GROUP
+          require(call.getAggregation != AggSqlFunctions.AUXILIARY_GROUP,
+            "AUXILIARY_GROUP should be in the front of aggCall list")
+        }
+        if (nonAuxGroupCallsStartIdx < 0 &&
+          call.getAggregation != AggSqlFunctions.AUXILIARY_GROUP) {
+          nonAuxGroupCallsStartIdx = idx
+        }
+    }
+
+    if (nonAuxGroupCallsStartIdx < 0) {
+      nonAuxGroupCallsStartIdx = aggCalls.length
+    }
+
+    val (auxGroupCalls, otherAggCalls) = aggCalls.splitAt(nonAuxGroupCallsStartIdx)
+    if (agg.getGroupCount == 0) {
+      require(auxGroupCalls.isEmpty,
+        "AUXILIARY_GROUP aggCalls should be empty when groupSet is empty")
+    }
+    if (agg.indicator) {
+      require(auxGroupCalls.isEmpty,
+        "AUXILIARY_GROUP aggCalls should be empty when indicator is true")
+    }
+
+    val auxGrouping = auxGroupCalls.map(_.getArgList.head.toInt).toArray
+    require(auxGrouping.length + otherAggCalls.length == aggCalls.length)
+    (auxGrouping, otherAggCalls)
+  }
+
+  def checkAndGetFullGroupSet(agg: Aggregate): Array[Int] = {
+    val (auxGroupSet, _) = checkAndSplitAggCalls(agg)
+    agg.getGroupSet.toArray ++ auxGroupSet
+  }
 
   def transformToBatchAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
