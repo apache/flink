@@ -37,5 +37,7 @@ public interface TableOperationVisitor<T> {
 
 	T visitDistinct(DistinctTableOperation distinct);
 
+	T visitSort(SortTableOperation sort);
+
 	T visitOther(TableOperation other);
 }

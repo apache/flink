@@ -54,6 +54,11 @@ public abstract class TableOperationDefaultVisitor<T> implements TableOperationV
 	}
 
 	@Override
+	public T visitSort(SortTableOperation sort) {
+		return defaultMethod(sort);
+	}
+
+	@Override
 	public T visitOther(TableOperation other) {
 		return defaultMethod(other);
 	}
