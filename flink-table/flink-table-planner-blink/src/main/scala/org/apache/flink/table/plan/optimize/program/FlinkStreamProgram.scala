@@ -35,7 +35,6 @@ object FlinkStreamProgram {
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val LOGICAL = "logical"
-  val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
 
   def buildProgram(config: Configuration): FlinkChainedProgram[StreamOptimizeContext] = {
@@ -96,15 +95,6 @@ object FlinkStreamProgram {
       FlinkVolcanoProgramBuilder.newBuilder
         .add(FlinkStreamRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
-        .build())
-
-    // logical rewrite
-    chainedProgram.addLast(
-      LOGICAL_REWRITE,
-      FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkStreamRuleSets.LOGICAL_REWRITE)
         .build())
 
     // optimize the physical plan

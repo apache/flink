@@ -41,18 +41,6 @@ public class TableConfigOptions {
 	//  Sort Options
 	// ------------------------------------------------------------------------
 
-	public static final ConfigOption<Boolean> SQL_EXEC_SORT_RANGE_ENABLED =
-			key("sql.exec.sort.range.enabled")
-					.defaultValue(false)
-					.withDescription("Sets whether to enable range sort, use range sort to sort all data in several partitions." +
-							"When it is false, sorting in only one partition");
-
-	public static final ConfigOption<Integer> SQL_EXEC_SORT_DEFAULT_LIMIT =
-			key("sql.exec.sort.default.limit")
-					.defaultValue(200)
-					.withDescription("Default limit when user don't set a limit after order by. " +
-							"This default value will be invalidated if " + SQL_EXEC_SORT_RANGE_ENABLED + " is set to be true.");
-
 	public static final ConfigOption<Integer> SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM =
 			key("sql.exec.sort.file-handles.max.num")
 					.defaultValue(128)

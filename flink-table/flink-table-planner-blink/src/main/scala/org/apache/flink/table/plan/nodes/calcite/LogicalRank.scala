@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.plan.nodes.calcite
 
-import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
-
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.sql.SqlRankFunction
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -38,34 +36,28 @@ final class LogicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
+    rankFunction: SqlRankFunction,
     partitionKey: ImmutableBitSet,
-    orderKey: RelCollation,
-    rankType: RankType,
-    rankRange: RankRange,
-    rankNumberType: RelDataTypeField,
-    outputRankNumber: Boolean)
+    sortCollation: RelCollation,
+    rankRange: RankRange)
   extends Rank(
     cluster,
     traitSet,
     input,
+    rankFunction,
     partitionKey,
-    orderKey,
-    rankType,
-    rankRange,
-    rankNumberType,
-    outputRankNumber) {
+    sortCollation,
+    rankRange) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new LogicalRank(
       cluster,
       traitSet,
       inputs.head,
+      rankFunction,
       partitionKey,
-      orderKey,
-      rankType,
-      rankRange,
-      rankNumberType,
-      outputRankNumber
+      sortCollation,
+      rankRange
     )
   }
 }
@@ -74,23 +66,19 @@ object LogicalRank {
 
   def create(
       input: RelNode,
+      rankFunction: SqlRankFunction,
       partitionKey: ImmutableBitSet,
-      orderKey: RelCollation,
-      rankType: RankType,
-      rankRange: RankRange,
-      rankNumberType: RelDataTypeField,
-      outputRankNumber: Boolean): LogicalRank = {
+      sortCollation: RelCollation,
+      rankRange: RankRange): LogicalRank = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalRank(
       input.getCluster,
       traits,
       input,
+      rankFunction,
       partitionKey,
-      orderKey,
-      rankType,
-      rankRange,
-      rankNumberType,
-      outputRankNumber
+      sortCollation,
+      rankRange
     )
   }
 }

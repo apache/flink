@@ -22,6 +22,7 @@ import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromIn
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TemporalTableFunction
+
 import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
@@ -177,20 +178,4 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
   override def window(groupWindow: GroupWindow): GroupWindowedTable = ???
 
   override def window(overWindows: OverWindow*): OverWindowedTable = ???
-
-  override def addColumns(fields: String): Table = ???
-
-  override def addColumns(fields: Expression*): Table = ???
-
-  override def addOrReplaceColumns(fields: String): Table = ???
-
-  override def addOrReplaceColumns(fields: Expression*): Table = ???
-
-  override def renameColumns(fields: String): Table = ???
-
-  override def renameColumns(fields: Expression*): Table = ???
-
-  override def dropColumns(fields: String): Table = ???
-
-  override def dropColumns(fields: Expression*): Table = ???
 }

@@ -29,14 +29,15 @@ import org.apache.calcite.rex.RexNode
 /**
   * Stream physical RelNode for [[Sort]].
   *
-  * <b>NOTES:</b> This class is used for testing with bounded source now.
-  * If a query is converted to this node in product environment, an exception will be thrown.
+  * <p><b>NOTES:</b> This class is used for testing now.
   *
+  * @see [[StreamExecRank]] which must be with `limit` order by.
   * @see [[StreamExecTemporalSort]] which must be time-ascending-order sort without `limit`.
   *
-  * e.g.
-  * ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
-  * ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
+  * <p>e.g.
+  * <p>''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
+  * <p>''SELECT * FROM TABLE ORDER BY a LIMIT 2'' will be converted to [[StreamExecRank]]
+  * <p>''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
   */
 @Experimental
 class StreamExecSort(
@@ -47,10 +48,6 @@ class StreamExecSort(
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with StreamPhysicalRel {
 
-  /**
-    * this node will not produce or consume retraction message
-    * due to it starts sending data to output after all input data has come.
-    */
   override def producesUpdates: Boolean = false
 
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
