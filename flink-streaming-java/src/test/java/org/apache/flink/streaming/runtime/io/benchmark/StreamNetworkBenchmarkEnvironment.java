@@ -277,6 +277,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				executionAttemptID,
 				gateDescriptor,
 				environment,
+				new TaskEventDispatcher(),
 				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 

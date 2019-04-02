@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
@@ -410,7 +411,7 @@ public class TaskManagerServices {
 	private static NetworkEnvironment createNetworkEnvironment(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
 			long maxJvmHeapMemory,
-			TaskEventDispatcher taskEventDispatcher) {
+			TaskEventPublisher taskEventPublisher) {
 
 		NetworkEnvironmentConfiguration networkEnvironmentConfiguration = taskManagerServicesConfiguration.getNetworkConfig();
 
@@ -445,7 +446,7 @@ public class TaskManagerServices {
 			networkBufferPool,
 			connectionManager,
 			resultPartitionManager,
-			taskEventDispatcher,
+			taskEventPublisher,
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
 			networkEnvironmentConfiguration.networkBuffersPerChannel(),

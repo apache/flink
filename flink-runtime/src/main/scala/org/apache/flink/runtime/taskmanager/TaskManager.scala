@@ -2034,6 +2034,7 @@ object TaskManager {
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
       taskManagerServices.getKvStateService,
+      taskManagerServices.getTaskEventDispatcher,
       taskManagerServices.getTaskManagerStateStore(),
       highAvailabilityServices,
       taskManagerMetricGroup)
@@ -2053,6 +2054,7 @@ object TaskManager {
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
     kvStateService: KvStateService,
+    taskEventDispatcher: TaskEventDispatcher,
     taskStateManager: TaskExecutorLocalStateStoresManager,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup: TaskManagerMetricGroup
@@ -2066,6 +2068,7 @@ object TaskManager {
       ioManager,
       networkEnvironment,
       kvStateService,
+      taskEventDispatcher,
       taskStateManager,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,

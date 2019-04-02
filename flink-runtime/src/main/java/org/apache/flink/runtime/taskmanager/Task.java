@@ -391,8 +391,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				ioManager,
 				desc.sendScheduleOrUpdateConsumersMessage());
 
-			taskEventDispatcher.registerPartition(partitionId);
-
 			++counter;
 		}
 
@@ -627,6 +625,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			LOG.info("Registering task at network: {}.", this);
 
 			network.registerTask(this);
+
+			for (ResultPartition partition : producedPartitions) {
+				taskEventDispatcher.registerPartition(partition.getPartitionId());
+			}
 
 			// add metrics for buffers
 			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
