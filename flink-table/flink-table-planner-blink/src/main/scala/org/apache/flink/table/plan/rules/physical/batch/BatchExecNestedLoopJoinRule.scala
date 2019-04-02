@@ -37,7 +37,7 @@ class BatchExecNestedLoopJoinRule(joinClass: Class[_ <: Join])
       operand(classOf[RelNode], any)),
     s"BatchExecNestedLoopJoinRule_${joinClass.getSimpleName}")
   with BatchExecJoinRuleBase
-  with BatchExecNestedLoopJoinBase {
+  with BatchExecNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig

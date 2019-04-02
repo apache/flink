@@ -40,7 +40,7 @@ class BatchExecSingleRowJoinRule(joinClass: Class[_ <: Join])
     FlinkConventions.BATCH_PHYSICAL,
     s"BatchExecSingleRowJoinRule_${joinClass.getSimpleName}")
   with BatchExecJoinRuleBase
-  with BatchExecNestedLoopJoinBase {
+  with BatchExecNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)

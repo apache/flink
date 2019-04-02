@@ -36,7 +36,7 @@ import scala.collection.JavaConversions._
 
 /**
   * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecSortMergeJoin]]
-  * if join keys are not empty and SortMergeJoin is enabled.
+  * if there exists at least one equal-join condition and SortMergeJoin is enabled.
   */
 class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
   extends RelOptRule(

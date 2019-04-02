@@ -66,17 +66,6 @@ public class TableConfigOptions {
 					.withDescription("Whether to asynchronously merge sort spill files.");
 
 	// ------------------------------------------------------------------------
-	//  Join Options
-	// ------------------------------------------------------------------------
-
-	public static final ConfigOption<Long> SQL_EXEC_HASH_JOIN_BROADCAST_THRESHOLD =
-			key("sql.exec.hash-join.broadcast.threshold")
-					.defaultValue(1024 * 1024L)
-					.withDescription("Maximum size in bytes for data that could be broadcast to each parallel instance " +
-							"that holds a partition of all data when performing a hash join. " +
-							"Broadcast will be disabled if the value is -1.");
-
-	// ------------------------------------------------------------------------
 	//  Spill Options
 	// ------------------------------------------------------------------------
 

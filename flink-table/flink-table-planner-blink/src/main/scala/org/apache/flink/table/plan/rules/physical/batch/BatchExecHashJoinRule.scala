@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.table.JDouble
-import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
@@ -39,7 +39,8 @@ import scala.collection.JavaConversions._
 
 /**
   * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecHashJoin]]
-  * if join keys are not empty and ShuffleHashJoin or BroadcastHashJoin are enabled.
+  * if there exists at least one equal-join condition and
+  * ShuffleHashJoin or BroadcastHashJoin are enabled.
   */
 class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
   extends RelOptRule(
@@ -163,7 +164,7 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
       return (false, false)
     }
     val threshold = tableConfig.getConf.getLong(
-      TableConfigOptions.SQL_EXEC_HASH_JOIN_BROADCAST_THRESHOLD)
+      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD)
     joinType match {
       case FlinkJoinRelType.LEFT => (rightSize <= threshold, false)
       case FlinkJoinRelType.RIGHT => (leftSize <= threshold, true)

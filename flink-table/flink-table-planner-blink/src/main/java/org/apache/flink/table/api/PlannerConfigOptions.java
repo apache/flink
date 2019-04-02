@@ -56,5 +56,11 @@ public class PlannerConfigOptions {
 					.withDescription("When true, the optimizer will try to remove redundant sort for SortMergeJoin. " +
 							"However that will increase optimization time. Default value is false.");
 
+	public static final ConfigOption<Long> SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD =
+			key("sql.optimizer.hash-join.broadcast.threshold")
+					.defaultValue(1024 * 1024L)
+					.withDescription("Maximum size in bytes for data that could be broadcast to each parallel " +
+							"instance that holds a partition of all data when performing a hash join. " +
+							"Broadcast will be disabled if the value is -1.");
 
 }
