@@ -59,18 +59,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * The returned iterator reads the data in write order (read spilled records first). It supports
  * infinite length. It can open multiple Iterators. It support new iterator with beginRow.
  *
- * <p>Instructions:
- * 1.{@link #reset()}
- * 2.multi {@link #add(BaseRow)}
- * 3.{@link #complete()}
- * 4.multi {@link #newIterator()}
- * repeat the above steps or {@link #close()}.
- *
  * <p>NOTE: Not supports reading while writing. In the face of concurrent modification, the
  * iterator fails quickly and cleanly, rather than risking arbitrary, non-deterministic behavior
  * at an undetermined time in the future.
  */
-public class ResettableExternalBuffer implements Closeable {
+public class ResettableExternalBuffer implements ResettableBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResettableExternalBuffer.class);
 
@@ -136,9 +129,7 @@ public class ResettableExternalBuffer implements Closeable {
 		this.addCompleted = false;
 	}
 
-	/**
-	 * Re-initialize the buffer state.
-	 */
+	@Override
 	public void reset() {
 		clearChannels();
 		inMemoryBuffer.reset();
@@ -147,9 +138,7 @@ public class ResettableExternalBuffer implements Closeable {
 		addCompleted = false;
 	}
 
-	/**
-	 * Appends the specified row to the end of this buffer.
-	 */
+	@Override
 	public void add(BaseRow row) throws IOException {
 		checkState(!addCompleted, "This buffer has add completed.");
 		if (!inMemoryBuffer.write(row)) {
@@ -166,20 +155,17 @@ public class ResettableExternalBuffer implements Closeable {
 		numRows++;
 	}
 
-	/**
-	 * Finally, complete add.
-	 */
+	@Override
 	public void complete() {
 		addCompleted = true;
 	}
 
+	@Override
 	public BufferIterator newIterator() {
 		return newIterator(0);
 	}
 
-	/**
-	 * Get a new iterator starting from the `beginRow`-th row. `beginRow` is 0-indexed.
-	 */
+	@Override
 	public BufferIterator newIterator(int beginRow) {
 		checkState(addCompleted, "This buffer has not add completed.");
 		checkArgument(beginRow >= 0, "`beginRow` can't be negative!");
@@ -267,7 +253,7 @@ public class ResettableExternalBuffer implements Closeable {
 	/**
 	 * Iterator of external buffer.
 	 */
-	public class BufferIterator implements Closeable {
+	public class BufferIterator implements ResettableBuffer.ResettableIterator {
 
 		MutableObjectIterator<BinaryRow> currentIterator;
 
@@ -306,6 +292,7 @@ public class ResettableExternalBuffer implements Closeable {
 			}
 		}
 
+		@Override
 		public void reset() throws IOException {
 			checkValidity();
 			resetImpl();
@@ -345,14 +332,7 @@ public class ResettableExternalBuffer implements Closeable {
 			iterOpenedCount--;
 		}
 
-		public boolean hasNext() {
-			return nextRow < numRows;
-		}
-
-		public int getBeginRow() {
-			return beginRow;
-		}
-
+		@Override
 		public boolean advanceNext() {
 			checkValidity();
 
@@ -417,6 +397,7 @@ public class ResettableExternalBuffer implements Closeable {
 			}
 		}
 
+		@Override
 		public BinaryRow getRow() {
 			return row;
 		}
