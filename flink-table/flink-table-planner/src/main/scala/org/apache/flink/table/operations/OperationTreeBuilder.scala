@@ -23,6 +23,7 @@ import java.util.{Collections, Optional, List => JList}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
+import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType
 import org.apache.flink.table.expressions.FunctionDefinition.Type.{SCALAR_FUNCTION, TABLE_FUNCTION}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
@@ -333,7 +334,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedMapFunction = resolveSingleExpression(mapFunction, resolver)
 
-    if (!isScalarFunction(resolvedMapFunction)) {
+    if (!isFunctionOfType(resolvedMapFunction, SCALAR_FUNCTION)) {
       throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
@@ -342,17 +343,12 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     project(Collections.singletonList(expandedFields), child)
   }
 
-  private def isScalarFunction(mapFunction: Expression) = {
-    mapFunction.isInstanceOf[CallExpression] &&
-      mapFunction.asInstanceOf[CallExpression].getFunctionDefinition.getType == SCALAR_FUNCTION
-  }
-
   def flatMap(tableFunction: Expression, child: TableOperation): TableOperation = {
 
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedTableFunction = resolveSingleExpression(tableFunction, resolver)
 
-    if (!isTableFunction(resolvedTableFunction)) {
+    if (!isFunctionOfType(resolvedTableFunction, TABLE_FUNCTION)) {
       throw new ValidationException("Only TableFunction can be used in the flatMap operator.")
     }
 
@@ -387,11 +383,6 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
       joinNode)
     alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
-  }
-
-  private def isTableFunction(tableFunction: Expression) = {
-    tableFunction.isInstanceOf[CallExpression] &&
-      tableFunction.asInstanceOf[CallExpression].getFunctionDefinition.getType == TABLE_FUNCTION
   }
 
   class NoWindowPropertyChecker(val exceptionMessage: String)

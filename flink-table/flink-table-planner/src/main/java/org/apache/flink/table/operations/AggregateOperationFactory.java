@@ -26,6 +26,7 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
 import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.AggregateFunctionDefinition;
@@ -37,13 +38,11 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.FunctionDefinition;
-import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.ResolvedGroupWindow;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.WindowReference;
-import org.apache.flink.table.plan.logical.Aggregate;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.plan.logical.SlidingGroupWindow;
@@ -55,19 +54,23 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import scala.Some;
 
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.expressions.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.expressions.ResolvedGroupWindow.WindowType.TUMBLE;
+import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.typeutils.RowIntervalTypeInfo.INTERVAL_ROWS;
 import static org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS;
 
 /**
- * Utility class for creating a valid {@link Aggregate} or {@link WindowAggregate}.
+ * Utility class for creating a valid {@link AggregateTableOperation} or {@link WindowAggregate}.
  */
 @Internal
 public class AggregateOperationFactory {
@@ -77,6 +80,7 @@ public class AggregateOperationFactory {
 	private final GroupingExpressionValidator groupingExpressionValidator = new GroupingExpressionValidator();
 	private final NoNestedAggregates noNestedAggregates = new NoNestedAggregates();
 	private final ValidateDistinct validateDistinct = new ValidateDistinct();
+	private AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator();
 
 	public AggregateOperationFactory(ExpressionBridge<PlannerExpression> expressionBridge, boolean isStreaming) {
 		this.expressionBridge = expressionBridge;
@@ -84,23 +88,38 @@ public class AggregateOperationFactory {
 	}
 
 	/**
-	 * Creates a valid {@link Aggregate} operation.
+	 * Creates a valid {@link AggregateTableOperation} operation.
 	 *
 	 * @param groupings expressions describing grouping key of aggregates
 	 * @param aggregates expressions describing aggregation functions
 	 * @param child relational operation on top of which to apply the aggregation
 	 * @return valid aggregate operation
 	 */
-	public Aggregate createAggregate(
+	public TableOperation createAggregate(
 			List<Expression> groupings,
 			List<Expression> aggregates,
 			TableOperation child) {
 		validateGroupings(groupings);
-		validateAggregates(groupings, aggregates);
+		validateAggregates(aggregates);
 
 		List<PlannerExpression> convertedGroupings = bridge(groupings);
 		List<PlannerExpression> convertedAggregates = bridge(aggregates);
-		return new Aggregate(convertedGroupings, convertedAggregates, child);
+
+		TypeInformation[] fieldTypes = Stream.concat(
+			convertedGroupings.stream(),
+			convertedAggregates.stream()
+		).map(PlannerExpression::resultType)
+			.toArray(TypeInformation[]::new);
+
+		String[] fieldNames = Stream.concat(
+			groupings.stream(),
+			aggregates.stream()
+		).map(expr -> extractName(expr).orElseGet(expr::toString))
+			.toArray(String[]::new);
+
+		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
+
+		return new AggregateTableOperation(groupings, aggregates, child, tableSchema);
 	}
 
 	/**
@@ -120,7 +139,7 @@ public class AggregateOperationFactory {
 			ResolvedGroupWindow window,
 			TableOperation child) {
 		validateGroupings(groupings);
-		validateAggregates(groupings, aggregates);
+		validateAggregates(aggregates);
 
 		List<PlannerExpression> convertedGroupings = bridge(groupings);
 		List<PlannerExpression> convertedAggregates = bridge(aggregates);
@@ -362,29 +381,22 @@ public class AggregateOperationFactory {
 		groupings.forEach(expr -> expr.accept(groupingExpressionValidator));
 	}
 
-	private void validateAggregates(List<Expression> groupings, List<Expression> aggregates) {
-		AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator(groupings);
+	private void validateAggregates(List<Expression> aggregates) {
 		aggregates.forEach(agg -> agg.accept(aggregationsValidator));
 	}
 
 	private class AggregationExpressionValidator extends ApiExpressionDefaultVisitor<Void> {
 
-		private final List<Expression> availableGroupings;
-
-		private AggregationExpressionValidator(List<Expression> availableGroupings) {
-			this.availableGroupings = availableGroupings;
-		}
-
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (functionDefinition.getType() == AGGREGATE_FUNCTION) {
+			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
 				if (functionDefinition == BuiltInFunctionDefinitions.DISTINCT) {
 					call.getChildren().forEach(expr -> expr.accept(validateDistinct));
 				} else {
 					if (functionDefinition instanceof AggregateFunctionDefinition) {
 						if (requiresOver(functionDefinition)) {
-							throw new ValidationException(String.format(
+							throw new ValidationException(format(
 								"OVER clause is necessary for window functions: [%s].",
 								call));
 						}
@@ -392,8 +404,11 @@ public class AggregateOperationFactory {
 
 					call.getChildren().forEach(child -> child.accept(noNestedAggregates));
 				}
+			} else if (functionDefinition == BuiltInFunctionDefinitions.AS) {
+				// skip alias
+				call.getChildren().get(0).accept(this);
 			} else {
-				call.getChildren().forEach(expr -> expr.accept(this));
+				failExpression(call);
 			}
 			return null;
 		}
@@ -403,27 +418,14 @@ public class AggregateOperationFactory {
 		}
 
 		@Override
-		public Void visitLocalReference(LocalReferenceExpression localReference) {
-			failExpression(localReference);
-			return null;
-		}
-
-		@Override
-		public Void visitFieldReference(FieldReferenceExpression fieldReference) {
-			failExpression(fieldReference);
-			return null;
-		}
-
-		@Override
 		protected Void defaultMethod(Expression expression) {
+			failExpression(expression);
 			return null;
 		}
 
 		private void failExpression(Expression expression) {
-			if (!availableGroupings.contains(expression)) {
-				throw new ValidationException(String.format("Expression '%s' is invalid because it is neither" +
-						" present in GROUP BY nor an aggregate function", expression));
-			}
+			throw new ValidationException(format("Expression '%s' is invalid because it is neither" +
+				" present in GROUP BY nor an aggregate function", expression));
 		}
 	}
 
@@ -472,7 +474,7 @@ public class AggregateOperationFactory {
 			TypeInformation<?> groupingType = expressionBridge.bridge(expression).resultType();
 
 			if (!groupingType.isKeyType()) {
-				throw new ValidationException(String.format("Expression %s cannot be used as a grouping expression " +
+				throw new ValidationException(format("Expression %s cannot be used as a grouping expression " +
 					"because it's not a valid key type which must be hashable and comparable", expression));
 			}
 			return null;

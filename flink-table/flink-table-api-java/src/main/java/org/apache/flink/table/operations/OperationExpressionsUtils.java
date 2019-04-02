@@ -37,11 +37,12 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
+import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 
 /**
@@ -165,7 +166,7 @@ public class OperationExpressionsUtils {
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (functionDefinition.getType() == AGGREGATE_FUNCTION) {
+			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
 				aggregates.computeIfAbsent(call, expr -> uniqueAttributeGenerator.get());
 			} else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
 				properties.computeIfAbsent(call, expr -> uniqueAttributeGenerator.get());
