@@ -69,7 +69,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		ResultPartitionManager partitionManager,
 		TaskEventPublisher taskEventPublisher,
 		TaskIOMetricGroup metrics,
-        int attemptNumber) {
+		int attemptNumber) {
 
 		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
 			0, 0, metrics, attemptNumber);

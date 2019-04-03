@@ -64,7 +64,7 @@ import static org.mockito.Mockito.when;
 
 public class CreditBasedPartitionRequestClientHandlerTest {
 
-	/**git
+	/**
 	 * Tests a fix for FLINK-1627.
 	 *
 	 * <p> FLINK-1627 discovered a race condition, which could lead to an infinite loop when a

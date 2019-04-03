@@ -127,6 +127,7 @@ class UnknownInputChannel extends InputChannel {
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, initialBackoff, maxBackoff, metrics, attemptNumber);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
+			initialBackoff, maxBackoff, metrics, attemptNumber);
 	}
 }
