@@ -141,21 +141,6 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		return databases.containsKey(dbName);
 	}
 
-	@Override
-	public void renameDatabase(String name, String newName, boolean ignoreIfNotExists) throws DatabaseNotExistException {
-		if (databaseExists(name)) {
-			databases.put(newName, databases.remove(name));
-			tables.forEach((objectPath, table) -> {
-				if (objectPath.getDatabaseName().equals(name)) {
-					tables.put(new ObjectPath(newName, objectPath.getObjectName()), table);
-				}
-			});
-		} else if (!ignoreIfNotExists) {
-			throw new DatabaseNotExistException(catalogName, name);
-		}
-
-	}
-
 	// ------ tables ------
 
 	@Override
