@@ -23,8 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -36,7 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
@@ -50,15 +48,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractKeyedStateBackend<K> implements
 	KeyedStateBackend<K>,
-	Snapshotable<SnapshotResult<KeyedStateHandle>, Collection<KeyedStateHandle>>,
+	SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
 	Closeable,
 	CheckpointListener {
 
 	/** {@link StateSerializerProvider} for our key serializer. */
-	private final StateSerializerProvider<K> keySerializerProvider;
+	protected final StateSerializerProvider<K> keySerializerProvider;
 
 	/** The currently active key. */
 	private K currentKey;
+
+	/** Listeners to changes of keyed context ({@link #currentKey}). */
+	private final ArrayList<KeySelectionListener<K>> keySelectionListeners;
 
 	/** The key group of the currently active key. */
 	private int currentKeyGroup;
@@ -88,7 +89,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	private final ExecutionConfig executionConfig;
 
-	private final TtlTimeProvider ttlTimeProvider;
+	protected final TtlTimeProvider ttlTimeProvider;
 
 	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
@@ -100,24 +101,48 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
-		TtlTimeProvider ttlTimeProvider) {
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry) {
+		this(
+			kvStateRegistry,
+			StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
+			userCodeClassLoader,
+			numberOfKeyGroups,
+			keyGroupRange,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistry,
+			determineStreamCompression(executionConfig)
+		);
+	}
 
+	public AbstractKeyedStateBackend(
+		TaskKvStateRegistry kvStateRegistry,
+		StateSerializerProvider<K> keySerializerProvider,
+		ClassLoader userCodeClassLoader,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		ExecutionConfig executionConfig,
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry,
+		StreamCompressionDecorator keyGroupCompressionDecorator) {
 		Preconditions.checkArgument(numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
 		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
 
 		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializerProvider = StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
+		this.keySerializerProvider = keySerializerProvider;
 		this.numberOfKeyGroups = numberOfKeyGroups;
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
-		this.cancelStreamRegistry = new CloseableRegistry();
+		this.cancelStreamRegistry = cancelStreamRegistry;
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
-		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
+		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
+		this.keySelectionListeners = new ArrayList<>(1);
 	}
 
-	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
+	private static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
 		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
 			return SnappyStreamCompressionDecorator.INSTANCE;
 		} else {
@@ -149,8 +174,26 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public void setCurrentKey(K newKey) {
+		notifyKeySelected(newKey);
 		this.currentKey = newKey;
 		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
+	}
+
+	private void notifyKeySelected(K newKey) {
+		// we prefer a for-loop over other iteration schemes for performance reasons here.
+		for (int i = 0; i < keySelectionListeners.size(); ++i) {
+			keySelectionListeners.get(i).keySelected(newKey);
+		}
+	}
+
+	@Override
+	public void registerKeySelectionListener(KeySelectionListener<K> listener) {
+		keySelectionListeners.add(listener);
+	}
+
+	@Override
+	public boolean deregisterKeySelectionListener(KeySelectionListener<K> listener) {
+		return keySelectionListeners.remove(listener);
 	}
 
 	/**
@@ -159,12 +202,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	@Override
 	public TypeSerializer<K> getKeySerializer() {
 		return keySerializerProvider.currentSchemaSerializer();
-	}
-
-	public TypeSerializerSchemaCompatibility<K> checkKeySerializerSchemaCompatibility(
-			TypeSerializerSnapshot<K> previousKeySerializerSnapshot) {
-
-		return keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(previousKeySerializerSnapshot);
 	}
 
 	/**
@@ -316,7 +353,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	}
 
 	@VisibleForTesting
-	StreamCompressionDecorator getKeyGroupCompressionDecorator() {
+	public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
 		return keyGroupCompressionDecorator;
 	}
 

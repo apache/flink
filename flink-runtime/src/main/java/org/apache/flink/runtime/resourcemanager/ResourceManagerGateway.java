@@ -132,21 +132,6 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 		AllocationID oldAllocationId);
 
 	/**
-	 * Registers an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to register to this resource manager
-	 */
-	void registerInfoMessageListener(String infoMessageListenerAddress);
-
-	/**
-	 * Unregisters an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to unregister from this resource manager
-	 *
-	 */
-	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
-
-	/**
 	 * Deregister Flink from the underlying resource management system.
 	 *
 	 * @param finalStatus final status with which to deregister the Flink application

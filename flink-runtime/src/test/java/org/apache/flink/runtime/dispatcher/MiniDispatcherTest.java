@@ -237,7 +237,7 @@ public class MiniDispatcherTest extends TestLogger {
 			UUID.randomUUID().toString(),
 			configuration,
 			highAvailabilityServices,
-			resourceManagerGateway,
+			() -> CompletableFuture.completedFuture(resourceManagerGateway),
 			blobServer,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),

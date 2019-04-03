@@ -157,7 +157,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			assertEquals(2, inputChannel.getSenderBacklog());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
@@ -328,7 +328,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			assertNull(channel.readOutbound());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
@@ -370,7 +370,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			assertEquals(2, inputChannel.getUnannouncedCredit());
 
 			// Release the input channel
-			inputGate.releaseAllResources();
+			inputGate.close();
 			inputGate.finallyReleaseAllInputChannels(true, false);
 
 			// it should send a close request after releasing the input channel,
@@ -383,7 +383,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			assertNull(channel.readOutbound());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();

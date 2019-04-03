@@ -20,7 +20,6 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
@@ -124,8 +123,8 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
-		if (!configuration.contains(RestOptions.PORT)) {
-			configuration.setInteger(RestOptions.PORT, 0);
+		if (!configuration.contains(RestOptions.BIND_PORT)) {
+			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
@@ -143,7 +142,7 @@ public class LocalExecutor extends PlanExecutor {
 		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 		miniCluster.start();
 
-		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
 		return miniCluster;
 	}
@@ -246,11 +245,6 @@ public class LocalExecutor extends PlanExecutor {
 		OptimizedPlan op = pc.compile(plan);
 
 		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op);
-	}
-
-	@Override
-	public void endSession(JobID jobID) throws Exception {
-		// no op
 	}
 
 	private Configuration createConfiguration() {

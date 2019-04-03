@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.Test;
@@ -95,7 +96,7 @@ public class InputGateFairnessTest {
 				new JobID(),
 				new IntermediateDataSetID(),
 				0, numberOfChannels,
-				mock(TaskActions.class),
+				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 				true);
 
@@ -150,7 +151,7 @@ public class InputGateFairnessTest {
 				new JobID(),
 				new IntermediateDataSetID(),
 				0, numberOfChannels,
-				mock(TaskActions.class),
+				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 				true);
 
@@ -202,7 +203,7 @@ public class InputGateFairnessTest {
 				new JobID(),
 				new IntermediateDataSetID(),
 				0, numberOfChannels,
-				mock(TaskActions.class),
+				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 				true);
 
@@ -258,7 +259,7 @@ public class InputGateFairnessTest {
 				new JobID(),
 				new IntermediateDataSetID(),
 				0, numberOfChannels,
-				mock(TaskActions.class),
+				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 				true);
 

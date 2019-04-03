@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
-import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
+import org.apache.flink.runtime.taskexecutor.{KvStateService, TaskManagerConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 
 import scala.language.postfixOps
@@ -39,6 +39,7 @@ class TestingTaskManager(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
+    kvStateService: KvStateService,
     taskManagerStateStore: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
@@ -50,6 +51,7 @@ class TestingTaskManager(
     memoryManager,
     ioManager,
     network,
+    kvStateService,
     taskManagerStateStore,
     numberOfSlots,
     highAvailabilityServices,
@@ -62,6 +64,7 @@ class TestingTaskManager(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
+    kvStateService: KvStateService,
     taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
@@ -73,6 +76,7 @@ class TestingTaskManager(
       memoryManager,
       ioManager,
       network,
+      kvStateService,
       taskManagerLocalStateStoresManager,
       numberOfSlots,
       highAvailabilityServices,

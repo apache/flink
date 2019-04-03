@@ -23,11 +23,11 @@ import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 import java.util.concurrent.ExecutorService;
 
@@ -44,7 +44,7 @@ public interface RestEndpointFactory<T extends RestfulGateway> {
 		LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		TransientBlobService transientBlobService,
 		ExecutorService executor,
-		MetricQueryServiceRetriever metricQueryServiceRetriever,
+		MetricFetcher metricFetcher,
 		LeaderElectionService leaderElectionService,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
 }

@@ -60,6 +60,7 @@ change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
 if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
   set_conf "state.backend.rocksdb.timer-service.factory" "rocksdb"
 fi
+set_conf "metrics.fetcher.update-interval" "2000"
 
 setup_flink_slf4j_metric_reporter
 

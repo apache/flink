@@ -72,7 +72,7 @@ public class ZooKeeperSubmittedJobGraphStoreTest extends TestLogger {
 			final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = createSubmittedJobGraphStore(client, stateStorage);
 			otherSubmittedJobGraphStore.start(null);
 
-			final SubmittedJobGraph jobGraph = new SubmittedJobGraph(new JobGraph(), null);
+			final SubmittedJobGraph jobGraph = new SubmittedJobGraph(new JobGraph());
 			submittedJobGraphStore.putJobGraph(jobGraph);
 
 			final SubmittedJobGraph recoveredJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobGraph.getJobId());

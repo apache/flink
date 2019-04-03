@@ -44,6 +44,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
@@ -75,6 +76,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	private final IOManager ioManager;
 
 	private final TaskStateManager taskStateManager;
+
+	private final GlobalAggregateManager aggregateManager;
 
 	private final InputSplitProvider inputSplitProvider;
 
@@ -124,6 +127,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		Configuration taskConfiguration,
 		ExecutionConfig executionConfig,
 		TaskStateManager taskStateManager,
+		GlobalAggregateManager aggregateManager,
 		int maxParallelism,
 		int parallelism,
 		int subtaskIndex,
@@ -155,6 +159,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
+		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 
 		this.taskMetricGroup = taskMetricGroup;
 	}
@@ -288,6 +293,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	@Override
 	public TaskStateManager getTaskStateManager() {
 		return taskStateManager;
+	}
+
+	@Override
+	public GlobalAggregateManager getGlobalAggregateManager() {
+		return aggregateManager;
 	}
 
 	@Override

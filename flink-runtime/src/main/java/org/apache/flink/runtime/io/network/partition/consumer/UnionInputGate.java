@@ -265,6 +265,10 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	}
 
 	@Override
+	public void close() throws IOException {
+	}
+
+	@Override
 	public void notifyInputGateNonEmpty(InputGate inputGate) {
 		queueInputGate(checkNotNull(inputGate));
 	}

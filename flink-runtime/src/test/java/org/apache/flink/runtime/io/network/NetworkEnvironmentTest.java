@@ -30,8 +30,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -134,7 +134,7 @@ public class NetworkEnvironmentTest {
 			rp.release();
 		}
 		for (SingleInputGate ig : inputGates) {
-			ig.releaseAllResources();
+			ig.close();
 		}
 		network.shutdown();
 	}
@@ -258,7 +258,7 @@ public class NetworkEnvironmentTest {
 			rp.release();
 		}
 		for (SingleInputGate ig : inputGates) {
-			ig.releaseAllResources();
+			ig.close();
 		}
 		network.shutdown();
 	}
@@ -279,7 +279,7 @@ public class NetworkEnvironmentTest {
 			final ResultPartitionType partitionType, final int channels) {
 		return new ResultPartition(
 			"TestTask-" + partitionType + ":" + channels,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			new JobID(),
 			new ResultPartitionID(),
 			partitionType,
@@ -311,7 +311,7 @@ public class NetworkEnvironmentTest {
 			partitionType,
 			0,
 			channels,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 			enableCreditBasedFlowControl));
 	}

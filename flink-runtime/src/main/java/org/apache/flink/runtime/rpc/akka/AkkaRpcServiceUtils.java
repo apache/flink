@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
@@ -54,6 +54,12 @@ public class AkkaRpcServiceUtils {
 
 	private static final String AKKA_TCP = "akka.tcp";
 	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
+
+	private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
+		"akka {remote {netty.tcp {maximum-frame-size = %s}}}";
+
+	private static final String MAXIMUM_FRAME_SIZE_PATH =
+		"akka.remote.netty.tcp.maximum-frame-size";
 
 	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
@@ -99,8 +105,7 @@ public class AkkaRpcServiceUtils {
 
 	@Nonnull
 	private static RpcService instantiateAkkaRpcService(Configuration configuration, ActorSystem actorSystem) {
-		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
-		return new AkkaRpcService(actorSystem, timeout);
+		return new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
 	}
 
 	// ------------------------------------------------------------------------
@@ -197,6 +202,17 @@ public class AkkaRpcServiceUtils {
 		} while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
 
 		return prefix + '_' + nameOffset;
+	}
+
+	// ------------------------------------------------------------------------
+	//  RPC service configuration
+	// ------------------------------------------------------------------------
+
+	public static long extractMaximumFramesize(Configuration configuration) {
+		String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
+		String akkaConfigStr = String.format(SIMPLE_AKKA_CONFIG_TEMPLATE, maxFrameSizeStr);
+		Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
+		return akkaConfig.getBytes(MAXIMUM_FRAME_SIZE_PATH);
 	}
 
 	// ------------------------------------------------------------------------

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -78,6 +78,12 @@ under the License.
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
 			<!-- managed version -->
+		</dependency>
+
+		<!-- Ratelimiting dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
 
 		<!-- ================== test dependencies ================== -->

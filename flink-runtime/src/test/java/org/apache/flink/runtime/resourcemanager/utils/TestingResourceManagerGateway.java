@@ -48,6 +48,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -93,7 +94,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this(
 			ResourceManagerId.generate(),
 			ResourceID.generate(),
-			"localhost",
+			"localhost/" + UUID.randomUUID(),
 			"localhost");
 	}
 
@@ -232,16 +233,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		if (currentNotifySlotAvailableConsumer != null) {
 			currentNotifySlotAvailableConsumer.accept(Tuple3.of(instanceId, slotID, oldAllocationId));
 		}
-	}
-
-	@Override
-	public void registerInfoMessageListener(String infoMessageListenerAddress) {
-
-	}
-
-	@Override
-	public void unRegisterInfoMessageListener(String infoMessageListenerAddress) {
-
 	}
 
 	@Override

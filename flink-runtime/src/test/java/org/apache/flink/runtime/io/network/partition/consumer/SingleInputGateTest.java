@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -300,7 +300,7 @@ public class SingleInputGateTest {
 		assertTrue("Did not trigger blocking buffer request.", success);
 
 		// Release the input gate
-		inputGate.releaseAllResources();
+		inputGate.close();
 
 		// Wait for Thread to finish and verify expected Exceptions. If the
 		// input gate status is not properly checked during requests, this
@@ -352,7 +352,7 @@ public class SingleInputGateTest {
 			0,
 			gateDesc,
 			netEnv,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		try {
@@ -390,7 +390,7 @@ public class SingleInputGateTest {
 				assertFalse(ch.increaseBackoff());
 			}
 		} finally {
-			gate.releaseAllResources();
+			gate.close();
 			netEnv.shutdown();
 		}
 	}
@@ -428,7 +428,7 @@ public class SingleInputGateTest {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
 		} finally {
-			inputGate.releaseAllResources();
+			inputGate.close();
 			network.shutdown();
 		}
 	}
@@ -481,7 +481,7 @@ public class SingleInputGateTest {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
 		} finally {
-			inputGate.releaseAllResources();
+			inputGate.close();
 			network.shutdown();
 		}
 	}
@@ -532,7 +532,7 @@ public class SingleInputGateTest {
 			assertThat(inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
 				is(instanceOf((LocalInputChannel.class))));
 		} finally {
-			inputGate.releaseAllResources();
+			inputGate.close();
 			network.shutdown();
 		}
 	}
@@ -556,7 +556,7 @@ public class SingleInputGateTest {
 			partitionType,
 			0,
 			numberOfInputChannels,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 			enableCreditBasedFlowControl);
 

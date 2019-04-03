@@ -183,17 +183,11 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		if (obj instanceof GenericArraySerializer) {
 			GenericArraySerializer<?> other = (GenericArraySerializer<?>)obj;
 
-			return other.canEqual(this) &&
-				componentClass == other.componentClass &&
+			return componentClass == other.componentClass &&
 				componentSerializer.equals(other.componentSerializer);
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof GenericArraySerializer;
 	}
 
 	@Override

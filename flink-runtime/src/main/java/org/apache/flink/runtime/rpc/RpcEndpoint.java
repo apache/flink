@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -29,7 +32,8 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -50,10 +54,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * thread, we don't have to reason about concurrent accesses, in the same way in the Actor Model
  * of Erlang or Akka.
  *
- * <p>The RPC endpoint provides provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
+ * <p>The RPC endpoint provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
  */
-public abstract class RpcEndpoint implements RpcGateway {
+public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -87,7 +91,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 
 		this.rpcServer = rpcService.startServer(this);
 
-		this.mainThreadExecutor = new MainThreadExecutor(rpcServer);
+		this.mainThreadExecutor = new MainThreadExecutor(rpcServer, this::validateRunsInMainThread);
 	}
 
 	/**
@@ -116,14 +120,24 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * Starts the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
 	 * to process remote procedure calls.
 	 *
-	 * <p>IMPORTANT: Whenever you override this method, call the parent implementation to enable
-	 * rpc processing. It is advised to make the parent call last.
-	 *
 	 * @throws Exception indicating that something went wrong while starting the RPC endpoint
 	 */
-	public void start() throws Exception {
+	public final void start() {
 		rpcServer.start();
 	}
+
+	/**
+	 * User overridable callback.
+	 *
+	 * <p>This method is called when the RpcEndpoint is being started. The method is guaranteed
+	 * to be executed in the main thread context and can be used to start the rpc endpoint in the
+	 * context of the rpc endpoint's main thread.
+	 *
+	 * <p>IMPORTANT: This method should never be called directly by the user.
+	 * @throws Exception indicating that the rpc endpoint could not be started. If an exception occurs,
+	 * then the rpc endpoint will automatically terminate.
+	 */
+	public void onStart() throws Exception {}
 
 	/**
 	 * Stops the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is
@@ -144,7 +158,9 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * @return Future which is completed once all post stop actions are completed. If an error
 	 * occurs this future is completed exceptionally
 	 */
-	public abstract CompletableFuture<Void> postStop();
+	public CompletableFuture<Void> onStop() {
+		return CompletableFuture.completedFuture(null);
+	}
 
 	/**
 	 * Triggers the shut down of the rpc endpoint. The shut down is executed asynchronously.
@@ -152,8 +168,10 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * <p>In order to wait on the completion of the shut down, obtain the termination future
 	 * via {@link #getTerminationFuture()}} and wait on its completion.
 	 */
-	public final void shutDown() {
+	@Override
+	public final CompletableFuture<Void> closeAsync() {
 		rpcService.stopServer(rpcServer);
+		return getTerminationFuture();
 	}
 
 	// ------------------------------------------------------------------------
@@ -302,7 +320,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * }</pre>
 	 */
 	public void validateRunsInMainThread() {
-		assert currentMainThread.get() == Thread.currentThread();
+		assert MainThreadValidatorUtil.isRunningInExpectedThread(currentMainThread.get());
 	}
 
 	// ------------------------------------------------------------------------
@@ -312,17 +330,54 @@ public abstract class RpcEndpoint implements RpcGateway {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	protected static class MainThreadExecutor implements Executor {
+	protected static class MainThreadExecutor implements ComponentMainThreadExecutor {
 
 		private final MainThreadExecutable gateway;
+		private final Runnable mainThreadCheck;
 
-		MainThreadExecutor(MainThreadExecutable gateway) {
+		MainThreadExecutor(MainThreadExecutable gateway, Runnable mainThreadCheck) {
 			this.gateway = Preconditions.checkNotNull(gateway);
+			this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
+		}
+
+		public void runAsync(Runnable runnable) {
+			gateway.runAsync(runnable);
+		}
+
+		public void scheduleRunAsync(Runnable runnable, long delayMillis) {
+			gateway.scheduleRunAsync(runnable, delayMillis);
+		}
+
+		public void execute(@Nonnull Runnable command) {
+			runAsync(command);
 		}
 
 		@Override
-		public void execute(@Nonnull Runnable runnable) {
-			gateway.runAsync(runnable);
+		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
+			FutureTask<Void> ft = new FutureTask<>(command, null);
+			scheduleRunAsync(ft, delayMillis);
+			return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public void assertRunningInMainThread() {
+			mainThreadCheck.run();
 		}
 	}
 }

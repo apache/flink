@@ -31,7 +31,7 @@ import java.io.IOException;
  *
  * @param <C> The component type.
  */
-public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer> {
+public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer<C>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -52,6 +52,16 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
 		this.componentClass = genericArraySerializer.getComponentClass();
 	}
 
+	/**
+	 * Constructor that the legacy {@link GenericArraySerializerConfigSnapshot} uses
+	 * to delegate compatibility checks to this class.
+	 */
+	@SuppressWarnings("deprecation")
+	GenericArraySerializerSnapshot(Class<C> componentClass) {
+		super(GenericArraySerializer.class);
+		this.componentClass = componentClass;
+	}
+
 	@Override
 	protected int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
@@ -68,14 +78,19 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
 	}
 
 	@Override
-	protected GenericArraySerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected boolean isOuterSnapshotCompatible(GenericArraySerializer<C> newSerializer) {
+		return this.componentClass == newSerializer.getComponentClass();
+	}
+
+	@Override
+	protected GenericArraySerializer<C> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<C> componentSerializer = (TypeSerializer<C>) nestedSerializers[0];
 		return new GenericArraySerializer<>(componentClass, componentSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(GenericArraySerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(GenericArraySerializer<C> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getComponentSerializer() };
 	}
 }

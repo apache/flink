@@ -45,6 +45,7 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -66,7 +68,6 @@ import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
@@ -585,7 +586,7 @@ public class TaskManagerTest extends TestLogger {
 						jid, "TestJob", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Sender", 1, 0, 1, 0,
-						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
+						new Configuration(), new Configuration(), TestingAbstractInvokables.Sender.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<>(), Collections.emptyList(), 0);
@@ -594,7 +595,7 @@ public class TaskManagerTest extends TestLogger {
 						jid, "TestJob", vid2, eid2,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 7, 2, 7, 0,
-						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
+						new Configuration(), new Configuration(), TestingAbstractInvokables.Receiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<>(), Collections.emptyList(), 0);
@@ -694,7 +695,7 @@ public class TaskManagerTest extends TestLogger {
 						jid, "TestJob", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Sender", 1, 0, 1, 0,
-						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
+						new Configuration(), new Configuration(), TestingAbstractInvokables.Sender.class.getName(),
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(), new ArrayList<>(),
 						Collections.emptyList(), 0);
 
@@ -702,7 +703,7 @@ public class TaskManagerTest extends TestLogger {
 						jid, "TestJob", vid2, eid2,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 7, 2, 7, 0,
-						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
+						new Configuration(), new Configuration(), TestingAbstractInvokables.Receiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
 						new ArrayList<>(), Collections.emptyList(), 0);
@@ -843,7 +844,7 @@ public class TaskManagerTest extends TestLogger {
 						jid, "TestJob", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Sender", 1, 0, 1, 0,
-						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
+						new Configuration(), new Configuration(), TestingAbstractInvokables.Sender.class.getName(),
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<>(), Collections.emptyList(), 0);
 
@@ -1475,7 +1476,7 @@ public class TaskManagerTest extends TestLogger {
 								Thread.sleep(sleepTime);
 
 								Future<?> removeFuture = taskManager.ask(
-										new TestingJobManagerMessages.NotifyWhenJobRemoved(jobId),
+										new TestingTaskManagerMessages.NotifyWhenJobRemoved(jobId),
 										remaining());
 
 								// Cancel the task
@@ -2093,7 +2094,7 @@ public class TaskManagerTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			final Object o = new Object();
-			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<IntValue> recordWriter = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
 
 			for (int i = 0; i < 1024; i++) {
 				recordWriter.emit(new IntValue(42));

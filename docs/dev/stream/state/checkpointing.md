@@ -153,7 +153,7 @@ See [state backends]({{ site.baseurl }}/ops/state/state_backends.html) for more 
 
 ## State Checkpoints in Iterative Jobs
 
-Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, force = true)`.
+Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 

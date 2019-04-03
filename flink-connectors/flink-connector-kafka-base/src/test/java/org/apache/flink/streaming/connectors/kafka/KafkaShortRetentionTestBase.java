@@ -30,11 +30,11 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -42,7 +42,6 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Properties;
 
@@ -188,12 +187,13 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		kafkaServer.deleteTestTopic(topic);
 	}
 
-	private class NonContinousOffsetsDeserializationSchema implements KeyedDeserializationSchema<String> {
+	private class NonContinousOffsetsDeserializationSchema implements KafkaDeserializationSchema<String> {
 		private int numJumps;
 		long nextExpected = 0;
 
 		@Override
-		public String deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+		public String deserialize(ConsumerRecord<byte[], byte[]> record) {
+			final long offset = record.offset();
 			if (offset != nextExpected) {
 				numJumps++;
 				nextExpected = offset;

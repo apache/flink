@@ -83,7 +83,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	}
 
 	/**
-	 * Returns the first input {@code StreamTransformation} of this {@code TwoInputTransformation}.
+	 * Returns the second input {@code StreamTransformation} of this {@code TwoInputTransformation}.
 	 */
 	public StreamTransformation<IN2> getInput2() {
 		return input2;
@@ -97,7 +97,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	}
 
 	/**
-	 * Returns the {@code TypeInformation} for the elements from the first input.
+	 * Returns the {@code TypeInformation} for the elements from the second input.
 	 */
 	public TypeInformation<IN2> getInputType2() {
 		return input2.getOutputType();

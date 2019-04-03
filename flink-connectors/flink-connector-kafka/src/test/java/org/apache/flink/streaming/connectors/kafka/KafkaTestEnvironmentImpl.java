@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 
@@ -60,6 +59,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import scala.collection.mutable.ArraySeq;
 
@@ -85,6 +86,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	// 6 seconds is default. Seems to be too small for travis. 30 seconds
 	private int zkTimeout = 30000;
 	private Config config;
+	private static final int DELETE_TIMEOUT_SECONDS = 30;
 
 	public void setProducerSemantic(FlinkKafkaProducer.Semantic producerSemantic) {
 		this.producerSemantic = producerSemantic;
@@ -155,10 +157,23 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	public void deleteTestTopic(String topic) {
 		LOG.info("Deleting topic {}", topic);
 		try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
-			adminClient.deleteTopics(Collections.singleton(topic)).all().get();
+			tryDelete(adminClient, topic);
 		} catch (Exception e) {
 			e.printStackTrace();
-			fail("Delete test topic : " + topic + " failed, " + e.getMessage());
+			fail(String.format("Delete test topic : %s failed, %s", topic, e.getMessage()));
+		}
+	}
+
+	private void tryDelete(AdminClient adminClient, String topic)
+			throws Exception {
+		try {
+			adminClient.deleteTopics(Collections.singleton(topic)).all().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+		} catch (TimeoutException e) {
+			LOG.info("Did not receive delete topic response within %d seconds. Checking if it succeeded",
+				DELETE_TIMEOUT_SECONDS);
+			if (adminClient.listTopics().names().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS).contains(topic)) {
+				throw new Exception("Topic still exists after timeout");
+			}
 		}
 	}
 
@@ -211,7 +226,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
+	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props) {
 		return new FlinkKafkaConsumer<T>(topics, readSchema, props);
 	}
 

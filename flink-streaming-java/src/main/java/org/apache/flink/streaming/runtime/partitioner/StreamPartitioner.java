@@ -39,5 +39,10 @@ public abstract class StreamPartitioner<T> implements
 		this.numberOfChannels = numberOfChannels;
 	}
 
+	@Override
+	public boolean isBroadcast() {
+		return false;
+	}
+
 	public abstract StreamPartitioner<T> copy();
 }

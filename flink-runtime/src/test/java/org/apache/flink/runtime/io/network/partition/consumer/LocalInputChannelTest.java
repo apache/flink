@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -41,7 +42,8 @@ import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
+import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -57,13 +59,13 @@ import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import scala.Tuple2;
 
-import static org.apache.flink.util.FutureUtil.waitForAll;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -108,8 +110,6 @@ public class LocalInputChannelTest {
 
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier = new NoOpResultPartitionConsumableNotifier();
 
-		final TaskActions taskActions = mock(TaskActions.class);
-
 		final IOManager ioManager = mock(IOManager.class);
 
 		final JobID jobId = new JobID();
@@ -125,7 +125,7 @@ public class LocalInputChannelTest {
 
 			final ResultPartition partition = new ResultPartition(
 				"Test Name",
-				taskActions,
+				new NoOpTaskActions(),
 				jobId,
 				partitionIds[i],
 				ResultPartitionType.PIPELINED,
@@ -158,27 +158,30 @@ public class LocalInputChannelTest {
 		// Test
 		try {
 			// Submit producer tasks
-			List<Future<?>> results = Lists.newArrayListWithCapacity(
+			List<CompletableFuture<?>> results = Lists.newArrayListWithCapacity(
 				parallelism + 1);
 
 			for (int i = 0; i < parallelism; i++) {
-				results.add(executor.submit(partitionProducers[i]));
+				results.add(CompletableFuture.supplyAsync(
+					CheckedSupplier.unchecked(partitionProducers[i]::call), executor));
 			}
 
 			// Submit consumer
 			for (int i = 0; i < parallelism; i++) {
-				results.add(executor.submit(
-					new TestLocalInputChannelConsumer(
-						i,
-						parallelism,
-						numberOfBuffersPerChannel,
-						networkBuffers.createBufferPool(parallelism, parallelism),
-						partitionManager,
-						new TaskEventDispatcher(),
-						partitionIds)));
+				final TestLocalInputChannelConsumer consumer = new TestLocalInputChannelConsumer(
+					i,
+					parallelism,
+					numberOfBuffersPerChannel,
+					networkBuffers.createBufferPool(parallelism, parallelism),
+					partitionManager,
+					new TaskEventDispatcher(),
+					partitionIds);
+
+				results.add(CompletableFuture.supplyAsync(CheckedSupplier.unchecked(consumer::call), executor));
 			}
 
-			waitForAll(60_000L, results);
+			FutureUtils.waitForAll(results)
+				.get(60_000L, TimeUnit.MILLISECONDS);
 		}
 		finally {
 			networkBuffers.destroyAllBufferPools();
@@ -297,7 +300,7 @@ public class LocalInputChannelTest {
 			ResultPartitionType.PIPELINED,
 			0,
 			1,
-			mock(TaskActions.class),
+			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 			true
 		);
@@ -336,7 +339,7 @@ public class LocalInputChannelTest {
 			@Override
 			public void run() {
 				try {
-					gate.releaseAllResources();
+					gate.close();
 				} catch (IOException ignored) {
 				}
 			}
@@ -500,7 +503,7 @@ public class LocalInputChannelTest {
 					ResultPartitionType.PIPELINED,
 					subpartitionIndex,
 					numberOfInputChannels,
-					mock(TaskActions.class),
+					new NoOpTaskActions(),
 					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
 					true);
 
@@ -558,7 +561,7 @@ public class LocalInputChannelTest {
 				}
 			}
 			finally {
-				inputGate.releaseAllResources();
+				inputGate.close();
 			}
 
 			return null;

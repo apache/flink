@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,7 +33,7 @@ under the License.
 	<name>flink-shaded-hadoop2</name>
 
 	<packaging>jar</packaging>
-	<version>1.8-SNAPSHOT-${hadoop.version}</version>
+	<version>${hadoop.version}-1.9-SNAPSHOT</version>
 
 	<dependencies>
 

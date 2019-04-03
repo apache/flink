@@ -59,7 +59,7 @@ import java.util.concurrent.Executor;
  */
 public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters> implements JsonArchivist {
 
-	private final MetricFetcher<?> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	public JobDetailsHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -68,7 +68,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 		super(
 			leaderRetriever,
 			timeout,
@@ -95,7 +95,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 		return Collections.singleton(new ArchivedJson(path, json));
 	}
 
-	private static JobDetailsInfo createJobDetailsInfo(AccessExecutionGraph executionGraph, @Nullable MetricFetcher<?> metricFetcher) {
+	private static JobDetailsInfo createJobDetailsInfo(AccessExecutionGraph executionGraph, @Nullable MetricFetcher metricFetcher) {
 		final long now = System.currentTimeMillis();
 		final long startTime = executionGraph.getStatusTimestamp(JobStatus.CREATED);
 		final long endTime = executionGraph.getState().isGloballyTerminalState() ?
@@ -147,7 +147,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			AccessExecutionJobVertex ejv,
 			long now,
 			JobID jobId,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 		int[] tasksPerState = new int[ExecutionState.values().length];
 		long startTime = Long.MAX_VALUE;
 		long endTime = 0;

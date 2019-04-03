@@ -420,7 +420,8 @@ public class SingleInputGate implements InputGate {
 		}
 	}
 
-	public void releaseAllResources() throws IOException {
+	@Override
+	public void close() throws IOException {
 		boolean released = false;
 		synchronized (requestLock) {
 			if (!isReleased) {
@@ -484,7 +485,7 @@ public class SingleInputGate implements InputGate {
 
 				// Sanity checks
 				if (numberOfInputChannels != inputChannels.size()) {
-					throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
+					throw new IllegalStateException("Bug in input gate setup logic: mismatch between " +
 							"number of total input channels and the currently set number of input " +
 							"channels.");
 				}

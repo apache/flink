@@ -80,6 +80,23 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
+	public void testWindowAssignmentWithNegativeOffset() {
+		WindowAssigner.WindowAssignerContext mockContext =
+			mock(WindowAssigner.WindowAssignerContext.class);
+
+		TumblingProcessingTimeWindows assigner = TumblingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(-100, 4900)));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(4899L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(-100, 4900)));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(4900L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(4900, 9900)));
+	}
+
+	@Test
 	public void testTimeUnits() {
 		// sanity check with one other time unit
 
@@ -104,21 +121,21 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 			TumblingProcessingTimeWindows.of(Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("abs(offset) < size"));
 		}
 
 		try {
 			TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(20));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("abs(offset) < size"));
 		}
 
 		try {
-			TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(-1));
+			TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(-11));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("abs(offset) < size"));
 		}
 	}
 

@@ -290,19 +290,19 @@ The following configuration parameters influence the behaviour of the queryable 
 They are defined in `QueryableStateOptions`.
 
 ### State Server
-* `query.server.ports`: the server port range of the queryable state server. This is useful to avoid port clashes if more 
+* `queryable-state.server.ports`: the server port range of the queryable state server. This is useful to avoid port clashes if more 
    than 1 task managers run on the same machine. The specified range can be: a port: "9123", a range of ports: "50100-50200",
    or a list of ranges and or points: "50100-50200,50300-50400,51234". The default port is 9067.
-* `query.server.network-threads`: number of network (event loop) threads receiving incoming requests for the state server (0 => #slots)
-* `query.server.query-threads`: number of threads handling/serving incoming requests for the state server (0 => #slots).
+* `queryable-state.server.network-threads`: number of network (event loop) threads receiving incoming requests for the state server (0 => #slots)
+* `queryable-state.server.query-threads`: number of threads handling/serving incoming requests for the state server (0 => #slots).
 
 
 ### Proxy
-* `query.proxy.ports`: the server port range of the queryable state proxy. This is useful to avoid port clashes if more 
+* `queryable-state.proxy.ports`: the server port range of the queryable state proxy. This is useful to avoid port clashes if more 
   than 1 task managers run on the same machine. The specified range can be: a port: "9123", a range of ports: "50100-50200",
   or a list of ranges and or points: "50100-50200,50300-50400,51234". The default port is 9069.
-* `query.proxy.network-threads`: number of network (event loop) threads receiving incoming requests for the client proxy (0 => #slots)
-* `query.proxy.query-threads`: number of threads handling/serving incoming requests for the client proxy (0 => #slots).
+* `queryable-state.proxy.network-threads`: number of network (event loop) threads receiving incoming requests for the client proxy (0 => #slots)
+* `queryable-state.proxy.query-threads`: number of threads handling/serving incoming requests for the client proxy (0 => #slots).
 
 ## Limitations
 

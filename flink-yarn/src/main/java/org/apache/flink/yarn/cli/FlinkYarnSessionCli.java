@@ -31,7 +31,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -884,37 +883,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							isLastStatusUnknown = false;
 						}
 
-						// ------------------ check if there are updates by the cluster -----------
-						try {
-							final GetClusterStatusResponse status = clusterClient.getClusterStatus();
-
-							if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-								System.err.println("Number of connected TaskManagers changed to " +
-									status.numRegisteredTaskManagers() + ". " +
-									"Slots available: " + status.totalNumberOfSlots());
-								numTaskmanagers = status.numRegisteredTaskManagers();
-							}
-						} catch (Exception e) {
-							LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
-						}
-
-						printClusterMessages(clusterClient);
-
 						continueRepl = repStep(in, readConsoleInput);
 				}
 			}
 		} catch (Exception e) {
 			LOG.warn("Exception while running the interactive command line interface.", e);
-		}
-	}
-
-	private static void printClusterMessages(ClusterClient clusterClient) {
-		final List<String> messages = clusterClient.getNewMessages();
-		if (!messages.isEmpty()) {
-			System.err.println("New messages from the YARN cluster: ");
-			for (String msg : messages) {
-				System.err.println(msg);
-			}
 		}
 	}
 

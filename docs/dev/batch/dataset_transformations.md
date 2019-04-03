@@ -593,7 +593,7 @@ public class DistinctReduce
       String next = t.f1;
 
       // check if strings are different
-      if (com == null || !next.equals(comp)) {
+      if (comp == null || !next.equals(comp)) {
         out.collect(new Tuple2<Integer, String>(key, next));
         comp = next;
       }

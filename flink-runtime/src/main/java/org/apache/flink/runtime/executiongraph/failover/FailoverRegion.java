@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -38,7 +39,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,16 +64,14 @@ public class FailoverRegion {
 
 	private final List<ExecutionVertex> connectedExecutionVertexes;
 
-	/** The executor that executes the recovery action after all vertices are in a */
-	private final Executor executor;
-
 	/** Current status of the job execution */
 	private volatile JobStatus state = JobStatus.RUNNING;
 
+	public FailoverRegion(
+		ExecutionGraph executionGraph,
+		List<ExecutionVertex> connectedExecutions) {
 
-	public FailoverRegion(ExecutionGraph executionGraph, Executor executor, List<ExecutionVertex> connectedExecutions) {
 		this.executionGraph = checkNotNull(executionGraph);
-		this.executor = checkNotNull(executor);
 		this.connectedExecutionVertexes = checkNotNull(connectedExecutions);
 
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
@@ -138,32 +136,34 @@ public class FailoverRegion {
 
 	// cancel all executions in this sub graph
 	private void cancel(final long globalModVersionOfFailover) {
+		executionGraph.getJobMasterMainThreadExecutor().assertRunningInMainThread();
 		while (true) {
 			JobStatus curStatus = this.state;
 			if (curStatus.equals(JobStatus.RUNNING)) {
 				if (transitionState(curStatus, JobStatus.CANCELLING)) {
 
-					// we build a future that is complete once all vertices have reached a terminal state
-					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
-
-					// cancel all tasks (that still need cancelling)
-					for (ExecutionVertex vertex : connectedExecutionVertexes) {
-						futures.add(vertex.cancel());
-					}
-
-					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-					allTerminal.thenAcceptAsync(
-						(Void value) -> allVerticesInTerminalState(globalModVersionOfFailover),
-						executor);
-
+					createTerminationFutureOverAllConnectedVertexes()
+						.thenAccept((nullptr) -> allVerticesInTerminalState(globalModVersionOfFailover));
 					break;
 				}
-			}
-			else {
+			} else {
 				LOG.info("FailoverRegion {} is {} when cancel.", id, state);
 				break;
 			}
 		}
+	}
+
+	@VisibleForTesting
+	protected CompletableFuture<Void> createTerminationFutureOverAllConnectedVertexes() {
+		// we build a future that is complete once all vertices have reached a terminal state
+		final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
+
+		// cancel all tasks (that still need cancelling)
+		for (ExecutionVertex vertex : connectedExecutionVertexes) {
+			futures.add(vertex.cancel());
+		}
+
+		return FutureUtils.waitForAll(futures);
 	}
 
 	// reset all executions in this sub graph

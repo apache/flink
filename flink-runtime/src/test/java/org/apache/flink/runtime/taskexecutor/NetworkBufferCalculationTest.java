@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
@@ -90,7 +91,6 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			networkBufMin,
 			networkBufMax,
 			checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()),
-			null,
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
 			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
@@ -110,6 +110,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			false,
 			managedMemoryFraction,
 			0,
+			RetryingRegistrationConfiguration.defaultConfiguration(),
 			Optional.empty());
 	}
 }

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,6 +34,8 @@ import org.mockito.ArgumentCaptor;
 import java.util.UUID;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeast;
@@ -164,4 +167,36 @@ public class EmbeddedHaServicesTest extends TestLogger {
 
 		verify(leaderRetrievalListener).notifyLeaderAddress(eq(address), eq(leaderId));
 	}
+
+	/**
+	 * Tests that concurrent leadership operations (granting and revoking) leadership leave the
+	 * system in a sane state.
+	 */
+	@Test
+	public void testConcurrentLeadershipOperations() throws Exception {
+		final LeaderElectionService dispatcherLeaderElectionService = embeddedHaServices.getDispatcherLeaderElectionService();
+		final TestingLeaderContender leaderContender = new TestingLeaderContender();
+
+		dispatcherLeaderElectionService.start(leaderContender);
+
+		final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
+
+		assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(true));
+
+		embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
+		assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(false));
+
+		embeddedHaServices.getDispatcherLeaderService().grantLeadership();
+		final UUID newLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
+
+		assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+
+		dispatcherLeaderElectionService.confirmLeaderSessionID(oldLeaderSessionId);
+		dispatcherLeaderElectionService.confirmLeaderSessionID(newLeaderSessionId);
+
+		assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+
+		leaderContender.tryRethrowException();
+	}
+
 }

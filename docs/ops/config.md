@@ -70,6 +70,16 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/task_manager_configuration.html %}
 
+For *batch* jobs (or if `taskmanager.memoy.preallocate` is enabled) Flink allocates a fraction of 0.7 of the free memory (total memory configured via taskmanager.heap.mb minus memory used for network buffers) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
+
+The default fraction for managed memory can be adjusted using the taskmanager.memory.fraction parameter. An absolute value may be set using taskmanager.memory.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
+
+{% include generated/task_manager_memory_configuration.html %}
+
+### Distributed Coordination
+
+{% include generated/cluster_configuration.html %}
+
 ### Distributed Coordination (via Akka)
 
 {% include generated/akka_configuration.html %}
@@ -157,6 +167,13 @@ The configuration keys in this section are independent of the used resource mana
 ### RocksDB State Backend
 
 {% include generated/rocks_db_configuration.html %}
+
+### RocksDB Configurable Options
+Specific RocksDB configurable options, provided by Flink, to create a corresponding `ConfigurableOptionsFactory`.
+And the created one would be used as default `OptionsFactory` in `RocksDBStateBackend`
+unless user define a `OptionsFactory` and set via `RocksDBStateBackend.setOptions(optionsFactory)`
+
+{% include generated/rocks_db_configurable_configuration.html %}
 
 ### Queryable State
 

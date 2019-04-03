@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -60,7 +59,7 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
 
 	/** Registers streams that can block in I/O during snapshot. Forwards close from taskCancelCloseableRegistry. */
 	@Nonnull
-	private final CloseableRegistry snapshotCloseableRegistry;
+	protected final CloseableRegistry snapshotCloseableRegistry;
 
 	protected AsyncSnapshotCallable() {
 		this.snapshotCloseableRegistry = new CloseableRegistry();
@@ -157,23 +156,6 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
 	 */
 	protected void logAsyncSnapshotComplete(long startTime) {
 
-	}
-
-	/**
-	 * Registers the {@link Closeable} with the snapshot's {@link CloseableRegistry}, so that it will be closed on
-	 * {@link #cancel()} and becomes unblocked. If the registry is already closed, the arguments is closed and an
-	 * {@link IOException} is emitted.
-	 */
-	protected void registerCloseableForCancellation(@Nullable Closeable toRegister) throws IOException {
-		snapshotCloseableRegistry.registerCloseable(toRegister);
-	}
-
-	/**
-	 * Unregisters the given argument from the snapshot's {@link CloseableRegistry} and returns <code>true</code> iff
-	 * the argument was registered before the call.
-	 */
-	protected boolean unregisterCloseableFromCancellation(@Nullable Closeable toUnregister) {
-		return snapshotCloseableRegistry.unregisterCloseable(toUnregister);
 	}
 
 	private void cleanup() {

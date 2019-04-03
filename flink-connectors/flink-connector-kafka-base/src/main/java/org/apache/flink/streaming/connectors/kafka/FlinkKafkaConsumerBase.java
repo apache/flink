@@ -49,10 +49,11 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +62,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -116,7 +118,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private final KafkaTopicsDescriptor topicsDescriptor;
 
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
-	protected final KeyedDeserializationSchema<T> deserializer;
+	protected final KafkaDeserializationSchema<T> deserializer;
 
 	/** The set of topic partitions that the source will read, with their initial offsets to start reading from. */
 	private Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets;
@@ -136,6 +138,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * Note: this flag does not represent the final offset commit mode.
 	 */
 	private boolean enableCommitOnCheckpoints = true;
+
+	/**
+	 * User-set flag to disable filtering restored partitions with current topics descriptor.
+	 */
+	private boolean filterRestoredPartitionsWithCurrentTopicsDescriptor = true;
 
 	/**
 	 * The offset commit mode for the consumer.
@@ -233,7 +240,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public FlinkKafkaConsumerBase(
 			List<String> topics,
 			Pattern topicPattern,
-			KeyedDeserializationSchema<T> deserializer,
+			KafkaDeserializationSchema<T> deserializer,
 			long discoveryIntervalMillis,
 			boolean useMetrics) {
 		this.topicsDescriptor = new KafkaTopicsDescriptor(topics, topicPattern);
@@ -247,6 +254,17 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.useMetrics = useMetrics;
 	}
 
+	/**
+	 * Make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS.
+	 * This overwrites whatever setting the user configured in the properties.
+	 * @param properties - Kafka configuration properties to be adjusted
+	 * @param offsetCommitMode offset commit mode
+	 */
+	static void adjustAutoCommitConfig(Properties properties, OffsetCommitMode offsetCommitMode) {
+		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS || offsetCommitMode == OffsetCommitMode.DISABLED) {
+			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+		}
+	}
 	// ------------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------------
@@ -449,6 +467,23 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		return this;
 	}
 
+	/**
+	 * By default, when restoring from a checkpoint / savepoint, the consumer always
+	 * ignores restored partitions that are no longer associated with the current specified topics or
+	 * topic pattern to subscribe to.
+	 *
+	 * <p>This method configures the consumer to not filter the restored partitions,
+	 * therefore always attempting to consume whatever partition was present in the
+	 * previous execution regardless of the specified topics to subscribe to in the
+	 * current execution.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> disableFilterRestoredPartitionsWithSubscribedTopics() {
+		this.filterRestoredPartitionsWithCurrentTopicsDescriptor = false;
+		return this;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Work methods
 	// ------------------------------------------------------------------------
@@ -469,9 +504,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.partitionDiscoverer.open();
 
 		subscribedPartitionsToStartOffsets = new HashMap<>();
-
-		List<KafkaTopicPartition> allPartitions = partitionDiscoverer.discoverPartitions();
-
+		final List<KafkaTopicPartition> allPartitions = partitionDiscoverer.discoverPartitions();
 		if (restoredState != null) {
 			for (KafkaTopicPartition partition : allPartitions) {
 				if (!restoredState.containsKey(partition)) {
@@ -493,6 +526,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					// in this case, just use the restored state as the subscribed partitions
 					subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
 				}
+			}
+
+			if (filterRestoredPartitionsWithCurrentTopicsDescriptor) {
+				subscribedPartitionsToStartOffsets.entrySet().removeIf(entry -> {
+					if (!topicsDescriptor.isMatchingTopic(entry.getKey().getTopic())) {
+						LOG.warn(
+							"{} is removed from subscribed partitions since it is no longer associated with topics descriptor of current execution.",
+							entry.getKey());
+						return true;
+					}
+					return false;
+				});
 			}
 
 			LOG.info("Consumer subtask {} will start reading {} partitions with offsets in restored state: {}",
@@ -595,7 +640,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 								partitionsDefaultedToGroupOffsets);
 						}
 						break;
-					default:
 					case GROUP_OFFSETS:
 						LOG.info("Consumer subtask {} will start reading the following {} partitions from the committed group offsets in Kafka: {}",
 							getRuntimeContext().getIndexOfThisSubtask(),
@@ -663,80 +707,87 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		//  1) New state - partition discovery loop executed as separate thread, with this
 		//                 thread running the main fetcher loop
 		//  2) Old state - partition discovery is disabled and only the main fetcher loop is executed
+		if (discoveryIntervalMillis == PARTITION_DISCOVERY_DISABLED) {
+			kafkaFetcher.runFetchLoop();
+		} else {
+			runWithPartitionDiscovery();
+		}
+	}
 
-		if (discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
-			final AtomicReference<Exception> discoveryLoopErrorRef = new AtomicReference<>();
-			this.discoveryLoopThread = new Thread(new Runnable() {
-				@Override
-				public void run() {
+	private void runWithPartitionDiscovery() throws Exception {
+		final AtomicReference<Exception> discoveryLoopErrorRef = new AtomicReference<>();
+		createAndStartDiscoveryLoop(discoveryLoopErrorRef);
+
+		kafkaFetcher.runFetchLoop();
+
+		// make sure that the partition discoverer is waked up so that
+		// the discoveryLoopThread exits
+		partitionDiscoverer.wakeup();
+		joinDiscoveryLoopThread();
+
+		// rethrow any fetcher errors
+		final Exception discoveryLoopError = discoveryLoopErrorRef.get();
+		if (discoveryLoopError != null) {
+			throw new RuntimeException(discoveryLoopError);
+		}
+	}
+
+	@VisibleForTesting
+	void joinDiscoveryLoopThread() throws InterruptedException {
+		if (discoveryLoopThread != null) {
+			discoveryLoopThread.join();
+		}
+	}
+
+	private void createAndStartDiscoveryLoop(AtomicReference<Exception> discoveryLoopErrorRef) {
+		discoveryLoopThread = new Thread(() -> {
+			try {
+				// --------------------- partition discovery loop ---------------------
+
+				// throughout the loop, we always eagerly check if we are still running before
+				// performing the next operation, so that we can escape the loop as soon as possible
+
+				while (running) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Consumer subtask {} is trying to discover new partitions ...", getRuntimeContext().getIndexOfThisSubtask());
+					}
+
+					final List<KafkaTopicPartition> discoveredPartitions;
 					try {
-						// --------------------- partition discovery loop ---------------------
+						discoveredPartitions = partitionDiscoverer.discoverPartitions();
+					} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
+						// the partition discoverer may have been closed or woken up before or during the discovery;
+						// this would only happen if the consumer was canceled; simply escape the loop
+						break;
+					}
 
-						List<KafkaTopicPartition> discoveredPartitions;
+					// no need to add the discovered partitions if we were closed during the meantime
+					if (running && !discoveredPartitions.isEmpty()) {
+						kafkaFetcher.addDiscoveredPartitions(discoveredPartitions);
+					}
 
-						// throughout the loop, we always eagerly check if we are still running before
-						// performing the next operation, so that we can escape the loop as soon as possible
-
-						while (running) {
-							if (LOG.isDebugEnabled()) {
-								LOG.debug("Consumer subtask {} is trying to discover new partitions ...", getRuntimeContext().getIndexOfThisSubtask());
-							}
-
-							try {
-								discoveredPartitions = partitionDiscoverer.discoverPartitions();
-							} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
-								// the partition discoverer may have been closed or woken up before or during the discovery;
-								// this would only happen if the consumer was canceled; simply escape the loop
-								break;
-							}
-
-							// no need to add the discovered partitions if we were closed during the meantime
-							if (running && !discoveredPartitions.isEmpty()) {
-								kafkaFetcher.addDiscoveredPartitions(discoveredPartitions);
-							}
-
-							// do not waste any time sleeping if we're not running anymore
-							if (running && discoveryIntervalMillis != 0) {
-								try {
-									Thread.sleep(discoveryIntervalMillis);
-								} catch (InterruptedException iex) {
-									// may be interrupted if the consumer was canceled midway; simply escape the loop
-									break;
-								}
-							}
-						}
-					} catch (Exception e) {
-						discoveryLoopErrorRef.set(e);
-					} finally {
-						// calling cancel will also let the fetcher loop escape
-						// (if not running, cancel() was already called)
-						if (running) {
-							cancel();
+					// do not waste any time sleeping if we're not running anymore
+					if (running && discoveryIntervalMillis != 0) {
+						try {
+							Thread.sleep(discoveryIntervalMillis);
+						} catch (InterruptedException iex) {
+							// may be interrupted if the consumer was canceled midway; simply escape the loop
+							break;
 						}
 					}
 				}
-			}, "Kafka Partition Discovery for " + getRuntimeContext().getTaskNameWithSubtasks());
-
-			discoveryLoopThread.start();
-			kafkaFetcher.runFetchLoop();
-
-			// --------------------------------------------------------------------
-
-			// make sure that the partition discoverer is properly closed
-			partitionDiscoverer.close();
-			discoveryLoopThread.join();
-
-			// rethrow any fetcher errors
-			final Exception discoveryLoopError = discoveryLoopErrorRef.get();
-			if (discoveryLoopError != null) {
-				throw new RuntimeException(discoveryLoopError);
+			} catch (Exception e) {
+				discoveryLoopErrorRef.set(e);
+			} finally {
+				// calling cancel will also let the fetcher loop escape
+				// (if not running, cancel() was already called)
+				if (running) {
+					cancel();
+				}
 			}
-		} else {
-			// won't be using the discoverer
-			partitionDiscoverer.close();
+		}, "Kafka Partition Discovery for " + getRuntimeContext().getTaskNameWithSubtasks());
 
-			kafkaFetcher.runFetchLoop();
-		}
+		discoveryLoopThread.start();
 	}
 
 	@Override
@@ -766,11 +817,27 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	@Override
 	public void close() throws Exception {
-		// pretty much the same logic as cancelling
+		cancel();
+
+		joinDiscoveryLoopThread();
+
+		Exception exception = null;
+		if (partitionDiscoverer != null) {
+			try {
+				partitionDiscoverer.close();
+			} catch (Exception e) {
+				exception = e;
+			}
+		}
+
 		try {
-			cancel();
-		} finally {
 			super.close();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			throw exception;
 		}
 	}
 

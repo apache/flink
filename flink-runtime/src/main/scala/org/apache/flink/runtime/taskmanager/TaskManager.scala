@@ -68,7 +68,7 @@ import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegi
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
 import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, TaskStateManagerImpl}
-import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
+import org.apache.flink.runtime.taskexecutor.{KvStateService, TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.NetUtils
@@ -127,6 +127,7 @@ class TaskManager(
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
+    protected val kvStateService: KvStateService,
     protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
@@ -941,10 +942,10 @@ class TaskManager(
         taskManagerConnection))
 
 
-    val kvStateServer = network.getKvStateServer()
+    val kvStateServer = kvStateService.getKvStateServer()
 
     if (kvStateServer != null) {
-      val kvStateRegistry = network.getKvStateRegistry()
+      val kvStateRegistry = kvStateService.getKvStateRegistry()
 
       kvStateRegistry.registerListener(
         HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -953,7 +954,7 @@ class TaskManager(
           kvStateServer.getServerAddress))
     }
 
-    val proxy = network.getKvStateProxy
+    val proxy = kvStateService.getKvStateClientProxy
 
     if (proxy != null) {
       proxy.updateKvStateLocationOracle(
@@ -1071,11 +1072,11 @@ class TaskManager(
     // disassociate the slot environment
     connectionUtils = None
 
-    if (network.getKvStateRegistry != null) {
-      network.getKvStateRegistry.unregisterListener(HighAvailabilityServices.DEFAULT_JOB_ID)
+    if (kvStateService.getKvStateRegistry != null) {
+      kvStateService.getKvStateRegistry.unregisterListener(HighAvailabilityServices.DEFAULT_JOB_ID)
     }
 
-    val proxy = network.getKvStateProxy
+    val proxy = kvStateService.getKvStateClientProxy
 
     if (proxy != null) {
       // clear the key-value location oracle
@@ -1235,11 +1236,13 @@ class TaskManager(
         memoryManager,
         ioManager,
         network,
+        kvStateService,
         bcVarManager,
         taskStateManager,
         taskManagerConnection,
         inputSplitProvider,
         checkpointResponder,
+        new ActorGatewayGlobalAggregateManager(),
         blobCache,
         libCache,
         fileCache,
@@ -1882,8 +1885,6 @@ object TaskManager {
         )
       }
 
-      MemoryLogger.startIfConfigured(LOG.logger, configuration, taskManagerSystem)
-
       // block until everything is done
       Await.ready(taskManagerSystem.whenTerminated, Duration.Inf)
     } catch {
@@ -2030,6 +2031,7 @@ object TaskManager {
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
+      taskManagerServices.getKvStateService,
       taskManagerServices.getTaskManagerStateStore(),
       highAvailabilityServices,
       taskManagerMetricGroup)
@@ -2048,6 +2050,7 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
+    kvStateService: KvStateService,
     taskStateManager: TaskExecutorLocalStateStoresManager,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup: TaskManagerMetricGroup
@@ -2060,6 +2063,7 @@ object TaskManager {
       memoryManager,
       ioManager,
       networkEnvironment,
+      kvStateService,
       taskStateManager,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
