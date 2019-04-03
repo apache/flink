@@ -220,8 +220,13 @@ public class MetricRegistryImpl implements MetricRegistry {
 	}
 
 	@VisibleForTesting
+	@Nullable
 	MetricQueryServiceGateway getMetricQueryServiceGateway() {
-		return queryService.getSelfGateway(MetricQueryServiceGateway.class);
+		if (queryService != null) {
+			return queryService.getSelfGateway(MetricQueryServiceGateway.class);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
