@@ -61,10 +61,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys = 100;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-
-		// create a build input that gives 300 pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		// create a probe input that gives 1000 pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, false, true, numKeys * buildValsPerKey * probeValsPerKey,
@@ -79,10 +76,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, false, true, numKeys1 * buildValsPerKey * probeValsPerKey,
@@ -97,10 +91,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, true, true, 280, numKeys2, -1);
@@ -114,10 +105,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, true, true, 280, numKeys2, -1);
@@ -130,10 +118,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys = 100;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 300 pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-
-		// create a probe input that gives 1000 pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, false, false, numKeys * buildValsPerKey * probeValsPerKey,
@@ -148,10 +133,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 9;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, false, false, numKeys2 * buildValsPerKey * probeValsPerKey,
@@ -166,10 +148,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, false, true, false,
@@ -184,10 +163,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, true, true, false, 280, numKeys2, -1);
@@ -200,10 +176,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.SEMI;
@@ -218,10 +191,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 10;
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.ANTI;
@@ -236,10 +206,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 9;
 		int buildValsPerKey = 10;
 		int probeValsPerKey = 3;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.BUILD_LEFT_SEMI;
@@ -254,10 +221,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		int numKeys2 = 9;
 		int buildValsPerKey = 10;
 		int probeValsPerKey = 3;
-		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-
-		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.BUILD_LEFT_ANTI;
@@ -275,7 +239,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		joinAndAssert(operator, buildInput, probeInput, expectOutSize, expectOutKeySize, expectOutVal, false);
 	}
 
-	private void joinAndAssert(
+	static void joinAndAssert(
 			StreamOperator operator,
 			MutableObjectIterator<BinaryRow> input1,
 			MutableObjectIterator<BinaryRow> input2,
@@ -408,16 +372,14 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		}
 	}
 
-	public void endInput1(TwoInputStreamTaskTestHarness harness) throws Exception {
-		HashJoinOperator op = (HashJoinOperator) ((OperatorChain) harness.getTask().getStreamStatusMaintainer())
-				.getHeadOperator();
-		op.endInput1();
+	static void endInput1(TwoInputStreamTaskTestHarness harness) throws Exception {
+		StreamOperator op = ((OperatorChain) harness.getTask().getStreamStatusMaintainer()).getHeadOperator();
+		op.getClass().getMethod("endInput1").invoke(op);
 	}
 
-	public void endInput2(TwoInputStreamTaskTestHarness harness) throws Exception {
-		HashJoinOperator op = (HashJoinOperator) ((OperatorChain) harness.getTask().getStreamStatusMaintainer())
-				.getHeadOperator();
-		op.endInput2();
+	static void endInput2(TwoInputStreamTaskTestHarness harness) throws Exception {
+		StreamOperator op = ((OperatorChain) harness.getTask().getStreamStatusMaintainer()).getHeadOperator();
+		op.getClass().getMethod("endInput2").invoke(op);
 	}
 
 	public StreamOperator newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {

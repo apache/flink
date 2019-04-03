@@ -21,7 +21,7 @@ package org.apache.flink.table.generated;
 /**
  * Describes a generated {@link NormalizedKeyComputer}.
  */
-public final class GeneratedNormalizedKeyComputer extends GeneratedClass<NormalizedKeyComputer> {
+public class GeneratedNormalizedKeyComputer extends GeneratedClass<NormalizedKeyComputer> {
 
 	private static final long serialVersionUID = 1L;
 

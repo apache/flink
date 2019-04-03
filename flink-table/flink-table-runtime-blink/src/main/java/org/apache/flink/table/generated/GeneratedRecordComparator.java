@@ -21,7 +21,7 @@ package org.apache.flink.table.generated;
 /**
  * Describes a generated {@link RecordComparator}.
  */
-public final class GeneratedRecordComparator extends GeneratedClass<RecordComparator> {
+public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> {
 
 	private static final long serialVersionUID = 1L;
 
