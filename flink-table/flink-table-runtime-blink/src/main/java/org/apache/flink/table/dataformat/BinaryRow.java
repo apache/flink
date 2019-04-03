@@ -398,6 +398,12 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		return reuse;
 	}
 
+	public void clear() {
+		segments = null;
+		offset = 0;
+		sizeInBytes = 0;
+	}
+
 	@Override
 	public int hashCode() {
 		return SegmentsUtil.hashByWords(segments, offset, sizeInBytes);
