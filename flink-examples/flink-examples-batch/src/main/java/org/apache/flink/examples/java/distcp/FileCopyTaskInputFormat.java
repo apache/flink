@@ -64,9 +64,11 @@ public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCo
 		}
 
 		@Override
-		public void returnInputSplit(InputSplit split, int taskId) {
+		public void returnInputSplit(List<InputSplit> splits, int taskId) {
 			synchronized (this.splits) {
-				splits.offer((FileCopyTaskInputSplit) split);
+				for (InputSplit split : splits) {
+					this.splits.offer((FileCopyTaskInputSplit) split);
+				}
 			}
 		}
 	}

@@ -159,9 +159,11 @@ public class StreamingCustomInputSplitProgram {
 		}
 
 		@Override
-		public void returnInputSplit(InputSplit split, int taskId) {
+		public void returnInputSplit(List<InputSplit> splits, int taskId) {
 			synchronized (this) {
-				remainingSplits.add((CustomInputSplit) split);
+				for (InputSplit split : splits) {
+					remainingSplits.add((CustomInputSplit) split);
+				}
 			}
 		}
 	}

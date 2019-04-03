@@ -21,6 +21,7 @@ package org.apache.flink.api.common.io;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -204,11 +205,13 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 	}
 
 	@Override
-	public void returnInputSplit(InputSplit split, int taskId) {
-		synchronized (this.unassigned){
-			LocatableInputSplitWithCount lisw = new LocatableInputSplitWithCount((LocatableInputSplit)split);
-			this.remoteSplitChooser.addInputSplit(lisw);
-			this.unassigned.add(lisw);
+	public void returnInputSplit(List<InputSplit> splits, int taskId) {
+		synchronized (this.unassigned) {
+			for (InputSplit split : splits) {
+				LocatableInputSplitWithCount lisw = new LocatableInputSplitWithCount((LocatableInputSplit) split);
+				this.remoteSplitChooser.addInputSplit(lisw);
+				this.unassigned.add(lisw);
+			}
 		}
 	}
 

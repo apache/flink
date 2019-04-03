@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Assigns each InputSplit to each requesting parallel instance.
@@ -81,7 +82,7 @@ public class ReplicatingInputSplitAssigner implements InputSplitAssigner {
 	}
 
 	@Override
-	public void returnInputSplit(InputSplit split, int taskId) {
+	public void returnInputSplit(List<InputSplit> splits, int taskId) {
 		Preconditions.checkArgument(taskId >=0 && taskId < assignCounts.length);
 		assignCounts[taskId] = 0;
 	}
