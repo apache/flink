@@ -99,7 +99,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
-    val sql = "SELECT b, COUNT(a, c) FROM MyTable GROUP BY b"
+    val sql = "SELECT b, COUNT(a, c) FROM MyTable1 GROUP BY b"
     thrown.expect(classOf[TableException])
     thrown.expectMessage("We now only support the count of one field")
     util.verifyPlan(sql)
