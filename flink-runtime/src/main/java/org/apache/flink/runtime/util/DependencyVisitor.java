@@ -18,16 +18,16 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.shaded.asm5.org.objectweb.asm.AnnotationVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.FieldVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.TypePath;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Label;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.signature.SignatureReader;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.signature.SignatureVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.AnnotationVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.FieldVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.TypePath;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Label;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.signature.SignatureReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.signature.SignatureVisitor;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -66,7 +66,7 @@ public class DependencyVisitor extends ClassVisitor {
 	@Override
 	public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 		addDesc(desc);
-		return new AnnotationVisitorImpl(Opcodes.ASM5);
+		return new AnnotationVisitorImpl(Opcodes.ASM6);
 	}
 
 	@Override
@@ -79,7 +79,7 @@ public class DependencyVisitor extends ClassVisitor {
 		if (value instanceof Type) {
 			addType((Type) value);
 		}
-		return new FieldVisitorImpl(Opcodes.ASM5);
+		return new FieldVisitorImpl(Opcodes.ASM6);
 	}
 
 	@Override
@@ -90,7 +90,7 @@ public class DependencyVisitor extends ClassVisitor {
 			addSignature(signature);
 		}
 		addInternalNames(exceptions);
-		return new MethodVisitorImpl(Opcodes.ASM5);
+		return new MethodVisitorImpl(Opcodes.ASM6);
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -154,13 +154,13 @@ public class DependencyVisitor extends ClassVisitor {
 
 	private void addSignature(String signature) {
 		if (signature != null) {
-			new SignatureReader(signature).accept(new SignatureVisitorImpl(Opcodes.ASM5));
+			new SignatureReader(signature).accept(new SignatureVisitorImpl(Opcodes.ASM6));
 		}
 	}
 
 	private void addTypeSignature(String signature) {
 		if (signature != null) {
-			new SignatureReader(signature).acceptType(new SignatureVisitorImpl(Opcodes.ASM5));
+			new SignatureReader(signature).acceptType(new SignatureVisitorImpl(Opcodes.ASM6));
 		}
 	}
 
@@ -173,7 +173,7 @@ public class DependencyVisitor extends ClassVisitor {
 		@Override
 		public AnnotationVisitor visitParameterAnnotation(int parameter, String desc, boolean visible) {
 			addDesc(desc);
-			return new AnnotationVisitorImpl(Opcodes.ASM5);
+			return new AnnotationVisitorImpl(Opcodes.ASM6);
 		}
 
 		@Override
@@ -222,13 +222,13 @@ public class DependencyVisitor extends ClassVisitor {
 
 		@Override
 		public AnnotationVisitor visitAnnotationDefault() {
-			return new AnnotationVisitorImpl(Opcodes.ASM5);
+			return new AnnotationVisitorImpl(Opcodes.ASM6);
 		}
 
 		@Override
 		public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 			addDesc(desc);
-			return new AnnotationVisitorImpl(Opcodes.ASM5);
+			return new AnnotationVisitorImpl(Opcodes.ASM6);
 		}
 
 		@Override
@@ -277,7 +277,7 @@ public class DependencyVisitor extends ClassVisitor {
 		@Override
 		public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String desc, boolean visible) {
 			addDesc(desc);
-			return new AnnotationVisitorImpl(Opcodes.ASM5);
+			return new AnnotationVisitorImpl(Opcodes.ASM6);
 		}
 	}
 
