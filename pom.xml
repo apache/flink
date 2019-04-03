@@ -241,12 +241,6 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-asm</artifactId>
-				<version>5.0.4-${flink.shaded.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-asm-6</artifactId>
 				<version>6.2.1-${flink.shaded.version}</version>
 			</dependency>

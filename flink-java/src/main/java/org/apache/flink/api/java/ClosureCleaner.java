@@ -176,7 +176,7 @@ class This0AccessFinder extends ClassVisitor {
 	private boolean isThis0Accessed;
 
 	public This0AccessFinder(String this0Name) {
-		super(Opcodes.ASM5);
+		super(Opcodes.ASM6);
 		this.this0Name = this0Name;
 	}
 
@@ -186,7 +186,7 @@ class This0AccessFinder extends ClassVisitor {
 
 	@Override
 	public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
-		return new MethodVisitor(Opcodes.ASM5) {
+		return new MethodVisitor(Opcodes.ASM6) {
 
 			@Override
 			public void visitFieldInsn(int op, String owner, String name, String desc) {
