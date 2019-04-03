@@ -213,6 +213,11 @@ which has been placed in the public domain:
 
 "LZMA SDK is placed in the public domain." (http://www.7-zip.org/sdk.html)
 
+flink-shaded-guava-18
+Copyright 2014-2018 The Apache Software Foundation
+
+- com.google.guava:guava:18.0
+
 flink-java
 Copyright 2014-2019 The Apache Software Foundation
 
@@ -232,11 +237,6 @@ Copyright 2010-2012 CS Systèmes d'Information
 
 flink-scala
 Copyright 2014-2019 The Apache Software Foundation
-
-flink-shaded-guava-18
-Copyright 2014-2018 The Apache Software Foundation
-
-- com.google.guava:guava:18.0
 
 flink-runtime
 Copyright 2014-2019 The Apache Software Foundation
