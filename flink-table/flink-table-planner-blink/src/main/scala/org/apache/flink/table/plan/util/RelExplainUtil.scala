@@ -328,6 +328,7 @@ object RelExplainUtil {
     }
     val isIncremental: Boolean = shuffleKey.isDefined
 
+    // TODO output local/global agg call names like Partial_XXX, Final_XXX
     val aggStrings = if (isLocal) {
       stringifyLocalAggregates(aggInfos, distinctInfos, distinctAggs, aggFilters, inFieldNames)
     } else if (isGlobal || isIncremental) {

@@ -18,7 +18,8 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.table.plan.PartialFinalType
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
+import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -39,10 +40,23 @@ class StreamExecGroupAggregate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val aggCalls: Seq[AggregateCall],
     val grouping: Array[Int],
+    val aggCalls: Seq[AggregateCall],
     var partialFinalType: PartialFinalType = PartialFinalType.NONE)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel) {
+
+  val aggInfoList: AggregateInfoList = {
+    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
+    // TODO supports RelModifiedMonotonicity
+    val needRetractionArray = AggregateUtil.getNeedRetractions(
+      grouping.length, needRetraction, aggCalls)
+    AggregateUtil.transformToStreamAggregateInfoList(
+      aggCalls,
+      getInput.getRowType,
+      needRetractionArray,
+      needInputCount = needRetraction,
+      isStateBackendDataViews = true)
+  }
 
   override def producesUpdates = true
 
@@ -62,8 +76,8 @@ class StreamExecGroupAggregate(
       traitSet,
       inputs.get(0),
       outputRowType,
-      aggCalls,
-      grouping)
+      grouping,
+      aggCalls)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -72,11 +86,10 @@ class StreamExecGroupAggregate(
       .itemIf("groupBy",
         RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .itemIf("partialFinalType", partialFinalType, partialFinalType != PartialFinalType.NONE)
-      // TODO print aggInfoList
       .item("select", RelExplainUtil.streamGroupAggregationToString(
         inputRowType,
         getRowType,
-        aggCalls,
+        aggInfoList,
         grouping))
   }
 

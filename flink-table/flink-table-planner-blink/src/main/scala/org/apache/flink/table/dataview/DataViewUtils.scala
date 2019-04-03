@@ -139,7 +139,57 @@ object DataViewUtils {
         throw new TableException(
           "MapView, SortedMapView and ListView only supported at first level of " +
             "accumulators of Pojo type.")
-      // TODO supports MapViewTypeInfo, SortedMapViewTypeInfo, ListViewTypeInfo
+      case map: MapViewTypeInfo[_, _] =>
+        val mapView = instance.asInstanceOf[MapView[_, _]]
+        val newTypeInfo = if (mapView != null && mapView.keyType != null &&
+          mapView.valueType != null) {
+
+          // use external type for DataView of udaf.
+          // todo support analysis the DataView generic class of udaf.
+          new MapViewTypeInfo(mapView.keyType, mapView.valueType)
+        } else {
+          map
+        }
+
+        if (!isStateBackedDataViews) {
+          // add data view field if it is not backed by a state backend.
+          // data view fields which are backed by state backend are not serialized.
+          newTypeInfo.nullSerializer = false
+        } else {
+          newTypeInfo.nullSerializer = true
+
+          // create map view specs with unique id (used as state name)
+          spec = Some(MapViewSpec(
+            "agg" + aggIndex + "$" + fieldName,
+            fieldIndex, // dataview field index in pojo
+            newTypeInfo))
+        }
+        newTypeInfo
+
+      // TODO supports SortedMapViewTypeInfo
+
+      case list: ListViewTypeInfo[_] =>
+        val listView = instance.asInstanceOf[ListView[_]]
+        val newTypeInfo = if (listView != null && listView.elementType != null) {
+          // todo support analysis the DataView generic class of udaf.
+          new ListViewTypeInfo(listView.elementType)
+        } else {
+          list
+        }
+        if (!isStateBackedDataViews) {
+          // add data view field if it is not backed by a state backend.
+          // data view fields which are backed by state backend are not serialized.
+          newTypeInfo.nullSerializer = false
+        } else {
+          newTypeInfo.nullSerializer = true
+
+          // create list view specs with unique is (used as state name)
+          spec = Some(ListViewSpec(
+            "agg" + aggIndex + "$" + fieldName,
+            fieldIndex, // dataview field index in pojo
+            newTypeInfo))
+        }
+        newTypeInfo
 
       case t: TypeInformation[_] => t
     }

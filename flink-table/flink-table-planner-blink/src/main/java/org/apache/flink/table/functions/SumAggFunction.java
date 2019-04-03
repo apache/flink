@@ -20,6 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
@@ -29,7 +30,6 @@ import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
-import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
 
@@ -72,11 +72,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public Expression[] retractExpressions() {
-		return new Expression[] {
-				/* sum = */
-				ifThenElse(isNull(operand(0)), sum,
-						ifThenElse(isNull(sum), operand(0), minus(sum, operand(0))))
-		};
+		throw new TableException("This function does not support retraction, Please choose SumWithRetractAggFunction.");
 	}
 
 	@Override

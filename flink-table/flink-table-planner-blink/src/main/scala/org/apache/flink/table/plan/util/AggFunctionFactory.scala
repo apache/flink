@@ -21,8 +21,10 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.SumWithRetractAggFunction._
 import org.apache.flink.table.functions.{LeadLagAggFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.runtime.functions.aggfunctions._
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -80,6 +82,7 @@ class AggFunctionFactory(
       case _: SqlCountAggFunction => createCountAggFunction(argTypes)
 
       // TODO supports SqlRankFunction (ROW_NUMBER, RANK and DENSE_RANK)
+
       // TODO supports SqlMax2ndAggFunction
       // TODO supports SqlSingleValueAggFunction
       // TODO supports SqlFirstLastValueAggFunction (FIRST_VALUE and LAST_VALUE)
@@ -112,11 +115,30 @@ class AggFunctionFactory(
     }
   }
 
-  private def createSumAggFunction(argTypes: Array[InternalType], index: Int)
-  : UserDefinedFunction = {
+  private def createSumAggFunction(
+      argTypes: Array[InternalType],
+      index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      // TODO implements this
-      throw new TableException("Unsupported now")
+      argTypes(0) match {
+        case BYTE =>
+          new ByteSumWithRetractAggFunction
+        case SHORT =>
+          new ShortSumWithRetractAggFunction
+        case INT =>
+          new IntSumWithRetractAggFunction
+        case LONG =>
+          new LongSumWithRetractAggFunction
+        case FLOAT =>
+          new FloatSumWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleSumWithRetractAggFunction
+        case d: DecimalType =>
+          val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
+          new DecimalSumWithRetractAggFunction(decimalTypeInfo)
+        case t: InternalType =>
+          throw new TableException(s"Sum with retract aggregate function does not " +
+            s"support type: ''$t''.\nPlease re-check the data type.")
+      }
     } else {
       argTypes(0) match {
         case BYTE =>
@@ -165,10 +187,39 @@ class AggFunctionFactory(
   }
 
   private def createMinAggFunction(
-      argTypes: Array[InternalType], index: Int): UserDefinedFunction = {
+      argTypes: Array[InternalType],
+      index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      // TODO implements this
-      throw new TableException("Unsupported now")
+      argTypes(0) match {
+        case BYTE =>
+          new ByteMinWithRetractAggFunction
+        case SHORT =>
+          new ShortMinWithRetractAggFunction
+        case INT =>
+          new IntMinWithRetractAggFunction
+        case LONG =>
+          new LongMinWithRetractAggFunction
+        case FLOAT =>
+          new FloatMinWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleMinWithRetractAggFunction
+        case BOOLEAN =>
+          new BooleanMinWithRetractAggFunction
+        case STRING =>
+          new StringMinWithRetractAggFunction
+        case d: DecimalType =>
+          val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
+          new DecimalMinWithRetractAggFunction(decimalTypeInfo)
+        case TIME =>
+          new TimeMinWithRetractAggFunction
+        case DATE =>
+          new DateMinWithRetractAggFunction
+        case TIMESTAMP =>
+          new TimestampMinWithRetractAggFunction
+        case t: InternalType =>
+          throw new TableException(s"Min with retract aggregate function does not " +
+            s"support type: ''$t''.\nPlease re-check the data type.")
+      }
     } else {
       argTypes(0) match {
         case BYTE =>
@@ -239,8 +290,36 @@ class AggFunctionFactory(
   private def createMaxAggFunction(
       argTypes: Array[InternalType], index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      // TODO implements this
-      throw new TableException("Unsupported now")
+      argTypes(0) match {
+        case BYTE =>
+          new ByteMaxWithRetractAggFunction
+        case SHORT =>
+          new ShortMaxWithRetractAggFunction
+        case INT =>
+          new IntMaxWithRetractAggFunction
+        case LONG =>
+          new LongMaxWithRetractAggFunction
+        case FLOAT =>
+          new FloatMaxWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleMaxWithRetractAggFunction
+        case BOOLEAN =>
+          new BooleanMaxWithRetractAggFunction
+        case STRING =>
+          new StringMaxWithRetractAggFunction
+        case d: DecimalType =>
+          val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
+          new DecimalMaxWithRetractAggFunction(decimalTypeInfo)
+        case TIME =>
+          new TimeMaxWithRetractAggFunction
+        case DATE =>
+          new DateMaxWithRetractAggFunction
+        case TIMESTAMP =>
+          new TimestampMaxWithRetractAggFunction
+        case t: InternalType =>
+          throw new TableException(s"Max with retract aggregate function does not " +
+            s"support type: ''$t''.\nPlease re-check the data type.")
+      }
     } else {
       argTypes(0) match {
         case BYTE =>

@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.runtime.functions.aggfunctions
 
-package org.apache.flink.table.plan.optimize.program
+import java.sql.{Date, Time, Timestamp}
 
-/**
-  * A OptimizeContext allows to obtain stream table environment information when optimizing.
-  */
-trait StreamOptimizeContext extends FlinkOptimizeContext {
+object Ordering {
+  implicit object TimestampOrdering extends Ordering[Timestamp] {
+    override def compare(x: Timestamp, y: Timestamp): Int = x.compareTo(y)
+  }
 
-  /**
-    * Returns true if the sink requests updates as retraction messages
-    * defined in [[org.apache.flink.table.plan.optimize.StreamOptimizer.optimize]].
-    */
-  def updateAsRetraction: Boolean
+  implicit object DateOrdering extends Ordering[Date] {
+    override def compare(x: Date, y: Date): Int = x.compareTo(y)
+  }
 
+  implicit object TimeOrdering extends Ordering[Time] {
+    override def compare(x: Time, y: Time): Int = x.compareTo(y)
+  }
 }
