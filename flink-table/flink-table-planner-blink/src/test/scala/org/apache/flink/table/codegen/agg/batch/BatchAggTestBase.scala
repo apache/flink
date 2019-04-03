@@ -99,7 +99,6 @@ abstract class BatchAggTestBase extends AggTestBase {
       outputs.add(BaseRowTestUtil.toGenericRowDeeply(
         outQueue.poll().asInstanceOf[StreamRecord[BaseRow]].getValue, args._3.getFieldTypes))
     }
-    println(outputs)
     Assert.assertArrayEquals(expectedOutput.toArray[AnyRef], outputs.asScala.toArray[AnyRef])
   }
 }

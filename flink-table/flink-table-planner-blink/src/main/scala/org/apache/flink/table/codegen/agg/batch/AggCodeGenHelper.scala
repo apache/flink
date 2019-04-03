@@ -65,8 +65,7 @@ object AggCodeGenHelper {
     auxGrouping.map { index =>
       Array(inputType.getFieldTypes()(index))
     } ++ aggregates.map {
-      case a: DeclarativeAggregateFunction =>
-        a.aggBufferTypes().map(createInternalTypeFromTypeInfo)
+      case a: DeclarativeAggregateFunction => a.getAggBufferTypes
       case a: AggregateFunction[_, _] =>
         Array(createInternalTypeFromTypeInfo(getAccumulatorTypeOfAggregateFunction(a)))
     }.toArray[Array[InternalType]]
