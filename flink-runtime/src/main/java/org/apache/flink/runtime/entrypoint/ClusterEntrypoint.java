@@ -32,7 +32,6 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -76,7 +75,6 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
@@ -143,9 +141,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@GuardedBy("lock")
 	private ArchivedExecutionGraphStore archivedExecutionGraphStore;
-
-	@GuardedBy("lock")
-	private TransientBlobCache transientBlobCache;
 
 	private final Thread shutDownHook;
 
@@ -282,12 +277,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
-
-			transientBlobCache = new TransientBlobCache(
-				configuration,
-				new InetSocketAddress(
-					commonRpcService.getAddress(),
-					blobServer.getPort()));
 		}
 	}
 
@@ -366,14 +355,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			if (archivedExecutionGraphStore != null) {
 				try {
 					archivedExecutionGraphStore.close();
-				} catch (Throwable t) {
-					exception = ExceptionUtils.firstOrSuppressed(t, exception);
-				}
-			}
-
-			if (transientBlobCache != null) {
-				try {
-					transientBlobCache.close();
 				} catch (Throwable t) {
 					exception = ExceptionUtils.firstOrSuppressed(t, exception);
 				}
