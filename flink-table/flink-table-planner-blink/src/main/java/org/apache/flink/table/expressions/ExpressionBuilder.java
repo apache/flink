@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GREATER_THAN;
@@ -87,5 +88,13 @@ public class ExpressionBuilder {
 
 	public static Expression greaterThan(Expression input1, Expression input2) {
 		return call(GREATER_THAN, input1, input2);
+	}
+
+	public static Expression cast(Expression input1, Expression input2) {
+		return call(CAST, input1, input2);
+	}
+
+	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
+		return new TypeLiteralExpression(type);
 	}
 }
