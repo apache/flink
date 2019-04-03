@@ -18,37 +18,22 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.util.event.EventListener;
 
 /**
- * A connection manager implementation to bypass setup overhead for task managers running in local
- * execution mode.
+ * The task event publisher is used for publishing the event to the registered
+ * {@link EventListener} instances.
  */
-public class LocalConnectionManager implements ConnectionManager {
+public interface TaskEventPublisher {
 
-	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher) {
-	}
-
-	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
-		return null;
-	}
-
-	@Override
-	public void closeOpenChannelConnections(ConnectionID connectionId) {}
-
-	@Override
-	public int getNumberOfActiveConnections() {
-		return 0;
-	}
-
-	@Override
-	public int getDataPort() {
-		return -1;
-	}
-
-	@Override
-	public void shutdown() {}
+	/**
+	 * Publishes the event to the registered {@link EventListener} instances.
+	 *
+	 * @param partitionId the partition ID to get registered handlers
+	 * @param event the task event to be published to the handlers
+	 * @return whether the event was published to a registered event handler or not
+	 */
+	boolean publish(ResultPartitionID partitionId, TaskEvent event);
 }

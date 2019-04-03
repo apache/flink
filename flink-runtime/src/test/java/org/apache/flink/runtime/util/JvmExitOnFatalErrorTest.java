@@ -70,6 +70,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -81,7 +82,6 @@ import java.util.concurrent.Executors;
 
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Test that verifies the behavior of blocking shutdown hooks and of the
@@ -168,8 +168,6 @@ public class JvmExitOnFatalErrorTest {
 				final IOManager ioManager = new IOManagerAsync();
 
 				final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-				TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-				when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig);
 
@@ -210,6 +208,7 @@ public class JvmExitOnFatalErrorTest {
 						networkEnvironment,
 						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
+						new TaskEventDispatcher(),
 						slotStateManager,
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),

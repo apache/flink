@@ -898,11 +898,9 @@ public class StreamTaskTest extends TestLogger {
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 		Executor executor = mock(Executor.class);
-		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(partitionManager);
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
@@ -935,6 +933,7 @@ public class StreamTaskTest extends TestLogger {
 			network,
 			new KvStateService(new KvStateRegistry(), null, null),
 			mock(BroadcastVariableManager.class),
+			new TaskEventDispatcher(),
 			taskStateManager,
 			taskManagerActions,
 			mock(InputSplitProvider.class),

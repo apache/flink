@@ -101,7 +101,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * This test checks that task checkpoints that block and do not react to thread interrupts. It also checks correct
@@ -224,9 +223,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				TestStreamTask.class.getName(),
 				taskConfig);
 
-		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
@@ -246,6 +243,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				network,
 				new KvStateService(new KvStateRegistry(), null, null),
 				mock(BroadcastVariableManager.class),
+				new TaskEventDispatcher(),
 				new TestTaskStateManager(),
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),

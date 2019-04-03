@@ -49,6 +49,7 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -185,6 +186,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The BroadcastVariableManager to be used by this task. */
 	private final BroadcastVariableManager broadcastVariableManager;
 
+	private final TaskEventDispatcher taskEventDispatcher;
+
 	/** The manager for state of operators running in this task/slot. */
 	private final TaskStateManager taskStateManager;
 
@@ -293,6 +296,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		NetworkEnvironment networkEnvironment,
 		KvStateService kvStateService,
 		BroadcastVariableManager bcVarManager,
+		TaskEventDispatcher taskEventDispatcher,
 		TaskStateManager taskStateManager,
 		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
@@ -341,6 +345,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		this.memoryManager = Preconditions.checkNotNull(memManager);
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.broadcastVariableManager = Preconditions.checkNotNull(bcVarManager);
+		this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
@@ -402,6 +407,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				executionId,
 				inputGateDeploymentDescriptor,
 				networkEnvironment,
+				taskEventDispatcher,
 				this,
 				metricGroup.getIOMetricGroup());
 
@@ -620,6 +626,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 			network.registerTask(this);
 
+			for (ResultPartition partition : producedPartitions) {
+				taskEventDispatcher.registerPartition(partition.getPartitionId());
+			}
+
 			// add metrics for buffers
 			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
 
@@ -686,7 +696,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				distributedCacheEntries,
 				producedPartitions,
 				inputGates,
-				network.getTaskEventDispatcher(),
+				taskEventDispatcher,
 				checkpointResponder,
 				taskManagerConfig,
 				metrics,
@@ -825,6 +835,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				ExecutorService dispatcher = this.asyncCallDispatcher;
 				if (dispatcher != null && !dispatcher.isShutdown()) {
 					dispatcher.shutdownNow();
+				}
+
+				for (ResultPartition partition : producedPartitions) {
+					taskEventDispatcher.unregisterPartition(partition.getPartitionId());
 				}
 
 				// free the network resources

@@ -350,6 +350,7 @@ public class SingleInputGateTest {
 			new ExecutionAttemptID(),
 			gateDesc,
 			netEnv,
+			new TaskEventDispatcher(),
 			new NoOpTaskActions(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
@@ -583,7 +584,7 @@ public class SingleInputGateTest {
 			channelIndex,
 			partitionId,
 			network.getResultPartitionManager(),
-			network.getTaskEventDispatcher(),
+			new TaskEventDispatcher(),
 			network.getConnectionManager(),
 			network.getPartitionRequestInitialBackoff(),
 			network.getPartitionRequestMaxBackoff(),
