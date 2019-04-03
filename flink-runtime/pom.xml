@@ -90,7 +90,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm</artifactId>
+			<artifactId>flink-shaded-asm-6</artifactId>
 		</dependency>
 
 		<dependency>
