@@ -18,23 +18,19 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.RecordComparator;
 
 /**
- * Example Int {@link RecordComparator}.
+ * Example String {@link RecordComparator}.
  */
-public class IntRecordComparator implements RecordComparator {
-
-	public static final IntRecordComparator INSTANCE = new IntRecordComparator();
+public class StringRecordComparator implements RecordComparator {
 
 	@Override
-	public int compare(BaseRow o1, BaseRow o2) {
-
+	public int compare(org.apache.flink.table.dataformat.BaseRow o1,
+			org.apache.flink.table.dataformat.BaseRow o2) {
 		boolean null0At1 = o1.isNullAt(0);
 		boolean null0At2 = o2.isNullAt(0);
-		int cmp0 = null0At1 && null0At2 ? 0 :
-				(null0At1 ? -1 : (null0At2 ? 1 : Integer.compare(o1.getInt(0), o2.getInt(0))));
+		int cmp0 = null0At1 && null0At2 ? 0 : (null0At1 ? -1 : (null0At2 ? 1 : o1.getString(0).compareTo(o2.getString(0))));
 		if (cmp0 != 0) {
 			return cmp0;
 		}
