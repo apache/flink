@@ -57,7 +57,7 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() {
+	public void notifySubpartitionConsumed(boolean finalRelease) {
 		releaseAllResources();
 	}
 
@@ -66,7 +66,7 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 		if (isReleased.compareAndSet(false, true)) {
 			// The view doesn't hold any resources and the parent cannot be restarted. Therefore,
 			// it's OK to notify about consumption as well.
-			parent.onConsumedSubpartition();
+			parent.onConsumedSubpartition(false);
 		}
 	}
 

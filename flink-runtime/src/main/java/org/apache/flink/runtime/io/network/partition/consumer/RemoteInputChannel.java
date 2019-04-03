@@ -76,6 +76,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 */
 	private final AtomicBoolean isReleased = new AtomicBoolean();
 
+	/** Flag indicating whether the partition request client of this channel has been closed. */
+	private final AtomicBoolean isClientClosed = new AtomicBoolean();
+
 	/** Client to establish a (possibly shared) TCP connection and request the partition. */
 	private volatile PartitionRequestClient partitionRequestClient;
 
@@ -108,9 +111,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		ResultPartitionID partitionId,
 		ConnectionID connectionId,
 		ConnectionManager connectionManager,
-		TaskIOMetricGroup metrics) {
+		TaskIOMetricGroup metrics,
+		int attemptNumber) {
 
-		this(inputGate, channelIndex, partitionId, connectionId, connectionManager, 0, 0, metrics);
+		this(inputGate, channelIndex, partitionId, connectionId, connectionManager, 0, 0, metrics, attemptNumber);
 	}
 
 	public RemoteInputChannel(
@@ -121,9 +125,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		ConnectionManager connectionManager,
 		int initialBackOff,
 		int maxBackoff,
-		TaskIOMetricGroup metrics) {
+		TaskIOMetricGroup metrics,
+		int attemptNumber) {
 
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
+		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter(), attemptNumber);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -154,19 +160,21 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	// Consume
 	// ------------------------------------------------------------------------
 
+	private void initPartitionRequestClientIfNecessary() throws IOException, InterruptedException {
+		if (partitionRequestClient == null) {
+			partitionRequestClient = connectionManager
+				.createPartitionRequestClient(connectionId);
+		}
+	}
+
 	/**
 	 * Requests a remote subpartition.
 	 */
 	@VisibleForTesting
 	@Override
 	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-		if (partitionRequestClient == null) {
-			// Create a client and request the partition
-			partitionRequestClient = connectionManager
-				.createPartitionRequestClient(connectionId);
-
-			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
-		}
+		initPartitionRequestClientIfNecessary();
+		partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0, attemptNumber);
 	}
 
 	/**
@@ -177,7 +185,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 		if (increaseBackoff()) {
 			partitionRequestClient.requestSubpartition(
-				partitionId, subpartitionIndex, this, getCurrentBackoff());
+				partitionId, subpartitionIndex, this, getCurrentBackoff(), attemptNumber);
 		} else {
 			failPartitionRequest();
 		}
@@ -227,8 +235,17 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	@Override
-	void notifySubpartitionConsumed() {
-		// Nothing to do
+	void notifySubpartitionConsumed(boolean finalRelease) {
+		if (finalRelease) {
+			try {
+				initPartitionRequestClientIfNecessary();
+				partitionRequestClient.notifySubpartitionConsumed(partitionId, channelIndex);
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/**
@@ -259,9 +276,12 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			if (exclusiveRecyclingSegments.size() > 0) {
 				inputGate.returnExclusiveSegments(exclusiveRecyclingSegments);
 			}
+		}
+	}
 
-			// The released flag has to be set before closing the connection to ensure that
-			// buffers received concurrently with closing are properly recycled.
+	@Override
+	protected void releaseRemoteClient() throws IOException {
+		if (isClientClosed.compareAndSet(false, true)) {
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
 			} else {

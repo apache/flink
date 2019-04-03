@@ -404,6 +404,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			SingleInputGate gate = SingleInputGate.create(
 				taskNameWithSubtaskAndId,
 				jobId,
+				attemptNumber,
 				inputGateDeploymentDescriptor,
 				networkEnvironment,
 				taskEventDispatcher,
@@ -828,6 +829,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				// clear the reference to the invokable. this helps guard against holding references
 				// to the invokable and its structures in cases where this Task object is still referenced
 				this.invokable = null;
+
+				for (SingleInputGate inputGate : inputGates) {
+					inputGate.finallyReleaseAllInputChannels(executionState.equals(ExecutionState.FINISHED), true);
+				}
 
 				// stop the async dispatcher.
 				// copy dispatcher reference to stack, against concurrent release

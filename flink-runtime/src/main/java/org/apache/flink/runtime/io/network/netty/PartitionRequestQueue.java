@@ -23,6 +23,9 @@ import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
@@ -138,7 +141,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			reader.notifySubpartitionConsumed();
+			reader.notifySubpartitionConsumed(false);
 			reader.releaseAllResources();
 			markAsReleased(reader.getReceiverId());
 		}
@@ -251,7 +254,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 						reader.getSequenceNumber(),
 						reader.getReceiverId(),
 						next.buffersInBacklog());
-
 					// Write and flush and wait until this is done before
 					// trying to continue with the next buffer.
 					channel.writeAndFlush(msg).addListener(writeListener);
@@ -292,6 +294,12 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		handleException(ctx.channel(), cause);
+	}
+
+	public void subpartitionConsumed(ResultPartitionProvider partitionManager, ResultPartitionID partitionID,
+									 int subpartitionIndex) {
+		ResultPartitionManager partitionMgr = (ResultPartitionManager) partitionManager;
+		partitionMgr.subpartitionConsumed(partitionID, subpartitionIndex);
 	}
 
 	private void handleException(Channel channel, Throwable cause) throws IOException {

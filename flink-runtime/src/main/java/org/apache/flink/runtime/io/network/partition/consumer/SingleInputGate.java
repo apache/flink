@@ -580,7 +580,7 @@ public class SingleInputGate implements InputGate {
 					hasReceivedAllEndOfPartitionEvents = true;
 				}
 
-				currentChannel.notifySubpartitionConsumed();
+				currentChannel.notifySubpartitionConsumed(false);
 
 				currentChannel.releaseAllResources();
 			}
@@ -654,6 +654,19 @@ public class SingleInputGate implements InputGate {
 		return inputChannels;
 	}
 
+	public void finallyReleaseAllInputChannels(boolean isFinish, boolean notifyConsumed) {
+		for (InputChannel inputChannel : inputChannels.values()) {
+			try {
+				if (isFinish) {
+					inputChannel.notifySubpartitionConsumed(notifyConsumed);
+				}
+				inputChannel.releaseRemoteClient();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -662,6 +675,7 @@ public class SingleInputGate implements InputGate {
 	public static SingleInputGate create(
 		String owningTaskName,
 		JobID jobId,
+		int attemptNumber,
 		InputGateDeploymentDescriptor igdd,
 		NetworkEnvironment networkEnvironment,
 		TaskEventPublisher taskEventPublisher,
@@ -699,7 +713,8 @@ public class SingleInputGate implements InputGate {
 					taskEventPublisher,
 					networkConfig.partitionRequestInitialBackoff(),
 					networkConfig.partitionRequestMaxBackoff(),
-					metrics
+					metrics,
+					attemptNumber
 				);
 
 				numLocalChannels++;
@@ -710,7 +725,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getConnectionManager(),
 					networkConfig.partitionRequestInitialBackoff(),
 					networkConfig.partitionRequestMaxBackoff(),
-					metrics
+					metrics,
+					attemptNumber
 				);
 
 				numRemoteChannels++;
@@ -722,7 +738,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getConnectionManager(),
 					networkConfig.partitionRequestInitialBackoff(),
 					networkConfig.partitionRequestMaxBackoff(),
-					metrics
+					metrics,
+					attemptNumber
 				);
 
 				numUnknownChannels++;

@@ -94,7 +94,8 @@ public class InputGateFairnessTest {
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					resultPartitionManager, mock(TaskEventDispatcher.class),
+					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 		}
 
@@ -141,7 +142,8 @@ public class InputGateFairnessTest {
 
 			for (int i = 0; i < numberOfChannels; i++) {
 				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					resultPartitionManager, mock(TaskEventDispatcher.class),
+					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 			}
 
@@ -190,7 +192,7 @@ public class InputGateFairnessTest {
 		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 
 			channels[i] = channel;
 
@@ -240,7 +242,7 @@ public class InputGateFairnessTest {
 		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 
 			channels[i] = channel;
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);

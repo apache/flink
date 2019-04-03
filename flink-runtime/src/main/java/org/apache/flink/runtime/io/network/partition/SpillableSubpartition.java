@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -85,10 +86,18 @@ class SpillableSubpartition extends ResultSubpartition {
 	/** The read view to consume this subpartition. */
 	private ResultSubpartitionView readView;
 
+	/** The latest attempt number reading this subpartition. */
+	private int latestReadViewAttemptNumber;
+
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	protected final ArrayList<BufferConsumer> buffers = new ArrayList<>();
+
 	SpillableSubpartition(int index, ResultPartition parent, IOManager ioManager) {
 		super(index, parent);
 
+		this.baseBuffers = this.buffers;
 		this.ioManager = checkNotNull(ioManager);
+		this.latestReadViewAttemptNumber = -1;
 	}
 
 	@Override
@@ -126,6 +135,13 @@ class SpillableSubpartition extends ResultSubpartition {
 			if (readView != null) {
 				readView.notifyDataAvailable();
 			}
+		}
+	}
+
+	@Override
+	protected void onConsumedSubpartition(boolean finalRelease) {
+		if (finalRelease) {
+			parent.onConsumedSubpartition(index);
 		}
 	}
 
@@ -189,7 +205,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+	public ResultSubpartitionView createReadView(int attemptNumber, BufferAvailabilityListener availabilityListener) throws IOException {
 		synchronized (buffers) {
 			if (!isFinished) {
 				throw new IllegalStateException("Subpartition has not been finished yet, " +
@@ -197,9 +213,14 @@ class SpillableSubpartition extends ResultSubpartition {
 					"been finished.");
 			}
 
-			if (readView != null) {
+			if (attemptNumber <= latestReadViewAttemptNumber) {
 				throw new IllegalStateException("Subpartition is being or already has been " +
-					"consumed, but we currently allow subpartitions to only be consumed once.");
+					"consumed by attempt " + attemptNumber +
+					" , but we currently allow subpartitions to only be consumed once for each attempt.");
+			}
+
+			if (readView != null) {
+				readView.releaseAllResources();
 			}
 
 			if (spillWriter != null) {
@@ -208,7 +229,8 @@ class SpillableSubpartition extends ResultSubpartition {
 					parent.getBufferProvider().getMemorySegmentSize(),
 					spillWriter,
 					getTotalNumberOfBuffers(),
-					availabilityListener);
+					availabilityListener,
+					-1);
 			} else {
 				readView = new SpillableSubpartitionView(
 					this,
@@ -217,6 +239,7 @@ class SpillableSubpartition extends ResultSubpartition {
 					parent.getBufferProvider().getMemorySegmentSize(),
 					availabilityListener);
 			}
+			latestReadViewAttemptNumber = attemptNumber;
 			return readView;
 		}
 	}
@@ -253,9 +276,9 @@ class SpillableSubpartition extends ResultSubpartition {
 	@VisibleForTesting
 	long spillFinishedBufferConsumers(boolean forceFinishRemainingBuffers) throws IOException {
 		long spilledBytes = 0;
+		int removeCnt = 0;
 
-		while (!buffers.isEmpty()) {
-			BufferConsumer bufferConsumer = buffers.getFirst();
+		for (BufferConsumer bufferConsumer : buffers) {
 			Buffer buffer = bufferConsumer.build();
 			updateStatistics(buffer);
 			int bufferSize = buffer.getSize();
@@ -272,7 +295,7 @@ class SpillableSubpartition extends ResultSubpartition {
 					buffer.recycleBuffer();
 				}
 				bufferConsumer.close();
-				buffers.poll();
+				removeCnt++;
 			} else {
 				// If there is already data, we need to spill it anyway, since we do not get this
 				// slice from the buffer consumer again during the next build.
@@ -284,7 +307,16 @@ class SpillableSubpartition extends ResultSubpartition {
 					buffer.recycleBuffer();
 				}
 
-				return spilledBytes;
+				break;
+			}
+		}
+		if (removeCnt == buffers.size()) {
+			buffers.clear();
+		} else {
+			ArrayList<BufferConsumer> tempBuffers = new ArrayList<>(buffers);
+			buffers.clear();
+			for (int idx = removeCnt; idx < tempBuffers.size(); idx++) {
+				buffers.add(tempBuffers.get(idx));
 			}
 		}
 		return spilledBytes;
@@ -299,6 +331,10 @@ class SpillableSubpartition extends ResultSubpartition {
 	public int unsynchronizedGetNumberOfQueuedBuffers() {
 		// since we do not synchronize, the size may actually be lower than 0!
 		return Math.max(buffers.size(), 0);
+	}
+
+	public void setSpillWriter(BufferFileWriter fileWriter) {
+		spillWriter = fileWriter;
 	}
 
 	@Override

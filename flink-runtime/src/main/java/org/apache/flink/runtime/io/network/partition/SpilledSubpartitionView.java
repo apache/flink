@@ -85,12 +85,22 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	/** Flag indicating whether a spill is still in progress. */
 	private volatile boolean isSpillInProgress = true;
 
+	/**
+	 * Skipped buffer index when reading from spilled reader,
+	 * corresponding to {@link SpillableSubpartitionView#nextBufferIndex}.
+	 */
+	private int skippedBufferIndex;
+
+	/** To read buffer index. */
+	private int toReadBufferIndex;
+
 	SpilledSubpartitionView(
 		SpillableSubpartition parent,
 		int memorySegmentSize,
 		BufferFileWriter spillWriter,
 		long numberOfSpilledBuffers,
-		BufferAvailabilityListener availabilityListener) throws IOException {
+		BufferAvailabilityListener availabilityListener,
+		int skippedBufferIndex) throws IOException {
 
 		this.parent = checkNotNull(parent);
 		this.bufferPool = new SpillReadBufferPool(2, memorySegmentSize);
@@ -99,6 +109,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		checkArgument(numberOfSpilledBuffers >= 0);
 		this.numberOfSpilledBuffers = numberOfSpilledBuffers;
 		this.availabilityListener = checkNotNull(availabilityListener);
+		this.skippedBufferIndex = skippedBufferIndex;
+		this.toReadBufferIndex = 0;
 
 		// Check whether async spilling is still in progress. If not, this returns
 		// false and we can notify our availability listener about all available buffers.
@@ -155,6 +167,12 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private Buffer requestAndFillBuffer() throws IOException, InterruptedException {
 		assert Thread.holdsLock(this);
 
+		while (toReadBufferIndex <= skippedBufferIndex && !fileReader.hasReachedEndOfFile()) {
+			Buffer buffer = bufferPool.requestBufferBlocking();
+			fileReader.readInto(buffer);
+			toReadBufferIndex++;
+			buffer.recycleBuffer();
+		}
 		if (fileReader.hasReachedEndOfFile()) {
 			return null;
 		}
@@ -162,6 +180,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		// this method don't happen before recycling buffers returned earlier.
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
+		toReadBufferIndex++;
 		return buffer;
 	}
 
@@ -174,19 +193,20 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		parent.onConsumedSubpartition();
-	}
-
-	@Override
-	public void releaseAllResources() throws IOException {
-		if (isReleased.compareAndSet(false, true)) {
+	public void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
+		parent.onConsumedSubpartition(finalRelease);
+		if (finalRelease) {
 			// TODO This can block until all buffers are written out to
 			// disk if a spill is in-progress before deleting the file.
 			// It is possibly called from the Netty event loop threads,
 			// which can bring down the network.
 			spillWriter.closeAndDelete();
+		}
+	}
 
+	@Override
+	public void releaseAllResources() throws IOException {
+		if (isReleased.compareAndSet(false, true)) {
 			synchronized (this) {
 				fileReader.close();
 				if (nextBuffer != null) {

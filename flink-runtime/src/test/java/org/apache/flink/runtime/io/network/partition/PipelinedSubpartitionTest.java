@@ -83,10 +83,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		// Successful request
-		assertNotNull(subpartition.createReadView(new NoOpBufferAvailablityListener()));
+		assertNotNull(subpartition.createReadView(0, new NoOpBufferAvailablityListener()));
 
 		try {
-			subpartition.createReadView(new NoOpBufferAvailablityListener());
+			subpartition.createReadView(0, new NoOpBufferAvailablityListener());
 
 			fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
 		} catch (IllegalStateException expected) {
@@ -204,7 +204,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		TestSubpartitionProducer producer = new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource);
 		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
-		final PipelinedSubpartitionView view = subpartition.createReadView(consumer);
+		final PipelinedSubpartitionView view = subpartition.createReadView(0, consumer);
 		consumer.setSubpartitionView(view);
 
 		CompletableFuture<Boolean> producerResult = CompletableFuture.supplyAsync(
@@ -251,7 +251,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			// create the read view first
 			ResultSubpartitionView view = null;
 			if (createView) {
-				view = partition.createReadView(new NoOpBufferAvailablityListener());
+				view = partition.createReadView(0, new NoOpBufferAvailablityListener());
 			}
 
 			partition.release();

@@ -214,13 +214,13 @@ public class RemoteInputChannelTest {
 
 		// Initial request
 		ch.requestSubpartition(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0), eq(0));
 
 		// Request subpartition and verify that the actual requests are delayed.
 		for (int expected : expectedDelays) {
 			ch.retriggerSubpartitionRequest(0);
 
-			verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(expected));
+			verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(expected), eq(0));
 		}
 
 		// Exception after backoff is greater than the maximum backoff.
@@ -246,11 +246,11 @@ public class RemoteInputChannelTest {
 
 		// No delay for first request
 		ch.requestSubpartition(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0), eq(0));
 
 		// Initial delay for second request
 		ch.retriggerSubpartitionRequest(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(backoff._1()));
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(backoff._1()), eq(0));
 
 		// Exception after backoff is greater than the maximum backoff.
 		try {
@@ -275,7 +275,7 @@ public class RemoteInputChannelTest {
 
 		// No delay for first request
 		ch.requestSubpartition(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0), eq(0));
 
 		// Exception, because backoff is disabled.
 		try {
@@ -303,7 +303,8 @@ public class RemoteInputChannelTest {
 				partitionId,
 				mock(ConnectionID.class),
 				connectionManager,
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				0);
 
 		ch.onFailedPartitionRequest();
 
@@ -323,7 +324,8 @@ public class RemoteInputChannelTest {
 				new ResultPartitionID(),
 				mock(ConnectionID.class),
 				connManager,
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				0);
 
 		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
 
@@ -1055,7 +1057,8 @@ public class RemoteInputChannelTest {
 			connectionManager,
 			initialAndMaxRequestBackoff._1(),
 			initialAndMaxRequestBackoff._2(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			0);
 	}
 
 	/**

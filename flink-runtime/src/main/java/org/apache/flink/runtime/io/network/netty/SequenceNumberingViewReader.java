@@ -59,7 +59,8 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 	public void requestSubpartitionView(
 		ResultPartitionProvider partitionProvider,
 		ResultPartitionID resultPartitionId,
-		int subPartitionIndex) throws IOException {
+		int subPartitionIndex,
+		int attemptNumber) throws IOException {
 
 		synchronized (requestLock) {
 			if (subpartitionView == null) {
@@ -70,6 +71,7 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 				this.subpartitionView = partitionProvider.createSubpartitionView(
 					resultPartitionId,
 					subPartitionIndex,
+					attemptNumber,
 					this);
 			} else {
 				throw new IllegalStateException("Subpartition already requested");
@@ -118,8 +120,8 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		subpartitionView.notifySubpartitionConsumed();
+	public void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
+		subpartitionView.notifySubpartitionConsumed(finalRelease);
 	}
 
 	@Override

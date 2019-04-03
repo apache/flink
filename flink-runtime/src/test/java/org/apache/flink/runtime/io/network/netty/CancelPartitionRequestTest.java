@@ -82,11 +82,11 @@ public class CancelPartitionRequestTest {
 			final ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
 			// Return infinite subpartition
-			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferAvailabilityListener.class)))
+			when(partitions.createSubpartitionView(eq(pid), eq(0), eq(0), any(BufferAvailabilityListener.class)))
 				.thenAnswer(new Answer<ResultSubpartitionView>() {
 					@Override
 					public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
-						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
+						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[3];
 						listener.notifyDataAvailable();
 						return view;
 					}
@@ -100,7 +100,7 @@ public class CancelPartitionRequestTest {
 			Channel ch = connect(serverAndClient);
 
 			// Request for non-existing input channel => results in cancel request
-			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE)).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE, 0)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -109,7 +109,7 @@ public class CancelPartitionRequestTest {
 			}
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
+			verify(view, times(0)).notifySubpartitionConsumed(true);
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -133,11 +133,11 @@ public class CancelPartitionRequestTest {
 			final ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
 			// Return infinite subpartition
-			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferAvailabilityListener.class)))
+			when(partitions.createSubpartitionView(eq(pid), eq(0), eq(0), any(BufferAvailabilityListener.class)))
 					.thenAnswer(new Answer<ResultSubpartitionView>() {
 						@Override
 						public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
-							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
+							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[3];
 							listener.notifyDataAvailable();
 							return view;
 						}
@@ -153,7 +153,7 @@ public class CancelPartitionRequestTest {
 			// Request for non-existing input channel => results in cancel request
 			InputChannelID inputChannelId = new InputChannelID();
 
-			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE)).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE, 0)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -168,7 +168,7 @@ public class CancelPartitionRequestTest {
 			NettyTestUtil.awaitClose(ch);
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
+			verify(view, times(0)).notifySubpartitionConsumed(true);
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -206,7 +206,7 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public void notifySubpartitionConsumed() throws IOException {
+		public void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
 		}
 
 		@Override

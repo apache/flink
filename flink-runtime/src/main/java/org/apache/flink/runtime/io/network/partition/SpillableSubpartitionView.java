@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,7 +44,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	private final SpillableSubpartition parent;
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final ArrayDeque<BufferConsumer> buffers;
+	private final ArrayList<BufferConsumer> buffers;
 
 	/** IO manager if we need to spill (for spilled case). */
 	private final IOManager ioManager;
@@ -70,11 +70,14 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	 */
 	private BufferConsumer nextBuffer;
 
+	/** Next buffer index in buffers. */
+	private int nextBufferIndex;
+
 	private volatile SpilledSubpartitionView spilledView;
 
 	SpillableSubpartitionView(
 		SpillableSubpartition parent,
-		ArrayDeque<BufferConsumer> buffers,
+		ArrayList<BufferConsumer> buffers,
 		IOManager ioManager,
 		int memorySegmentSize,
 		BufferAvailabilityListener listener) {
@@ -84,10 +87,15 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		this.ioManager = checkNotNull(ioManager);
 		this.memorySegmentSize = memorySegmentSize;
 		this.listener = checkNotNull(listener);
+		this.nextBufferIndex = -1;
 
 		synchronized (buffers) {
 			numBuffers = buffers.size();
-			nextBuffer = buffers.poll();
+			if (nextBufferIndex + 1 < buffers.size()) {
+				nextBuffer = buffers.get(++nextBufferIndex).copy();
+			} else {
+				nextBuffer = null;
+			}
 		}
 
 		if (nextBuffer != null) {
@@ -112,23 +120,29 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 				int numBuffers = buffers.size();
 				for (int i = 0; i < numBuffers; i++) {
-					try (BufferConsumer bufferConsumer = buffers.remove()) {
+					try (BufferConsumer bufferConsumer = buffers.get(i)) {
 						Buffer buffer = bufferConsumer.build();
 						checkState(bufferConsumer.isFinished(), "BufferConsumer must be finished before " +
 							"spilling. Otherwise we would not be able to simply remove it from the queue. This should " +
 							"be guaranteed by creating ResultSubpartitionView only once Subpartition isFinished.");
-						parent.updateStatistics(buffer);
+						if (i > nextBufferIndex) {
+							parent.updateStatistics(buffer);
+						}
 						spilledBytes += buffer.getSize();
 						spillWriter.writeBlock(buffer);
 					}
 				}
+				buffers.clear();
 
 				spilledView = new SpilledSubpartitionView(
 					parent,
 					memorySegmentSize,
 					spillWriter,
 					numBuffers,
-					listener);
+					listener,
+					nextBufferIndex);
+				nextBufferIndex = -1;
+				parent.setSpillWriter(spillWriter);
 
 				LOG.debug("Spilling {} bytes for sub partition {} of {}.",
 					spilledBytes,
@@ -158,7 +172,11 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 				newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
 				nextBuffer.close();
-				nextBuffer = buffers.poll();
+				if (nextBufferIndex + 1 < buffers.size()) {
+					nextBuffer = buffers.get(++nextBufferIndex).copy();
+				} else {
+					nextBuffer = null;
+				}
 
 				if (nextBuffer != null) {
 					nextBufferIsEvent = !nextBuffer.isBuffer();
@@ -209,12 +227,12 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
+	public void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
-			spilled.notifySubpartitionConsumed();
+			spilled.notifySubpartitionConsumed(finalRelease);
 		} else {
-			parent.onConsumedSubpartition();
+			parent.onConsumedSubpartition(finalRelease);
 		}
 	}
 

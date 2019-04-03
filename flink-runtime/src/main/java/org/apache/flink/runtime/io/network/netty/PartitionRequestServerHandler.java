@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.SubpartitionConsumedRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRequest;
 
 /**
@@ -102,7 +103,8 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 					reader.requestSubpartitionView(
 						partitionProvider,
 						request.partitionId,
-						request.queueIndex);
+						request.queueIndex,
+						request.attemptNumber);
 
 					outboundQueue.notifyReaderCreated(reader);
 				} catch (PartitionNotFoundException notFound) {
@@ -128,6 +130,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				AddCredit request = (AddCredit) msg;
 
 				outboundQueue.addCredit(request.receiverId, request.credit);
+			} else if (msgClazz == SubpartitionConsumedRequest.class) {
+				SubpartitionConsumedRequest request = (SubpartitionConsumedRequest) msg;
+				LOG.debug("SubpartitionConsumedRequest on {}: {}.", ctx.channel().localAddress(), request);
+				outboundQueue.subpartitionConsumed(partitionProvider, request.partitionId, request.subpartitionIndex);
 			} else {
 				LOG.warn("Received unexpected client request: {}", msg);
 			}

@@ -98,7 +98,8 @@ public class PartitionRequestClient {
 			final ResultPartitionID partitionId,
 			final int subpartitionIndex,
 			final RemoteInputChannel inputChannel,
-			int delayMs) throws IOException {
+			int delayMs,
+			int attemptNumber) throws IOException {
 
 		checkNotClosed();
 
@@ -108,7 +109,7 @@ public class PartitionRequestClient {
 		clientHandler.addInputChannel(inputChannel);
 
 		final PartitionRequest request = new PartitionRequest(
-				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getInitialCredit());
+				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getInitialCredit(), attemptNumber);
 
 		final ChannelFutureListener listener = new ChannelFutureListener() {
 			@Override
@@ -189,6 +190,20 @@ public class PartitionRequestClient {
 		} else {
 			clientHandler.cancelRequestFor(inputChannel.getInputChannelId());
 		}
+	}
+
+	public void notifySubpartitionConsumed(ResultPartitionID partitionId, int subpartitionIndex) {
+		LOG.debug("client notifySubpartitionConsumed, partitionId={}, index={}", partitionId, subpartitionIndex);
+		tcpChannel.writeAndFlush(new NettyMessage.SubpartitionConsumedRequest(partitionId, subpartitionIndex)).addListener(
+			new ChannelFutureListener() {
+				@Override
+				public void operationComplete(ChannelFuture future) {
+					if (!future.isSuccess()) {
+						LOG.error("request subpartition on consumed to {} fail, address={}, cause={}", future.channel().remoteAddress(),
+							future.channel().localAddress(), future.cause());
+					}
+				}
+			});
 	}
 
 	private void checkNotClosed() throws IOException {

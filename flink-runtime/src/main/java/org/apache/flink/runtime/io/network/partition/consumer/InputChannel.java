@@ -66,6 +66,8 @@ public abstract class InputChannel {
 
 	protected final Counter numBuffersIn;
 
+	protected int attemptNumber;
+
 	/** The current backoff (in ms). */
 	private int currentBackoff;
 
@@ -76,7 +78,8 @@ public abstract class InputChannel {
 			int initialBackoff,
 			int maxBackoff,
 			Counter numBytesIn,
-			Counter numBuffersIn) {
+			Counter numBuffersIn,
+			int attemptNumber) {
 
 		checkArgument(channelIndex >= 0);
 
@@ -95,6 +98,8 @@ public abstract class InputChannel {
 
 		this.numBytesIn = numBytesIn;
 		this.numBuffersIn = numBuffersIn;
+
+		this.attemptNumber = attemptNumber;
 	}
 
 	// ------------------------------------------------------------------------
@@ -163,12 +168,16 @@ public abstract class InputChannel {
 
 	abstract boolean isReleased();
 
-	abstract void notifySubpartitionConsumed() throws IOException;
+	abstract void notifySubpartitionConsumed(boolean finalRelease) throws IOException;
 
 	/**
 	 * Releases all resources of the channel.
 	 */
 	abstract void releaseAllResources() throws IOException;
+
+	protected void releaseRemoteClient() throws IOException {
+
+	}
 
 	// ------------------------------------------------------------------------
 	// Error notification
