@@ -32,8 +32,22 @@ import org.apache.calcite.rel.RelNode
 
 import java.util
 
-
-// use the two stage agg optimize the plan
+/**
+  * Rule that matches [[StreamExecGroupAggregate]] on [[StreamExecExchange]]
+  * with the following condition:
+  * 1. mini-batch is enabled in given TableConfig,
+  * 2. two-phase aggregation is enabled in given TableConfig,
+  * 3. all aggregate functions are mergeable,
+  * 4. the input of exchange does not satisfy the shuffle distribution,
+  *
+  * and converts them to
+  * {{{
+  *   StreamExecGlobalGroupAggregate
+  *   +- StreamExecExchange
+  *      +- StreamExecLocalGroupAggregate
+  *         +- input of exchange
+  * }}}
+  */
 class TwoStageOptimizedAggregateRule extends RelOptRule(
   operand(classOf[StreamExecGroupAggregate],
     operand(classOf[StreamExecExchange],
