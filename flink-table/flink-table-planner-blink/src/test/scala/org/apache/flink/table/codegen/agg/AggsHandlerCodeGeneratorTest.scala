@@ -50,7 +50,7 @@ class AggsHandlerCodeGeneratorTest extends AggTestBase {
     handler.accumulate(GenericRow.of("f0", jl(7L), jd(7.4D), jl(4L)))
     handler.retract(GenericRow.of("f0", jl(9L), jd(5.5D), jl(5L)))
     val ret = handler.getValue
-    Assert.assertEquals(4.0, ret.getDouble(0), 0)
+    Assert.assertEquals(4.5, ret.getDouble(0), 0)
     Assert.assertEquals(6.75, ret.getDouble(1), 0)
     Assert.assertEquals(2.0, ret.getDouble(2), 0)
   }
@@ -64,9 +64,9 @@ class AggsHandlerCodeGeneratorTest extends AggTestBase {
     handler.merge(GenericRow.of("f0", jl(43L), jl(1L), jd(4D), jl(1L), jt(43L, 1L)))
     val ret = handler.getValue
     // TODO return 26.6 instead of 26.0 after divide return double instead of long
-    Assert.assertEquals(26.0, ret.getDouble(0), 0)
+    Assert.assertEquals(26.6, ret.getDouble(0), 0)
     Assert.assertEquals(2.6, ret.getDouble(1), 0)
-    Assert.assertEquals(26.0, ret.getDouble(2), 0)
+    Assert.assertEquals(26.6, ret.getDouble(2), 0)
   }
 
   private def jl(l: Long): lang.Long = {

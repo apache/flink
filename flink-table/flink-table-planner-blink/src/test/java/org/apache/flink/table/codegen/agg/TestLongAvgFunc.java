@@ -60,7 +60,7 @@ public class TestLongAvgFunc extends AggregateFunction<Double, Tuple2<Long, Long
 		if (acc.f1 == 0) {
 			return null;
 		} else {
-			return (double) (acc.f0 / acc.f1);
+			return ((double) acc.f0 / acc.f1);
 		}
 	}
 

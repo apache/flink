@@ -26,7 +26,6 @@ import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStr
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.codegen.agg.AggTestBase
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, GenericRow}
-import org.apache.flink.table.dataformat.util.BaseRowUtil
 import org.apache.flink.table.runtime.OneInputOperatorWrapper
 import org.apache.flink.table.util.BaseRowTestUtil
 

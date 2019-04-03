@@ -103,11 +103,11 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
         row("key1", 8L, 8D, 8L, "aux1"),
         row("key1", 4L, 4D, 4L, "aux1"),
         row("key1", 4L, 4D, 4L, "aux1"),
-        row("key1", 4L, 4D, 4L, "aux1"),
+        row("key1", 6L, 6D, 6L, "aux1"),
         row("key2", 3L, 3D, 3L, "aux2")
       ),
       Array(
-        row("key1", "aux1", 5.0D, 5.0D, 5.0D),
+        row("key1", "aux1", 5.5D, 5.5D, 5.5D),
         row("key2", "aux2", 3.0D, 3.0D, 3.0D))
     )
   }

@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.RexAggLocalVariable;
 import org.apache.flink.table.calcite.RexDistinctKeyVariable;
+import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
@@ -112,7 +113,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.EQUALS.equals(def)) {
 			return relBuilder.call(SqlStdOperatorTable.EQUALS, child);
 		} else if (BuiltInFunctionDefinitions.DIVIDE.equals(def)) {
-			return relBuilder.call(SqlStdOperatorTable.DIVIDE, child);
+			return relBuilder.call(FlinkSqlOperatorTable.DIVIDE, child);
 		} else {
 			throw new UnsupportedOperationException(def.getName());
 		}
