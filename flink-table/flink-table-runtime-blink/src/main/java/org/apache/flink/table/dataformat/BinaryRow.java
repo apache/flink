@@ -220,7 +220,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 			} else {
 
 				byte[] bytes = value.toUnscaledBytes();
-				assert(bytes.length <= 16);
+				assert bytes.length <= 16;
 
 				// Write the bytes to the variable length portion.
 				SegmentsUtil.copyFromBytes(segments, offset + cursor, bytes, 0, bytes.length);
@@ -427,5 +427,21 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		}
 		build.append(']');
 		return build.toString();
+	}
+
+	public boolean equalsWithoutHeader(BaseRow o) {
+		return equalsFrom(o, 1);
+	}
+
+	private boolean equalsFrom(Object o, int startIndex) {
+		if (o != null && o instanceof BinaryRow) {
+			BinaryRow other = (BinaryRow) o;
+			return sizeInBytes == other.sizeInBytes &&
+					SegmentsUtil.equals(
+							segments, offset + startIndex,
+							other.segments, other.offset + startIndex, sizeInBytes - startIndex);
+		} else {
+			return false;
+		}
 	}
 }

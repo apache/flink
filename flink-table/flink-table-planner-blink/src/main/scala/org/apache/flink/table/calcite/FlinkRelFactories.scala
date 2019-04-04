@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
-import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalSink, RankRange}
+import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalSink}
+import org.apache.flink.table.runtime.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.Contexts

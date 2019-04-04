@@ -21,9 +21,9 @@ package org.apache.flink.table.plan.rules.physical.stream
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, RankType}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamExecRank}
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -68,10 +68,6 @@ class StreamExecDeduplicateRule
 
   override def convert(rel: RelNode): RelNode = {
     val rank = rel.asInstanceOf[FlinkLogicalRank]
-    val fieldCollation = rank.orderKey.getFieldCollations.get(0)
-    val fieldType = rank.getInput.getRowType.getFieldList.get(fieldCollation.getFieldIndex).getType
-    val isRowtime = FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
-
     val requiredDistribution = FlinkRelDistribution.hash(rank.partitionKey.toList)
     val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
       .replace(FlinkConventions.STREAM_PHYSICAL)
@@ -79,6 +75,7 @@ class StreamExecDeduplicateRule
     val convInput: RelNode = RelOptRule.convert(rank.getInput, requiredTraitSet)
 
     // order by timeIndicator desc ==> lastRow, otherwise is firstRow
+    val fieldCollation = rank.orderKey.getFieldCollations.get(0)
     val isLastRow = fieldCollation.direction.isDescending
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     new StreamExecDeduplicate(
@@ -86,7 +83,6 @@ class StreamExecDeduplicateRule
       providedTraitSet,
       convInput,
       rank.partitionKey.toArray,
-      isRowtime,
       isLastRow)
   }
 }
@@ -111,7 +107,8 @@ object StreamExecDeduplicateRule {
     val isRowNumberType = rank.rankType == RankType.ROW_NUMBER
 
     val isLimit1 = rankRange match {
-      case ConstantRankRange(rankStart, rankEnd) => rankStart == 1 && rankEnd == 1
+      case rankRange: ConstantRankRange =>
+        rankRange.getRankStart() == 1 && rankRange.getRankEnd() == 1
       case _ => false
     }
 

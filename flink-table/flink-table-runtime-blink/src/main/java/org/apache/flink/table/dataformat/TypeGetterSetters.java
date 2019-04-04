@@ -18,12 +18,14 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.DateType;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.MapType;
 import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.type.TimestampType;
 
 /**
  * Provide type specialized getters and setters to reduce if/else and eliminate box and unbox.
@@ -193,11 +195,11 @@ public interface TypeGetterSetters {
 			return row.getString(ordinal);
 		} else if (type.equals(InternalTypes.CHAR)) {
 			return row.getChar(ordinal);
-		} else if (type.equals(InternalTypes.DATE)) {
+		} else if (type instanceof DateType) {
 			return row.getInt(ordinal);
 		} else if (type.equals(InternalTypes.TIME)) {
 			return row.getInt(ordinal);
-		} else if (type.equals(InternalTypes.TIMESTAMP)) {
+		} else if (type instanceof TimestampType) {
 			return row.getLong(ordinal);
 		} else if (type instanceof DecimalType) {
 			DecimalType decimalType = (DecimalType) type;

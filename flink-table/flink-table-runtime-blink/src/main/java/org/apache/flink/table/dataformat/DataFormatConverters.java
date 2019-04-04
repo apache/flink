@@ -146,9 +146,9 @@ public class DataFormatConverters {
 		} else if (typeInfo instanceof BinaryMapTypeInfo) {
 			return BinaryMapConverter.INSTANCE;
 		} else if (typeInfo instanceof BaseRowTypeInfo) {
-			return BaseRowConverter.INSTANCE;
+			return new BaseRowConverter(typeInfo.getArity());
 		} else if (typeInfo.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
-			return BaseRowConverter.INSTANCE;
+			return new BaseRowConverter(typeInfo.getArity());
 		} else if (typeInfo instanceof DecimalTypeInfo) {
 			DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
 			return new DecimalConverter(decimalType.precision(), decimalType.scale());
@@ -993,14 +993,13 @@ public class DataFormatConverters {
 	public static final class BaseRowConverter extends IdentityConverter<BaseRow> {
 
 		private static final long serialVersionUID = -4470307402371540680L;
+		private int arity;
 
-		public static final BaseRowConverter INSTANCE = new BaseRowConverter();
-
-		private BaseRowConverter() {}
+		private BaseRowConverter(int arity) {}
 
 		@Override
 		BaseRow toExternalImpl(BaseRow row, int column) {
-			throw new RuntimeException("Not support yet!");
+			return row.getRow(column, arity);
 		}
 	}
 

@@ -44,8 +44,8 @@ import org.mockito.Mockito;
 import java.util.Arrays;
 import java.util.Collections;
 
-import static org.apache.flink.table.runtime.window.WindowTestUtils.baserow;
-import static org.apache.flink.table.runtime.window.WindowTestUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
