@@ -322,7 +322,7 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 		testingFatalErrorHandler.rethrowError();
 	}
 
-	public static class TaskSubmissionTestEnvironmentBuilder {
+	public static class Builder {
 		private JobID jobId;
 
 		private boolean mockNetworkEnvironment = true;
@@ -333,41 +333,41 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 		private Configuration configuration;
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
-		public TaskSubmissionTestEnvironmentBuilder(JobID jobId) {
+		public Builder(JobID jobId) {
 			this.jobId = jobId;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder setMockNetworkEnvironment(boolean mockNetworkEnvironment) {
+		public Builder setMockNetworkEnvironment(boolean mockNetworkEnvironment) {
 			this.mockNetworkEnvironment = mockNetworkEnvironment;
 			return this;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder setSlotSize(int slotSize) {
+		public Builder setSlotSize(int slotSize) {
 			this.slotSize = slotSize;
 			return this;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder setJobMasterId(JobMasterId jobMasterId) {
+		public Builder setJobMasterId(JobMasterId jobMasterId) {
 			this.jobMasterId = jobMasterId;
 			return this;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder setJobMasterGateway(TestingJobMasterGateway jobMasterGateway) {
+		public Builder setJobMasterGateway(TestingJobMasterGateway jobMasterGateway) {
 			this.jobMasterGateway = jobMasterGateway;
 			return this;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder setLocalCommunication(boolean localCommunication) {
+		public Builder setLocalCommunication(boolean localCommunication) {
 			this.localCommunication = localCommunication;
 			return this;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder setConfiguration(Configuration configuration) {
+		public Builder setConfiguration(Configuration configuration) {
 			this.configuration = configuration;
 			return this;
 		}
 
-		public TaskSubmissionTestEnvironmentBuilder addTaskManagerActionListener(ExecutionAttemptID eid, ExecutionState executionState, CompletableFuture<Void> future) {
+		public Builder addTaskManagerActionListener(ExecutionAttemptID eid, ExecutionState executionState, CompletableFuture<Void> future) {
 			taskManagerActionListeners.add(Tuple3.of(eid, executionState, future));
 			return this;
 		}

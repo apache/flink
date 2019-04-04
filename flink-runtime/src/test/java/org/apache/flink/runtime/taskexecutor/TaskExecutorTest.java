@@ -1634,7 +1634,7 @@ public class TaskExecutorTest extends TestLogger {
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setConfiguration(config)
 				.setLocalCommunication(false)
 				.build()) {
@@ -1651,7 +1651,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test(timeout = 10000L)
 	public void testTerminationOnFatalError() throws Throwable {
-		try (TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId).build()) {
+		try (TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId).build()) {
 			String testExceptionMsg = "Test exception of fatal error.";
 
 			env.getTaskExecutor().onFatalError(new Exception(testExceptionMsg));

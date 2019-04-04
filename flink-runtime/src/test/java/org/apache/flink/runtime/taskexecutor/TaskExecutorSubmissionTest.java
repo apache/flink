@@ -105,7 +105,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.build()) {
@@ -129,7 +129,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class, 0);
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -157,7 +157,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eid1CanceledFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
@@ -202,7 +202,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
@@ -251,7 +251,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.build()) {
@@ -288,7 +288,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eid2FailedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, eid1FailedFuture)
@@ -350,7 +350,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			.build();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
@@ -422,7 +422,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			.build();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
@@ -487,7 +487,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eidFailedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, eidFailedFuture)
@@ -521,7 +521,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		boolean expectedException = false;
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.build()) {
@@ -577,7 +577,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eidFailedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, eidFailedFuture)
@@ -648,7 +648,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.build();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.setJobMasterId(jobMasterId)
@@ -691,7 +691,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eidCanceledFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
+			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, eidCanceledFuture)
