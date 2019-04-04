@@ -39,8 +39,8 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 		submitLatch = new CountDownLatch(0);
 	}
 
-	public InteractionsCountingTaskManagerGateway(final int parallelism) {
-		this.submitLatch = new CountDownLatch(parallelism);
+	public InteractionsCountingTaskManagerGateway(final int expectedSubmitCount) {
+		this.submitLatch = new CountDownLatch(expectedSubmitCount);
 	}
 
 	@Override
