@@ -141,7 +141,7 @@ object ProjectionTranslator {
   /**
     * Extracts the leading non-alias expression.
     *
-    * @param expr              the expression to extract
+    * @param expr the expression to extract
     * @return the top non-alias expression
     */
   def getLeadingNonAliasExpr(expr: Expression): Expression = {
@@ -149,7 +149,6 @@ object ProjectionTranslator {
       case callExpr: CallExpression if callExpr.getFunctionDefinition.equals(
           BuiltInFunctionDefinitions.AS) =>
         getLeadingNonAliasExpr(callExpr.getChildren.get(0))
-
       case _ => expr
     }
   }

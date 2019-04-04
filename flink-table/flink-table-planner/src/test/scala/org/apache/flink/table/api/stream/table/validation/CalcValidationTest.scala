@@ -22,7 +22,8 @@ import java.math.BigDecimal
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, Tumble, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit.Test
 
 class CalcValidationTest extends TableTestBase {
@@ -110,4 +111,41 @@ class CalcValidationTest extends TableTestBase {
     tab.dropColumns("'last'")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeAggregation(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int)](
+      "MyTable", 'int)
+      .map('int.sum) // do not support AggregateFunction as input
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeUDAGG(): Unit = {
+    val util = streamTestUtil()
+
+    val weightedAvg = new WeightedAvg
+    util.addTable[(Int)](
+      "MyTable", 'int)
+      .map(weightedAvg('int, 'int)) // do not support AggregateFunction as input
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeUDAGG2(): Unit = {
+    val util = streamTestUtil()
+
+    util.tableEnv.registerFunction("weightedAvg", new WeightedAvg)
+    util.addTable[(Int)](
+      "MyTable", 'int)
+      .map("weightedAvg(int, int)") // do not support AggregateFunction as input
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeTableFunction(): Unit = {
+    val util = streamTestUtil()
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    util.addTable[(String)](
+      "MyTable", 'string)
+      .map("func(string) as a") // do not support TableFunction as input
+  }
 }

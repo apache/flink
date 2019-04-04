@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, UserD
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.collection.mutable
 
@@ -393,4 +393,47 @@ class CalcITCase extends AbstractTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testMap(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .map(Func23('a, 'b, 'c)).as("a, b, c, d")
+      .map(Func24('a, 'b, 'c, 'd)).as("a, b, c, d")
+      .map(Func1('b))
+
+    val results = ds.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "3",
+      "4",
+      "5")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Ignore("Will be open when FLINK-10834 has been fixed.")
+  @Test
+  def testNonDeterministic(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .map(Func25('a))
+
+    val results = ds.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    StreamITCase.testResults.foreach { testResult =>
+      val result = testResult.split(",")
+      assertEquals(result(0), result(1))
+    }
+  }
 }

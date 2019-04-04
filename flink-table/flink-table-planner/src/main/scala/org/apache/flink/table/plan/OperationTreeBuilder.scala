@@ -372,8 +372,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   def map(mapFunction: Expression, child: TableOperation): TableOperation = {
     val childNode = child.asInstanceOf[LogicalNode]
     val expandedFields = expandProjectList(
-      Seq(mapFunction).map(expressionBridge.bridge)
-        .map(Flattening), childNode, tableEnv)
+      Seq(mapFunction).map(e => Flattening(expressionBridge.bridge(e))), childNode, tableEnv)
     Project(expandedFields.map(UnresolvedAlias), childNode).validate(tableEnv)
   }
 

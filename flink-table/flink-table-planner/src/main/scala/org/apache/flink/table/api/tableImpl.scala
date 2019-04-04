@@ -468,13 +468,12 @@ class TableImpl(
   }
 
   override def map(mapFunction: Expression): Table = {
-    val resolvedMapFunction = callResolver.visit(mapFunction)
+    val resolvedMapFunction = mapFunction.accept(callResolver)
     getLeadingNonAliasExpr(resolvedMapFunction) match {
       case callExpr: CallExpression if callExpr.getFunctionDefinition.getType ==
         FunctionDefinition.Type.SCALAR_FUNCTION =>
-
       case _ =>
-        throw new ValidationException("Only ScalarFunction can be used in map.")
+        throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
     wrap(operationTreeBuilder.map(resolvedMapFunction, operationTree))
