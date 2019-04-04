@@ -24,6 +24,7 @@ import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.MapType;
 import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.type.TimestampType;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
 
 /**
@@ -102,7 +103,7 @@ public interface BinaryWriter {
 			writer.writeInt(pos, (int) o);
 		} else if (type.equals(InternalTypes.TIME)) {
 			writer.writeInt(pos, (int) o);
-		} else if (type.equals(InternalTypes.TIMESTAMP)) {
+		} else if (type instanceof TimestampType) {
 			writer.writeLong(pos, (long) o);
 		} else if (type instanceof DecimalType) {
 			DecimalType decimalType = (DecimalType) type;

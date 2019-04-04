@@ -18,11 +18,29 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.EqualiserCodeGenerator
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.generated.GeneratedRecordEqualiser
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.KeySelectorUtil
+import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
+import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
+import org.apache.flink.table.runtime.deduplicate.{DeduplicateFunction, MiniBatchDeduplicateFunction}
+import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.typeutils.TypeCheckUtils.isRowTime
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode which deduplicate on keys and keeps only first row or last row.
@@ -38,7 +56,8 @@ class StreamExecDeduplicate(
     isRowtime: Boolean,
     keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 
@@ -71,6 +90,94 @@ class StreamExecDeduplicate(
       .item("keepLastRow", keepLastRow)
       .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
       .item("order", orderString)
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+
+    // TODO checkInput is not acc retract after FLINK- is done
+    val inputIsAccRetract = false
+
+    if (inputIsAccRetract) {
+      throw new TableException(
+        "Deduplicate: Retraction on Deduplicate is not supported yet.\n" +
+          "please re-check sql grammar. \n" +
+          "Note: Deduplicate should not follow a non-windowed GroupBy aggregation.")
+    }
+
+    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+                         .asInstanceOf[StreamTransformation[BaseRow]]
+
+    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+
+    val generateRetraction = true
+
+    val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val rowTimeFieldIndex = inputRowType.getFieldTypes.zipWithIndex
+                            .filter(e => isRowTime(e._1))
+                            .map(_._2)
+    if (rowTimeFieldIndex.size > 1) {
+      throw new RuntimeException("More than one row time field. Currently this is not supported!")
+    }
+    if (rowTimeFieldIndex.nonEmpty) {
+      throw new TableException("Currently not support Deduplicate on rowtime.")
+    }
+    val tableConfig = tableEnv.getConfig
+    val exeConfig = tableEnv.execEnv.getConfig
+    val isMiniBatchEnabled = tableConfig.getConf.getLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
+    val generatedRecordEqualiser = generateRecordEqualiser(rowTypeInfo)
+    val operator = if (isMiniBatchEnabled) {
+      val processFunction = new MiniBatchDeduplicateFunction(
+        rowTypeInfo,
+        generateRetraction,
+        exeConfig,
+        keepLastRow,
+        generatedRecordEqualiser)
+      val trigger = new CountBundleTrigger[BaseRow](
+        tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+      new KeyedMapBundleOperator(
+        processFunction,
+        trigger)
+    } else {
+      val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
+      val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
+      val processFunction = new DeduplicateFunction(
+        minRetentionTime,
+        maxRetentionTime,
+        rowTypeInfo,
+        generateRetraction,
+        keepLastRow,
+        generatedRecordEqualiser)
+      new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
+    }
+    val ret = new OneInputTransformation(
+      inputTransform, getOperatorName, operator, rowTypeInfo, inputTransform.getParallelism)
+    val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
+    ret.setStateKeySelector(selector)
+    ret.setStateKeyType(selector.getProducedType)
+    ret
+  }
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  private def getOperatorName: String = {
+    val fieldNames = getRowType.getFieldNames
+    val keyNames = uniqueKeys.map(fieldNames.get).mkString(", ")
+    val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
+    s"${if (keepLastRow) "keepLastRow" else "KeepFirstRow"}" +
+      s": (key: ($keyNames), select: (${fieldNames.mkString(", ")}), order: ($orderString))"
+  }
+
+  private def generateRecordEqualiser(rowTypeInfo: BaseRowTypeInfo): GeneratedRecordEqualiser = {
+    val generator = new EqualiserCodeGenerator(
+      rowTypeInfo.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo))
+    val equaliserName = s"${if (keepLastRow) "LastRow" else "FirstRow"}ValueEqualiser"
+    generator.generateRecordEqualiser(equaliserName)
   }
 
 }

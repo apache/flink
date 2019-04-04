@@ -187,6 +187,20 @@ class TableConfig {
     this.conf.setLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS, maxTime.toMilliseconds)
     this
   }
+
+  def getMinIdleStateRetentionTime: Long = {
+    this.conf.getLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MS)
+  }
+
+  def getMaxIdleStateRetentionTime: Long = {
+    // only min idle ttl provided.
+    if (this.conf.contains(TableConfigOptions.SQL_EXEC_STATE_TTL_MS)
+      && !this.conf.contains(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS)) {
+      this.conf.setLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS,
+        getMinIdleStateRetentionTime * 2)
+    }
+    this.conf.getLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS)
+  }
 }
 
 object TableConfig {

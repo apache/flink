@@ -21,9 +21,9 @@ package org.apache.flink.table.plan.rules.physical.stream
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, RankType}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamExecRank}
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -111,7 +111,8 @@ object StreamExecDeduplicateRule {
     val isRowNumberType = rank.rankType == RankType.ROW_NUMBER
 
     val isLimit1 = rankRange match {
-      case ConstantRankRange(rankStart, rankEnd) => rankStart == 1 && rankEnd == 1
+      case rankRange: ConstantRankRange =>
+        rankRange.getRankStart() == 1 && rankRange.getRankEnd() == 1
       case _ => false
     }
 

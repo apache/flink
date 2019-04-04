@@ -40,8 +40,8 @@ public class ValuesInputFormat
 		implements NonParallelInput, ResultTypeQueryable<BaseRow> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
-	private GeneratedInput<GenericInputFormat<BaseRow>> generatedInput;
-	private BaseRowTypeInfo returnType;
+	private final GeneratedInput<GenericInputFormat<BaseRow>> generatedInput;
+	private final BaseRowTypeInfo returnType;
 	private GenericInputFormat<BaseRow> format;
 
 	public ValuesInputFormat(GeneratedInput<GenericInputFormat<BaseRow>> generatedInput, BaseRowTypeInfo returnType) {

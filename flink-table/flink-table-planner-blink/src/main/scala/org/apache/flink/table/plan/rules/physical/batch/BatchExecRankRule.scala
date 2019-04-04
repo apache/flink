@@ -21,10 +21,10 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, RankType}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
 import org.apache.flink.table.plan.util.RelFieldCollationUtil
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.convert.ConverterRule
@@ -58,7 +58,7 @@ class BatchExecRankRule
   def convert(rel: RelNode): RelNode = {
     val rank = rel.asInstanceOf[FlinkLogicalRank]
     val (_, rankEnd) = rank.rankRange match {
-      case r: ConstantRankRange => (r.rankStart, r.rankEnd)
+      case r: ConstantRankRange => (r.getRankStart, r.getRankEnd)
       case o => throw new TableException(s"$o is not supported now")
     }
 
@@ -71,7 +71,7 @@ class BatchExecRankRule
     val newLocalInput = RelOptRule.convert(rank.getInput, localRequiredTraitSet)
 
     // create local BatchExecRank
-    val localRankRange = ConstantRankRange(1, rankEnd) // local rank always start from 1
+    val localRankRange = new ConstantRankRange(1, rankEnd) // local rank always start from 1
     val localRank = new BatchExecRank(
       cluster,
       emptyTraits,

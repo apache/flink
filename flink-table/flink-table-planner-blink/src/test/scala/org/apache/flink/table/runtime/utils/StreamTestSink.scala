@@ -19,23 +19,26 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.{TableConfig, Types}
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink}
+import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow}
+import org.apache.flink.table.sinks._
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.BaseRowTestUtil
 import org.apache.flink.types.Row
 
+import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.TimeZone
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
@@ -150,6 +153,159 @@ final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row]
   def getAppendResults: List[String] = getResults
 }
 
+final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
+  extends AbstractExactlyOnceSink[(Boolean, BaseRow)] {
+
+  private var upsertResultsState: ListState[String] = _
+  private var localUpsertResults: mutable.Map[String, String] = _
+  private var fieldTypes: Array[TypeInformation[_]] = _
+
+  def this(keys: Array[Int]) {
+    this(keys, TimeZone.getTimeZone("UTC"))
+  }
+
+  def configureTypes(fieldTypes: Array[TypeInformation[_]]): Unit = {
+    this.fieldTypes = fieldTypes
+  }
+
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    super.initializeState(context)
+    upsertResultsState = context.getOperatorStateStore.getListState(
+      new ListStateDescriptor[String]("sink-upsert-results", Types.STRING))
+
+    localUpsertResults = mutable.HashMap.empty[String, String]
+
+    if (context.isRestored) {
+      var key: String = null
+      var value: String = null
+      for (entry <- upsertResultsState.get().asScala) {
+        if (key == null) {
+          key = entry
+        } else {
+          value = entry
+          localUpsertResults += (key -> value)
+          key = null
+          value = null
+        }
+      }
+      if (key != null) {
+        throw new RuntimeException("The resultState is corrupt.")
+      }
+    }
+
+    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    StreamTestSink.synchronized{
+      StreamTestSink.globalUpsertResults(idx) += (taskId -> localUpsertResults)
+    }
+  }
+
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    super.snapshotState(context)
+    upsertResultsState.clear()
+    for ((key, value) <- localUpsertResults) {
+      upsertResultsState.add(key)
+      upsertResultsState.add(value)
+    }
+  }
+
+  def invoke(d: (Boolean, BaseRow)): Unit = {
+    this.synchronized {
+      val wrapRow = new GenericRow(2)
+      wrapRow.setField(0, d._1)
+      wrapRow.setField(1, d._2)
+      val converter =
+        DataFormatConverters.getConverterForTypeInfo(
+          new TupleTypeInfo(Types.BOOLEAN, new RowTypeInfo(fieldTypes: _*)))
+        .asInstanceOf[DataFormatConverters.DataFormatConverter[BaseRow, JTuple2[JBoolean, Row]]]
+      val v = converter.toExternal(wrapRow)
+      val rowString = TestSinkUtil.rowToString(v.f1, tz)
+      val tupleString = "(" + v.f0.toString + "," + rowString + ")"
+      localResults += tupleString
+      val keyString = TestSinkUtil.rowToString(Row.project(v.f1, keys), tz)
+      if (v.f0) {
+        localUpsertResults += (keyString -> rowString)
+      } else {
+        val oldValue = localUpsertResults.remove(keyString)
+        if (oldValue.isEmpty) {
+          throw new RuntimeException("Tried to delete a value that wasn't inserted first. " +
+                                       "This is probably an incorrectly implemented test. " +
+                                       "Try to set the parallelism of the sink to 1.")
+        }
+      }
+    }
+  }
+
+  def getRawResults: List[String] = getResults
+
+  def getUpsertResults: List[String] = {
+    clearAndStashGlobalResults()
+    val result = ArrayBuffer.empty[String]
+    this.globalUpsertResults.foreach {
+      case (_, map) => map.foreach(result += _._2)
+    }
+    result.toList
+  }
+}
+
+final class TestingUpsertTableSink(keys: Array[Int], tz: TimeZone)
+  extends UpsertStreamTableSink[BaseRow] {
+  var fNames: Array[String] = _
+  var fTypes: Array[TypeInformation[_]] = _
+  var sink = new TestingUpsertSink(keys, tz)
+
+  def this(keys: Array[Int]) {
+    this(keys, TimeZone.getTimeZone("UTC"))
+  }
+
+  override def setKeyFields(keys: Array[String]): Unit = {
+    // ignore
+  }
+
+  override def setIsAppendOnly(isAppendOnly: JBoolean): Unit = {
+    // ignore
+  }
+
+  override def getRecordType: TypeInformation[BaseRow] =
+    new BaseRowTypeInfo(fTypes.map(createInternalTypeFromTypeInfo(_)), fNames)
+
+  override def getFieldNames: Array[String] = fNames
+
+  override def getFieldTypes: Array[TypeInformation[_]] = fTypes
+
+  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, BaseRow]]) = {
+    dataStream.map(new MapFunction[JTuple2[JBoolean, BaseRow], (Boolean, BaseRow)] {
+      override def map(value: JTuple2[JBoolean, BaseRow]): (Boolean, BaseRow) = {
+        (value.f0, value.f1)
+      }
+    })
+    .addSink(sink)
+    .name(s"TestingUpsertTableSink(keys=${
+      if (keys != null) {
+        "(" + keys.mkString(",") + ")"
+      } else {
+        "null"
+      }
+    })")
+    .setParallelism(1)
+  }
+
+  override def configure(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]])
+  : TableSink[JTuple2[JBoolean, BaseRow]] = {
+    val copy = new TestingUpsertTableSink(keys, tz)
+    copy.fNames = fieldNames
+    copy.fTypes = fieldTypes
+    sink.configureTypes(fieldTypes)
+    copy.sink = sink
+    copy
+  }
+
+  def getRawResults: List[String] = sink.getRawResults
+
+  def getUpsertResults: List[String] = sink.getUpsertResults
+}
+
 final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[Row]
   with BatchTableSink[Row]{
   var fNames: Array[String] = _
@@ -240,5 +396,120 @@ class TestingOutputFormat[T](tz: TimeZone)
       case (_, list) => result ++= list
     }
     result.toList
+  }
+}
+
+class TestingRetractSink(tz: TimeZone)
+  extends AbstractExactlyOnceSink[(Boolean, Row)] {
+  protected var retractResultsState: ListState[String] = _
+  protected var localRetractResults: ArrayBuffer[String] = _
+
+  def this() {
+    this(TimeZone.getTimeZone("UTC"))
+  }
+
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    super.initializeState(context)
+    retractResultsState = context.getOperatorStateStore.getListState(
+      new ListStateDescriptor[String]("sink-retract-results", Types.STRING))
+
+    localRetractResults = mutable.ArrayBuffer.empty[String]
+
+    if (context.isRestored) {
+      for (value <- retractResultsState.get().asScala) {
+        localRetractResults += value
+      }
+    }
+
+    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    StreamTestSink.synchronized{
+      StreamTestSink.globalRetractResults(idx) += (taskId -> localRetractResults)
+    }
+  }
+
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    super.snapshotState(context)
+    retractResultsState.clear()
+    for (value <- localRetractResults) {
+      retractResultsState.add(value)
+    }
+  }
+
+  def invoke(v: (Boolean, Row)): Unit = {
+    this.synchronized {
+      val tupleString = "(" + v._1.toString + "," + TestSinkUtil.rowToString(v._2, tz) + ")"
+      localResults += tupleString
+      val rowString = TestSinkUtil.rowToString(v._2, tz)
+      if (v._1) {
+        localRetractResults += rowString
+      } else {
+        val index = localRetractResults.indexOf(rowString)
+        if (index >= 0) {
+          localRetractResults.remove(index)
+        } else {
+          throw new RuntimeException("Tried to retract a value that wasn't added first. " +
+                                       "This is probably an incorrectly implemented test. " +
+                                       "Try to set the parallelism of the sink to 1.")
+        }
+      }
+    }
+  }
+
+  def getRawResults: List[String] = getResults
+
+  def getRetractResults: List[String] = {
+    clearAndStashGlobalResults()
+    val result = ArrayBuffer.empty[String]
+    this.globalRetractResults.foreach {
+      case (_, list) => result ++= list
+    }
+    result.toList
+  }
+}
+
+final class TestingRetractTableSink(tz: TimeZone) extends RetractStreamTableSink[Row] {
+
+  var fNames: Array[String] = _
+  var fTypes: Array[TypeInformation[_]] = _
+  var sink = new TestingRetractSink(tz)
+
+  def this() {
+    this(TimeZone.getTimeZone("UTC"))
+  }
+
+  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, Row]]) = {
+    dataStream.map(new MapFunction[JTuple2[JBoolean, Row], (Boolean, Row)] {
+      override def map(value: JTuple2[JBoolean, Row]): (Boolean, Row) = {
+        (value.f0, value.f1)
+      }
+    }).setParallelism(dataStream.getParallelism)
+    .addSink(sink)
+    .name("TestingRetractTableSink")
+    .setParallelism(dataStream.getParallelism)
+  }
+
+  override def getRecordType: TypeInformation[Row] =
+    new RowTypeInfo(fTypes, fNames)
+
+  override def getFieldNames: Array[String] = fNames
+
+  override def getFieldTypes: Array[TypeInformation[_]] = fTypes
+
+  override def configure(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): TableSink[JTuple2[JBoolean, Row]] = {
+    val copy = new TestingRetractTableSink(tz)
+    copy.fNames = fieldNames
+    copy.fTypes = fieldTypes
+    copy.sink = sink
+    copy
+  }
+
+  def getRawResults: List[String] = {
+    sink.getRawResults
+  }
+
+  def getRetractResults: List[String] = {
+    sink.getRetractResults
   }
 }

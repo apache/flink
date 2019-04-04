@@ -449,6 +449,7 @@ class SortCodeGenerator(
       case InternalTypes.FLOAT => 4
       case InternalTypes.DOUBLE => 8
       case InternalTypes.LONG => 8
+      case _: TimestampType => 8
       case dt: DecimalType if Decimal.isCompact(dt.precision()) => 8
       case InternalTypes.STRING | InternalTypes.BINARY => Int.MaxValue
     }
