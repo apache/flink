@@ -30,7 +30,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -56,7 +55,7 @@ import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -64,7 +63,6 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 
-import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,10 +134,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	@GuardedBy("lock")
 	private ExecutorService ioExecutor;
 
-	@GuardedBy("lock")
-	private ActorSystem metricQueryServiceActorSystem;
-
-	@GuardedBy("lock")
 	private ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
 	private final Thread shutDownHook;
@@ -224,9 +218,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				heartbeatServices,
 				metricRegistry,
 				archivedExecutionGraphStore,
-				new AkkaQueryServiceRetriever(
-					metricQueryServiceActorSystem,
-					Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
+				new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService()),
 				this);
 
 			clusterComponent.getShutDownFuture().whenComplete(
@@ -271,10 +263,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			heartbeatServices = createHeartbeatServices(configuration);
 			metricRegistry = createMetricRegistry(configuration);
 
-			// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
-			// Start actor system for metric query service on any available port
-			metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(configuration, bindAddress, LOG);
-			metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
+			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, bindAddress);
+			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 		}
@@ -362,10 +352,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			if (metricRegistry != null) {
 				terminationFutures.add(metricRegistry.shutdown());
-			}
-
-			if (metricQueryServiceActorSystem != null) {
-				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
 			}
 
 			if (ioExecutor != null) {

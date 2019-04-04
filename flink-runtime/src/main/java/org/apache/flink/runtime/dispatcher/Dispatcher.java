@@ -126,7 +126,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final HistoryServerArchivist historyServerArchivist;
 
 	@Nullable
-	private final String metricQueryServicePath;
+	private final String metricServiceQueryAddress;
 
 	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
 
@@ -142,7 +142,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			JobManagerMetricGroup jobManagerMetricGroup,
-			@Nullable String metricServiceQueryPath,
+			@Nullable String metricServiceQueryAddress,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
@@ -157,7 +157,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 		this.submittedJobGraphStore = Preconditions.checkNotNull(submittedJobGraphStore);
 		this.jobManagerMetricGroup = Preconditions.checkNotNull(jobManagerMetricGroup);
-		this.metricQueryServicePath = metricServiceQueryPath;
+		this.metricServiceQueryAddress = metricServiceQueryAddress;
 
 		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
@@ -550,17 +550,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<Collection<String>> requestMetricQueryServicePaths(Time timeout) {
-		if (metricQueryServicePath != null) {
-			return CompletableFuture.completedFuture(Collections.singleton(metricQueryServicePath));
+	public CompletableFuture<Collection<String>> requestMetricQueryServiceAddresses(Time timeout) {
+		if (metricServiceQueryAddress != null) {
+			return CompletableFuture.completedFuture(Collections.singleton(metricServiceQueryAddress));
 		} else {
 			return CompletableFuture.completedFuture(Collections.emptyList());
 		}
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		return runResourceManagerCommand(resourceManagerGateway -> resourceManagerGateway.requestTaskManagerMetricQueryServicePaths(timeout));
+	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+		return runResourceManagerCommand(resourceManagerGateway -> resourceManagerGateway.requestTaskManagerMetricQueryServiceAddresses(timeout));
 	}
 
 	@Override

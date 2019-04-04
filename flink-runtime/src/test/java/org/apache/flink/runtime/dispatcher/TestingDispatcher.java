@@ -53,7 +53,7 @@ class TestingDispatcher extends Dispatcher {
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
+		@Nullable String metricQueryServiceAddress,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		JobManagerRunnerFactory jobManagerRunnerFactory,
 		FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -67,7 +67,7 @@ class TestingDispatcher extends Dispatcher {
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
-			metricQueryServicePath,
+			metricQueryServiceAddress,
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,

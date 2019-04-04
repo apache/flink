@@ -613,9 +613,9 @@ public class DispatcherTest extends TestLogger {
 
 		assertThat(submissionFuture.isDone(), is(false));
 
-		final CompletableFuture<Collection<String>> metricQueryServicePathsFuture = dispatcherGateway.requestMetricQueryServicePaths(Time.seconds(5L));
+		final CompletableFuture<Collection<String>> metricQueryServiceAddressesFuture = dispatcherGateway.requestMetricQueryServiceAddresses(Time.seconds(5L));
 
-		assertThat(metricQueryServicePathsFuture.get(), is(empty()));
+		assertThat(metricQueryServiceAddressesFuture.get(), is(empty()));
 
 		assertThat(submissionFuture.isDone(), is(false));
 

@@ -122,7 +122,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 
 		final MetricFetcher metricFetcher = new MetricFetcherImpl<>(
 			() -> null,
-			path -> null,
+			address -> null,
 			TestingUtils.defaultExecutor(),
 			Time.milliseconds(1000L),
 			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());

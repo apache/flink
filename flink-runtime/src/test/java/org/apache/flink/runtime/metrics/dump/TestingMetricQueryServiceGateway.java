@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.retriever;
+package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 
 import javax.annotation.Nonnull;
 
@@ -50,6 +50,11 @@ public class TestingMetricQueryServiceGateway implements MetricQueryServiceGatew
 	@Override
 	public String getAddress() {
 		return address;
+	}
+
+	@Override
+	public String getHostname() {
+		return "localhost";
 	}
 
 	/**

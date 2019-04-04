@@ -42,7 +42,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			@Nullable String metricQueryServicePath,
+			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
@@ -52,7 +52,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			taskExecutorServices,
 			heartbeatServices,
 			taskManagerMetricGroup,
-			metricQueryServicePath,
+			metricQueryServiceAddress,
 			blobCacheService,
 			fatalErrorHandler);
 	}

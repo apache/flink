@@ -31,10 +31,11 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
-import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,15 +127,15 @@ public class MetricUtils {
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
 	}
 
-	public static ActorSystem startMetricsActorSystem(Configuration configuration, String hostname, Logger logger) throws Exception {
+	public static RpcService startMetricsRpcService(Configuration configuration, String hostname) throws Exception {
 		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
 		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
-		return BootstrapTools.startActorSystem(
-			configuration,
-			METRICS_ACTOR_SYSTEM_NAME,
+
+		return AkkaRpcServiceUtils.createRpcService(
 			hostname,
 			portRange,
-			logger,
+			configuration,
+			METRICS_ACTOR_SYSTEM_NAME,
 			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
 	}
 

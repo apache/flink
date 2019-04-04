@@ -567,22 +567,22 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>> metricQueryServicePathFutures = new ArrayList<>(taskExecutors.size());
+	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+		final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>> metricQueryServiceAddressFutures = new ArrayList<>(taskExecutors.size());
 
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerRegistrationEntry : taskExecutors.entrySet()) {
 			final ResourceID tmResourceId = workerRegistrationEntry.getKey();
 			final WorkerRegistration<WorkerType> workerRegistration = workerRegistrationEntry.getValue();
 			final TaskExecutorGateway taskExecutorGateway = workerRegistration.getTaskExecutorGateway();
 
-			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServicePathFuture = taskExecutorGateway
+			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServiceAddressFuture = taskExecutorGateway
 				.requestMetricQueryServiceAddress(timeout)
 				.thenApply(optional -> optional.map(path -> Tuple2.of(tmResourceId, path)));
 
-			metricQueryServicePathFutures.add(metricQueryServicePathFuture);
+			metricQueryServiceAddressFutures.add(metricQueryServiceAddressFuture);
 		}
 
-		return FutureUtils.combineAll(metricQueryServicePathFutures).thenApply(
+		return FutureUtils.combineAll(metricQueryServiceAddressFutures).thenApply(
 			collection -> collection
 				.stream()
 				.filter(Optional::isPresent)

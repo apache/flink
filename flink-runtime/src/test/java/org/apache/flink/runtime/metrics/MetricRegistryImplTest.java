@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -28,28 +29,30 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorNotFound;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link MetricRegistryImpl}.
@@ -79,6 +82,33 @@ public class MetricRegistryImplTest extends TestLogger {
 		public void open(MetricConfig config) {
 			wasOpened = true;
 		}
+	}
+
+	@Test
+	public void testMetricQueryServiceSetup() throws Exception {
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+
+		Assert.assertNull(metricRegistry.getMetricQueryServiceGatewayRpcAddress());
+
+		metricRegistry.startQueryService(new TestingRpcService(), new ResourceID("mqs"));
+
+		MetricQueryServiceGateway metricQueryServiceGateway = metricRegistry.getMetricQueryServiceGateway();
+		Assert.assertNotNull(metricQueryServiceGateway);
+
+		metricRegistry.register(new SimpleCounter(), "counter", UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup());
+
+		boolean metricsSuccessfullyQueried = false;
+		for (int x = 0; x < 10; x++) {
+			MetricDumpSerialization.MetricSerializationResult metricSerializationResult = metricQueryServiceGateway.queryMetrics(Time.seconds(5))
+				.get(5, TimeUnit.SECONDS);
+
+			if (metricSerializationResult.numCounters == 1) {
+				metricsSuccessfullyQueried = true;
+			} else {
+				Thread.sleep(50);
+			}
+		}
+		Assert.assertTrue("metrics query did not return expected result", metricsSuccessfullyQueried);
 	}
 
 	/**
@@ -369,21 +399,15 @@ public class MetricRegistryImplTest extends TestLogger {
 
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
-		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+		final RpcService rpcService = new TestingRpcService();
 
-		registry.startQueryService(actorSystem, null);
+		registry.startQueryService(rpcService, null);
 
-		ActorRef queryServiceActor = registry.getQueryService();
+		MetricQueryService queryService = checkNotNull(registry.getQueryService());
 
 		registry.shutdown().get();
 
-		try {
-			Await.result(actorSystem.actorSelection(queryServiceActor.path()).resolveOne(timeout), timeout);
-
-			fail("The query actor should be terminated resulting in a ActorNotFound exception.");
-		} catch (ActorNotFound e) {
-			// we expect the query actor to be shut down
-		}
+		queryService.getTerminationFuture().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	/**

@@ -35,8 +35,6 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -333,12 +331,6 @@ public class AbstractMetricGroupTest {
 
 		@Override
 		public ScopeFormats getScopeFormats() {
-			return null;
-		}
-
-		@Nullable
-		@Override
-		public String getMetricQueryServicePath() {
 			return null;
 		}
 	}
