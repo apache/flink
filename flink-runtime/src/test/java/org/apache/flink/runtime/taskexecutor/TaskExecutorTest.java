@@ -1806,8 +1806,8 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	@Nonnull
-	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
-		return new TestingTaskExecutor(
+	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
+		return new TaskExecutor(
 			rpc,
 			TaskManagerConfiguration.fromConfiguration(configuration),
 			haServices,
