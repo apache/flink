@@ -256,11 +256,14 @@ public abstract class TestJvmProcess {
 
 		try {
 			Class<? extends Process> clazz = process.getClass();
-			if (clazz.getName().equals("java.lang.UNIXProcess")
-				|| clazz.getName().equals("java.lang.ProcessImpl")) {
+			if (clazz.getName().equals("java.lang.UNIXProcess")) {
 				Field pidField = clazz.getDeclaredField("pid");
 				pidField.setAccessible(true);
 				return pidField.getLong(process);
+			} else if (clazz.getName().equals("java.lang.ProcessImpl")) {
+				Method pid = clazz.getDeclaredMethod("pid");
+				pid.setAccessible(true);
+				return (long) pid.invoke(process);
 			} else {
 				return -1;
 			}
