@@ -19,9 +19,9 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkContext
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalOverWindow, FlinkLogicalRank}
 import org.apache.flink.table.plan.util.RankUtil
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
@@ -85,8 +85,9 @@ abstract class FlinkLogicalRankRuleBase
     require(rankNumberType.isDefined)
 
     rankRange match {
-      case Some(ConstantRankRange(_, rankEnd)) if rankEnd <= 0 =>
-        throw new TableException(s"Rank end should not less than zero, but now is $rankEnd")
+      case Some(crr: ConstantRankRange) if crr.getRankEnd <= 0 =>
+        throw new TableException(
+          s"Rank end should not less than zero, but now is ${crr.getRankEnd}")
       case _ => // do nothing
     }
 

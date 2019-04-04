@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.typeutils
 
-import org.apache.flink.table.`type`._
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.PojoTypeInfo
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.codegen.GeneratedExpression
+import org.apache.flink.table.`type`._
 
 object TypeCheckUtils {
 
@@ -96,4 +100,63 @@ object TypeCheckUtils {
 
   def isReference(genExpr: GeneratedExpression): Boolean = isReference(genExpr.resultType)
 
+  /**
+    * Checks whether a type implements own hashCode() and equals() methods for storing an instance
+    * in Flink's state or performing a keyBy operation.
+    *
+    * @param name name of the operation.
+    * @param t type information to be validated
+    */
+  def validateEqualsHashCode(name: String, t: TypeInformation[_]): Unit = t match {
+
+    // make sure that a POJO class is a valid state type
+    case pt: PojoTypeInfo[_] =>
+      // we don't check the types recursively to give a chance of wrapping
+      // proper hashCode/equals methods around an immutable type
+      validateEqualsHashCode(name, pt.getClass)
+    // BinaryRow direct hash in bytes, no need to check field types.
+    case bt: BaseRowTypeInfo =>
+    // recursively check composite types
+    case ct: CompositeType[_] =>
+      validateEqualsHashCode(name, t.getTypeClass)
+      // we check recursively for entering Flink types such as tuples and rows
+      for (i <- 0 until ct.getArity) {
+        val subtype = ct.getTypeAt(i)
+        validateEqualsHashCode(name, subtype)
+      }
+    // check other type information only based on the type class
+    case _: TypeInformation[_] =>
+      validateEqualsHashCode(name, t.getTypeClass)
+  }
+
+  /**
+    * Checks whether a class implements own hashCode() and equals() methods for storing an instance
+    * in Flink's state or performing a keyBy operation.
+    *
+    * @param name name of the operation
+    * @param c class to be validated
+    */
+  def validateEqualsHashCode(name: String, c: Class[_]): Unit = {
+
+    // skip primitives
+    if (!c.isPrimitive) {
+      // check the component type of arrays
+      if (c.isArray) {
+        validateEqualsHashCode(name, c.getComponentType)
+      }
+      // check type for methods
+      else {
+        if (c.getMethod("hashCode").getDeclaringClass eq classOf[Object]) {
+          throw new ValidationException(
+            s"Type '${c.getCanonicalName}' cannot be used in a $name operation because it " +
+              s"does not implement a proper hashCode() method.")
+        }
+        if (c.getMethod("equals", classOf[Object]).getDeclaringClass eq classOf[Object]) {
+          throw new ValidationException(
+            s"Type '${c.getCanonicalName}' cannot be used in a $name operation because it " +
+              s"does not implement a proper equals() method.")
+        }
+      }
+    }
+  }
 }

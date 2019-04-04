@@ -19,8 +19,8 @@
 package org.apache.flink.table.plan.nodes.calcite
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
 import org.apache.flink.table.plan.util._
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -71,18 +71,19 @@ abstract class Rank(
 
   rankRange match {
     case r: ConstantRankRange =>
-      if (r.rankEnd <= 0) {
-        throw new TableException(s"Rank end can't smaller than zero. The rank end is ${r.rankEnd}")
-      }
-      if (r.rankStart > r.rankEnd) {
+      if (r.getRankEnd <= 0) {
         throw new TableException(
-          s"Rank start '${r.rankStart}' can't greater than rank end '${r.rankEnd}'.")
+          s"Rank end can't smaller than zero. The rank end is ${r.getRankEnd}")
+      }
+      if (r.getRankStart > r.getRankEnd) {
+        throw new TableException(
+          s"Rank start '${r.getRankStart}' can't greater than rank end '${r.getRankEnd}'.")
       }
     case v: VariableRankRange =>
-      if (v.rankEndIndex < 0) {
+      if (v.getRankEndIndex < 0) {
         throw new TableException(s"Rank end index can't smaller than zero.")
       }
-      if (v.rankEndIndex >= input.getRowType.getFieldCount) {
+      if (v.getRankEndIndex >= input.getRowType.getFieldCount) {
         throw new TableException(s"Rank end index can't greater than input field count.")
       }
   }
@@ -105,7 +106,7 @@ abstract class Rank(
     }.mkString(", ")
     super.explainTerms(pw)
       .item("rankType", rankType)
-      .item("rankRange", rankRange.toString())
+      .item("rankRange", rankRange)
       .item("partitionBy", partitionKey.map(i => s"$$$i").mkString(","))
       .item("orderBy", RelExplainUtil.collationToString(orderKey))
       .item("select", select)
@@ -133,65 +134,4 @@ abstract class Rank(
     planner.getCostFactory.makeCost(rowCount, cpuCost, 0)
   }
 
-}
-
-/**
-  * An enumeration of rank type, usable to tell the [[Rank]] node how exactly generate rank number.
-  */
-object RankType extends Enumeration {
-  type RankType = Value
-
-  /**
-    * Returns a unique sequential number for each row within the partition based on the order,
-    * starting at 1 for the first row in each partition and without repeating or skipping
-    * numbers in the ranking result of each partition. If there are duplicate values within the
-    * row set, the ranking numbers will be assigned arbitrarily.
-    */
-  val ROW_NUMBER: RankType.Value = Value
-
-  /**
-    * Returns a unique rank number for each distinct row within the partition based on the order,
-    * starting at 1 for the first row in each partition, with the same rank for duplicate values
-    * and leaving gaps between the ranks; this gap appears in the sequence after the duplicate
-    * values.
-    */
-  val RANK: RankType.Value = Value
-
-  /**
-    * is similar to the RANK by generating a unique rank number for each distinct row
-    * within the partition based on the order, starting at 1 for the first row in each partition,
-    * ranking the rows with equal values with the same rank number, except that it does not skip
-    * any rank, leaving no gaps between the ranks.
-    */
-  val DENSE_RANK: RankType.Value = Value
-}
-
-sealed trait RankRange extends Serializable {
-  def toString(inputFieldNames: Seq[String]): String
-}
-
-/** [[ConstantRankRangeWithoutEnd]] is a RankRange which not specify RankEnd. */
-case class ConstantRankRangeWithoutEnd(rankStart: Long) extends RankRange {
-  override def toString(inputFieldNames: Seq[String]): String = this.toString
-
-  override def toString: String = s"rankStart=$rankStart"
-}
-
-/** rankStart and rankEnd are inclusive, rankStart always start from one. */
-case class ConstantRankRange(rankStart: Long, rankEnd: Long) extends RankRange {
-
-  override def toString(inputFieldNames: Seq[String]): String = this.toString
-
-  override def toString: String = s"rankStart=$rankStart, rankEnd=$rankEnd"
-}
-
-/** changing rank limit depends on input */
-case class VariableRankRange(rankEndIndex: Int) extends RankRange {
-  override def toString(inputFieldNames: Seq[String]): String = {
-    s"rankEnd=${inputFieldNames(rankEndIndex)}"
-  }
-
-  override def toString: String = {
-    s"rankEnd=$$$rankEndIndex"
-  }
 }

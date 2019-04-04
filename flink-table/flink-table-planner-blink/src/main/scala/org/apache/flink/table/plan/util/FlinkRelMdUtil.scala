@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, RankRange}
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.sort.BinaryIndexedSortable
 import org.apache.flink.table.typeutils.BinaryRowSerializer
 
@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
 object FlinkRelMdUtil {
 
   def getRankRangeNdv(rankRange: RankRange): Double = rankRange match {
-    case r: ConstantRankRange => (r.rankEnd - r.rankStart + 1).toDouble
+    case r: ConstantRankRange => (r.getRankEnd - r.getRankStart + 1).toDouble
     case _ => 100D // default value now
   }
 

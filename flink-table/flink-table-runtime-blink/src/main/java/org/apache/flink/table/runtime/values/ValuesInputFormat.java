@@ -41,7 +41,7 @@ public class ValuesInputFormat
 
 	private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
 	private GeneratedInput<GenericInputFormat<BaseRow>> generatedInput;
-	private BaseRowTypeInfo returnType;
+	private final BaseRowTypeInfo returnType;
 	private GenericInputFormat<BaseRow> format;
 
 	public ValuesInputFormat(GeneratedInput<GenericInputFormat<BaseRow>> generatedInput, BaseRowTypeInfo returnType) {
@@ -54,7 +54,9 @@ public class ValuesInputFormat
 		LOG.debug("Compiling GenericInputFormat: $name \n\n Code:\n$code",
 				generatedInput.getClassName(), generatedInput.getCode());
 		LOG.debug("Instantiating GenericInputFormat.");
+
 		format = generatedInput.newInstance(getRuntimeContext().getUserCodeClassLoader());
+		generatedInput = null;
 	}
 
 	@Override

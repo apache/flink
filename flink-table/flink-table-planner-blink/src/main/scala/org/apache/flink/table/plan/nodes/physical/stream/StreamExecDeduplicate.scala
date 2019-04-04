@@ -18,27 +18,42 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.KeySelectorUtil
+import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
+import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
+import org.apache.flink.table.runtime.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode which deduplicate on keys and keeps only first row or last row.
   * This node is an optimization of [[StreamExecRank]] for some special cases.
   * Compared to [[StreamExecRank]], this node could use mini-batch and access less state.
-  * <p>NOTES: only supports sort on proctime now.
+  * <p>NOTES: only supports sort on proctime now, sort on rowtime will not translated into
+  * StreamExecDeduplicate node.
   */
 class StreamExecDeduplicate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     uniqueKeys: Array[Int],
-    isRowtime: Boolean,
     keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 
@@ -60,17 +75,77 @@ class StreamExecDeduplicate(
       traitSet,
       inputs.get(0),
       uniqueKeys,
-      isRowtime,
       keepLastRow)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val fieldNames = getRowType.getFieldNames
-    val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
     super.explainTerms(pw)
       .item("keepLastRow", keepLastRow)
       .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
-      .item("order", orderString)
+      .item("order", "PROCTIME")
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+
+    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
+
+    if (inputIsAccRetract) {
+      throw new TableException("Deduplicate doesn't support retraction input stream currently.")
+    }
+
+    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+      .asInstanceOf[StreamTransformation[BaseRow]]
+
+    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val tableConfig = tableEnv.getConfig
+    val isMiniBatchEnabled = tableConfig.getConf.getLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
+    val operator = if (isMiniBatchEnabled) {
+      val exeConfig = tableEnv.execEnv.getConfig
+      val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
+      val processFunction = if (keepLastRow) {
+        new MiniBatchDeduplicateKeepLastRowFunction(rowTypeInfo, generateRetraction, rowSerializer)
+      } else {
+        new MiniBatchDeduplicateKeepFirstRowFunction(rowSerializer)
+      }
+      val trigger = new CountBundleTrigger[BaseRow](
+        tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+      new KeyedMapBundleOperator(
+        processFunction,
+        trigger)
+    } else {
+      val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
+      val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
+      val processFunction = if (keepLastRow) {
+        new DeduplicateKeepLastRowFunction(minRetentionTime, maxRetentionTime, rowTypeInfo,
+          generateRetraction)
+      } else {
+        new DeduplicateKeepFirstRowFunction(minRetentionTime, maxRetentionTime)
+      }
+      new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
+    }
+    val ret = new OneInputTransformation(
+      inputTransform, getOperatorName, operator, rowTypeInfo, inputTransform.getParallelism)
+    val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
+    ret.setStateKeySelector(selector)
+    ret.setStateKeyType(selector.getProducedType)
+    ret
+  }
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  private def getOperatorName: String = {
+    val fieldNames = getRowType.getFieldNames
+    val keyNames = uniqueKeys.map(fieldNames.get).mkString(", ")
+    s"${if (keepLastRow) "keepLastRow" else "KeepFirstRow"}" +
+      s": (key: ($keyNames), select: (${fieldNames.mkString(", ")}), order: (PROCTIME)"
   }
 
 }

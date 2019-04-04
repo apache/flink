@@ -19,7 +19,9 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
-import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, ConstantRankRangeWithoutEnd, Rank, RankRange, VariableRankRange}
+import org.apache.flink.table.plan.nodes.calcite.Rank
+import org.apache.flink.table.runtime.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
@@ -98,20 +100,20 @@ object RankUtil {
     val sortBounds = limitPreds.map(computeWindowBoundFromPredicate(_, rexBuilder, config))
     val rankRange = sortBounds match {
       case Seq(Some(LowerBoundary(x)), Some(UpperBoundary(y))) =>
-        ConstantRankRange(x, y)
+        new ConstantRankRange(x, y)
       case Seq(Some(UpperBoundary(x)), Some(LowerBoundary(y))) =>
-        ConstantRankRange(y, x)
+        new ConstantRankRange(y, x)
       case Seq(Some(LowerBoundary(x))) =>
         // only offset
-        ConstantRankRangeWithoutEnd(x)
+        new ConstantRankRangeWithoutEnd(x)
       case Seq(Some(UpperBoundary(x))) =>
         // rankStart starts from one
-        ConstantRankRange(1, x)
+        new ConstantRankRange(1, x)
       case Seq(Some(BothBoundary(x, y))) =>
         // nth rank
-        ConstantRankRange(x, y)
+        new ConstantRankRange(x, y)
       case Seq(Some(InputRefBoundary(x))) =>
-        VariableRankRange(x)
+        new VariableRankRange(x)
       case _ =>
         // TopN requires at least one rank comparison predicate
         return (None, Some(predicate))

@@ -115,7 +115,7 @@ object CodeGenUtils {
 
     case InternalTypes.DATE => "int"
     case InternalTypes.TIME => "int"
-    case InternalTypes.TIMESTAMP => "long"
+    case _: TimestampType => "long"
 
     case InternalTypes.INTERVAL_MONTHS => "int"
     case InternalTypes.INTERVAL_MILLIS => "long"
@@ -135,7 +135,7 @@ object CodeGenUtils {
 
     case InternalTypes.DATE => boxedTypeTermForType(InternalTypes.INT)
     case InternalTypes.TIME => boxedTypeTermForType(InternalTypes.INT)
-    case InternalTypes.TIMESTAMP => boxedTypeTermForType(InternalTypes.LONG)
+    case _: TimestampType => boxedTypeTermForType(InternalTypes.LONG)
 
     case InternalTypes.STRING => BINARY_STRING
     case InternalTypes.BINARY => "byte[]"

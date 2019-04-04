@@ -134,6 +134,15 @@ public class TableConfigOptions {
 					.withDescription("Sets the max buffer memory size for sort. It defines the upper memory for the sort.");
 
 	// ------------------------------------------------------------------------
+	//  topN Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_EXEC_TOPN_CACHE_SIZE =
+			key("sql.exec.topn.cache.size")
+					.defaultValue(10000L)
+					.withDescription("Cache size of every topn task.");
+
+	// ------------------------------------------------------------------------
 	//  MiniBatch Options
 	// ------------------------------------------------------------------------
 
