@@ -324,11 +324,11 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
-		ResultPartitionDeploymentDescriptor irpdd =
+		ResultPartitionDeploymentDescriptor task1ResultPartitionDescriptor =
 			new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1,
 				1, true);
 
-		InputGateDeploymentDescriptor ircdd =
+		InputGateDeploymentDescriptor task2InputGateDescriptor =
 			new InputGateDeploymentDescriptor(new IntermediateDataSetID(), ResultPartitionType.PIPELINED, 0,
 				new InputChannelDeploymentDescriptor[] {
 					new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1),
@@ -340,7 +340,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				eid1,
 				TestingAbstractInvokables.Sender.class, 
 				1,
-				Collections.singletonList(irpdd),
+				Collections.singletonList(task1ResultPartitionDescriptor),
 				Collections.emptyList());
 		final TaskDeploymentDescriptor tdd2 =
 			createTestTaskDeploymentDescriptor(
@@ -349,7 +349,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				TestingAbstractInvokables.Receiver.class,
 				1,
 				Collections.emptyList(),
-				Collections.singletonList(ircdd));
+				Collections.singletonList(task2InputGateDescriptor));
 
 		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
@@ -401,11 +401,11 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
-		ResultPartitionDeploymentDescriptor irpdd =
+		ResultPartitionDeploymentDescriptor task1ResultPartitionDescriptor =
 			new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1,
 				1, true);
 
-		InputGateDeploymentDescriptor ircdd =
+		InputGateDeploymentDescriptor task2InputGateDescriptor =
 			new InputGateDeploymentDescriptor(new IntermediateDataSetID(), ResultPartitionType.PIPELINED, 0,
 				new InputChannelDeploymentDescriptor[] {
 					new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1),
@@ -415,7 +415,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			createTestTaskDeploymentDescriptor("Sender",
 				eid1,
 				TestingAbstractInvokables.Sender.class, 1,
-				Collections.singletonList(irpdd),
+				Collections.singletonList(task1ResultPartitionDescriptor),
 				Collections.emptyList());
 		final TaskDeploymentDescriptor tdd2 =
 			createTestTaskDeploymentDescriptor("Receiver",
@@ -423,7 +423,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				TestingAbstractInvokables.Receiver.class,
 				1,
 				Collections.emptyList(),
-				Collections.singletonList(ircdd));
+				Collections.singletonList(task2InputGateDescriptor));
 
 		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
@@ -497,19 +497,19 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			.createRemote(new ConnectionID(
 				new InetSocketAddress("localhost", dataPort), 0));
 
-		final InputChannelDeploymentDescriptor[] icdd =
+		final InputChannelDeploymentDescriptor[] inputChannelDeploymentDescriptors =
 			new InputChannelDeploymentDescriptor[] {
 				new InputChannelDeploymentDescriptor(partitionId, loc)};
 
-		final InputGateDeploymentDescriptor igdd =
-			new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
+		final InputGateDeploymentDescriptor inputGateDeploymentDescriptor =
+			new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, inputChannelDeploymentDescriptors);
 
 		final TaskDeploymentDescriptor tdd =
 			createTestTaskDeploymentDescriptor("Receiver",
 				eid,
 				Tasks.AgnosticReceiver.class, 1,
 				Collections.emptyList(),
-				Collections.singletonList(igdd));
+				Collections.singletonList(inputGateDeploymentDescriptor));
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
@@ -587,19 +587,19 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final ResultPartitionLocation loc = ResultPartitionLocation.createLocal();
 
-		final InputChannelDeploymentDescriptor[] icdd =
+		final InputChannelDeploymentDescriptor[] inputChannelDeploymentDescriptors =
 			new InputChannelDeploymentDescriptor[] {
 				new InputChannelDeploymentDescriptor(partitionId, loc)};
 
-		final InputGateDeploymentDescriptor igdd =
-			new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
+		final InputGateDeploymentDescriptor inputGateDeploymentDescriptor =
+			new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, inputChannelDeploymentDescriptors);
 
 		final TaskDeploymentDescriptor tdd =
 			createTestTaskDeploymentDescriptor("Receiver",
 				eid,
 				Tasks.AgnosticReceiver.class,
 				1, Collections.emptyList(),
-				Collections.singletonList(igdd));
+				Collections.singletonList(inputGateDeploymentDescriptor));
 
 		Configuration config = new Configuration();
 		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
