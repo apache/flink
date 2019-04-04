@@ -69,8 +69,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfDeploying() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -91,8 +91,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfRunning() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -115,8 +115,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfFailing() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -167,8 +167,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfCanceling() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -247,6 +247,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static void ensureCannotLeaveSuspendedState(ExecutionGraph eg, InteractionsCountingTaskManagerGateway gateway) {
+		gateway.waitUntilAllTasksAreSubmitted();
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 		gateway.resetCounts();
 
