@@ -103,7 +103,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	public void testTaskSubmission() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, TaskExecutorTest.TestInvokable.class, 1);
+		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, TaskExecutorTest.TestInvokable.class);
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
