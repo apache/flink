@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import com.rabbitmq.client.*;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,17 +27,17 @@ import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourc
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.connectors.rabbitmq.common.RabbitMQConsumer;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.Delivery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * RabbitMQ source (consumer) which reads from a queue and acknowledges messages on checkpoints.
@@ -80,11 +81,12 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	protected transient Connection connection;
 	protected transient Channel channel;
-	protected transient QueueingConsumer consumer;
+	protected transient RabbitMQConsumer consumer;
 
 	protected transient boolean autoAck;
 
 	private transient volatile boolean running;
+
 
 	/**
 	 * Creates a new RabbitMQ source with at-least-once message processing guarantee when
@@ -98,7 +100,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *               				into Java objects.
 	 */
 	public RMQSource(RMQConnectionConfig rmqConnectionConfig, String queueName,
-					DeserializationSchema<OUT> deserializationSchema) {
+						   DeserializationSchema<OUT> deserializationSchema) {
 		this(rmqConnectionConfig, queueName, false, deserializationSchema);
 	}
 
@@ -116,7 +118,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *                              into Java objects.
 	 */
 	public RMQSource(RMQConnectionConfig rmqConnectionConfig,
-					String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
+						   String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
 		super(String.class);
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
@@ -134,8 +136,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	/**
 	 * Sets up the queue. The default implementation just declares the queue. The user may override
-	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
-	 * defining custom queue parameters)
+	 * this method to have a  setup for the queue (i.e. binding the queue to an exchange or
+	 * defining  queue parameters)
 	 */
 	protected void setupQueue() throws IOException {
 		channel.queueDeclare(queueName, true, false, false, null);
@@ -152,11 +154,11 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
 			setupQueue();
-			consumer = new QueueingConsumer(channel);
+			consumer = new RabbitMQConsumer(queueName, rmqConnectionConfig.getClientBufferCapacity(), autoAck, channel);
 
 			RuntimeContext runtimeContext = getRuntimeContext();
 			if (runtimeContext instanceof StreamingRuntimeContext
-					&& ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled()) {
+				&& ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled()) {
 				autoAck = false;
 				// enables transaction mode
 				channel.txSelect();
@@ -169,7 +171,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
-					+ rmqConnectionConfig.getHost(), e);
+				+ rmqConnectionConfig.getHost(), e);
 		}
 		running = true;
 	}
@@ -190,32 +192,33 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (running) {
-			QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+			//Attempts to pull data off the stack, timeout so that we don't lock the thread
+			Delivery delivery = consumer.nextDelivery( 1, TimeUnit.SECONDS);
 
 			synchronized (ctx.getCheckpointLock()) {
+				if (delivery != null) {
+					OUT result = schema.deserialize(delivery.getBody());
 
-				OUT result = schema.deserialize(delivery.getBody());
-
-				if (schema.isEndOfStream(result)) {
-					break;
-				}
-
-				if (!autoAck) {
-					final long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-					if (usesCorrelationId) {
-						final String correlationId = delivery.getProperties().getCorrelationId();
-						Preconditions.checkNotNull(correlationId, "RabbitMQ source was instantiated " +
-							"with usesCorrelationId set to true but a message was received with " +
-							"correlation id set to null!");
-						if (!addId(correlationId)) {
-							// we have already processed this message
-							continue;
-						}
+					if (schema.isEndOfStream(result)) {
+						break;
 					}
-					sessionIds.add(deliveryTag);
-				}
 
-				ctx.collect(result);
+					if (!autoAck) {
+						final long deliveryTag = delivery.getEnvelope().getDeliveryTag();
+						if (usesCorrelationId) {
+							final String correlationId = delivery.getProperties().getCorrelationId();
+							Preconditions.checkNotNull(correlationId, "RabbitMQ source was instantiated " +
+								"with usesCorrelationId set to true but a message was received with " +
+								"correlation id set to null!");
+							if (!addId(correlationId)) {
+								// we have already processed this message
+								continue;
+							}
+						}
+						sessionIds.add(deliveryTag);
+					}
+					ctx.collect(result);
+				}
 			}
 		}
 	}
@@ -226,12 +229,30 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	}
 
 	@Override
-	protected void acknowledgeSessionIDs(List<Long> sessionIds) {
+	protected void acknowledgeSessionIDs(List<Long> sessionIds) throws RuntimeException {
+		for (long id : sessionIds) {
+			ackId(id);
+		}
+		txCommit(channel);
+	}
+
+	private void ackId(Long sessionId) throws RuntimeException {
 		try {
-			for (long id : sessionIds) {
-				channel.basicAck(id, false);
-			}
+			channel.basicAck(sessionId, false);
+		} catch (AlreadyClosedException ignored){
+			// Client doesn't lock on concurrent operations on channels so we will try again
+			ackId(sessionId);
+		} catch (IOException e) {
+			throw new RuntimeException("Messages could not be acknowledged during checkpoint creation.", e);
+		}
+	}
+
+	private void txCommit(Channel channel) throws RuntimeException{
+		try {
 			channel.txCommit();
+		} catch (AlreadyClosedException ignored){
+			// Client doesn't lock on concurrent operations on channels so we will try again
+			txCommit(channel);
 		} catch (IOException e) {
 			throw new RuntimeException("Messages could not be acknowledged during checkpoint creation.", e);
 		}

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import com.rabbitmq.client.*;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -32,14 +33,9 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.connectors.rabbitmq.common.RabbitMQConsumer;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,6 +49,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
@@ -362,14 +359,14 @@ public class RMQSourceTest {
 		public void open(Configuration config) throws Exception {
 			super.open(config);
 
-			consumer = Mockito.mock(QueueingConsumer.class);
+			consumer = Mockito.mock(RabbitMQConsumer.class);
 
 			// Mock for delivery
-			final QueueingConsumer.Delivery deliveryMock = Mockito.mock(QueueingConsumer.Delivery.class);
+			final Delivery deliveryMock = Mockito.mock(Delivery.class);
 			Mockito.when(deliveryMock.getBody()).thenReturn("test".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
 			try {
-				Mockito.when(consumer.nextDelivery()).thenReturn(deliveryMock);
+				Mockito.when(consumer.nextDelivery(1, TimeUnit.SECONDS)).thenReturn(deliveryMock);
 			} catch (InterruptedException e) {
 				fail("Couldn't setup up deliveryMock");
 			}
