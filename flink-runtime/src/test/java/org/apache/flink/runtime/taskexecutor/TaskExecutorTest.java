@@ -143,6 +143,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1656,9 +1657,10 @@ public class TaskExecutorTest extends TestLogger {
 
 			env.getTaskExecutor().onFatalError(new Exception(testExceptionMsg));
 
-			assertTrue(env.getTestingFatalErrorHandler().getErrorFuture().get().getMessage().startsWith(testExceptionMsg));
-
+			Throwable exception = env.getTestingFatalErrorHandler().getErrorFuture().get();
 			env.getTestingFatalErrorHandler().clearError();
+
+			assertThat(exception.getMessage(), startsWith(testExceptionMsg));
 		}
 	}
 

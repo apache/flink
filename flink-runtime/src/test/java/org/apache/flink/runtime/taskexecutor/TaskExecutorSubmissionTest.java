@@ -75,8 +75,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -174,14 +176,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
 			task2RunningFuture.get();
 
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.RUNNING);
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.RUNNING);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
 
 			tmGateway.cancelTask(eid1, timeout);
 			task1CanceledFuture.get();
 
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.CANCELED);
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.CANCELED);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
 		}
 	}
 
@@ -218,8 +220,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
 			task2RunningFuture.get();
 
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.RUNNING);
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.RUNNING);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
 
 			tmGateway.stopTask(eid1, timeout);
 			task1FinishedFuture.get();
@@ -233,8 +235,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			}
 
 			assertTrue(hasTaskException);
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FINISHED);
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FINISHED);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
 		}
 	}
 
@@ -267,7 +269,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				stopFuture.get();
 			} catch (Exception e) {
 				assertTrue(e.getCause() instanceof TaskException);
-				assertTrue(e.getCause().getMessage().startsWith("Cannot stop task for execution"));
+				assertThat(e.getCause().getMessage(), startsWith("Cannot stop task for execution"));
 			}
 		}
 	}
@@ -309,8 +311,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			task1FailedFuture.get();
 			task2FailedFuture.get();
 
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FAILED);
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.FAILED);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FAILED);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.FAILED);
 		}
 	}
 
@@ -375,8 +377,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			task1FinishedFuture.get();
 			task2FinishedFuture.get();
 
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FINISHED);
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.FINISHED);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FINISHED);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.FINISHED);
 		}
 	}
 
@@ -447,10 +449,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.cancelTask(eid2, timeout);
 
 			task2CanceledFuture.get();
-			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.CANCELED);
+			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.CANCELED);
 
 			task1FailedFuture.get();
-			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FAILED);
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FAILED);
 		}
 	}
 
@@ -505,7 +507,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			taskRunningFuture.get();
 
 			taskFailedFuture.get();
-			assertTrue(taskSlotTable.getTask(eid).getFailureCause() instanceof PartitionNotFoundException);
+			assertThat(taskSlotTable.getTask(eid).getFailureCause(), instanceOf(PartitionNotFoundException.class));
 		}
 	}
 
@@ -595,8 +597,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskFailedFuture.get();
 
-			assertTrue(taskSlotTable.getTask(eid).getExecutionState() == ExecutionState.FAILED);
-			assertTrue(taskSlotTable.getTask(eid).getFailureCause() instanceof PartitionNotFoundException);
+			assertSame(taskSlotTable.getTask(eid).getExecutionState(), ExecutionState.FAILED);
+			assertThat(taskSlotTable.getTask(eid).getFailureCause(), instanceOf(PartitionNotFoundException.class));
 		}
 	}
 
@@ -667,7 +669,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			CompletableFuture<Boolean> cancelFuture = TestingAbstractInvokables.TestInvokableRecordCancel.gotCanceled();
 
-			assertEquals(true, cancelFuture.get());
+			assertTrue(cancelFuture.get());
 			assertTrue(ExceptionUtils.findThrowableWithMessage(taskSlotTable.getTask(eid).getFailureCause(), exception.getMessage()).isPresent());
 		}
 	}
@@ -716,7 +718,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			try {
 				failFuture.get();
 			} catch (Exception e) {
-				assertTrue(e.getCause() instanceof IllegalStateException && e.getCause().getMessage().startsWith("Cannot sample task"));
+				assertThat(e.getCause(), instanceOf(IllegalStateException.class));
+				assertThat(e.getCause().getMessage(), startsWith("Cannot sample task"));
 			}
 
 			//
