@@ -130,7 +130,11 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	public void testSubmitTaskFailure() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class, 0);
+		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor(
+			"test task",
+			eid,
+			BlockingNoOpInvokable.class,
+			0); // this will make the submission fail because the number of key groups must be >= 1
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
@@ -228,6 +232,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.stopTask(eid1, timeout);
 			task1FinishedFuture.get();
 
+			// task 2 does not implement StoppableTask which should cause the stop operation to fail
 			CompletableFuture<Acknowledge> acknowledgeOfTask2 =	tmGateway.stopTask(eid2, timeout);
 			boolean hasTaskException = false;
 			try {
@@ -276,6 +281,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that submitted tasks will fail when attempting to send/receive data if no
+	 * ResultPartitions/InputGates are set up.
+	 */
 	@Test(timeout = 10000L)
 	public void testGateChannelEdgeMismatch() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
@@ -395,6 +404,11 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * This tests creates two tasks. The sender sends data but fails to send the
+	 * state update back to the job manager.
+	 * the second one blocks to be canceled
+	 */
 	@Test(timeout = 10000L)
 	public void testCancellingDependentAndStateUpdateFails() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
@@ -537,7 +551,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the TaskManager sends throw proper exception back to the sender if the update partition fails.
+	 * Tests that the TaskManager sends proper exception back to the sender if the partition update fails.
 	 */
 	@Test
 	public void testUpdateTaskInputPartitionsFailure() throws Exception {
@@ -635,7 +649,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * task.
 	 *
 	 * <p>IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
-	 * then the future is completed. We do this by not eagerly deploy consumer tasks and requiring
+	 * then the future is completed. We do this by not eagerly deploying consumer tasks and requiring
 	 * the invokable to fill one memory segment. The completed memory segment will trigger the
 	 * scheduling of the downstream operator since it is in pipeline mode. After we've filled the
 	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
