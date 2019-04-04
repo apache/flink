@@ -101,12 +101,12 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, TaskExecutorTest.TestInvokable.class, 1);
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -114,7 +114,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 		}
 	}
 
@@ -152,33 +152,33 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd1 = createTestTaskDeploymentDescriptor("test task", eid1, BlockingNoOpInvokable.class);
 		final TaskDeploymentDescriptor tdd2 = createTestTaskDeploymentDescriptor("test task", eid2, BlockingNoOpInvokable.class);
 
-		final CompletableFuture<Void> eid1RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid1CanceledFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1CanceledFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
-				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
-				.addTaskManagerActionListener(eid1, ExecutionState.CANCELED, eid1CanceledFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.CANCELED, task1CanceledFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
-			eid1RunningFuture.get();
+			task1RunningFuture.get();
 
 			taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
-			eid2RunningFuture.get();
+			task2RunningFuture.get();
 
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.RUNNING);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
 
 			tmGateway.cancelTask(eid1, timeout);
-			eid1CanceledFuture.get();
+			task1CanceledFuture.get();
 
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.CANCELED);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
@@ -196,33 +196,33 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd1 = createTestTaskDeploymentDescriptor("test task", eid1, StoppableInvokable.class);
 		final TaskDeploymentDescriptor tdd2 = createTestTaskDeploymentDescriptor("test task", eid2, BlockingNoOpInvokable.class);
 
-		final CompletableFuture<Void> eid1RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid1FinishedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1FinishedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
-				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
-				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, eid1FinishedFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, task1FinishedFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
-			eid1RunningFuture.get();
+			task1RunningFuture.get();
 
 			taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
-			eid2RunningFuture.get();
+			task2RunningFuture.get();
 
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.RUNNING);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
 
 			tmGateway.stopTask(eid1, timeout);
-			eid1FinishedFuture.get();
+			task1FinishedFuture.get();
 
 			CompletableFuture<Acknowledge> acknowledgeOfTask2 =	tmGateway.stopTask(eid2, timeout);
 			boolean hasTaskException = false;
@@ -248,19 +248,19 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 
 			CompletableFuture<Acknowledge> stopFuture = tmGateway.stopTask(eid, timeout);
 			try {
@@ -282,17 +282,17 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd2 =
 			createTestTaskDeploymentDescriptor("Receiver", eid2, TestingAbstractInvokables.Receiver.class);
 
-		final CompletableFuture<Void> eid1RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid1FailedFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2FailedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1FailedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2FailedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
-				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
-				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, eid1FailedFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.FAILED, eid2FailedFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, task1FailedFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.FAILED, task2FailedFuture)
 				.setSlotSize(2)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
@@ -300,14 +300,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
-			eid1RunningFuture.get();
+			task1RunningFuture.get();
 
 			taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
-			eid2RunningFuture.get();
+			task2RunningFuture.get();
 
-			eid1FailedFuture.get();
-			eid2FailedFuture.get();
+			task1FailedFuture.get();
+			task2FailedFuture.get();
 
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FAILED);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.FAILED);
@@ -338,10 +338,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd2 =
 			createTestTaskDeploymentDescriptor("Receiver", eid2,  TestingAbstractInvokables.Receiver.class, 1, null, Collections.singletonList(ircdd));
 
-		final CompletableFuture<Void> eid1RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid1FinishedFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2FinishedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1FinishedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2FinishedFuture = new CompletableFuture<>();
 
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
@@ -353,10 +353,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
-				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
-				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, eid1FinishedFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.FINISHED, eid2FinishedFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, task1FinishedFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.FINISHED, task2FinishedFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.setMockNetworkEnvironment(false)
@@ -366,14 +366,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
-			eid1RunningFuture.get();
+			task1RunningFuture.get();
 
 			taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd2, jobMasterId, timeout).get();
-			eid2RunningFuture.get();
+			task2RunningFuture.get();
 
-			eid1FinishedFuture.get();
-			eid2FinishedFuture.get();
+			task1FinishedFuture.get();
+			task2FinishedFuture.get();
 
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FINISHED);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.FINISHED);
@@ -404,10 +404,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd2 =
 			createTestTaskDeploymentDescriptor("Receiver", eid2,  TestingAbstractInvokables.Receiver.class, 1, null, Collections.singletonList(ircdd));
 
-		final CompletableFuture<Void> eid1RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2RunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid1FailedFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eid2CanceledFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task1FailedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> task2CanceledFuture = new CompletableFuture<>();
 
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
@@ -425,10 +425,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
-				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, eid1RunningFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
-				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, eid1FailedFuture)
-				.addTaskManagerActionListener(eid2, ExecutionState.CANCELED, eid2CanceledFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
+				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, task1FailedFuture)
+				.addTaskManagerActionListener(eid2, ExecutionState.CANCELED, task2CanceledFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.setMockNetworkEnvironment(false)
@@ -438,18 +438,18 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
-			eid1RunningFuture.get();
+			task1RunningFuture.get();
 
 			taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd2, jobMasterId, timeout).get();
-			eid2RunningFuture.get();
+			task2RunningFuture.get();
 
 			tmGateway.cancelTask(eid2, timeout);
 
-			eid2CanceledFuture.get();
+			task2CanceledFuture.get();
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.CANCELED);
 
-			eid1FailedFuture.get();
+			task1FailedFuture.get();
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FAILED);
 		}
 	}
@@ -485,14 +485,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd =
 			createTestTaskDeploymentDescriptor("Receiver", eid, Tasks.AgnosticReceiver.class,	 1, null, Collections.singletonList(igdd));
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eidFailedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
-				.addTaskManagerActionListener(eid, ExecutionState.FAILED, eidFailedFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.setConfiguration(config)
 				.setLocalCommunication(false)
 				.setMockNetworkEnvironment(false)
@@ -502,9 +502,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 
-			eidFailedFuture.get();
+			taskFailedFuture.get();
 			assertTrue(taskSlotTable.getTask(eid).getFailureCause() instanceof PartitionNotFoundException);
 		}
 	}
@@ -518,21 +518,21 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
 		boolean expectedException = false;
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 
 			CompletableFuture<Acknowledge> updateFuture = tmGateway.updatePartitions(
 				eid,
@@ -575,14 +575,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
 		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eidFailedFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
-				.addTaskManagerActionListener(eid, ExecutionState.FAILED, eidFailedFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.setConfiguration(config)
 				.setMockNetworkEnvironment(false)
 				.build()) {
@@ -591,9 +591,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 
-			eidFailedFuture.get();
+			taskFailedFuture.get();
 
 			assertTrue(taskSlotTable.getTask(eid).getExecutionState() == ExecutionState.FAILED);
 			assertTrue(taskSlotTable.getTask(eid).getFailureCause() instanceof PartitionNotFoundException);
@@ -640,7 +640,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			Collections.singletonList(resultPartitionDeploymentDescriptor),
 			Collections.emptyList());
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
 		final Exception exception = new Exception("Failed schedule or update consumers");
 
@@ -653,7 +653,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.setMockNetworkEnvironment(false)
@@ -663,7 +663,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, jobMasterId, timeout).get();
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 
 			CompletableFuture<Boolean> cancelFuture = TestingAbstractInvokables.TestInvokableRecordCancel.gotCanceled();
 
@@ -690,21 +690,21 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final int sampleId3 = 1337;
 		final int sampleId4 = 44;
 
-		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> eidCanceledFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
-				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, eidCanceledFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, taskCanceledFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			eidRunningFuture.get();
+			taskRunningFuture.get();
 
 			//
 			// 1) Trigger sample for non-existing task
@@ -798,7 +798,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			Thread.sleep(sleepTime);
 
 			tmGateway.cancelTask(eid, timeout);
-			eidCanceledFuture.get();
+			taskCanceledFuture.get();
 
 			StackTraceSampleResponse responseAfterCancel = futureAfterCancel.get();
 
