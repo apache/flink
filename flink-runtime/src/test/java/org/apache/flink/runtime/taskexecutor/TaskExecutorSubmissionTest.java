@@ -467,13 +467,13 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.submitTask(tdd2, jobMasterId, timeout).get();
 			task2RunningFuture.get();
 
+			task1FailedFuture.get();
+			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FAILED);
+
 			tmGateway.cancelTask(eid2, timeout);
 
 			task2CanceledFuture.get();
 			assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.CANCELED);
-
-			task1FailedFuture.get();
-			assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FAILED);
 		}
 	}
 
