@@ -45,7 +45,6 @@ object AggWithoutKeysCodeGenerator {
       isMerge: Boolean,
       isFinal: Boolean,
       prefix: String): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-
     val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
     val aggregates = aggCallToAggFunction.map(_._2)
     val udaggs = AggCodeGenHelper.getUdaggs(aggregates)

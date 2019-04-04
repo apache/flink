@@ -59,8 +59,6 @@ object HashAggCodeGenHelper {
       groupKeyTypesTerm: String,
       aggBufferTypesTerm: String,
       aggregateMapTerm: String): Unit = {
-    // allocate memory segments for aggregate map
-
     // create aggregate map
     val mapTypeTerm = classOf[BytesHashMap].getName
     ctx.addReusableMember(s"private transient $mapTypeTerm $aggregateMapTerm;")
@@ -126,7 +124,6 @@ object HashAggCodeGenHelper {
       outputType: RowType,
       groupKeyTerm: String,
       aggBufferTerm: String): (GeneratedExpression, GeneratedExpression, GeneratedExpression) = {
-
     val (grouping, auxGrouping) = groupingAndAuxGrouping
     // build mapping for DeclarativeAggregationFunction binding references
     val argsMapping = buildAggregateArgsMapping(
@@ -712,7 +709,6 @@ object HashAggCodeGenHelper {
       groupKeyTypesTerm: String,
       aggBufferTypesTerm: String,
       sorterTerm: String): String = {
-
     val keyComputerTerm = CodeGenUtils.newName("keyComputer")
     val recordComparatorTerm = CodeGenUtils.newName("recordComparator")
     val prepareSorterCode = genKVSorterPrepareCode(

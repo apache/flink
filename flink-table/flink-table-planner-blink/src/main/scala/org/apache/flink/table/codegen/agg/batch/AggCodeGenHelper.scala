@@ -79,8 +79,7 @@ object AggCodeGenHelper {
         .asInstanceOf[Map[AggregateFunction[_, _], String]]
   }
 
-  def projectRowType(
-      rowType: RowType, mapping: Array[Int]): RowType = {
+  def projectRowType(rowType: RowType, mapping: Array[Int]): RowType = {
     new RowType(mapping.map(rowType.getTypeAt), mapping.map(rowType.getFieldNames()(_)))
   }
 
@@ -104,11 +103,6 @@ object AggCodeGenHelper {
     ctx.addReusableCloseStatement(s"$handler.close();")
     handler
   }
-
-  private[flink] def projectRowType(
-      mapping: Array[Int],
-      inputT: RowType): RowType =
-    new RowType(mapping.map(inputT.getTypeAt), mapping.map(inputT.getFieldNames()(_)))
 
   /**
     * The generated codes only supports the comparison of the key terms
@@ -223,7 +217,6 @@ object AggCodeGenHelper {
       auxGrouping: Array[Int],
       aggArgs: Array[Array[Int]],
       aggBufferTypes: Array[Array[InternalType]]): Array[Array[(Int, InternalType)]] = {
-
     val auxGroupingMapping = auxGrouping.indices.map {
       i => Array[(Int, InternalType)]((i, aggBufferTypes(i)(0)))
     }.toArray
@@ -524,7 +517,6 @@ object AggCodeGenHelper {
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[InternalType]],
       outputType: RowType): Seq[GeneratedExpression] = {
-
     val exprCodegen = new ExprCodeGenerator(ctx, false)
 
     val auxGroupingExprs = auxGrouping.indices.map { idx =>
@@ -574,7 +566,6 @@ object AggCodeGenHelper {
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[InternalType]],
       aggBufferExprs: Seq[GeneratedExpression]): String = {
-
     val exprCodegen = new ExprCodeGenerator(ctx, false).bindInput(inputType, inputTerm = inputTerm)
 
     // flat map to get flat agg buffers.
