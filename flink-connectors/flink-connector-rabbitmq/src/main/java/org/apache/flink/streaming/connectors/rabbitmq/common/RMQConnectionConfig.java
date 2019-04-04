@@ -76,6 +76,7 @@ public class RMQConnectionConfig implements Serializable {
 	 * @param requestedChannelMax requested maximum channel number
 	 * @param requestedFrameMax requested maximum frame size
 	 * @param requestedHeartbeat requested heartbeat interval
+	 * @param clientBufferCapacity the number of records that can sit in memory at once
 	 * @throws NullPointerException if host or virtual host or username or password is null
 	 */
 	private RMQConnectionConfig(String host, Integer port, String virtualHost, String username, String password,
@@ -87,6 +88,7 @@ public class RMQConnectionConfig implements Serializable {
 		Preconditions.checkNotNull(virtualHost, "virtualHost can not be null");
 		Preconditions.checkNotNull(username, "username can not be null");
 		Preconditions.checkNotNull(password, "password can not be null");
+		Preconditions.checkArgument(clientBufferCapacity>0, "Buffer capacity must be greater than 0");
 		this.host = host;
 		this.port = port;
 		this.virtualHost = virtualHost;
@@ -452,6 +454,11 @@ public class RMQConnectionConfig implements Serializable {
 			return this;
 		}
 
+		/**
+		 * Sets the number of records that can sit in memory unacked at once
+		 * @param clientBufferCapacity the number of records
+		 * @return the Builder
+		 */
 		public Builder setClientBufferCapacity(int clientBufferCapacity) {
 			this.clientBufferCapacity = clientBufferCapacity;
 			return this;
