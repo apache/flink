@@ -73,7 +73,7 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 		return cancelTaskCount.get() + submitTaskCount.get();
 	}
 
-	void waitAllTasksSubmitted() {
+	void waitUntilAllTasksAreSubmitted() {
 		try {
 			submitLatch.await();
 		} catch (InterruptedException e) {

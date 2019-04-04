@@ -247,7 +247,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static void ensureCannotLeaveSuspendedState(ExecutionGraph eg, InteractionsCountingTaskManagerGateway gateway) {
-		gateway.waitAllTasksSubmitted();
+		gateway.waitUntilAllTasksAreSubmitted();
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 		gateway.resetCounts();
 
