@@ -46,8 +46,10 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
+import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -79,50 +81,41 @@ import static org.mockito.Mockito.when;
 /**
  * Simple environment setup for task executor task.
  */
-public class TaskSubmissionTestEnvironment implements AutoCloseable {
-	private final HeartbeatServices heartbeatServices;
-	private final TemporaryFolder temporaryFolder;
-	private final TestingRpcService testingRpcService;
-	private final BlobCacheService blobCacheService;
-	private final Time timeout;
-	private final JobID jobId;
-	private final TestingFatalErrorHandler testingFatalErrorHandler;
-	private final TestingHighAvailabilityServices haServices;
-	private final TimerService<AllocationID> timerService;
+class TaskSubmissionTestEnvironment implements AutoCloseable {
 
-	private final boolean mockNetworkEnvironment;
-	private final TaskManagerActions taskManagerActions;
+	private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+	private final TestingRpcService testingRpcService = new TestingRpcService();
+	private final BlobCacheService blobCacheService= new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
+	private final Time timeout = Time.milliseconds(10000L);
+	private final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+	private final TimerService<AllocationID> timerService = new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
+
+	private final TestingHighAvailabilityServices haServices;
+	private final TemporaryFolder temporaryFolder;
 	private final TaskSlotTable taskSlotTable;
 	private final JobMasterId jobMasterId;
-	private final JobMasterGateway jobMasterGateway;
-	private final boolean localCommunication;
-	private final Configuration configuration;
 
 	private TestingTaskExecutor taskExecutor;
 
-	public TaskSubmissionTestEnvironment(
-		JobID jobId,
-		JobMasterId jobMasterId,
-		int slotSize,
-		boolean mockNetworkEnvironment,
-		TestingJobMasterGateway jobMasterGateway,
-		Configuration configuration,
-		boolean localCommunication,
-		List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners) throws Exception {
-		this.heartbeatServices = new HeartbeatServices(1000L, 1000L);
-		this.temporaryFolder = new TemporaryFolder();
-		this.testingRpcService = new TestingRpcService();
-		this.blobCacheService = new BlobCacheService(
-			new Configuration(),
-			new VoidBlobStore(),
-			null);
-		this.timeout = Time.milliseconds(10000L);
-		this.jobId = jobId;
-		this.testingFatalErrorHandler = new TestingFatalErrorHandler();
-		this.haServices = new TestingHighAvailabilityServices();
+	private TaskSubmissionTestEnvironment(
+			JobID jobId,
+			JobMasterId jobMasterId,
+			int slotSize,
+			boolean mockNetworkEnvironment,
+			TestingJobMasterGateway testingJobMasterGateway,
+			Configuration configuration,
+			boolean localCommunication,
+			List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners) throws Exception {
 
-		this.mockNetworkEnvironment = mockNetworkEnvironment;
-		this.timerService = new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
+		this.haServices = new TestingHighAvailabilityServices();
+		this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
+		this.haServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService());
+
+		this.temporaryFolder = new TemporaryFolder();
+		this.temporaryFolder.create();
+
+		this.jobMasterId = jobMasterId;
+
 		if (slotSize > 0) {
 			this.taskSlotTable = generateTaskSlotTable(slotSize);
 		} else {
@@ -131,98 +124,36 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 			when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
 		}
 
-		if (configuration != null) {
-			this.configuration = configuration;
+		JobMasterGateway jobMasterGateway;
+		if (testingJobMasterGateway == null) {
+			jobMasterGateway = new TestingJobMasterGatewayBuilder()
+				.setFencingTokenSupplier(() -> jobMasterId)
+				.build();
 		} else {
-			this.configuration = new Configuration();
+			jobMasterGateway = testingJobMasterGateway;
 		}
-		this.localCommunication = localCommunication;
-		this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
-		this.haServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService());
 
+		TaskManagerActions taskManagerActions;
 		if (taskManagerActionListeners.size() == 0) {
-			this.taskManagerActions = new NoOpTaskManagerActions();
+			taskManagerActions = new NoOpTaskManagerActions();
 		} else {
-			this.taskManagerActions = new TestTaskManagerActions(taskSlotTable, jobMasterGateway);
+			TestTaskManagerActions testTaskManagerActions = new TestTaskManagerActions(taskSlotTable, jobMasterGateway);
 			for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple : taskManagerActionListeners) {
-				((TestTaskManagerActions) taskManagerActions).addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
+				testTaskManagerActions.addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
 			}
+			taskManagerActions = testTaskManagerActions;
 		}
 
-		if (jobMasterId == null) {
-			this.jobMasterId = JobMasterId.generate();
-		} else {
-			this.jobMasterId = jobMasterId;
-		}
+		final NetworkEnvironment networkEnvironment = createNetworkEnvironment(localCommunication, configuration, testingRpcService, mockNetworkEnvironment);
 
-		if (jobMasterGateway == null) {
-			this.jobMasterGateway = mock(JobMasterGateway.class);
-			when(this.jobMasterGateway.getFencingToken()).thenReturn(this.jobMasterId);
-		} else {
-			this.jobMasterGateway = jobMasterGateway;
-		}
-
-		prepareEnvironment();
-	}
-
-	public void prepareEnvironment() throws Exception {
-		this.temporaryFolder.create();
-
-		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
-		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
-
-
-		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
-		when(partitionProducerStateChecker.requestPartitionProducerState(any(), any(), any()))
-			.thenReturn(CompletableFuture.completedFuture(ExecutionState.RUNNING));
-
+		final JobManagerConnection jobManagerConnection = createJobManagerConnection(jobId, jobMasterGateway, testingRpcService, taskManagerActions, timeout);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobManagerConnection jobManagerConnection =
-			new JobManagerConnection(
-				jobId,
-				ResourceID.generate(),
-				jobMasterGateway,
-				taskManagerActions,
-				mock(CheckpointResponder.class),
-				new TestGlobalAggregateManager(),
-				libraryCacheManager,
-				new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
-				partitionProducerStateChecker);
 		jobManagerTable.put(jobId, jobManagerConnection);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
 			new File[]{temporaryFolder.newFolder()},
 			Executors.directExecutor());
-
-		final ConnectionManager connectionManager;
-		if (!localCommunication) {
-			NettyConfig nettyConfig = TaskManagerServicesConfiguration
-				.fromConfiguration(configuration, InetAddress.getByName(testingRpcService.getAddress()), localCommunication).getNetworkConfig()
-				.nettyConfig();
-			connectionManager = new NettyConnectionManager(nettyConfig);
-		} else {
-			connectionManager = new LocalConnectionManager();
-		}
-
-		final int numAllBuffers = 10;
-		final NetworkEnvironment networkEnvironment;
-		if (mockNetworkEnvironment) {
-			TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
-			networkEnvironment = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
-			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
-		} else {
-			networkEnvironment = createTestNetworkEnvironment(
-				numAllBuffers,
-				128,
-				configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL),
-				configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX),
-				2,
-				8,
-				true,
-				connectionManager);
-			networkEnvironment.start();
-		}
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setNetworkEnvironment(networkEnvironment)
@@ -280,17 +211,69 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 		);
 	}
 
+	private static JobManagerConnection createJobManagerConnection(JobID jobId, JobMasterGateway jobMasterGateway, RpcService testingRpcService, TaskManagerActions taskManagerActions, Time timeout) {
+		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
+		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
+
+		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
+		when(partitionProducerStateChecker.requestPartitionProducerState(any(), any(), any()))
+			.thenReturn(CompletableFuture.completedFuture(ExecutionState.RUNNING));
+
+		return new JobManagerConnection(
+			jobId,
+			ResourceID.generate(),
+			jobMasterGateway,
+			taskManagerActions,
+			mock(CheckpointResponder.class),
+			new TestGlobalAggregateManager(),
+			libraryCacheManager,
+			new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
+			partitionProducerStateChecker);
+	}
+
+	private static NetworkEnvironment createNetworkEnvironment(boolean localCommunication, Configuration configuration, RpcService testingRpcService, boolean mockNetworkEnvironment) throws Exception {
+		final ConnectionManager connectionManager;
+		if (!localCommunication) {
+			NettyConfig nettyConfig = TaskManagerServicesConfiguration
+				.fromConfiguration(configuration, InetAddress.getByName(testingRpcService.getAddress()), localCommunication).getNetworkConfig()
+				.nettyConfig();
+			connectionManager = new NettyConnectionManager(nettyConfig);
+		} else {
+			connectionManager = new LocalConnectionManager();
+		}
+
+		final int numAllBuffers = 10;
+		final NetworkEnvironment networkEnvironment;
+		if (mockNetworkEnvironment) {
+			TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
+			networkEnvironment = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
+			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+		} else {
+			networkEnvironment = createNetworkEnvironment(
+				numAllBuffers,
+				128,
+				configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL),
+				configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX),
+				2,
+				8,
+				true,
+				connectionManager);
+			networkEnvironment.start();
+		}
+
+		return networkEnvironment;
+	}
+
 	@Nonnull
-	private NetworkEnvironment createTestNetworkEnvironment(
-		int numBuffers,
-		int memorySegmentSize,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased,
-		ConnectionManager connectionManager
-	) {
+	private static NetworkEnvironment createNetworkEnvironment(
+			int numBuffers,
+			int memorySegmentSize,
+			int partitionRequestInitialBackoff,
+			int partitionRequestMaxBackoff,
+			int networkBuffersPerChannel,
+			int extraNetworkBuffersPerGate,
+			boolean enableCreditBased,
+			ConnectionManager connectionManager) {
 		return new NetworkEnvironment(
 			new NetworkBufferPool(numBuffers, memorySegmentSize),
 			connectionManager,
@@ -305,32 +288,26 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	@Override
 	public void close() throws Exception {
-		if (testingRpcService != null) {
-			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
-		}
+		RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 
-		if (timerService != null) {
-			timerService.stop();
-		}
+		timerService.stop();
 
-		if (blobCacheService != null) {
-			blobCacheService.close();
-		}
+		blobCacheService.close();
 
 		temporaryFolder.delete();
 
 		testingFatalErrorHandler.rethrowError();
 	}
 
-	public static class Builder {
+	public static final class Builder {
 
 		private JobID jobId;
 		private boolean mockNetworkEnvironment = true;
 		private int slotSize;
-		private JobMasterId jobMasterId;
+		private JobMasterId jobMasterId = JobMasterId.generate();
 		private TestingJobMasterGateway jobMasterGateway;
 		private boolean localCommunication = true;
-		private Configuration configuration;
+		private Configuration configuration = new Configuration();
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
 
