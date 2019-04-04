@@ -323,8 +323,8 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	public static class Builder {
-		private JobID jobId;
 
+		private JobID jobId;
 		private boolean mockNetworkEnvironment = true;
 		private int slotSize;
 		private JobMasterId jobMasterId;
@@ -333,6 +333,7 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 		private Configuration configuration;
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
+
 		public Builder(JobID jobId) {
 			this.jobId = jobId;
 		}

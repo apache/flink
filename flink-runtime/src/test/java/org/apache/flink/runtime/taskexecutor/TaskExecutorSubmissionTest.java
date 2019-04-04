@@ -103,7 +103,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final CompletableFuture<Void> eidRunningFuture = new CompletableFuture<>();
 
-
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
@@ -114,6 +113,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+
 			eidRunningFuture.get();
 		}
 	}
@@ -200,7 +200,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> eid2RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> eid1FinishedFuture = new CompletableFuture<>();
 
-
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
@@ -232,6 +231,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			} catch (Throwable e) {
 				hasTaskException = ExceptionUtils.findThrowable(e, TaskException.class).isPresent();
 			}
+
 			assertTrue(hasTaskException);
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FINISHED);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.RUNNING);
@@ -308,6 +308,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			eid1FailedFuture.get();
 			eid2FailedFuture.get();
+
 			assertTrue(taskSlotTable.getTask(eid1).getExecutionState() == ExecutionState.FAILED);
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.FAILED);
 		}
@@ -444,6 +445,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			eid2RunningFuture.get();
 
 			tmGateway.cancelTask(eid2, timeout);
+
 			eid2CanceledFuture.get();
 			assertTrue(taskSlotTable.getTask(eid2).getExecutionState() == ExecutionState.CANCELED);
 
@@ -592,6 +594,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			eidRunningFuture.get();
 
 			eidFailedFuture.get();
+
 			assertTrue(taskSlotTable.getTask(eid).getExecutionState() == ExecutionState.FAILED);
 			assertTrue(taskSlotTable.getTask(eid).getFailureCause() instanceof PartitionNotFoundException);
 		}
@@ -798,6 +801,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			eidCanceledFuture.get();
 
 			StackTraceSampleResponse responseAfterCancel = futureAfterCancel.get();
+
 			assertEquals(eid, responseAfterCancel.getExecutionAttemptID());
 			assertEquals(sampleId4, responseAfterCancel.getSampleId());
 		}
@@ -846,23 +850,23 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
-		JobID jobId,
-		String jobName,
-		ExecutionAttemptID executionAttemptId,
-		SerializedValue<ExecutionConfig> serializedExecutionConfig,
-		String taskName,
-		int maxNumberOfSubtasks,
-		int subtaskIndex,
-		int numberOfSubtasks,
-		int attemptNumber,
-		Configuration jobConfiguration,
-		Configuration taskConfiguration,
-		String invokableClassName,
-		Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
-		Collection<InputGateDeploymentDescriptor> inputGates,
-		Collection<PermanentBlobKey> requiredJarFiles,
-		Collection<URL> requiredClasspaths,
-		int targetSlotNumber) throws IOException {
+			JobID jobId,
+			String jobName,
+			ExecutionAttemptID executionAttemptId,
+			SerializedValue<ExecutionConfig> serializedExecutionConfig,
+			String taskName,
+			int maxNumberOfSubtasks,
+			int subtaskIndex,
+			int numberOfSubtasks,
+			int attemptNumber,
+			Configuration jobConfiguration,
+			Configuration taskConfiguration,
+			String invokableClassName,
+			Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
+			Collection<InputGateDeploymentDescriptor> inputGates,
+			Collection<PermanentBlobKey> requiredJarFiles,
+			Collection<URL> requiredClasspaths,
+			int targetSlotNumber) throws IOException {
 
 		JobInformation jobInformation = new JobInformation(
 			jobId,
