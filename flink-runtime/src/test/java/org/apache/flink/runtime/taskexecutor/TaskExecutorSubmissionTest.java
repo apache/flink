@@ -743,10 +743,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			//
 			ExecutionAttemptID nonExistTaskEid = new ExecutionAttemptID();
 
-			CompletableFuture<StackTraceSampleResponse> failFuture =
+			CompletableFuture<StackTraceSampleResponse> failedSampleFuture =
 				tmGateway.requestStackTraceSample(nonExistTaskEid, sampleId1, 100, Time.seconds(60L), 0, timeout);
 			try {
-				failFuture.get();
+				failedSampleFuture.get();
 			} catch (Exception e) {
 				assertThat(e.getCause(), instanceOf(IllegalStateException.class));
 				assertThat(e.getCause().getMessage(), startsWith("Cannot sample task"));
@@ -757,10 +757,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			//
 			int numSamples = 5;
 
-			CompletableFuture<StackTraceSampleResponse> successFuture =
+			CompletableFuture<StackTraceSampleResponse> successfulSampleFuture =
 				tmGateway.requestStackTraceSample(eid, sampleId2, numSamples, Time.milliseconds(100L), 0, timeout);
 
-			StackTraceSampleResponse response = successFuture.get();
+			StackTraceSampleResponse response = successfulSampleFuture.get();
 
 			assertEquals(response.getSampleId(), sampleId2);
 			assertEquals(response.getExecutionAttemptID(), eid);
@@ -803,10 +803,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			//
 			int maxDepth = 2;
 
-			CompletableFuture<StackTraceSampleResponse> successFutureWithMaxDepth =
+			CompletableFuture<StackTraceSampleResponse> successfulSampleFutureWithMaxDepth =
 				tmGateway.requestStackTraceSample(eid, sampleId3, numSamples, Time.milliseconds(100L), maxDepth, timeout);
 
-			StackTraceSampleResponse responseWithMaxDepth = successFutureWithMaxDepth.get();
+			StackTraceSampleResponse responseWithMaxDepth = successfulSampleFutureWithMaxDepth.get();
 
 			assertEquals(sampleId3, responseWithMaxDepth.getSampleId());
 			assertEquals(eid, responseWithMaxDepth.getExecutionAttemptID());
@@ -825,7 +825,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			int sleepTime = 100;
 			numSamples = 100;
 
-			CompletableFuture<StackTraceSampleResponse> futureAfterCancel =
+			CompletableFuture<StackTraceSampleResponse> canceldSampleFuture =
 				tmGateway.requestStackTraceSample(eid, sampleId4, numSamples, Time.milliseconds(10L), maxDepth, timeout);
 
 			Thread.sleep(sleepTime);
@@ -833,7 +833,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.cancelTask(eid, timeout);
 			taskCanceledFuture.get();
 
-			StackTraceSampleResponse responseAfterCancel = futureAfterCancel.get();
+			StackTraceSampleResponse responseAfterCancel = canceldSampleFuture.get();
 
 			assertEquals(eid, responseAfterCancel.getExecutionAttemptID());
 			assertEquals(sampleId4, responseAfterCancel.getSampleId());
