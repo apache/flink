@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -228,8 +229,8 @@ public class ResultPartitionTest {
 	private void testReleaseMemory(final ResultPartitionType resultPartitionType) throws Exception {
 		final int numAllBuffers = 10;
 		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
-			.setNumNetworkBuffers(numAllBuffers)
-			.build());
+			.setNumNetworkBuffers(numAllBuffers).build(),
+			new TaskEventDispatcher());
 		final ResultPartitionConsumableNotifier notifier = new NoOpResultPartitionConsumableNotifier();
 		final ResultPartition resultPartition = createPartition(notifier, resultPartitionType, false);
 		try {

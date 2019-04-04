@@ -57,6 +57,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -263,7 +264,7 @@ public class TaskExecutorTest extends TestLogger {
 			false);
 
 		final NetworkEnvironment networkEnvironment = new NetworkEnvironment(
-			new NetworkEnvironmentConfigurationBuilder().build());
+			new NetworkEnvironmentConfigurationBuilder().build(), new TaskEventDispatcher());
 		networkEnvironment.start();
 
 		final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);

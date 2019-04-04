@@ -138,6 +138,7 @@ public class TaskManagerServicesConfiguration {
 		return networkConfig;
 	}
 
+	@Nullable
 	QueryableStateConfiguration getQueryableStateConfig() {
 		return queryableStateConfig;
 	}

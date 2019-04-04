@@ -346,7 +346,8 @@ public class SingleInputGateTest {
 			.setPartitionRequestInitialBackoff(initialBackoff)
 			.setPartitionRequestMaxBackoff(maxBackoff)
 			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build());
+			.build(),
+			new TaskEventDispatcher());
 
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
@@ -406,9 +407,7 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build());
+		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -446,9 +445,7 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build());
+		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -498,9 +495,7 @@ public class SingleInputGateTest {
 	@Test
 	public void testUpdateUnknownInputChannel() throws Exception {
 		final SingleInputGate inputGate = createInputGate(2);
-		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build());
+		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID localResultPartitionId = new ResultPartitionID();
@@ -608,6 +603,13 @@ public class SingleInputGateTest {
 			createUnknownInputChannel(network, inputGate, partitionId, channelIndex)
 				.toRemoteInputChannel(connectionId);
 		inputGate.setInputChannel(partitionId.getPartitionId(), remote);
+	}
+
+	private NetworkEnvironment createNetworkEnvironment() {
+		return new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build(),
+			new TaskEventDispatcher());
 	}
 
 	static void verifyBufferOrEvent(

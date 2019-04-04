@@ -77,7 +77,8 @@ public class NetworkEnvironmentTest {
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
 		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
 			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build());
+			.build(),
+			new TaskEventDispatcher());
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
@@ -180,11 +181,11 @@ public class NetworkEnvironmentTest {
 	}
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
-		final NetworkEnvironment network = new NetworkEnvironment(
-			new NetworkEnvironmentConfigurationBuilder()
-				.setNumNetworkBuffers(bufferPoolSize)
-				.setIsCreditBased(enableCreditBasedFlowControl)
-				.build());
+		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+			.setNumNetworkBuffers(bufferPoolSize)
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build(),
+			new TaskEventDispatcher());
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 

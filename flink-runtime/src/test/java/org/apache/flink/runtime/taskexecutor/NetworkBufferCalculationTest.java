@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
@@ -43,23 +44,23 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		config = getConfig(
 			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
-			0.1f, 60L << 20, 1L << 30, false);
+			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 900L << 20)); // 900MB
 
 		config = getConfig(
 			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
-			0.2f, 60L << 20, 1L << 30, false);
+			0.2f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
 			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 800L << 20)); // 800MB
 
 		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
-			0.1f, 60L << 20, 1L << 30, true);
+			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 890L << 20)); // 890MB
 
-		config = getConfig(0, 0.1f, 0.1f, 60L << 20, 1L << 30, true);
+		config = getConfig(0, 0.1f, 0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			NetworkEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 810L << 20)); // 810MB
 	}
@@ -72,7 +73,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 	 * @param networkBufFraction	see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION}
 	 * @param networkBufMin			see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}
 	 * @param networkBufMax			see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}
-	 * @param offHeapMemory			see {@link TaskManagerOptions#MEMORY_OFF_HEAP}
+	 * @param memoryType			on-heap or off-heap
 	 *
 	 * @return configuration object
 	 */
@@ -82,7 +83,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		float networkBufFraction,
 		long networkBufMin,
 		long networkBufMax,
-		boolean offHeapMemory) {
+		MemoryType memoryType) {
 
 		final Configuration configuration = new Configuration();
 
@@ -91,7 +92,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		configuration.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(), networkBufFraction);
 		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key(), networkBufMin);
 		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key(), networkBufMax);
-		configuration.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP.key(), offHeapMemory);
+		configuration.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP.key(), memoryType == MemoryType.OFF_HEAP);
 
 		return configuration;
 	}
