@@ -351,7 +351,7 @@ class CalcITCase extends AbstractTestBase {
   }
 
   @Test
-  def testAddColumns(): Unit = {
+  def testColumnOperation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
 
