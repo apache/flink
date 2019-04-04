@@ -691,6 +691,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
+			TestingAbstractInvokables.TestInvokableRecordCancel.resetGotCanceledFuture();
+
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, jobMasterId, timeout).get();
 			taskRunningFuture.get();
