@@ -1816,8 +1816,7 @@ public class TaskExecutorTest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
-			testingFatalErrorHandler
-		);
+			testingFatalErrorHandler);
 	}
 
 	private static final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {
