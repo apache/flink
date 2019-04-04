@@ -46,6 +46,7 @@ import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.util.BitSet;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -85,9 +86,6 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private transient BinaryRowSerializer serializer2;
 	private transient BinaryExternalSorter sorter1;
 	private transient BinaryExternalSorter sorter2;
-	private transient SortMergeJoinIterator joinIterator1;
-	private transient SortMergeJoinIterator joinIterator2;
-	private transient SortMergeFullOuterJoinIterator fullOuterJoinIterator;
 	private transient Collector<BaseRow> collector;
 	private transient boolean[] isFinished;
 	private transient JoinCondition condFunc;
@@ -97,8 +95,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 	private transient BaseRow leftNullRow;
 	private transient BaseRow rightNullRow;
-
-	private transient SortMergeJoinHelper helper;
+	private transient JoinedRow joinedRow;
 
 	@VisibleForTesting
 	public SortMergeJoinOperator(
@@ -146,9 +143,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 		Configuration conf = getContainingTask().getJobConfiguration();
 
-		isFinished = new boolean[2];
-		isFinished[0] = false;
-		isFinished[1] = false;
+		isFinished = new boolean[] {false, false};
 
 		collector = new StreamRecordCollector<>(output);
 
@@ -183,9 +178,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 		this.leftNullRow = new GenericRow(serializer1.getArity());
 		this.rightNullRow = new GenericRow(serializer2.getArity());
-		JoinedRow joinedRow = new JoinedRow();
-
-		this.helper = new SortMergeJoinHelper(collector, condFunc, leftNullRow, rightNullRow, joinedRow);
+		this.joinedRow = new JoinedRow();
 
 		condFuncCode = null;
 		computer1 = null;
@@ -236,62 +229,45 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 		if (type.equals(SortMergeJoinType.INNER)) {
 			if (!leftIsSmaller) {
-				joinIterator2 = new SortMergeInnerJoinIterator(
+				try (SortMergeInnerJoinIterator joinIterator = new SortMergeInnerJoinIterator(
 						serializer1, serializer2, projection1, projection2,
-						keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls);
-				helper.innerJoin((SortMergeInnerJoinIterator) joinIterator2, false);
+						keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
+					innerJoin(joinIterator, false);
+				}
 			} else {
-				joinIterator1 = new SortMergeInnerJoinIterator(
+				try (SortMergeInnerJoinIterator joinIterator = new SortMergeInnerJoinIterator(
 						serializer2, serializer1, projection2, projection1,
-						keyComparator, iterator2, iterator1, newBuffer(serializer1), filterNulls);
-				helper.innerJoin((SortMergeInnerJoinIterator) joinIterator1, true);
+						keyComparator, iterator2, iterator1, newBuffer(serializer1), filterNulls)) {
+					innerJoin(joinIterator, true);
+				}
 			}
 		} else if (type.equals(SortMergeJoinType.LEFT)) {
-			joinIterator2 = new SortMergeOneSideOuterJoinIterator(
+			try (SortMergeOneSideOuterJoinIterator joinIterator = new SortMergeOneSideOuterJoinIterator(
 					serializer1, serializer2, projection1, projection2,
-					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls);
-			helper.oneSideOuterJoin((SortMergeOneSideOuterJoinIterator) joinIterator2, false, rightNullRow);
+					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
+				oneSideOuterJoin(joinIterator, false, rightNullRow);
+			}
 		} else if (type.equals(SortMergeJoinType.RIGHT)) {
-			joinIterator1 = new SortMergeOneSideOuterJoinIterator(
+			try (SortMergeOneSideOuterJoinIterator joinIterator = new SortMergeOneSideOuterJoinIterator(
 					serializer2, serializer1, projection2, projection1,
-					keyComparator, iterator2, iterator1, newBuffer(serializer1), filterNulls);
-			helper.oneSideOuterJoin((SortMergeOneSideOuterJoinIterator) joinIterator1, true, leftNullRow);
+					keyComparator, iterator2, iterator1, newBuffer(serializer1), filterNulls)) {
+				oneSideOuterJoin(joinIterator, true, leftNullRow);
+			}
 		} else if (type.equals(SortMergeJoinType.FULL)) {
-			fullOuterJoinIterator = new SortMergeFullOuterJoinIterator(
+			try (SortMergeFullOuterJoinIterator fullOuterJoinIterator = new SortMergeFullOuterJoinIterator(
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2,
-					newBuffer(serializer1), newBuffer(serializer2), filterNulls);
-			helper.fullOuterJoin(fullOuterJoinIterator);
-		} else if (type.equals(SortMergeJoinType.SEMI)) {
-			joinIterator2 = new SortMergeInnerJoinIterator(
-					serializer1, serializer2, projection1, projection2,
-					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls);
-			while (((SortMergeInnerJoinIterator) joinIterator2).nextInnerJoin()) {
-				BaseRow probeRow = joinIterator2.getProbeRow();
-				boolean matched = false;
-				try (ResettableExternalBuffer.BufferIterator iter = joinIterator2.getMatchBuffer().newIterator()) {
-					while (iter.advanceNext()) {
-						BaseRow row = iter.getRow();
-						if (condFunc.apply(probeRow, row)) {
-							matched = true;
-							break;
-						}
-					}
-				}
-				if (matched) {
-					collector.collect(probeRow);
-				}
+					newBuffer(serializer1), newBuffer(serializer2), filterNulls)) {
+				fullOuterJoin(fullOuterJoinIterator);
 			}
-		} else if (type.equals(SortMergeJoinType.ANTI)) {
-			joinIterator2 = new SortMergeOneSideOuterJoinIterator(
+		} else if (type.equals(SortMergeJoinType.SEMI)) {
+			try (SortMergeInnerJoinIterator joinIterator = new SortMergeInnerJoinIterator(
 					serializer1, serializer2, projection1, projection2,
-					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls);
-			while (((SortMergeOneSideOuterJoinIterator) joinIterator2).nextOuterJoin()) {
-				BaseRow probeRow = joinIterator2.getProbeRow();
-				ResettableExternalBuffer matchBuffer = joinIterator2.getMatchBuffer();
-				boolean matched = false;
-				if (matchBuffer != null) {
-					try (ResettableExternalBuffer.BufferIterator iter = matchBuffer.newIterator()) {
+					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
+				while (joinIterator.nextInnerJoin()) {
+					BaseRow probeRow = joinIterator.getProbeRow();
+					boolean matched = false;
+					try (ResettableExternalBuffer.BufferIterator iter = joinIterator.getMatchBuffer().newIterator()) {
 						while (iter.advanceNext()) {
 							BaseRow row = iter.getRow();
 							if (condFunc.apply(probeRow, row)) {
@@ -300,13 +276,161 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 							}
 						}
 					}
+					if (matched) {
+						collector.collect(probeRow);
+					}
 				}
-				if (!matched) {
-					collector.collect(probeRow);
+			}
+		} else if (type.equals(SortMergeJoinType.ANTI)) {
+			try (SortMergeOneSideOuterJoinIterator joinIterator = new SortMergeOneSideOuterJoinIterator(
+					serializer1, serializer2, projection1, projection2,
+					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
+				while (joinIterator.nextOuterJoin()) {
+					BaseRow probeRow = joinIterator.getProbeRow();
+					ResettableExternalBuffer matchBuffer = joinIterator.getMatchBuffer();
+					boolean matched = false;
+					if (matchBuffer != null) {
+						try (ResettableExternalBuffer.BufferIterator iter = matchBuffer.newIterator()) {
+							while (iter.advanceNext()) {
+								BaseRow row = iter.getRow();
+								if (condFunc.apply(probeRow, row)) {
+									matched = true;
+									break;
+								}
+							}
+						}
+					}
+					if (!matched) {
+						collector.collect(probeRow);
+					}
 				}
 			}
 		} else {
 			throw new RuntimeException("Not support type: " + type);
+		}
+	}
+
+	private void innerJoin(
+			SortMergeInnerJoinIterator iterator, boolean reverseInvoke) throws Exception {
+		while (iterator.nextInnerJoin()) {
+			BaseRow probeRow = iterator.getProbeRow();
+			ResettableExternalBuffer.BufferIterator iter = iterator.getMatchBuffer().newIterator();
+			while (iter.advanceNext()) {
+				BaseRow row = iter.getRow();
+				joinWithCondition(probeRow, row, reverseInvoke);
+			}
+			iter.close();
+		}
+	}
+
+	private void oneSideOuterJoin(
+			SortMergeOneSideOuterJoinIterator iterator, boolean reverseInvoke,
+			BaseRow buildNullRow) throws Exception {
+		while (iterator.nextOuterJoin()) {
+			BaseRow probeRow = iterator.getProbeRow();
+			boolean found = false;
+
+			if (iterator.getMatchKey() != null) {
+				ResettableExternalBuffer.BufferIterator iter = iterator.getMatchBuffer().newIterator();
+				while (iter.advanceNext()) {
+					BaseRow row = iter.getRow();
+					found |= joinWithCondition(probeRow, row, reverseInvoke);
+				}
+				iter.close();
+			}
+
+			if (!found) {
+				collect(probeRow, buildNullRow, reverseInvoke);
+			}
+		}
+	}
+
+	private void fullOuterJoin(SortMergeFullOuterJoinIterator iterator) throws Exception {
+		BitSet bitSet = new BitSet();
+
+		while (iterator.nextOuterJoin()) {
+
+			bitSet.clear();
+			BinaryRow matchKey = iterator.getMatchKey();
+			ResettableExternalBuffer buffer1 = iterator.getBuffer1();
+			ResettableExternalBuffer buffer2 = iterator.getBuffer2();
+
+			if (matchKey == null && buffer1.size() > 0) { // left outer join.
+				ResettableExternalBuffer.BufferIterator iter = buffer1.newIterator();
+				while (iter.advanceNext()) {
+					BaseRow row1 = iter.getRow();
+					collector.collect(joinedRow.replace(row1, rightNullRow));
+				}
+				iter.close();
+			} else if (matchKey == null && buffer2.size() > 0) { // right outer join.
+				ResettableExternalBuffer.BufferIterator iter = buffer2.newIterator();
+				while (iter.advanceNext()) {
+					BaseRow row2 = iter.getRow();
+					collector.collect(joinedRow.replace(leftNullRow, row2));
+				}
+				iter.close();
+			} else if (matchKey != null) { // match join.
+				ResettableExternalBuffer.BufferIterator iter1 = buffer1.newIterator();
+				while (iter1.advanceNext()) {
+					BaseRow row1 = iter1.getRow();
+					boolean found = false;
+					int index = 0;
+					ResettableExternalBuffer.BufferIterator iter2 = buffer2.newIterator();
+					while (iter2.advanceNext()) {
+						BaseRow row2 = iter2.getRow();
+						if (condFunc.apply(row1, row2)) {
+							collector.collect(joinedRow.replace(row1, row2));
+							found = true;
+							bitSet.set(index);
+						}
+						index++;
+					}
+					iter2.close();
+					if (!found) {
+						collector.collect(joinedRow.replace(row1, rightNullRow));
+					}
+				}
+				iter1.close();
+
+				// row2 outer
+				int index = 0;
+				ResettableExternalBuffer.BufferIterator iter2 = buffer2.newIterator();
+				while (iter2.advanceNext()) {
+					BaseRow row2 = iter2.getRow();
+					if (!bitSet.get(index)) {
+						collector.collect(joinedRow.replace(leftNullRow, row2));
+					}
+					index++;
+				}
+				iter2.close();
+			} else { // bug...
+				throw new RuntimeException("There is a bug.");
+			}
+		}
+	}
+
+	private boolean joinWithCondition(
+			BaseRow row1, BaseRow row2, boolean reverseInvoke) throws Exception {
+		if (reverseInvoke) {
+			if (condFunc.apply(row2, row1)) {
+				collector.collect(joinedRow.replace(row2, row1));
+				return true;
+			}
+		} else {
+			if (condFunc.apply(row1, row2)) {
+				collector.collect(joinedRow.replace(row1, row2));
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void collect(
+			BaseRow row1, BaseRow row2, boolean reverseInvoke) {
+		if (reverseInvoke) {
+			collector.collect(joinedRow.replace(row2, row1));
+		} else {
+			collector.collect(joinedRow.replace(row1, row2));
 		}
 	}
 
@@ -329,15 +453,6 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		}
 		if (this.sorter2 != null) {
 			this.sorter2.close();
-		}
-		if (this.joinIterator1 != null) {
-			this.joinIterator1.close();
-		}
-		if (this.joinIterator2 != null) {
-			this.joinIterator2.close();
-		}
-		if (this.fullOuterJoinIterator != null) {
-			this.fullOuterJoinIterator.close();
 		}
 	}
 
