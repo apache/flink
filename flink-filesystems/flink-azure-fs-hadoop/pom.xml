@@ -27,14 +27,20 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-s3-fs-hadoop</artifactId>
-	<name>flink-s3-fs-hadoop</name>
+	<artifactId>flink-azure-fs-hadoop</artifactId>
+	<name>flink-azure-fs-hadoop</name>
 
 	<packaging>jar</packaging>
 
+	<!-- need to use a release which includes this patch: https://github.com/apache/hadoop/commit/02cadbd24bf69925078d044701741e2e3fcb4b2f -->
+	<properties>
+		<fs.azure.version>2.7.0</fs.azure.version>
+		<fs.azure.sdk.version>1.16.0</fs.azure.sdk.version>
+		<fs.jackson.core.version>2.9.4</fs.jackson.core.version>
+	</properties>
+
 	<dependencies>
 
-		<!-- Flink's file system abstraction (compiled against, not bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -42,11 +48,43 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- S3 base -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-s3-fs-base</artifactId>
+			<artifactId>flink-hadoop-fs</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-azure</artifactId>
+			<version>${fs.azure.version}</version>
+		</dependency>
+
+		<!-- for the Azure HDFS related tests -->
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>${hadoop.version}</version>
+		</dependency>
+
+		<!-- for Azure IT tests to check if HTTP endpoints are enabled / not -->
+		<dependency>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>azure</artifactId>
+			<version>${fs.azure.sdk.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>${fs.jackson.core.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- for the behavior test suite -->
@@ -58,26 +96,11 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- for the settings that make unshaded tests run -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-fs-hadoop-shaded</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-fs</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- Relocate all Azure related classes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -96,27 +119,30 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
 								<relocation>
 									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.shaded.hadoop.org.apache.hadoop</shadedPattern>
 								</relocation>
-								<!-- relocate the AWS dependencies -->
+								<!-- relocate the azure-storage dependencies -->
 								<relocation>
-									<pattern>com.amazon</pattern>
-									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
-								</relocation>
-								<!-- shade Flink's Hadoop FS utility classes -->
-								<relocation>
-									<pattern>org.apache.flink.runtime.util</pattern>
-									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
+									<pattern>com.microsoft.azure.storage</pattern>
+									<shadedPattern>org.apache.flink.fs.shaded.com.microsoft.azure.storage</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+										<exclude>core-default.xml</exclude>
+										<exclude>hdfs-default.xml</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -126,5 +152,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
 </project>
