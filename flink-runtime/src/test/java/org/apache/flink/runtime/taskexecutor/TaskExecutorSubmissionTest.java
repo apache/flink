@@ -319,8 +319,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 	@Test(timeout = 10000L)
 	public void testRunJobWithForwardChannel() throws Exception {
-		final JobMasterId jobMasterId = JobMasterId.generate();
-
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
@@ -358,6 +356,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> task1FinishedFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2FinishedFuture = new CompletableFuture<>();
 
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
 			.setFencingTokenSupplier(() -> jobMasterId)
@@ -397,8 +396,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 	@Test(timeout = 10000L)
 	public void testCancellingDependentAndStateUpdateFails() throws Exception {
-		final JobMasterId jobMasterId = JobMasterId.generate();
-
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
@@ -433,6 +430,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> task1FailedFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2CanceledFuture = new CompletableFuture<>();
 
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
 			.setFencingTokenSupplier(() -> jobMasterId)
@@ -645,8 +643,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 */
 	@Test(timeout = 10000L)
 	public void testFailingScheduleOrUpdateConsumers() throws Exception {
-		final JobMasterId jobMasterId = JobMasterId.generate();
-
 		final Configuration configuration = new Configuration();
 
 		// set the memory segment to the smallest size possible, because we have to fill one
@@ -676,6 +672,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final Exception exception = new Exception("Failed schedule or update consumers");
 
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
 				.setFencingTokenSupplier(() -> jobMasterId)
