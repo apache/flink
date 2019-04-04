@@ -82,6 +82,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for submission logic of the {@link TaskExecutor}.
@@ -546,8 +547,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
-		boolean expectedException = false;
-
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
@@ -567,12 +566,13 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 						new IntermediateDataSetID(),
 						new InputChannelDeploymentDescriptor(new ResultPartitionID(), ResultPartitionLocation.createLocal()))),
 				timeout);
-			updateFuture.get();
-		} catch (Exception e) {
-			expectedException = ExceptionUtils.findThrowable(e, PartitionException.class).isPresent();
+			try {
+				updateFuture.get();
+				fail();
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowable(e, PartitionException.class).isPresent());
+			}
 		}
-
-		assertTrue(expectedException);
 	}
 
 	/**
