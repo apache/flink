@@ -1803,7 +1803,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Map performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
+        <p>Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
 {% highlight java %}
 ScalarFunction func = new MyMapFunction();
 tableEnv.registerFunction("func", func);
@@ -1833,7 +1833,7 @@ Table table = input
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Map performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
+        <p>Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
 {% highlight scala %}
 val func: ScalarFunction = new MyMapFunction()
 
