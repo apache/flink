@@ -19,14 +19,10 @@
 package org.apache.flink.table.codegen;
 
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedJoinCondition;
 import org.apache.flink.table.generated.JoinCondition;
-import org.apache.flink.table.runtime.TwoInputOperatorWrapper;
 import org.apache.flink.table.runtime.join.HashJoinType;
 import org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest;
 import org.apache.flink.table.type.InternalTypes;
@@ -55,20 +51,6 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 				reverseJoinFunction,
 				new GeneratedJoinCondition(MyJoinCondition.class.getCanonicalName(), "", new Object[0])
 		);
-	}
-
-	public void endInput1(TwoInputStreamTaskTestHarness harness) throws Exception {
-		TwoInputOperatorWrapper wrapper = (TwoInputOperatorWrapper) ((OperatorChain) harness.getTask().getStreamStatusMaintainer())
-				.getHeadOperator();
-		TwoInputStreamOperator op = wrapper.getOperator();
-		op.getClass().getMethod("endInput1").invoke(op);
-	}
-
-	public void endInput2(TwoInputStreamTaskTestHarness harness) throws Exception {
-		TwoInputOperatorWrapper wrapper = (TwoInputOperatorWrapper) ((OperatorChain) harness.getTask().getStreamStatusMaintainer())
-				.getHeadOperator();
-		TwoInputStreamOperator op = wrapper.getOperator();
-		op.getClass().getMethod("endInput2").invoke(op);
 	}
 
 	@Test

@@ -33,6 +33,7 @@ import org.apache.flink.table.generated.GeneratedJoinCondition;
 import org.apache.flink.table.generated.GeneratedProjection;
 import org.apache.flink.table.generated.JoinCondition;
 import org.apache.flink.table.generated.Projection;
+import org.apache.flink.table.runtime.TwoInputOperatorWrapper;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.RowType;
@@ -374,11 +375,17 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
 	static void endInput1(TwoInputStreamTaskTestHarness harness) throws Exception {
 		StreamOperator op = ((OperatorChain) harness.getTask().getStreamStatusMaintainer()).getHeadOperator();
+		if (op instanceof TwoInputOperatorWrapper) {
+			op = ((TwoInputOperatorWrapper) op).getOperator();
+		}
 		op.getClass().getMethod("endInput1").invoke(op);
 	}
 
 	static void endInput2(TwoInputStreamTaskTestHarness harness) throws Exception {
 		StreamOperator op = ((OperatorChain) harness.getTask().getStreamStatusMaintainer()).getHeadOperator();
+		if (op instanceof TwoInputOperatorWrapper) {
+			op = ((TwoInputOperatorWrapper) op).getOperator();
+		}
 		op.getClass().getMethod("endInput2").invoke(op);
 	}
 
