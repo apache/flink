@@ -88,7 +88,7 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 	private final JobID jobId;
 	private final TestingFatalErrorHandler testingFatalErrorHandler;
 	private final TestingHighAvailabilityServices haServices;
-	private TimerService<AllocationID> timerService;
+	private final TimerService<AllocationID> timerService;
 
 	private final boolean mockNetworkEnvironment;
 	private final TaskManagerActions taskManagerActions;
