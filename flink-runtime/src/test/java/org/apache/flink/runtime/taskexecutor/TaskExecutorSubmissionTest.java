@@ -99,7 +99,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
 	 */
 	@Test(timeout = 10000L)
-	public void testTaskSubmission() throws Throwable {
+	public void testTaskSubmission() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, TaskExecutorTest.TestInvokable.class, 1);
@@ -126,7 +126,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * message fails.
 	 */
 	@Test(timeout = 10000L)
-	public void testSubmitTaskFailure() throws Throwable {
+	public void testSubmitTaskFailure() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class, 0);
@@ -148,7 +148,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that we can cancel the task of the TaskManager given that we've submitted it.
 	 */
 	@Test(timeout = 10000L)
-	public void testTaskSubmissionAndCancelling() throws Throwable {
+	public void testTaskSubmissionAndCancelling() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
@@ -192,7 +192,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that we can stop the task of the TaskManager given that we've submitted it.
 	 */
 	@Test(timeout = 10000L)
-	public void testTaskSubmissionAndStop() throws Throwable {
+	public void testTaskSubmissionAndStop() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
@@ -246,7 +246,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * message fails.
 	 */
 	@Test(timeout = 10000L)
-	public void testStopTaskFailure() throws Throwable {
+	public void testStopTaskFailure() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
@@ -276,7 +276,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	@Test(timeout = 10000L)
-	public void testGateChannelEdgeMismatch() throws Throwable {
+	public void testGateChannelEdgeMismatch() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
@@ -318,7 +318,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	@Test(timeout = 10000L)
-	public void testRunJobWithForwardChannel() throws Throwable {
+	public void testRunJobWithForwardChannel() throws Exception {
 		final JobMasterId jobMasterId = JobMasterId.generate();
 
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
@@ -396,7 +396,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	@Test(timeout = 10000L)
-	public void testCancellingDependentAndStateUpdateFails() throws Throwable {
+	public void testCancellingDependentAndStateUpdateFails() throws Exception {
 		final JobMasterId jobMasterId = JobMasterId.generate();
 
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
@@ -482,7 +482,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
 	 */
 	@Test(timeout = 10000L)
-	public void testRemotePartitionNotFound() throws Throwable {
+	public void testRemotePartitionNotFound() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final IntermediateDataSetID resultId = new IntermediateDataSetID();
@@ -541,7 +541,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * Tests that the TaskManager sends throw proper exception back to the sender if the update partition fails.
 	 */
 	@Test
-	public void testUpdateTaskInputPartitionsFailure() throws Throwable {
+	public void testUpdateTaskInputPartitionsFailure() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
@@ -581,7 +581,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 *  Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
 	 */
 	@Test(timeout = 10000L)
-	public void testLocalPartitionNotFound() throws Throwable {
+	public void testLocalPartitionNotFound() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final IntermediateDataSetID resultId = new IntermediateDataSetID();
@@ -644,7 +644,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * schedule or update consumers call.
 	 */
 	@Test(timeout = 10000L)
-	public void testFailingScheduleOrUpdateConsumers() throws Throwable {
+	public void testFailingScheduleOrUpdateConsumers() throws Exception {
 		final JobMasterId jobMasterId = JobMasterId.generate();
 
 		final Configuration configuration = new Configuration();
@@ -713,7 +713,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 */
 	@Test(timeout = 10000L)
 	@SuppressWarnings("unchecked")
-	public void testRequestStackTraceSample() throws Throwable {
+	public void testRequestStackTraceSample() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
 
