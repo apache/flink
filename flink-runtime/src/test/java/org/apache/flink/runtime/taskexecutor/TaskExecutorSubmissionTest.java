@@ -59,6 +59,7 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -336,9 +337,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 						ResultPartitionLocation.createLocal()) });
 
 		final TaskDeploymentDescriptor tdd1 =
-			createTestTaskDeploymentDescriptor("Sender", eid1, TestingAbstractInvokables.Sender.class, 1, Collections.singletonList(irpdd), null);
+			createTestTaskDeploymentDescriptor("Sender", eid1, TestingAbstractInvokables.Sender.class, 1, Collections.singletonList(irpdd), Collections.emptyList());
 		final TaskDeploymentDescriptor tdd2 =
-			createTestTaskDeploymentDescriptor("Receiver", eid2,  TestingAbstractInvokables.Receiver.class, 1, null, Collections.singletonList(ircdd));
+			createTestTaskDeploymentDescriptor("Receiver", eid2,  TestingAbstractInvokables.Receiver.class, 1, Collections.emptyList(), Collections.singletonList(ircdd));
 
 		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
@@ -402,9 +403,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 						ResultPartitionLocation.createLocal()) });
 
 		final TaskDeploymentDescriptor tdd1 =
-			createTestTaskDeploymentDescriptor("Sender", eid1, TestingAbstractInvokables.Sender.class,	1, Collections.singletonList(irpdd), null);
+			createTestTaskDeploymentDescriptor("Sender", eid1, TestingAbstractInvokables.Sender.class,	1, Collections.singletonList(irpdd), Collections.emptyList());
 		final TaskDeploymentDescriptor tdd2 =
-			createTestTaskDeploymentDescriptor("Receiver", eid2,  TestingAbstractInvokables.Receiver.class, 1, null, Collections.singletonList(ircdd));
+			createTestTaskDeploymentDescriptor("Receiver", eid2,  TestingAbstractInvokables.Receiver.class, 1, Collections.emptyList(), Collections.singletonList(ircdd));
 
 		final CompletableFuture<Void> task1RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
@@ -485,7 +486,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
 
 		final TaskDeploymentDescriptor tdd =
-			createTestTaskDeploymentDescriptor("Receiver", eid, Tasks.AgnosticReceiver.class,	 1, null, Collections.singletonList(igdd));
+			createTestTaskDeploymentDescriptor("Receiver", eid, Tasks.AgnosticReceiver.class,	 1, Collections.emptyList(), Collections.singletonList(igdd));
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
@@ -571,7 +572,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
 
 		final TaskDeploymentDescriptor tdd =
-			createTestTaskDeploymentDescriptor("Receiver", eid, Tasks.AgnosticReceiver.class, 1,	null, Collections.singletonList(igdd));
+			createTestTaskDeploymentDescriptor("Receiver", eid, Tasks.AgnosticReceiver.class, 1,	Collections.emptyList(), Collections.singletonList(igdd));
 
 		Configuration config = new Configuration();
 		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
@@ -824,7 +825,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		Class<? extends AbstractInvokable> abstractInvokable,
 		int maxNumberOfSubtasks
 	) throws IOException {
-		return createTestTaskDeploymentDescriptor(taskName, eid, abstractInvokable, maxNumberOfSubtasks, null, null);
+		return createTestTaskDeploymentDescriptor(taskName, eid, abstractInvokable, maxNumberOfSubtasks, Collections.emptyList(), Collections.emptyList());
 	}
 
 	private TaskDeploymentDescriptor createTestTaskDeploymentDescriptor(
@@ -835,12 +836,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
 		Collection<InputGateDeploymentDescriptor> inputGates
 	) throws IOException {
-		if (producedPartitions == null) {
-			producedPartitions = Collections.emptyList();
-		}
-		if (inputGates == null) {
-			inputGates = Collections.emptyList();
-		}
+		Preconditions.checkNotNull(producedPartitions);
+		Preconditions.checkNotNull(inputGates);
 		return createTaskDeploymentDescriptor(
 			jobId, testName.getMethodName(), eid,
 			new SerializedValue<>(new ExecutionConfig()), taskName, maxNumberOfSubtasks, 0, 1, 0,
