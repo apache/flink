@@ -241,6 +241,10 @@ public class TaskSubmissionTestEnvironment implements AutoCloseable {
 		return taskExecutor;
 	}
 
+	public TaskExecutorGateway getTaskExecutorGateway() {
+		return taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+	}
+
 	public TaskSlotTable getTaskSlotTable() {
 		return taskSlotTable;
 	}

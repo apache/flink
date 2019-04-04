@@ -109,7 +109,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -131,7 +131,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.TaskSubmissionTestEnvironmentBuilder(jobId)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -163,7 +163,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.CANCELED, eid1CanceledFuture)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
@@ -208,7 +208,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, eid2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, eid1FinishedFuture)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
@@ -255,7 +255,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -295,7 +295,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.FAILED, eid2FailedFuture)
 				.setSlotSize(2)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
@@ -360,7 +360,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setJobMasterGateway(testingJobMasterGateway)
 				.setMockNetworkEnvironment(false)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
@@ -432,7 +432,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setJobMasterGateway(testingJobMasterGateway)
 				.setMockNetworkEnvironment(false)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
@@ -495,7 +495,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setLocalCommunication(false)
 				.setMockNetworkEnvironment(false)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -525,7 +525,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -584,7 +584,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setConfiguration(config)
 				.setMockNetworkEnvironment(false)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -655,7 +655,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setJobMasterGateway(testingJobMasterGateway)
 				.setMockNetworkEnvironment(false)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
@@ -696,7 +696,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, eidRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, eidCanceledFuture)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));

@@ -1638,7 +1638,7 @@ public class TaskExecutorTest extends TestLogger {
 				.setConfiguration(config)
 				.setLocalCommunication(false)
 				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutor().getSelfGateway(TaskExecutorGateway.class);
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			try {
 				CompletableFuture<TransientBlobKey> logFuture =
 					tmGateway.requestFileUpload(FileType.LOG, timeout);
