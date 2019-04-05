@@ -245,9 +245,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		final int numAllBuffers = 10;
 		final NetworkEnvironment networkEnvironment;
 		if (mockNetworkEnvironment) {
-			TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 			networkEnvironment = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
-			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 		} else {
 			networkEnvironment = createNetworkEnvironment(
 				numAllBuffers,
