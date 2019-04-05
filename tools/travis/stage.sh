@@ -42,7 +42,6 @@ MODULES_CORE_JDK9_EXCLUSIONS="\
 !flink-state-backends/flink-statebackend-rocksdb,\
 !flink-clients,\
 !flink-runtime,\
-!flink-scala,\
 !flink-scala-shell"
 
 MODULES_LIBRARIES="\
