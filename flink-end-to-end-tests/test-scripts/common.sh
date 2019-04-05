@@ -352,7 +352,16 @@ function check_logs_for_exceptions {
 
 function check_logs_for_non_empty_out_files {
   echo "Checking for non-empty .out files..."
-  if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
+  # exclude reflective access warnings as these are expected (and currently unavoidable) on Java 9
+  if grep -ri -v \
+    -e "WARNING: An illegal reflective access" \
+    -e "WARNING: Illegal reflective access"\
+    -e "WARNING: Please consider reporting"\
+    -e "WARNING: Use --illegal-access"\
+    -e "WARNING: All illegal access"\
+    $FLINK_DIR/log/*.out\
+   | grep "." \
+   > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
     EXIT_CODE=1
