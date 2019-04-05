@@ -1813,6 +1813,23 @@ under the License.
 					</executions>
 				</plugin>
 
+				<plugin>
+					<!-- run via "mvn org.owasp:dependency-check-maven:aggregate" -->
+					<groupId>org.owasp</groupId>
+					<artifactId>dependency-check-maven</artifactId>
+					<version>5.0.0-M2</version>
+					<configuration>
+						<format>ALL</format>
+						<skipSystemScope>true</skipSystemScope>
+						<skipProvidedScope>true</skipProvidedScope>
+						<excludes>
+							<exclude>*flink-docs</exclude>
+							<exclude>*flink-end-to-end-tests</exclude>
+							<exclude>*flink-fs-tests*</exclude>
+							<exclude>*flink-yarn-tests*</exclude>
+						</excludes>
+					</configuration>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 	</build>
