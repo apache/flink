@@ -192,16 +192,8 @@ object EnumValueSerializerUpgradeTest {
 
     val settings = new GenericRunnerSettings(out.println _)
 
-    val classLoader = Thread.currentThread().getContextClassLoader
-
-    val urls = classLoader match {
-      case urlClassLoader: URLClassLoader =>
-        urlClassLoader.getURLs
-      case x => throw new IllegalStateException(s"Not possible to extract URLs " +
-        s"from class loader $x.")
-    }
-
-    settings.classpath.value = urls.map(_.toString).mkString(java.io.File.pathSeparator)
+    // use the java classpath so that scala libraries are available to the compiler
+    settings.usejavacp.value = true
     settings.outdir.value = file.getParent
 
     val reporter = new ConsoleReporter(settings)
