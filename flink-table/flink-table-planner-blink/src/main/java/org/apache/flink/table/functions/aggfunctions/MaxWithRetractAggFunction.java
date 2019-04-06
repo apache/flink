@@ -39,7 +39,7 @@ import java.util.Map;
 public abstract class MaxWithRetractAggFunction<T>
 		extends AggregateFunction<T, MaxWithRetractAggFunction.MaxWithRetractAccumulator<T>> {
 
-	/** The initial accumulator for Max with retraction aggregate function */
+	/** The initial accumulator for Max with retraction aggregate function. */
 	public static class MaxWithRetractAccumulator<T> {
 		public T max;
 		public Long distinctCount;
@@ -164,7 +164,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	protected abstract Comparator<T> getComparator();
 
 	/**
-	 * Built-in Byte Max with retraction aggregate function
+	 * Built-in Byte Max with retraction aggregate function.
 	 */
 	public static class ByteMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Byte> {
 
@@ -190,7 +190,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Short Max with retraction aggregate function
+	 * Built-in Short Max with retraction aggregate function.
 	 */
 	public static class ShortMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Short> {
 
@@ -216,7 +216,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Int Max with retraction aggregate function
+	 * Built-in Int Max with retraction aggregate function.
 	 */
 	public static class IntMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Integer> {
 
@@ -242,7 +242,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Long Max with retraction aggregate function
+	 * Built-in Long Max with retraction aggregate function.
 	 */
 	public static class LongMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Long> {
 
@@ -268,7 +268,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Float Max with retraction aggregate function
+	 * Built-in Float Max with retraction aggregate function.
 	 */
 	public static class FloatMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Float> {
 
@@ -294,7 +294,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Double Max with retraction aggregate function
+	 * Built-in Double Max with retraction aggregate function.
 	 */
 	public static class DoubleMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Double> {
 
@@ -320,7 +320,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Boolean Max with retraction aggregate function
+	 * Built-in Boolean Max with retraction aggregate function.
 	 */
 	public static class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Boolean> {
 
@@ -346,7 +346,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Big Decimal Max with retraction aggregate function
+	 * Built-in Big Decimal Max with retraction aggregate function.
 	 */
 	public static class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Decimal> {
 		private DecimalTypeInfo decimalType;
@@ -377,7 +377,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in String Max with retraction aggregate function
+	 * Built-in String Max with retraction aggregate function.
 	 */
 	public static class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction<String> {
 
@@ -403,10 +403,9 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Timestamp Max with retraction aggregate function
+	 * Built-in Timestamp Max with retraction aggregate function.
 	 */
 	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Timestamp> {
-
 
 		@Override
 		protected Timestamp getInitValue() {
@@ -430,7 +429,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Date Max with retraction aggregate function
+	 * Built-in Date Max with retraction aggregate function.
 	 */
 	public static class DateMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Date> {
 
@@ -456,7 +455,7 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Time Max with retraction aggregate function
+	 * Built-in Time Max with retraction aggregate function.
 	 */
 	public static class TimeMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Time> {
 

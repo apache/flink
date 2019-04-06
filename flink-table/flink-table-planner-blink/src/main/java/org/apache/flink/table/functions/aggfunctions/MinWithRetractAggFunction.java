@@ -39,7 +39,7 @@ import java.util.Map;
 public abstract class MinWithRetractAggFunction<T>
 		extends AggregateFunction<T, MinWithRetractAggFunction.MinWithRetractAccumulator<T>> {
 
-	/** The initial accumulator for Min with retraction aggregate function */
+	/** The initial accumulator for Min with retraction aggregate function. */
 	public static class MinWithRetractAccumulator<T> {
 		public T min;
 		public Long distinctCount;
@@ -164,7 +164,7 @@ public abstract class MinWithRetractAggFunction<T>
 	protected abstract Comparator<T> getComparator();
 
 	/**
-	 * Built-in Byte Min with retraction aggregate function
+	 * Built-in Byte Min with retraction aggregate function.
 	 */
 	public static class ByteMinWithRetractAggFunction extends MinWithRetractAggFunction<Byte> {
 
@@ -190,7 +190,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Short Min with retraction aggregate function
+	 * Built-in Short Min with retraction aggregate function.
 	 */
 	public static class ShortMinWithRetractAggFunction extends MinWithRetractAggFunction<Short> {
 
@@ -216,7 +216,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Int Min with retraction aggregate function
+	 * Built-in Int Min with retraction aggregate function.
 	 */
 	public static class IntMinWithRetractAggFunction extends MinWithRetractAggFunction<Integer> {
 
@@ -242,7 +242,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Long Min with retraction aggregate function
+	 * Built-in Long Min with retraction aggregate function.
 	 */
 	public static class LongMinWithRetractAggFunction extends MinWithRetractAggFunction<Long> {
 
@@ -268,7 +268,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Float Min with retraction aggregate function
+	 * Built-in Float Min with retraction aggregate function.
 	 */
 	public static class FloatMinWithRetractAggFunction extends MinWithRetractAggFunction<Float> {
 
@@ -294,7 +294,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Double Min with retraction aggregate function
+	 * Built-in Double Min with retraction aggregate function.
 	 */
 	public static class DoubleMinWithRetractAggFunction extends MinWithRetractAggFunction<Double> {
 
@@ -320,7 +320,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Boolean Min with retraction aggregate function
+	 * Built-in Boolean Min with retraction aggregate function.
 	 */
 	public static class BooleanMinWithRetractAggFunction extends MinWithRetractAggFunction<Boolean> {
 
@@ -346,7 +346,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Big Decimal Min with retraction aggregate function
+	 * Built-in Big Decimal Min with retraction aggregate function.
 	 */
 	public static class DecimalMinWithRetractAggFunction extends MinWithRetractAggFunction<Decimal> {
 		private DecimalTypeInfo decimalType;
@@ -377,7 +377,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in String Min with retraction aggregate function
+	 * Built-in String Min with retraction aggregate function.
 	 */
 	public static class StringMinWithRetractAggFunction extends MinWithRetractAggFunction<String> {
 
@@ -403,10 +403,9 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Timestamp Min with retraction aggregate function
+	 * Built-in Timestamp Min with retraction aggregate function.
 	 */
 	public static class TimestampMinWithRetractAggFunction extends MinWithRetractAggFunction<Timestamp> {
-
 
 		@Override
 		protected Timestamp getInitValue() {
@@ -430,7 +429,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Date Min with retraction aggregate function
+	 * Built-in Date Min with retraction aggregate function.
 	 */
 	public static class DateMinWithRetractAggFunction extends MinWithRetractAggFunction<Date> {
 
@@ -456,7 +455,7 @@ public abstract class MinWithRetractAggFunction<T>
 	}
 
 	/**
-	 * Built-in Time Min with retraction aggregate function
+	 * Built-in Time Min with retraction aggregate function.
 	 */
 	public static class TimeMinWithRetractAggFunction extends MinWithRetractAggFunction<Time> {
 
