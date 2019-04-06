@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedFieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
@@ -40,8 +40,8 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  * built-in sum aggregate function with retraction.
  */
 public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedFieldReferenceExpression sum = new UnresolvedFieldReferenceExpression("sum");
-	private UnresolvedFieldReferenceExpression count = new UnresolvedFieldReferenceExpression("count");
+	private UnresolvedReferenceExpression sum = new UnresolvedReferenceExpression("sum");
+	private UnresolvedReferenceExpression count = new UnresolvedReferenceExpression("count");
 
 	@Override
 	public int operandCount() {
@@ -49,8 +49,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	}
 
 	@Override
-	public UnresolvedFieldReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedFieldReferenceExpression[] { sum, count };
+	public UnresolvedReferenceExpression[] aggBufferAttributes() {
+		return new UnresolvedReferenceExpression[] { sum, count };
 	}
 
 	@Override
@@ -64,7 +64,7 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
 				/* sum = */ nullOf(getResultType()),
-				/* count = */ literal(1L)
+				/* count = */ literal(0L)
 		};
 	}
 

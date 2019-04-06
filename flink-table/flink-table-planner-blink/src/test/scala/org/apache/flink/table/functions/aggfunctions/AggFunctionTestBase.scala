@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions.aggfunctions
+package org.apache.flink.table.functions.aggfunctions
 
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator
+import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
 import org.junit.Assert.assertEquals
@@ -40,7 +42,7 @@ abstract class AggFunctionTestBase[T, ACC] {
 
   def aggregator: AggregateFunction[T, ACC]
 
-  val accType: Class[_] = aggregator.getClass.getMethod("createAccumulator").getReturnType
+  def accType: Class[_]
 
   def accumulateFunc: Method = aggregator.getClass.getMethod("accumulate", accType, classOf[Any])
 

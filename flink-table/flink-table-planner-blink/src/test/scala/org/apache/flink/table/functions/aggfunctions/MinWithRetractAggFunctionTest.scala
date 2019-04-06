@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions.aggfunctions
+package org.apache.flink.table.functions.aggfunctions
 
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction._
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Long => JLong, Short => JShort}
 import java.sql.{Date, Time, Timestamp}
 
 /**
@@ -29,27 +31,29 @@ import java.sql.{Date, Time, Timestamp}
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MinWithRetractAggFunctionTest[T: Numeric]
+abstract class MinWithRetractAggFunctionTest[T]
   extends AggFunctionTestBase[T, MinWithRetractAccumulator[T]] {
 
-  private val numeric: Numeric[T] = implicitly[Numeric[T]]
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[T]]
 
   def minVal: T
 
   def maxVal: T
 
+  def getValue(v: String): T
+
   override def inputValueSets: Seq[Seq[T]] = Seq(
     Seq(
-      numeric.fromInt(1),
+      getValue("1"),
       null.asInstanceOf[T],
       maxVal,
-      numeric.fromInt(-99),
-      numeric.fromInt(3),
-      numeric.fromInt(56),
-      numeric.fromInt(0),
+      getValue("-99"),
+      getValue("3"),
+      getValue("56"),
+      getValue("0"),
       minVal,
-      numeric.fromInt(-20),
-      numeric.fromInt(17),
+      getValue("-20"),
+      getValue("17"),
       null.asInstanceOf[T]
     ),
     Seq(
@@ -70,70 +74,84 @@ abstract class MinWithRetractAggFunctionTest[T: Numeric]
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
-class ByteMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Byte] {
+class ByteMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[JByte] {
 
-  override def minVal = (Byte.MinValue + 1).toByte
+  override def minVal: JByte = (Byte.MinValue + 1).toByte
 
-  override def maxVal = (Byte.MaxValue - 1).toByte
+  override def maxVal: JByte = (Byte.MaxValue - 1).toByte
 
-  override def aggregator: AggregateFunction[Byte, MinWithRetractAccumulator[Byte]] =
+  override def getValue(v: String): JByte = JByte.valueOf(v)
+
+  override def aggregator: AggregateFunction[JByte, MinWithRetractAccumulator[JByte]] =
     new ByteMinWithRetractAggFunction()
 }
 
-class ShortMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Short] {
+class ShortMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[JShort] {
 
   override def minVal = (Short.MinValue + 1).toShort
 
   override def maxVal = (Short.MaxValue - 1).toShort
 
-  override def aggregator: AggregateFunction[Short, MinWithRetractAccumulator[Short]] =
+  override def getValue(v: String): JShort = JShort.valueOf(v)
+
+  override def aggregator: AggregateFunction[JShort, MinWithRetractAccumulator[JShort]] =
     new ShortMinWithRetractAggFunction()
 }
 
-class IntMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Int] {
+class IntMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Integer] {
 
   override def minVal = Int.MinValue + 1
 
   override def maxVal = Int.MaxValue - 1
 
-  override def aggregator: AggregateFunction[Int, MinWithRetractAccumulator[Int]] =
+  override def getValue(v: String): Integer = Integer.valueOf(v)
+
+  override def aggregator: AggregateFunction[Integer, MinWithRetractAccumulator[Integer]] =
     new IntMinWithRetractAggFunction()
 }
 
-class LongMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Long] {
+class LongMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[JLong] {
 
   override def minVal = Long.MinValue + 1
 
   override def maxVal = Long.MaxValue - 1
 
-  override def aggregator: AggregateFunction[Long, MinWithRetractAccumulator[Long]] =
+  override def getValue(v: String): JLong = JLong.valueOf(v)
+
+  override def aggregator: AggregateFunction[JLong, MinWithRetractAccumulator[JLong]] =
     new LongMinWithRetractAggFunction()
 }
 
-class FloatMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Float] {
+class FloatMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[JFloat] {
 
   override def minVal = Float.MinValue / 2
 
   override def maxVal = Float.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Float, MinWithRetractAccumulator[Float]] =
+  override def getValue(v: String): JFloat = JFloat.valueOf(v)
+
+  override def aggregator: AggregateFunction[JFloat, MinWithRetractAccumulator[JFloat]] =
     new FloatMinWithRetractAggFunction()
 }
 
-class DoubleMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Double] {
+class DoubleMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[JDouble] {
 
   override def minVal = Double.MinValue / 2
 
   override def maxVal = Double.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Double, MinWithRetractAccumulator[Double]] =
+  override def getValue(v: String): JDouble = JDouble.valueOf(v)
+
+  override def aggregator: AggregateFunction[JDouble, MinWithRetractAccumulator[JDouble]] =
     new DoubleMinWithRetractAggFunction()
 }
 
 class BooleanMinWithRetractAggFunctionTest
-  extends AggFunctionTestBase[Boolean, MinWithRetractAccumulator[Boolean]] {
+  extends AggFunctionTestBase[JBoolean, MinWithRetractAccumulator[JBoolean]] {
 
-  override def inputValueSets: Seq[Seq[Boolean]] = Seq(
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[JBoolean]]
+
+  override def inputValueSets: Seq[Seq[JBoolean]] = Seq(
     Seq(
       false,
       false,
@@ -147,27 +165,27 @@ class BooleanMinWithRetractAggFunctionTest
     Seq(
       true,
       false,
-      null.asInstanceOf[Boolean],
+      null.asInstanceOf[JBoolean],
       true,
       false,
       true,
-      null.asInstanceOf[Boolean]
+      null.asInstanceOf[JBoolean]
     ),
     Seq(
-      null.asInstanceOf[Boolean],
-      null.asInstanceOf[Boolean],
-      null.asInstanceOf[Boolean]
+      null.asInstanceOf[JBoolean],
+      null.asInstanceOf[JBoolean],
+      null.asInstanceOf[JBoolean]
     )
   )
 
-  override def expectedResults: Seq[Boolean] = Seq(
+  override def expectedResults: Seq[JBoolean] = Seq(
     false,
     true,
     false,
-    null.asInstanceOf[Boolean]
+    null.asInstanceOf[JBoolean]
   )
 
-  override def aggregator: AggregateFunction[Boolean, MinWithRetractAccumulator[Boolean]] =
+  override def aggregator: AggregateFunction[JBoolean, MinWithRetractAccumulator[JBoolean]] =
     new BooleanMinWithRetractAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
@@ -177,6 +195,8 @@ class DecimalMinWithRetractAggFunctionTest
   extends AggFunctionTestBase[Decimal, MinWithRetractAccumulator[Decimal]] {
   private val precision = 20
   private val scale = 6
+
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[Decimal]]
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -212,6 +232,8 @@ class DecimalMinWithRetractAggFunctionTest
 
 class StringMinWithRetractAggFunctionTest
   extends AggFunctionTestBase[String, MinWithRetractAccumulator[String]] {
+
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[String]]
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -249,6 +271,8 @@ class StringMinWithRetractAggFunctionTest
 class TimestampMinWithRetractAggFunctionTest
   extends AggFunctionTestBase[Timestamp, MinWithRetractAccumulator[Timestamp]] {
 
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[Timestamp]]
+
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
       new Timestamp(0),
@@ -280,6 +304,8 @@ class TimestampMinWithRetractAggFunctionTest
 class DateMinWithRetractAggFunctionTest
   extends AggFunctionTestBase[Date, MinWithRetractAccumulator[Date]] {
 
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[Date]]
+
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
       new Date(0),
@@ -310,6 +336,8 @@ class DateMinWithRetractAggFunctionTest
 
 class TimeMinWithRetractAggFunctionTest
   extends AggFunctionTestBase[Time, MinWithRetractAccumulator[Time]] {
+
+  override def accType: Class[_] = classOf[MinWithRetractAccumulator[Time]]
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(

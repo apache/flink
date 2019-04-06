@@ -22,7 +22,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
-import org.apache.flink.table.functions.{DeclarativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.generated.GeneratedOperator
 import org.apache.flink.table.plan.util.AggregateInfoList
 import org.apache.flink.table.runtime.TableStreamOperator

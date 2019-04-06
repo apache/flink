@@ -22,7 +22,7 @@ import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeIn
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveTypeTermForType
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.expressions.{ResolvedDistinctKeyReference, _}
-import org.apache.flink.table.functions.DeclarativeAggregateFunction
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfo
 
 import org.apache.calcite.tools.RelBuilder

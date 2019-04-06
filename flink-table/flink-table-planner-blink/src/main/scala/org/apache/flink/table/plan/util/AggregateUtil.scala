@@ -22,12 +22,12 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
+import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.sql.AggSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.util.AggregateUtil.inferAggAccumulatorNames
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
 
 import org.apache.calcite.rel.`type`._
@@ -461,7 +461,6 @@ object AggregateUtil extends Enumeration {
       inputType: RelDataType,
       groupSet: Array[Int],
       typeFactory: FlinkTypeFactory): RelDataType = {
-
     val accTypes = aggInfoList.getAccTypes
     val groupingTypes = groupSet
       .map(inputType.getFieldList.get(_).getType)
@@ -506,7 +505,6 @@ object AggregateUtil extends Enumeration {
       groupSize: Int,
       needRetraction: Boolean,
       aggs: Seq[AggregateCall]): Array[Boolean] = {
-
     val needRetractionArray = Array.fill(aggs.size)(needRetraction)
     // TODO supports RelModifiedMonotonicity
 
@@ -521,7 +519,6 @@ object AggregateUtil extends Enumeration {
       inputRowType: RelDataType,
       groupSet: Array[Int],
       typeFactory: FlinkTypeFactory): RelDataType = {
-
     val accTypes = aggInfoList.getAccTypes
     val groupingTypes = groupSet
       .map(inputRowType.getFieldList.get(_).getType)
@@ -538,7 +535,6 @@ object AggregateUtil extends Enumeration {
     * Derives accumulators names from aggregate
     */
   def inferAggAccumulatorNames(aggInfoList: AggregateInfoList): Array[String] = {
-
     var index = -1
     val aggBufferNames = aggInfoList.aggInfos.indices.flatMap { i =>
       aggInfoList.aggInfos(i).function match {

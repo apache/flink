@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions.aggfunctions
+package org.apache.flink.table.functions.aggfunctions
 
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction._
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Long => JLong, Short => JShort}
 import java.sql.{Date, Time, Timestamp}
 
 /**
@@ -29,27 +31,29 @@ import java.sql.{Date, Time, Timestamp}
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MaxWithRetractAggFunctionTest[T: Numeric]
+abstract class MaxWithRetractAggFunctionTest[T]
   extends AggFunctionTestBase[T, MaxWithRetractAccumulator[T]] {
 
-  private val numeric: Numeric[T] = implicitly[Numeric[T]]
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[T]]
 
   def minVal: T
 
   def maxVal: T
 
+  def getValue(v: String): T
+
   override def inputValueSets: Seq[Seq[T]] = Seq(
     Seq(
-      numeric.fromInt(1),
+      getValue("1"),
       null.asInstanceOf[T],
       maxVal,
-      numeric.fromInt(-99),
-      numeric.fromInt(3),
-      numeric.fromInt(56),
-      numeric.fromInt(0),
+      getValue("-99"),
+      getValue("3"),
+      getValue("56"),
+      getValue("0"),
       minVal,
-      numeric.fromInt(-20),
-      numeric.fromInt(17),
+      getValue("-20"),
+      getValue("17"),
       null.asInstanceOf[T]
     ),
     Seq(
@@ -70,70 +74,84 @@ abstract class MaxWithRetractAggFunctionTest[T: Numeric]
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
-class ByteMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Byte] {
+class ByteMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[JByte] {
 
   override def minVal = (Byte.MinValue + 1).toByte
 
   override def maxVal = (Byte.MaxValue - 1).toByte
 
-  override def aggregator: AggregateFunction[Byte, MaxWithRetractAccumulator[Byte]] =
+  override def getValue(v: String): JByte = JByte.valueOf(v)
+
+  override def aggregator: AggregateFunction[JByte, MaxWithRetractAccumulator[JByte]] =
     new ByteMaxWithRetractAggFunction()
 }
 
-class ShortMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Short] {
+class ShortMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[JShort] {
 
   override def minVal = (Short.MinValue + 1).toShort
 
   override def maxVal = (Short.MaxValue - 1).toShort
 
-  override def aggregator: AggregateFunction[Short, MaxWithRetractAccumulator[Short]] =
+  override def getValue(v: String): JShort = JShort.valueOf(v)
+
+  override def aggregator: AggregateFunction[JShort, MaxWithRetractAccumulator[JShort]] =
     new ShortMaxWithRetractAggFunction()
 }
 
-class IntMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Int] {
+class IntMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Integer] {
 
   override def minVal = Int.MinValue + 1
 
   override def maxVal = Int.MaxValue - 1
 
-  override def aggregator: AggregateFunction[Int, MaxWithRetractAccumulator[Int]] =
+  override def getValue(v: String): Integer = Integer.valueOf(v)
+
+  override def aggregator: AggregateFunction[Integer, MaxWithRetractAccumulator[Integer]] =
     new IntMaxWithRetractAggFunction()
 }
 
-class LongMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Long] {
+class LongMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[JLong] {
 
   override def minVal = Long.MinValue + 1
 
   override def maxVal = Long.MaxValue - 1
 
-  override def aggregator: AggregateFunction[Long, MaxWithRetractAccumulator[Long]] =
+  override def getValue(v: String): JLong = JLong.valueOf(v)
+
+  override def aggregator: AggregateFunction[JLong, MaxWithRetractAccumulator[JLong]] =
     new LongMaxWithRetractAggFunction()
 }
 
-class FloatMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Float] {
+class FloatMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[JFloat] {
 
   override def minVal = Float.MinValue / 2
 
   override def maxVal = Float.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Float, MaxWithRetractAccumulator[Float]] =
+  override def getValue(v: String): JFloat = JFloat.valueOf(v)
+
+  override def aggregator: AggregateFunction[JFloat, MaxWithRetractAccumulator[JFloat]] =
     new FloatMaxWithRetractAggFunction()
 }
 
-class DoubleMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[Double] {
+class DoubleMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest[JDouble] {
 
   override def minVal = Double.MinValue / 2
 
   override def maxVal = Double.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Double, MaxWithRetractAccumulator[Double]] =
+  override def getValue(v: String): JDouble = JDouble.valueOf(v)
+
+  override def aggregator: AggregateFunction[JDouble, MaxWithRetractAccumulator[JDouble]] =
     new DoubleMaxWithRetractAggFunction()
 }
 
 class BooleanMaxWithRetractAggFunctionTest
-  extends AggFunctionTestBase[Boolean, MaxWithRetractAccumulator[Boolean]] {
+  extends AggFunctionTestBase[JBoolean, MaxWithRetractAccumulator[JBoolean]] {
 
-  override def inputValueSets: Seq[Seq[Boolean]] = Seq(
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[JBoolean]]
+
+  override def inputValueSets: Seq[Seq[JBoolean]] = Seq(
     Seq(
       false,
       false,
@@ -147,27 +165,27 @@ class BooleanMaxWithRetractAggFunctionTest
     Seq(
       true,
       false,
-      null.asInstanceOf[Boolean],
+      null.asInstanceOf[JBoolean],
       true,
       false,
       true,
-      null.asInstanceOf[Boolean]
+      null.asInstanceOf[JBoolean]
     ),
     Seq(
-      null.asInstanceOf[Boolean],
-      null.asInstanceOf[Boolean],
-      null.asInstanceOf[Boolean]
+      null.asInstanceOf[JBoolean],
+      null.asInstanceOf[JBoolean],
+      null.asInstanceOf[JBoolean]
     )
   )
 
-  override def expectedResults: Seq[Boolean] = Seq(
+  override def expectedResults: Seq[JBoolean] = Seq(
     false,
     true,
     true,
-    null.asInstanceOf[Boolean]
+    null.asInstanceOf[JBoolean]
   )
 
-  override def aggregator: AggregateFunction[Boolean, MaxWithRetractAccumulator[Boolean]] =
+  override def aggregator: AggregateFunction[JBoolean, MaxWithRetractAccumulator[JBoolean]] =
     new BooleanMaxWithRetractAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
@@ -177,6 +195,8 @@ class DecimalMaxWithRetractAggFunctionTest
   extends AggFunctionTestBase[Decimal, MaxWithRetractAccumulator[Decimal]] {
   private val precision = 20
   private val scale = 6
+
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[Decimal]]
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -212,6 +232,8 @@ class DecimalMaxWithRetractAggFunctionTest
 
 class StringMaxWithRetractAggFunctionTest
   extends AggFunctionTestBase[String, MaxWithRetractAccumulator[String]] {
+
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[String]]
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -249,6 +271,8 @@ class StringMaxWithRetractAggFunctionTest
 class TimestampMaxWithRetractAggFunctionTest
   extends AggFunctionTestBase[Timestamp, MaxWithRetractAccumulator[Timestamp]] {
 
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[Timestamp]]
+
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
       new Timestamp(0),
@@ -278,6 +302,8 @@ class TimestampMaxWithRetractAggFunctionTest
 class DateMaxWithRetractAggFunctionTest
   extends AggFunctionTestBase[Date, MaxWithRetractAccumulator[Date]] {
 
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[Date]]
+
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
       new Date(0),
@@ -306,6 +332,8 @@ class DateMaxWithRetractAggFunctionTest
 
 class TimeMaxWithRetractAggFunctionTest
   extends AggFunctionTestBase[Time, MaxWithRetractAccumulator[Time]] {
+
+  override def accType: Class[_] = classOf[MaxWithRetractAccumulator[Time]]
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
