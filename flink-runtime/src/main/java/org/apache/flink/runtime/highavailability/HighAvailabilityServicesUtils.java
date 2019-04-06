@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -81,6 +82,9 @@ public class HighAvailabilityServicesUtils {
 		AddressResolution addressResolution) throws Exception {
 
 		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(configuration);
+		highAvailabilityMode = configuration.getBoolean(
+			ConfigConstants.JOB_MANAGER_ADDRESS_SPECIFIED, false) ?
+			HighAvailabilityMode.NONE : highAvailabilityMode;
 
 		switch (highAvailabilityMode) {
 			case NONE:

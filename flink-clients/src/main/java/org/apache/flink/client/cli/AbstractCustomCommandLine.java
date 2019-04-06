@@ -19,6 +19,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.ClientUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -82,6 +83,7 @@ public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<
 			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
 			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
 			setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
+			resultingConfiguration.setBoolean(ConfigConstants.JOB_MANAGER_ADDRESS_SPECIFIED, true);
 		}
 
 		if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {

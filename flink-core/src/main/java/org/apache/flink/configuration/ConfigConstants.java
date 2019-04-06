@@ -138,6 +138,13 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
+	 * The config parameter defining the precedence to use
+	 * {@code StandaloneLeaderRetrievalService} even in ZOOKEEPER mode
+	 * when job manager address specified via -m parameter.
+	 */
+	public static final String JOB_MANAGER_ADDRESS_SPECIFIED = "jobmanager.address.specified";
+
+	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the resource manager.
 	 * @deprecated Use {@link ResourceManagerOptions#IPC_PORT} instead.
