@@ -313,4 +313,31 @@ class CorrelateTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testFlatMap(): Unit = {
+    val util = streamTestUtil()
+
+    val func2 = new TableFunc2
+    val resultTable = util.addTable[(Int, Long, String)]("MyTable", 'f1, 'f2, 'f3)
+      .flatMap(func2('f3))
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${func2.functionIdentifier}($$2)"),
+        term("correlate", "table(TableFunc2(f3))"),
+        term("select", "f1", "f2", "f3", "f0", "f1_0"),
+        term("rowType",
+             "RecordType(INTEGER f1, BIGINT f2, VARCHAR(65536) f3, VARCHAR(65536) f0, " +
+               "INTEGER f1_0)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "f0", "f1_0 AS f1")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
 }

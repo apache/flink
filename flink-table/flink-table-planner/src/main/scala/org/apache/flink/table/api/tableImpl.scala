@@ -24,7 +24,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.OperationExpressionsUtils.{extractAggregationsAndProperties}
+import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
@@ -457,6 +457,14 @@ class TableImpl(
 
   override def map(mapFunction: Expression): Table = {
     wrap(operationTreeBuilder.map(mapFunction, operationTree))
+  }
+
+  override def flatMap(tableFunction: String): Table = {
+    flatMap(ExpressionParser.parseExpression(tableFunction))
+  }
+
+  override def flatMap(tableFunction: Expression): Table = {
+    wrap(operationTreeBuilder.flatMap(tableFunction, operationTree))
   }
 
   /**

@@ -1004,7 +1004,8 @@ public interface Table {
 	 * <p>Example:
 	 *
 	 * <pre>
-	 * {@code ScalarFunction func = new MyMapFunction();
+	 * {@code
+	 *   ScalarFunction func = new MyMapFunction();
 	 *   tableEnv.registerFunction("func", func);
 	 *   tab.map("func(c)");
 	 * }
@@ -1019,10 +1020,40 @@ public interface Table {
 	 * <p>Scala Example:
 	 *
 	 * <pre>
-	 * {@code val func = new MyMapFunction()
+	 * {@code
+	 *   val func = new MyMapFunction()
 	 *   tab.map(func('c))
 	 * }
 	 * </pre>
 	 */
 	Table map(Expression mapFunction);
+
+	/**
+	 * Performs a flatMap operation with a table function.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableFunction func = new MyFlatMapFunction();
+	 *   tableEnv.registerFunction("func", func);
+	 *   table.flatMap("func(c)");
+	 * }
+	 * </pre>
+	 */
+	Table flatMap(String tableFunction);
+
+	/**
+	 * Performs a flatMap operation with a table function.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val func = new MyFlatMapFunction
+	 *   table.flatMap(func('c))
+	 * }
+	 * </pre>
+	 */
+	Table flatMap(Expression tableFunction);
 }
