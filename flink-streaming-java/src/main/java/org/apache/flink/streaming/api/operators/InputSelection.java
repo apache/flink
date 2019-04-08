@@ -19,11 +19,15 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
+
 /**
  * Describe the input selection that operators want to get the next record.
  */
 @PublicEvolving
-public final class InputSelection {
+public final class InputSelection implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select all inputs.
