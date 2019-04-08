@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -76,15 +77,8 @@ public final class LambdaUtil {
 			final ClassLoader cl,
 			final ThrowingRunnable<E> r) throws E {
 
-		final Thread currentThread = Thread.currentThread();
-		final ClassLoader oldClassLoader = currentThread.getContextClassLoader();
-
-		try {
-			currentThread.setContextClassLoader(cl);
+		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(cl)) {
 			r.run();
-		}
-		finally {
-			currentThread.setContextClassLoader(oldClassLoader);
 		}
 	}
 
@@ -99,15 +93,8 @@ public final class LambdaUtil {
 			final ClassLoader cl,
 			final SupplierWithException<R, E> s) throws E {
 
-		final Thread currentThread = Thread.currentThread();
-		final ClassLoader oldClassLoader = currentThread.getContextClassLoader();
-
-		try {
-			currentThread.setContextClassLoader(cl);
+		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(cl)) {
 			return s.get();
-		}
-		finally {
-			currentThread.setContextClassLoader(oldClassLoader);
 		}
 	}
 }
