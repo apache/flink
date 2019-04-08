@@ -46,7 +46,7 @@ public abstract class AbstractAzureFSFactory implements FileSystemFactory {
 
 	@Override
 	public FileSystem create(URI fsUri) throws IOException {
-		checkNotNull(fsUri, "fsUri");
+		checkNotNull(fsUri, "passed file system URI object should not be null");
 		LOG.info("Trying to load and instantiate Azure File System");
 		return new AzureFileSystem(fsUri, flinkConfig);
 	}

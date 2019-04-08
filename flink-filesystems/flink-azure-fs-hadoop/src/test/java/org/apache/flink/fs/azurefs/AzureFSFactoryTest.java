@@ -59,7 +59,7 @@ public class AzureFSFactoryTest extends TestLogger {
 		AbstractAzureFSFactory factory = getFactory(scheme);
 
 		exception.expect(NullPointerException.class);
-		exception.expectMessage("fsUri");
+		exception.expectMessage("passed file system URI object should not be null");
 
 		factory.create(uri);
 	}

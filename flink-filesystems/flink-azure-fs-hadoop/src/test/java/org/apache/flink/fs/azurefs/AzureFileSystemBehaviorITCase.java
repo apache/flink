@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemBehaviorTestSuite;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.StringUtils;
 
 import org.junit.AfterClass;
 import org.junit.Assume;
@@ -73,9 +74,9 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials and container / account details exist
-		Assume.assumeTrue("Azure storage account not configured, skipping test...", ACCOUNT != null);
-		Assume.assumeTrue("Azure container not configured, skipping test...", CONTAINER != null);
-		Assume.assumeTrue("Azure access key not configured, skipping test...", ACCESS_KEY != null);
+		Assume.assumeTrue("Azure storage account not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(ACCOUNT));
+		Assume.assumeTrue("Azure container not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(CONTAINER));
+		Assume.assumeTrue("Azure access key not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY));
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();

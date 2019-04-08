@@ -30,7 +30,7 @@ implementations.
 ## Flink's File System support
 
 Flink uses file systems both as *sources* and *sinks* in streaming/batch applications and as a target for *checkpointing*.
-These file systems can for example be *Unix/Windows file systems*, *HDFS*, or even object stores like *S3*.
+These file systems can for example be *Unix/Windows file systems*, *HDFS*, or even object stores like *S3* or *Azure Blob Storage*
 
 The file system used for a specific file is determined by the file URI's scheme. For example `file:///home/user/text.txt` refers to
 a file in the local file system, while `hdfs://namenode:50010/data/user/text.txt` refers to a file in a specific HDFS cluster.
@@ -41,7 +41,7 @@ avoid configuration overhead per stream creation and to enforce certain constrai
 
 ### Built-in File Systems
 
-Flink ships with support for most of the popular file systems, namely *local*, *hadoop-compatible*, *S3*, *MapR FS*
+Flink ships with support for most of the popular file systems, namely *local*, *hadoop-compatible*, *S3*, *MapR FS*, *Azure Blob Storage*
 and *OpenStack Swift FS*. Each of these is identified by the scheme included in the URI of the provide file path. 
 
 Flink ships with implementations for the following file systems:
@@ -70,6 +70,12 @@ including any NFS or SAN that is mounted into that local file system.
     as a scheme for the sink (Hadoop) and *"s3p://"* for checkpointing (Presto).
     
   - **MapR FS**: The MapR file system *"maprfs://"* is automatically available when the MapR libraries are in the classpath.
+  
+  - **Azure Blob Storage**: Flink directly provides a file system to work with Azure Blob Storage. This filesystem is registered under the scheme *"wasb(s)://"*. 
+  The implementation `flink-azure-fs-hadoop` is based on the [hadoop-azure](https://hadoop.apache.org/docs/current/hadoop-azure/index.html) module found in the 
+  [Hadoop](https://hadoop.apache.org/) project. To use it when using Flink as a library, add the following maven dependency: `org.apache.flink:flink-azure-fs-hadoop:{{ site.version }}`.
+  When starting a Flink application from the Flink binaries, copy or move the respective jar file from the `opt` folder to the `lib` folder.
+  Note that to use the Azure filesystem, you need to take care of [configuring Azure access credentials](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials). 
   
   - **OpenStack Swift FS**: Flink directly provides a file system to talk to the OpenStack Swift file system, registered under the scheme *"swift://"*. 
   The implementation `flink-swift-fs-hadoop` is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
