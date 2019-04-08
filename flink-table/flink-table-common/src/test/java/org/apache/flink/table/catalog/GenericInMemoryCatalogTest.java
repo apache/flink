@@ -28,13 +28,11 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,7 +68,8 @@ public class GenericInMemoryCatalogTest {
 
 	@Before
 	public void setUp() {
-		catalog = new GenericInMemoryCatalog(db1);
+		catalog = new GenericInMemoryCatalog(testCatalogName);
+		catalog.open();
 	}
 
 	@Rule
@@ -93,10 +92,6 @@ public class GenericInMemoryCatalogTest {
 		if (catalog.databaseExists(db2)) {
 			catalog.dropDatabase(db2, true);
 		}
-	}
-
-	@AfterClass
-	public static void clean() throws IOException {
 		catalog.close();
 	}
 
@@ -133,6 +128,7 @@ public class GenericInMemoryCatalogTest {
 		assertFalse(catalog.databaseExists(db1));
 
 		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database db1 does not exist in Catalog");
 		catalog.createTable(nonExistObjectPath, createTable(), false);
 	}
 
@@ -142,6 +138,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createTable(path1,  CatalogTestUtil.createTable(), false);
 
 		exception.expect(TableAlreadyExistException.class);
+		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
 		catalog.createTable(path1, createTable(), false);
 	}
 
@@ -164,12 +161,14 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 
 		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) db1.nonexist does not exist in Catalog");
 		catalog.getTable(nonExistObjectPath);
 	}
 
 	@Test
 	public void testGetTable_TableNotExistException_NoDb() {
 		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) db1.nonexist does not exist in Catalog");
 		catalog.getTable(nonExistObjectPath);
 	}
 
@@ -190,6 +189,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testDropTable_TableNotExistException() {
 		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
 		catalog.dropTable(nonExistDbPath, false);
 	}
 
@@ -221,6 +221,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testAlterTable_TableNotExistException() {
 		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
 		catalog.alterTable(nonExistDbPath, createTable(), false);
 	}
 
@@ -251,6 +252,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 
 		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) db1.t1 does not exist in Catalog");
 		catalog.renameTable(path1, t2, false);
 	}
 
@@ -268,6 +270,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createTable(path3, createAnotherTable(), false);
 
 		exception.expect(TableAlreadyExistException.class);
+		exception.expectMessage("Table (or view) db1.t2 already exists in Catalog");
 		catalog.renameTable(path1, t2, false);
 	}
 
@@ -302,6 +305,7 @@ public class GenericInMemoryCatalogTest {
 		assertFalse(catalog.databaseExists(db1));
 
 		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database db1 does not exist in Catalog");
 		catalog.createView(nonExistObjectPath, createView(), false);
 	}
 
@@ -311,6 +315,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createView(path1, createView(), false);
 
 		exception.expect(TableAlreadyExistException.class);
+		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
 		catalog.createView(path1, createView(), false);
 	}
 
@@ -361,6 +366,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testAlterView_TableNotExistException() {
 		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
 		catalog.alterTable(nonExistDbPath, createTable(), false);
 	}
 
@@ -401,6 +407,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 
 		exception.expect(DatabaseAlreadyExistException.class);
+		exception.expectMessage("Database db1 already exists in Catalog");
 		catalog.createDatabase(db1, createDb(), false);
 	}
 
@@ -424,6 +431,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testGetDb_DatabaseNotExistException() {
 		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database nonexistent does not exist in Catalog");
 		catalog.getDatabase("nonexistent");
 	}
 
@@ -441,6 +449,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testDropDb_DatabaseNotExistException() {
 		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database db1 does not exist in Catalog");
 		catalog.dropDatabase(db1, false);
 	}
 
@@ -455,6 +464,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createTable(path1, createTable(), false);
 
 		exception.expect(DatabaseNotEmptyException.class);
+		exception.expectMessage("Database db1 in Catalog test-catalog is not empty");
 		catalog.dropDatabase(db1, true);
 	}
 
@@ -475,6 +485,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testAlterDb_DatabaseNotExistException() {
 		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database nonexistent does not exist in Catalog");
 		catalog.alterDatabase("nonexistent", createDb(), false);
 	}
 
@@ -492,6 +503,21 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 
 		assertTrue(catalog.databaseExists(db1));
+	}
+
+	@Test
+	public void testRenameView() {
+		catalog.createDatabase("db1", new GenericCatalogDatabase(new HashMap<>()), false);
+		GenericCatalogView view = new GenericCatalogView("select * from t1",
+			"select * from db1.t1", createTableSchema(), new HashMap<>());
+		ObjectPath viewPath1 = new ObjectPath(db1, "view1");
+		catalog.createView(viewPath1, view, false);
+		assertTrue(catalog.tableExists(viewPath1));
+		catalog.renameView(viewPath1, "view2", false);
+		assertFalse(catalog.tableExists(viewPath1));
+		ObjectPath viewPath2 = new ObjectPath(db1, "view2");
+		assertTrue(catalog.tableExists(viewPath2));
+		catalog.dropTable(viewPath2, false);
 	}
 
 	// ------ utilities ------

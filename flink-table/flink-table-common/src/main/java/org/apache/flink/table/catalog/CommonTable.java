@@ -39,7 +39,6 @@ public interface CommonTable {
 	 */
 	TableSchema getSchema();
 
-
 	/**
 	 * Get a deep copy of the CommonTable instance.
 	 * @return a copy of the CommonTable instance

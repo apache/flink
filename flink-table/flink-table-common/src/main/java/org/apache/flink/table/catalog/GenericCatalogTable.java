@@ -21,7 +21,10 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.plan.stats.TableStats;
 
+import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A generic catalog table implementation.
@@ -39,7 +42,13 @@ public class GenericCatalogTable implements CatalogTable {
 	public GenericCatalogTable(TableSchema tableSchema, TableStats tableStats, Map<String, String> properties) {
 		this.tableSchema = tableSchema;
 		this.tableStats = tableStats;
-		this.properties = properties;
+		this.properties = checkNotNull(properties, "properties cannot be null");
+	}
+
+	public GenericCatalogTable(TableSchema tableSchema, TableStats tableStats, Map<String, String> properties,
+		String comment) {
+		this(tableSchema, tableStats, properties);
+		this.comment = comment;
 	}
 
 	@Override
@@ -59,7 +68,8 @@ public class GenericCatalogTable implements CatalogTable {
 
 	@Override
 	public GenericCatalogTable copy() {
-		return new GenericCatalogTable(this.tableSchema, this.tableStats, this.properties);
+		return new GenericCatalogTable(this.tableSchema.copy(), this.tableStats.copy(),
+			new HashMap<>(this.properties), comment);
 	}
 
 	public String getComment() {

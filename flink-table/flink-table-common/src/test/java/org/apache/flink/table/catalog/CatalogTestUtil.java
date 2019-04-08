@@ -60,8 +60,13 @@ public class CatalogTestUtil {
 
 	public static void compare(GenericCatalogTable t1, GenericCatalogTable t2) {
 		assertEquals(t1.getSchema(), t2.getSchema());
-		assertEquals(t1.getStatistics(), t2.getStatistics());
+		compare(t1.getStatistics(), t2.getStatistics());
 		assertEquals(t1.getComment(), t2.getComment());
+	}
+
+	protected static void compare(TableStats ts1, TableStats ts2) {
+		assertEquals(ts1.getRowCount(), ts2.getRowCount());
+		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
 	}
 
 	protected static void compare(CatalogView v1, CatalogView v2) {

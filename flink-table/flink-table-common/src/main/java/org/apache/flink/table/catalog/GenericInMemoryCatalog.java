@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		this.catalogName = name;
 		this.databases = new LinkedHashMap<>();
-		this.databases.put(DEFAULT_DB, new GenericCatalogDatabase());
+		this.databases.put(DEFAULT_DB, new GenericCatalogDatabase(new HashMap<>()));
 		this.tables = new LinkedHashMap<>();
 	}
 

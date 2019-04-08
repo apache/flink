@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -37,15 +38,20 @@ public class GenericCatalogView implements CatalogView {
 
 	private TableSchema schema;
 	private Map<String, String> properties;
-	private String comment;
+	private String comment = "This is a generic catalog view";
 
 	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
 		Map<String, String> properties, String comment) {
+		this(originalQuery, expandedQuery, schema, properties);
+		this.comment = comment;
+	}
+
+	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
+		Map<String, String> properties) {
 		this.originalQuery = originalQuery;
 		this.expandedQuery = expandedQuery;
 		this.schema = schema;
 		this.properties = properties;
-		this.comment = comment;
 	}
 
 	@Override
@@ -70,8 +76,8 @@ public class GenericCatalogView implements CatalogView {
 
 	@Override
 	public GenericCatalogView copy() {
-		return new GenericCatalogView(this.originalQuery, this.expandedQuery, schema,
-			this.properties, comment);
+		return new GenericCatalogView(this.originalQuery, this.expandedQuery, schema.copy(),
+			new HashMap<>(this.properties), comment);
 	}
 
 	public String getComment() {
