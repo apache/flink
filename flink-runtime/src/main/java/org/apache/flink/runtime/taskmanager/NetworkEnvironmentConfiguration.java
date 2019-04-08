@@ -27,8 +27,8 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-
 import org.apache.flink.util.MathUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +128,6 @@ public class NetworkEnvironmentConfiguration {
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
 	 * @return NetworkEnvironmentConfiguration
 	 */
-	@Deprecated
 	public static NetworkEnvironmentConfiguration fromConfiguration(
 		Configuration configuration,
 		long maxJvmHeapMemory,
@@ -254,10 +253,6 @@ public class NetworkEnvironmentConfiguration {
 				networkBufBytes, TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
 				"Network buffer memory size too large: " + networkBufBytes + " >= " +
 					totalJavaMemorySize + " (total JVM memory size)");
-			ConfigurationParserUtils.checkConfigParameter(networkBufBytes >= segmentSize,
-				networkBufBytes, TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
-				"Network buffer memory size too small: " + networkBufBytes + " < " +
-					segmentSize + " (" + TaskManagerOptions.MEMORY_SEGMENT_SIZE.key() + ")");
 		}
 
 		return networkBufBytes;
@@ -396,6 +391,7 @@ public class NetworkEnvironmentConfiguration {
 	 * @param maxJvmHeapMemory the maximum JVM heap size (in bytes)
 	 * @return the number of network buffers
 	 */
+	@SuppressWarnings("deprecation")
 	private static int calculateNumberOfNetworkBuffers(Configuration configuration, long maxJvmHeapMemory) {
 		final int numberOfNetworkBuffers;
 		if (!hasNewNetworkConfig(configuration)) {
@@ -424,14 +420,13 @@ public class NetworkEnvironmentConfiguration {
 	}
 
 	/**
-	 * Parses the configuration to wrapper related components into netty configuration which might be null if
-	 * communication is in the same task manager.
+	 * Generates {@link NettyConfig} from Flink {@link Configuration}.
 	 *
 	 * @param configuration configuration object
 	 * @param localTaskManagerCommunication true, to skip initializing the network stack
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
 	 * @param dataport data port for communication and data exchange
-	 * @return the netty configuration
+	 * @return the netty configuration or {@code null} if communication is in the same task manager
 	 */
 	@Nullable
 	private static NettyConfig createNettyConfig(
@@ -459,7 +454,7 @@ public class NetworkEnvironmentConfiguration {
 	 * @param configuration configuration object
 	 * @return size of memory segment
 	 */
-	private static int getPageSize(Configuration configuration) {
+	public static int getPageSize(Configuration configuration) {
 		final int pageSize = checkedDownCast(MemorySize.parse(
 			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
 

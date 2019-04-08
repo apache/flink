@@ -20,8 +20,6 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -32,6 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfigurationBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -56,7 +56,6 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
-import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Context for network benchmarks executed by the external
@@ -192,27 +191,19 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	private NetworkEnvironment createNettyNetworkEnvironment(
 			@SuppressWarnings("SameParameterValue") int bufferPoolSize, Configuration config) throws Exception {
 
-		int segmentSize =
-			checkedDownCast(
-				MemorySize.parse(config.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE))
-					.getBytes());
-
-		// we need this because many configs have been written with a "-1" entry
-		// similar to TaskManagerServicesConfiguration#fromConfiguration()
-		// -> please note that this directly influences the number of netty threads!
-		int slots = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		if (slots == -1) {
-			slots = 1;
-		}
-
-		final NettyConfig nettyConfig = new NettyConfig(LOCAL_ADDRESS, 0, segmentSize, slots, config);
+		final NettyConfig nettyConfig = new NettyConfig(
+			LOCAL_ADDRESS,
+			0,
+			NetworkEnvironmentConfiguration.getPageSize(config),
+			// please note that the number of slots directly influences the number of netty threads!
+			ConfigurationParserUtils.getSlot(config),
+			config);
 		final NetworkEnvironmentConfiguration configuration = new NetworkEnvironmentConfigurationBuilder()
 			.setNumNetworkBuffers(bufferPoolSize)
-			.setNetworkBufferSize(segmentSize)
 			.setNettyConfig(nettyConfig)
 			.build();
 
-		return new NetworkEnvironment(configuration);
+		return new NetworkEnvironment(configuration, new TaskEventDispatcher());
 	}
 
 	protected ResultPartitionWriter createResultPartition(
