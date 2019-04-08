@@ -211,24 +211,33 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	/**
 	 * Constructs a new {@code StateTable} with default capacity of {@code DEFAULT_CAPACITY}.
 	 *
-	 * @param keyContext the key context.
-	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
+	 * @param keyContext    the key context.
+	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
+	 * @param keySerializer the serializer of the key.
 	 */
-	CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
-		this(keyContext, metaInfo, DEFAULT_CAPACITY);
+	CopyOnWriteStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		TypeSerializer<K> keySerializer) {
+		this(keyContext, metaInfo, DEFAULT_CAPACITY, keySerializer);
 	}
 
 	/**
 	 * Constructs a new {@code StateTable} instance with the specified capacity.
 	 *
-	 * @param keyContext the key context.
-	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
-	 * @param capacity   the initial capacity of this hash map.
+	 * @param keyContext    the key context.
+	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
+	 * @param capacity      the initial capacity of this hash map.
+	 * @param keySerializer the serializer of the key.
 	 * @throws IllegalArgumentException when the capacity is less than zero.
 	 */
 	@SuppressWarnings("unchecked")
-	private CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo, int capacity) {
-		super(keyContext, metaInfo);
+	private CopyOnWriteStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		int capacity,
+		TypeSerializer<K> keySerializer) {
+		super(keyContext, metaInfo, keySerializer);
 
 		// initialized tables to EMPTY_TABLE.
 		this.primaryTable = (StateTableEntry<K, N, S>[]) EMPTY_TABLE;

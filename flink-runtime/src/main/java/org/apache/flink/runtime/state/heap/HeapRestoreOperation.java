@@ -73,7 +73,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 	@Nonnegative
 	private final int numberOfKeyGroups;
 	private final HeapSnapshotStrategy<K> snapshotStrategy;
-	private final HeapKeyedStateBackend<K> backend;
+	private final InternalKeyContext<K> keyContext;
 
 	HeapRestoreOperation(
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
@@ -86,7 +86,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 		@Nonnull KeyGroupRange keyGroupRange,
 		int numberOfKeyGroups,
 		HeapSnapshotStrategy<K> snapshotStrategy,
-		HeapKeyedStateBackend<K> backend) {
+		InternalKeyContext<K> keyContext) {
 		this.restoreStateHandles = restoreStateHandles;
 		this.keySerializerProvider = keySerializerProvider;
 		this.userCodeClassLoader = userCodeClassLoader;
@@ -97,7 +97,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 		this.keyGroupRange = keyGroupRange;
 		this.numberOfKeyGroups = numberOfKeyGroups;
 		this.snapshotStrategy = snapshotStrategy;
-		this.backend = backend;
+		this.keyContext = keyContext;
 	}
 
 	@Override
@@ -181,7 +181,10 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 							new RegisteredKeyValueStateBackendMetaInfo<>(metaInfoSnapshot);
 						registeredKVStates.put(
 							metaInfoSnapshot.getName(),
-							snapshotStrategy.newStateTable(backend, registeredKeyedBackendStateMetaInfo));
+							snapshotStrategy.newStateTable(
+								keyContext,
+								registeredKeyedBackendStateMetaInfo,
+								keySerializerProvider.currentSchemaSerializer()));
 					}
 					break;
 				case PRIORITY_QUEUE:

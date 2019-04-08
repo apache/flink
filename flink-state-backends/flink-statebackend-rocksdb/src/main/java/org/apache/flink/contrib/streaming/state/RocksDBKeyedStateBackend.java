@@ -41,7 +41,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -55,6 +54,7 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTran
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -201,8 +201,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		StateSerializerProvider<K> keySerializerProvider,
-		int numberOfKeyGroups,
-		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDB db,
@@ -218,10 +216,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDBNativeMetricMonitor nativeMetricMonitor,
 		RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder,
 		PriorityQueueSetFactory priorityQueueFactory,
-		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		InternalKeyContext<K> keyContext) {
 
-		super(kvStateRegistry, keySerializerProvider, userCodeClassLoader, numberOfKeyGroups,
-			keyGroupRange, executionConfig, ttlTimeProvider, cancelStreamRegistry, keyGroupCompressionDecorator);
+		super(
+			kvStateRegistry,
+			keySerializerProvider,
+			userCodeClassLoader,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistry,
+			keyGroupCompressionDecorator,
+			keyContext);
 
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
 

@@ -43,6 +43,8 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
@@ -323,6 +325,10 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				throw new BackendBuildingException(errMsg, e);
 			}
 		}
+		InternalKeyContext<K> keyContext = new InternalKeyContextImpl<>(
+			keyGroupRange,
+			numberOfKeyGroups
+		);
 		return new RocksDBKeyedStateBackend<>(
 			this.userCodeClassLoader,
 			this.instanceBasePath,
@@ -330,8 +336,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			columnFamilyOptionsFactory,
 			this.kvStateRegistry,
 			this.keySerializerProvider,
-			this.numberOfKeyGroups,
-			this.keyGroupRange,
 			this.executionConfig,
 			this.ttlTimeProvider,
 			db,
@@ -347,8 +351,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			nativeMetricMonitor,
 			sharedRocksKeyBuilder,
 			priorityQueueFactory,
-			ttlCompactFiltersManager
-		);
+			ttlCompactFiltersManager,
+			keyContext);
 	}
 
 	private AbstractRocksDBRestoreOperation<K> getRocksDBRestoreOperation(
