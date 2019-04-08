@@ -354,7 +354,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 			super(owningTable);
 			this.snapshotFilter = snapshotTransformFactory.createForDeserializedState().orElse(null);
-			this.keySerializer = owningStateTable.keyContext.getKeySerializer();
+			this.keySerializer = owningStateTable.keyContext.getCurrentKeySerializer();
 			this.namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
 			this.stateSerializer = owningStateTable.metaInfo.getStateSerializer();
 		}

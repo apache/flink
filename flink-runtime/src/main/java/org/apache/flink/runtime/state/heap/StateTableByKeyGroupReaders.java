@@ -64,7 +64,7 @@ class StateTableByKeyGroupReaders {
 	}
 
 	private static <K, N, S> StateSnapshotKeyGroupReader createV2PlusReader(StateTable<K, N, S> stateTable) {
-		final TypeSerializer<K> keySerializer = stateTable.keyContext.getKeySerializer();
+		final TypeSerializer<K> keySerializer = stateTable.keyContext.getCurrentKeySerializer();
 		final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 		final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
 		final Tuple3<N, K, S> buffer = new Tuple3<>();
@@ -91,7 +91,7 @@ class StateTableByKeyGroupReaders {
 				return;
 			}
 
-			final TypeSerializer<K> keySerializer = stateTable.keyContext.getKeySerializer();
+			final TypeSerializer<K> keySerializer = stateTable.keyContext.getCurrentKeySerializer();
 			final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 			final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
 

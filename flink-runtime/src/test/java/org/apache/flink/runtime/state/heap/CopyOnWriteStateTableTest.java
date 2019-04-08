@@ -454,34 +454,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				namespaceSerializer,
 				stateSerializer);
 
-		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
-		InternalKeyContext<Integer> mockKeyContext = new InternalKeyContext<Integer>() {
-			@Override
-			public Integer getCurrentKey() {
-				return 0;
-			}
-
-			@Override
-			public int getCurrentKeyGroupIndex() {
-				return 0;
-			}
-
-			@Override
-			public int getNumberOfKeyGroups() {
-				return 1;
-			}
-
-			@Override
-			public KeyGroupRange getKeyGroupRange() {
-				return keyGroupRange;
-			}
-
-			@Override
-			public TypeSerializer<Integer> getKeySerializer() {
-				return keySerializer;
-			}
-		};
-
+		InternalKeyContext<Integer> mockKeyContext = new MockInternalKeyContext<>(keySerializer);
 		CopyOnWriteStateTable<Integer, Integer, Integer> table =
 			new CopyOnWriteStateTable<>(mockKeyContext, metaInfo);
 
@@ -570,44 +543,9 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		}
 	}
 
-	static class MockInternalKeyContext<T> implements InternalKeyContext<T> {
-
-		private T key;
-		private final TypeSerializer<T> serializer;
-		private final KeyGroupRange keyGroupRange;
-
-		public MockInternalKeyContext(TypeSerializer<T> serializer) {
-			this.serializer = serializer;
-			this.keyGroupRange = new KeyGroupRange(0, 0);
-		}
-
-		public void setKey(T key) {
-			this.key = key;
-		}
-
-		@Override
-		public T getCurrentKey() {
-			return key;
-		}
-
-		@Override
-		public int getCurrentKeyGroupIndex() {
-			return 0;
-		}
-
-		@Override
-		public int getNumberOfKeyGroups() {
-			return 1;
-		}
-
-		@Override
-		public KeyGroupRange getKeyGroupRange() {
-			return keyGroupRange;
-		}
-
-		@Override
-		public TypeSerializer<T> getKeySerializer() {
-			return serializer;
+	static class MockInternalKeyContext<T> extends InternalKeyContextImpl<T> {
+		MockInternalKeyContext(TypeSerializer<T> serializer) {
+			super(new KeyGroupRange(0,0),1,serializer);
 		}
 	}
 

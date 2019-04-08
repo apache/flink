@@ -55,6 +55,26 @@ public interface InternalKeyContext<K> {
 	/**
 	 * {@link TypeSerializer} for the state backend key type.
 	 */
-	TypeSerializer<K> getKeySerializer();
+	TypeSerializer<K> getCurrentKeySerializer();
 
+	/**
+	 * Set current key of the context.
+	 *
+	 * @param currentKey the current key to set to.
+	 */
+	void setCurrentKey(K currentKey);
+
+	/**
+	 * Set current key group index of the context.
+	 *
+	 * @param currentKeyGroupIndex the current key group index to set to.
+	 */
+	void setCurrentKeyGroupIndex(int currentKeyGroupIndex);
+
+	/**
+	 * Set current key serializer of the context.
+	 *
+	 * @param currentKeySerializer the current key serializer to set to.
+	 */
+	void setCurrentKeySerializer(TypeSerializer<K> currentKeySerializer);
 }
