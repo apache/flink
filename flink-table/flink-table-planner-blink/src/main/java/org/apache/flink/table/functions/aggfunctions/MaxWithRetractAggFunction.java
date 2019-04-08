@@ -29,28 +29,27 @@ import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 
 /**
  * built-in Max with retraction aggregate function.
  */
-public abstract class MaxWithRetractAggFunction<T>
+public abstract class MaxWithRetractAggFunction<T extends Comparable>
 		extends AggregateFunction<T, MaxWithRetractAggFunction.MaxWithRetractAccumulator<T>> {
 
 	/** The initial accumulator for Max with retraction aggregate function. */
 	public static class MaxWithRetractAccumulator<T> {
 		public T max;
-		public Long distinctCount;
+		public Long mapSize;
 		public MapView<T, Long> map;
 	}
 
 	@Override
 	public MaxWithRetractAccumulator<T> createAccumulator() {
 		MaxWithRetractAccumulator<T> acc = new MaxWithRetractAccumulator<>();
-		acc.max = getInitValue(); // max
-		acc.distinctCount = 0L;
+		acc.max = null; // max
+		acc.mapSize = 0L;
 		// store the count for each value
 		acc.map = new MapView<>(getValueTypeInfo(), BasicTypeInfo.LONG_TYPE_INFO);
 		return acc;
@@ -60,14 +59,14 @@ public abstract class MaxWithRetractAggFunction<T>
 		if (value != null) {
 			T v = (T) value;
 
-			if (acc.distinctCount == 0L || getComparator().compare(acc.max, v) < 0) {
+			if (acc.mapSize == 0L || acc.max.compareTo(v) < 0) {
 				acc.max = v;
 			}
 
 			Long count = acc.map.get(v);
 			if (count == null) {
 				acc.map.put(v, 1L);
-				acc.distinctCount += 1;
+				acc.mapSize += 1;
 			} else {
 				count += 1L;
 				acc.map.put(v, count);
@@ -86,9 +85,9 @@ public abstract class MaxWithRetractAggFunction<T>
 					acc.map.remove(v);
 				}
 				//if the total count is 0, we could just simply set the f0(max) to the initial value
-				acc.distinctCount -= 1L;
-				if (acc.distinctCount == 0L) {
-					acc.max = getInitValue();
+				acc.mapSize -= 1L;
+				if (acc.mapSize <= 0L) {
+					acc.max = null;
 					return;
 				}
 				//if v is the current max value, we have to iterate the map to find the 2nd biggest
@@ -96,16 +95,18 @@ public abstract class MaxWithRetractAggFunction<T>
 				if (v == acc.max) {
 					Iterator<T> iterator = acc.map.keys().iterator();
 					boolean hasMax = false;
-					Comparator<T> comparator = getComparator();
 					while (iterator.hasNext()) {
 						T key = iterator.next();
-						if (!hasMax || comparator.compare(acc.max, key) < 0) {
+						if (!hasMax || acc.max.compareTo(key) < 0) {
 							acc.max = key;
 							hasMax = true;
 						}
 					}
+					// The behavior of deleting expired data in the state backend is uncertain.
+					// so `mapSize` data may exist, while `map` data may have been deleted
+					// when both of them are expired.
 					if (!hasMax) {
-						acc.distinctCount = 0L;
+						acc.mapSize = 0L;
 					}
 				}
 			} else {
@@ -116,12 +117,11 @@ public abstract class MaxWithRetractAggFunction<T>
 
 	public void merge(MaxWithRetractAccumulator<T> acc, Iterable<MaxWithRetractAccumulator<T>> its) throws Exception {
 		Iterator<MaxWithRetractAccumulator<T>> iter = its.iterator();
-		Comparator<T> comparator = getComparator();
 		while (iter.hasNext()) {
 			MaxWithRetractAccumulator<T> a = iter.next();
-			if (a.distinctCount != 0) {
+			if (a.mapSize != 0) {
 				// set max element
-				if (comparator.compare(acc.max, a.max) < 0) {
+				if (acc.mapSize == 0 || acc.max.compareTo(a.max) < 0) {
 					acc.max = a.max;
 				}
 				// merge the count for each key
@@ -135,7 +135,7 @@ public abstract class MaxWithRetractAggFunction<T>
 						acc.map.put(key, count + value);
 					} else {
 						acc.map.put(key, value);
-						acc.distinctCount += 1;
+						acc.mapSize += 1;
 					}
 				}
 			}
@@ -143,25 +143,21 @@ public abstract class MaxWithRetractAggFunction<T>
 	}
 
 	public void resetAccumulator(MaxWithRetractAccumulator<T> acc) {
-		acc.max = getInitValue();
-		acc.distinctCount = 0L;
+		acc.max = null;
+		acc.mapSize = 0L;
 		acc.map.clear();
 	}
 
 	@Override
 	public T getValue(MaxWithRetractAccumulator<T> acc) {
-		if (acc.distinctCount != 0) {
+		if (acc.mapSize != 0) {
 			return acc.max;
 		} else {
 			return null;
 		}
 	}
 
-	protected abstract T getInitValue();
-
 	protected abstract TypeInformation<?> getValueTypeInfo();
-
-	protected abstract Comparator<T> getComparator();
 
 	/**
 	 * Built-in Byte Max with retraction aggregate function.
@@ -169,23 +165,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class ByteMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Byte> {
 
 		@Override
-		protected Byte getInitValue() {
-			return (byte) 0;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.BYTE_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Byte> getComparator() {
-			return new Comparator<Byte>() {
-				@Override
-				public int compare(Byte o1, Byte o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -195,23 +176,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class ShortMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Short> {
 
 		@Override
-		protected Short getInitValue() {
-			return (short) 0;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.SHORT_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Short> getComparator() {
-			return new Comparator<Short>() {
-				@Override
-				public int compare(Short o1, Short o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -221,23 +187,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class IntMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Integer> {
 
 		@Override
-		protected Integer getInitValue() {
-			return 0;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.INT_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Integer> getComparator() {
-			return new Comparator<Integer>() {
-				@Override
-				public int compare(Integer o1, Integer o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -247,23 +198,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class LongMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Long> {
 
 		@Override
-		protected Long getInitValue() {
-			return 0L;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.LONG_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Long> getComparator() {
-			return new Comparator<Long>() {
-				@Override
-				public int compare(Long o1, Long o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -273,23 +209,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class FloatMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Float> {
 
 		@Override
-		protected Float getInitValue() {
-			return 0.0f;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.FLOAT_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Float> getComparator() {
-			return new Comparator<Float>() {
-				@Override
-				public int compare(Float o1, Float o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -299,23 +220,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class DoubleMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Double> {
 
 		@Override
-		protected Double getInitValue() {
-			return 0.0D;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.DOUBLE_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Double> getComparator() {
-			return new Comparator<Double>() {
-				@Override
-				public int compare(Double o1, Double o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -325,23 +231,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Boolean> {
 
 		@Override
-		protected Boolean getInitValue() {
-			return false;
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.BOOLEAN_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<Boolean> getComparator() {
-			return new Comparator<Boolean>() {
-				@Override
-				public int compare(Boolean o1, Boolean o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -356,23 +247,8 @@ public abstract class MaxWithRetractAggFunction<T>
 		}
 
 		@Override
-		protected Decimal getInitValue() {
-			return Decimal.castFrom(0, decimalType.precision(), decimalType.scale());
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return decimalType;
-		}
-
-		@Override
-		protected Comparator<Decimal> getComparator() {
-			return new Comparator<Decimal>() {
-				@Override
-				public int compare(Decimal o1, Decimal o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -382,23 +258,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction<String> {
 
 		@Override
-		protected String getInitValue() {
-			return "";
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return BasicTypeInfo.STRING_TYPE_INFO;
-		}
-
-		@Override
-		protected Comparator<String> getComparator() {
-			return new Comparator<String>() {
-				@Override
-				public int compare(String o1, String o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -408,23 +269,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Timestamp> {
 
 		@Override
-		protected Timestamp getInitValue() {
-			return new Timestamp(0);
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return Types.SQL_TIMESTAMP;
-		}
-
-		@Override
-		protected Comparator<Timestamp> getComparator() {
-			return new Comparator<Timestamp>() {
-				@Override
-				public int compare(Timestamp o1, Timestamp o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -434,23 +280,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class DateMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Date> {
 
 		@Override
-		protected Date getInitValue() {
-			return new Date(0);
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return Types.SQL_DATE;
-		}
-
-		@Override
-		protected Comparator<Date> getComparator() {
-			return new Comparator<Date>() {
-				@Override
-				public int compare(Date o1, Date o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 
@@ -460,23 +291,8 @@ public abstract class MaxWithRetractAggFunction<T>
 	public static class TimeMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Time> {
 
 		@Override
-		protected Time getInitValue() {
-			return new Time(0);
-		}
-
-		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
 			return Types.SQL_TIME;
-		}
-
-		@Override
-		protected Comparator<Time> getComparator() {
-			return new Comparator<Time>() {
-				@Override
-				public int compare(Time o1, Time o2) {
-					return o1.compareTo(o2);
-				}
-			};
 		}
 	}
 }
