@@ -642,4 +642,37 @@ object RelExplainUtil {
     val operands = rexCall.getOperands.map(expression(_, inFields, None)).mkString(",")
     s"table($udtfName($operands))"
   }
+
+  def aggOperatorName(
+      prefix: String,
+      grouping: Array[Int],
+      auxGrouping: Array[Int],
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+      isMerge: Boolean,
+      isFinal: Boolean): String = {
+    val groupingStr = if (grouping.nonEmpty) {
+      s"groupBy:(${fieldToString(grouping, inputRowType)}),"
+    } else {
+      ""
+    }
+    val auxGroupingStr = if (auxGrouping.nonEmpty) {
+      s"auxGrouping:(${fieldToString(auxGrouping, inputRowType)}),"
+    } else {
+      ""
+    }
+
+    val selectString = s"select:(${
+      groupAggregationToString(
+        inputRowType,
+        outputRowType,
+        grouping,
+        auxGrouping,
+        aggCallToAggFunction,
+        isMerge,
+        isFinal)
+    }),"
+    s"$prefix($groupingStr$auxGroupingStr$selectString)"
+  }
 }
