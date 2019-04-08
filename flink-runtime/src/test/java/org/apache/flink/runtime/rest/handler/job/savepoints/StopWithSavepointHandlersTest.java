@@ -31,12 +31,13 @@ import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -59,7 +60,7 @@ import static org.junit.Assert.fail;
  *
  * <p>Shamelessly copied from {@link SavepointHandlersTest}.
  */
-public class StopWithSavepointHandlersTest {
+public class StopWithSavepointHandlersTest extends TestLogger {
 
 	private static final Time TIMEOUT = Time.seconds(10);
 
@@ -154,7 +155,7 @@ public class StopWithSavepointHandlersTest {
 			assertThat(
 					rhe.getMessage(),
 					equalTo("Config key [state.savepoints.dir] is not set. " +
-							"Property [target-directory] must be provided."));
+							"Property [targetDirectory] must be provided."));
 			assertThat(rhe.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
 		}
 	}
@@ -183,20 +184,20 @@ public class StopWithSavepointHandlersTest {
 		assertThat(savepointError, instanceOf(RuntimeException.class));
 	}
 
-	private static HandlerRequest<StopWithSavepointRequestBody, StopWithSavepointMessageParameters> triggerSavepointRequest() throws HandlerRequestException {
+	private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters> triggerSavepointRequest() throws HandlerRequestException {
 		return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY);
 	}
 
-	private static HandlerRequest<StopWithSavepointRequestBody, StopWithSavepointMessageParameters> triggerSavepointRequestWithDefaultDirectory() throws HandlerRequestException {
+	private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters> triggerSavepointRequestWithDefaultDirectory() throws HandlerRequestException {
 		return triggerSavepointRequest(null);
 	}
 
-	private static HandlerRequest<StopWithSavepointRequestBody, StopWithSavepointMessageParameters> triggerSavepointRequest(
+	private static HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters> triggerSavepointRequest(
 			final String targetDirectory
 	) throws HandlerRequestException {
 		return new HandlerRequest<>(
 				new StopWithSavepointRequestBody(targetDirectory, false),
-				new StopWithSavepointMessageParameters(),
+				new SavepointTriggerMessageParameters(),
 				Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
 				Collections.emptyMap());
 	}

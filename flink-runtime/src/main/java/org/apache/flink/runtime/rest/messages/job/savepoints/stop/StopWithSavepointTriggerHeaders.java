@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.job.savepoints.stop;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationTriggerMessageHeaders;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -28,7 +29,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  * These headers define the protocol for triggering a "stop-with-savepoint" action.
  */
 public class StopWithSavepointTriggerHeaders
-		extends AsynchronousOperationTriggerMessageHeaders<StopWithSavepointRequestBody, StopWithSavepointMessageParameters> {
+		extends AsynchronousOperationTriggerMessageHeaders<StopWithSavepointRequestBody, SavepointTriggerMessageParameters> {
 
 	private static final StopWithSavepointTriggerHeaders INSTANCE = new StopWithSavepointTriggerHeaders();
 
@@ -50,8 +51,8 @@ public class StopWithSavepointTriggerHeaders
 	}
 
 	@Override
-	public StopWithSavepointMessageParameters getUnresolvedMessageParameters() {
-		return new StopWithSavepointMessageParameters();
+	public SavepointTriggerMessageParameters getUnresolvedMessageParameters() {
+		return new SavepointTriggerMessageParameters();
 	}
 
 	@Override
@@ -79,6 +80,7 @@ public class StopWithSavepointTriggerHeaders
 
 	@Override
 	public String getDescription() {
-		return "Triggers a savepoint, and optionally cancels the job afterwards.";
+		return "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking" +
+				" the savepoint to flush out any state waiting for timers to fire.";
 	}
 }

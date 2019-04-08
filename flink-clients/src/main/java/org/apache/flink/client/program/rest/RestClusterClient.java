@@ -85,7 +85,6 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMess
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.queue.AsynchronouslyCreatedResource;
@@ -411,7 +410,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 		final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders = StopWithSavepointTriggerHeaders.getInstance();
 
-		final StopWithSavepointMessageParameters stopWithSavepointTriggerMessageParameters =
+		final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
 				stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
 		stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
 

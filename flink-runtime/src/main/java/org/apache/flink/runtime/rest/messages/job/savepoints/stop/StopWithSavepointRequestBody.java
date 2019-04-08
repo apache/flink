@@ -30,23 +30,23 @@ import javax.annotation.Nullable;
  */
 public class StopWithSavepointRequestBody implements RequestBody {
 
-	public static final String FIELD_NAME_TARGET_DIRECTORY = "target-directory";
+	public static final String FIELD_NAME_TARGET_DIRECTORY = "targetDirectory";
 
-	private static final String FIELD_NAME_END_OF_TIME = "end-of-time";
+	private static final String FIELD_NAME_END_OF_EVENT_TIME = "endOfEventTime";
 
 	@JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
 	@Nullable
 	private final String targetDirectory;
 
-	@JsonProperty(FIELD_NAME_END_OF_TIME)
-	private final boolean endOfTime;
+	@JsonProperty(FIELD_NAME_END_OF_EVENT_TIME)
+	private final boolean endOfEventTime;
 
 	@JsonCreator
 	public StopWithSavepointRequestBody(
 			@Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
-			@JsonProperty(value = FIELD_NAME_END_OF_TIME, defaultValue = "false") final boolean endOfTime) {
+			@JsonProperty(value = FIELD_NAME_END_OF_EVENT_TIME, defaultValue = "false") final boolean endOfEventTime) {
 		this.targetDirectory = targetDirectory;
-		this.endOfTime = endOfTime;
+		this.endOfEventTime = endOfEventTime;
 	}
 
 	@Nullable
@@ -54,7 +54,7 @@ public class StopWithSavepointRequestBody implements RequestBody {
 		return targetDirectory;
 	}
 
-	public boolean advanceToEndOfTime() {
-		return endOfTime;
+	public boolean shouldAdvanceToEndOfEventTime() {
+		return endOfEventTime;
 	}
 }
