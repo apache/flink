@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-import com.rabbitmq.client.*;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -36,6 +35,12 @@ import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig
 import org.apache.flink.streaming.connectors.rabbitmq.common.RabbitMQConsumer;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.Delivery;
+import com.rabbitmq.client.Envelope;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

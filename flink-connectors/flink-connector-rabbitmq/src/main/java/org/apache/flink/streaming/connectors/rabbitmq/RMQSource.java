@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-import com.rabbitmq.client.*;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,8 +28,11 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RabbitMQConsumer;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 
+import com.rabbitmq.client.AlreadyClosedException;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Delivery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,7 +102,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *               				into Java objects.
 	 */
 	public RMQSource(RMQConnectionConfig rmqConnectionConfig, String queueName,
-						   DeserializationSchema<OUT> deserializationSchema) {
+						DeserializationSchema<OUT> deserializationSchema) {
 		this(rmqConnectionConfig, queueName, false, deserializationSchema);
 	}
 
@@ -118,7 +120,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *                              into Java objects.
 	 */
 	public RMQSource(RMQConnectionConfig rmqConnectionConfig,
-						   String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
+					String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
 		super(String.class);
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
@@ -193,7 +195,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (running) {
 			//Attempts to pull data off the stack, timeout so that we don't lock the thread
-			Delivery delivery = consumer.nextDelivery( 1, TimeUnit.SECONDS);
+			Delivery delivery = consumer.nextDelivery(1, TimeUnit.SECONDS);
 
 			synchronized (ctx.getCheckpointLock()) {
 				if (delivery != null) {

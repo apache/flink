@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq.common;
 
-import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.util.Preconditions;
 
 import com.rabbitmq.client.ConnectionFactory;
@@ -80,15 +78,15 @@ public class RMQConnectionConfig implements Serializable {
 	 * @throws NullPointerException if host or virtual host or username or password is null
 	 */
 	private RMQConnectionConfig(String host, Integer port, String virtualHost, String username, String password,
-									  Integer networkRecoveryInterval, Boolean automaticRecovery,
-									  Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
-									  Integer requestedFrameMax, Integer requestedHeartbeat, Integer clientBufferCapacity){
+									Integer networkRecoveryInterval, Boolean automaticRecovery,
+									Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
+									Integer requestedFrameMax, Integer requestedHeartbeat, Integer clientBufferCapacity){
 		Preconditions.checkNotNull(host, "host can not be null");
 		Preconditions.checkNotNull(port, "port can not be null");
 		Preconditions.checkNotNull(virtualHost, "virtualHost can not be null");
 		Preconditions.checkNotNull(username, "username can not be null");
 		Preconditions.checkNotNull(password, "password can not be null");
-		Preconditions.checkArgument(clientBufferCapacity>0, "Buffer capacity must be greater than 0");
+		Preconditions.checkArgument(clientBufferCapacity > 0, "Buffer capacity must be greater than 0");
 		this.host = host;
 		this.port = port;
 		this.virtualHost = virtualHost;
@@ -118,8 +116,8 @@ public class RMQConnectionConfig implements Serializable {
 	 * @throws NullPointerException if URI is null
 	 */
 	private RMQConnectionConfig(String uri, Integer networkRecoveryInterval, Boolean automaticRecovery,
-									  Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
-									  Integer requestedFrameMax, Integer requestedHeartbeat, Integer clientBufferCapacity){
+									Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
+									Integer requestedFrameMax, Integer requestedHeartbeat, Integer clientBufferCapacity){
 		Preconditions.checkNotNull(uri, "Uri can not be null");
 		this.uri = uri;
 
@@ -320,7 +318,7 @@ public class RMQConnectionConfig implements Serializable {
 		private Integer requestedFrameMax;
 		private Integer requestedHeartbeat;
 
-		private Integer clientBufferCapacity;
+		private Integer clientBufferCapacity = Integer.MAX_VALUE;
 
 		private String uri;
 
@@ -455,7 +453,7 @@ public class RMQConnectionConfig implements Serializable {
 		}
 
 		/**
-		 * Sets the number of records that can sit in memory unacked at once
+		 * Sets the number of records that can sit in memory unacked at once.
 		 * @param clientBufferCapacity the number of records
 		 * @return the Builder
 		 */
