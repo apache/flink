@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
@@ -74,12 +75,14 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 			kvStateRegistry,
 			keySerializerProvider.currentSchemaSerializer(),
 			userCodeClassLoader,
-			numberOfKeyGroups,
-			keyGroupRange,
 			executionConfig,
 			ttlTimeProvider,
 			stateValues,
 			stateSnapshotFilters,
-			cancelStreamRegistry);
+			cancelStreamRegistry,
+			new InternalKeyContextImpl<>(
+				keyGroupRange,
+				numberOfKeyGroups
+			));
 	}
 }

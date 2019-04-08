@@ -52,13 +52,22 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
 
 	/**
-	 *
-	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
-	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
+	 * The serializer of the key.
 	 */
-	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	protected final TypeSerializer<K> keySerializer;
+
+	/**
+	 * @param keyContext    the key context provides the key scope for all put/get/delete operations.
+	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
+	 * @param keySerializer the serializer of the key.
+	 */
+	public StateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		TypeSerializer<K> keySerializer) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 	}
 
 	// Main interface methods of StateTable -------------------------------------------------------
