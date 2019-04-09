@@ -71,6 +71,13 @@ public interface InputGate extends AutoCloseable {
 
 	String getOwningTaskName();
 
+	/**
+	 * Tests if there is available data currently.
+	 *
+	 * @return <code>true</code> if there is available data, <code>false</code> otherwise.
+	 */
+	boolean moreAvailable();
+
 	boolean isFinished();
 
 	void requestPartitions() throws IOException, InterruptedException;

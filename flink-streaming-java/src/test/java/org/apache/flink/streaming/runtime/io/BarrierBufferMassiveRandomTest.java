@@ -164,6 +164,11 @@ public class BarrierBufferMassiveRandomTest {
 		}
 
 		@Override
+		public boolean moreAvailable() {
+			return true;
+		}
+
+		@Override
 		public boolean isFinished() {
 			return false;
 		}

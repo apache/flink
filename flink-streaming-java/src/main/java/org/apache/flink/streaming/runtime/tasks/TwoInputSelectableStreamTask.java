@@ -22,19 +22,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamTwoInputSelectableProcessor;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
 
 /**
- * A {@link StreamTask} for executing a {@link TwoInputStreamOperator}.
+ * A {@link StreamTask} for executing the {@link TwoInputStreamOperator} which can select the input to
+ * get the next {@link StreamRecord}.
  */
 @Internal
-public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
+public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
+	private volatile StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor;
 
-	public TwoInputStreamTask(Environment env) {
+	public TwoInputSelectableStreamTask(Environment env) {
 		super(env);
 	}
 
@@ -43,19 +45,15 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) throws Exception {
+		TypeSerializer<IN2> inputDeserializer2) {
 
-		this.inputProcessor = new StreamTwoInputProcessor<>(
+		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
 			inputGates1, inputGates2,
 			inputDeserializer1, inputDeserializer2,
 			this,
-			getConfiguration().getCheckpointMode(),
-			getCheckpointLock(),
 			getEnvironment().getIOManager(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getStreamStatusMaintainer(),
 			this.headOperator,
-			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			input1WatermarkGauge,
 			input2WatermarkGauge);
 	}
@@ -63,17 +61,26 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 	@Override
 	protected void run() throws Exception {
 		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
+		final StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
 
+		inputProcessor.init();
 		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
 		}
 	}
 
 	@Override
-	protected void cleanup() throws Exception {
+	protected void cleanup() {
 		if (inputProcessor != null) {
 			inputProcessor.cleanup();
+		}
+	}
+
+	@Override
+	protected void cancelTask() {
+		running = false;
+		if (inputProcessor != null) {
+			inputProcessor.stop();
 		}
 	}
 }

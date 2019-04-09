@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
+import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
 
@@ -236,7 +238,10 @@ public class StreamGraph extends StreamingPlan {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		addNode(vertexID, slotSharingGroup, coLocationGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
+		Class<? extends AbstractInvokable> vertexClass = taskOperatorObject instanceof InputSelectable ?
+			TwoInputSelectableStreamTask.class : TwoInputStreamTask.class;
+
+		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, taskOperatorObject, operatorName);
 
 		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
 				outTypeInfo.createSerializer(executionConfig) : null;

@@ -128,6 +128,50 @@ public class SingleInputGateTest {
 	}
 
 	@Test(timeout = 120 * 1000)
+	public void testMoreAvailable() throws Exception {
+		// Setup
+		final SingleInputGate inputGate = createInputGate();
+
+		final TestInputChannel[] inputChannels = new TestInputChannel[]{
+			new TestInputChannel(inputGate, 0),
+			new TestInputChannel(inputGate, 1)
+		};
+
+		inputGate.setInputChannel(
+			new IntermediateResultPartitionID(), inputChannels[0]);
+
+		inputGate.setInputChannel(
+			new IntermediateResultPartitionID(), inputChannels[1]);
+
+		// Test
+		inputChannels[0].readBuffer();
+		inputChannels[0].readEndOfPartitionEvent();
+		inputChannels[1].readBuffer();
+		inputChannels[1].readEndOfPartitionEvent();
+
+		assertFalse(inputGate.moreAvailable());
+		inputGate.notifyChannelNonEmpty(inputChannels[0]);
+
+		assertTrue(inputGate.moreAvailable());
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		assertTrue(inputGate.moreAvailable());
+		verifyBufferOrEvent(inputGate, false, 0, false);
+
+		assertFalse(inputGate.moreAvailable());
+		inputGate.notifyChannelNonEmpty(inputChannels[1]);
+
+		assertTrue(inputGate.moreAvailable());
+		verifyBufferOrEvent(inputGate, true, 1, true);
+		assertTrue(inputGate.moreAvailable());
+		verifyBufferOrEvent(inputGate, false, 1, false);
+
+		// Return null when the input gate has received all end-of-partition events
+		assertFalse(inputGate.moreAvailable());
+		assertTrue(inputGate.isFinished());
+		assertFalse(inputGate.getNextBufferOrEvent().isPresent());
+	}
+
+	@Test(timeout = 120 * 1000)
 	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = createInputGate();
@@ -616,17 +660,7 @@ public class SingleInputGateTest {
 		assertEquals(expectedChannelIndex, bufferOrEvent.get().getChannelIndex());
 		assertEquals(expectedMoreAvailable, bufferOrEvent.get().moreAvailable());
 		if (!expectedMoreAvailable) {
-			try {
-				assertFalse(inputGate.pollNextBufferOrEvent().isPresent());
-			}
-			catch (UnsupportedOperationException ex) {
-				/**
-				 * {@link UnionInputGate#pollNextBufferOrEvent()} is unsupported at the moment.
-				 */
-				if (!(inputGate instanceof UnionInputGate)) {
-					throw ex;
-				}
-			}
+			assertFalse(inputGate.pollNextBufferOrEvent().isPresent());
 		}
 	}
 }

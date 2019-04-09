@@ -119,4 +119,59 @@ public class UnionInputGateTest {
 		assertTrue(union.isFinished());
 		assertFalse(union.getNextBufferOrEvent().isPresent());
 	}
+
+	@Test(timeout = 120 * 1000)
+	public void testMoreAvailable() throws Exception {
+		// Setup
+		final String testTaskName = "Test Task";
+		final SingleInputGate ig1 = new SingleInputGate(
+			testTaskName, new JobID(),
+			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
+			0, 1,
+			mock(TaskActions.class),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
+		final SingleInputGate ig2 = new SingleInputGate(
+			testTaskName, new JobID(),
+			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
+			0, 1,
+			mock(TaskActions.class),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
+
+		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
+
+		assertEquals(ig1.getNumberOfInputChannels() + ig2.getNumberOfInputChannels(), union.getNumberOfInputChannels());
+
+		final TestInputChannel[][] inputChannels = new TestInputChannel[][]{
+			TestInputChannel.createInputChannels(ig1, 1),
+			TestInputChannel.createInputChannels(ig2, 1)
+		};
+
+		inputChannels[0][0].readBuffer(); // 0 => 0
+		inputChannels[0][0].readEndOfPartitionEvent(); // 0 => 0
+		inputChannels[1][0].readBuffer(); // 0 => 1
+		inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 1
+
+		assertFalse(union.moreAvailable());
+		ig1.notifyChannelNonEmpty(inputChannels[0][0]);
+
+		assertTrue(union.moreAvailable());
+		verifyBufferOrEvent(union, true, 0, true); // gate 1, channel 0
+		assertTrue(union.moreAvailable());
+		verifyBufferOrEvent(union, false, 0, false); // gate 1, channel 0
+
+		assertFalse(union.moreAvailable());
+		ig2.notifyChannelNonEmpty(inputChannels[1][0]);
+
+		assertTrue(union.moreAvailable());
+		verifyBufferOrEvent(union, true, 1, true); // gate 1, channel 0
+		assertTrue(union.moreAvailable());
+		verifyBufferOrEvent(union, false, 1, false); // gate 1, channel 0
+
+		// Return null when the input gate has received all end-of-partition events
+		assertFalse(union.moreAvailable());
+		assertTrue(union.isFinished());
+		assertFalse(union.getNextBufferOrEvent().isPresent());
+	}
 }

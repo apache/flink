@@ -93,6 +93,9 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	/** Flag indicating whether partitions have been requested. */
 	private boolean requestedPartitionsFlag;
 
+	/** Flag indicating whether there is available data. */
+	private volatile boolean moreDataAvailable = false;
+
 	public UnionInputGate(InputGate... inputGates) {
 		this.inputGates = checkNotNull(inputGates);
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
@@ -136,6 +139,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	}
 
 	@Override
+	public boolean moreAvailable() {
+		return moreDataAvailable;
+	}
+
+	@Override
 	public boolean isFinished() {
 		for (InputGate inputGate : inputGates) {
 			if (!inputGate.isFinished()) {
@@ -159,6 +167,15 @@ public class UnionInputGate implements InputGate, InputGateListener {
 
 	@Override
 	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(true);
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(false);
+	}
+
+	private Optional<BufferOrEvent> getNextBufferOrEvent(boolean blocking) throws IOException, InterruptedException {
 		if (inputGatesWithRemainingData.isEmpty()) {
 			return Optional.empty();
 		}
@@ -166,7 +183,10 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		// Make sure to request the partitions, if they have not been requested before.
 		requestPartitions();
 
-		InputGateWithData inputGateWithData = waitAndGetNextInputGate();
+		InputGateWithData inputGateWithData = waitAndGetNextInputGate(blocking);
+		if (!blocking && inputGateWithData == null) {
+			return Optional.empty();
+		} // else, inputGateWithData must not be null
 		InputGate inputGate = inputGateWithData.inputGate;
 		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
 
@@ -197,22 +217,23 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		return Optional.of(bufferOrEvent);
 	}
 
-	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	private InputGateWithData waitAndGetNextInputGate() throws IOException, InterruptedException {
+	private InputGateWithData waitAndGetNextInputGate(boolean blocking) throws IOException, InterruptedException {
 		while (true) {
 			InputGate inputGate;
 			boolean moreInputGatesAvailable;
 			synchronized (inputGatesWithData) {
 				while (inputGatesWithData.size() == 0) {
-					inputGatesWithData.wait();
+					if (blocking) {
+						inputGatesWithData.wait();
+					} else {
+						return null;
+					}
 				}
 				inputGate = inputGatesWithData.remove();
 				enqueuedInputGatesWithData.remove(inputGate);
 				moreInputGatesAvailable = enqueuedInputGatesWithData.size() > 0;
+
+				moreDataAvailable = moreInputGatesAvailable;
 			}
 
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
@@ -246,6 +267,13 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	public void registerListener(InputGateListener listener) {
 		if (this.inputGateListener == null) {
 			this.inputGateListener = listener;
+
+			// fire immediately if this gate has become available before then,
+			// because no "non-empty" notification will be sent before that the
+			// gate changes from "empty" to "non-empty" again.
+			if (moreDataAvailable) {
+				inputGateListener.notifyInputGateNonEmpty(this);
+			}
 		} else {
 			throw new IllegalStateException("Multiple listeners");
 		}
@@ -287,6 +315,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			enqueuedInputGatesWithData.add(inputGate);
 
 			if (availableInputGates == 0) {
+				moreDataAvailable = true;
 				inputGatesWithData.notifyAll();
 			}
 		}

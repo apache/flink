@@ -184,6 +184,9 @@ public class SingleInputGate implements InputGate {
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
 
+	/** Flag indicating whether there is available data. */
+	private volatile boolean moreDataAvailable = false;
+
 	public SingleInputGate(
 		String owningTaskName,
 		JobID jobId,
@@ -465,6 +468,11 @@ public class SingleInputGate implements InputGate {
 	}
 
 	@Override
+	public boolean moreAvailable() {
+		return moreDataAvailable;
+	}
+
+	@Override
 	public boolean isFinished() {
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
@@ -548,6 +556,8 @@ public class SingleInputGate implements InputGate {
 				currentChannel = inputChannelsWithData.remove();
 				enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
 				moreAvailable = !inputChannelsWithData.isEmpty();
+
+				moreDataAvailable = moreAvailable;
 			}
 
 			result = currentChannel.getNextBuffer();
@@ -611,6 +621,13 @@ public class SingleInputGate implements InputGate {
 	public void registerListener(InputGateListener inputGateListener) {
 		if (this.inputGateListener == null) {
 			this.inputGateListener = inputGateListener;
+
+			// fire immediately if this gate has become available before then,
+			// because no "non-empty" notification will be sent before that the
+			// gate changes from "empty" to "non-empty" again.
+			if (moreDataAvailable) {
+				inputGateListener.notifyInputGateNonEmpty(this);
+			}
 		} else {
 			throw new IllegalStateException("Multiple listeners");
 		}
@@ -637,6 +654,7 @@ public class SingleInputGate implements InputGate {
 			enqueuedInputChannelsWithData.set(channel.getChannelIndex());
 
 			if (availableChannels == 0) {
+				moreDataAvailable = true;
 				inputChannelsWithData.notifyAll();
 			}
 		}
