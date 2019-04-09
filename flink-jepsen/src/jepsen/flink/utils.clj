@@ -71,12 +71,14 @@
 
 ;;; runit process supervisor (http://smarden.org/runit/)
 
-(def runit-version "2.1.2-3")
+(def runit-version "2.1.2-9.2")
+(def runit-systemd-version "2.1.2-9.2")
 
 (defn- install-process-supervisor!
   "Installs the process supervisor."
   []
-  (debian/install {:runit runit-version}))
+  (debian/install {:runit         runit-version
+                   :runit-systemd runit-systemd-version}))
 
 (defn create-supervised-service!
   "Registers a service with the process supervisor and starts it."
@@ -91,6 +93,7 @@
                                                "exec 2>&1"
                                                (str "exec " cmd)]) :> run-script)
       (c/exec :chmod :+x run-script)
+      (c/exec :mkdir :-p "/etc/service")
       (c/exec :ln :-sfT service-dir (str "/etc/service/" service-name)))))
 
 (defn stop-supervised-service!
@@ -108,4 +111,4 @@
     ;; HACK:
     ;; Remove all symlinks in /etc/service except sshd.
     ;; This is only relevant when tests are run in Docker because there sshd is started using runit.
-    (meh (c/exec :find (c/lit (str "/etc/service -maxdepth 1 -type l ! -name 'sshd' -delete"))))))
+    (meh (c/exec :find (c/lit (str "/etc/service -mindepth 1 -maxdepth 1 -type l -not -name 'sshd' -delete"))))))
