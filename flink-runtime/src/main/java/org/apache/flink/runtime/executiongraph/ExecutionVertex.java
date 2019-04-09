@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -613,8 +614,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				currentExecution = newExecution;
 
 				synchronized (inputSplits) {
-					jobVertex.getSplitAssigner().returnInputSplit(inputSplits, getParallelSubtaskIndex());
-					inputSplits.clear();
+					InputSplitAssigner assigner = jobVertex.getSplitAssigner();
+					if (assigner != null) {
+						jobVertex.getSplitAssigner().returnInputSplit(inputSplits, getParallelSubtaskIndex());
+						inputSplits.clear();
+					}
 				}
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
