@@ -575,7 +575,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public boolean triggerCheckpoint(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,
-			boolean advanceToEndOfTime) throws Exception {
+			boolean advanceToEndOfEventTime) throws Exception {
 
 		try {
 			// No alignment if we inject a checkpoint
@@ -583,7 +583,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					.setBytesBufferedInAlignment(0L)
 					.setAlignmentDurationNanos(0L);
 
-			return performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfTime);
+			return performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
 		}
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state

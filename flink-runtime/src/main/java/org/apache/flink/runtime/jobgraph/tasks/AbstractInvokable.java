@@ -203,12 +203,12 @@ public abstract class AbstractInvokable {
 	 *
 	 * @param checkpointMetaData Meta data for about this checkpoint
 	 * @param checkpointOptions Options for performing this checkpoint
-	 * @param advanceToEndOfTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
 	 *                          to fire any registered event-time timers
 	 *
 	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfTime) throws Exception {
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 		throw new UnsupportedOperationException(String.format("triggerCheckpoint not supported by %s", this.getClass().getName()));
 	}
 

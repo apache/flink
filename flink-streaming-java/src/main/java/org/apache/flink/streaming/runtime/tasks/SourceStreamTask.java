@@ -119,9 +119,9 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfTime) throws Exception {
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 		if (!externallyInducedCheckpoints) {
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfTime);
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 		else {
 			// we do not trigger checkpoints here, we simply state whether we can trigger them

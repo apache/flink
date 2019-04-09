@@ -164,11 +164,11 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfTime) throws Exception {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 			SynchronousCheckpointITCase.synchronousCheckpointPhase.setState(CheckpointingState.PERFORMING_CHECKPOINT);
 			checkpointLatch.trigger();
 
-			super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfTime);
+			super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 
 			checkpointCompletionLatch.await();
 			SynchronousCheckpointITCase.synchronousCheckpointPhase.setState(CheckpointingState.FINISHED_CHECKPOINT);
