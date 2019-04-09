@@ -53,12 +53,14 @@ public class GenericInMemoryCatalogTest {
 	private final String testCatalogName = "test-catalog";
 	private final String db1 = "db1";
 	private final String db2 = "db2";
+	private final String nonExistantDatabase = "non-existant-db";
 
 	private final String t1 = "t1";
 	private final String t2 = "t2";
 	private final ObjectPath path1 = new ObjectPath(db1, t1);
 	private final ObjectPath path2 = new ObjectPath(db2, t2);
 	private final ObjectPath path3 = new ObjectPath(db1, t2);
+	private final ObjectPath path4 = new ObjectPath(db1, "t3");
 	private final ObjectPath nonExistDbPath = ObjectPath.fromString("non.exist");
 	private final ObjectPath nonExistObjectPath = ObjectPath.fromString("db1.nonexist");
 
@@ -103,7 +105,7 @@ public class GenericInMemoryCatalogTest {
 		GenericCatalogTable table = createStreamingTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -113,9 +115,9 @@ public class GenericInMemoryCatalogTest {
 		GenericCatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 
-		List<String> tables = catalog.listTables(db1);
+		List<String> tables = catalog.listAllTables(db1);
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
@@ -149,11 +151,11 @@ public class GenericInMemoryCatalogTest {
 		GenericCatalogTable table =  CatalogTestUtil.createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 
 		catalog.createTable(path1, createAnotherTable(), true);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -187,6 +189,24 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
+	public void testListTables() {
+		catalog.createDatabase(db1, createDb(), false);
+
+		catalog.createTable(path1, createTable(), false);
+		catalog.createTable(path3, createTable(), false);
+		catalog.createView(path4, createView(), false);
+
+		assertEquals(3, catalog.listAllTables(db1).size());
+		assertEquals(2, catalog.listTables(db1).size());
+		assertEquals(1, catalog.listViews(db1).size());
+
+		catalog.dropTable(path1, false);
+		catalog.dropTable(path3, false);
+		catalog.dropTable(path4, false);
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
 	public void testDropTable_TableNotExistException() {
 		exception.expect(TableNotExistException.class);
 		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
@@ -207,13 +227,13 @@ public class GenericInMemoryCatalogTest {
 		GenericCatalogTable table = CatalogTestUtil.createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 
 		GenericCatalogTable newTable = createAnotherTable();
 		catalog.alterTable(path1, newTable, false);
 
 		assertNotEquals(table, catalog.getTable(path1));
-		CatalogTestUtil.compare(newTable, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(newTable, (GenericCatalogTable) catalog.getTable(path1));
 
 		catalog.dropTable(path1, false);
 	}
@@ -239,11 +259,11 @@ public class GenericInMemoryCatalogTest {
 		GenericCatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 
 		catalog.renameTable(path1, t2, false);
 
-		CatalogTestUtil.compare(table, (GenericCatalogTable) catalog.getTable(path3));
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path3));
 		assertFalse(catalog.tableExists(path1));
 	}
 
@@ -297,7 +317,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createView(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.compare(view, (GenericCatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -327,12 +347,12 @@ public class GenericInMemoryCatalogTest {
 		catalog.createView(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.compare(view, (GenericCatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
 
 		catalog.createView(path1, createAnotherView(), true);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.compare(view, (GenericCatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -354,13 +374,13 @@ public class GenericInMemoryCatalogTest {
 		CatalogView view = createView();
 		catalog.createView(path1, view, false);
 
-		CatalogTestUtil.compare(view, (GenericCatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
 
 		CatalogView newView = createAnotherView();
-		catalog.alterTable(path1, newView, false);
+		catalog.alterView(path1, newView, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.compare(newView, (GenericCatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(newView, (GenericCatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -382,14 +402,14 @@ public class GenericInMemoryCatalogTest {
 	public void testListView() {
 		catalog.createDatabase(db1, createDb(), false);
 
-		assertTrue(catalog.listTables(db1).isEmpty());
+		assertTrue(catalog.listAllTables(db1).isEmpty());
 
 		catalog.createView(path1, createView(), false);
 		catalog.createTable(path3, createTable(), false);
 
-		assertEquals(2, catalog.listTables(db1).size());
+		assertEquals(2, catalog.listAllTables(db1).size());
 		assertEquals(new HashSet<>(Arrays.asList(path1.getObjectName(), path3.getObjectName())),
-			new HashSet<>(catalog.listTables(db1)));
+			new HashSet<>(catalog.listAllTables(db1)));
 		assertEquals(Arrays.asList(path1.getObjectName()), catalog.listViews(db1));
 	}
 
@@ -400,6 +420,24 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db2, createDb(), false);
 
 		assertEquals(2, catalog.listDatabases().size());
+	}
+
+	@Test
+	public void testSetCurrentDatabase() {
+		assertEquals(GenericInMemoryCatalog.DEFAULT_DB, catalog.getCurrentDatabase());
+		catalog.createDatabase(db2, createDb(), true);
+		catalog.setCurrentDatabase(db2);
+		assertEquals(db2, catalog.getCurrentDatabase());
+		catalog.setCurrentDatabase(GenericInMemoryCatalog.DEFAULT_DB);
+		assertEquals(GenericInMemoryCatalog.DEFAULT_DB, catalog.getCurrentDatabase());
+		catalog.dropDatabase(db2, false);
+	}
+
+	@Test
+	public void testSetCurrentDatabaseNegative() {
+		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database " + this.nonExistantDatabase + " does not exist in Catalog");
+		catalog.setCurrentDatabase(this.nonExistantDatabase);
 	}
 
 	@Test
@@ -419,13 +457,13 @@ public class GenericInMemoryCatalogTest {
 
 		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(cd1.getProperties().entrySet()));
 		assertEquals(2, dbs.size());
-		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabaseName())), new HashSet<>(dbs));
+		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getCurrentDatabase())), new HashSet<>(dbs));
 
 		catalog.createDatabase(db1, createAnotherDb(), true);
 
 		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(cd1.getProperties().entrySet()));
 		assertEquals(2, dbs.size());
-		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabaseName())), new HashSet<>(dbs));
+		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getCurrentDatabase())), new HashSet<>(dbs));
 	}
 
 	@Test
@@ -513,7 +551,7 @@ public class GenericInMemoryCatalogTest {
 		ObjectPath viewPath1 = new ObjectPath(db1, "view1");
 		catalog.createView(viewPath1, view, false);
 		assertTrue(catalog.tableExists(viewPath1));
-		catalog.renameView(viewPath1, "view2", false);
+		catalog.renameTable(viewPath1, "view2", false);
 		assertFalse(catalog.tableExists(viewPath1));
 		ObjectPath viewPath2 = new ObjectPath(db1, "view2");
 		assertTrue(catalog.tableExists(viewPath2));

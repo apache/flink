@@ -80,6 +80,20 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException;
 
+	/**
+	 * Rename an existing table or view.
+	 *
+	 * @param tablePath       Path of the table or view to rename
+	 * @param newTableName     the new name of the table or view
+	 * @param ignoreIfNotExists Flag to specify behavior when the table or view does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, do nothing.
+	 * @throws TableNotExistException if the table does not exist
+	 * @throws DatabaseNotExistException if the database in tablePath to doesn't exist
+	 */
+	void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
+		throws TableNotExistException, DatabaseNotExistException;
+
 	// ------ tables ------
 
 	/**
@@ -93,7 +107,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
 	 * @throws DatabaseNotExistException if the database in tablePath doesn't exist
 	 */
-	void createTable(ObjectPath tablePath, CommonTable table, boolean ignoreIfExists)
+	void createTable(ObjectPath tablePath, CatalogTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException;
 
 	/**
@@ -106,22 +120,8 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
 	 */
-	void alterTable(ObjectPath tableName, CommonTable newTable, boolean ignoreIfNotExists)
+	void alterTable(ObjectPath tableName, CatalogTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException;
-
-	/**
-	 * Rename an existing table.
-	 *
-	 * @param tablePath       Path of the table to rename
-	 * @param newTableName     the new name of the table
-	 * @param ignoreIfNotExists Flag to specify behavior when the table does not exist:
-	 *                          if set to false, throw an exception,
-	 *                          if set to true, do nothing.
-	 * @throws TableNotExistException if the table does not exist
-	 * @throws DatabaseNotExistException if the database in tablePath to doesn't exist
-	 */
-	void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
-		throws TableNotExistException, DatabaseNotExistException;
 
 	// ----- views ------
 
@@ -151,15 +151,4 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void alterView(ObjectPath viewPath, CatalogView newView, boolean ignoreIfNotExists) throws TableNotExistException;
 
-	/**
-	 * Rename an existing view.
-	 *
-	 * @param viewPath          Path of the view to be renamed
-	 * @param newViewName       the new name of the view
-	 * @param ignoreIfNotExists Flag to specify behavior when the view does not exist:
-	 *                          if set to false, throw an exception,
-	 *                          if set to true, do nothing.
-	 * @throws TableNotExistException if the given view does not exist
-	 */
-	void renameView(ObjectPath viewPath, String newViewName, boolean ignoreIfNotExists) throws TableNotExistException;
 }

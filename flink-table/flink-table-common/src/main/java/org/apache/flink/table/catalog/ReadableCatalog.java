@@ -40,20 +40,20 @@ public interface ReadableCatalog {
 	void close();
 
 	/**
-	 * Get the default database of this type of catalog. This is used when users refers an object in the catalog
-	 * without specifying a database. For example, the default db in a Hive Metastore is 'default' by default.
+	 * Get the current database of this type of catalog. This is used when users refers an object in the catalog
+	 * without specifying a database. For example, the current db in a Hive Metastore is 'default' by default.
 	 *
-	 * @return the name of the default database
+	 * @return the name of the current database
 	 */
-	String getDefaultDatabaseName();
+	String getCurrentDatabase();
 
 	/**
-	 * Set the default database. A default database is used when users refers an object in the catalog
+	 * Set the current database. A current database is used when users refers an object in the catalog
 	 * without specifying a database.
 	 *
 	 * @param databaseName	the name of the database
 	 */
-	void setDefaultDatabaseName(String databaseName);
+	void setCurrentDatabase(String databaseName) throws DatabaseNotExistException;
 
 	// ------ databases ------
 	/**
@@ -81,6 +81,14 @@ public interface ReadableCatalog {
 
 	/**
 	 * Gets paths of all tables and views under this database. An empty list is returned if none exists.
+	 *
+	 * @return A list of the names of all tables and views in this database
+	 * @throws DatabaseNotExistException if the database does not exist
+	 */
+	List<String> listAllTables(String dbName) throws DatabaseNotExistException;
+
+	/**
+	 * Gets paths of all tables (but not views) under this database. An empty list is returned if none exists.
 	 *
 	 * @return A list of the names of all tables and views in this database
 	 * @throws DatabaseNotExistException if the database does not exist

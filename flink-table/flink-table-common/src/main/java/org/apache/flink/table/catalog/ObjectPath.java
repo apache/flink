@@ -50,6 +50,7 @@ public class ObjectPath {
 	}
 
 	public static ObjectPath fromString(String fullName) {
+		checkNotNull(fullName, "fullName cannot be null");
 		String[] paths = fullName.split("\\.");
 
 		if (paths.length != 2) {

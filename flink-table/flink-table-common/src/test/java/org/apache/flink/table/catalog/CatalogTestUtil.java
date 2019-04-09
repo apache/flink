@@ -58,23 +58,23 @@ public class CatalogTestUtil {
 		return new GenericCatalogTable(schema, stats, tableProperties);
 	}
 
-	public static void compare(GenericCatalogTable t1, GenericCatalogTable t2) {
+	public static void checkEquals(GenericCatalogTable t1, GenericCatalogTable t2) {
 		assertEquals(t1.getSchema(), t2.getSchema());
-		compare(t1.getStatistics(), t2.getStatistics());
+		checkEquals(t1.getStatistics(), t2.getStatistics());
 		assertEquals(t1.getComment(), t2.getComment());
 	}
 
-	protected static void compare(TableStats ts1, TableStats ts2) {
+	protected static void checkEquals(TableStats ts1, TableStats ts2) {
 		assertEquals(ts1.getRowCount(), ts2.getRowCount());
 		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
 	}
 
-	protected static void compare(CatalogView v1, CatalogView v2) {
+	protected static void checkEquals(CatalogView v1, CatalogView v2) {
 		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
 		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
 	}
 
-	protected static void compare(CatalogDatabase d1, CatalogDatabase d2) {
+	protected static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
 		assertEquals(d1.getProperties(), d2.getProperties());
 	}
 

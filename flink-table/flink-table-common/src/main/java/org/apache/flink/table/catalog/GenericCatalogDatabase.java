@@ -27,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A generic catalog database implementation.
  */
 public class GenericCatalogDatabase implements CatalogDatabase {
-	private Map<String, String> properties;
+	private final Map<String, String> properties;
 	// Comment of the database
 	private String comment = "This is a generic catalog database.";
 
