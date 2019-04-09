@@ -300,7 +300,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfTime) throws Exception {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 			final long checkpointId = checkpointMetaData.getCheckpointId();
 			final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
@@ -313,7 +313,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 			if (taskIndex == 0) {
 				checkpointsToWaitFor.countDown();
 			}
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfTime);
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 
 		@Override
