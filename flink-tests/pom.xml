@@ -412,6 +412,37 @@ under the License.
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
+
+					<execution>
+						<id>create-plugin-a-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>plugin-a</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-plugin-a-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>create-plugin-b-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>plugin-b</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-plugin-b-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+
 					<execution>
 						<id>create-kmeans-jar</id>
 						<phase>process-test-classes</phase>

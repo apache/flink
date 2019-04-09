@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,27 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.fs.local;
+package org.apache.flink.core.plugin;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemFactory;
-
-import java.net.URI;
+import java.io.IOException;
+import java.util.Collection;
 
 /**
- * A factory for the {@link LocalFileSystem}.
+ * Implementations of this interface provide mechanisms to locate plugins and create corresponding
+ * {@link PluginDescriptor} objects. The result can then be used to initialize a {@link PluginLoader}.
  */
-@PublicEvolving
-public class LocalFileSystemFactory implements FileSystemFactory {
+public interface PluginFinder {
 
-	@Override
-	public String getScheme() {
-		return LocalFileSystem.getLocalFsURI().getScheme();
-	}
-
-	@Override
-	public FileSystem create(URI fsUri) {
-		return LocalFileSystem.getSharedInstance();
-	}
+	/**
+	 * Find plugins and return a corresponding collection of {@link PluginDescriptor} instances.
+	 *
+	 * @return a collection of {@link PluginDescriptor} instances for all found plugins.
+	 * @throws IOException thrown if a problem occurs during plugin search.
+	 */
+	Collection<PluginDescriptor> findPlugins() throws IOException;
 }

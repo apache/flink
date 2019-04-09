@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,27 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.fs.local;
-
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemFactory;
-
-import java.net.URI;
+package org.apache.flink.core.plugin;
 
 /**
- * A factory for the {@link LocalFileSystem}.
+ * Utility class to temporarily change the context classloader. The previous context classloader is restored on
+ * {@link #close()}.
  */
-@PublicEvolving
-public class LocalFileSystemFactory implements FileSystemFactory {
+public final class TemporaryClassLoaderContext implements AutoCloseable {
 
-	@Override
-	public String getScheme() {
-		return LocalFileSystem.getLocalFsURI().getScheme();
+	/** The previous context class loader to restore on {@link #close()}. */
+	private final ClassLoader toRestore;
+
+	public TemporaryClassLoaderContext(ClassLoader temporaryContextClassLoader) {
+		this.toRestore = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(temporaryContextClassLoader);
 	}
 
 	@Override
-	public FileSystem create(URI fsUri) {
-		return LocalFileSystem.getSharedInstance();
+	public void close() {
+		Thread.currentThread().setContextClassLoader(toRestore);
 	}
 }

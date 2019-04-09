@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,27 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.fs.local;
+package org.apache.flink.test.plugin;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemFactory;
-
-import java.net.URI;
+import org.apache.flink.core.plugin.Plugin;
 
 /**
- * A factory for the {@link LocalFileSystem}.
+ * Service interface for tests of plugin mechanism.
  */
-@PublicEvolving
-public class LocalFileSystemFactory implements FileSystemFactory {
-
-	@Override
-	public String getScheme() {
-		return LocalFileSystem.getLocalFsURI().getScheme();
-	}
-
-	@Override
-	public FileSystem create(URI fsUri) {
-		return LocalFileSystem.getSharedInstance();
-	}
+public interface TestSpi extends Plugin {
+	String testMethod();
 }
