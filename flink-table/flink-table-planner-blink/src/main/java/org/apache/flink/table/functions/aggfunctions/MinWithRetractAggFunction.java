@@ -22,8 +22,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
 import java.sql.Date;
@@ -255,11 +257,11 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 	/**
 	 * Built-in String Min with retraction aggregate function.
 	 */
-	public static class StringMinWithRetractAggFunction extends MinWithRetractAggFunction<String> {
+	public static class StringMinWithRetractAggFunction extends MinWithRetractAggFunction<BinaryString> {
 
 		@Override
 		protected TypeInformation<?> getValueTypeInfo() {
-			return BasicTypeInfo.STRING_TYPE_INFO;
+			return BinaryStringTypeInfo.INSTANCE;
 		}
 	}
 
