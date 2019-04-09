@@ -84,7 +84,7 @@ public class SourceTaskTerminationTest {
 	}
 
 	private void stopWithSavepointStreamTaskTestHelper(final boolean expectMaxWatermark) throws Exception {
-		final long SYNC_SAVEPOINT_ID = 34L;
+		final long syncSavepointId = 34L;
 
 		final StreamTaskTestHarness<Long> srcTaskTestHarness = getSourceStreamTaskTestHarness();
 		final Thread executionThread = srcTaskTestHarness.invoke();
@@ -100,7 +100,7 @@ public class SourceTaskTerminationTest {
 
 		emitAndVerifyWatermarkAndElement(srcTaskTestHarness, 3L);
 
-		final Thread syncSavepointThread = triggerSynchronousSavepointFromDifferentThread(srcTask, expectMaxWatermark, SYNC_SAVEPOINT_ID);
+		final Thread syncSavepointThread = triggerSynchronousSavepointFromDifferentThread(srcTask, expectMaxWatermark, syncSavepointId);
 
 		final SynchronousSavepointLatch syncSavepointFuture = waitForSyncSavepointFutureToBeSet(srcTask);
 
@@ -110,12 +110,12 @@ public class SourceTaskTerminationTest {
 			verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
 		}
 
-		verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), SYNC_SAVEPOINT_ID);
+		verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), syncSavepointId);
 
 		assertFalse(syncSavepointFuture.isCompleted());
 		assertTrue(syncSavepointFuture.isWaiting());
 
-		srcTask.notifyCheckpointComplete(SYNC_SAVEPOINT_ID);
+		srcTask.notifyCheckpointComplete(syncSavepointId);
 		assertTrue(syncSavepointFuture.isCompleted());
 
 		syncSavepointThread.join();
