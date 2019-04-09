@@ -372,7 +372,7 @@ public class CheckpointCoordinator {
 			@Nullable final String targetLocation) {
 
 		final CheckpointProperties properties = CheckpointProperties.forSavepoint();
-		return triggerSavepointHelper(timestamp, properties, false, targetLocation);
+		return triggerSavepointInternal(timestamp, properties, false, targetLocation);
 	}
 
 	/**
@@ -394,10 +394,10 @@ public class CheckpointCoordinator {
 			@Nullable final String targetLocation) {
 
 		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint();
-		return triggerSavepointHelper(timestamp, properties, advanceToEndOfTime, targetLocation);
+		return triggerSavepointInternal(timestamp, properties, advanceToEndOfTime, targetLocation);
 	}
 
-	private CompletableFuture<CompletedCheckpoint> triggerSavepointHelper(
+	private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
 			final long timestamp,
 			final CheckpointProperties checkpointProperties,
 			final boolean advanceToEndOfTime,
