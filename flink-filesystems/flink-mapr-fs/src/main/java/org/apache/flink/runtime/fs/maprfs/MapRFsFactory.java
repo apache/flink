@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.fs.maprfs;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 
@@ -45,11 +44,6 @@ public class MapRFsFactory implements FileSystemFactory {
 	@Override
 	public String getScheme() {
 		return "maprfs";
-	}
-
-	@Override
-	public void configure(Configuration config) {
-		// nothing to configure based on the configuration here
 	}
 
 	@Override

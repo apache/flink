@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,27 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.fs.local;
+package org.apache.flink.core.plugin;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemFactory;
-
-import java.net.URI;
+import org.apache.flink.configuration.Configuration;
 
 /**
- * A factory for the {@link LocalFileSystem}.
+ * Interface for plugins. Plugins typically extend this interface in their SPI and the concrete implementations of a
+ * service then implement the SPI contract.
  */
 @PublicEvolving
-public class LocalFileSystemFactory implements FileSystemFactory {
+public interface Plugin {
 
-	@Override
-	public String getScheme() {
-		return LocalFileSystem.getLocalFsURI().getScheme();
-	}
-
-	@Override
-	public FileSystem create(URI fsUri) {
-		return LocalFileSystem.getSharedInstance();
-	}
+	/**
+	 * Optional method for plugins to pick up settings from the configuration.
+	 *
+	 * @param config The configuration to apply to the plugin.
+	 */
+	default void configure(Configuration config) {}
 }
