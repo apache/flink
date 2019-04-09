@@ -62,6 +62,15 @@ public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCo
 			LOGGER.info("Getting copy task for task: " + taskId);
 			return splits.poll();
 		}
+
+		@Override
+		public void returnInputSplit(List<InputSplit> splits, int taskId) {
+			synchronized (this.splits) {
+				for (InputSplit split : splits) {
+					this.splits.offer((FileCopyTaskInputSplit) split);
+				}
+			}
+		}
 	}
 
 	@Override
