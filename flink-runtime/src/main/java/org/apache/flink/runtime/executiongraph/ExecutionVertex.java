@@ -109,7 +109,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/** The current or latest execution attempt of this vertex's task. */
 	private volatile Execution currentExecution;	// this field must never be null
 
-	/** input split*/
 	private final ArrayList<InputSplit> inputSplits;
 
 	// --------------------------------------------------------------------------------------------

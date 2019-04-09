@@ -41,10 +41,10 @@ public interface InputSplitAssigner {
 	InputSplit getNextInputSplit(String host, int taskId);
 
 	/**
-	 * Return the split to assigner if the task fail to process it.
+	 * Return the splits to assigner if the task failed to process it.
 	 *
-	 * @param splits The list of input split to be returned.
-	 * @param taskId The id of task that fail to process the input split.
+	 * @param splits The list of input splits to be returned.
+	 * @param taskId The id of the task that failed to process the input splits.
 	 * */
 	void returnInputSplit(List<InputSplit> splits, int taskId);
 }
