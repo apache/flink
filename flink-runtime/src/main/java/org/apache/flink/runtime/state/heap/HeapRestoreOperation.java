@@ -143,7 +143,6 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 					}
 
 					keySerializerRestored = true;
-					keyContext.setCurrentKeySerializer(keySerializerProvider.currentSchemaSerializer());
 				}
 
 				List<StateMetaInfoSnapshot> restoredMetaInfos =
@@ -182,7 +181,10 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 							new RegisteredKeyValueStateBackendMetaInfo<>(metaInfoSnapshot);
 						registeredKVStates.put(
 							metaInfoSnapshot.getName(),
-							snapshotStrategy.newStateTable(keyContext, registeredKeyedBackendStateMetaInfo));
+							snapshotStrategy.newStateTable(
+								keyContext,
+								registeredKeyedBackendStateMetaInfo,
+								keySerializerProvider.currentSchemaSerializer()));
 					}
 					break;
 				case PRIORITY_QUEUE:

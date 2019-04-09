@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Random;
 
 public class CopyOnWriteStateTableTest extends TestLogger {
+	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 
 	/**
 	 * Testing the basic map operations.
@@ -58,10 +59,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		ArrayList<Integer> state_1_1 = new ArrayList<>();
 		state_1_1.add(41);
@@ -130,10 +131,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		int insert = 0;
 		int remove = 0;
@@ -175,10 +176,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		final HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap = new HashMap<>();
 
@@ -379,10 +380,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		ArrayList<Integer> originalState1 = new ArrayList<>(1);
 		ArrayList<Integer> originalState2 = new ArrayList<>(1);
@@ -454,9 +455,9 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				namespaceSerializer,
 				stateSerializer);
 
-		InternalKeyContext<Integer> mockKeyContext = new MockInternalKeyContext<>(keySerializer);
+		InternalKeyContext<Integer> mockKeyContext = new MockInternalKeyContext<>();
 		CopyOnWriteStateTable<Integer, Integer, Integer> table =
-			new CopyOnWriteStateTable<>(mockKeyContext, metaInfo);
+			new CopyOnWriteStateTable<>(mockKeyContext, metaInfo, keySerializer);
 
 		table.put(0, 0, 0, 0);
 		table.put(1, 0, 0, 1);
@@ -544,8 +545,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	}
 
 	static class MockInternalKeyContext<T> extends InternalKeyContextImpl<T> {
-		MockInternalKeyContext(TypeSerializer<T> serializer) {
-			super(new KeyGroupRange(0,0),1,serializer);
+		MockInternalKeyContext() {
+			super(new KeyGroupRange(0,0),1);
 		}
 	}
 

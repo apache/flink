@@ -76,12 +76,15 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	/**
 	 * Creates a new {@link NestedMapsStateTable} for the given key context and meta info.
-	 *
-	 * @param keyContext the key context.
+	 *  @param keyContext the key context.
 	 * @param metaInfo the meta information for this state table.
+	 * @param keySerializer the serializer of the key.
 	 */
-	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
-		super(keyContext, metaInfo);
+	public NestedMapsStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		TypeSerializer<K> keySerializer) {
+		super(keyContext, metaInfo, keySerializer);
 		this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
 
 		@SuppressWarnings("unchecked")
@@ -331,7 +334,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Nonnull
 	@Override
 	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getStateSnapshotTransformFactory());
+		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getStateSnapshotTransformFactory(), keySerializer);
 	}
 
 	/**
@@ -350,11 +353,13 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		private final StateSnapshotTransformer<S> snapshotFilter;
 
 		NestedMapsStateTableSnapshot(
-			NestedMapsStateTable<K, N, S> owningTable, StateSnapshotTransformFactory<S> snapshotTransformFactory) {
+			NestedMapsStateTable<K, N, S> owningTable,
+			StateSnapshotTransformFactory<S> snapshotTransformFactory,
+			TypeSerializer<K> keySerializer) {
 
 			super(owningTable);
 			this.snapshotFilter = snapshotTransformFactory.createForDeserializedState().orElse(null);
-			this.keySerializer = owningStateTable.keyContext.getCurrentKeySerializer();
+			this.keySerializer = keySerializer;
 			this.namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
 			this.stateSerializer = owningStateTable.metaInfo.getStateSerializer();
 		}

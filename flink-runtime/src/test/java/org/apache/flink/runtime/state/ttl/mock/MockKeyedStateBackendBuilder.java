@@ -82,7 +82,7 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 			cancelStreamRegistry,
 			new InternalKeyContextImpl<>(
 				keyGroupRange,
-				numberOfKeyGroups,
-				keySerializerProvider.currentSchemaSerializer()));
+				numberOfKeyGroups
+			));
 	}
 }

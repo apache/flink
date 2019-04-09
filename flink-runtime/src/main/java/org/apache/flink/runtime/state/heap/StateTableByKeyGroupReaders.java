@@ -41,30 +41,35 @@ class StateTableByKeyGroupReaders {
 	 * Creates a new StateTableByKeyGroupReader that inserts de-serialized mappings into the given table, using the
 	 * de-serialization algorithm that matches the given version.
 	 *
-	 * @param stateTable the {@link StateTable} into which de-serialized mappings are inserted.
-	 * @param version version for the de-serialization algorithm.
 	 * @param <K> type of key.
 	 * @param <N> type of namespace.
 	 * @param <S> type of state.
+	 * @param stateTable the {@link StateTable} into which de-serialized mappings are inserted.
+	 * @param version version for the de-serialization algorithm.
+	 * @param keySerializer the serializer of the key.
 	 * @return the appropriate reader.
 	 */
-	static <K, N, S> StateSnapshotKeyGroupReader readerForVersion(StateTable<K, N, S> stateTable, int version) {
+	static <K, N, S> StateSnapshotKeyGroupReader readerForVersion(
+		StateTable<K, N, S> stateTable,
+		int version,
+		TypeSerializer<K> keySerializer) {
 		switch (version) {
 			case 1:
-				return new StateTableByKeyGroupReaderV1<>(stateTable);
+				return new StateTableByKeyGroupReaderV1<>(stateTable, keySerializer);
 			case 2:
 			case 3:
 			case 4:
 			case 5:
 			case 6:
-				return createV2PlusReader(stateTable);
+				return createV2PlusReader(stateTable, keySerializer);
 			default:
 				throw new IllegalArgumentException("Unknown version: " + version);
 		}
 	}
 
-	private static <K, N, S> StateSnapshotKeyGroupReader createV2PlusReader(StateTable<K, N, S> stateTable) {
-		final TypeSerializer<K> keySerializer = stateTable.keyContext.getCurrentKeySerializer();
+	private static <K, N, S> StateSnapshotKeyGroupReader createV2PlusReader(
+		StateTable<K, N, S> stateTable,
+		final TypeSerializer<K> keySerializer) {
 		final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 		final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
 		final Tuple3<N, K, S> buffer = new Tuple3<>();
@@ -79,9 +84,11 @@ class StateTableByKeyGroupReaders {
 	static final class StateTableByKeyGroupReaderV1<K, N, S> implements StateSnapshotKeyGroupReader {
 
 		protected final StateTable<K, N, S> stateTable;
+		protected final TypeSerializer<K> keySerializer;
 
-		StateTableByKeyGroupReaderV1(StateTable<K, N, S> stateTable) {
+		StateTableByKeyGroupReaderV1(StateTable<K, N, S> stateTable, TypeSerializer<K> keySerializer) {
 			this.stateTable = stateTable;
+			this.keySerializer = keySerializer;
 		}
 
 		@Override
@@ -91,7 +98,6 @@ class StateTableByKeyGroupReaders {
 				return;
 			}
 
-			final TypeSerializer<K> keySerializer = stateTable.keyContext.getCurrentKeySerializer();
 			final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 			final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
 

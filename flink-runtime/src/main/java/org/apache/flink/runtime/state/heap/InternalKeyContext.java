@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 /**
@@ -53,11 +52,6 @@ public interface InternalKeyContext<K> {
 	KeyGroupRange getKeyGroupRange();
 
 	/**
-	 * {@link TypeSerializer} for the state backend key type.
-	 */
-	TypeSerializer<K> getCurrentKeySerializer();
-
-	/**
 	 * Set current key of the context.
 	 *
 	 * @param currentKey the current key to set to.
@@ -71,10 +65,4 @@ public interface InternalKeyContext<K> {
 	 */
 	void setCurrentKeyGroupIndex(int currentKeyGroupIndex);
 
-	/**
-	 * Set current key serializer of the context.
-	 *
-	 * @param currentKeySerializer the current key serializer to set to.
-	 */
-	void setCurrentKeySerializer(TypeSerializer<K> currentKeySerializer);
 }

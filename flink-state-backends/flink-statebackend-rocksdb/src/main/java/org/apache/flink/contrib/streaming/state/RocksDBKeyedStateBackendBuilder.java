@@ -327,8 +327,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		}
 		InternalKeyContext<K> keyContext = new InternalKeyContextImpl<>(
 			keyGroupRange,
-			numberOfKeyGroups,
-			keySerializerProvider.currentSchemaSerializer());
+			numberOfKeyGroups
+		);
 		return new RocksDBKeyedStateBackend<>(
 			this.userCodeClassLoader,
 			this.instanceBasePath,

@@ -126,8 +126,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		HeapPriorityQueueSetFactory priorityQueueSetFactory,
 		HeapSnapshotStrategy<K> snapshotStrategy,
 		InternalKeyContext<K> keyContext) {
-		super(kvStateRegistry, keySerializerProvider, userCodeClassLoader,
-			executionConfig, ttlTimeProvider, cancelStreamRegistry, keyGroupCompressionDecorator, keyContext);
+		super(
+			kvStateRegistry,
+			keySerializerProvider,
+			userCodeClassLoader,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistry,
+			keyGroupCompressionDecorator,
+			keyContext);
 		this.registeredKVStates = registeredKVStates;
 		this.registeredPQStates = registeredPQStates;
 		this.localRecoveryConfig = localRecoveryConfig;
@@ -233,7 +240,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				newStateSerializer,
 				snapshotTransformFactory);
 
-			stateTable = snapshotStrategy.newStateTable(this.keyContext, newMetaInfo);
+			stateTable = snapshotStrategy.newStateTable(keyContext, newMetaInfo, keySerializerProvider.currentSchemaSerializer());
 			registeredKVStates.put(stateDesc.getName(), stateTable);
 		}
 
@@ -266,7 +273,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 		StateTable<K, N, SV> stateTable = tryRegisterStateTable(
 			namespaceSerializer, stateDesc, getStateSnapshotTransformFactory(stateDesc, snapshotTransformFactory));
-		return stateFactory.createState(stateDesc, stateTable, this.getKeySerializer());
+		return stateFactory.createState(stateDesc, stateTable, getKeySerializer());
 	}
 
 	@SuppressWarnings("unchecked")

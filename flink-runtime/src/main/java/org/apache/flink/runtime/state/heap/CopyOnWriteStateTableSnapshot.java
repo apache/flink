@@ -102,8 +102,9 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
 	 *
 	 * @param owningStateTable the {@link CopyOnWriteStateTable} for which this object represents a snapshot.
+	 * @param keySerializer the serializer of the key.
 	 */
-	CopyOnWriteStateTableSnapshot(CopyOnWriteStateTable<K, N, S> owningStateTable) {
+	CopyOnWriteStateTableSnapshot(CopyOnWriteStateTable<K, N, S> owningStateTable, TypeSerializer<K> keySerializer) {
 
 		super(owningStateTable);
 		this.snapshotData = owningStateTable.snapshotTableArrays();
@@ -112,7 +113,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 
 		// We create duplicates of the serializers for the async snapshot, because TypeSerializer
 		// might be stateful and shared with the event processing thread.
-		this.localKeySerializer = owningStateTable.keyContext.getCurrentKeySerializer().duplicate();
+		this.localKeySerializer = keySerializer.duplicate();
 		this.localNamespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer().duplicate();
 		this.localStateSerializer = owningStateTable.metaInfo.getStateSerializer().duplicate();
 

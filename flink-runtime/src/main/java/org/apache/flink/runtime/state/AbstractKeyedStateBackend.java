@@ -121,10 +121,9 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		CloseableRegistry cancelStreamRegistry,
 		StreamCompressionDecorator keyGroupCompressionDecorator,
 		InternalKeyContext<K> keyContext) {
-		Preconditions.checkNotNull(keyContext);
+		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.numberOfKeyGroups = keyContext.getNumberOfKeyGroups();
-		this.keyGroupRange = keyContext.getKeyGroupRange();
-		Preconditions.checkNotNull(keyGroupRange);
+		this.keyGroupRange = Preconditions.checkNotNull(keyContext.getKeyGroupRange());
 		Preconditions.checkArgument(numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
 		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
 
@@ -137,7 +136,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
 		this.keySelectionListeners = new ArrayList<>(1);
-		this.keyContext = keyContext;
 	}
 
 	private static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
@@ -199,7 +197,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public TypeSerializer<K> getKeySerializer() {
-		return keyContext.getCurrentKeySerializer();
+		return keySerializerProvider.currentSchemaSerializer();
 	}
 
 	/**

@@ -219,8 +219,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
 		InternalKeyContext<K> keyContext) {
 
-		super(kvStateRegistry, keySerializerProvider, userCodeClassLoader,
-			executionConfig, ttlTimeProvider, cancelStreamRegistry, keyGroupCompressionDecorator, keyContext);
+		super(
+			kvStateRegistry,
+			keySerializerProvider,
+			userCodeClassLoader,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistry,
+			keyGroupCompressionDecorator,
+			keyContext);
 
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
 

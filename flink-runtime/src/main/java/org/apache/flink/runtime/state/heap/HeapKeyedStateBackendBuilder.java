@@ -96,8 +96,8 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 			asynchronousSnapshots, registeredKVStates, registeredPQStates, cancelStreamRegistryForBackend);
 		InternalKeyContext<K> keyContext = new InternalKeyContextImpl<>(
 			keyGroupRange,
-			numberOfKeyGroups,
-			keySerializerProvider.currentSchemaSerializer());
+			numberOfKeyGroups
+		);
 		HeapRestoreOperation<K> restoreOperation = new HeapRestoreOperation<>(
 			restoreStateHandles,
 			keySerializerProvider,
