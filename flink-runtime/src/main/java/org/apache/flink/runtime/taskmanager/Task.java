@@ -91,9 +91,11 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -1311,7 +1313,21 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			if (executor == null) {
 				// first time use, initialize
 				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
-				executor = Executors.newCachedThreadPool(
+
+				// under normal execution, we expect that one thread will suffice, this is why we
+				// keep the core threads to 1 in the case of a synchronous savepoint, we will block
+				// the checkpointing thread, so we need an additional thread to execute the
+				// notifyCheckpointComplete() callback. Finally, we aggressively purge (potentially)
+				// idle thread so that we do not risk to have many idle thread on machines with multiple
+				// tasks on them. Either way, only one of them can execute at a time due to the
+				// checkpoint lock.
+
+				executor = new ThreadPoolExecutor(
+						1,
+						2,
+						1L,
+						TimeUnit.SECONDS,
+						new SynchronousQueue<>(),
 						new DispatcherThreadFactory(
 							TASK_THREADS_GROUP,
 							"Async calls on " + taskNameWithSubtask,
