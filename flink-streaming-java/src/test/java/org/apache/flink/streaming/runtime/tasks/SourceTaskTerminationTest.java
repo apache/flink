@@ -84,6 +84,8 @@ public class SourceTaskTerminationTest {
 	}
 
 	private void stopWithSavepointStreamTaskTestHelper(final boolean expectMaxWatermark) throws Exception {
+		final long SYNC_SAVEPOINT_ID = 34L;
+
 		final StreamTaskTestHarness<Long> srcTaskTestHarness = getSourceStreamTaskTestHarness();
 		final Thread executionThread = srcTaskTestHarness.invoke();
 		final StreamTask<Long, ?> srcTask = srcTaskTestHarness.getTask();
@@ -98,20 +100,22 @@ public class SourceTaskTerminationTest {
 
 		emitAndVerifyWatermarkAndElement(srcTaskTestHarness, 3L);
 
-		final Thread syncSavepointThread = triggerSynchronousSavepointFromDifferentThread(srcTask, expectMaxWatermark);
+		final Thread syncSavepointThread = triggerSynchronousSavepointFromDifferentThread(srcTask, expectMaxWatermark, SYNC_SAVEPOINT_ID);
 
 		final SynchronousSavepointLatch syncSavepointFuture = waitForSyncSavepointFutureToBeSet(srcTask);
 
 		if (expectMaxWatermark) {
+			// if we are in TERMINATE mode, we expect the source task
+			// to emit MAX_WM before the SYNC_SAVEPOINT barrier.
 			verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
 		}
 
-		verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), 34L);
+		verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), SYNC_SAVEPOINT_ID);
 
 		assertFalse(syncSavepointFuture.isCompleted());
 		assertTrue(syncSavepointFuture.isWaiting());
 
-		srcTask.notifyCheckpointComplete(34);
+		srcTask.notifyCheckpointComplete(SYNC_SAVEPOINT_ID);
 		assertTrue(syncSavepointFuture.isCompleted());
 
 		syncSavepointThread.join();
@@ -126,11 +130,12 @@ public class SourceTaskTerminationTest {
 
 	private Thread triggerSynchronousSavepointFromDifferentThread(
 			final StreamTask<Long, ?> task,
-			final boolean advanceToEndOfEventTime) {
+			final boolean advanceToEndOfEventTime,
+			final long syncSavepointId) {
 		final Thread checkpointingThread = new Thread(() -> {
 			try {
 				task.triggerCheckpoint(
-						new CheckpointMetaData(34, 900),
+						new CheckpointMetaData(syncSavepointId, 900),
 						new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
 						advanceToEndOfEventTime);
 			} catch (Exception e) {
