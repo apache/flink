@@ -208,10 +208,6 @@ public class NettyConfig {
 			&& SSLUtils.isInternalSSLEnabled(config);
 	}
 
-	public boolean isCreditBasedEnabled() {
-		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
-	}
-
 	public Configuration getConfig() {
 		return config;
 	}

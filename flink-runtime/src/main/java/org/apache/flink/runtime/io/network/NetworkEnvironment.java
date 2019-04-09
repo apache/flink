@@ -70,7 +70,7 @@ public class NetworkEnvironment {
 
 		NettyConfig nettyConfig = config.nettyConfig();
 		if (nettyConfig != null) {
-			this.connectionManager = new NettyConnectionManager(nettyConfig);
+			this.connectionManager = new NettyConnectionManager(nettyConfig, config.isCreditBased());
 		} else {
 			this.connectionManager = new LocalConnectionManager();
 		}
