@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
+import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.BooleanMinWithRetractAggFunction;
@@ -390,19 +391,19 @@ public abstract class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	 * Test for StringMinWithRetractAggFunction.
 	 */
 	public static class StringMinWithRetractAggFunctionTest
-			extends AggFunctionTestBase<String, MinWithRetractAccumulator<String>> {
+			extends AggFunctionTestBase<BinaryString, MinWithRetractAccumulator<BinaryString>> {
 
 		@Override
-		protected List<List<String>> getInputValueSets() {
+		protected List<List<BinaryString>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							"abc",
-							"def",
-							"ghi",
+							BinaryString.fromString("abc"),
+							BinaryString.fromString("def"),
+							BinaryString.fromString("ghi"),
 							null,
-							"jkl",
+							BinaryString.fromString("jkl"),
 							null,
-							"zzz"
+							BinaryString.fromString("zzz")
 					),
 					Arrays.asList(
 							null,
@@ -410,28 +411,28 @@ public abstract class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 					),
 					Arrays.asList(
 							null,
-							"a"
+							BinaryString.fromString("a")
 					),
 					Arrays.asList(
-							"x",
+							BinaryString.fromString("x"),
 							null,
-							"e"
+							BinaryString.fromString("e")
 					)
 			);
 		}
 
 		@Override
-		protected List<String> getExpectedResults() {
+		protected List<BinaryString> getExpectedResults() {
 			return Arrays.asList(
-					"abc",
+					BinaryString.fromString("abc"),
 					null,
-					"a",
-					"e"
+					BinaryString.fromString("a"),
+					BinaryString.fromString("e")
 			);
 		}
 
 		@Override
-		protected AggregateFunction<String, MinWithRetractAccumulator<String>> getAggregator() {
+		protected AggregateFunction<BinaryString, MinWithRetractAccumulator<BinaryString>> getAggregator() {
 			return new StringMinWithRetractAggFunction();
 		}
 

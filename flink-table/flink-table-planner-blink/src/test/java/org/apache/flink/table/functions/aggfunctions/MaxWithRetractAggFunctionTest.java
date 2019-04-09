@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
+import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.BooleanMaxWithRetractAggFunction;
@@ -103,7 +104,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for ByteMinWithRetractAggFunction.
+	 * Test for ByteMaxWithRetractAggFunction.
 	 */
 	public static class ByteMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Byte> {
 
@@ -129,7 +130,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for ShortMinWithRetractAggFunction.
+	 * Test for ShortMaxWithRetractAggFunction.
 	 */
 	public static class ShortMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Short> {
 
@@ -155,7 +156,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for IntMinWithRetractAggFunction.
+	 * Test for IntMaxWithRetractAggFunction.
 	 */
 	public static class IntMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Integer> {
 
@@ -181,7 +182,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for LongMinWithRetractAggFunction.
+	 * Test for LongMaxWithRetractAggFunction.
 	 */
 	public static class LongMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Long> {
 
@@ -207,7 +208,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for FloatMinWithRetractAggFunction.
+	 * Test for FloatMaxWithRetractAggFunction.
 	 */
 	public static class FloatMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Float> {
 
@@ -233,7 +234,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for DoubleMinWithRetractAggFunction.
+	 * Test for DoubleMaxWithRetractAggFunction.
 	 */
 	public static class DoubleMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Double> {
 
@@ -259,7 +260,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for BooleanMinWithRetractAggFunction.
+	 * Test for BooleanMaxWithRetractAggFunction.
 	 */
 	public static class BooleanMaxWithRetractAggFunctionTest
 			extends AggFunctionTestBase<Boolean, MaxWithRetractAccumulator<Boolean>> {
@@ -325,7 +326,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for DecimalMinWithRetractAggFunction.
+	 * Test for DecimalMaxWithRetractAggFunction.
 	 */
 	public static class DecimalMaxWithRetractAggFunctionTest
 			extends AggFunctionTestBase<Decimal, MaxWithRetractAccumulator<Decimal>> {
@@ -387,22 +388,22 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for StringMinWithRetractAggFunction.
+	 * Test for StringMaxWithRetractAggFunction.
 	 */
 	public static class StringMaxWithRetractAggFunctionTest
-			extends AggFunctionTestBase<String, MaxWithRetractAccumulator<String>> {
+			extends AggFunctionTestBase<BinaryString, MaxWithRetractAccumulator<BinaryString>> {
 
 		@Override
-		protected List<List<String>> getInputValueSets() {
+		protected List<List<BinaryString>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							"abc",
-							"def",
-							"ghi",
+							BinaryString.fromString("abc"),
+							BinaryString.fromString("def"),
+							BinaryString.fromString("ghi"),
 							null,
-							"jkl",
+							BinaryString.fromString("jkl"),
 							null,
-							"zzz"
+							BinaryString.fromString("zzz")
 					),
 					Arrays.asList(
 							null,
@@ -410,28 +411,28 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 					),
 					Arrays.asList(
 							null,
-							"a"
+							BinaryString.fromString("a")
 					),
 					Arrays.asList(
-							"x",
+							BinaryString.fromString("x"),
 							null,
-							"e"
+							BinaryString.fromString("e")
 					)
 			);
 		}
 
 		@Override
-		protected List<String> getExpectedResults() {
+		protected List<BinaryString> getExpectedResults() {
 			return Arrays.asList(
-					"zzz",
+					BinaryString.fromString("zzz"),
 					null,
-					"a",
-					"x"
+					BinaryString.fromString("a"),
+					BinaryString.fromString("x")
 			);
 		}
 
 		@Override
-		protected AggregateFunction<String, MaxWithRetractAccumulator<String>> getAggregator() {
+		protected AggregateFunction<BinaryString, MaxWithRetractAccumulator<BinaryString>> getAggregator() {
 			return new StringMaxWithRetractAggFunction();
 		}
 
@@ -447,7 +448,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for TimestampMinWithRetractAggFunction.
+	 * Test for TimestampMaxWithRetractAggFunction.
 	 */
 	public static class TimestampMaxWithRetractAggFunctionTest
 			extends AggFunctionTestBase<Timestamp, MaxWithRetractAccumulator<Timestamp>> {
@@ -502,7 +503,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for DateMinWithRetractAggFunction.
+	 * Test for DateMaxWithRetractAggFunction.
 	 */
 	public static class DateMaxWithRetractAggFunctionTest
 			extends AggFunctionTestBase<Date, MaxWithRetractAccumulator<Date>> {
@@ -557,7 +558,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	}
 
 	/**
-	 * Test for TimeMinWithRetractAggFunction.
+	 * Test for TimeMaxWithRetractAggFunction.
 	 */
 	public static class TimeMaxWithRetractAggFunctionTest
 			extends AggFunctionTestBase<Time, MaxWithRetractAccumulator<Time>> {
