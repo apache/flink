@@ -46,7 +46,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Request handler for the cancel and stop request. todo maybe here
+ * Request handler for the cancel and stop request.
  */
 public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
 
