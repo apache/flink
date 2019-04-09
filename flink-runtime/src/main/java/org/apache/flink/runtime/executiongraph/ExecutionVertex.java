@@ -616,7 +616,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				synchronized (inputSplits) {
 					InputSplitAssigner assigner = jobVertex.getSplitAssigner();
 					if (assigner != null) {
-						jobVertex.getSplitAssigner().returnInputSplit(inputSplits, getParallelSubtaskIndex());
+						assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
 						inputSplits.clear();
 					}
 				}
