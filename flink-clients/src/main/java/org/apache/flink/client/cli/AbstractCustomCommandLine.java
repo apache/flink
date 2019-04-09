@@ -75,7 +75,7 @@ public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<
 	 * @param commandLine containing the overriding values
 	 * @return Effective configuration with the overridden configuration settings
 	 */
-	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		final Configuration resultingConfiguration = new Configuration(configuration);
 
 		if (commandLine.hasOption(addressOption.getOpt())) {

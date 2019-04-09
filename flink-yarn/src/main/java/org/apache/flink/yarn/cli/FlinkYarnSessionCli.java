@@ -477,7 +477,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	@Override
-	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		// we ignore the addressOption because it can only contain "yarn-cluster"
 		final Configuration effectiveConfiguration = new Configuration(configuration);
 
@@ -517,6 +517,16 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		if (commandLine.hasOption(slots.getOpt())) {
 			effectiveConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
+		}
+
+		if (commandLine.hasOption(dynamicproperties.getOpt())) {
+			final Properties properties = commandLine.getOptionProperties(dynamicproperties.getOpt());
+			properties.stringPropertyNames().forEach((String key) -> {
+				String value = properties.getProperty(key);
+				if (value != null) {
+					effectiveConfiguration.setString(key, value);
+				}
+			});
 		}
 
 		if (isYarnPropertiesFileMode(commandLine)) {

@@ -1113,8 +1113,15 @@ public class CliFrontend {
 			final CliFrontend cli = new CliFrontend(
 				configuration,
 				customCommandLines);
+			// apply command options to configuration.
+			Configuration effectiveConfiguration = cli.configuration;
+			final CommandLine commandLine = CliFrontendParser.parse(cli.customCommandLineOptions, args, false);
+			final CustomCommandLine<?> customCommandLine = cli.getActiveCustomCommandLine(commandLine);
+			if (customCommandLine instanceof AbstractCustomCommandLine) {
+				effectiveConfiguration = ((AbstractCustomCommandLine) customCommandLine).applyCommandLineOptionsToConfiguration(commandLine);
+			}
 
-			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
+			SecurityUtils.install(new SecurityConfiguration(effectiveConfiguration));
 			int retCode = SecurityUtils.getInstalledContext()
 					.runSecured(() -> cli.parseParameters(args));
 			System.exit(retCode);
