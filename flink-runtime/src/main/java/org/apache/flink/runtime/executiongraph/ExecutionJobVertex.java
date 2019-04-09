@@ -38,6 +38,8 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -59,11 +61,13 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -115,7 +119,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private final List<IntermediateResult> inputs;
 
-	private final int parallelism;
+	private int parallelism;
 
 	private final SlotSharingGroup slotSharingGroup;
 
@@ -126,6 +130,24 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private final boolean maxParallelismConfigured;
 
 	private int maxParallelism;
+
+	private final int originParallelism;
+
+	private boolean enableAdaptiveParallelism;
+
+	private boolean adaptiveParallelismComputed;
+
+	private Map<Integer, List<Integer>> targetIndexes;
+
+	private Map<Integer, Integer> originIndexToTarget;
+
+	private long desiredInputSize;
+
+	private Map<ExecutionJobVertex, DistributionPattern> outputJobVertex;
+
+	private Map<ExecutionJobVertex, Integer> outputJobVertexIndex;
+
+	private final ExecutionVertex[] originTaskVertices;
 
 	/**
 	 * Either store a serialized task information, which is for all sub tasks the same,
@@ -185,6 +207,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		this.parallelism = numTaskVertices;
+		this.originParallelism = parallelism;
+		this.adaptiveParallelismComputed = false;
+		this.outputJobVertex = new HashMap<>();
+		this.outputJobVertexIndex = new HashMap<>();
+		this.originTaskVertices = new ExecutionVertex[numTaskVertices];
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
@@ -218,6 +245,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		int maxPriorAttemptsHistoryLength = jobConfiguration != null ?
 				jobConfiguration.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE) :
 				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue();
+		enableAdaptiveParallelism = jobConfiguration != null ?
+			jobConfiguration.getBoolean(JobManagerOptions.ENABLE_ADAPTIVE_PARALLELISM) :
+			JobManagerOptions.ENABLE_ADAPTIVE_PARALLELISM.defaultValue();
+		desiredInputSize = jobConfiguration != null ?
+			jobConfiguration.getLong(JobManagerOptions.ADAPTIVE_PARALLELISM_DESIREDINPUTSIZE) :
+			JobManagerOptions.ADAPTIVE_PARALLELISM_DESIREDINPUTSIZE.defaultValue();
 
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
@@ -231,6 +264,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					maxPriorAttemptsHistoryLength);
 
 			this.taskVertices[i] = vertex;
+			this.originTaskVertices[i] = vertex;
 		}
 
 		// sanity check for the double referencing between intermediate result partitions and execution vertices
@@ -430,6 +464,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			LOG.debug(String.format("Connecting ExecutionJobVertex %s (%s) to %d predecessors.", jobVertex.getID(), jobVertex.getName(), inputs.size()));
 		}
 
+		if (this.enableAdaptiveParallelism && inputs.isEmpty()) {
+			this.enableAdaptiveParallelism = false;
+			LOG.debug("Disable adaptive parallelism of ExecutionJobVertex {}, since inputs is empty.", jobVertex.getName());
+		}
+
 		for (int num = 0; num < inputs.size(); num++) {
 			JobEdge edge = inputs.get(num);
 
@@ -452,6 +491,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			}
 
 			this.inputs.add(ires);
+
+			// adaptive parallelism only supports ResultPartitionType.BLOCKING
+			if (this.enableAdaptiveParallelism && !ResultPartitionType.BLOCKING.equals(ires.getResultType())) {
+				this.enableAdaptiveParallelism = false;
+				LOG.debug("Disable adaptive parallelism of ExecutionJobVertex {}, since ResultPartitionType is not BLOCKING.", jobVertex.getName());
+			}
 
 			int consumerIndex = ires.registerConsumer();
 
@@ -632,6 +677,206 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	@Override
 	public ArchivedExecutionJobVertex archive() {
 		return new ArchivedExecutionJobVertex(this);
+	}
+
+	void computeAdaptiveParallelism() {
+		if (!enableAdaptiveParallelism || adaptiveParallelismComputed) {
+			return;
+		}
+
+		LOG.info("Compute adaptive parallelism {}", getName());
+
+		int computedParallelism = computeRouting();
+		computeAdaptiveParallelism(computedParallelism);
+	}
+
+	private boolean hasExecutionDeployed() {
+		return Arrays.stream(taskVertices).map(ExecutionVertex::getCurrentExecutionAttempt).anyMatch(Execution::alreadyDeployed);
+	}
+
+	private boolean checkAdaptive() {
+		if (!enableAdaptiveParallelism || adaptiveParallelismComputed || hasExecutionDeployed()) {
+			return false;
+		}
+
+		for(Map.Entry<ExecutionJobVertex, DistributionPattern> entry : outputJobVertex.entrySet()) {
+			if (DistributionPattern.POINTWISE.equals(entry.getValue())) {
+				ExecutionJobVertex consumerVertex = entry.getKey();
+				if (!consumerVertex.checkAdaptive()) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	private int computeRouting() {
+		BigInteger totalInputSize = BigInteger.ZERO;
+		BigInteger totalInputRecord = BigInteger.ZERO;
+		for (IntermediateResult ir : inputs) {
+			for (ExecutionVertex ev : ir.getProducer().getTaskVertices()) {
+				IOMetrics ioMetrics = ev.getCurrentExecutionAttempt().getIOMetrics();
+				if (ioMetrics != null) {
+					totalInputRecord = totalInputRecord.add(BigInteger.valueOf(ioMetrics.getNumRecordsOut()));
+					totalInputSize = totalInputSize.add(BigInteger.valueOf(ioMetrics.getNumBytesOut()));
+				}
+			}
+		}
+		BigInteger totalSize = totalInputSize.compareTo(BigInteger.ONE) > 0 ? totalInputSize : totalInputRecord;
+		int computeParallelism = totalSize.divide(BigInteger.valueOf(desiredInputSize)).intValue();
+		computeParallelism = computeParallelism <= 0 ? 1 : computeParallelism;
+		computeParallelism = computeParallelism > originParallelism ? originParallelism : computeParallelism;
+		LOG.info("Total input size={}, total record={}, computeParallelism={}", totalInputSize.longValue(),
+			totalInputRecord.longValue(), computeParallelism);
+		return computeParallelism;
+	}
+
+	private void configureTargetMapping() {
+		targetIndexes = new HashMap<>();
+		originIndexToTarget = new HashMap<>();
+		int basePartitionRange = (int)Math.ceil(1.0 * originParallelism / parallelism);
+		int remainderRangeForLastShuffler = originParallelism - basePartitionRange * (parallelism - 1);
+		for (int idx = 0; idx < this.parallelism; ++idx) {
+			int partitionRange = basePartitionRange;
+			if (idx == (parallelism - 1)) {
+				partitionRange = ((remainderRangeForLastShuffler > 0)
+					? remainderRangeForLastShuffler : basePartitionRange);
+			}
+			// skip the basePartitionRange per destination task
+			List<Integer> indices = createIndices(partitionRange, idx, basePartitionRange);
+			targetIndexes.put(idx, indices);
+			for (Integer origin : indices) {
+				originIndexToTarget.put(origin, idx);
+			}
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(String.format("targetIdx[%s] to %s", idx, targetIndexes.get(idx)));
+			}
+		}
+	}
+
+	private static List<Integer> createIndices(int partitionRange, int taskIndex, int offSetPerTask) {
+		int startIndex = taskIndex * offSetPerTask;
+		List<Integer> indices = new ArrayList<>(partitionRange);
+		for (int currentIndex = 0; currentIndex < partitionRange; ++currentIndex) {
+			indices.add(startIndex + currentIndex);
+		}
+		return indices;
+	}
+
+	private void computeAdaptiveParallelism(int computedParallelism) {
+		graph.assertRunningInJobMasterMainThread();
+
+		if (computedParallelism >= parallelism || !checkAdaptive()) {
+			return;
+		}
+		adaptiveParallelismComputed = true;
+
+		for(Map.Entry<ExecutionJobVertex, DistributionPattern> entry : outputJobVertex.entrySet()) {
+			if (DistributionPattern.POINTWISE.equals(entry.getValue())) {
+				ExecutionJobVertex consumerVertex = entry.getKey();
+				for (IntermediateResult ir : consumerVertex.getInputs()) {
+					ExecutionJobVertex producerVertex = ir.getProducer();
+					if (!producerVertex.equals(this)) {
+						if (DistributionPattern.POINTWISE.equals(producerVertex.outputJobVertex.get(consumerVertex))) {
+							producerVertex.adaptiveParallelismComputed = true;
+						}
+					}
+				}
+			}
+		}
+
+		// cancel task vertex
+		Set<ExecutionVertex> cancelledVertices = new HashSet<>();
+		for (int i = computedParallelism; i < taskVertices.length; i++) {
+			taskVertices[i].markAdaptiveCancelled();
+			cancelledVertices.add(taskVertices[i]);
+		}
+		adaptiveCancel(cancelledVertices);
+		configureTargetMapping();
+
+		// adjust POINTWISE downstream vertex
+		for(Map.Entry<ExecutionJobVertex, DistributionPattern> entry : outputJobVertex.entrySet()) {
+			if (DistributionPattern.POINTWISE.equals(entry.getValue())) {
+				ExecutionJobVertex consumerVertex = entry.getKey();
+				LOG.info("Adjust consumer vertex {}, due to POINTWISE producer vertex {}", consumerVertex.getName(), getName());
+				Set<ExecutionEdge> cancelledExecutionEdge = new HashSet<>();
+				for (int idx = parallelism; idx < originParallelism; idx++) {
+					for (IntermediateResultPartition irp : originTaskVertices[idx].getProducedPartitions().values()) {
+						cancelledExecutionEdge.addAll(irp.getConsumers().get(0));
+					}
+				}
+				int consumerCancelledCnt = 0;
+				for (ExecutionVertex consumerEV : consumerVertex.originTaskVertices) {
+					Set<ExecutionEdge> inputEdges = new HashSet<>(Arrays.asList(consumerEV.getInputEdges(
+						outputJobVertexIndex.get(consumerVertex))));
+					for (ExecutionEdge ee : cancelledExecutionEdge) {
+						inputEdges.remove(ee);
+					}
+					if (inputEdges.isEmpty()) {
+						consumerCancelledCnt++;
+					}
+				}
+				consumerVertex.computeAdaptiveParallelism(consumerVertex.originParallelism - consumerCancelledCnt);
+			}
+		}
+	}
+
+	 private void adaptiveCancel(Set<ExecutionVertex> cancelledVertices) {
+		// to be implemented in FLINK-12135
+	}
+
+	void checkPredecessorAdaptiveParallelism() {
+		List<JobEdge> edges = jobVertex.getInputs();
+		if (this.enableAdaptiveParallelism) {
+			// check the source vertex parallelism and DistributionPattern
+			boolean hasPointwise = false;
+			boolean parallelismDivisive = false;
+			int pointwiseSourceParallelism = -1;
+			for (int i = 0; i < edges.size(); i++) {
+				ExecutionJobVertex sourceJobVertex = graph.getJobVertex(edges.get(i).getSource().getProducer().getID());
+				if (sourceJobVertex != null) {
+					if (DistributionPattern.POINTWISE.equals(edges.get(i).getDistributionPattern())) {
+						hasPointwise = true;
+
+						if (pointwiseSourceParallelism == -1) {
+							pointwiseSourceParallelism = sourceJobVertex.originParallelism;
+						}
+						if (pointwiseSourceParallelism != sourceJobVertex.originParallelism) {
+							parallelismDivisive = true;
+						}
+					}
+
+					sourceJobVertex.outputJobVertex.put(this, edges.get(i).getDistributionPattern());
+					sourceJobVertex.outputJobVertexIndex.put(this, i);
+				}
+			}
+			if (hasPointwise && parallelismDivisive) {
+				for (JobEdge edge : jobVertex.getInputs()) {
+					if (DistributionPattern.POINTWISE.equals(edge.getDistributionPattern())) {
+						ExecutionJobVertex sourceJobVertex = graph.getJobVertex(edge.getSource().getProducer().getID());
+						if (sourceJobVertex != null && sourceJobVertex.enableAdaptiveParallelism) {
+							sourceJobVertex.enableAdaptiveParallelism = false;
+							LOG.debug("Disable adaptive parallelism of ExecutionJobVertex {}, since the input edge of Output Vertex {} is POINTWISE divisive.",
+								sourceJobVertex.getName(), jobVertex.getName());
+						}
+					}
+				}
+				this.enableAdaptiveParallelism = false;
+			}
+		} else {
+			for (int i = 0; i < edges.size(); i++) {
+				ExecutionJobVertex sourceJobVertex = graph.getJobVertex(edges.get(i).getSource().getProducer().getID());
+				if (sourceJobVertex != null) {
+					if (sourceJobVertex.enableAdaptiveParallelism && DistributionPattern.POINTWISE.equals(edges.get(i).getDistributionPattern())) {
+						sourceJobVertex.enableAdaptiveParallelism = false;
+						LOG.debug("Disable adaptive parallelism of ExecutionJobVertex {}, since Output Vertex {} is disabled and shuffle pattern is POINTWISE.",
+							sourceJobVertex.getName(), jobVertex.getName());
+					}
+					sourceJobVertex.outputJobVertex.put(this, edges.get(i).getDistributionPattern());
+					sourceJobVertex.outputJobVertexIndex.put(this, i);
+				}
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------

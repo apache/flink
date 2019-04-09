@@ -789,6 +789,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final IntermediateResultPartition partition = edge.getSource();
 
+			consumerVertex.getJobVertex().computeAdaptiveParallelism();
+
 			// ----------------------------------------------------------------
 			// Consumer is created => try to deploy and cache input channel
 			// descriptors if there is a deployment race
@@ -1007,6 +1009,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				if (transitionState(current, FINISHED)) {
 					try {
+						//update metrics first for adaptive parallelism
+						updateAccumulatorsAndMetrics(userAccumulators, metrics);
+
 						for (IntermediateResultPartition finishedPartition
 								: getVertex().finishAllBlockingPartitions()) {
 
@@ -1017,8 +1022,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 								scheduleOrUpdateConsumers(partition.getConsumers());
 							}
 						}
-
-						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 						releaseAssignedResource(null);
 
@@ -1141,6 +1144,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			sendUpdatePartitionInfoRpcCall(partitionInfos);
 		}
+	}
+
+	boolean alreadyDeployed() {
+		return DEPLOYING.equals(state) || RUNNING.equals(state);
 	}
 
 	// --------------------------------------------------------------------------------------------

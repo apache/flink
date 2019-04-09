@@ -173,6 +173,22 @@ public class JobManagerOptions {
 			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
 
+	/**
+	 * If enable adaptive parallelism, default: false.
+	 */
+	public static final ConfigOption<Boolean> ENABLE_ADAPTIVE_PARALLELISM =
+		key("jobmanager.enable.adaptive_parallelism")
+			.defaultValue(false)
+			.withDescription("Enable adaptive parallelism.");
+
+	/**
+	 * Adaptive parallelism desired input size, default: 1024_000L.
+	 */
+	public static final ConfigOption<Long> ADAPTIVE_PARALLELISM_DESIREDINPUTSIZE =
+		key("jobmanager.adaptive_parallelism.desired_input_size")
+			.defaultValue(1024_000L)
+			.withDescription("Adaptive parallelism desired input size.");
+
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {

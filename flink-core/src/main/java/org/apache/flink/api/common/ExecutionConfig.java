@@ -160,6 +160,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** The default input dependency constraint to schedule tasks. */
 	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
 
+	/** This flag defines if we enable adaptive parallelism. Default: false */
+	private boolean enableAdaptiveParallelism = false;
+
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters;
@@ -928,6 +931,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	public void setUseSnapshotCompression(boolean useSnapshotCompression) {
 		this.useSnapshotCompression = useSnapshotCompression;
+	}
+
+	public void setEnableAdaptiveParallelism(boolean enableAdaptiveParallelism) {
+		this.enableAdaptiveParallelism = enableAdaptiveParallelism;
+	}
+
+	public boolean getEnableAdaptiveParallelism() {
+		return this.enableAdaptiveParallelism;
 	}
 
 	/**

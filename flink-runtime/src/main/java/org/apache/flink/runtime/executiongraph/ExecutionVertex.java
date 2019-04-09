@@ -346,6 +346,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return getJobVertex().getInputDependencyConstraint();
 	}
 
+	void markAdaptiveCancelled() {
+
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Graph building
 	// --------------------------------------------------------------------------------------------

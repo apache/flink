@@ -32,6 +32,7 @@ import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
@@ -235,6 +236,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		JobGraph graph = new JobGraph(jobId, program.getJobName());
 		try {
 			graph.setExecutionConfig(program.getOriginalPlan().getExecutionConfig());
+			graph.getJobConfiguration().setBoolean(JobManagerOptions.ENABLE_ADAPTIVE_PARALLELISM,
+				program.getOriginalPlan().getExecutionConfig().getEnableAdaptiveParallelism());
 		}
 		catch (IOException e) {
 			throw new CompilerException("Could not serialize the ExecutionConfig." +

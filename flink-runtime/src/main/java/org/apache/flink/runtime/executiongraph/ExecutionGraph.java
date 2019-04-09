@@ -854,6 +854,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			newExecJobVertices.add(ejv);
 		}
 
+		for (int idx = newExecJobVertices.size() - 1; idx >= 0; idx--) {
+			newExecJobVertices.get(idx).checkPredecessorAdaptiveParallelism();
+		}
+
 		terminationFuture = new CompletableFuture<>();
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 	}
