@@ -14,19 +14,19 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 
-(ns jepsen.flink.nemesis-test
+(ns jepsen.flink.generator-test
   (:require [clojure.test :refer :all])
-  (:require [jepsen.flink.nemesis :refer :all]))
+  (:require [jepsen.flink.generator :refer :all]))
 
 (deftest inc-by-factor-test
   (testing "Should not increase if factor is 1."
-    (is (= 10 (@#'jepsen.flink.nemesis/inc-by-factor 10 1))))
+    (is (= 10 (@#'jepsen.flink.generator/inc-by-factor 10 1))))
 
   (testing "Should increase by factor."
-    (is (= 15 (@#'jepsen.flink.nemesis/inc-by-factor 10 1.5))))
+    (is (= 15 (@#'jepsen.flink.generator/inc-by-factor 10 1.5))))
 
   (testing "Should round down."
-    (is (= 15 (@#'jepsen.flink.nemesis/inc-by-factor 10 1.52))))
+    (is (= 15 (@#'jepsen.flink.generator/inc-by-factor 10 1.52))))
 
   (testing "Should throw if factor < 1."
-    (is (thrown? AssertionError (@#'jepsen.flink.nemesis/inc-by-factor 1 0)))))
+    (is (thrown? AssertionError (@#'jepsen.flink.generator/inc-by-factor 1 0)))))
