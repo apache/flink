@@ -23,7 +23,7 @@ import java.lang.management.ManagementFactory
 import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket}
 import java.util
 import java.util.concurrent.{Callable, TimeUnit, TimeoutException}
-import java.util.{Collections, UUID}
+import java.util.{Collections, Optional, UUID}
 
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
@@ -33,6 +33,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
+import org.apache.flink.core.plugin.PluginUtils
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
 import org.apache.flink.runtime.blob.BlobCacheService
@@ -1666,7 +1667,10 @@ object TaskManager {
     }
 
     try {
-      FileSystem.initialize(conf)
+     //TODO provide path.
+      FileSystem.initialize(
+        conf,
+        PluginUtils.createPluginManagerFromRootFolder(Optional.empty()))
     }
     catch {
       case e: IOException => {
