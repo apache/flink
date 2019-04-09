@@ -69,7 +69,7 @@ public class SynchronousCheckpointTest {
 		runningLatch.await();
 	}
 
-	@Test(timeout=1000)
+	@Test(timeout = 1000)
 	public void synchronousCheckpointBlocksUntilNotificationForCorrectCheckpointComes() throws Exception {
 		final SynchronousSavepointLatch syncSavepointLatch = launchSynchronousSavepointAndGetTheLatch();
 		assertFalse(syncSavepointLatch.isCompleted());
@@ -87,7 +87,7 @@ public class SynchronousCheckpointTest {
 		assertFalse(streamTaskUnderTest.isCanceled());
 	}
 
-	@Test(timeout=1000)
+	@Test(timeout = 1000)
 	public void cancelShouldAlsoCancelPendingSynchronousCheckpoint() throws Throwable {
 		final SynchronousSavepointLatch syncSavepointLatch = launchSynchronousSavepointAndGetTheLatch();
 		assertFalse(syncSavepointLatch.isCompleted());
