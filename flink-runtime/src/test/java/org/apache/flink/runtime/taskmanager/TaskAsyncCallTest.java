@@ -127,6 +127,10 @@ public class TaskAsyncCallTest extends TestLogger {
 	@Test
 	@Ignore
 	public void testCheckpointCallsInOrder() throws Exception {
+
+		// test ignored because with the changes introduced by [FLINK-11667],
+		// there is not guarantee about the order in which checkpoints are executed.
+
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
 			task.startTaskThread();
@@ -149,6 +153,10 @@ public class TaskAsyncCallTest extends TestLogger {
 	@Test
 	@Ignore
 	public void testMixedAsyncCallsInOrder() throws Exception {
+
+		// test ignored because with the changes introduced by [FLINK-11667],
+		// there is not guarantee about the order in which checkpoints are executed.
+
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
 			task.startTaskThread();
