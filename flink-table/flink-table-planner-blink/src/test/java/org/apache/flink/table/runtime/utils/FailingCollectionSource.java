@@ -102,8 +102,7 @@ public class FailingCollectionSource<T>
 				serializer.serialize(element, wrapper);
 				count++;
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
 		}
 
@@ -157,12 +156,11 @@ public class FailingCollectionSource<T>
 					serializer.deserialize(input);
 					toSkip--;
 				}
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new IOException(
 						"Failed to deserialize an element from the source. " +
-						"If you are using user-defined serialization (Value and Writable types), check the " +
-						"serialization functions.\nSerializer is " + serializer);
+								"If you are using user-defined serialization (Value and Writable types), check the " +
+								"serialization functions.\nSerializer is " + serializer);
 			}
 
 			this.numElementsEmitted = this.numElementsToSkip;
@@ -185,12 +183,11 @@ public class FailingCollectionSource<T>
 				T next;
 				try {
 					next = serializer.deserialize(input);
-				}
-				catch (Exception e) {
+				} catch (Exception e) {
 					throw new IOException(
 							"Failed to deserialize an element from the source. " +
-							"If you are using user-defined serialization (Value and Writable types), check the " +
-							"serialization functions.\nSerializer is " + serializer);
+									"If you are using user-defined serialization (Value and Writable types), check the " +
+									"serialization functions.\nSerializer is " + serializer);
 				}
 
 				synchronized (ctx.getCheckpointLock()) {

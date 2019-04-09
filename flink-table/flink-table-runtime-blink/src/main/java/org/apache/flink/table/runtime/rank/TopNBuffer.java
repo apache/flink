@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.rank;
 
 import org.apache.flink.table.dataformat.BaseRow;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -29,31 +30,32 @@ import java.util.TreeMap;
 import java.util.function.Supplier;
 
 /**
- * SortedMap stores mapping from sort key to records list, each record is BaseRow type.
- * SortedMap could also track rank number of each records.
- *
- * @param <T> Type of the sort key
+ * TopNBuffer stores mapping from sort key to records list, sortKey is BaseRow type, each record is BaseRow type.
+ * TopNBuffer could also track rank number of each record.
  */
-public class SortedMap<T> {
+class TopNBuffer implements Serializable {
+
+	private static final long serialVersionUID = 6824488508991990228L;
 
 	private final Supplier<Collection<BaseRow>> valueSupplier;
+	private final Comparator<BaseRow> sortKeyComparator;
 	private int currentTopNum = 0;
-	private TreeMap<T, Collection<BaseRow>> treeMap;
+	private TreeMap<BaseRow, Collection<BaseRow>> treeMap;
 
-	public SortedMap(Comparator<T> sortKeyComparator, Supplier<Collection<BaseRow>> valueSupplier) {
+	TopNBuffer(Comparator<BaseRow> sortKeyComparator, Supplier<Collection<BaseRow>> valueSupplier) {
 		this.valueSupplier = valueSupplier;
+		this.sortKeyComparator = sortKeyComparator;
 		this.treeMap = new TreeMap(sortKeyComparator);
 	}
 
 	/**
-	 * Appends a record into the SortedMap under the sortKey.
+	 * Appends a record into the buffer.
 	 *
 	 * @param sortKey sort key with which the specified value is to be associated
-	 * @param value   record which is to be appended
-	 *
+	 * @param value record which is to be appended
 	 * @return the size of the collection under the sortKey.
 	 */
-	public int put(T sortKey, BaseRow value) {
+	public int put(BaseRow sortKey, BaseRow value) {
 		currentTopNum += 1;
 		// update treeMap
 		Collection<BaseRow> collection = treeMap.get(sortKey);
@@ -66,29 +68,28 @@ public class SortedMap<T> {
 	}
 
 	/**
-	 * Puts a record list into the SortedMap under the sortKey.
-	 * Note: if SortedMap already contains sortKey, putAll will overwrite the previous value
+	 * Puts a record list into the buffer under the sortKey.
+	 * Note: if buffer already contains sortKey, putAll will overwrite the previous value
 	 *
 	 * @param sortKey sort key with which the specified values are to be associated
-	 * @param values  record lists to be associated with the specified key
+	 * @param values record lists to be associated with the specified key
 	 */
-	public void putAll(T sortKey, Collection<BaseRow> values) {
+	void putAll(BaseRow sortKey, Collection<BaseRow> values) {
 		treeMap.put(sortKey, values);
 		currentTopNum += values.size();
 	}
 
 	/**
-	 * Get the record list from SortedMap under the sortKey.
+	 * Gets the record list from the buffer under the sortKey.
 	 *
 	 * @param sortKey key to get
-	 *
-	 * @return the record list from SortedMap under the sortKey
+	 * @return the record list from the buffer under the sortKey
 	 */
-	public Collection<BaseRow> get(T sortKey) {
+	public Collection<BaseRow> get(BaseRow sortKey) {
 		return treeMap.get(sortKey);
 	}
 
-	public void remove(T sortKey, BaseRow value) {
+	public void remove(BaseRow sortKey, BaseRow value) {
 		Collection<BaseRow> list = treeMap.get(sortKey);
 		if (list != null) {
 			if (list.remove(value)) {
@@ -101,11 +102,11 @@ public class SortedMap<T> {
 	}
 
 	/**
-	 * Remove all record list from SortedMap under the sortKey.
+	 * Removes all record list from the buffer under the sortKey.
 	 *
 	 * @param sortKey key to remove
 	 */
-	public void removeAll(T sortKey) {
+	void removeAll(BaseRow sortKey) {
 		Collection<BaseRow> list = treeMap.get(sortKey);
 		if (list != null) {
 			currentTopNum -= list.size();
@@ -114,13 +115,12 @@ public class SortedMap<T> {
 	}
 
 	/**
-	 * Remove the last record of the last Entry in the TreeMap (according to the TreeMap's
-	 * key-sort function).
+	 * Removes the last record of the last Entry in the buffer.
 	 *
 	 * @return removed record
 	 */
-	public BaseRow removeLast() {
-		Map.Entry<T, Collection<BaseRow>> last = treeMap.lastEntry();
+	BaseRow removeLast() {
+		Map.Entry<BaseRow, Collection<BaseRow>> last = treeMap.lastEntry();
 		BaseRow lastElement = null;
 		if (last != null) {
 			Collection<BaseRow> list = last.getValue();
@@ -138,17 +138,16 @@ public class SortedMap<T> {
 	}
 
 	/**
-	 * Get record which rank is given value.
+	 * Gets record which rank is given value.
 	 *
 	 * @param rank rank value to search
-	 *
 	 * @return the record which rank is given value
 	 */
-	public BaseRow getElement(int rank) {
+	BaseRow getElement(int rank) {
 		int curRank = 0;
-		Iterator<Map.Entry<T, Collection<BaseRow>>> iter = treeMap.entrySet().iterator();
+		Iterator<Map.Entry<BaseRow, Collection<BaseRow>>> iter = treeMap.entrySet().iterator();
 		while (iter.hasNext()) {
-			Map.Entry<T, Collection<BaseRow>> entry = iter.next();
+			Map.Entry<BaseRow, Collection<BaseRow>> entry = iter.next();
 			Collection<BaseRow> list = entry.getValue();
 
 			Iterator<BaseRow> listIter = list.iterator();
@@ -175,40 +174,44 @@ public class SortedMap<T> {
 	}
 
 	/**
-	 * Returns a {@link Set} view of the mappings contained in this map.
+	 * Returns a {@link Set} view of the mappings contained in the buffer.
 	 */
-	public Set<Map.Entry<T, Collection<BaseRow>>> entrySet() {
+	Set<Map.Entry<BaseRow, Collection<BaseRow>>> entrySet() {
 		return treeMap.entrySet();
 	}
 
 	/**
-	 * Returns the last Entry in the TreeMap (according to the TreeMap's
-	 * key-sort function).  Returns null if the TreeMap is empty.
+	 * Returns the last Entry in the buffer. Returns null if the TreeMap is empty.
 	 */
-	public Map.Entry<T, Collection<BaseRow>> lastEntry() {
+	Map.Entry<BaseRow, Collection<BaseRow>> lastEntry() {
 		return treeMap.lastEntry();
 	}
 
 	/**
-	 * Returns {@code true} if this map contains a mapping for the specified
-	 * key.
+	 * Returns {@code true} if the buffer contains a mapping for the specified key.
 	 *
-	 * @param key key whose presence in this map is to be tested
-	 *
-	 * @return {@code true} if this map contains a mapping for the
-	 * specified key
+	 * @param key key whose presence in the buffer is to be tested
+	 * @return {@code true} if the buffer contains a mapping for the specified key
 	 */
-	public boolean containsKey(T key) {
+	boolean containsKey(BaseRow key) {
 		return treeMap.containsKey(key);
 	}
 
 	/**
-	 * Get number of total records.
+	 * Gets number of total records.
 	 *
 	 * @return the number of total records.
 	 */
-	public int getCurrentTopNum() {
+	int getCurrentTopNum() {
 		return currentTopNum;
 	}
 
+	/**
+	 * Gets sort key comparator used by buffer.
+	 *
+	 * @return sort key comparator used by buffer
+	 */
+	Comparator<BaseRow> getSortKeyComparator() {
+		return sortKeyComparator;
+	}
 }

@@ -27,8 +27,9 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 
 /**
  * A function that processes elements of a stream, and could cleanup state.
+ *
  * @param <K> Type of the key.
- * @param <IN>  Type of the input elements.
+ * @param <IN> Type of the input elements.
  * @param <OUT> Type of the output elements.
  */
 public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT> extends KeyedProcessFunction<K, IN, OUT> {
@@ -58,8 +59,7 @@ public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT> extends K
 			// last registered timer
 			Long curCleanupTime = cleanupTimeState.value();
 
-			// check if a cleanup timer is registered and
-			// that the current cleanup timer won't delete state we need to keep
+			// check if a cleanup timer is registered and that the current cleanup timer won't delete state we need to keep
 			if (curCleanupTime == null || (currentTime + minRetentionTime) > curCleanupTime) {
 				// we need to register a new (later) timer
 				Long cleanupTime = currentTime + maxRetentionTime;

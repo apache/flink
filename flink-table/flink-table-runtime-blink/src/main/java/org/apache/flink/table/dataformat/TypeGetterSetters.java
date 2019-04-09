@@ -18,6 +18,7 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.DateType;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.type.InternalType;
@@ -194,7 +195,7 @@ public interface TypeGetterSetters {
 			return row.getString(ordinal);
 		} else if (type.equals(InternalTypes.CHAR)) {
 			return row.getChar(ordinal);
-		} else if (type.equals(InternalTypes.DATE)) {
+		} else if (type instanceof DateType) {
 			return row.getInt(ordinal);
 		} else if (type.equals(InternalTypes.TIME)) {
 			return row.getInt(ordinal);

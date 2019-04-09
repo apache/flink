@@ -38,7 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -50,17 +49,15 @@ import java.util.TreeMap;
  */
 public class RetractRankFunction extends AbstractRankFunction {
 
+	private static final long serialVersionUID = 1365312180599454479L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(RetractRankFunction.class);
 
-	/**
-	 * Message to indicate the state is cleared because of ttl restriction. The message could be
-	 * used to output to log.
-	 */
+	// Message to indicate the state is cleared because of ttl restriction. The message could be used to output to log.
 	private static final String STATE_CLEARED_WARN_MSG = "The state is cleared because of state ttl. " +
-														"This will result in incorrect result. " +
-														"You can increase the state ttl to avoid this.";
+			"This will result in incorrect result. You can increase the state ttl to avoid this.";
 
-	protected final BaseRowTypeInfo sortKeyType;
+	private final BaseRowTypeInfo sortKeyType;
 
 	// flag to skip records with non-exist error instead to fail, true by default.
 	private final boolean lenient = true;
@@ -71,15 +68,12 @@ public class RetractRankFunction extends AbstractRankFunction {
 	// a sorted map stores mapping from sort key to records count
 	private transient ValueState<SortedMap<BaseRow, Long>> treeMap;
 
-	private Comparator<BaseRow> sortKeyComparator;
-
-	public RetractRankFunction(
-			long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType, BaseRowTypeInfo outputRowType,
+	public RetractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
 			BaseRowTypeInfo sortKeyType, GeneratedRecordComparator generatedRecordComparator,
 			KeySelector<BaseRow, BaseRow> sortKeySelector, RankType rankType, RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, outputRowType,
-			generatedRecordComparator, sortKeySelector, rankType, rankRange, generatedEqualiser, generateRetraction);
+			GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction, boolean outputRankNumber) {
+		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
+				rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
 		this.sortKeyType = sortKeyType;
 	}
 
@@ -91,26 +85,20 @@ public class RetractRankFunction extends AbstractRankFunction {
 				"data-state", sortKeyType, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		sortKeyComparator = generatedRecordComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		ValueStateDescriptor<SortedMap<BaseRow, Long>> valueStateDescriptor = new ValueStateDescriptor(
 				"sorted-map",
-				new SortedMapTypeInfo(sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, sortKeyComparator)
-		);
+				new SortedMapTypeInfo(sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, sortKeyComparator));
 		treeMap = getRuntimeContext().getState(valueStateDescriptor);
 	}
 
 	@Override
-	public void processElement(
-			BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
-
+	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
 		initRankEnd(input);
-
 		SortedMap<BaseRow, Long> sortedMap = treeMap.value();
 		if (sortedMap == null) {
 			sortedMap = new TreeMap<>(sortKeyComparator);
 		}
 		BaseRow sortKey = sortKeySelector.getKey(input);
-
 		if (BaseRowUtil.isAccumulateMsg(input)) {
 			// update sortedMap
 			if (sortedMap.containsKey(sortKey)) {
@@ -131,8 +119,6 @@ public class RetractRankFunction extends AbstractRankFunction {
 			inputs.add(input);
 			dataState.put(sortKey, inputs);
 		} else {
-			// retract input
-
 			// emit updates first
 			retractRecordWithRowNumber(sortedMap, sortKey, input, out);
 
@@ -152,8 +138,7 @@ public class RetractRankFunction extends AbstractRankFunction {
 						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
 					}
 				} else {
-					throw new RuntimeException(
-							"Can not retract a non-existent record: ${inputBaseRow.toString}. " +
+					throw new RuntimeException("Can not retract a non-existent record: ${inputBaseRow.toString}. " +
 							"This should never happen.");
 				}
 			}
@@ -165,14 +150,15 @@ public class RetractRankFunction extends AbstractRankFunction {
 	// ------------- ROW_NUMBER-------------------------------
 
 	private void retractRecordWithRowNumber(
-			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out) throws Exception {
+			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			throws Exception {
 		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
 		long curRank = 0L;
-		boolean findSortKey = false;
+		boolean findsSortKey = false;
 		while (iterator.hasNext() && isInRankEnd(curRank)) {
 			Map.Entry<BaseRow, Long> entry = iterator.next();
 			BaseRow key = entry.getKey();
-			if (!findSortKey && key.equals(sortKey)) {
+			if (!findsSortKey && key.equals(sortKey)) {
 				List<BaseRow> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
@@ -186,12 +172,12 @@ public class RetractRankFunction extends AbstractRankFunction {
 					while (inputIter.hasNext() && isInRankEnd(curRank)) {
 						curRank += 1;
 						BaseRow prevRow = inputIter.next();
-						if (!findSortKey && equaliser.equalsWithoutHeader(prevRow, inputRow)) {
+						if (!findsSortKey && equaliser.equalsWithoutHeader(prevRow, inputRow)) {
 							delete(out, prevRow, curRank);
 							curRank -= 1;
-							findSortKey = true;
+							findsSortKey = true;
 							inputIter.remove();
-						} else if (findSortKey) {
+						} else if (findsSortKey) {
 							retract(out, prevRow, curRank + 1);
 							collect(out, prevRow, curRank);
 						}
@@ -202,7 +188,7 @@ public class RetractRankFunction extends AbstractRankFunction {
 						dataState.put(key, inputs);
 					}
 				}
-			} else if (findSortKey) {
+			} else if (findsSortKey) {
 				List<BaseRow> inputs = dataState.get(key);
 				int i = 0;
 				while (i < inputs.size() && isInRankEnd(curRank)) {
@@ -219,18 +205,19 @@ public class RetractRankFunction extends AbstractRankFunction {
 	}
 
 	private void emitRecordsWithRowNumber(
-			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out) throws Exception {
+			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			throws Exception {
 		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
 		long curRank = 0L;
-		boolean findSortKey = false;
+		boolean findsSortKey = false;
 		while (iterator.hasNext() && isInRankRange(curRank)) {
 			Map.Entry<BaseRow, Long> entry = iterator.next();
 			BaseRow key = entry.getKey();
-			if (!findSortKey && key.equals(sortKey)) {
+			if (!findsSortKey && key.equals(sortKey)) {
 				curRank += entry.getValue();
 				collect(out, inputRow, curRank);
-				findSortKey = true;
-			} else if (findSortKey) {
+				findsSortKey = true;
+			} else if (findsSortKey) {
 				List<BaseRow> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
@@ -256,7 +243,7 @@ public class RetractRankFunction extends AbstractRankFunction {
 	}
 
 	@Override
-	protected long getMaxSortMapSize() {
+	protected long getMaxSizeOfBuffer() {
 		// just let it go, retract rank has no interest in this
 		return 0L;
 	}

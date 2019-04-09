@@ -38,7 +38,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   @Test
   def testFirstRowOnProctime(): Unit = {
     val t = failingDataSource(StreamTestData.get3TupleData)
-            .toTable(tEnv, 'a, 'b, 'c, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime)
     tEnv.registerTable("T", t)
 
     val sql =
@@ -52,19 +52,19 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
         |WHERE rowNum = 1
       """.stripMargin
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
     val expected = List("1,1,Hi", "2,2,Hello", "4,3,Hello world, how are you?",
-                        "7,4,Comment#1", "11,5,Comment#5", "16,6,Comment#10")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+      "7,4,Comment#1", "11,5,Comment#5", "16,6,Comment#10")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testLastRowOnProctime(): Unit = {
     val t = failingDataSource(StreamTestData.get3TupleData)
-            .toTable(tEnv, 'a, 'b, 'c, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime)
     tEnv.registerTable("T", t)
 
     val sql =
@@ -83,10 +83,11 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     env.execute()
 
     val expected = List("1,1,Hi", "3,2,Hello world", "6,3,Luke Skywalker",
-                        "10,4,Comment#4", "15,5,Comment#9", "21,6,Comment#15")
+      "10,4,Comment#4", "15,5,Comment#9", "21,6,Comment#15")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+  // TODO Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
   @Test
   def testFirstRowOnRowtime(): Unit = {
     val data = List(
@@ -102,9 +103,9 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       (4L, 3L, "Helloworld, how are you?", 4))
 
     val t = failingDataSource(data)
-            .assignTimestampsAndWatermarks(
-              new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
-            .toTable(tEnv, 'rowtime, 'key, 'str, 'int)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
+      .toTable(tEnv, 'rowtime, 'key, 'str, 'int)
     tEnv.registerTable("T", t)
 
     val sql =
@@ -122,12 +123,12 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     val table = tEnv.sqlQuery(sql)
     writeToSink(table, sink)
 
-    // TODO Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
     env.execute()
     val expected = List("1,Hi,1", "2,Hello,2", "3,Helloworld, how are you?,4", "4,Comment#1,7")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
+  // TODO Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
   @Test
   def testLastRowOnRowtime(): Unit = {
     val data = List(
@@ -143,9 +144,9 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       (4L, 3L, "Helloworld, how are you?", 4))
 
     val t = failingDataSource(data)
-            .assignTimestampsAndWatermarks(
-              new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
-            .toTable(tEnv, 'rowtime, 'key, 'str, 'int)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
+      .toTable(tEnv, 'rowtime, 'key, 'str, 'int)
     tEnv.registerTable("T", t)
 
     val sql =
@@ -163,7 +164,6 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     val table = tEnv.sqlQuery(sql)
     writeToSink(table, sink)
 
-    // TODO Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
     env.execute()
     val expected = List("1,Hi,1", "2,Hello world,3", "3,Luke Skywalker,6", "4,Comment#4,10")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)

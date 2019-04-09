@@ -106,10 +106,10 @@ public final class SortedMapSerializer<K, V> extends AbstractMapSerializer<K, V,
 	@Override
 	public String toString() {
 		return "SortedMapSerializer{" +
-			"comparator = " + comparator +
-			", keySerializer = " + keySerializer +
-			", valueSerializer = " + valueSerializer +
-			"}";
+				"comparator = " + comparator +
+				", keySerializer = " + keySerializer +
+				", valueSerializer = " + valueSerializer +
+				"}";
 	}
 
 	@Override

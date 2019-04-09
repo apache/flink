@@ -26,18 +26,18 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Base class to deduplicate on keys and keeps only first row or last row.
+ * Utility for deduplicate function.
  */
-public interface DeduplicateFunctionBase {
+class DeduplicateFunctionHelper {
 
-	default void processLastRow(BaseRow preRow, BaseRow currentRow, boolean generateRetraction,
+	static void processLastRow(BaseRow preRow, BaseRow currentRow, boolean generateRetraction,
 			boolean stateCleaningEnabled, ValueState<BaseRow> pkRow, RecordEqualiser equaliser,
 			Collector<BaseRow> out) throws Exception {
 		// should be accumulate msg.
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
 		// ignore same record
 		if (!stateCleaningEnabled && preRow != null &&
-			equaliser.equalsWithoutHeader(preRow, currentRow)) {
+				equaliser.equalsWithoutHeader(preRow, currentRow)) {
 			return;
 		}
 		pkRow.update(currentRow);
@@ -48,13 +48,12 @@ public interface DeduplicateFunctionBase {
 		out.collect(currentRow);
 	}
 
-	default void processFirstRow(BaseRow preRow, BaseRow currentRow, boolean generateRetraction,
-			boolean stateCleaningEnabled, ValueState<BaseRow> pkRow, RecordEqualiser equaliser,
+	static void processFirstRow(BaseRow preRow, BaseRow currentRow, ValueState<BaseRow> pkRow,
 			Collector<BaseRow> out) throws Exception {
 		// should be accumulate msg.
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
 		// ignore record with timestamp bigger than preRow
-		if (!isFirstRow(preRow)) {
+		if (preRow != null) {
 			return;
 		}
 
@@ -62,8 +61,7 @@ public interface DeduplicateFunctionBase {
 		out.collect(currentRow);
 	}
 
-	default boolean isFirstRow(BaseRow preRow) {
-		return preRow == null;
-	}
+	private DeduplicateFunctionHelper() {
 
+	}
 }

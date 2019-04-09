@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -43,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -53,24 +51,33 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRankFunction.class);
 
-	// we set default topn size to 100
+	// we set default topN size to 100
 	private static final long DEFAULT_TOPN_SIZE = 100;
 
 	private final RankRange rankRange;
-	private final GeneratedRecordEqualiser generatedEqualiser;
+
+	/**
+	 * The util to compare two BaseRow equals to each other.
+	 * As different BaseRow can't be equals directly, we use a code generated util to handle this.
+	 */
+	private GeneratedRecordEqualiser generatedEqualiser;
+	protected RecordEqualiser equaliser;
+
+	/**
+	 * The util to compare two sortKey equals to each other.
+	 */
+	private GeneratedRecordComparator generatedSortKeyComparator;
+	protected Comparator<BaseRow> sortKeyComparator;
+
 	private final boolean generateRetraction;
-	protected final boolean isRowNumberAppend;
-	protected final RankType rankType;
+	protected final boolean outputRankNumber;
 	protected final BaseRowTypeInfo inputRowType;
-	protected final BaseRowTypeInfo outputRowType;
-	protected final GeneratedRecordComparator generatedRecordComparator;
 	protected final KeySelector<BaseRow, BaseRow> sortKeySelector;
 
 	protected KeyContext keyContext;
-	protected boolean isConstantRankEnd;
+	private boolean isConstantRankEnd;
+	private long rankStart = -1;
 	protected long rankEnd = -1;
-	protected long rankStart = -1;
-	protected RecordEqualiser equaliser;
 	private int rankEndIndex;
 	private ValueState<Long> rankEndState;
 	private Counter invalidCounter;
@@ -80,15 +87,11 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected long hitCount = 0L;
 	protected long requestCount = 0L;
 
-	public AbstractRankFunction(
-			long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType, BaseRowTypeInfo outputRowType,
-			GeneratedRecordComparator generatedRecordComparator, KeySelector<BaseRow, BaseRow> sortKeySelector,
-			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction) {
+	AbstractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
+			GeneratedRecordComparator generatedSortKeyComparator, KeySelector<BaseRow, BaseRow> sortKeySelector,
+			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
+			boolean generateRetraction, boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
-		this.rankRange = rankRange;
-		this.generatedEqualiser = generatedEqualiser;
-		this.generateRetraction = generateRetraction;
-		this.rankType = rankType;
 		// TODO support RANK and DENSE_RANK
 		switch (rankType) {
 			case ROW_NUMBER:
@@ -103,10 +106,12 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 				LOG.error("Streaming tables do not support {}", rankType.name());
 				throw new UnsupportedOperationException("Streaming tables do not support " + rankType.toString());
 		}
+		this.rankRange = rankRange;
+		this.generatedEqualiser = generatedEqualiser;
+		this.generatedSortKeyComparator = generatedSortKeyComparator;
+		this.generateRetraction = generateRetraction;
 		this.inputRowType = inputRowType;
-		this.outputRowType = outputRowType;
-		this.isRowNumberAppend = inputRowType.getArity() + 1 == outputRowType.getArity();
-		this.generatedRecordComparator = generatedRecordComparator;
+		this.outputRankNumber = outputRankNumber;
 		this.sortKeySelector = sortKeySelector;
 	}
 
@@ -129,14 +134,32 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor("rankEnd", Types.LONG);
 			rankEndState = getRuntimeContext().getState(rankStateDesc);
 		}
+
+		// compile equaliser
 		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+		generatedEqualiser = null;
+		// compile comparator
+		sortKeyComparator = generatedSortKeyComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
+		generatedSortKeyComparator = null;
 		invalidCounter = getRuntimeContext().getMetricGroup().counter("topn.invalidTopSize");
 	}
 
-	protected long getDefaultTopSize() {
+	/**
+	 * Gets default topN size.
+	 *
+	 * @return default topN size
+	 */
+	protected long getDefaultTopNSize() {
 		return isConstantRankEnd ? rankEnd : DEFAULT_TOPN_SIZE;
 	}
 
+	/**
+	 * Initialize rank end.
+	 *
+	 * @param row input record
+	 * @return rank end
+	 * @throws Exception
+	 */
 	protected long initRankEnd(BaseRow row) throws Exception {
 		if (isConstantRankEnd) {
 			return rankEnd;
@@ -150,8 +173,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			} else {
 				rankEnd = rankEndValue;
 				if (rankEnd != curRankEnd) {
-					// increment the invalid counter when the current rank end
-					// not equal to previous rank end
+					// increment the invalid counter when the current rank end not equal to previous rank end
 					invalidCounter.inc();
 				}
 				return rankEnd;
@@ -159,51 +181,26 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 		}
 	}
 
-	protected <K> Tuple2<Integer, Integer> rowNumber(K sortKey, BaseRow rowKey, SortedMap<K> sortedMap) {
-		Iterator<Map.Entry<K, Collection<BaseRow>>> iterator = sortedMap.entrySet().iterator();
-		int curRank = 1;
-		while (iterator.hasNext()) {
-			Map.Entry<K, Collection<BaseRow>> entry = iterator.next();
-			K curKey = entry.getKey();
-			Collection<BaseRow> rowKeys = entry.getValue();
-			if (curKey.equals(sortKey)) {
-				Iterator<BaseRow> rowKeysIter = rowKeys.iterator();
-				int innerRank = 1;
-				while (rowKeysIter.hasNext()) {
-					if (rowKey.equals(rowKeysIter.next())) {
-						return Tuple2.of(curRank, innerRank);
-					} else {
-						innerRank += 1;
-						curRank += 1;
-					}
-				}
-			} else {
-				curRank += rowKeys.size();
-			}
-		}
-		LOG.error("Failed to find the sortKey: {}, rowkey: {} in SortedMap. " +
-				"This should never happen", sortKey, rowKey);
-		throw new RuntimeException(
-				"Failed to find the sortKey, rowkey in SortedMap. This should never happen");
-	}
-
 	/**
-	 * return true if record should be put into sort map.
+	 * Checks whether the record should be put into the buffer.
+	 *
+	 * @param sortKey sortKey to test
+	 * @param buffer buffer to add
+	 * @return true if the record should be put into the buffer.
 	 */
-	protected <K> boolean checkSortKeyInBufferRange(K sortKey, SortedMap<K> sortedMap, Comparator<K> sortKeyComparator) {
-		Map.Entry<K, Collection<BaseRow>> worstEntry = sortedMap.lastEntry();
+	protected boolean checkSortKeyInBufferRange(BaseRow sortKey, TopNBuffer buffer) {
+		Comparator<BaseRow> comparator = buffer.getSortKeyComparator();
+		Map.Entry<BaseRow, Collection<BaseRow>> worstEntry = buffer.lastEntry();
 		if (worstEntry == null) {
-			// sort map is empty
+			// return true if the buffer is empty.
 			return true;
 		} else {
-			K worstKey = worstEntry.getKey();
-			int compare = sortKeyComparator.compare(sortKey, worstKey);
+			BaseRow worstKey = worstEntry.getKey();
+			int compare = comparator.compare(sortKey, worstKey);
 			if (compare < 0) {
 				return true;
-			} else if (sortedMap.getCurrentTopNum() < getMaxSortMapSize()) {
-				return true;
 			} else {
-				return false;
+				return buffer.getCurrentTopNum() < getMaxSizeOfBuffer();
 			}
 		}
 	}
@@ -237,8 +234,8 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	}
 
 	/**
-	 * This is similar to [[retract()]] but always send retraction message regardless of
-	 * generateRetraction is true or not.
+	 * This is similar to [[retract()]] but always send retraction message regardless of generateRetraction is true or
+	 * not.
 	 */
 	protected void delete(Collector<BaseRow> out, BaseRow inputRow) {
 		BaseRowUtil.setRetract(inputRow);
@@ -279,8 +276,8 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 		return rankStart > 1;
 	}
 
-	protected BaseRow createOutputRow(BaseRow inputRow, long rank, byte header) {
-		if (isRowNumberAppend) {
+	private BaseRow createOutputRow(BaseRow inputRow, long rank, byte header) {
+		if (outputRankNumber) {
 			GenericRow rankRow = new GenericRow(1);
 			rankRow.setField(0, rank);
 
@@ -294,20 +291,14 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	}
 
 	/**
-	 * get sorted map size limit
-	 * Implementations may vary depending on each rank who has in-memory sort map.
-	 * @return
+	 * Gets buffer size limit. Implementations may vary depending on each rank who has in-memory buffer.
+	 *
+	 * @return buffer size limit
 	 */
-	protected abstract long getMaxSortMapSize();
-
-	@Override
-	public void processElement(
-			BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
-
-	}
+	protected abstract long getMaxSizeOfBuffer();
 
 	/**
-	 * Set keyContext to RankFunction.
+	 * Sets keyContext to RankFunction.
 	 *
 	 * @param keyContext keyContext of current function.
 	 */

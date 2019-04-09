@@ -23,7 +23,7 @@ import org.apache.flink.table.dataformat.util.BinaryRowUtil;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
- * A KeySelector which key is always empty.
+ * A utility class which key is always empty.
  */
 public class NullBinaryRowKeySelector implements BaseRowKeySelector {
 

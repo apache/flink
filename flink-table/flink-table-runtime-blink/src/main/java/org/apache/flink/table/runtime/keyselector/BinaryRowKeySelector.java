@@ -25,7 +25,7 @@ import org.apache.flink.table.generated.Projection;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
- * A KeySelector which will extract key from BaseRow.
+ * A utility class which will extract key from BaseRow.
  */
 public class BinaryRowKeySelector implements BaseRowKeySelector {
 

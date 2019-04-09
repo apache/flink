@@ -20,14 +20,12 @@ package org.apache.flink.table.codegen
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.generated.{GeneratedRecordEqualiser, RecordEqualiser}
-import org.apache.flink.table.`type`.{DateType, InternalType, PrimitiveType, RowType, TimeType, TimestampType}
+import org.apache.flink.table.`type`.{DateType, InternalType, PrimitiveType, RowType, TimeType,
+TimestampType}
 
 class EqualiserCodeGenerator(fieldTypes: Seq[InternalType]) {
 
-  private val BASE_ROW = className[BaseRow]
-  private val BINARY_ROW = className[BinaryRow]
   private val RECORD_EQUALISER = className[RecordEqualiser]
   private val LEFT_INPUT = "left"
   private val RIGHT_INPUT = "right"
@@ -57,7 +55,7 @@ class EqualiserCodeGenerator(fieldTypes: Seq[InternalType]) {
         val equaliserGenerator =
           new EqualiserCodeGenerator(fieldType.asInstanceOf[RowType].getFieldTypes)
         val generatedEqualiser = equaliserGenerator
-                                 .generateRecordEqualiser("field$" + i + "GeneratedEqualiser")
+          .generateRecordEqualiser("field$" + i + "GeneratedEqualiser")
         val generatedEqualiserTerm = ctx.addReusableObject(
           generatedEqualiser, "field$" + i + "GeneratedEqualiser")
         val equaliserTypeTerm = classOf[RecordEqualiser].getCanonicalName
@@ -80,7 +78,7 @@ class EqualiserCodeGenerator(fieldTypes: Seq[InternalType]) {
          |boolean $result;
          |if ($leftNullTerm && $rightNullTerm) {
          |  $result = true;
-         |} else if ($leftNullTerm || $rightNullTerm) {
+         |} else if ($leftNullTerm|| $rightNullTerm) {
          |  $result = false;
          |} else {
          |  $fieldTypeTerm $leftFieldTerm = $leftReadCode;

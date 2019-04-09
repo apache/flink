@@ -53,7 +53,7 @@ object TimeTestUtil {
   }
 
   class EventTimeProcessOperator[T]
-      extends AbstractStreamOperator[T]
+    extends AbstractStreamOperator[T]
       with OneInputStreamOperator[Either[(Long, T), Long], T] {
 
     override def processElement(element: StreamRecord[Either[(Long, T), Long]]): Unit = {
@@ -64,4 +64,5 @@ object TimeTestUtil {
     }
 
   }
+
 }

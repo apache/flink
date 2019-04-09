@@ -32,13 +32,14 @@ import org.apache.flink.util.Collector;
  * This function is used to deduplicate on keys and keeps only first row or last row.
  */
 public class DeduplicateFunction
-		extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow>
-		implements DeduplicateFunctionBase {
+		extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
+
+	private static final long serialVersionUID = 4950071982706870944L;
 
 	private final BaseRowTypeInfo rowTypeInfo;
 	private final boolean generateRetraction;
 	private final boolean keepLastRow;
-	protected ValueState<BaseRow> pkRow;
+	private ValueState<BaseRow> pkRow;
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private transient RecordEqualiser equaliser;
 
@@ -63,7 +64,10 @@ public class DeduplicateFunction
 		initCleanupTimeState(stateName);
 		ValueStateDescriptor rowStateDesc = new ValueStateDescriptor("rowState", rowTypeInfo);
 		pkRow = getRuntimeContext().getState(rowStateDesc);
+
+		// compile equaliser
 		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+		generatedEqualiser = null;
 	}
 
 	@Override
@@ -74,9 +78,11 @@ public class DeduplicateFunction
 
 		BaseRow preRow = pkRow.value();
 		if (keepLastRow) {
-			processLastRow(preRow, input, generateRetraction, stateCleaningEnabled, pkRow, equaliser, out);
+			DeduplicateFunctionHelper
+					.processLastRow(preRow, input, generateRetraction, stateCleaningEnabled, pkRow, equaliser, out);
 		} else {
-			processFirstRow(preRow, input, generateRetraction, stateCleaningEnabled, pkRow, equaliser, out);
+			DeduplicateFunctionHelper
+					.processFirstRow(preRow, input, pkRow, out);
 		}
 	}
 

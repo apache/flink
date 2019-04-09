@@ -36,25 +36,25 @@ object TableUtil {
     * Note: The difference between print() and collect() is
     * - print() prints data on workers and collect() collects data to the client.
     * - You have to call TableEnvironment.execute() to run the job for print(), while collect()
-    *   calls execute automatically.
+    * calls execute automatically.
     */
   def collect(table: TableImpl): Seq[Row] = collectSink(table, new CollectRowTableSink, None)
 
   def collect(table: TableImpl, jobName: String): Seq[Row] =
     collectSink(table, new CollectRowTableSink, Option.apply(jobName))
 
-  def collectAsT[T](table: TableImpl, t: TypeInformation[_], jobName : String = null): Seq[T] =
+  def collectAsT[T](table: TableImpl, t: TypeInformation[_], jobName: String = null): Seq[T] =
     collectSink(
       table,
       new CollectTableSink(_ => t.asInstanceOf[TypeInformation[T]]), Option(jobName))
 
   def collectSink[T](
-      table: TableImpl, sink: CollectTableSink[T], jobName : Option[String] = None): Seq[T] = {
+      table: TableImpl, sink: CollectTableSink[T], jobName: Option[String] = None): Seq[T] = {
     // get schema information of table
     val rowType = table.getRelNode.getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList
-        .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
+      .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
     val configuredSink = sink.configure(
       fieldNames, fieldTypes.map(createExternalTypeInfoFromInternalType))
     BatchTableEnvUtil.collect(table.tableEnv.asInstanceOf[BatchTableEnvironment],
@@ -66,7 +66,7 @@ object TableUtil {
     val rowType = table.getRelNode.getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList
-                     .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
+      .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
     val configuredSink = sink.configure(
       fieldNames, fieldTypes.map(createExternalTypeInfoFromInternalType))
     table.tableEnv.writeToSink(table, configuredSink)

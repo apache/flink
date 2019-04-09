@@ -40,8 +40,7 @@ public class KeySelectorUtil {
 	 * Create a BaseRowKeySelector to extract keys from DataStream which type is BaseRowTypeInfo.
 	 *
 	 * @param keyFields key fields
-	 * @param rowType   type of DataStream to extract keys
-	 *
+	 * @param rowType type of DataStream to extract keys
 	 * @return the BaseRowKeySelector to extract keys from DataStream which type is BaseRowTypeInfo.
 	 */
 	public static BaseRowKeySelector getBaseRowSelector(int[] keyFields, BaseRowTypeInfo rowType) {

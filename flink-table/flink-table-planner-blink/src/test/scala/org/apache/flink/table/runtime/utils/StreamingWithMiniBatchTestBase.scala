@@ -50,7 +50,7 @@ object StreamingWithMiniBatchTestBase {
 
   case class MiniBatchMode(on: Boolean) {
     override def toString: String = {
-      if (on){
+      if (on) {
         "MiniBatch=ON"
       } else {
         "MiniBatch=OFF"

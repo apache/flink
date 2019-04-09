@@ -66,7 +66,7 @@ public class SortedMapTypeInfo<K, V> extends AbstractMapTypeInfo<K, V, SortedMap
 		super(keyClass, valueClass);
 
 		Preconditions.checkArgument(Comparable.class.isAssignableFrom(keyClass),
-									"The key class must be comparable when no comparator is given.");
+				"The key class must be comparable when no comparator is given.");
 		this.comparator = new ComparableComparator<>();
 	}
 
@@ -112,10 +112,10 @@ public class SortedMapTypeInfo<K, V> extends AbstractMapTypeInfo<K, V, SortedMap
 	@Override
 	public String toString() {
 		return "SortedMapTypeInfo{" +
-			"comparator=" + comparator +
-			", keyTypeInfo=" + getKeyTypeInfo() +
-			", valueTypeInfo=" + getValueTypeInfo() +
-			"}";
+				"comparator=" + comparator +
+				", keyTypeInfo=" + getKeyTypeInfo() +
+				", valueTypeInfo=" + getValueTypeInfo() +
+				"}";
 	}
 
 	//--------------------------------------------------------------------------

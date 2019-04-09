@@ -97,7 +97,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
             case Types.INT => writer.writeInt(i, p.productElement(i).asInstanceOf[Int])
             case Types.LONG => writer.writeLong(i, p.productElement(i).asInstanceOf[Long])
             case Types.STRING => writer.writeString(i,
-                                                    p.productElement(i).asInstanceOf[BinaryString])
+              p.productElement(i).asInstanceOf[BinaryString])
             case Types.BOOLEAN => writer.writeBoolean(i, p.productElement(i).asInstanceOf[Boolean])
           }
         }
@@ -227,7 +227,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
 
     def appendStrToMap(ss: CharSequence, m: Map[String, String]): Unit = {
       val equalsIdxs = findEquals(ss)
-      equalsIdxs.foreach (idx => m + splitKV(ss, idx))
+      equalsIdxs.foreach(idx => m + splitKV(ss, idx))
     }
 
     while (idx < l) {

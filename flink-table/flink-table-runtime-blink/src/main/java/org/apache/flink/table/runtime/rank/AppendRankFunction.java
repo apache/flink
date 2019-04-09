@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -48,27 +47,28 @@ import java.util.function.Supplier;
  */
 public class AppendRankFunction extends AbstractRankFunction {
 
+	private static final long serialVersionUID = -4708453213104128010L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(AppendRankFunction.class);
 
-	protected final BaseRowTypeInfo sortKeyType;
+	private final BaseRowTypeInfo sortKeyType;
 	private final TypeSerializer<BaseRow> inputRowSer;
 	private final long cacheSize;
 
 	// a map state stores mapping from sort key to records list which is in topN
 	private transient MapState<BaseRow, List<BaseRow>> dataState;
 
-	// a sorted map stores mapping from sort key to records list, a heap mirror to dataState
-	private transient SortedMap<BaseRow> sortedMap;
-	private transient Map<BaseRow, SortedMap<BaseRow>> kvSortedMap;
-	private Comparator<BaseRow> sortKeyComparator;
+	// the buffer stores mapping from sort key to records list, a heap mirror to dataState
+	private transient TopNBuffer buffer;
+	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
-	public AppendRankFunction(
-			long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType, BaseRowTypeInfo outputRowType,
-			BaseRowTypeInfo sortKeyType, GeneratedRecordComparator generatedRecordComparator,
+	public AppendRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
+			BaseRowTypeInfo sortKeyType, GeneratedRecordComparator sortKeyGeneratedRecordComparator,
 			KeySelector<BaseRow, BaseRow> sortKeySelector, RankType rankType, RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction, long cacheSize) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, outputRowType,
-			generatedRecordComparator, sortKeySelector, rankType, rankRange, generatedEqualiser, generateRetraction);
+			GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction, boolean outputRankNumber,
+			long cacheSize) {
+		super(minRetentionTime, maxRetentionTime, inputRowType, sortKeyGeneratedRecordComparator, sortKeySelector,
+				rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
 		this.sortKeyType = sortKeyType;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
 		this.cacheSize = cacheSize;
@@ -76,24 +76,21 @@ public class AppendRankFunction extends AbstractRankFunction {
 
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopSize()));
+		int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
 		kvSortedMap = new LRUMap<>(lruCacheSize);
-		LOG.info("Top{} operator is using LRU caches key-size: {}", getDefaultTopSize(), lruCacheSize);
+		LOG.info("Top{} operator is using LRU caches key-size: {}", getDefaultTopNSize(), lruCacheSize);
 
 		ListTypeInfo<BaseRow> valueTypeInfo = new ListTypeInfo<>(inputRowType);
 		MapStateDescriptor<BaseRow, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor(
 				"data-state-with-append", sortKeyType, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		sortKeyComparator = generatedRecordComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
-
 		// metrics
-		registerMetric(kvSortedMap.size() * getDefaultTopSize());
+		registerMetric(kvSortedMap.size() * getDefaultTopNSize());
 	}
 
 	@Override
-	public void processElement(
-			BaseRow input, Context context, Collector<BaseRow> out) throws Exception {
+	public void processElement(BaseRow input, Context context, Collector<BaseRow> out) throws Exception {
 		long currentTime = context.timerService().currentProcessingTime();
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(context, currentTime);
@@ -103,107 +100,20 @@ public class AppendRankFunction extends AbstractRankFunction {
 
 		BaseRow sortKey = sortKeySelector.getKey(input);
 		// check whether the sortKey is in the topN range
-		if (checkSortKeyInBufferRange(sortKey, sortedMap, sortKeyComparator)) {
-			// insert sort key into sortedMap
-			sortedMap.put(sortKey, inputRowSer.copy(input));
-			Collection<BaseRow> inputs = sortedMap.get(sortKey);
+		if (checkSortKeyInBufferRange(sortKey, buffer)) {
+			// insert sort key into buffer
+			buffer.put(sortKey, inputRowSer.copy(input));
+			Collection<BaseRow> inputs = buffer.get(sortKey);
 			// update data state
 			dataState.put(sortKey, (List<BaseRow>) inputs);
-			if (isRowNumberAppend || hasOffset()) {
-				// the without-number-algorithm can't handle topn with offset,
+			if (outputRankNumber || hasOffset()) {
+				// the without-number-algorithm can't handle topN with offset,
 				// so use the with-number-algorithm to handle offset
-				emitRecordsWithRowNumber(sortKey, input, out);
+				processElementWithRowNumber(sortKey, input, out);
 			} else {
 				processElementWithoutRowNumber(input, out);
 			}
 		}
-	}
-
-	private void initHeapStates() throws Exception {
-		requestCount += 1;
-		BaseRow currentKey = (BaseRow) keyContext.getCurrentKey();
-		sortedMap = kvSortedMap.get(currentKey);
-		if (sortedMap == null) {
-			sortedMap = new SortedMap(sortKeyComparator, new Supplier<Collection<BaseRow>>() {
-
-				@Override
-				public Collection<BaseRow> get() {
-					return new ArrayList<>();
-				}
-			});
-			kvSortedMap.put(currentKey, sortedMap);
-			// restore sorted map
-			Iterator<Map.Entry<BaseRow, List<BaseRow>>> iter = dataState.iterator();
-			if (iter != null) {
-				while (iter.hasNext()) {
-					Map.Entry<BaseRow, List<BaseRow>> entry = iter.next();
-					BaseRow sortKey = entry.getKey();
-					List<BaseRow> values = entry.getValue();
-					// the order is preserved
-					sortedMap.putAll(sortKey, values);
-				}
-			}
-		} else {
-			hitCount += 1;
-		}
-	}
-
-	private void emitRecordsWithRowNumber(BaseRow sortKey, BaseRow input, Collector<BaseRow> out) throws Exception {
-		Iterator<Map.Entry<BaseRow, Collection<BaseRow>>> iterator = sortedMap.entrySet().iterator();
-		long curRank = 0L;
-		boolean findSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
-			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
-			Collection<BaseRow> records = entry.getValue();
-			// meet its own sort key
-			if (!findSortKey && entry.getKey().equals(sortKey)) {
-				curRank += records.size();
-				collect(out, input, curRank);
-				findSortKey = true;
-			} else if (findSortKey) {
-				Iterator<BaseRow> recordsIter = records.iterator();
-				while (recordsIter.hasNext() && isInRankEnd(curRank)) {
-					curRank += 1;
-					BaseRow prevRow = recordsIter.next();
-					retract(out, prevRow, curRank - 1);
-					collect(out, prevRow, curRank);
-				}
-			} else {
-				curRank += records.size();
-			}
-		}
-
-		List<BaseRow> toDeleteKeys = new ArrayList<>();
-		// remove the records associated to the sort key which is out of topN
-		while (iterator.hasNext()) {
-			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
-			BaseRow key = entry.getKey();
-			dataState.remove(key);
-			toDeleteKeys.add(key);
-		}
-		for (BaseRow toDeleteKey : toDeleteKeys) {
-			sortedMap.removeAll(toDeleteKey);
-		}
-	}
-
-	private void processElementWithoutRowNumber(BaseRow input, Collector<BaseRow> out) throws Exception {
-		// remove retired element
-		if (sortedMap.getCurrentTopNum() > rankEnd) {
-			Map.Entry<BaseRow, Collection<BaseRow>> lastEntry = sortedMap.lastEntry();
-			BaseRow lastKey = lastEntry.getKey();
-			List<BaseRow> lastList = (List<BaseRow>) lastEntry.getValue();
-			// remove last one
-			BaseRow lastElement = lastList.remove(lastList.size() - 1);
-			if (lastList.isEmpty()) {
-				sortedMap.removeAll(lastKey);
-				dataState.remove(lastKey);
-			} else {
-				dataState.put(lastKey, lastList);
-			}
-			// lastElement shouldn't be null
-			delete(out, lastElement);
-		}
-		collect(out, input);
 	}
 
 	@Override
@@ -219,8 +129,95 @@ public class AppendRankFunction extends AbstractRankFunction {
 	}
 
 	@Override
-	protected long getMaxSortMapSize() {
-		return getDefaultTopSize();
+	protected long getMaxSizeOfBuffer() {
+		return getDefaultTopNSize();
+	}
+
+	private void initHeapStates() throws Exception {
+		requestCount += 1;
+		BaseRow currentKey = (BaseRow) keyContext.getCurrentKey();
+		buffer = kvSortedMap.get(currentKey);
+		if (buffer == null) {
+			buffer = new TopNBuffer(sortKeyComparator, new Supplier<Collection<BaseRow>>() {
+
+				@Override
+				public Collection<BaseRow> get() {
+					return new ArrayList<>();
+				}
+			});
+			kvSortedMap.put(currentKey, buffer);
+			// restore buffer
+			Iterator<Map.Entry<BaseRow, List<BaseRow>>> iter = dataState.iterator();
+			if (iter != null) {
+				while (iter.hasNext()) {
+					Map.Entry<BaseRow, List<BaseRow>> entry = iter.next();
+					BaseRow sortKey = entry.getKey();
+					List<BaseRow> values = entry.getValue();
+					// the order is preserved
+					buffer.putAll(sortKey, values);
+				}
+			}
+		} else {
+			hitCount += 1;
+		}
+	}
+
+	private void processElementWithRowNumber(BaseRow sortKey, BaseRow input, Collector<BaseRow> out) throws Exception {
+		Iterator<Map.Entry<BaseRow, Collection<BaseRow>>> iterator = buffer.entrySet().iterator();
+		long curRank = 0L;
+		boolean findsSortKey = false;
+		while (iterator.hasNext() && isInRankEnd(curRank)) {
+			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
+			Collection<BaseRow> records = entry.getValue();
+			// meet its own sort key
+			if (!findsSortKey && entry.getKey().equals(sortKey)) {
+				curRank += records.size();
+				collect(out, input, curRank);
+				findsSortKey = true;
+			} else if (findsSortKey) {
+				Iterator<BaseRow> recordsIter = records.iterator();
+				while (recordsIter.hasNext() && isInRankEnd(curRank)) {
+					curRank += 1;
+					BaseRow prevRow = recordsIter.next();
+					retract(out, prevRow, curRank - 1);
+					collect(out, prevRow, curRank);
+				}
+			} else {
+				curRank += records.size();
+			}
+		}
+
+		// remove the records associated to the sort key which is out of topN
+		List<BaseRow> toDeleteSortKeys = new ArrayList<>();
+		while (iterator.hasNext()) {
+			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
+			BaseRow key = entry.getKey();
+			dataState.remove(key);
+			toDeleteSortKeys.add(key);
+		}
+		for (BaseRow toDeleteKey : toDeleteSortKeys) {
+			buffer.removeAll(toDeleteKey);
+		}
+	}
+
+	private void processElementWithoutRowNumber(BaseRow input, Collector<BaseRow> out) throws Exception {
+		// remove retired element
+		if (buffer.getCurrentTopNum() > rankEnd) {
+			Map.Entry<BaseRow, Collection<BaseRow>> lastEntry = buffer.lastEntry();
+			BaseRow lastKey = lastEntry.getKey();
+			List<BaseRow> lastList = (List<BaseRow>) lastEntry.getValue();
+			// remove last one
+			BaseRow lastElement = lastList.remove(lastList.size() - 1);
+			if (lastList.isEmpty()) {
+				buffer.removeAll(lastKey);
+				dataState.remove(lastKey);
+			} else {
+				dataState.put(lastKey, lastList);
+			}
+			// lastElement shouldn't be null
+			delete(out, lastElement);
+		}
+		collect(out, input);
 	}
 
 }

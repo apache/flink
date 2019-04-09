@@ -39,8 +39,7 @@ import java.util.Map;
  * mode.
  */
 public class MiniBatchDeduplicateFunction
-		extends MapBundleFunction<BaseRow, BaseRow, BaseRow, BaseRow>
-		implements DeduplicateFunctionBase {
+		extends MapBundleFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
 
 	private BaseRowTypeInfo rowTypeInfo;
 	private boolean generateRetraction;
@@ -68,12 +67,15 @@ public class MiniBatchDeduplicateFunction
 		super.open(ctx);
 		ValueStateDescriptor<BaseRow> rowStateDesc = new ValueStateDescriptor("rowState", rowTypeInfo);
 		pkRow = ctx.getRuntimeContext().getState(rowStateDesc);
+
+		// compile equaliser
 		equaliser = generatedEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
+		generatedEqualiser = null;
 	}
 
 	@Override
 	public BaseRow addInput(@Nullable BaseRow value, BaseRow input) {
-		if (value == null || keepLastRow || (!keepLastRow && isFirstRow(value))) {
+		if (value == null || keepLastRow || (!keepLastRow && value == null)) {
 			// put the input into buffer
 			return ser.copy(input);
 		} else {
@@ -92,9 +94,11 @@ public class MiniBatchDeduplicateFunction
 			BaseRow preRow = pkRow.value();
 
 			if (keepLastRow) {
-				processLastRow(preRow, currentRow, generateRetraction, false, pkRow, equaliser, out);
+				DeduplicateFunctionHelper
+						.processLastRow(preRow, currentRow, generateRetraction, false, pkRow, equaliser, out);
 			} else {
-				processFirstRow(preRow, currentRow, generateRetraction, false, pkRow, equaliser, out);
+				DeduplicateFunctionHelper
+						.processFirstRow(preRow, currentRow, pkRow, out);
 			}
 		}
 	}

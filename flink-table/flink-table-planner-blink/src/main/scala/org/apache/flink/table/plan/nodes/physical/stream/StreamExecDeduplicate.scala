@@ -29,7 +29,8 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.KeySelectorUtil
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.runtime.deduplicate.{DeduplicateFunction, MiniBatchDeduplicateFunction}
+import org.apache.flink.table.runtime.deduplicate.{DeduplicateFunction,
+MiniBatchDeduplicateFunction}
 import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils.isRowTime
@@ -56,8 +57,8 @@ class StreamExecDeduplicate(
     isRowtime: Boolean,
     keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+    with StreamPhysicalRel
+    with StreamExecNode[BaseRow] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 
@@ -97,7 +98,7 @@ class StreamExecDeduplicate(
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
 
-    // TODO checkInput is not acc retract after FLINK- is done
+    // FIXME checkInput is not acc retract after FLINK-12098 is done
     val inputIsAccRetract = false
 
     if (inputIsAccRetract) {
@@ -108,16 +109,17 @@ class StreamExecDeduplicate(
     }
 
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-                         .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[StreamTransformation[BaseRow]]
 
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
 
+    // FIXME infer generate retraction after FLINK-12098 is done
     val generateRetraction = true
 
     val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
     val rowTimeFieldIndex = inputRowType.getFieldTypes.zipWithIndex
-                            .filter(e => isRowTime(e._1))
-                            .map(_._2)
+      .filter(e => isRowTime(e._1))
+      .map(_._2)
     if (rowTimeFieldIndex.size > 1) {
       throw new RuntimeException("More than one row time field. Currently this is not supported!")
     }
