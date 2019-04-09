@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.util.StringUtils;
+
 import java.util.Objects;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A database name and object (table/view/function) name combo in a catalog.
@@ -30,8 +32,8 @@ public class ObjectPath {
 	private final String objectName;
 
 	public ObjectPath(String databaseName, String objectName) {
-		checkNotNull(databaseName, "databaseName cannot be null");
-		checkNotNull(objectName, "objectName cannot be null");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(objectName), "objectName cannot be null or empty");
 
 		this.databaseName = databaseName;
 		this.objectName = objectName;
@@ -50,7 +52,8 @@ public class ObjectPath {
 	}
 
 	public static ObjectPath fromString(String fullName) {
-		checkNotNull(fullName, "fullName cannot be null");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(fullName), "fullName cannot be null or empty");
+
 		String[] paths = fullName.split("\\.");
 
 		if (paths.length != 2) {
