@@ -30,6 +30,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -75,6 +76,7 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -153,6 +155,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
+
 			configureFileSystems(configuration);
 
 			SecurityContext securityContext = installSecurityContext(configuration);
@@ -183,7 +186,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	private void configureFileSystems(Configuration configuration) {
 		LOG.info("Install default filesystem.");
-		FileSystem.initialize(configuration);
+		//TODO provide plugin path
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 	}
 
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
