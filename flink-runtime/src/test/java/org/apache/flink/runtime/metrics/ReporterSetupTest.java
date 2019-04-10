@@ -59,19 +59,14 @@ public class ReporterSetupTest extends TestLogger {
 	public void testReporterArgumentForwarding() {
 		final Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, ReporterSetupTest.TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter.arg1", "value1");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter.arg2", "value2");
+		configureReporter1(config);
 
 		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
 
 		Assert.assertEquals(1, reporterSetups.size());
 
 		final ReporterSetup reporterSetup = reporterSetups.get(0);
-		Assert.assertEquals("reporter", reporterSetup.getName());
-		Assert.assertEquals("value1", reporterSetup.getConfiguration().getString("arg1", null));
-		Assert.assertEquals("value2", reporterSetup.getConfiguration().getString("arg2", null));
-		Assert.assertEquals(ReporterSetupTest.TestReporter1.class.getName(), reporterSetup.getConfiguration().getString("class", null));
+		assertReporter1Configured(reporterSetup);
 	}
 
 	/**
@@ -81,13 +76,8 @@ public class ReporterSetupTest extends TestLogger {
 	public void testSeveralReportersWithArgumentForwarding() {
 		final Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, ReporterSetupTest.TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
-
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, ReporterSetupTest.TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
+		configureReporter1(config);
+		configureReporter2(config);
 
 		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
 
@@ -96,20 +86,18 @@ public class ReporterSetupTest extends TestLogger {
 		final Optional<ReporterSetup> reporter1Config = reporterSetups.stream()
 			.filter(c -> "reporter1".equals(c.getName()))
 			.findFirst();
-		Assert.assertTrue(reporter1Config.isPresent());
-		Assert.assertEquals("reporter1", reporter1Config.get().getName());
-		Assert.assertEquals("value1", reporter1Config.get().getConfiguration().getString("arg1", ""));
-		Assert.assertEquals("value2", reporter1Config.get().getConfiguration().getString("arg2", ""));
-		Assert.assertEquals(ReporterSetupTest.TestReporter1.class.getName(), reporter1Config.get().getConfiguration().getString("class", null));
+
+		reporter1Config.ifPresentOrElse(
+			ReporterSetupTest::assertReporter1Configured,
+			Assert::fail);
 
 		final Optional<ReporterSetup> reporter2Config = reporterSetups.stream()
 			.filter(c -> "reporter2".equals(c.getName()))
 			.findFirst();
-		Assert.assertTrue(reporter1Config.isPresent());
-		Assert.assertEquals("reporter2", reporter2Config.get().getName());
-		Assert.assertEquals("value1", reporter2Config.get().getConfiguration().getString("arg1", null));
-		Assert.assertEquals("value3", reporter2Config.get().getConfiguration().getString("arg3", null));
-		Assert.assertEquals(ReporterSetupTest.TestReporter2.class.getName(), reporter2Config.get().getConfiguration().getString("class", null));
+
+		reporter2Config.ifPresentOrElse(
+			ReporterSetupTest::assertReporter2Configured,
+			Assert::fail);
 	}
 
 	/**
@@ -119,13 +107,8 @@ public class ReporterSetupTest extends TestLogger {
 	public void testActivateOneReporterAmongTwoDeclared() {
 		final Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
-
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
+		configureReporter1(config);
+		configureReporter2(config);
 
 		config.setString(MetricOptions.REPORTERS_LIST, "reporter2");
 
@@ -133,11 +116,8 @@ public class ReporterSetupTest extends TestLogger {
 
 		Assert.assertEquals(1, reporterSetups.size());
 
-		final ReporterSetup stringConfigurationTuple = reporterSetups.get(0);
-		Assert.assertEquals("reporter2", stringConfigurationTuple.getName());
-		Assert.assertEquals("value1", stringConfigurationTuple.getConfiguration().getString("arg1", null));
-		Assert.assertEquals("value3", stringConfigurationTuple.getConfiguration().getString("arg3", null));
-		Assert.assertEquals(TestReporter2.class.getName(), stringConfigurationTuple.getConfiguration().getString("class", null));
+		final ReporterSetup setup = reporterSetups.get(0);
+		assertReporter2Configured(setup);
 	}
 
 	@Test
@@ -209,5 +189,31 @@ public class ReporterSetupTest extends TestLogger {
 		public void open(MetricConfig config) {
 			wasOpened = true;
 		}
+	}
+
+	private static void configureReporter1(Configuration config) {
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
+	}
+
+	private static void assertReporter1Configured(ReporterSetup setup) {
+		Assert.assertEquals("reporter1", setup.getName());
+		Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", ""));
+		Assert.assertEquals("value2", setup.getConfiguration().getString("arg2", ""));
+		Assert.assertEquals(ReporterSetupTest.TestReporter1.class.getName(), setup.getConfiguration().getString("class", null));
+	}
+
+	private static void configureReporter2(Configuration config) {
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
+	}
+
+	private static void assertReporter2Configured(ReporterSetup setup) {
+		Assert.assertEquals("reporter2", setup.getName());
+		Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
+		Assert.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
+		Assert.assertEquals(TestReporter2.class.getName(), setup.getConfiguration().getString("class", null));
 	}
 }
