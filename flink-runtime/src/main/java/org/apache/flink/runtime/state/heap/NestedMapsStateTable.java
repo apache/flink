@@ -334,7 +334,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Nonnull
 	@Override
 	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getStateSnapshotTransformFactory(), keySerializer);
+		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getStateSnapshotTransformFactory());
 	}
 
 	/**
@@ -354,12 +354,11 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 		NestedMapsStateTableSnapshot(
 			NestedMapsStateTable<K, N, S> owningTable,
-			StateSnapshotTransformFactory<S> snapshotTransformFactory,
-			TypeSerializer<K> keySerializer) {
+			StateSnapshotTransformFactory<S> snapshotTransformFactory) {
 
 			super(owningTable);
 			this.snapshotFilter = snapshotTransformFactory.createForDeserializedState().orElse(null);
-			this.keySerializer = keySerializer;
+			this.keySerializer = owningStateTable.keySerializer;
 			this.namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
 			this.stateSerializer = owningStateTable.metaInfo.getStateSerializer();
 		}

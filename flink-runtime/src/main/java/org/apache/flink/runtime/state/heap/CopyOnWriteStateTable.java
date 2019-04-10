@@ -893,7 +893,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	@Nonnull
 	@Override
 	public CopyOnWriteStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new CopyOnWriteStateTableSnapshot<>(this, keySerializer);
+		return new CopyOnWriteStateTableSnapshot<>(this);
 	}
 
 	/**

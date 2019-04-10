@@ -46,32 +46,30 @@ class StateTableByKeyGroupReaders {
 	 * @param <S> type of state.
 	 * @param stateTable the {@link StateTable} into which de-serialized mappings are inserted.
 	 * @param version version for the de-serialization algorithm.
-	 * @param keySerializer the serializer of the key.
 	 * @return the appropriate reader.
 	 */
 	static <K, N, S> StateSnapshotKeyGroupReader readerForVersion(
 		StateTable<K, N, S> stateTable,
-		int version,
-		TypeSerializer<K> keySerializer) {
+		int version) {
 		switch (version) {
 			case 1:
-				return new StateTableByKeyGroupReaderV1<>(stateTable, keySerializer);
+				return new StateTableByKeyGroupReaderV1<>(stateTable);
 			case 2:
 			case 3:
 			case 4:
 			case 5:
 			case 6:
-				return createV2PlusReader(stateTable, keySerializer);
+				return createV2PlusReader(stateTable);
 			default:
 				throw new IllegalArgumentException("Unknown version: " + version);
 		}
 	}
 
 	private static <K, N, S> StateSnapshotKeyGroupReader createV2PlusReader(
-		StateTable<K, N, S> stateTable,
-		final TypeSerializer<K> keySerializer) {
+		StateTable<K, N, S> stateTable) {
 		final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 		final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
+		final TypeSerializer<K> keySerializer = stateTable.keySerializer;
 		final Tuple3<N, K, S> buffer = new Tuple3<>();
 		return KeyGroupPartitioner.createKeyGroupPartitionReader((in) -> {
 			buffer.f0 = namespaceSerializer.deserialize(in);
@@ -86,9 +84,9 @@ class StateTableByKeyGroupReaders {
 		protected final StateTable<K, N, S> stateTable;
 		protected final TypeSerializer<K> keySerializer;
 
-		StateTableByKeyGroupReaderV1(StateTable<K, N, S> stateTable, TypeSerializer<K> keySerializer) {
+		StateTableByKeyGroupReaderV1(StateTable<K, N, S> stateTable) {
 			this.stateTable = stateTable;
-			this.keySerializer = keySerializer;
+			this.keySerializer = stateTable.keySerializer;
 		}
 
 		@Override

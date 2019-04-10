@@ -67,7 +67,7 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 		TypeSerializer<K> keySerializer) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
-		this.keySerializer = keySerializer;
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 	}
 
 	// Main interface methods of StateTable -------------------------------------------------------
@@ -208,6 +208,6 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	@Nonnull
 	@Override
 	public StateSnapshotKeyGroupReader keyGroupReader(int readVersion) {
-		return StateTableByKeyGroupReaders.readerForVersion(this, readVersion, keySerializer);
+		return StateTableByKeyGroupReaders.readerForVersion(this, readVersion);
 	}
 }
