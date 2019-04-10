@@ -42,7 +42,7 @@ public interface ReadableCatalog {
 	// ------ databases ------
 
 	/**
-	 * Get the current database of this type of catalog. This is used when users refers an object in the catalog
+	 * Get the name of the current database of this type of catalog. This is used when users refers an object in the catalog
 	 * without specifying a database. For example, the current db in a Hive Metastore is 'default' by default.
 	 *
 	 * @return the name of the current database
@@ -50,8 +50,8 @@ public interface ReadableCatalog {
 	String getCurrentDatabase();
 
 	/**
-	 * Set the current database. A current database is used when users refers an object in the catalog
-	 * without specifying a database.
+	 * Set the database with the given name as the current database. A current database is used when users refers an object
+	 * in the catalog without specifying a database.
 	 *
 	 * @param databaseName	the name of the database
 	 */
@@ -81,7 +81,7 @@ public interface ReadableCatalog {
 	boolean databaseExists(String databaseName);
 
 	/**
-	 * Get paths of all tables and views under this database. An empty list is returned if none exists.
+	 * Get names of all tables and views under this database. An empty list is returned if none exists.
 	 *
 	 * @return A list of the names of all tables and views in this database
 	 * @throws DatabaseNotExistException if the database does not exist
@@ -89,12 +89,21 @@ public interface ReadableCatalog {
 	List<String> listAllTables(String databaseName) throws DatabaseNotExistException;
 
 	/**
-	 * Get paths of all tables (but not views) under this database. An empty list is returned if none exists.
+	 * Get names of all tables (excluding views) under this database. An empty list is returned if none exists.
 	 *
-	 * @return A list of the names of all tables and views in this database
+	 * @return A list of the names of all tables (excluding views) in this database
 	 * @throws DatabaseNotExistException if the database does not exist
 	 */
 	List<String> listTables(String databaseName) throws DatabaseNotExistException;
+
+	/**
+	 * Get names of all views under this database. An empty list is returned if none exists.
+	 *
+	 * @param databaseName the name of the given database
+	 * @return the list of the names of all views in the given database
+	 * @throws DatabaseNotExistException if the database does not exist
+	 */
+	List<String> listViews(String databaseName) throws DatabaseNotExistException;
 
 	/**
 	 * Get a CatalogTable or CatalogView identified by objectPath.
@@ -111,14 +120,5 @@ public interface ReadableCatalog {
 	 * @param objectPath    Path of the table or view
 	 */
 	boolean tableExists(ObjectPath objectPath);
-
-	/**
-	 * Get paths of all views under this database. An empty list is returned if none exists.
-	 *
-	 * @param databaseName the name of the given database
-	 * @return the list of the names of all views in the given database
-	 * @throws DatabaseNotExistException if the database does not exist
-	 */
-	List<String> listViews(String databaseName) throws DatabaseNotExistException;
 
 }

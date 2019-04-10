@@ -99,7 +99,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *
 	 * @param tablePath      Path of the table or view to be created
 	 * @param table          The table definition
-	 * @param ignoreIfExists Flag to specify behavior when a table already exists at the given path:
+	 * @param ignoreIfExists Flag to specify behavior when a table or view already exists at the given path:
 	 *                       if set to false, it throws a TableAlreadyExistException,
 	 *                       if set to true, do nothing.
 	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
@@ -113,7 +113,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *
 	 * @param tableName         Path of the table or view to be modified
 	 * @param newTable          The new table definition
-	 * @param ignoreIfNotExists Flag to specify behavior when the table does not exist:
+	 * @param ignoreIfNotExists Flag to specify behavior when the table or view does not exist:
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
