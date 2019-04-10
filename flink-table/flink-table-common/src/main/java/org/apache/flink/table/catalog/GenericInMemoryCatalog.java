@@ -57,6 +57,18 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
+	public void open() {
+
+	}
+
+	@Override
+	public void close() {
+
+	}
+
+	// ------ databases ------
+
+	@Override
 	public String getCurrentDatabase() {
 		return currentDatabase;
 	}
@@ -71,18 +83,6 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		currentDatabase = databaseName;
 	}
-
-	@Override
-	public void open() {
-
-	}
-
-	@Override
-	public void close() {
-
-	}
-
-	// ------ databases ------
 
 	@Override
 	public void createDatabase(String databaseName, CatalogDatabase db, boolean ignoreIfExists)
@@ -162,7 +162,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	// ------ tables ------
 
 	@Override
-	public void createTable(ObjectPath tablePath, CatalogTable table, boolean ignoreIfExists)
+	public void createTable(ObjectPath tablePath, CommonTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException {
 		checkArgument(tablePath != null);
 		checkArgument(table != null);
@@ -181,7 +181,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void alterTable(ObjectPath tablePath, CatalogTable newTable, boolean ignoreIfNotExists)
+	public void alterTable(ObjectPath tablePath, CommonTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException {
 		checkArgument(tablePath != null);
 		checkArgument(newTable != null);
@@ -227,7 +227,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public List<String> listAllTables(String databaseName) throws DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "dbName cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
 		if (!databaseExists(databaseName)) {
 			throw new DatabaseNotExistException(catalogName, databaseName);
@@ -240,7 +240,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public List<String> listTables(String databaseName) throws DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "dbName cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
 		if (!databaseExists(databaseName)) {
 			throw new DatabaseNotExistException(catalogName, databaseName);
@@ -249,6 +249,20 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		return tables.keySet().stream()
 			.filter(k -> k.getDatabaseName().equals(databaseName))
 			.filter(k -> (tables.get(k) instanceof CatalogTable)).map(k -> k.getObjectName())
+			.collect(Collectors.toList());
+	}
+
+	@Override
+	public List<String> listViews(String databaseName) throws DatabaseNotExistException {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+
+		if (!databaseExists(databaseName)) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
+		}
+
+		return tables.keySet().stream()
+			.filter(k -> k.getDatabaseName().equals(databaseName))
+			.filter(k -> (tables.get(k) instanceof CatalogView)).map(k -> k.getObjectName())
 			.collect(Collectors.toList());
 	}
 
@@ -266,54 +280,6 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	@Override
 	public boolean tableExists(ObjectPath tablePath) {
 		return tablePath != null && databaseExists(tablePath.getDatabaseName()) && tables.containsKey(tablePath);
-	}
-
-	// ------ views ------
-
-	@Override
-	public List<String> listViews(String databaseName) throws DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "dbName cannot be null or empty");
-
-		if (!databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		}
-
-		return tables.keySet().stream()
-			.filter(k -> k.getDatabaseName().equals(databaseName))
-			.filter(k -> (tables.get(k) instanceof CatalogView)).map(k -> k.getObjectName())
-			.collect(Collectors.toList());
-	}
-
-	@Override
-	public void createView(ObjectPath viewPath, CatalogView view, boolean ignoreIfExists)
-		throws TableAlreadyExistException, DatabaseNotExistException {
-		checkArgument(viewPath != null);
-		checkArgument(view != null);
-
-		if (!databaseExists(viewPath.getDatabaseName())) {
-			throw new DatabaseNotExistException(catalogName, viewPath.getDatabaseName());
-		}
-
-		if (tableExists(viewPath)) {
-			if (!ignoreIfExists) {
-				throw new TableAlreadyExistException(catalogName, viewPath);
-			}
-		} else {
-			tables.put(viewPath, view.copy());
-		}
-	}
-
-	@Override
-	public void alterView(ObjectPath viewPath, CatalogView newView, boolean ignoreIfNotExists)
-		throws TableNotExistException {
-		checkArgument(viewPath != null);
-		checkArgument(newView != null);
-
-		if (tableExists(viewPath)) {
-			tables.put(viewPath, newView.copy());
-		} else if (!ignoreIfNotExists) {
-			throw new TableNotExistException(catalogName, viewPath);
-		}
 	}
 
 }

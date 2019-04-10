@@ -83,7 +83,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	/**
 	 * Rename an existing table or view.
 	 *
-	 * @param tablePath       Path of the table or view to rename
+	 * @param tablePath       Path of the table or view to be renamed
 	 * @param newTableName     the new name of the table or view
 	 * @param ignoreIfNotExists Flag to specify behavior when the table or view does not exist:
 	 *                          if set to false, throw an exception,
@@ -94,12 +94,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
 		throws TableNotExistException, DatabaseNotExistException;
 
-	// ------ tables ------
-
 	/**
-	 * Create a new table. Note that TableStats in the table is ignored for table creation.
+	 * Create a new table or view.
 	 *
-	 * @param tablePath      Path of the table to be created
+	 * @param tablePath      Path of the table or view to be created
 	 * @param table          The table definition
 	 * @param ignoreIfExists Flag to specify behavior when a table already exists at the given path:
 	 *                       if set to false, it throws a TableAlreadyExistException,
@@ -107,48 +105,20 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
 	 * @throws DatabaseNotExistException if the database in tablePath doesn't exist
 	 */
-	void createTable(ObjectPath tablePath, CatalogTable table, boolean ignoreIfExists)
+	void createTable(ObjectPath tablePath, CommonTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException;
 
 	/**
-	 * Modify an existing table. Note that TableStats in the newTable is ignored for table modification.
+	 * Modify an existing table or view.
 	 *
-	 * @param tableName         Path of the table to be modified
+	 * @param tableName         Path of the table or view to be modified
 	 * @param newTable          The new table definition
 	 * @param ignoreIfNotExists Flag to specify behavior when the table does not exist:
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
 	 */
-	void alterTable(ObjectPath tableName, CatalogTable newTable, boolean ignoreIfNotExists)
+	void alterTable(ObjectPath tableName, CommonTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException;
-
-	// ----- views ------
-
-	/**
-	 * Create a view.
-	 *
-	 * @param viewPath		Path of the view to be created
-	 * @param view			The view definition
-	 * @param ignoreIfExists Flag to specify behavior when a table/view already exists at the given path:
-	 *                       if set to false, it throws a TableAlreadyExistException,
-	 *                       if set to true, do nothing.
-	 * @throws TableAlreadyExistException if a table/view already exists and ignoreIfExists is false
-	 * @throws DatabaseNotExistException if the database in viewPath doesn't exist
-	 */
-	void createView(ObjectPath viewPath, CatalogView view, boolean ignoreIfExists) throws TableAlreadyExistException,
-		DatabaseNotExistException;
-
-	/**
-	 * Modify an existing view.
-	 *
-	 * @param viewPath         Path of the view to to be modified
-	 * @param newView          The new view definition
-	 * @param ignoreIfNotExists Flag to specify behavior when the given view does not exist:
-	 *                          if set to false, throw an exception,
-	 *                          if set to true, do nothing.
-	 * @throws TableNotExistException if the given view does not exist
-	 */
-	void alterView(ObjectPath viewPath, CatalogView newView, boolean ignoreIfNotExists) throws TableNotExistException;
 
 }

@@ -194,7 +194,7 @@ public class GenericInMemoryCatalogTest {
 
 		catalog.createTable(path1, createTable(), false);
 		catalog.createTable(path3, createTable(), false);
-		catalog.createView(path4, createView(), false);
+		catalog.createTable(path4, createView(), false);
 
 		assertEquals(3, catalog.listAllTables(db1).size());
 		assertEquals(2, catalog.listTables(db1).size());
@@ -314,7 +314,7 @@ public class GenericInMemoryCatalogTest {
 		assertFalse(catalog.tableExists(path1));
 
 		CatalogView view = createView();
-		catalog.createView(path1, view, false);
+		catalog.createTable(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
 		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
@@ -326,17 +326,17 @@ public class GenericInMemoryCatalogTest {
 
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database db1 does not exist in Catalog");
-		catalog.createView(nonExistObjectPath, createView(), false);
+		catalog.createTable(nonExistObjectPath, createView(), false);
 	}
 
 	@Test
 	public void testCreateView_TableAlreadyExistException() {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createView(path1, createView(), false);
+		catalog.createTable(path1, createView(), false);
 
 		exception.expect(TableAlreadyExistException.class);
 		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
-		catalog.createView(path1, createView(), false);
+		catalog.createTable(path1, createView(), false);
 	}
 
 	@Test
@@ -344,12 +344,12 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 
 		CatalogView view = createView();
-		catalog.createView(path1, view, false);
+		catalog.createTable(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
 		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
 
-		catalog.createView(path1, createAnotherView(), true);
+		catalog.createTable(path1, createAnotherView(), true);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
 		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
@@ -358,7 +358,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testDropView() {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createView(path1, createView(), false);
+		catalog.createTable(path1, createView(), false);
 
 		assertTrue(catalog.tableExists(path1));
 
@@ -372,12 +372,12 @@ public class GenericInMemoryCatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 
 		CatalogView view = createView();
-		catalog.createView(path1, view, false);
+		catalog.createTable(path1, view, false);
 
 		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
 
 		CatalogView newView = createAnotherView();
-		catalog.alterView(path1, newView, false);
+		catalog.alterTable(path1, newView, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
 		CatalogTestUtil.checkEquals(newView, (GenericCatalogView) catalog.getTable(path1));
@@ -393,7 +393,7 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testAlterView_TableNotExist_ignored() {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.alterView(nonExistObjectPath, createView(), true);
+		catalog.alterTable(nonExistObjectPath, createView(), true);
 
 		assertFalse(catalog.tableExists(nonExistObjectPath));
 	}
@@ -404,7 +404,7 @@ public class GenericInMemoryCatalogTest {
 
 		assertTrue(catalog.listAllTables(db1).isEmpty());
 
-		catalog.createView(path1, createView(), false);
+		catalog.createTable(path1, createView(), false);
 		catalog.createTable(path3, createTable(), false);
 
 		assertEquals(2, catalog.listAllTables(db1).size());
@@ -549,7 +549,7 @@ public class GenericInMemoryCatalogTest {
 		GenericCatalogView view = new GenericCatalogView("select * from t1",
 			"select * from db1.t1", createTableSchema(), new HashMap<>());
 		ObjectPath viewPath1 = new ObjectPath(db1, "view1");
-		catalog.createView(viewPath1, view, false);
+		catalog.createTable(viewPath1, view, false);
 		assertTrue(catalog.tableExists(viewPath1));
 		catalog.renameTable(viewPath1, "view2", false);
 		assertFalse(catalog.tableExists(viewPath1));
