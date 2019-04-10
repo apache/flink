@@ -117,7 +117,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 		}
 		return new HeapKeyedStateBackend<>(
 			kvStateRegistry,
-			keySerializerProvider,
+			keySerializerProvider.currentSchemaSerializer(),
 			userCodeClassLoader,
 			executionConfig,
 			ttlTimeProvider,

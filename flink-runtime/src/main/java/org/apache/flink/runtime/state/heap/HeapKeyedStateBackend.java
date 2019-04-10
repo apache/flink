@@ -46,7 +46,6 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
@@ -114,7 +113,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	public HeapKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
-		StateSerializerProvider<K> keySerializerProvider,
+		TypeSerializer<K> keySerializer,
 		ClassLoader userCodeClassLoader,
 		ExecutionConfig executionConfig,
 		TtlTimeProvider ttlTimeProvider,
@@ -128,7 +127,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		InternalKeyContext<K> keyContext) {
 		super(
 			kvStateRegistry,
-			keySerializerProvider,
+			keySerializer,
 			userCodeClassLoader,
 			executionConfig,
 			ttlTimeProvider,
@@ -240,7 +239,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				newStateSerializer,
 				snapshotTransformFactory);
 
-			stateTable = snapshotStrategy.newStateTable(keyContext, newMetaInfo, keySerializerProvider.currentSchemaSerializer());
+			stateTable = snapshotStrategy.newStateTable(keyContext, newMetaInfo, keySerializer);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
 		}
 
