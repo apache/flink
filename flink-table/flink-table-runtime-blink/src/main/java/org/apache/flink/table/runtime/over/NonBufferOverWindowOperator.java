@@ -36,7 +36,9 @@ import org.apache.flink.table.typeutils.AbstractRowSerializer;
  * Then this operator can calculate the accumulator by the current row.
  *
  * <p>Some over windows do not need to buffer data, such as {@code rows between unbounded preceding and 0},
- * rank, etc. We introduce NonBufferOverWindowOperator to reduce the overhead of data copy in buffer.
+ * rank, etc. We introduce {@link NonBufferOverWindowOperator} to reduce the overhead of data copy in buffer.
+ *
+ * <p>NOTE: Use {@link NonBufferOverWindowOperator} only when all frames do not need buffer data.
  */
 public class NonBufferOverWindowOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow> {

@@ -21,7 +21,7 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.{LeadLagAggFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 
@@ -80,13 +80,15 @@ class AggFunctionFactory(
       case _: SqlCountAggFunction => createCountAggFunction(argTypes)
 
       // TODO supports SqlRankFunction (ROW_NUMBER, RANK and DENSE_RANK)
-      // TODO supports SqlLeadLagAggFunction
       // TODO supports SqlMax2ndAggFunction
       // TODO supports SqlSingleValueAggFunction
       // TODO supports SqlFirstLastValueAggFunction (FIRST_VALUE and LAST_VALUE)
       // TODO supports SqlConcatAggFunction
       // TODO supports SqlCardinalityCountAggFunction
       // TODO supports COLLECT SqlAggFunction
+
+      case _: SqlLeadLagAggFunction =>
+        createLeadLagAggFunction(argTypes, index)
 
       case udagg: AggSqlFunction => udagg.getFunction
 
@@ -198,6 +200,39 @@ class AggFunctionFactory(
           throw new TableException(s"Min aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
       }
+    }
+  }
+
+  private def createLeadLagAggFunction(
+      argTypes: Array[InternalType], index: Int): UserDefinedFunction = {
+    argTypes(0) match {
+      case BYTE =>
+        new LeadLagAggFunction.ByteLeadLagAggFunction(argTypes.length)
+      case SHORT =>
+        new LeadLagAggFunction.ShortLeadLagAggFunction(argTypes.length)
+      case INT =>
+        new LeadLagAggFunction.IntLeadLagAggFunction(argTypes.length)
+      case LONG =>
+        new LeadLagAggFunction.LongLeadLagAggFunction(argTypes.length)
+      case FLOAT =>
+        new LeadLagAggFunction.FloatLeadLagAggFunction(argTypes.length)
+      case DOUBLE =>
+        new LeadLagAggFunction.DoubleLeadLagAggFunction(argTypes.length)
+      case BOOLEAN =>
+        new LeadLagAggFunction.BooleanLeadLagAggFunction(argTypes.length)
+      case STRING =>
+        new LeadLagAggFunction.StringLeadLagAggFunction(argTypes.length)
+      case DATE =>
+        new LeadLagAggFunction.DateLeadLagAggFunction(argTypes.length)
+      case TIME =>
+        new LeadLagAggFunction.TimeLeadLagAggFunction(argTypes.length)
+      case TIMESTAMP | ROWTIME_INDICATOR | PROCTIME_INDICATOR =>
+        new LeadLagAggFunction.TimestampLeadLagAggFunction(argTypes.length)
+      case d: DecimalType =>
+        new LeadLagAggFunction.DecimalLeadLagAggFunction(argTypes.length, d)
+      case t: InternalType =>
+        throw new TableException(s"LeadLag aggregate function does not support type: ''$t''.\n" +
+            s"Please re-check the data type.")
     }
   }
 

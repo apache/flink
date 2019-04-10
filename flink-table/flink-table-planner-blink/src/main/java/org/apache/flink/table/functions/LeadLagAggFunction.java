@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.runtime.over.frame.OffsetOverFrame;
+import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
@@ -116,7 +118,175 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 
 		@Override
 		public TypeInformation getResultType() {
+			return Types.INT;
+		}
+	}
+
+	/**
+	 * ByteLeadLagAggFunction.
+	 */
+	public static class ByteLeadLagAggFunction extends LeadLagAggFunction {
+
+		public ByteLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.BYTE;
+		}
+	}
+
+	/**
+	 * ShortLeadLagAggFunction.
+	 */
+	public static class ShortLeadLagAggFunction extends LeadLagAggFunction {
+
+		public ShortLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.SHORT;
+		}
+	}
+
+	/**
+	 * LongLeadLagAggFunction.
+	 */
+	public static class LongLeadLagAggFunction extends LeadLagAggFunction {
+
+		public LongLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.LONG;
+		}
+	}
+
+	/**
+	 * FloatLeadLagAggFunction.
+	 */
+	public static class FloatLeadLagAggFunction extends LeadLagAggFunction {
+
+		public FloatLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.FLOAT;
+		}
+	}
+
+	/**
+	 * DoubleLeadLagAggFunction.
+	 */
+	public static class DoubleLeadLagAggFunction extends LeadLagAggFunction {
+
+		public DoubleLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
 			return Types.DOUBLE;
+		}
+	}
+
+	/**
+	 * BooleanLeadLagAggFunction.
+	 */
+	public static class BooleanLeadLagAggFunction extends LeadLagAggFunction {
+
+		public BooleanLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.BOOLEAN;
+		}
+	}
+
+	/**
+	 * DecimalLeadLagAggFunction.
+	 */
+	public static class DecimalLeadLagAggFunction extends LeadLagAggFunction {
+
+		private final DecimalType decimalType;
+
+		public DecimalLeadLagAggFunction(int operandCount, DecimalType decimalType) {
+			super(operandCount);
+			this.decimalType = decimalType;
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return BigDecimalTypeInfo.of(decimalType.precision(), decimalType.scale());
+		}
+	}
+
+	/**
+	 * StringLeadLagAggFunction.
+	 */
+	public static class StringLeadLagAggFunction extends LeadLagAggFunction {
+
+		public StringLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.STRING;
+		}
+	}
+
+	/**
+	 * DateLeadLagAggFunction.
+	 */
+	public static class DateLeadLagAggFunction extends LeadLagAggFunction {
+
+		public DateLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.SQL_DATE;
+		}
+	}
+
+	/**
+	 * TimeLeadLagAggFunction.
+	 */
+	public static class TimeLeadLagAggFunction extends LeadLagAggFunction {
+
+		public TimeLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.SQL_TIME;
+		}
+	}
+
+	/**
+	 * TimestampLeadLagAggFunction.
+	 */
+	public static class TimestampLeadLagAggFunction extends LeadLagAggFunction {
+
+		public TimestampLeadLagAggFunction(int operandCount) {
+			super(operandCount);
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return Types.SQL_TIMESTAMP;
 		}
 	}
 }
