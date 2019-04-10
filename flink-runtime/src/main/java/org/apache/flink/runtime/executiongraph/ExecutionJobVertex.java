@@ -865,15 +865,19 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			}
 		} else {
 			for (int i = 0; i < edges.size(); i++) {
-				ExecutionJobVertex sourceJobVertex = graph.getJobVertex(edges.get(i).getSource().getProducer().getID());
-				if (sourceJobVertex != null) {
-					if (sourceJobVertex.enableAdaptiveParallelism && DistributionPattern.POINTWISE.equals(edges.get(i).getDistributionPattern())) {
-						sourceJobVertex.enableAdaptiveParallelism = false;
-						LOG.debug("Disable adaptive parallelism of ExecutionJobVertex {}, since Output Vertex {} is disabled and shuffle pattern is POINTWISE.",
-							sourceJobVertex.getName(), jobVertex.getName());
+				try {
+					ExecutionJobVertex sourceJobVertex = graph.getJobVertex(edges.get(i).getSource().getProducer().getID());
+					if (sourceJobVertex != null) {
+						if (sourceJobVertex.enableAdaptiveParallelism && DistributionPattern.POINTWISE.equals(edges.get(i).getDistributionPattern())) {
+							sourceJobVertex.enableAdaptiveParallelism = false;
+							LOG.debug("Disable adaptive parallelism of ExecutionJobVertex {}, since Output Vertex {} is disabled and shuffle pattern is POINTWISE.",
+								sourceJobVertex.getName(), jobVertex.getName());
+						}
+						sourceJobVertex.outputJobVertex.put(this, edges.get(i).getDistributionPattern());
+						sourceJobVertex.outputJobVertexIndex.put(this, i);
 					}
-					sourceJobVertex.outputJobVertex.put(this, edges.get(i).getDistributionPattern());
-					sourceJobVertex.outputJobVertexIndex.put(this, i);
+				} catch (NullPointerException e) {
+					LOG.info("Get source job vertex failed for edge {}", edges.get(i));
 				}
 			}
 		}
