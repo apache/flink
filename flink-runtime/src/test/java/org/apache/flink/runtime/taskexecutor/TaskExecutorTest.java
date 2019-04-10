@@ -23,11 +23,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -97,6 +99,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
@@ -134,11 +137,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1751,6 +1756,45 @@ public class TaskExecutorTest extends TestLogger {
 			assertThat(disconnectFuture.get(), is(resourceID));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testLogNotFoundHandling() throws Throwable {
+		final int dataPort = NetUtils.getAvailablePort();
+		Configuration config = new Configuration();
+		config.setInteger(TaskManagerOptions.DATA_PORT, dataPort);
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+
+		try (TaskSubmissionTestEnvironment env =
+			new TaskSubmissionTestEnvironment.Builder(jobId)
+				.setConfiguration(config)
+				.setLocalCommunication(false)
+				.build()) {
+			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+			try {
+				CompletableFuture<TransientBlobKey> logFuture =
+					tmGateway.requestFileUpload(FileType.LOG, timeout);
+				logFuture.get();
+			} catch (Exception e) {
+				assertThat(e.getMessage(), containsString("The file LOG does not exist on the TaskExecutor."));
+			}
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testTerminationOnFatalError() throws Throwable {
+		try (TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId).build()) {
+			String testExceptionMsg = "Test exception of fatal error.";
+
+			env.getTaskExecutor().onFatalError(new Exception(testExceptionMsg));
+
+			Throwable exception = env.getTestingFatalErrorHandler().getErrorFuture().get();
+			env.getTestingFatalErrorHandler().clearError();
+
+			assertThat(exception.getMessage(), startsWith(testExceptionMsg));
 		}
 	}
 
