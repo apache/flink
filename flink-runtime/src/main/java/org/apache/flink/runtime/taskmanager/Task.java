@@ -1314,8 +1314,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				// first time use, initialize
 				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
 
-				// under normal execution, we expect that one thread will suffice, this is why we
-				// keep the core threads to 1 in the case of a synchronous savepoint, we will block
+				// Under normal execution, we expect that one thread will suffice, this is why we
+				// keep the core threads to 1. In the case of a synchronous savepoint, we will block
 				// the checkpointing thread, so we need an additional thread to execute the
 				// notifyCheckpointComplete() callback. Finally, we aggressively purge (potentially)
 				// idle thread so that we do not risk to have many idle thread on machines with multiple
