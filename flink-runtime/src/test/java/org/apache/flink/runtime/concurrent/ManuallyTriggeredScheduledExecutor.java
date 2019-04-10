@@ -56,6 +56,13 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor, Co
 		}
 	}
 
+	/** Triggers all {@code queuedRunnables}. */
+	public void triggerAll() {
+		while (numQueuedRunnables() > 0) {
+			trigger();
+		}
+	}
+
 	/**
 	 * Triggers the next queued runnable and executes it synchronously.
 	 * This method throws an exception if no Runnable is currently queued.
