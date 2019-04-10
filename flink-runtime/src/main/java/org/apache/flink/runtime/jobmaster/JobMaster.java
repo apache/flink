@@ -967,7 +967,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	@Override
 	public CompletableFuture<String> stopWithSavepoint(
 			@Nullable final String targetDirectory,
-			final boolean advanceToEndOfTime,
+			final boolean advanceToEndOfEventTime,
 			final Time timeout) {
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
@@ -995,7 +995,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		checkpointCoordinator.stopCheckpointScheduler();
 
 		final CompletableFuture<String> savepointFuture = checkpointCoordinator
-				.triggerSynchronousSavepoint(now, advanceToEndOfTime, targetDirectory)
+				.triggerSynchronousSavepoint(now, advanceToEndOfEventTime, targetDirectory)
 				.handleAsync((completedCheckpoint, throwable) -> {
 					if (throwable != null) {
 						log.info("Failed during stopping job {} with a savepoint. Reason: {}", jobGraph.getJobID(), throwable.getMessage());
