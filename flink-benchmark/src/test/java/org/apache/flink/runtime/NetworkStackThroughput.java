@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.runtime;
+package org.apache.flink.runtime;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ClusterClient;
@@ -35,9 +35,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,9 +45,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Manually test the throughput of the network stack.
  */
-public class NetworkStackThroughputITCase extends TestLogger {
+public class NetworkStackThroughput {
 
-	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughput.class);
 
 	private static final String DATA_VOLUME_GB_CONFIG_KEY = "data.volume.gb";
 
@@ -82,7 +80,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 			try {
 				// Determine the amount of data to send per subtask
-				int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackThroughputITCase.DATA_VOLUME_GB_CONFIG_KEY, 1);
+				int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackThroughput.DATA_VOLUME_GB_CONFIG_KEY, 1);
 
 				long dataMbPerSubtask = (dataVolumeGb * 10) / getCurrentNumberOfSubtasks();
 				long numRecordsToEmit = (dataMbPerSubtask * 1024 * 1024) / SpeedTestRecord.RECORD_SIZE;
@@ -209,7 +207,6 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
-	@Test
 	public void testThroughput() throws Exception {
 		Object[][] configParams = new Object[][]{
 				new Object[]{1, false, false, false, 4, 2},
@@ -334,7 +331,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 	}
 
 	public static void main(String[] args) throws Exception {
-		new NetworkStackThroughputITCase().testThroughput();
+		new NetworkStackThroughput().testThroughput();
 
 		System.out.println("Done.");
 	}
