@@ -53,8 +53,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	Closeable,
 	CheckpointListener {
 
-	/** {@link StateSerializerProvider} for our key serializer. */
-	protected final StateSerializerProvider<K> keySerializerProvider;
+	/** The key serializer. */
+	protected final TypeSerializer<K> keySerializer;
 
 	/** Listeners to changes of ({@link #keyContext}). */
 	private final ArrayList<KeySelectionListener<K>> keySelectionListeners;
@@ -102,7 +102,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		InternalKeyContext<K> keyContext) {
 		this(
 			kvStateRegistry,
-			StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
+			keySerializer,
 			userCodeClassLoader,
 			executionConfig,
 			ttlTimeProvider,
@@ -114,7 +114,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	public AbstractKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
-		StateSerializerProvider<K> keySerializerProvider,
+		TypeSerializer<K> keySerializer,
 		ClassLoader userCodeClassLoader,
 		ExecutionConfig executionConfig,
 		TtlTimeProvider ttlTimeProvider,
@@ -128,7 +128,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
 
 		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializerProvider = keySerializerProvider;
+		this.keySerializer = keySerializer;
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.cancelStreamRegistry = cancelStreamRegistry;
 		this.keyValueStatesByName = new HashMap<>();
@@ -197,7 +197,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public TypeSerializer<K> getKeySerializer() {
-		return keySerializerProvider.currentSchemaSerializer();
+		return keySerializer;
 	}
 
 	/**
@@ -268,7 +268,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			final TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, V> stateDescriptor) throws Exception {
 		checkNotNull(namespaceSerializer, "Namespace serializer");
-		checkNotNull(keySerializerProvider, "State key serializer has not been configured in the config. " +
+		checkNotNull(keySerializer, "State key serializer has not been configured in the config. " +
 				"This operation cannot use partitioned state.");
 
 		InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
