@@ -24,6 +24,8 @@ import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -107,6 +109,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/** The current or latest execution attempt of this vertex's task. */
 	private volatile Execution currentExecution;	// this field must never be null
 
+	private final ArrayList<InputSplit> inputSplits;
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -188,6 +192,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		getExecutionGraph().registerExecution(currentExecution);
 
 		this.timeout = timeout;
+		this.inputSplits = new ArrayList<>();
 	}
 
 
@@ -242,14 +247,25 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	public ExecutionEdge[] getInputEdges(int input) {
-		if (input < 0 || input >= this.inputEdges.length) {
-			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, this.inputEdges.length));
+		if (input < 0 || input >= inputEdges.length) {
+			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, inputEdges.length));
 		}
 		return inputEdges[input];
 	}
 
 	public CoLocationConstraint getLocationConstraint() {
 		return locationConstraint;
+	}
+
+	public InputSplit getNextInputSplit(String host) {
+		final int taskId = getParallelSubtaskIndex();
+		synchronized (inputSplits) {
+			final InputSplit nextInputSplit = jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
+			if (nextInputSplit != null) {
+				inputSplits.add(nextInputSplit);
+			}
+			return nextInputSplit;
+		}
 	}
 
 	@Override
@@ -371,7 +387,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		}
 
-		this.inputEdges[inputNumber] = edges;
+		inputEdges[inputNumber] = edges;
 
 		// add the consumers to the source
 		// for now (until the receiver initiated handshake is in place), we need to register the
@@ -594,11 +610,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					timestamp,
 					timeout);
 
-				this.currentExecution = newExecution;
+				currentExecution = newExecution;
+
+				synchronized (inputSplits) {
+					InputSplitAssigner assigner = jobVertex.getSplitAssigner();
+					if (assigner != null) {
+						assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
+						inputSplits.clear();
+					}
+				}
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
-					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
+					locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
 
 				// register this execution at the execution graph, to receive call backs
@@ -643,8 +667,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	@VisibleForTesting
 	public void deployToSlot(LogicalSlot slot) throws JobException {
-		if (this.currentExecution.tryAssignResource(slot)) {
-			this.currentExecution.deploy();
+		if (currentExecution.tryAssignResource(slot)) {
+			currentExecution.deploy();
 		} else {
 			throw new IllegalStateException("Could not assign resource " + slot + " to current execution " +
 				currentExecution + '.');
@@ -659,7 +683,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	public CompletableFuture<?> cancel() {
 		// to avoid any case of mixup in the presence of concurrent calls,
 		// we copy a reference to the stack to make sure both calls go to the same Execution
-		final Execution exec = this.currentExecution;
+		final Execution exec = currentExecution;
 		exec.cancel();
 		return exec.getReleaseFuture();
 	}
@@ -669,11 +693,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	public void stop() {
-		this.currentExecution.stop();
+		currentExecution.stop();
 	}
 
 	public void fail(Throwable t) {
-		this.currentExecution.fail(t);
+		currentExecution.fail(t);
 	}
 
 	/**
