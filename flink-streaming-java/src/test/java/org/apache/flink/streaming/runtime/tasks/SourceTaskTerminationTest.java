@@ -179,7 +179,7 @@ public class SourceTaskTerminationTest {
 
 	private SynchronousSavepointLatch waitForSyncSavepointFutureToBeSet(final StreamTask streamTaskUnderTest) throws InterruptedException {
 		final SynchronousSavepointLatch syncSavepointFuture = streamTaskUnderTest.getSynchronousSavepointLatch();
-		while (!syncSavepointFuture.isSet()) {
+		while (!syncSavepointFuture.isWaiting()) {
 			Thread.sleep(10L);
 
 			validateNoExceptionsWereThrown();
