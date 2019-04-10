@@ -34,6 +34,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Builder for a {@link TestingTaskExecutorGateway}.
@@ -59,6 +60,7 @@ public class TestingTaskExecutorGatewayBuilder {
 	private Consumer<ResourceID> heartbeatResourceManagerConsumer = NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER;
 	private Consumer<Exception> disconnectResourceManagerConsumer = NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER;
 	private Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction = NOOP_CANCEL_TASK_FUNCTION;
+	private Supplier<Boolean> canBeReleasedSupplier = () -> true;
 
 	public TestingTaskExecutorGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -110,6 +112,11 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
+	public TestingTaskExecutorGatewayBuilder setCanBeReleasedSupplier(Supplier<Boolean> canBeReleasedSupplier) {
+		this.canBeReleasedSupplier = canBeReleasedSupplier;
+		return this;
+	}
+
 	public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
 		return new TestingTaskExecutorGateway(
 			address,
@@ -121,6 +128,7 @@ public class TestingTaskExecutorGatewayBuilder {
 			freeSlotFunction,
 			heartbeatResourceManagerConsumer,
 			disconnectResourceManagerConsumer,
-			cancelTaskFunction);
+			cancelTaskFunction,
+			canBeReleasedSupplier);
 	}
 }

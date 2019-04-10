@@ -42,6 +42,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Simple {@link TaskExecutorGateway} implementation for testing purposes.
@@ -68,6 +69,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction;
 
+	private final Supplier<Boolean> canBeReleasedSupplier;
+
 	TestingTaskExecutorGateway(
 			String address,
 			String hostname,
@@ -78,7 +81,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
 			Consumer<ResourceID> heartbeatResourceManagerConsumer,
 			Consumer<Exception> disconnectResourceManagerConsumer,
-			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction) {
+			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
+			Supplier<Boolean> canBeReleasedSupplier) {
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
@@ -89,6 +93,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
 		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
 		this.cancelTaskFunction = cancelTaskFunction;
+		this.canBeReleasedSupplier = canBeReleasedSupplier;
 	}
 
 	@Override
@@ -175,6 +180,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(Time timeout) {
 		return CompletableFuture.completedFuture(SerializableOptional.empty());
+	}
+
+	@Override
+	public CompletableFuture<Boolean> canBeReleased() {
+		return CompletableFuture.completedFuture(canBeReleasedSupplier.get());
 	}
 
 	@Override
