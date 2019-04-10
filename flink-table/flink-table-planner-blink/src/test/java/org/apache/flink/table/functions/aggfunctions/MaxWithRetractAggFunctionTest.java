@@ -61,7 +61,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test MaxWithRetractAggFunction for number type.
 	 */
-	public static abstract class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTest {
+	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTest {
 		protected abstract T getMinValue();
 
 		protected abstract T getMaxValue();
