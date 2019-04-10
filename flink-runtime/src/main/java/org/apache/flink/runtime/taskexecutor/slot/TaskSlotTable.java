@@ -616,7 +616,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		private final Iterator<TaskSlot> iterator;
 
 		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
-				iterator = new TaskSlotIterator(jobId, state);
+			iterator = new TaskSlotIterator(jobId, state);
 		}
 
 		@Override

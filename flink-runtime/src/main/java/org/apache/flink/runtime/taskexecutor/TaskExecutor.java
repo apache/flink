@@ -264,6 +264,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.currentRegistrationTimeoutId = null;
 	}
 
+	@Override
+	public CompletableFuture<Boolean> canBeReleased() {
+		return CompletableFuture.completedFuture(
+			taskExecutorServices.getNetworkEnvironment().getResultPartitionManager().areAllPartitionsReleased());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Life cycle
 	// ------------------------------------------------------------------------
