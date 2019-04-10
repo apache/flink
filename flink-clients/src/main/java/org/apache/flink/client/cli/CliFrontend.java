@@ -536,7 +536,7 @@ public class CliFrontend {
 				? parseJobId(cleanedArgs[0])
 				: parseJobId(stopOptions.getTargetDirectory());
 
-		final boolean advanceToEndOfTime = stopOptions.shouldAdvanceToEndOfTime();
+		final boolean advanceToEndOfTime = stopOptions.shouldAdvanceToEndOfEventTime();
 
 		logAndSysout((advanceToEndOfTime ? "Draining job " : "Suspending job ") + "\"" + jobId + "\" with a savepoint.");
 

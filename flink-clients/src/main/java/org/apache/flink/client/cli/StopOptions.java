@@ -35,7 +35,7 @@ class StopOptions extends CommandLineOptions {
 	/** Optional target directory for the savepoint. Overwrites cluster default. */
 	private final String targetDirectory;
 
-	private final boolean advanceToEndOfTime;
+	private final boolean advanceToEndOfEventTime;
 
 	StopOptions(CommandLine line) {
 		super(line);
@@ -44,7 +44,7 @@ class StopOptions extends CommandLineOptions {
 		this.savepointFlag = line.hasOption(STOP_WITH_SAVEPOINT.getOpt());
 		this.targetDirectory = line.getOptionValue(STOP_WITH_SAVEPOINT.getOpt());
 
-		this.advanceToEndOfTime = line.hasOption(STOP_AND_DRAIN.getOpt());
+		this.advanceToEndOfEventTime = line.hasOption(STOP_AND_DRAIN.getOpt());
 	}
 
 	String[] getArgs() {
@@ -59,7 +59,7 @@ class StopOptions extends CommandLineOptions {
 		return targetDirectory;
 	}
 
-	boolean shouldAdvanceToEndOfTime() {
-		return advanceToEndOfTime;
+	boolean shouldAdvanceToEndOfEventTime() {
+		return advanceToEndOfEventTime;
 	}
 }
