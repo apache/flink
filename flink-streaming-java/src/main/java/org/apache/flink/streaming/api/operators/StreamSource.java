@@ -98,7 +98,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 			// or the function was canceled or stopped. For the finite source case, we should emit
 			// a final watermark that indicates that we reached the end of event-time
 			if (!isCanceledOrStopped()) {
-				advanceToEndOfTime();
+				advanceToEndOfEventTime();
 			}
 		} finally {
 			// make sure that the context is closed in any case
@@ -109,7 +109,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 		}
 	}
 
-	public void advanceToEndOfTime() {
+	public void advanceToEndOfEventTime() {
 		if (!hasSentMaxWatermark) {
 			ctx.emitWatermark(Watermark.MAX_WATERMARK);
 			hasSentMaxWatermark = true;

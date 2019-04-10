@@ -228,7 +228,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected abstract void cancelTask() throws Exception;
 
-	protected void advanceToEndOfTime() throws Exception {
+	protected void advanceToEndOfEventTime() throws Exception {
 
 	}
 
@@ -650,7 +650,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					syncSavepointLatch.setCheckpointId(checkpointId);
 
 					if (advanceToEndOfTime) {
-						advanceToEndOfTime();
+						advanceToEndOfEventTime();
 					}
 				}
 

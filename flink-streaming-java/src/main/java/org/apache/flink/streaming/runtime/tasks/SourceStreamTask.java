@@ -88,8 +88,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void advanceToEndOfTime() throws Exception {
-		headOperator.advanceToEndOfTime();
+	protected void advanceToEndOfEventTime() throws Exception {
+		headOperator.advanceToEndOfEventTime();
 	}
 
 	@Override
