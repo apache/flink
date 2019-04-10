@@ -25,17 +25,15 @@ import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}
 
-class RetractionWithTwoStageAggRulesTest extends TableTestBase {
+class RetractionRulesWithTwoStageAggTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addTableSource[(String, Int)]("MyTable", 'word, 'number)
 
   @Before
   def before(): Unit = {
+    util.enableMiniBatch()
     util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    util.tableEnv.getConfig.getConf.setLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-    util.tableEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
     util.tableEnv.getConfig.getConf.setString(
       PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, AggPhaseEnforcer.TWO_PHASE.toString)
   }
