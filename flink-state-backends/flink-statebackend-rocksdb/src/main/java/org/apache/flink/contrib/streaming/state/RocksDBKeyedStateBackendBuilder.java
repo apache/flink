@@ -335,7 +335,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			this.dbOptions,
 			columnFamilyOptionsFactory,
 			this.kvStateRegistry,
-			this.keySerializerProvider,
+			this.keySerializerProvider.currentSchemaSerializer(),
 			this.executionConfig,
 			this.ttlTimeProvider,
 			db,
