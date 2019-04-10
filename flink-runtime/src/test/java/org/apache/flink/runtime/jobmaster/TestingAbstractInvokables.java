@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.types.IntValue;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * {@link AbstractInvokable} for testing purposes.
  */
@@ -81,6 +83,40 @@ public class TestingAbstractInvokables {
 			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
 				throw new Exception("Wrong data received.");
 			}
+		}
+	}
+
+	public static final class TestInvokableRecordCancel extends AbstractInvokable {
+
+		private static CompletableFuture<Boolean> gotCanceledFuture = new CompletableFuture<>();
+
+		public TestInvokableRecordCancel(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			final Object o = new Object();
+			RecordWriter<IntValue> recordWriter = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			for (int i = 0; i < 1024; i++) {
+				recordWriter.emit(new IntValue(42));
+			}
+
+			gotCanceledFuture.get();
+
+		}
+
+		@Override
+		public void cancel() {
+			gotCanceledFuture.complete(true);
+		}
+
+		public static void resetGotCanceledFuture() {
+			gotCanceledFuture = new CompletableFuture<>();
+		}
+
+		public static CompletableFuture<Boolean> gotCanceled() {
+			return gotCanceledFuture;
 		}
 	}
 }
