@@ -147,4 +147,15 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			LOG.debug("Released {}.", partition);
 		}
 	}
+
+	public boolean areAllPartitionsReleased() {
+		synchronized (registeredPartitions) {
+			for (ResultPartition partition : registeredPartitions.values()) {
+				if (!partition.isReleased()) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
 }

@@ -270,6 +270,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.stackTraceSampleService = new StackTraceSampleService(rpcService.getScheduledExecutor());
 	}
 
+	@Override
+	public CompletableFuture<Boolean> canBeReleased() {
+		return CompletableFuture.completedFuture(
+			taskExecutorServices.getNetworkEnvironment().getResultPartitionManager().areAllPartitionsReleased());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Life cycle
 	// ------------------------------------------------------------------------
