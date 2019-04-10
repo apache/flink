@@ -36,7 +36,6 @@ import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
-import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
 import scala.concurrent.duration.{TimeUnit, _}
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
