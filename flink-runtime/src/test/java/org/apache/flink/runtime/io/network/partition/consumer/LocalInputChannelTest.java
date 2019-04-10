@@ -66,6 +66,7 @@ import java.util.concurrent.TimeUnit;
 
 import scala.Tuple2;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -293,17 +294,7 @@ public class LocalInputChannelTest {
 	 */
 	@Test
 	public void testConcurrentReleaseAndRetriggerPartitionRequest() throws Exception {
-		final SingleInputGate gate = new SingleInputGate(
-			"test task name",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			1,
-			new NoOpTaskActions(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true
-		);
+		final SingleInputGate gate = createSingleInputGate(1);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager
@@ -492,15 +483,14 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-					"Test Name",
-					new JobID(),
-					new IntermediateDataSetID(),
-					ResultPartitionType.PIPELINED,
-					subpartitionIndex,
-					numberOfInputChannels,
-					new NoOpTaskActions(),
-					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-					true);
+				"Test Name",
+				new JobID(),
+				new IntermediateDataSetID(),
+				ResultPartitionType.PIPELINED,
+				subpartitionIndex,
+				numberOfInputChannels,
+				new NoOpTaskActions(),
+				true);
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
