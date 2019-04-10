@@ -45,6 +45,7 @@ import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -305,9 +306,12 @@ public class YarnResourceManagerTest extends TestLogger {
 				highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 				heartbeatServices = new TestingHeartbeatServices();
 				metricRegistry = NoOpMetricRegistry.INSTANCE;
-				slotManager = new SlotManager(
-						new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()),
-						Time.seconds(10), Time.seconds(10), Time.minutes(1));
+				slotManager = SlotManagerBuilder.newBuilder()
+					.setScheduledExecutor(new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()))
+					.setTaskManagerRequestTimeout(Time.seconds(10))
+					.setSlotRequestTimeout(Time.seconds(10))
+					.setTaskManagerTimeout(Time.minutes(1))
+					.build();
 				jobLeaderIdService = new JobLeaderIdService(
 						highAvailabilityServices,
 						rpcService.getScheduledExecutor(),
