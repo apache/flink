@@ -85,6 +85,7 @@ under the License.
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
+		<module>flink-benchmark</module>
 	</modules>
 
 	<properties>
