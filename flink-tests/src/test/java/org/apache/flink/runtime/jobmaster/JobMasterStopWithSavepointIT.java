@@ -105,7 +105,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 		final CompletableFuture<String> savepointLocationFuture = stopWithSavepoint(terminate);
 
-		Thread.sleep(1000); // wait more than enough for the savepoint to finish.
 		assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
 
 		finishingLatch.trigger();
