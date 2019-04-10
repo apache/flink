@@ -770,6 +770,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			return;
 		}
 		adaptiveParallelismComputed = true;
+		parallelism = computedParallelism;
 
 		for(Map.Entry<ExecutionJobVertex, DistributionPattern> entry : outputJobVertex.entrySet()) {
 			if (DistributionPattern.POINTWISE.equals(entry.getValue())) {

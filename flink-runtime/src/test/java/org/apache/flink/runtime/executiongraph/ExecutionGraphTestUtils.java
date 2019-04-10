@@ -435,23 +435,45 @@ public class ExecutionGraphTestUtils {
 			return createExecutionGraph(jid, slotProvider, restartStrategy, executor, Time.seconds(10L), vertices);
 	}
 
+	public static ExecutionGraph createSimpleTestGraph(
+		JobID jid,
+		SlotProvider slotProvider,
+		RestartStrategy restartStrategy,
+		Configuration configuration,
+		JobVertex... vertices) throws Exception {
+
+		return createExecutionGraph(jid, slotProvider, restartStrategy, TestingUtils.defaultExecutor(), Time.seconds(10L), configuration, vertices);
+	}
+
+	public static ExecutionGraph createExecutionGraph(
+		JobID jid,
+		SlotProvider slotProvider,
+		RestartStrategy restartStrategy,
+		ScheduledExecutorService executor,
+		Time timeout,
+		JobVertex... vertices) throws Exception {
+		return createExecutionGraph(jid, slotProvider, restartStrategy, executor, timeout, new Configuration(), vertices);
+	}
+
 	public static ExecutionGraph createExecutionGraph(
 			JobID jid,
 			SlotProvider slotProvider,
 			RestartStrategy restartStrategy,
 			ScheduledExecutorService executor,
 			Time timeout,
+			Configuration configuration,
 			JobVertex... vertices) throws Exception {
 
 		checkNotNull(jid);
 		checkNotNull(restartStrategy);
 		checkNotNull(vertices);
 		checkNotNull(timeout);
+		checkNotNull(configuration);
 
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			new JobGraph(jid, "test job", vertices),
-			new Configuration(),
+			configuration,
 			executor,
 			executor,
 			slotProvider,
