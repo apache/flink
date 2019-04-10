@@ -35,6 +35,7 @@ import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -52,6 +53,7 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PlanExecutor.class)
+@PowerMockIgnore("javax.tools.*")
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
