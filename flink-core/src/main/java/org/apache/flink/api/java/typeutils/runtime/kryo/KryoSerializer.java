@@ -248,6 +248,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 				return kryo.copy(from);
 			}
 			catch (KryoException ke) {
+				LOG.warn("Failed to copy by kryo, the cause is "  + ke.getMessage() + ", about to copy through serialization");
+
 				// kryo was unable to copy it, so we do it through serialization:
 				ByteArrayOutputStream baout = new ByteArrayOutputStream();
 				Output output = new Output(baout);
@@ -259,7 +261,11 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 				ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
 				Input input = new Input(bain);
 
-				return (T)kryo.readObject(input, from.getClass());
+				T copyObj = (T)kryo.readObject(input, from.getClass());
+				if (copyObj == null) {
+					throw new IllegalStateException("The copied object is null, while the source object is not.");
+				}
+				return copyObj;
 			}
 		}
 		finally {
