@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -24,22 +24,30 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
 import java.math.BigDecimal;
 
+import static org.apache.flink.table.expressions.ExpressionBuilder.div;
+import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
+import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
 
 /**
- * built-in sum0 aggregate function.
+ * built-in avg aggregate function.
  */
-public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression sum0 = new UnresolvedReferenceExpression("sum");
+public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
+
+	private UnresolvedReferenceExpression sum = new UnresolvedReferenceExpression("sum");
+	private UnresolvedReferenceExpression count = new UnresolvedReferenceExpression("count");
+
+	public abstract TypeInformation getSumType();
 
 	@Override
 	public int operandCount() {
@@ -48,143 +56,121 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public UnresolvedReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedReferenceExpression[] { sum0 };
+		return new UnresolvedReferenceExpression[] {
+				sum,
+				count};
 	}
 
 	@Override
 	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] { TypeConverters.createInternalTypeFromTypeInfo(getResultType()) };
+		return new InternalType[] {
+				TypeConverters.createInternalTypeFromTypeInfo(getSumType()),
+				InternalTypes.LONG
+		};
 	}
 
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* sum0 = */ literal(0L, getResultType())
-		};
+				/* sum = */ literal(0L, getSumType()),
+				/* count = */ literal(0L)};
 	}
 
 	@Override
 	public Expression[] accumulateExpressions() {
 		return new Expression[] {
-				/* sum0 = */ ifThenElse(isNull(operand(0)), sum0, plus(sum0, operand(0)))
+				/* sum = */ ifThenElse(isNull(operand(0)), sum, plus(sum, operand(0))),
+				/* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L))),
 		};
 	}
 
 	@Override
 	public Expression[] retractExpressions() {
 		return new Expression[] {
-				/* sum0 = */ ifThenElse(isNull(operand(0)), sum0, minus(sum0, operand(0)))
+				/* sum = */ ifThenElse(isNull(operand(0)), sum, minus(sum, operand(0))),
+				/* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L))),
 		};
 	}
 
 	@Override
 	public Expression[] mergeExpressions() {
 		return new Expression[] {
-				/* sum0 = */ plus(sum0, mergeOperand(sum0))
+				/* sum = */ plus(sum, mergeOperand(sum)),
+				/* count = */ plus(count, mergeOperand(count))
 		};
 	}
 
+	/**
+	 * If all input are nulls, count will be 0 and we will get null after the division.
+	 */
 	@Override
 	public Expression getValueExpression() {
-		return sum0;
+		return ifThenElse(equalTo(count, literal(0L)), nullOf(getResultType()), div(sum, count));
 	}
 
 	/**
-	 * Built-in Int Sum0 aggregate function.
+	 * Built-in Int Avg aggregate function for integral arguments,
+	 * including BYTE, SHORT, INT, LONG.
+	 * The result type is DOUBLE.
 	 */
-	public static class IntSum0AggFunction extends Sum0AggFunction {
+	public static class IntegralAvgAggFunction extends AvgAggFunction {
 
-		@Override
-		public TypeInformation getResultType() {
-			return Types.INT;
-		}
-	}
-
-	/**
-	 * Built-in Byte Sum0 aggregate function.
-	 */
-	public static class ByteSum0AggFunction extends Sum0AggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.BYTE;
-		}
-	}
-
-	/**
-	 * Built-in Short Sum0 aggregate function.
-	 */
-	public static class ShortSum0AggFunction extends Sum0AggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.SHORT;
-		}
-	}
-
-	/**
-	 * Built-in Long Sum0 aggregate function.
-	 */
-	public static class LongSum0AggFunction extends Sum0AggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.LONG;
-		}
-	}
-
-	/**
-	 * Built-in Float Sum0 aggregate function.
-	 */
-	public static class FloatSum0AggFunction extends Sum0AggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.FLOAT;
-		}
-
-		@Override
-		public Expression[] initialValuesExpressions() {
-			return new Expression[] {
-					/* sum0 = */ literal(0.0f, getResultType())
-			};
-		}
-	}
-
-	/**
-	 * Built-in Double Sum0 aggregate function.
-	 */
-	public static class DoubleSum0AggFunction extends Sum0AggFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.DOUBLE;
 		}
 
 		@Override
-		public Expression[] initialValuesExpressions() {
-			return new Expression[] {
-					/* sum0 = */ literal(0.0d, getResultType())
-			};
+		public TypeInformation getSumType() {
+			return Types.LONG;
 		}
 	}
 
 	/**
-	 * Built-in Decimal Sum0 aggregate function.
+	 * Built-in Double Avg aggregate function.
 	 */
-	public static class DecimalSum0AggFunction extends Sum0AggFunction {
-		private DecimalTypeInfo decimalType;
-
-		public DecimalSum0AggFunction(DecimalTypeInfo decimalType) {
-			this.decimalType = decimalType;
-		}
+	public static class DoubleAvgAggFunction extends AvgAggFunction {
 
 		@Override
 		public TypeInformation getResultType() {
-			DecimalType sumType = DecimalType.inferAggSumType(decimalType.scale());
-			return new DecimalTypeInfo(sumType.precision(), sumType.scale());
+			return Types.DOUBLE;
+		}
+
+		@Override
+		public TypeInformation getSumType() {
+			return Types.DOUBLE;
 		}
 
 		@Override
 		public Expression[] initialValuesExpressions() {
-			return new Expression[] {
-					/* sum0 = */ literal(new BigDecimal(0), getResultType())
-			};
+			return new Expression[] {literal(0D), literal(0L)};
+		}
+	}
+
+	/**
+	 * Built-in Decimal Avg aggregate function.
+	 */
+	public static class DecimalAvgAggFunction extends AvgAggFunction {
+
+		private final DecimalTypeInfo type;
+
+		public DecimalAvgAggFunction(DecimalTypeInfo type) {
+			this.type = type;
+		}
+
+		@Override
+		public TypeInformation getResultType() {
+			return DecimalType.inferAggAvgType(type.scale()).toTypeInfo();
+		}
+
+		@Override
+		public TypeInformation getSumType() {
+			return DecimalType.inferAggSumType(type.scale()).toTypeInfo();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {literal(new BigDecimal(0)), literal(0L)};
 		}
 	}
 }

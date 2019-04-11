@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction;
 import org.apache.flink.table.runtime.over.frame.OffsetOverFrame;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;

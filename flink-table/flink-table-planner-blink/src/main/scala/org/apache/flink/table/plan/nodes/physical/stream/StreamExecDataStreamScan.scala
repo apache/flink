@@ -54,7 +54,7 @@ class StreamExecDataStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    relDataType: RelDataType)
+    outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow]{
@@ -73,7 +73,7 @@ class StreamExecDataStreamScan(
 
   override def requireWatermark: Boolean = false
 
-  override def deriveRowType(): RelDataType = relDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecDataStreamScan(cluster, traitSet, getTable, getRowType)

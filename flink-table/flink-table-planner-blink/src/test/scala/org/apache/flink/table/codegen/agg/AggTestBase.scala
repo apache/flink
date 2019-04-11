@@ -27,7 +27,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataview.DataViewSpec
-import org.apache.flink.table.functions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
+import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.context.ExecutionContext
 

@@ -401,6 +401,12 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
       .replaceStreamProgram(program).build()
     tableEnv.getConfig.setCalciteConfig(calciteConfig)
   }
+
+  def enableMiniBatch(): Unit = {
+    tableEnv.getConfig.getConf.setLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
+    tableEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
+  }
 }
 
 /**

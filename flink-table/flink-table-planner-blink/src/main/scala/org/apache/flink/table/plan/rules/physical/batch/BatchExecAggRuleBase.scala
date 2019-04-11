@@ -22,8 +22,9 @@ import org.apache.flink.table.`type`.{InternalType, TypeConverters}
 import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.util.{AggregateUtil, RelFieldCollationUtil}
 
 import org.apache.calcite.rel.`type`.RelDataType

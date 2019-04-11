@@ -28,9 +28,11 @@ import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.plan.util.AggregateInfoList
+
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.runtime.context.ExecutionContext

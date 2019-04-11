@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.util.Preconditions;
 

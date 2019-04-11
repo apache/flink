@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.plan.optimize.program
 
+import org.apache.flink.table.plan.`trait`.UpdateAsRetractionTrait
+
+import org.apache.calcite.rel.RelNode
+
 /**
-  * A OptimizeContext allows to obtain stream table environment information when optimizing.
+  * A [[FlinkOptimizeProgram]] that does some initialization be for retraction inference.
   */
-trait StreamOptimizeContext extends FlinkOptimizeContext {
+class FlinkUpdateAsRetractionTraitInitProgram extends FlinkOptimizeProgram[StreamOptimizeContext] {
 
-  /**
-    * Returns true if the sink requests updates as retraction messages
-    * defined in [[org.apache.flink.table.plan.optimize.StreamOptimizer.optimize]].
-    */
-  def updateAsRetraction: Boolean
-
+  override def optimize(root: RelNode, context: StreamOptimizeContext): RelNode = {
+    if (context.updateAsRetraction) {
+      val newTraitSet = root.getTraitSet.plus(UpdateAsRetractionTrait(true))
+      root.copy(newTraitSet, root.getInputs)
+    } else {
+      root
+    }
+  }
 }

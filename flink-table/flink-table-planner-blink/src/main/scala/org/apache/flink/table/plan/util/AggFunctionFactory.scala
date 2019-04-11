@@ -21,8 +21,12 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.{LeadLagAggFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction._
+import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction._
+import org.apache.flink.table.functions.aggfunctions.SumWithRetractAggFunction._
+import org.apache.flink.table.functions.aggfunctions.{AvgAggFunction, Count1AggFunction, CountAggFunction, MaxAggFunction, MinAggFunction, Sum0AggFunction, SumAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.functions.{LeadLagAggFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -80,6 +84,7 @@ class AggFunctionFactory(
       case _: SqlCountAggFunction => createCountAggFunction(argTypes)
 
       // TODO supports SqlRankFunction (ROW_NUMBER, RANK and DENSE_RANK)
+
       // TODO supports SqlMax2ndAggFunction
       // TODO supports SqlSingleValueAggFunction
       // TODO supports SqlFirstLastValueAggFunction (FIRST_VALUE and LAST_VALUE)
@@ -100,40 +105,59 @@ class AggFunctionFactory(
   private def createAvgAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
     argTypes(0) match {
       case BYTE | SHORT | INT | LONG =>
-        new org.apache.flink.table.functions.AvgAggFunction.IntegralAvgAggFunction
+        new AvgAggFunction.IntegralAvgAggFunction
       case FLOAT | DOUBLE =>
-        new org.apache.flink.table.functions.AvgAggFunction.DoubleAvgAggFunction
+        new AvgAggFunction.DoubleAvgAggFunction
       case d: DecimalType =>
         val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
-        new org.apache.flink.table.functions.AvgAggFunction.DecimalAvgAggFunction(decimalTypeInfo)
+        new AvgAggFunction.DecimalAvgAggFunction(decimalTypeInfo)
       case t: InternalType =>
         throw new TableException(s"Avg aggregate function does not support type: ''$t''.\n" +
           s"Please re-check the data type.")
     }
   }
 
-  private def createSumAggFunction(argTypes: Array[InternalType], index: Int)
-  : UserDefinedFunction = {
+  private def createSumAggFunction(
+      argTypes: Array[InternalType],
+      index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      // TODO implements this
-      throw new TableException("Unsupported now")
+      argTypes(0) match {
+        case BYTE =>
+          new ByteSumWithRetractAggFunction
+        case SHORT =>
+          new ShortSumWithRetractAggFunction
+        case INT =>
+          new IntSumWithRetractAggFunction
+        case LONG =>
+          new LongSumWithRetractAggFunction
+        case FLOAT =>
+          new FloatSumWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleSumWithRetractAggFunction
+        case d: DecimalType =>
+          val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
+          new DecimalSumWithRetractAggFunction(decimalTypeInfo)
+        case t: InternalType =>
+          throw new TableException(s"Sum with retract aggregate function does not " +
+            s"support type: ''$t''.\nPlease re-check the data type.")
+      }
     } else {
       argTypes(0) match {
         case BYTE =>
-          new org.apache.flink.table.functions.SumAggFunction.ByteSumAggFunction
+          new SumAggFunction.ByteSumAggFunction
         case SHORT =>
-          new org.apache.flink.table.functions.SumAggFunction.ShortSumAggFunction
+          new SumAggFunction.ShortSumAggFunction
         case INT =>
-          new org.apache.flink.table.functions.SumAggFunction.IntSumAggFunction
+          new SumAggFunction.IntSumAggFunction
         case LONG =>
-          new org.apache.flink.table.functions.SumAggFunction.LongSumAggFunction
+          new SumAggFunction.LongSumAggFunction
         case FLOAT =>
-          new org.apache.flink.table.functions.SumAggFunction.FloatSumAggFunction
+          new SumAggFunction.FloatSumAggFunction
         case DOUBLE =>
-          new org.apache.flink.table.functions.SumAggFunction.DoubleSumAggFunction
+          new SumAggFunction.DoubleSumAggFunction
         case d: DecimalType =>
           val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
-          new org.apache.flink.table.functions.SumAggFunction.DecimalSumAggFunction(decimalTypeInfo)
+          new SumAggFunction.DecimalSumAggFunction(decimalTypeInfo)
         case t: InternalType =>
           throw new TableException(s"Sum aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
@@ -144,20 +168,20 @@ class AggFunctionFactory(
   private def createSum0AggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
     argTypes(0) match {
       case BYTE =>
-        new org.apache.flink.table.functions.Sum0AggFunction.ByteSum0AggFunction
+        new Sum0AggFunction.ByteSum0AggFunction
       case SHORT =>
-        new org.apache.flink.table.functions.Sum0AggFunction.ShortSum0AggFunction
+        new Sum0AggFunction.ShortSum0AggFunction
       case INT =>
-        new org.apache.flink.table.functions.Sum0AggFunction.IntSum0AggFunction
+        new Sum0AggFunction.IntSum0AggFunction
       case LONG =>
-        new org.apache.flink.table.functions.Sum0AggFunction.LongSum0AggFunction
+        new Sum0AggFunction.LongSum0AggFunction
       case FLOAT =>
-        new org.apache.flink.table.functions.Sum0AggFunction.FloatSum0AggFunction
+        new Sum0AggFunction.FloatSum0AggFunction
       case DOUBLE =>
-        new org.apache.flink.table.functions.Sum0AggFunction.DoubleSum0AggFunction
+        new Sum0AggFunction.DoubleSum0AggFunction
       case d: DecimalType =>
         val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
-        new org.apache.flink.table.functions.Sum0AggFunction.DecimalSum0AggFunction(decimalTypeInfo)
+        new Sum0AggFunction.DecimalSum0AggFunction(decimalTypeInfo)
       case t: InternalType =>
         throw new TableException(s"Sum0 aggregate function does not support type: ''$t''.\n" +
           s"Please re-check the data type.")
@@ -165,37 +189,66 @@ class AggFunctionFactory(
   }
 
   private def createMinAggFunction(
-      argTypes: Array[InternalType], index: Int): UserDefinedFunction = {
+      argTypes: Array[InternalType],
+      index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      // TODO implements this
-      throw new TableException("Unsupported now")
+      argTypes(0) match {
+        case BYTE =>
+          new ByteMinWithRetractAggFunction
+        case SHORT =>
+          new ShortMinWithRetractAggFunction
+        case INT =>
+          new IntMinWithRetractAggFunction
+        case LONG =>
+          new LongMinWithRetractAggFunction
+        case FLOAT =>
+          new FloatMinWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleMinWithRetractAggFunction
+        case BOOLEAN =>
+          new BooleanMinWithRetractAggFunction
+        case STRING =>
+          new StringMinWithRetractAggFunction
+        case d: DecimalType =>
+          val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
+          new DecimalMinWithRetractAggFunction(decimalTypeInfo)
+        case TIME =>
+          new TimeMinWithRetractAggFunction
+        case DATE =>
+          new DateMinWithRetractAggFunction
+        case TIMESTAMP =>
+          new TimestampMinWithRetractAggFunction
+        case t: InternalType =>
+          throw new TableException(s"Min with retract aggregate function does not " +
+            s"support type: ''$t''.\nPlease re-check the data type.")
+      }
     } else {
       argTypes(0) match {
         case BYTE =>
-          new org.apache.flink.table.functions.MinAggFunction.ByteMinAggFunction
+          new MinAggFunction.ByteMinAggFunction
         case SHORT =>
-          new org.apache.flink.table.functions.MinAggFunction.ShortMinAggFunction
+          new MinAggFunction.ShortMinAggFunction
         case INT =>
-          new org.apache.flink.table.functions.MinAggFunction.IntMinAggFunction
+          new MinAggFunction.IntMinAggFunction
         case LONG =>
-          new org.apache.flink.table.functions.MinAggFunction.LongMinAggFunction
+          new MinAggFunction.LongMinAggFunction
         case FLOAT =>
-          new org.apache.flink.table.functions.MinAggFunction.FloatMinAggFunction
+          new MinAggFunction.FloatMinAggFunction
         case DOUBLE =>
-          new org.apache.flink.table.functions.MinAggFunction.DoubleMinAggFunction
+          new MinAggFunction.DoubleMinAggFunction
         case BOOLEAN =>
-          new org.apache.flink.table.functions.MinAggFunction.BooleanMinAggFunction
+          new MinAggFunction.BooleanMinAggFunction
         case STRING =>
-          new org.apache.flink.table.functions.MinAggFunction.StringMinAggFunction
+          new MinAggFunction.StringMinAggFunction
         case DATE =>
-          new org.apache.flink.table.functions.MinAggFunction.DateMinAggFunction
+          new MinAggFunction.DateMinAggFunction
         case TIME =>
-          new org.apache.flink.table.functions.MinAggFunction.TimeMinAggFunction
+          new MinAggFunction.TimeMinAggFunction
         case TIMESTAMP |  PROCTIME_INDICATOR | ROWTIME_INDICATOR =>
-          new org.apache.flink.table.functions.MinAggFunction.TimestampMinAggFunction
+          new MinAggFunction.TimestampMinAggFunction
         case d: DecimalType =>
           val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
-          new org.apache.flink.table.functions.MinAggFunction.DecimalMinAggFunction(decimalTypeInfo)
+          new MinAggFunction.DecimalMinAggFunction(decimalTypeInfo)
         case t: InternalType =>
           throw new TableException(s"Min aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
@@ -239,35 +292,63 @@ class AggFunctionFactory(
   private def createMaxAggFunction(
       argTypes: Array[InternalType], index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      // TODO implements this
-      throw new TableException("Unsupported now")
+      argTypes(0) match {
+        case BYTE =>
+          new ByteMaxWithRetractAggFunction
+        case SHORT =>
+          new ShortMaxWithRetractAggFunction
+        case INT =>
+          new IntMaxWithRetractAggFunction
+        case LONG =>
+          new LongMaxWithRetractAggFunction
+        case FLOAT =>
+          new FloatMaxWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleMaxWithRetractAggFunction
+        case BOOLEAN =>
+          new BooleanMaxWithRetractAggFunction
+        case STRING =>
+          new StringMaxWithRetractAggFunction
+        case d: DecimalType =>
+          val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
+          new DecimalMaxWithRetractAggFunction(decimalTypeInfo)
+        case TIME =>
+          new TimeMaxWithRetractAggFunction
+        case DATE =>
+          new DateMaxWithRetractAggFunction
+        case TIMESTAMP =>
+          new TimestampMaxWithRetractAggFunction
+        case t: InternalType =>
+          throw new TableException(s"Max with retract aggregate function does not " +
+            s"support type: ''$t''.\nPlease re-check the data type.")
+      }
     } else {
       argTypes(0) match {
         case BYTE =>
-          new org.apache.flink.table.functions.MaxAggFunction.ByteMaxAggFunction
+          new MaxAggFunction.ByteMaxAggFunction
         case SHORT =>
-          new org.apache.flink.table.functions.MaxAggFunction.ShortMaxAggFunction
+          new MaxAggFunction.ShortMaxAggFunction
         case INT =>
-          new org.apache.flink.table.functions.MaxAggFunction.IntMaxAggFunction
+          new MaxAggFunction.IntMaxAggFunction
         case LONG =>
-          new org.apache.flink.table.functions.MaxAggFunction.LongMaxAggFunction
+          new MaxAggFunction.LongMaxAggFunction
         case FLOAT =>
-          new org.apache.flink.table.functions.MaxAggFunction.FloatMaxAggFunction
+          new MaxAggFunction.FloatMaxAggFunction
         case DOUBLE =>
-          new org.apache.flink.table.functions.MaxAggFunction.DoubleMaxAggFunction
+          new MaxAggFunction.DoubleMaxAggFunction
         case BOOLEAN =>
-          new org.apache.flink.table.functions.MaxAggFunction.BooleanMaxAggFunction
+          new MaxAggFunction.BooleanMaxAggFunction
         case STRING =>
-          new org.apache.flink.table.functions.MaxAggFunction.StringMaxAggFunction
+          new MaxAggFunction.StringMaxAggFunction
         case DATE =>
-          new org.apache.flink.table.functions.MaxAggFunction.DateMaxAggFunction
+          new MaxAggFunction.DateMaxAggFunction
         case TIME =>
-          new org.apache.flink.table.functions.MaxAggFunction.TimeMaxAggFunction
+          new MaxAggFunction.TimeMaxAggFunction
         case TIMESTAMP | PROCTIME_INDICATOR | ROWTIME_INDICATOR =>
-          new org.apache.flink.table.functions.MaxAggFunction.TimestampMaxAggFunction
+          new MaxAggFunction.TimestampMaxAggFunction
         case d: DecimalType =>
           val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
-          new org.apache.flink.table.functions.MaxAggFunction.DecimalMaxAggFunction(decimalTypeInfo)
+          new MaxAggFunction.DecimalMaxAggFunction(decimalTypeInfo)
         case t: InternalType =>
           throw new TableException(s"Max aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
@@ -276,10 +357,10 @@ class AggFunctionFactory(
   }
 
   private def createCount1AggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
-    new org.apache.flink.table.functions.Count1AggFunction
+    new Count1AggFunction
   }
 
   private def createCountAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
-    new org.apache.flink.table.functions.CountAggFunction
+    new CountAggFunction
   }
 }

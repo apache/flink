@@ -97,11 +97,11 @@ object FlinkStreamRuleSets {
   /**
     * RuleSet to do predicate pushdown
     */
-  val FILTER_PREPARE_RULES: RuleSet =  RuleSets.ofList((
-      FILTER_RULES.asScala
-          // reduce expressions in filters and joins
-          ++ REDUCE_EXPRESSION_RULES.asScala
-      ).asJava)
+  val FILTER_PREPARE_RULES: RuleSet = RuleSets.ofList((
+    FILTER_RULES.asScala
+      // reduce expressions in filters and joins
+      ++ REDUCE_EXPRESSION_RULES.asScala
+    ).asJava)
 
   /**
     * RuleSet to prune empty results rules
@@ -202,11 +202,11 @@ object FlinkStreamRuleSets {
     */
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList((
     FILTER_RULES.asScala ++
-    PROJECT_RULES.asScala ++
-    PRUNE_EMPTY_RULES.asScala ++
-    LOGICAL_RULES.asScala ++
-    LOGICAL_CONVERTERS.asScala
-  ).asJava)
+      PROJECT_RULES.asScala ++
+      PRUNE_EMPTY_RULES.asScala ++
+      LOGICAL_RULES.asScala ++
+      LOGICAL_CONVERTERS.asScala
+    ).asJava)
 
   /**
     * RuleSet to od rewrite on FlinkLogicalRel for Stream
@@ -232,8 +232,27 @@ object FlinkStreamRuleSets {
     StreamExecRankRule.INSTANCE,
     StreamExecTemporalSortRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
+    StreamExecGroupAggregateRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE
+  )
+
+  /**
+    * RuleSet for retraction inference.
+    */
+  val RETRACTION_RULES: RuleSet = RuleSets.ofList(
+    // retraction rules
+    StreamExecRetractionRules.DEFAULT_RETRACTION_INSTANCE,
+    StreamExecRetractionRules.UPDATES_AS_RETRACTION_INSTANCE,
+    StreamExecRetractionRules.ACCMODE_INSTANCE
+  )
+
+  /**
+    * RuleSet to optimize plans after stream exec execution.
+    */
+  val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
+    //optimize agg rule
+    TwoStageOptimizedAggregateRule.INSTANCE
   )
 
 }

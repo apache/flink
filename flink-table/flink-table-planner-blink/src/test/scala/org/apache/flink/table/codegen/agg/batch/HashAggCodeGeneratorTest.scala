@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.functions.AvgAggFunction.IntegralAvgAggFunction
+import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.IntegralAvgAggFunction
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.OneInputOperatorWrapper
 

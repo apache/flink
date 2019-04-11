@@ -19,7 +19,10 @@
 package org.apache.flink.table.plan.optimize
 
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig}
+import org.apache.flink.table.plan.`trait`.UpdateAsRetractionTraitDef
+import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
+import org.apache.flink.table.sinks.RetractStreamTableSink
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.VolcanoPlanner
@@ -32,16 +35,25 @@ class StreamOptimizer(tEnv: StreamTableEnvironment) extends Optimizer {
 
   override def optimize(roots: Seq[RelNode]): Seq[RelNode] = {
     // TODO optimize multi-roots as a whole DAG
-    roots.map(optimizeTree)
+    roots.map { root =>
+      val retractionFromRoot = root match {
+        case n: Sink =>
+          n.sink.isInstanceOf[RetractStreamTableSink[_]]
+        case o =>
+          o.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE).sendsUpdatesAsRetractions
+      }
+      optimizeTree(root, retractionFromRoot)
+    }
   }
 
   /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
     * @param relNode The root node of the relational expression tree.
+    * @param updatesAsRetraction True if request updates as retraction messages.
     * @return The optimized [[RelNode]] tree
     */
-  private def optimizeTree(relNode: RelNode): RelNode = {
+  private def optimizeTree(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
     val config = tEnv.getConfig
     val programs = config.getCalciteConfig.getStreamProgram
       .getOrElse(FlinkStreamProgram.buildProgram(config.getConf))
@@ -52,6 +64,8 @@ class StreamOptimizer(tEnv: StreamTableEnvironment) extends Optimizer {
       override def getTableConfig: TableConfig = config
 
       override def getVolcanoPlanner: VolcanoPlanner = tEnv.getPlanner.asInstanceOf[VolcanoPlanner]
+
+      override def updateAsRetraction: Boolean = updatesAsRetraction
     })
   }
 
