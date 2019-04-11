@@ -234,7 +234,7 @@ under the License.
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
-			separatly in the flink-shaded-hadoop module).
+			separately in the flink-shaded-hadoop module).
 		-->
 		<dependencies>
 
@@ -772,7 +772,7 @@ under the License.
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-shade-plugin</artifactId>
-							<version>3.1.1</version>
+							<version>3.2.1</version>
 						</plugin>
 					</plugins>
 				</pluginManagement>
@@ -1626,7 +1626,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.0.0</version>
+					<version>3.2.1</version>
 				</plugin>
 
 				<plugin>
