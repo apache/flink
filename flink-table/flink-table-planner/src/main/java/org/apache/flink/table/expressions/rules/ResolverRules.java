@@ -62,6 +62,12 @@ public final class ResolverRules {
 	 */
 	public static final ResolverRule EXPAND_COLUMN_FUNCTIONS = new ExpandColumnFunctionsRule();
 
+	/**
+	 * Checks that the output of {@link org.apache.flink.table.expressions.ExpressionResolver} has no more unresolved
+	 * expressions. See {@link VerifyNoUnresolvedExpressionsRule} for details.
+	 */
+	public static final ResolverRule VERIFY_NO_MORE_UNRESOLVED_EXPRESSIONS = new VerifyNoUnresolvedExpressionsRule();
+
 	private ResolverRules() {
 	}
 }

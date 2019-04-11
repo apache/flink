@@ -81,7 +81,8 @@ public class ExpressionResolver {
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
 			ResolverRules.FLATTEN_CALL,
-			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS);
+			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS,
+			ResolverRules.VERIFY_NO_MORE_UNRESOLVED_EXPRESSIONS);
 	}
 
 	private final PlannerExpressionConverter bridgeConverter = PlannerExpressionConverter.INSTANCE();
