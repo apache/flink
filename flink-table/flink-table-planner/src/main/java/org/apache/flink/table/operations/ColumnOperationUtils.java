@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
 import java.util.ArrayList;
@@ -116,8 +117,8 @@ public final class ColumnOperationUtils {
 	private static class DropColumnsExtractor extends ApiExpressionDefaultVisitor<String> {
 
 		@Override
-		public String visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
-			return unresolvedReference.getName();
+		public String visitFieldReference(FieldReferenceExpression fieldReference) {
+			return fieldReference.getName();
 		}
 
 		@Override
@@ -130,10 +131,10 @@ public final class ColumnOperationUtils {
 		@Override
 		public String visitCall(CallExpression call) {
 			if (call.getFunctionDefinition() == AS &&
-				call.getChildren().get(0) instanceof UnresolvedReferenceExpression) {
-				UnresolvedReferenceExpression unresolvedReference = (UnresolvedReferenceExpression) call.getChildren()
+				call.getChildren().get(0) instanceof FieldReferenceExpression) {
+				FieldReferenceExpression resolvedFieldReference = (FieldReferenceExpression) call.getChildren()
 					.get(0);
-				return unresolvedReference.getName();
+				return resolvedFieldReference.getName();
 			} else {
 				return defaultMethod(call);
 			}

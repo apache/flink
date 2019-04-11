@@ -21,10 +21,10 @@ import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float =
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{WITH_COLUMNS, RANGE_TO, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -183,6 +183,12 @@ trait ImplicitExpressionOperations {
     * The result is negative only if left is negative.
     */
   def % (other: Expression): Expression = mod(other)
+
+  /**
+    * Indicates the range from left to right, i.e. [left, right], which can be used in columns
+    * selection, e.g.: withColumns(1 to 3).
+    */
+  def to (other: Expression): Expression = call(RANGE_TO, expr, other)
 
   /**
     * Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
@@ -1126,6 +1132,12 @@ trait ImplicitExpressionConversions {
   implicit def symbol2FieldExpression(sym: Symbol): Expression =
     unresolvedRef(sym.name)
 
+  implicit def scalaRange2RangeExpression(range: Range.Inclusive): Expression = {
+    val startExpression = new ValueLiteralExpression(range.start, BasicTypeInfo.INT_TYPE_INFO)
+    val endExpression = new ValueLiteralExpression(range.end, BasicTypeInfo.INT_TYPE_INFO)
+    startExpression to endExpression
+  }
+
   implicit def byte2Literal(b: Byte): Expression = valueLiteral(b)
 
   implicit def short2Literal(s: Short): Expression = valueLiteral(s)
@@ -1591,5 +1603,26 @@ object ifThenElse {
     call(IF, condition, ifTrue, ifFalse)
   }
 }
+
+/**
+  * Creates a withColumns expression.
+  */
+object withColumns {
+
+  def apply(head: Expression, tail: Expression*): Expression = {
+    call(WITH_COLUMNS, head +: tail: _*)
+  }
+}
+
+/**
+  * Creates a withoutColumns expression.
+  */
+object withoutColumns {
+
+  def apply(head: Expression, tail: Expression*): Expression = {
+    call(WITHOUT_COLUMNS, head +: tail: _*)
+  }
+}
+
 
 // scalastyle:on object.name
