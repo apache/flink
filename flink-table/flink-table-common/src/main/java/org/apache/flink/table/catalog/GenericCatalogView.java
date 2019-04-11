@@ -36,7 +36,7 @@ public class GenericCatalogView implements CatalogView {
 	// Expanded query text takes care of the this, as an example.
 	private final String expandedQuery;
 
-	private TableSchema schema;
+	private final TableSchema schema;
 	private final Map<String, String> properties;
 	private String comment = "This is a generic catalog view";
 
