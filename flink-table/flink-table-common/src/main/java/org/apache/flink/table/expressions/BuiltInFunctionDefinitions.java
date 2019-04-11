@@ -319,6 +319,10 @@ public final class BuiltInFunctionDefinitions {
 	public static final FunctionDefinition CURRENT_ROW =
 		new FunctionDefinition("currentRow", OTHER_FUNCTION);
 
+	// columns
+	public static final FunctionDefinition COLUMNS =
+		new FunctionDefinition("columns", OTHER_FUNCTION);
+
 	// etc
 	public static final FunctionDefinition IN =
 		new FunctionDefinition("in", SCALAR_FUNCTION);
@@ -328,6 +332,8 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("as", OTHER_FUNCTION);
 	public static final FunctionDefinition STREAM_RECORD_TIMESTAMP =
 		new FunctionDefinition("streamRecordTimestamp", OTHER_FUNCTION);
+	public static final FunctionDefinition RANGE_TO =
+		new FunctionDefinition("rangeTo", OTHER_FUNCTION);
 
 	public static final Set<FunctionDefinition> WINDOW_PROPERTIES = new HashSet<>(Arrays.asList(
 		WINDOW_START, WINDOW_END, PROCTIME, ROWTIME

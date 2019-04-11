@@ -94,6 +94,12 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
           case AS =>
             assert(args.size >= 2)
+            args.drop(1).foreach {
+              case _: Literal => // ok
+              case _ => throw new TableException(
+                s"Invalid AS, parameters are: [${args.map(_.toString).mkString(", ")}].")
+            }
+
             val name = getValue[String](args(1))
             val extraNames = args
               .drop(2)

@@ -5800,3 +5800,284 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 |                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
 
 {% top %}
+
+Column Operations
+---------------------------------------
+
+The column operations are used to select or deselect table columns.
+
+| SYNTAX              | DESC                         |
+| :--------------------- | :-------------------------- |
+| columns(...)         | select the specified columns                  |
+| -columns(...)        | deselect the columns specified                  |
+
+The detailed syntax is as follows:
+
+{% highlight text %}
+columnOperation:
+    [-]columns(columnExprs)
+
+columnExprs:
+    columnExpr [, columnExpr]*
+
+columnExpr:
+    columnRef | columnIndex to columnIndex | columnName to columnName
+
+columnRef:
+    columnName(The field name that exists in the table) | columnIndex(a positive integer starting from 1)
+{% endhighlight %}
+
+The usage of the column operation is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Api</th>
+      <th class="text-center">Usage</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        columns(*)|*
+      </td>
+      <td>
+{% highlight java %}
+select("columns(*)") | select("*") = select("a, b, c, d, e")
+{% endhighlight %}
+      </td>
+      <td>
+        all the columns
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        columns(m to n)
+      </td>
+      <td>
+{% highlight java %}
+select("columns(2 to 4)") = select("b, c, d")
+{% endhighlight %}
+      </td>
+      <td>
+        columns from m to n
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        columns(m, n, k)
+      </td>
+      <td>
+{% highlight java %}
+select("columns(1, 3, e)") = select("a, c, e")
+{% endhighlight %}
+      </td>
+      <td>
+        columns m, n, k
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        columns(m, n to k)
+      </td>
+      <td>
+{% highlight java %}
+select("columns(1, 3 to 5)") = select("a, c, d ,e")
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        -columns(m to n)
+      </td>
+      <td>
+{% highlight java %}
+select("-columns(2 to 4)") = select("a, e")
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        -columns(m, n, k)
+      </td>
+      <td>
+{% highlight java %}
+select("-columns(1, 3, 5)") = select("b, d")
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns m, n, k
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        -columns(m, n to k)
+      </td>
+      <td>
+{% highlight java %}
+select("-columns(1, 3 to 5)") = select("b")
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+    
+  </tbody>
+</table>
+</div>
+
+<div data-lang="scala" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Api</th>
+      <th class="text-center">Usage</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        columns(*)|*
+      </td>
+      <td>
+{% highlight scala %}
+select(columns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        all the columns
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        columns(m to n)
+      </td>
+      <td>
+{% highlight scala %}
+select(columns(2 to 4)) = select('b, 'c, 'd)
+{% endhighlight %}
+      </td>
+      <td>
+        columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        columns(m, n, k)
+      </td>
+      <td>
+{% highlight scala %}
+select(columns(1, 3, 'e)) = select('a, 'c, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        columns m, n, k
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        columns(m, n to k)
+      </td>
+      <td>
+{% highlight scala %}
+select(columns(1, 3 to 5)) = select('a, 'c, 'd, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        -columns(m to n)
+      </td>
+      <td>
+{% highlight scala %}
+select(-columns(2 to 4)) = select('a, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns from m to n
+      </td>
+    </tr>   
+     
+    <tr>
+      <td>
+        -columns(m, n, k)
+      </td>
+      <td>
+{% highlight scala %}
+select(-columns(1, 3, 5)) = select('b, 'd)
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns m, n, k
+      </td>
+    </tr>
+   
+    <tr>
+      <td>
+        -columns(m, n to k)
+      </td>
+      <td>
+{% highlight scala %}
+select(-columns(1, 3 to 5)) = select('b)
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr> 
+    
+  </tbody>
+</table>
+</div>
+</div>
+
+The column operations can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDX etc.` e.g.:
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+table
+   .groupBy("columns(1 to 3)")
+   .select("columns(a to b), myUDAgg(myUDF(columns(5 to 20)))")
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+table
+   .groupBy(columns(1 to 3))
+   .select(columns('a to 'b), myUDAgg(myUDF(columns(5 to 20))))
+{% endhighlight %}
+</div>
+</div>
+
+<span class="label label-info">Note</span> Column operations are only used in TableApi.
+
+{% top %}

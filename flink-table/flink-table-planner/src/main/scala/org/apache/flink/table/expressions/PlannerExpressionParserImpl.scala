@@ -133,6 +133,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val TRIM_MODE_LEADING: Keyword = Keyword("LEADING")
   lazy val TRIM_MODE_TRAILING: Keyword = Keyword("TRAILING")
   lazy val TRIM_MODE_BOTH: Keyword = Keyword("BOTH")
+  lazy val TO: Keyword = Keyword("TO")
 
   def functionIdent: PlannerExpressionParserImpl.Parser[String] = super.ident
 
@@ -641,7 +642,19 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
       case e ~ _ ~ name => call(BuiltInFunctionDefinitions.AS, e, valueLiteral(name.getName))
   }
 
-  lazy val expression: PackratParser[Expression] = overConstant | alias |
+  // columns
+
+  lazy val fieldNameRange: PackratParser[Expression] = fieldReference ~ TO ~ fieldReference ^^ {
+    case start ~ _ ~ end => call(BuiltInFunctionDefinitions.RANGE_TO, start, end)
+  }
+
+  lazy val fieldIndexRange: PackratParser[Expression] = numberLiteral ~ TO ~ numberLiteral ^^ {
+    case start ~ _ ~ end => call(BuiltInFunctionDefinitions.RANGE_TO, start, end)
+  }
+
+  lazy val range = fieldNameRange | fieldIndexRange
+
+  lazy val expression: PackratParser[Expression] = range | overConstant | alias |
     failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")

@@ -57,6 +57,11 @@ public final class ResolverRules {
 	 */
 	public static final ResolverRule FLATTEN_STAR_REFERENCE = new StarReferenceFlatteningRule();
 
+	/**
+	 * Resolves columns expressions to corresponding fields of inputs. See {@link ExpandColumnsOperationRule} for details.
+	 */
+	public static final ResolverRule EXPAND_COLUMN_OPERATIONS = new ExpandColumnsOperationRule();
+
 	private ResolverRules() {
 	}
 }

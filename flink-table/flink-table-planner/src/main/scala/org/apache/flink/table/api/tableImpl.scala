@@ -481,7 +481,7 @@ class TableImpl(
   */
 class GroupedTableImpl(
     private[flink] val table: Table,
-    private[flink] val groupKey: Seq[Expression])
+    private[flink] val groupKeys: Seq[Expression])
   extends GroupedTable {
 
   private val tableImpl = table.asInstanceOf[TableImpl]
@@ -496,6 +496,7 @@ class GroupedTableImpl(
 
   private def selectInternal(fields: Seq[Expression]): Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
+    val resolvedGroupKeys = groupKeys.map(_.accept(tableImpl.callResolver))
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls,
       tableImpl.getUniqueAttributeSupplier)
 
@@ -506,7 +507,7 @@ class GroupedTableImpl(
     new TableImpl(tableImpl.tableEnv,
       tableImpl.operationTreeBuilder.project(extracted.getProjections,
         tableImpl.operationTreeBuilder.aggregate(
-          groupKey.asJava,
+          resolvedGroupKeys.asJava,
           extracted.getAggregations,
           tableImpl.operationTree
         )
