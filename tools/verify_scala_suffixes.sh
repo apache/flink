@@ -116,7 +116,7 @@ while read line; do
             block_infected=1
         fi
     fi
-done < <(mvn -o dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} | tee /dev/tty)
+done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} | tee /dev/tty)
 
 
 # deduplicate and sort
