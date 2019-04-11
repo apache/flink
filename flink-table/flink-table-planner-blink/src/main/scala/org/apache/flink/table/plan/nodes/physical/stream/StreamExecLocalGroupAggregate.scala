@@ -37,9 +37,9 @@ class StreamExecLocalGroupAggregate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val aggInfoList: AggregateInfoList,
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
+    val aggInfoList: AggregateInfoList,
     val partialFinalType: PartialFinalType)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel) {
 
@@ -61,9 +61,9 @@ class StreamExecLocalGroupAggregate(
       traitSet,
       inputs.get(0),
       outputRowType,
-      aggInfoList,
       grouping,
       aggCalls,
+      aggInfoList,
       partialFinalType)
   }
 

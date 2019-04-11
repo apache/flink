@@ -24,6 +24,8 @@ package object table {
   type JList[T] = java.util.List[T]
   type JArrayList[T] = java.util.ArrayList[T]
 
+  type JSet[T] = java.util.Set[T]
+
   type CalcitePair[T, R] = org.apache.calcite.util.Pair[T, R]
 
 }

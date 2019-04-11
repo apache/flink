@@ -22,11 +22,12 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
+import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.sql.AggSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
 
 import org.apache.calcite.rel.`type`._
@@ -303,8 +304,7 @@ object AggregateUtil extends Enumeration {
       aggCalls: Seq[AggregateCall],
       inputType: RelDataType,
       isStateBackedDataViews: Boolean,
-      consumeRetraction: Boolean)
-  : (Array[DistinctInfo], Seq[AggregateCall]) = {
+      consumeRetraction: Boolean): (Array[DistinctInfo], Seq[AggregateCall]) = {
 
     if (!needDistinctInfo) {
       return (Array(), aggCalls)
@@ -376,8 +376,10 @@ object AggregateUtil extends Enumeration {
         nullAware = true)
 
       val distinctMapViewSpec = if (isStateBackedDataViews) {
-        // TODO supports MapViewSpec
-        throw new TableException("MapViewSpec is not supported now")
+        Some(MapViewSpec(
+          s"distinctAcc_$index",
+          -1, // the field index will not be used
+          accTypeInfo))
       } else {
         None
       }
@@ -459,7 +461,6 @@ object AggregateUtil extends Enumeration {
       inputType: RelDataType,
       groupSet: Array[Int],
       typeFactory: FlinkTypeFactory): RelDataType = {
-
     val accTypes = aggInfoList.getAccTypes
     val groupingTypes = groupSet
       .map(inputType.getFieldList.get(_).getType)
@@ -476,6 +477,64 @@ object AggregateUtil extends Enumeration {
     * Derives accumulators names from stream aggregate
     */
   def inferStreamAggAccumulatorNames(aggInfoList: AggregateInfoList): Array[String] = {
+    var index = -1
+    val aggBufferNames = aggInfoList.aggInfos.indices.flatMap { i =>
+      aggInfoList.aggInfos(i).function match {
+        case _: AggregateFunction[_, _] =>
+          val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
+          index += 1
+          Array(s"$name$$$index")
+        case daf: DeclarativeAggregateFunction =>
+          daf.aggBufferAttributes.map { a =>
+            index += 1
+            s"${a.getName}$$$index"
+          }
+      }
+    }
+    val distinctBufferNames = aggInfoList.distinctInfos.indices.map { i =>
+      s"distinct$$$i"
+    }
+    (aggBufferNames ++ distinctBufferNames).toArray
+  }
+
+  /**
+    * Optimize max or min with retraction agg. MaxWithRetract can be optimized to Max if input is
+    * update increasing.
+    */
+  def getNeedRetractions(
+      groupSize: Int,
+      needRetraction: Boolean,
+      aggs: Seq[AggregateCall]): Array[Boolean] = {
+    val needRetractionArray = Array.fill(aggs.size)(needRetraction)
+    // TODO supports RelModifiedMonotonicity
+
+    needRetractionArray
+  }
+
+  /**
+    * Derives output row type from local aggregate
+    */
+  def inferLocalAggRowType(
+      aggInfoList: AggregateInfoList,
+      inputRowType: RelDataType,
+      groupSet: Array[Int],
+      typeFactory: FlinkTypeFactory): RelDataType = {
+    val accTypes = aggInfoList.getAccTypes
+    val groupingTypes = groupSet
+      .map(inputRowType.getFieldList.get(_).getType)
+      .map(FlinkTypeFactory.toInternalType)
+    val groupingNames = groupSet.map(inputRowType.getFieldNames.get(_))
+    val accFieldNames = inferAggAccumulatorNames(aggInfoList)
+
+    typeFactory.buildRelDataType(
+      groupingNames ++ accFieldNames,
+      groupingTypes ++ accTypes.map(TypeConverters.createInternalTypeFromTypeInfo))
+  }
+
+  /**
+    * Derives accumulators names from aggregate
+    */
+  def inferAggAccumulatorNames(aggInfoList: AggregateInfoList): Array[String] = {
     var index = -1
     val aggBufferNames = aggInfoList.aggInfos.indices.flatMap { i =>
       aggInfoList.aggInfos(i).function match {

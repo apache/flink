@@ -16,26 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
-import static org.apache.flink.table.expressions.ExpressionBuilder.lessThan;
 import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
+import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
 
 /**
- * built-in min aggregate function.
+ * built-in sum aggregate function.
  */
-public abstract class MinAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression min = new UnresolvedReferenceExpression("min");
+public abstract class SumAggFunction extends DeclarativeAggregateFunction {
+	private UnresolvedReferenceExpression sum = new UnresolvedReferenceExpression("sum");
 
 	@Override
 	public int operandCount() {
@@ -44,7 +46,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public UnresolvedReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedReferenceExpression[] { min };
+		return new UnresolvedReferenceExpression[] { sum };
 	}
 
 	@Override
@@ -55,44 +57,42 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* min = */ nullOf(getResultType())
+				/* sum = */ nullOf(getResultType())
 		};
 	}
 
 	@Override
 	public Expression[] accumulateExpressions() {
 		return new Expression[] {
-				/* min = */
-				ifThenElse(isNull(operand(0)), min,
-						ifThenElse(isNull(min), operand(0),
-								ifThenElse(lessThan(operand(0), min), operand(0), min)))
+				/* sum = */
+				ifThenElse(isNull(operand(0)), sum,
+						ifThenElse(isNull(sum), operand(0), plus(sum, operand(0))))
 		};
 	}
 
 	@Override
 	public Expression[] retractExpressions() {
-		return new Expression[] {};
+		throw new TableException("This function does not support retraction, Please choose SumWithRetractAggFunction.");
 	}
 
 	@Override
 	public Expression[] mergeExpressions() {
 		return new Expression[] {
-				/* min = */
-				ifThenElse(isNull(mergeOperand(min)), min,
-						ifThenElse(isNull(min), mergeOperand(min),
-								ifThenElse(lessThan(mergeOperand(min), min), mergeOperand(min), min)))
+				/* sum = */
+				ifThenElse(isNull(mergeOperand(sum)), sum,
+						ifThenElse(isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum))))
 		};
 	}
 
 	@Override
 	public Expression getValueExpression() {
-		return min;
+		return sum;
 	}
 
 	/**
-	 * Built-in Int Min aggregate function.
+	 * Built-in Int Sum aggregate function.
 	 */
-	public static class IntMinAggFunction extends MinAggFunction {
+	public static class IntSumAggFunction extends SumAggFunction {
 
 		@Override
 		public TypeInformation getResultType() {
@@ -101,9 +101,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Byte Min aggregate function.
+	 * Built-in Byte Sum aggregate function.
 	 */
-	public static class ByteMinAggFunction extends MinAggFunction {
+	public static class ByteSumAggFunction extends SumAggFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.BYTE;
@@ -111,9 +111,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Short Min aggregate function.
+	 * Built-in Short Sum aggregate function.
 	 */
-	public static class ShortMinAggFunction extends MinAggFunction {
+	public static class ShortSumAggFunction extends SumAggFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.SHORT;
@@ -121,9 +121,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Long Min aggregate function.
+	 * Built-in Long Sum aggregate function.
 	 */
-	public static class LongMinAggFunction extends MinAggFunction {
+	public static class LongSumAggFunction extends SumAggFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.LONG;
@@ -131,9 +131,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Float Min aggregate function.
+	 * Built-in Float Sum aggregate function.
 	 */
-	public static class FloatMinAggFunction extends MinAggFunction {
+	public static class FloatSumAggFunction extends SumAggFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.FLOAT;
@@ -141,9 +141,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Double Min aggregate function.
+	 * Built-in Double Sum aggregate function.
 	 */
-	public static class DoubleMinAggFunction extends MinAggFunction {
+	public static class DoubleSumAggFunction extends SumAggFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.DOUBLE;
@@ -151,68 +151,19 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Decimal Min aggregate function.
+	 * Built-in Decimal Sum aggregate function.
 	 */
-	public static class DecimalMinAggFunction extends MinAggFunction {
+	public static class DecimalSumAggFunction extends SumAggFunction {
 		private DecimalTypeInfo decimalType;
 
-		public DecimalMinAggFunction(DecimalTypeInfo decimalType) {
+		public DecimalSumAggFunction(DecimalTypeInfo decimalType) {
 			this.decimalType = decimalType;
 		}
 
 		@Override
 		public TypeInformation getResultType() {
-			return decimalType;
-		}
-	}
-
-	/**
-	 * Built-in Boolean Min aggregate function.
-	 */
-	public static class BooleanMinAggFunction extends MinAggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.BOOLEAN;
-		}
-	}
-
-	/**
-	 * Built-in String Min aggregate function.
-	 */
-	public static class StringMinAggFunction extends MinAggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.STRING;
-		}
-	}
-
-	/**
-	 * Built-in Date Min aggregate function.
-	 */
-	public static class DateMinAggFunction extends MinAggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.SQL_DATE;
-		}
-	}
-
-	/**
-	 * Built-in Time Min aggregate function.
-	 */
-	public static class TimeMinAggFunction extends MinAggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.SQL_TIME;
-		}
-	}
-
-	/**
-	 * Built-in Timestamp Min aggregate function.
-	 */
-	public static class TimestampMinAggFunction extends MinAggFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return Types.SQL_TIMESTAMP;
+			DecimalType sumType = DecimalType.inferAggSumType(decimalType.scale());
+			return new DecimalTypeInfo(sumType.precision(), sumType.scale());
 		}
 	}
 }

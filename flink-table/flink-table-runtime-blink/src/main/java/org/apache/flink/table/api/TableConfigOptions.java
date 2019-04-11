@@ -106,6 +106,11 @@ public class TableConfigOptions {
 					.defaultValue(Long.MIN_VALUE)
 					.withDescription("MiniBatch allow latency(ms). Value > 0 means MiniBatch enabled.");
 
+	public static final ConfigOption<Long> SQL_EXEC_MINIBATCH_SIZE =
+			key("sql.exec.mini-batch.size")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("The maximum number of inputs that MiniBatch buffer can accommodate.");
+
 	// ------------------------------------------------------------------------
 	//  STATE BACKEND Options
 	// ------------------------------------------------------------------------
@@ -114,6 +119,23 @@ public class TableConfigOptions {
 			key("sql.exec.statebackend.onheap")
 					.defaultValue(false)
 					.withDescription("Whether the statebackend is on heap.");
+
+	// ------------------------------------------------------------------------
+	//  State Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_EXEC_STATE_TTL_MS =
+			key("sql.exec.state.ttl.ms")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("The minimum time until state that was not updated will be retained. State" +
+							" might be cleared and removed if it was not updated for the defined period of time.");
+
+	public static final ConfigOption<Long> SQL_EXEC_STATE_TTL_MAX_MS =
+			key("sql.exec.state.ttl.max.ms")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("The maximum time until state which was not updated will be retained." +
+							"State will be cleared and removed if it was not updated for the defined " +
+							"period of time.");
 
 	// ------------------------------------------------------------------------
 	//  Other Exec Options

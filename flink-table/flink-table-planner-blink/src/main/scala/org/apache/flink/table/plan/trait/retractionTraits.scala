@@ -27,18 +27,7 @@ import org.apache.calcite.rel.RelNode
   * Tracks if a [[RelNode]] needs to send update and delete changes as
   * retraction messages.
   */
-class UpdateAsRetractionTrait extends RelTrait {
-
-  /**
-    * Defines whether the [[RelNode]] needs to send update and delete
-    * changes as retraction messages.
-    */
-  private var updateAsRetraction: Boolean = false
-
-  def this(updateAsRetraction: Boolean) {
-    this()
-    this.updateAsRetraction = updateAsRetraction
-  }
+class UpdateAsRetractionTrait(updateAsRetraction: Boolean) extends RelTrait {
 
   def sendsUpdatesAsRetractions: Boolean = updateAsRetraction
 
@@ -53,21 +42,17 @@ class UpdateAsRetractionTrait extends RelTrait {
 }
 
 object UpdateAsRetractionTrait {
+  def apply(updateAsRetraction: Boolean): UpdateAsRetractionTrait = {
+    new UpdateAsRetractionTrait(updateAsRetraction)
+  }
+
   val DEFAULT = new UpdateAsRetractionTrait(false)
 }
 
 /**
   * Tracks the AccMode of a [[RelNode]].
   */
-class AccModeTrait extends RelTrait {
-
-  /** Defines the accumulating mode for a operator. */
-  private var accMode = AccMode.Acc
-
-  def this(accMode: AccMode) {
-    this()
-    this.accMode = accMode
-  }
+class AccModeTrait(accMode: AccMode) extends RelTrait {
 
   def getAccMode: AccMode = accMode
 
@@ -81,7 +66,9 @@ class AccModeTrait extends RelTrait {
 }
 
 object AccModeTrait {
-  val DEFAULT = new AccModeTrait(AccMode.Acc)
+  def apply(accMode: AccMode): AccModeTrait = new AccModeTrait(accMode)
+
+  val UNKNOWN = new AccModeTrait(AccMode.UNKNOWN)
 }
 
 /**
@@ -90,6 +77,11 @@ object AccModeTrait {
   */
 object AccMode extends Enumeration {
   type AccMode = Value
+
+  /**
+    * unknown acc mode
+    */
+  val UNKNOWN = Value
 
   /**
     * An operator in [[Acc]] mode emits change messages as
@@ -102,8 +94,8 @@ object AccMode extends Enumeration {
     * Changes are encoded as follows:
     * - insert: (true, NewRow)
     * - update: (true, NewRow) // the Row includes the full unique key to identify the row to update
-    * - delete: (false, OldRow) // the Row includes the full unique key to idenify the row to delete
-    *
+    * - delete: (false, OldRow) // the Row includes the full unique key to identify the row to
+    *                           // delete
     */
   val Acc = Value
 
@@ -116,7 +108,6 @@ object AccMode extends Enumeration {
     * - insert: (true, NewRow)
     * - update: (false, OldRow), (true, NewRow) // updates are encoded in two messages!
     * - delete: (false, OldRow)
-    *
     */
   val AccRetract = Value
 }
