@@ -45,7 +45,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	/**
 	 * Test LastValueAggFunction for number type.
 	 */
-	public static abstract class NumberLastValueAggFunctionWithOrderTest<T>
+	public abstract static class NumberLastValueAggFunctionWithOrderTest<T>
 			extends LastValueAggFunctionWithOrderTest<T> {
 		protected abstract T getValue(String v);
 

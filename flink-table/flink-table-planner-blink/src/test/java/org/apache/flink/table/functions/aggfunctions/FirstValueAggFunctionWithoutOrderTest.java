@@ -50,7 +50,7 @@ public abstract class FirstValueAggFunctionWithoutOrderTest<T> extends AggFuncti
 	/**
 	 * Test FirstValueAggFunction for number type.
 	 */
-	public static abstract class NumberFirstValueAggFunctionWithoutOrderTest<T>
+	public abstract static class NumberFirstValueAggFunctionWithoutOrderTest<T>
 			extends FirstValueAggFunctionWithoutOrderTest<T> {
 		protected abstract T getValue(String v);
 

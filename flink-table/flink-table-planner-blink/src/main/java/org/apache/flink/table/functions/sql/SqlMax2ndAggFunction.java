@@ -31,6 +31,9 @@ import org.apache.calcite.sql.type.ReturnTypes;
 
 import java.util.List;
 
+/**
+ * <code>MAX2ND</code> aggregate function returns the second largest of the values which go into it.
+ */
 public class SqlMax2ndAggFunction  extends SqlAggFunction {
 
 	public SqlMax2ndAggFunction() {

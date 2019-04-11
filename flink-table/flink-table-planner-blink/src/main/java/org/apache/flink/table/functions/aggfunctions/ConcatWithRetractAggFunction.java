@@ -42,7 +42,7 @@ import java.util.List;
  */
 public class ConcatWithRetractAggFunction extends AggregateFunction<BinaryString, GenericRow> {
 
-	public static final BinaryString lineDelimiter = BinaryString.fromString("\n");
+	private static final BinaryString lineDelimiter = BinaryString.fromString("\n");
 	private ListViewSerializer<BinaryString> listViewSerializer =
 			new ListViewSerializer<>(new ListSerializer<>(BinaryStringSerializer.INSTANCE));
 

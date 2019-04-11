@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.functions.sql;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
@@ -28,11 +27,12 @@ import org.apache.calcite.sql.SqlSplittableAggFunction;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.curator.shaded.com.google.common.collect.ImmutableList;
 
 import java.util.List;
 
 /**
- * INCR_SUM is an aggregator which returns the sum of the values which
+ * <code>INCR_SUM</code> is an aggregator which returns the sum of the values which
  * go into it like SUM. It differs in that the modified monotonicity of
  * INCR_SUM is INCREASING, while that of SUM should be inferred using
  * extra information.

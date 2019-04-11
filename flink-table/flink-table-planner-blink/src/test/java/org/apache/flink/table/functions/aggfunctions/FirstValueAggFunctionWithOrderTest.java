@@ -44,7 +44,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	/**
 	 * Test FirstValueAggFunction for number type.
 	 */
-	public static abstract class NumberFirstValueAggFunctionWithOrderTest<T>
+	public abstract static class NumberFirstValueAggFunctionWithOrderTest<T>
 			extends FirstValueAggFunctionWithOrderTest<T> {
 		protected abstract T getValue(String v);
 
@@ -119,7 +119,6 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 */
 	public static class ByteFirstValueAggFunctionWithOrderTest
 			extends NumberFirstValueAggFunctionWithOrderTest<Byte> {
-
 
 		@Override
 		protected Byte getValue(String v) {

@@ -50,7 +50,7 @@ public abstract class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctio
 	/**
 	 * Test LastValueAggFunction for number type.
 	 */
-	public static abstract class NumberLastValueAggFunctionWithoutOrderTest<T>
+	public abstract static class NumberLastValueAggFunctionWithoutOrderTest<T>
 			extends LastValueAggFunctionWithoutOrderTest<T> {
 		protected abstract T getValue(String v);
 

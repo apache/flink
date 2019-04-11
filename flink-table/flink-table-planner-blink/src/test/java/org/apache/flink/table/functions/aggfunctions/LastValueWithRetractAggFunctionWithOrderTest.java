@@ -52,7 +52,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test LastValueWithRetractAggFunction for number type.
 	 */
-	public static abstract class NumberLastValueWithRetractAggFunctionWithOrderTest<T>
+	public abstract static class NumberLastValueWithRetractAggFunctionWithOrderTest<T>
 			extends LastValueWithRetractAggFunctionWithOrderTest<T> {
 		protected abstract T getValue(String v);
 
@@ -127,7 +127,6 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 */
 	public static class ByteLastValueWithRetractAggFunctionWithOrderTest
 			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Byte> {
-
 
 		@Override
 		protected Byte getValue(String v) {

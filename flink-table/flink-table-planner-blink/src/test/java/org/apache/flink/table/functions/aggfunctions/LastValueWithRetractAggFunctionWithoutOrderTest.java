@@ -56,7 +56,7 @@ public abstract class LastValueWithRetractAggFunctionWithoutOrderTest<T> extends
 	/**
 	 * Test LastValueWithRetractAggFunction for number type.
 	 */
-	public static abstract class NumberLastValueWithRetractAggFunctionWithoutOrderTest<T>
+	public abstract static class NumberLastValueWithRetractAggFunctionWithoutOrderTest<T>
 			extends LastValueWithRetractAggFunctionWithoutOrderTest<T> {
 		protected abstract T getValue(String v);
 
