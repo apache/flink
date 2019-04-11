@@ -184,49 +184,6 @@ esSinkBuilder.setRestClientFactory(
 input.addSink(esSinkBuilder.build());
 {% endhighlight %}
 </div>
-<div data-lang="scala, Elasticsearch 1.x" markdown="1">
-{% highlight scala %}
-import org.apache.flink.api.common.functions.RuntimeContext
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer
-
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.Requests
-import org.elasticsearch.common.transport.InetSocketTransportAddress
-import org.elasticsearch.common.transport.TransportAddress
-
-import java.net.InetAddress
-import java.util.ArrayList
-import java.util.HashMap
-import java.util.List
-import java.util.Map
-
-val input: DataStream[String] = ...
-
-val config = new java.util.HashMap[String, String]
-config.put("cluster.name", "my-cluster-name")
-// This instructs the sink to emit after every element, otherwise they would be buffered
-config.put("bulk.flush.max.actions", "1")
-
-val transportAddresses = new java.util.ArrayList[TransportAddress]
-transportAddresses.add(new InetSocketTransportAddress("127.0.0.1", 9300))
-transportAddresses.add(new InetSocketTransportAddress("10.2.3.1", 9300))
-
-input.addSink(new ElasticsearchSink(config, transportAddresses, new ElasticsearchSinkFunction[String] {
-  def createIndexRequest(element: String): IndexRequest = {
-    val json = new java.util.HashMap[String, String]
-    json.put("data", element)
-    
-    return Requests.indexRequest()
-            .index("my-index")
-            .type("my-type")
-            .source(json)
-  }
-}))
-{% endhighlight %}
-</div>
 <div data-lang="scala, Elasticsearch 2.x / 5.x" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
