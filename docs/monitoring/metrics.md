@@ -1663,7 +1663,7 @@ the markers will reflect that.
 
 The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each 
 downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can 
-be controlled in the [Flink configuration]({{ site.baseurl }}/ops/config.html#metrics-latency-interval. For the highest 
+be controlled in the [Flink configuration]({{ site.baseurl }}/ops/config.html#metrics-latency-interval). For the highest 
 granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream 
 subtask, which results in quadratic (in the terms of the parallelism) number of histograms. 
 
