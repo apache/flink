@@ -60,7 +60,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstrain
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -565,7 +565,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		CheckpointCoordinator checkpointCoordinator = eg.getCheckpointCoordinator();
 		assertNotNull(checkpointCoordinator);
-		CheckpointStorage checkpointStorage = checkpointCoordinator.getCheckpointStorage();
+		CheckpointStorageCoordinatorView checkpointStorage = checkpointCoordinator.getCheckpointStorage();
 		pendingCheckpoints.put(checkpointId, new PendingCheckpoint(
 			eg.getJobID(),
 			checkpointId,
