@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -91,7 +92,7 @@ public class FailoverRegion {
 			ExecutionJobVertex jobVertex = executionVertex.getJobVertex();
 			tasks.putIfAbsent(jobvertexId, jobVertex);
 		}
-		return tasks;
+		return Collections.unmodifiableMap(tasks);
 	}
 
 	public void onExecutionFail(Execution taskExecution, Throwable cause) {
@@ -231,16 +232,10 @@ public class FailoverRegion {
 					// we restart the checkpoint scheduler for
 					// i) enable new checkpoint could be triggered without waiting for last checkpoint expired.
 					// ii) ensure the EXACTLY_ONCE semantics if needed.
-					if (executionGraph.getCheckpointCoordinator().isPeriodicCheckpointingConfigured()) {
-						executionGraph.getCheckpointCoordinator().stopCheckpointScheduler();
-					}
+					executionGraph.getCheckpointCoordinator().cancelPendingCheckpoints();
 
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
 						tasks, false, true);
-
-					if (executionGraph.getCheckpointCoordinator().isPeriodicCheckpointingConfigured()) {
-						executionGraph.getCheckpointCoordinator().startCheckpointScheduler();
-					}
 				}
 
 				HashSet<AllocationID> previousAllocationsInRegion = new HashSet<>(connectedExecutionVertexes.size());

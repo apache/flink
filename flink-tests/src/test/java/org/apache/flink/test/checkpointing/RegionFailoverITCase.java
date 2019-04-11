@@ -23,6 +23,11 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -30,11 +35,15 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
@@ -48,14 +57,18 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for region failover with multi regions.
@@ -64,13 +77,14 @@ public class RegionFailoverITCase extends TestLogger {
 
 	private static final int FAIL_BASE = 1000;
 	private static final int NUM_OF_REGIONS = 3;
+	private static final int MAX_PARALLELISM = 2 * NUM_OF_REGIONS;
 	private static final Set<Integer> EXPECTED_INDICES = IntStream.range(0, NUM_OF_REGIONS).boxed().collect(Collectors.toSet());
 	private static final int NUM_OF_RESTARTS = 3;
 	private static final int NUM_ELEMENTS = FAIL_BASE * 10;
 
-	private static volatile long lastCompletedCheckpointId = 0;
-	private static volatile int numCompletedCheckpoints = 0;
-	private static volatile AtomicInteger jobFailedCnt = new AtomicInteger(0);
+	private static AtomicLong lastCompletedCheckpointId = new AtomicLong(0);
+	private static AtomicInteger numCompletedCheckpoints = new AtomicInteger(0);
+	private static AtomicInteger jobFailedCnt = new AtomicInteger(0);
 
 	private static Map<Long, Integer> snapshotIndicesOfSubTask = new HashMap<>();
 
@@ -93,7 +107,7 @@ public class RegionFailoverITCase extends TestLogger {
 				.setNumberSlotsPerTaskManager(2).build());
 		cluster.before();
 		jobFailedCnt.set(0);
-		numCompletedCheckpoints = 0;
+		numCompletedCheckpoints.set(0);
 	}
 
 	@AfterClass
@@ -116,7 +130,7 @@ public class RegionFailoverITCase extends TestLogger {
 			JobGraph jobGraph = createJobGraph();
 			ClusterClient<?> client = cluster.getClusterClient();
 			client.submitJob(jobGraph, RegionFailoverITCase.class.getClassLoader());
-			Assert.assertTrue("The test multi-region job has never ever restored state.", restoredState);
+			verifyAfterJobExecuted();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -124,30 +138,46 @@ public class RegionFailoverITCase extends TestLogger {
 		}
 	}
 
+	private void verifyAfterJobExecuted() {
+		Assert.assertTrue("The test multi-region job has never ever restored state.", restoredState);
+
+		for (Map<Integer, Integer> map : ValidatingSink.maps) {
+			for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+				assertEquals(Math.min(2 * entry.getKey() + 1, NUM_ELEMENTS), (int) entry.getValue());
+			}
+		}
+	}
+
 	private JobGraph createJobGraph() {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(NUM_OF_REGIONS);
+		env.setMaxParallelism(MAX_PARALLELISM);
 		env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
 		env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 		env.disableOperatorChaining();
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(NUM_OF_RESTARTS, 0L));
 		env.getConfig().disableSysoutLogging();
 
-		// there exists num of 'NUM_OF_REGIONS' individual regions.
-		env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS))
-			.setParallelism(NUM_OF_REGIONS)
+		// Use DataStreamUtils#reinterpretAsKeyed to avoid merge regions and this stream graph would exist num of 'NUM_OF_REGIONS' individual regions.
+		DataStreamUtils.reinterpretAsKeyedStream(
+			env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS))
+				.setParallelism(NUM_OF_REGIONS),
+			(KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0,
+			TypeInformation.of(Integer.class))
 			.map(new FailingMapperFunction(NUM_OF_RESTARTS))
+			.setParallelism(NUM_OF_REGIONS)
+			.addSink(new ValidatingSink())
 			.setParallelism(NUM_OF_REGIONS);
 
 		// another stream graph totally disconnected with the above one.
 		env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS)).setParallelism(1)
-			.map((MapFunction<Integer, Object>) value -> value).setParallelism(1);
+			.map((MapFunction<Tuple2<Integer, Integer>, Object>) value -> value).setParallelism(1);
 
 		return env.getStreamGraph().getJobGraph();
 	}
 
-	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<Integer>
+	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<Tuple2<Integer, Integer>>
 		implements CheckpointListener, CheckpointedFunction {
 		private static final long serialVersionUID = 1L;
 
@@ -174,27 +204,34 @@ public class RegionFailoverITCase extends TestLogger {
 		}
 
 		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
+		public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 			if (index < 0) {
 				// not been restored, so initialize
 				index = 0;
 			}
 
+			int subTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 			while (isRunning && index < numElements) {
-				//noinspection SynchronizationOnLocalVariableOrMethodParameter
+
 				synchronized (ctx.getCheckpointLock()) {
 					index += 1;
-					ctx.collect(index);
+					int key = index / 2;
+					int forwardTaskIndex = KeyGroupRangeAssignment.assignKeyToParallelOperator(key, MAX_PARALLELISM, NUM_OF_REGIONS);
+					// pre-partition output keys
+					if (forwardTaskIndex == subTaskIndex) {
+						// we would send data with the same key twice.
+						ctx.collect(Tuple2.of(key, index));
+					}
 				}
 
-				if (numCompletedCheckpoints < 3) {
+				if (numCompletedCheckpoints.get() < 3) {
 					// not yet completed enough checkpoints, so slow down
 					if (index < checkpointLatestAt) {
 						// mild slow down
 						Thread.sleep(1);
 					} else {
 						// wait until the checkpoints are completed
-						while (isRunning && numCompletedCheckpoints < 3) {
+						while (isRunning && numCompletedCheckpoints.get() < 3) {
 							Thread.sleep(300);
 						}
 					}
@@ -212,11 +249,11 @@ public class RegionFailoverITCase extends TestLogger {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		public void notifyCheckpointComplete(long checkpointId) {
 			if (getRuntimeContext().getIndexOfThisSubtask() == NUM_OF_REGIONS - 1) {
-				lastCompletedCheckpointId = checkpointId;
+				lastCompletedCheckpointId.set(checkpointId);
 				snapshotIndicesOfSubTask.put(checkpointId, lastRegionIndex);
-				numCompletedCheckpoints++;
+				numCompletedCheckpoints.incrementAndGet();
 			}
 		}
 
@@ -255,9 +292,9 @@ public class RegionFailoverITCase extends TestLogger {
 
 					if (indexOfThisSubtask == NUM_OF_REGIONS - 1) {
 						index = listState.get().iterator().next();
-						if (index != snapshotIndicesOfSubTask.get(lastCompletedCheckpointId)) {
+						if (index != snapshotIndicesOfSubTask.get(lastCompletedCheckpointId.get())) {
 							throw new RuntimeException("Test failed due to unexpected recovered index: " + index +
-								", while last completed checkpoint record index: " + snapshotIndicesOfSubTask.get(lastCompletedCheckpointId));
+								", while last completed checkpoint record index: " + snapshotIndicesOfSubTask.get(lastCompletedCheckpointId.get()));
 						}
 					}
 				}
@@ -272,18 +309,25 @@ public class RegionFailoverITCase extends TestLogger {
 		}
 	}
 
-	private static class FailingMapperFunction extends RichMapFunction<Integer, Integer> {
+	private static class FailingMapperFunction extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 		private final int restartTimes;
+		private ValueState<Integer> valueState;
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			valueState = getRuntimeContext().getState(new ValueStateDescriptor<>("value", Integer.class));
+		}
 
 		FailingMapperFunction(int restartTimes) {
 			this.restartTimes = restartTimes;
 		}
 
 		@Override
-		public Integer map(Integer input) throws Exception {
+		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> input) throws Exception {
 			int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
 
-			if (input > FAIL_BASE * (jobFailedCnt.get() + 1)) {
+			if (input.f1 > FAIL_BASE * (jobFailedCnt.get() + 1)) {
 
 				// we would let region-0 to failover first
 				if (jobFailedCnt.get() < 1 && indexOfThisSubtask == 0) {
@@ -297,7 +341,48 @@ public class RegionFailoverITCase extends TestLogger {
 					throw new TestException();
 				}
 			}
-			return input;
+
+			Integer value = valueState.value();
+			if (value == null) {
+				valueState.update(input.f1);
+				return input;
+			} else {
+				int newValue = Math.max(value, input.f1);
+				valueState.update(newValue);
+				return Tuple2.of(input.f0, newValue);
+			}
+		}
+	}
+
+	private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>>
+		implements ListCheckpointed<HashMap<Integer, Integer>> {
+
+		@SuppressWarnings("unchecked")
+		private static Map<Integer, Integer>[] maps = (Map<Integer, Integer>[]) new Map<?, ?>[NUM_OF_REGIONS];
+
+		private HashMap<Integer, Integer> counts = new HashMap<>();
+
+		@Override
+		public void invoke(Tuple2<Integer, Integer> input) {
+			counts.merge(input.f0, input.f1, Math::max);
+		}
+
+		@Override
+		public void close() throws Exception {
+			maps[getRuntimeContext().getIndexOfThisSubtask()] = counts;
+		}
+
+		@Override
+		public List<HashMap<Integer, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counts);
+		}
+
+		@Override
+		public void restoreState(List<HashMap<Integer, Integer>> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.counts.putAll(state.get(0));
 		}
 	}
 
