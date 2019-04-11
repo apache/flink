@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
@@ -45,9 +46,15 @@ class FlinkLogicalAggregate(
     indicator: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
-    aggCalls: util.List[AggregateCall])
+    aggCalls: util.List[AggregateCall],
+    /* flag indicating whether to skip SplitAggregateRule */
+    var partialFinalType: PartialFinalType = PartialFinalType.NONE)
   extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls)
   with FlinkLogicalRel {
+
+  def setPartialFinalType(partialFinalType: PartialFinalType): Unit = {
+    this.partialFinalType = partialFinalType
+  }
 
   override def copy(
       traitSet: RelTraitSet,
@@ -57,7 +64,7 @@ class FlinkLogicalAggregate(
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): Aggregate = {
     new FlinkLogicalAggregate(
-      cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls)
+      cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls, partialFinalType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {

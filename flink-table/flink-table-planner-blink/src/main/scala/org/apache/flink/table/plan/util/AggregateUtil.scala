@@ -25,7 +25,7 @@ import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.functions.sql.AggSqlFunctions
+import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -59,16 +59,16 @@ object AggregateUtil extends Enumeration {
     val aggCalls = agg.getAggCallList
     aggCalls.zipWithIndex.foreach {
       case (call, idx) =>
-        if (call.getAggregation == AggSqlFunctions.AUXILIARY_GROUP) {
+        if (call.getAggregation == FlinkSqlOperatorTable.AUXILIARY_GROUP) {
           require(call.getArgList.size == 1)
         }
         if (nonAuxGroupCallsStartIdx >= 0) {
           // the left aggCalls should not be AUXILIARY_GROUP
-          require(call.getAggregation != AggSqlFunctions.AUXILIARY_GROUP,
+          require(call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP,
             "AUXILIARY_GROUP should be in the front of aggCall list")
         }
         if (nonAuxGroupCallsStartIdx < 0 &&
-          call.getAggregation != AggSqlFunctions.AUXILIARY_GROUP) {
+          call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP) {
           nonAuxGroupCallsStartIdx = idx
         }
     }
@@ -445,7 +445,6 @@ object AggregateUtil extends Enumeration {
     * Return true if all aggregates can be split. False otherwise.
     */
   def doAllAggSupportSplit(aggCalls: util.List[AggregateCall]): Boolean = {
-    // TODO supports SqlConcatAggFunction
     aggCalls.forall { aggCall =>
       aggCall.getAggregation match {
         case _: SqlCountAggFunction |
@@ -453,7 +452,8 @@ object AggregateUtil extends Enumeration {
              _: SqlMinMaxAggFunction |
              _: SqlSumAggFunction |
              _: SqlSumEmptyIsZeroAggFunction |
-             _: SqlSingleValueAggFunction => true
+             _: SqlSingleValueAggFunction |
+             _: SqlConcatAggFunction => true
         case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
         case _ => false
       }

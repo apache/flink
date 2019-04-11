@@ -349,8 +349,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after LAST_VALUE added
+  @Test
   def testTopNWithKeyChanged(): Unit = {
     val subquery =
       """
@@ -577,8 +576,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after INCR_SUM added
+  @Test
   def testTopNOrderByIncrSum(): Unit = {
     val subquery =
       """
@@ -661,8 +659,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after INCR_SUM added
+  @Test
   def testTopNWithoutRowNumber2(): Unit = {
     util.addTableSource[(String, String, String, String, Long, String, Long, String)](
       "stream_source",
