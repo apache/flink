@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -65,11 +66,20 @@ public final class ReporterSetup {
 		this.reporter = reporter;
 	}
 
+	public Optional<String> getDelimiter() {
+		return Optional.ofNullable(configuration.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, null));
+	}
+
+	public Optional<String> getIntervalSettings() {
+		return Optional.ofNullable(configuration.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null));
+	}
+
 	public String getName() {
 		return name;
 	}
 
-	public MetricConfig getConfiguration() {
+	@VisibleForTesting
+	MetricConfig getConfiguration() {
 		return configuration;
 	}
 

@@ -20,9 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -50,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -116,16 +115,15 @@ public class MetricRegistryImpl implements MetricRegistry {
 		} else {
 			for (ReporterSetup reporterSetup : reporterConfigurations) {
 				final String namedReporter = reporterSetup.getName();
-				final MetricConfig metricConfig = reporterSetup.getConfiguration();
 
 				try {
-					String configuredPeriod = metricConfig.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null);
+					Optional<String> configuredPeriod = reporterSetup.getIntervalSettings();
 					TimeUnit timeunit = TimeUnit.SECONDS;
 					long period = 10;
 
-					if (configuredPeriod != null) {
+					if (configuredPeriod.isPresent()) {
 						try {
-							String[] interval = configuredPeriod.split(" ");
+							String[] interval = configuredPeriod.get().split(" ");
 							period = Long.parseLong(interval[0]);
 							timeunit = TimeUnit.valueOf(interval[1]);
 						}
@@ -149,7 +147,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 					}
 					reporters.add(reporterInstance);
 
-					String delimiterForReporter = metricConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, String.valueOf(globalDelimiter));
+					String delimiterForReporter = reporterSetup.getDelimiter().orElse(String.valueOf(globalDelimiter));
 					if (delimiterForReporter.length() != 1) {
 						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
 						delimiterForReporter = String.valueOf(globalDelimiter);
