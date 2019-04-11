@@ -293,13 +293,6 @@ public class NetworkEnvironmentConfiguration {
 				TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
 			"Network buffer memory size too large: " + networkBufBytes + " >= " +
 				maxJvmHeapMemory + " (maximum JVM memory size)");
-		ConfigurationParserUtils.checkConfigParameter(networkBufBytes >= pageSize,
-			"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
-			"(" + TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
-				TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
-				TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
-			"Network buffer memory size too small: " + networkBufBytes + " < " +
-				pageSize + " (" + TaskManagerOptions.MEMORY_SEGMENT_SIZE.key() + ")");
 
 		return networkBufBytes;
 	}
