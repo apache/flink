@@ -86,14 +86,6 @@ public interface ReadableCatalog {
 	 * @return A list of the names of all tables and views in this database
 	 * @throws DatabaseNotExistException if the database does not exist
 	 */
-	List<String> listAllTables(String databaseName) throws DatabaseNotExistException;
-
-	/**
-	 * Get names of all tables (excluding views) under this database. An empty list is returned if none exists.
-	 *
-	 * @return A list of the names of all tables (excluding views) in this database
-	 * @throws DatabaseNotExistException if the database does not exist
-	 */
 	List<String> listTables(String databaseName) throws DatabaseNotExistException;
 
 	/**

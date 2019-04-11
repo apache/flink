@@ -35,7 +35,7 @@ public class GenericCatalogTable implements CatalogTable {
 	// Properties of the table
 	private final Map<String, String> properties;
 	// Statistics of the table
-	private TableStats tableStats = null;
+	private final TableStats tableStats;
 	// Comment of the table
 	private String comment = "This is a generic catalog table.";
 

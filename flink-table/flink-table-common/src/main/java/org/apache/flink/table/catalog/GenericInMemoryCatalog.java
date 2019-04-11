@@ -226,19 +226,6 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public List<String> listAllTables(String databaseName) throws DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
-
-		if (!databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		}
-
-		return tables.keySet().stream()
-			.filter(k -> k.getDatabaseName().equals(databaseName)).map(k -> k.getObjectName())
-			.collect(Collectors.toList());
-	}
-
-	@Override
 	public List<String> listTables(String databaseName) throws DatabaseNotExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
@@ -247,8 +234,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		}
 
 		return tables.keySet().stream()
-			.filter(k -> k.getDatabaseName().equals(databaseName))
-			.filter(k -> (tables.get(k) instanceof CatalogTable)).map(k -> k.getObjectName())
+			.filter(k -> k.getDatabaseName().equals(databaseName)).map(k -> k.getObjectName())
 			.collect(Collectors.toList());
 	}
 

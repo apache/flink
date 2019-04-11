@@ -117,7 +117,7 @@ public class GenericInMemoryCatalogTest {
 
 		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
 
-		List<String> tables = catalog.listAllTables(db1);
+		List<String> tables = catalog.listTables(db1);
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
@@ -196,8 +196,7 @@ public class GenericInMemoryCatalogTest {
 		catalog.createTable(path3, createTable(), false);
 		catalog.createTable(path4, createView(), false);
 
-		assertEquals(3, catalog.listAllTables(db1).size());
-		assertEquals(2, catalog.listTables(db1).size());
+		assertEquals(3, catalog.listTables(db1).size());
 		assertEquals(1, catalog.listViews(db1).size());
 
 		catalog.dropTable(path1, false);
@@ -402,14 +401,14 @@ public class GenericInMemoryCatalogTest {
 	public void testListView() {
 		catalog.createDatabase(db1, createDb(), false);
 
-		assertTrue(catalog.listAllTables(db1).isEmpty());
+		assertTrue(catalog.listTables(db1).isEmpty());
 
 		catalog.createTable(path1, createView(), false);
 		catalog.createTable(path3, createTable(), false);
 
-		assertEquals(2, catalog.listAllTables(db1).size());
+		assertEquals(2, catalog.listTables(db1).size());
 		assertEquals(new HashSet<>(Arrays.asList(path1.getObjectName(), path3.getObjectName())),
-			new HashSet<>(catalog.listAllTables(db1)));
+			new HashSet<>(catalog.listTables(db1)));
 		assertEquals(Arrays.asList(path1.getObjectName()), catalog.listViews(db1));
 	}
 
