@@ -87,17 +87,15 @@ public class ReporterSetupTest extends TestLogger {
 			.filter(c -> "reporter1".equals(c.getName()))
 			.findFirst();
 
-		reporter1Config.ifPresentOrElse(
-			ReporterSetupTest::assertReporter1Configured,
-			Assert::fail);
+		Assert.assertTrue(reporter1Config.isPresent());
+		assertReporter1Configured(reporter1Config.get());
 
 		final Optional<ReporterSetup> reporter2Config = reporterSetups.stream()
 			.filter(c -> "reporter2".equals(c.getName()))
 			.findFirst();
 
-		reporter2Config.ifPresentOrElse(
-			ReporterSetupTest::assertReporter2Configured,
-			Assert::fail);
+		Assert.assertTrue(reporter2Config.isPresent());
+		assertReporter2Configured(reporter2Config.get());
 	}
 
 	/**
