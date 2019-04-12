@@ -634,6 +634,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					getExecutionGraph().vertexUnFinished();
 				}
 
+				// reset the intermediate results
+				for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
+					resultPartition.resetForNewExecution();
+				}
+
 				return newExecution;
 			}
 			else {

@@ -600,11 +600,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			catch (Throwable t) {
 				throw new RuntimeException("Re-creating the input split assigner failed: " + t.getMessage(), t);
 			}
-
-			// Reset intermediate results
-			for (IntermediateResult result : producedDataSets) {
-				result.resetForNewExecution();
-			}
 		}
 	}
 
