@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
@@ -30,8 +29,6 @@ import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrat
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -39,8 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -53,7 +49,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilFailoverRegionState;
 import static org.junit.Assert.assertEquals;
@@ -79,7 +74,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev).getState());
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
-			evs.getCurrentExecutionAttempt().cancelingComplete();
+			evs.getCurrentExecutionAttempt().completeCancelling();
 		}
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev).getState());
 	}
@@ -138,6 +133,7 @@ public class FailoverRegionTest extends TestLogger {
 			slotProvider);
 
 		eg.attachJobGraph(ordered);
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
 
@@ -164,7 +160,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
 
-		ev11.getCurrentExecutionAttempt().cancelingComplete();
+		ev11.getCurrentExecutionAttempt().completeCancelling();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
@@ -185,7 +181,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev31).getState());
 
-		ev32.getCurrentExecutionAttempt().cancelingComplete();
+		ev32.getCurrentExecutionAttempt().completeCancelling();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
@@ -205,7 +201,7 @@ public class FailoverRegionTest extends TestLogger {
 		ev.fail(new Exception("Test Exception"));
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
-			evs.getCurrentExecutionAttempt().cancelingComplete();
+			evs.getCurrentExecutionAttempt().completeCancelling();
 		}
 		assertEquals(JobStatus.FAILED, eg.getState());
 	}
@@ -216,16 +212,10 @@ public class FailoverRegionTest extends TestLogger {
 	 */
 	@Test
 	public void testMultiRegionFailoverAtSameTime() throws Exception {
-		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new ActorTaskManagerGateway(
-						new SimpleActorGateway(TestingUtils.directExecutionContext())),
-				16);
-
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
-		scheduler.newInstanceAvailable(instance);
-
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jobId, 16);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -257,7 +247,7 @@ public class FailoverRegionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new RestartPipelinedRegionStrategy.Factory(),
-				scheduler);
+				slotProvider);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -265,6 +255,7 @@ public class FailoverRegionTest extends TestLogger {
 			e.printStackTrace();
 			fail("Job failed with exception: " + e.getMessage());
 		}
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
 
@@ -280,10 +271,10 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev31).getState());
 
-		ev32.getCurrentExecutionAttempt().cancelingComplete();
+		ev32.getCurrentExecutionAttempt().completeCancelling();
 		waitUntilFailoverRegionState(strategy.getFailoverRegion(ev31), JobStatus.RUNNING, 1000);
 
-		ev12.getCurrentExecutionAttempt().cancelingComplete();
+		ev12.getCurrentExecutionAttempt().completeCancelling();
 		waitUntilFailoverRegionState(strategy.getFailoverRegion(ev11), JobStatus.RUNNING, 1000);
 	}
 
@@ -296,16 +287,10 @@ public class FailoverRegionTest extends TestLogger {
 	@Ignore
 	@Test
 	public void testSucceedingNoticePreceding() throws Exception {
-		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new ActorTaskManagerGateway(
-						new SimpleActorGateway(TestingUtils.directExecutionContext())),
-				14);
-
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
-		scheduler.newInstanceAvailable(instance);
-
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jobId, 14);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -329,7 +314,7 @@ public class FailoverRegionTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new InfiniteDelayRestartStrategy(10),
 			new FailoverPipelinedRegionWithDirectExecutor(),
-			scheduler);
+			slotProvider);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -391,7 +376,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev1).getState());
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
-			evs.getCurrentExecutionAttempt().cancelingComplete();
+			evs.getCurrentExecutionAttempt().completeCancelling();
 		}
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev1).getState());
 
@@ -400,16 +385,10 @@ public class FailoverRegionTest extends TestLogger {
 	}
 
 	private static ExecutionGraph createSingleRegionExecutionGraph(RestartStrategy restartStrategy) throws Exception {
-		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new ActorTaskManagerGateway(
-						new SimpleActorGateway(TestingUtils.directExecutionContext())),
-				14);
-
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
-		scheduler.newInstanceAvailable(instance);
-
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jobId, 14);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -438,7 +417,7 @@ public class FailoverRegionTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			restartStrategy,
 			new FailoverPipelinedRegionWithDirectExecutor(),
-			scheduler);
+			slotProvider);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -446,7 +425,7 @@ public class FailoverRegionTest extends TestLogger {
 			e.printStackTrace();
 			fail("Job failed with exception: " + e.getMessage());
 		}
-
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		return eg;
 	}
@@ -461,7 +440,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		@Override
 		public FailoverStrategy create(ExecutionGraph executionGraph) {
-			return new RestartPipelinedRegionStrategy(executionGraph, Executors.directExecutor());
+			return new RestartPipelinedRegionStrategy(executionGraph);
 		}
 	}
 

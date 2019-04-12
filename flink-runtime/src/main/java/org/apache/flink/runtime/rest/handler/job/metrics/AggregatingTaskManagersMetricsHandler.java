@@ -51,7 +51,7 @@ public class AggregatingTaskManagersMetricsHandler extends AbstractAggregatingMe
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout, Map<String, String> responseHeaders,
 			Executor executor,
-			MetricFetcher<?> fetcher) {
+			MetricFetcher fetcher) {
 		super(leaderRetriever, timeout, responseHeaders, AggregatedTaskManagerMetricsHeaders.getInstance(), executor, fetcher);
 	}
 

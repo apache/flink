@@ -39,7 +39,7 @@ import java.util.Map;
  *     <li>Active - The slot is in active use by a job manager which is the leader of the allocating job.</li>
  * </ul>
  *
- * <p>A task slot can only be allocated if it is in state free. An allocated task slot can transition
+ * <p>A task slot can only be allocated if it is in state free. An allocated task slot can transit
  * to state active.
  *
  * <p>An active slot allows to add tasks from the respective job and with the correct allocation id.
@@ -261,7 +261,7 @@ public class TaskSlot {
 	}
 
 	/**
-	 * Mark the slot as free. A slot can only marked as free if it's empty.
+	 * Mark the slot as free. A slot can only be marked as free if it's empty.
 	 *
 	 * @return True if the new state is free; otherwise false
 	 */
@@ -294,7 +294,7 @@ public class TaskSlot {
 	 */
 	public SlotOffer generateSlotOffer() {
 		Preconditions.checkState(TaskSlotState.ACTIVE == state || TaskSlotState.ALLOCATED == state,
-				"The task slot is not in state active or allocated.");
+			"The task slot is not in state active or allocated.");
 		Preconditions.checkState(allocationId != null, "The task slot are not allocated");
 
 		return new SlotOffer(allocationId, index, resourceProfile);

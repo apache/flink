@@ -39,8 +39,7 @@ import java.util.concurrent.ScheduledFuture;
  * @param <SRC> Type of the source function of this stream source operator
  */
 @Internal
-public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
-		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends AbstractUdfStreamOperator<OUT, SRC> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -155,7 +154,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 					public void onProcessingTime(long timestamp) throws Exception {
 						try {
 							// ProcessingTimeService callbacks are executed under the checkpointing lock
-							output.emitLatencyMarker(new LatencyMarker(timestamp, operatorId, subtaskIndex));
+							output.emitLatencyMarker(new LatencyMarker(processingTimeService.getCurrentProcessingTime(), operatorId, subtaskIndex));
 						} catch (Throwable t) {
 							// we catch the Throwables here so that we don't trigger the processing
 							// timer services async exception handler

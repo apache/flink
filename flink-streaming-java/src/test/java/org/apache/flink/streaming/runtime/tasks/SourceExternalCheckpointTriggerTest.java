@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.BlockingQueue;
@@ -46,8 +47,14 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class SourceExternalCheckpointTriggerTest {
 
-	private static final OneShotLatch ready = new OneShotLatch();
-	private static final MultiShotLatch sync = new MultiShotLatch();
+	private static OneShotLatch ready = new OneShotLatch();
+	private static MultiShotLatch sync = new MultiShotLatch();
+
+	@Before
+	public void resetLatches() {
+		ready = new OneShotLatch();
+		sync = new MultiShotLatch();
+	}
 
 	@Test
 	@SuppressWarnings("unchecked")

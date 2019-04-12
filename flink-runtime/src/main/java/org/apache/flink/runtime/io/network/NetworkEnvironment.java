@@ -19,23 +19,17 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateClientProxy;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateServer;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -48,7 +42,7 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Network I/O components of each {@link TaskManager} instance. The network environment contains
+ * Network I/O components of each {@link TaskExecutor} instance. The network environment contains
  * the data structures that keep track of all intermediate results and all data exchanges.
  */
 public class NetworkEnvironment {
@@ -57,97 +51,35 @@ public class NetworkEnvironment {
 
 	private final Object lock = new Object();
 
+	private final NetworkEnvironmentConfiguration config;
+
 	private final NetworkBufferPool networkBufferPool;
 
 	private final ConnectionManager connectionManager;
 
 	private final ResultPartitionManager resultPartitionManager;
 
-	private final TaskEventDispatcher taskEventDispatcher;
-
-	/** Server for {@link InternalKvState} requests. */
-	private KvStateServer kvStateServer;
-
-	/** Proxy for the queryable state client. */
-	private KvStateClientProxy kvStateProxy;
-
-	/** Registry for {@link InternalKvState} instances. */
-	private final KvStateRegistry kvStateRegistry;
-
-	private final IOManager.IOMode defaultIOMode;
-
-	private final int partitionRequestInitialBackoff;
-
-	private final int partitionRequestMaxBackoff;
-
-	/** Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel). */
-	private final int networkBuffersPerChannel;
-
-	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
-	private final int extraNetworkBuffersPerGate;
-
-	private final boolean enableCreditBased;
+	private final TaskEventPublisher taskEventPublisher;
 
 	private boolean isShutdown;
 
-	public NetworkEnvironment(
-		int numBuffers,
-		int memorySegmentSize,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
-		this(
-			new NetworkBufferPool(numBuffers, memorySegmentSize),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOManager.IOMode.SYNC,
-			partitionRequestInitialBackoff,
-			partitionRequestMaxBackoff,
-			networkBuffersPerChannel,
-			extraNetworkBuffersPerGate,
-			enableCreditBased);
-	}
+	public NetworkEnvironment(NetworkEnvironmentConfiguration config, TaskEventPublisher taskEventPublisher) {
+		this.config = checkNotNull(config);
 
-	public NetworkEnvironment(
-		NetworkBufferPool networkBufferPool,
-		ConnectionManager connectionManager,
-		ResultPartitionManager resultPartitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		KvStateRegistry kvStateRegistry,
-		KvStateServer kvStateServer,
-		KvStateClientProxy kvStateClientProxy,
-		IOMode defaultIOMode,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
+		this.networkBufferPool = new NetworkBufferPool(config.numNetworkBuffers(), config.networkBufferSize());
 
-		this.networkBufferPool = checkNotNull(networkBufferPool);
-		this.connectionManager = checkNotNull(connectionManager);
-		this.resultPartitionManager = checkNotNull(resultPartitionManager);
-		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
-		this.kvStateRegistry = checkNotNull(kvStateRegistry);
+		NettyConfig nettyConfig = config.nettyConfig();
+		if (nettyConfig != null) {
+			this.connectionManager = new NettyConnectionManager(nettyConfig, config.isCreditBased());
+		} else {
+			this.connectionManager = new LocalConnectionManager();
+		}
 
-		this.kvStateServer = kvStateServer;
-		this.kvStateProxy = kvStateClientProxy;
+		this.resultPartitionManager = new ResultPartitionManager();
 
-		this.defaultIOMode = defaultIOMode;
-
-		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
-		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
+		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 
 		isShutdown = false;
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
-		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
-
-		this.enableCreditBased = enableCreditBased;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -158,10 +90,6 @@ public class NetworkEnvironment {
 		return resultPartitionManager;
 	}
 
-	public TaskEventDispatcher getTaskEventDispatcher() {
-		return taskEventDispatcher;
-	}
-
 	public ConnectionManager getConnectionManager() {
 		return connectionManager;
 	}
@@ -170,36 +98,8 @@ public class NetworkEnvironment {
 		return networkBufferPool;
 	}
 
-	public IOMode getDefaultIOMode() {
-		return defaultIOMode;
-	}
-
-	public int getPartitionRequestInitialBackoff() {
-		return partitionRequestInitialBackoff;
-	}
-
-	public int getPartitionRequestMaxBackoff() {
-		return partitionRequestMaxBackoff;
-	}
-
-	public boolean isCreditBased() {
-		return enableCreditBased;
-	}
-
-	public KvStateRegistry getKvStateRegistry() {
-		return kvStateRegistry;
-	}
-
-	public KvStateServer getKvStateServer() {
-		return kvStateServer;
-	}
-
-	public KvStateClientProxy getKvStateProxy() {
-		return kvStateProxy;
-	}
-
-	public TaskKvStateRegistry createKvStateTaskRegistry(JobID jobId, JobVertexID jobVertexId) {
-		return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+	public NetworkEnvironmentConfiguration getConfiguration() {
+		return config;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -232,8 +132,8 @@ public class NetworkEnvironment {
 
 		try {
 			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-				partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+				partition.getNumberOfSubpartitions() * config.networkBuffersPerChannel() +
+					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 			// If the partition type is back pressure-free, we register with the buffer pool for
 			// callbacks to release memory.
 			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
@@ -254,8 +154,6 @@ public class NetworkEnvironment {
 				throw new IOException(t.getMessage(), t);
 			}
 		}
-
-		taskEventDispatcher.registerPartition(partition.getPartitionId());
 	}
 
 	@VisibleForTesting
@@ -263,17 +161,17 @@ public class NetworkEnvironment {
 		BufferPool bufferPool = null;
 		int maxNumberOfMemorySegments;
 		try {
-			if (enableCreditBased) {
+			if (config.isCreditBased()) {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 
 				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+				gate.assignExclusiveSegments(networkBufferPool, config.networkBuffersPerChannel());
 				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
 			} else {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					gate.getNumberOfInputChannels() * networkBuffersPerChannel +
-						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					gate.getNumberOfInputChannels() * config.networkBuffersPerChannel() +
+						config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 
 				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
 					maxNumberOfMemorySegments);
@@ -305,8 +203,7 @@ public class NetworkEnvironment {
 			}
 
 			for (ResultPartition partition : task.getProducedPartitions()) {
-				taskEventDispatcher.unregisterPartition(partition.getPartitionId());
-				partition.destroyBufferPool();
+				partition.close();
 			}
 
 			final SingleInputGate[] inputGates = task.getAllInputGates();
@@ -315,7 +212,7 @@ public class NetworkEnvironment {
 				for (SingleInputGate gate : inputGates) {
 					try {
 						if (gate != null) {
-							gate.releaseAllResources();
+							gate.close();
 						}
 					}
 					catch (IOException e) {
@@ -334,29 +231,9 @@ public class NetworkEnvironment {
 
 			try {
 				LOG.debug("Starting network connection manager");
-				connectionManager.start(resultPartitionManager, taskEventDispatcher);
+				connectionManager.start(resultPartitionManager, taskEventPublisher);
 			} catch (IOException t) {
 				throw new IOException("Failed to instantiate network connection manager.", t);
-			}
-
-			if (kvStateServer != null) {
-				try {
-					kvStateServer.start();
-				} catch (Throwable ie) {
-					kvStateServer.shutdown();
-					kvStateServer = null;
-					LOG.error("Failed to start the Queryable State Data Server.", ie);
-				}
-			}
-
-			if (kvStateProxy != null) {
-				try {
-					kvStateProxy.start();
-				} catch (Throwable ie) {
-					kvStateProxy.shutdown();
-					kvStateProxy = null;
-					LOG.error("Failed to start the Queryable State Client Proxy.", ie);
-				}
 			}
 		}
 	}
@@ -371,24 +248,6 @@ public class NetworkEnvironment {
 			}
 
 			LOG.info("Shutting down the network environment and its components.");
-
-			if (kvStateProxy != null) {
-				try {
-					LOG.debug("Shutting down Queryable State Client Proxy.");
-					kvStateProxy.shutdown();
-				} catch (Throwable t) {
-					LOG.warn("Cannot shut down Queryable State Client Proxy.", t);
-				}
-			}
-
-			if (kvStateServer != null) {
-				try {
-					LOG.debug("Shutting down Queryable State Data Server.");
-					kvStateServer.shutdown();
-				} catch (Throwable t) {
-					LOG.warn("Cannot shut down Queryable State Data Server.", t);
-				}
-			}
 
 			// terminate all network connections
 			try {
@@ -407,8 +266,6 @@ public class NetworkEnvironment {
 			catch (Throwable t) {
 				LOG.warn("Cannot shut down the result partition manager.", t);
 			}
-
-			taskEventDispatcher.clearAll();
 
 			// make sure that the global buffer pool re-acquires all buffers
 			networkBufferPool.destroyAllBufferPools();

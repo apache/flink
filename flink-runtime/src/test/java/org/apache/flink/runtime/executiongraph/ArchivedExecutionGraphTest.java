@@ -36,12 +36,12 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.OptionalFailure;
@@ -67,6 +67,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the {@link ArchivedExecutionGraph}.
+ */
 public class ArchivedExecutionGraphTest extends TestLogger {
 
 	private static ExecutionGraph runtimeGraph;
@@ -110,12 +113,14 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new NoRestartStrategy(),
 			mock(SlotProvider.class));
 
+		runtimeGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		runtimeGraph.attachJobGraph(vertices);
 
 		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
 		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
 		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
-		
+
 		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
 				0,
 				jobVertices,
@@ -174,7 +179,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.CANCELED), archivedGraph.getStatusTimestamp(JobStatus.CANCELED));
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.FINISHED), archivedGraph.getStatusTimestamp(JobStatus.FINISHED));
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.RESTARTING), archivedGraph.getStatusTimestamp(JobStatus.RESTARTING));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.SUSPENDING), archivedGraph.getStatusTimestamp(JobStatus.SUSPENDING));
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.SUSPENDED), archivedGraph.getStatusTimestamp(JobStatus.SUSPENDED));
 		assertEquals(runtimeGraph.isStoppable(), archivedGraph.isStoppable());
 

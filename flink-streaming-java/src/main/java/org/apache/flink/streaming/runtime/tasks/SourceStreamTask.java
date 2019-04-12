@@ -32,7 +32,7 @@ import org.apache.flink.util.FlinkException;
  *
  * <p>One important aspect of this is that the checkpointing and the emission of elements must never
  * occur at the same time. The execution must be serial. This is achieved by having the contract
- * with the StreamFunction that it must only modify its state or emit elements in
+ * with the {@link SourceFunction} that it must only modify its state or emit elements in
  * a synchronized block that locks on the lock Object. Also, the modification of the state
  * and the emission of elements must happen in the same block of code that is protected by the
  * synchronized block.
@@ -53,10 +53,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void init() {
-		// does not hold any resources, so no initialization needed
-
 		// we check if the source is actually inducing the checkpoints, rather
-		// than the trigger ch
+		// than the trigger
 		SourceFunction<?> source = headOperator.getUserFunction();
 		if (source instanceof ExternallyInducedSource) {
 			externallyInducedCheckpoints = true;

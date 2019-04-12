@@ -23,7 +23,6 @@ import java.io.{BufferedReader, File, FileOutputStream}
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.util.AbstractID
 
@@ -100,8 +99,8 @@ class FlinkILoop(
     ) = {
     val scalaBenv = new ExecutionEnvironment(remoteBenv)
     val scalaSenv = new StreamExecutionEnvironment(remoteSenv)
-    val scalaBTEnv = TableEnvironment.getTableEnvironment(scalaBenv)
-    val scalaSTEnv = TableEnvironment.getTableEnvironment(scalaSenv)
+    val scalaBTEnv = BatchTableEnvironment.create(scalaBenv)
+    val scalaSTEnv = StreamTableEnvironment.create(scalaSenv)
     (scalaBenv,scalaSenv,scalaBTEnv,scalaSTEnv)
   }
 

@@ -18,19 +18,12 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
@@ -39,53 +32,96 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-import scala.concurrent.duration.FiniteDuration;
-
-import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.AllVerticesRunning;
-import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ExecutionGraphFound;
-import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
-import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
+import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Simple back pressured task test.
+ *
+ * @see BackPressureStatsTrackerImpl
  */
 public class BackPressureStatsTrackerImplITCase extends TestLogger {
 
-	private static NetworkBufferPool networkBufferPool;
-	private static ActorSystem testActorSystem;
+	private static final long TIMEOUT_SECONDS = 10;
+
+	private static final Duration TIMEOUT = Duration.ofSeconds(TIMEOUT_SECONDS);
+
+	private static final int BACKPRESSURE_NUM_SAMPLES = 2;
+
+	private static final int JOB_PARALLELISM = 4;
+
+	private static final JobID TEST_JOB_ID = new JobID();
+
+	private static final JobVertex TEST_JOB_VERTEX = new JobVertex("Task");
+
+	private NetworkBufferPool networkBufferPool;
 
 	/** Shared as static variable with the test task. */
 	private static BufferPool testBufferPool;
 
-	@BeforeClass
-	public static void setup() {
-		testActorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
+	private TestingMiniCluster testingMiniCluster;
+
+	private DispatcherGateway dispatcherGateway;
+
+	@Before
+	public void setUp() throws Exception {
 		networkBufferPool = new NetworkBufferPool(100, 8192);
+		testBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
+
+		final Configuration configuration = new Configuration();
+		configuration.setInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES, BACKPRESSURE_NUM_SAMPLES);
+
+		testingMiniCluster = new TestingMiniCluster(new TestingMiniClusterConfiguration.Builder()
+			.setNumTaskManagers(JOB_PARALLELISM)
+			.setConfiguration(configuration)
+			.build());
+		testingMiniCluster.start();
+
+		dispatcherGateway = testingMiniCluster.getDispatcherGatewayFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 	}
 
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(testActorSystem);
-		networkBufferPool.destroyAllBufferPools();
-		networkBufferPool.destroy();
+	@After
+	public void tearDown() throws Exception {
+		if (testingMiniCluster != null) {
+			testingMiniCluster.close();
+		}
+
+		if (testBufferPool != null) {
+			testBufferPool.lazyDestroy();
+		}
+
+		if (networkBufferPool != null) {
+			networkBufferPool.destroyAllBufferPools();
+			networkBufferPool.destroy();
+		}
+
 	}
 
 	/**
@@ -93,221 +129,101 @@ public class BackPressureStatsTrackerImplITCase extends TestLogger {
 	 * sampled stack traces are in blocking buffer requests.
 	 */
 	@Test
-	public void testBackPressuredProducer() throws Exception {
-		new JavaTestKit(testActorSystem) {{
-			final FiniteDuration deadline = new FiniteDuration(60, TimeUnit.SECONDS);
+	public void testBackPressureShouldBeReflectedInStats() throws Exception {
+		final List<Buffer> buffers = requestAllBuffers();
+		try {
+			final JobGraph jobGraph = createJobWithBackPressure();
+			testingMiniCluster.submitJob(jobGraph).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-			// The JobGraph
-			final JobGraph jobGraph = new JobGraph();
-			final int parallelism = 4;
+			final OperatorBackPressureStats stats = getBackPressureStatsForTestVertex();
 
-			final JobVertex task = new JobVertex("Task");
-			task.setInvokableClass(BackPressuredTask.class);
-			task.setParallelism(parallelism);
-
-			jobGraph.addVertex(task);
-
-			final Configuration config = new Configuration();
-
-			final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-				config,
-				TestingUtils.defaultExecutor());
-
-			ActorGateway jobManger = null;
-			ActorGateway taskManager = null;
-
-			//
-			// 1) Consume all buffers at first (no buffers for the test task)
-			//
-			testBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
-			final List<Buffer> buffers = new ArrayList<>();
-			while (true) {
-				Buffer buffer = testBufferPool.requestBuffer();
-				if (buffer != null) {
-					buffers.add(buffer);
-				} else {
-					break;
-				}
-			}
-
-			try {
-				jobManger = TestingUtils.createJobManager(
-					testActorSystem,
-					TestingUtils.defaultExecutor(),
-					TestingUtils.defaultExecutor(),
-					config,
-					highAvailabilityServices);
-
-				config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism);
-
-				taskManager = TestingUtils.createTaskManager(
-					testActorSystem,
-					highAvailabilityServices,
-					config,
-					true,
-					true);
-
-				final ActorGateway jm = jobManger;
-
-				new Within(deadline) {
-					@Override
-					protected void run() {
-						try {
-							ActorGateway testActor = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
-
-							// Submit the job and wait until it is running
-							JobClient.submitJobDetached(
-									new AkkaJobManagerGateway(jm),
-									config,
-									jobGraph,
-									Time.milliseconds(deadline.toMillis()),
-									ClassLoader.getSystemClassLoader());
-
-							jm.tell(new WaitForAllVerticesToBeRunning(jobGraph.getJobID()), testActor);
-
-							expectMsgEquals(new AllVerticesRunning(jobGraph.getJobID()));
-
-							// Get the ExecutionGraph
-							jm.tell(new RequestExecutionGraph(jobGraph.getJobID()), testActor);
-
-							ExecutionGraphFound executionGraphResponse =
-									expectMsgClass(ExecutionGraphFound.class);
-
-							ExecutionGraph executionGraph = (ExecutionGraph) executionGraphResponse.executionGraph();
-							ExecutionJobVertex vertex = executionGraph.getJobVertex(task.getID());
-
-							StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(
-									testActorSystem.dispatcher(), 60000);
-
-							// Verify back pressure (clean up interval can be ignored)
-							BackPressureStatsTrackerImpl statsTracker = new BackPressureStatsTrackerImpl(
-								coordinator,
-								100 * 1000,
-								20,
-								Integer.MAX_VALUE,
-								Time.milliseconds(10L));
-
-							int numAttempts = 10;
-
-							int nextSampleId = 0;
-
-							// Verify that all tasks are back pressured. This
-							// can fail if the task takes longer to request
-							// the buffer.
-							for (int attempt = 0; attempt < numAttempts; attempt++) {
-								try {
-									OperatorBackPressureStats stats = triggerStatsSample(statsTracker, vertex);
-
-									Assert.assertEquals(nextSampleId + attempt, stats.getSampleId());
-									Assert.assertEquals(parallelism, stats.getNumberOfSubTasks());
-									Assert.assertEquals(1.0, stats.getMaxBackPressureRatio(), 0.0);
-
-									for (int i = 0; i < parallelism; i++) {
-										Assert.assertEquals(1.0, stats.getBackPressureRatio(i), 0.0);
-									}
-
-									nextSampleId = stats.getSampleId() + 1;
-
-									break;
-								} catch (Throwable t) {
-									if (attempt == numAttempts - 1) {
-										throw t;
-									} else {
-										Thread.sleep(500);
-									}
-								}
-							}
-
-							//
-							// 2) Release all buffers and let the tasks grab one
-							//
-							for (Buffer buf : buffers) {
-								buf.recycleBuffer();
-								Assert.assertTrue(buf.isRecycled());
-							}
-
-							// Wait for all buffers to be available. The tasks
-							// grab them and then immediately release them.
-							while (testBufferPool.getNumberOfAvailableMemorySegments() < 100) {
-								Thread.sleep(100);
-							}
-
-							// Verify that no task is back pressured any more.
-							for (int attempt = 0; attempt < numAttempts; attempt++) {
-								try {
-									OperatorBackPressureStats stats = triggerStatsSample(statsTracker, vertex);
-
-									Assert.assertEquals(nextSampleId + attempt, stats.getSampleId());
-									Assert.assertEquals(parallelism, stats.getNumberOfSubTasks());
-
-									// Verify that no task is back pressured
-									for (int i = 0; i < parallelism; i++) {
-										Assert.assertEquals(0.0, stats.getBackPressureRatio(i), 0.0);
-									}
-
-									break;
-								} catch (Throwable t) {
-									if (attempt == numAttempts - 1) {
-										throw t;
-									} else {
-										Thread.sleep(500);
-									}
-								}
-							}
-
-							// Shut down
-							jm.tell(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()), testActor);
-
-							// Cancel job
-							jm.tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
-
-							// Response to removal notification
-							expectMsgEquals(true);
-
-							//
-							// 3) Trigger stats for archived job
-							//
-							statsTracker.invalidateOperatorStatsCache();
-							Assert.assertFalse("Unexpected trigger", statsTracker.triggerStackTraceSample(vertex));
-
-						} catch (Exception e) {
-							e.printStackTrace();
-							Assert.fail(e.getMessage());
-						}
-					}
-				};
-			} finally {
-				TestingUtils.stopActor(jobManger);
-				TestingUtils.stopActor(taskManager);
-
-				highAvailabilityServices.closeAndCleanupAllData();
-
-				testBufferPool.lazyDestroy();
-			}
-		}};
+			assertThat(stats.getNumberOfSubTasks(), is(equalTo(JOB_PARALLELISM)));
+			assertThat(stats, isFullyBackpressured());
+		} finally {
+			releaseBuffers(buffers);
+		}
 	}
 
-	/**
-	 * Triggers a new stats sample.
-	 */
-	private OperatorBackPressureStats triggerStatsSample(
-			BackPressureStatsTrackerImpl statsTracker,
-			ExecutionJobVertex vertex) throws InterruptedException {
+	@Test
+	public void testAbsenceOfBackPressureShouldBeReflectedInStats() throws Exception {
+		final JobGraph jobGraph = createJobWithoutBackPressure();
+		testingMiniCluster.submitJob(jobGraph).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-		statsTracker.invalidateOperatorStatsCache();
-		Assert.assertTrue("Failed to trigger", statsTracker.triggerStackTraceSample(vertex));
+		final OperatorBackPressureStats stats = getBackPressureStatsForTestVertex();
 
-		// Sleep minimum duration
-		Thread.sleep(20 * 10);
+		assertThat(stats.getNumberOfSubTasks(), is(equalTo(JOB_PARALLELISM)));
+		assertThat(stats, isNotBackpressured());
+	}
 
-		Optional<OperatorBackPressureStats> stats;
+	private static JobGraph createJobWithBackPressure() {
+		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job");
 
-		// Get the stats
-		while (!(stats = statsTracker.getOperatorBackPressureStats(vertex)).isPresent()) {
-			Thread.sleep(10);
+		TEST_JOB_VERTEX.setInvokableClass(BackPressuredTask.class);
+		TEST_JOB_VERTEX.setParallelism(JOB_PARALLELISM);
+
+		jobGraph.addVertex(TEST_JOB_VERTEX);
+		return jobGraph;
+	}
+
+	private static JobGraph createJobWithoutBackPressure() {
+		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job");
+
+		TEST_JOB_VERTEX.setInvokableClass(BlockingNoOpInvokable.class);
+		TEST_JOB_VERTEX.setParallelism(JOB_PARALLELISM);
+
+		jobGraph.addVertex(TEST_JOB_VERTEX);
+		return jobGraph;
+	}
+
+	private static List<Buffer> requestAllBuffers() throws IOException {
+		final List<Buffer> buffers = new ArrayList<>();
+		while (true) {
+			final Buffer buffer = testBufferPool.requestBuffer();
+			if (buffer != null) {
+				buffers.add(buffer);
+			} else {
+				break;
+			}
 		}
+		return buffers;
+	}
 
+	private static void releaseBuffers(final List<Buffer> buffers) {
+		for (Buffer buffer : buffers) {
+			buffer.recycleBuffer();
+			assertTrue(buffer.isRecycled());
+		}
+	}
+
+	private OperatorBackPressureStats getBackPressureStatsForTestVertex() {
+		waitUntilBackPressureStatsAvailable();
+
+		final Optional<OperatorBackPressureStats> stats = getBackPressureStats();
+		checkState(stats.isPresent());
 		return stats.get();
+	}
+
+	private void waitUntilBackPressureStatsAvailable() {
+		try {
+			CommonTestUtils.waitUntilCondition(
+				() -> {
+					final Optional<OperatorBackPressureStats> stats = getBackPressureStats();
+					return stats.isPresent();
+					},
+				Deadline.fromNow(TIMEOUT));
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private Optional<OperatorBackPressureStats> getBackPressureStats() {
+		try {
+			return dispatcherGateway.requestOperatorBackPressureStats(TEST_JOB_ID, TEST_JOB_VERTEX.getID())
+				.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+				.getOperatorBackPressureStats();
+		} catch (InterruptedException | ExecutionException | TimeoutException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	/**
@@ -322,13 +238,53 @@ public class BackPressureStatsTrackerImplITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			while (true) {
-				final BufferBuilder bufferBuilder = testBufferPool.requestBufferBuilderBlocking();
-				// Got a buffer, yay!
-				BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder).recycleBuffer();
+			final BufferBuilder bufferBuilder = testBufferPool.requestBufferBuilderBlocking();
+			// Got a buffer, yay!
+			BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder).recycleBuffer();
 
-				new CountDownLatch(1).await();
+			Thread.currentThread().join();
+		}
+	}
+
+	private static Matcher<OperatorBackPressureStats> isNotBackpressured() {
+		return new OperatorBackPressureRatioMatcher(0);
+	}
+
+	private static Matcher<OperatorBackPressureStats> isFullyBackpressured() {
+		return new OperatorBackPressureRatioMatcher(1);
+	}
+
+	private static class OperatorBackPressureRatioMatcher extends TypeSafeDiagnosingMatcher<OperatorBackPressureStats> {
+
+		private final double expectedBackPressureRatio;
+
+		private OperatorBackPressureRatioMatcher(final double expectedBackPressureRatio) {
+			this.expectedBackPressureRatio = expectedBackPressureRatio;
+		}
+
+		@Override
+		protected boolean matchesSafely(final OperatorBackPressureStats stats, final Description mismatchDescription) {
+			if (!isBackPressureRatioCorrect(stats)) {
+				mismatchDescription.appendText("Not all subtask back pressure ratios in " + getBackPressureRatios(stats) + " are " + expectedBackPressureRatio);
+				return false;
 			}
+			return true;
+		}
+
+		private static List<Double> getBackPressureRatios(final OperatorBackPressureStats stats) {
+			return IntStream.range(0, stats.getNumberOfSubTasks())
+				.mapToObj(stats::getBackPressureRatio).collect(Collectors.toList());
+		}
+
+		private boolean isBackPressureRatioCorrect(final OperatorBackPressureStats stats) {
+			return IntStream.range(0, stats.getNumberOfSubTasks())
+				.mapToObj(stats::getBackPressureRatio)
+				.allMatch(backpressureRatio -> backpressureRatio == expectedBackPressureRatio);
+		}
+
+		@Override
+		public void describeTo(final Description description) {
+			description.appendText("All subtask back pressure ratios are " + expectedBackPressureRatio);
 		}
 	}
 }

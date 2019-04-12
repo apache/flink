@@ -284,9 +284,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY = "taskmanager.memory.segment-size";
 
 	/**
-	 * The implementation to use for spillable/spilled intermediate results, which have both
-	 * synchronous and asynchronous implementations: "sync" or "async".
+	 * @deprecated Not used anymore
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "taskmanager.network.defaultIOMode";
 
 	/**
@@ -1435,9 +1435,9 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE = 32768;
 
 	/**
-	 * The implementation to use for spillable/spilled intermediate results, which have both
-	 * synchronous and asynchronous implementations: "sync" or "async".
+	 * @deprecated Not used anymore
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "sync";
 
 	/**

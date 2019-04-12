@@ -43,8 +43,6 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 
 		this.function = function;
 		this.defaultName = defaultName;
-
-		UdfOperatorUtils.analyzeSingleInputUdf(this, FilterFunction.class, defaultName, function, null);
 	}
 
 	@Override

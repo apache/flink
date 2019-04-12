@@ -60,8 +60,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.FlinkException;
@@ -253,12 +255,9 @@ public class TaskTest extends TestLogger {
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
-		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
 		final NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(partitionManager);
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 		doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
 
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
@@ -570,15 +569,10 @@ public class TaskTest extends TestLogger {
 		final ResultPartitionID partitionId = new ResultPartitionID();
 
 		final PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
-		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(mock(ResultPartitionManager.class));
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-			.thenReturn(mock(TaskKvStateRegistry.class));
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		// Test all branches of trigger partition state check
 		{
@@ -930,6 +924,7 @@ public class TaskTest extends TestLogger {
 		private ResultPartitionConsumableNotifier consumableNotifier;
 		private PartitionProducerStateChecker partitionProducerStateChecker;
 		private NetworkEnvironment networkEnvironment;
+		private KvStateService kvStateService;
 		private Executor executor;
 		private Configuration taskManagerConfig;
 		private ExecutionConfig executionConfig;
@@ -946,13 +941,10 @@ public class TaskTest extends TestLogger {
 			partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 
 			final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-			final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 			networkEnvironment = mock(NetworkEnvironment.class);
 			when(networkEnvironment.getResultPartitionManager()).thenReturn(partitionManager);
-			when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-			when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-				.thenReturn(mock(TaskKvStateRegistry.class));
-			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+
+			kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 
 			executor = TestingUtils.defaultExecutor();
 
@@ -989,6 +981,11 @@ public class TaskTest extends TestLogger {
 
 		TaskBuilder setNetworkEnvironment(NetworkEnvironment networkEnvironment) {
 			this.networkEnvironment = networkEnvironment;
+			return this;
+		}
+
+		TaskBuilder setKvStateService(KvStateService kvStateService) {
+			this.kvStateService = kvStateService;
 			return this;
 		}
 
@@ -1055,11 +1052,14 @@ public class TaskTest extends TestLogger {
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
+				kvStateService,
 				mock(BroadcastVariableManager.class),
+				new TaskEventDispatcher(),
 				new TestTaskStateManager(),
 				taskManagerActions,
 				new MockInputSplitProvider(),
 				new TestCheckpointResponder(),
+				new TestGlobalAggregateManager(),
 				blobCacheService,
 				libraryCacheManager,
 				mock(FileCache.class),

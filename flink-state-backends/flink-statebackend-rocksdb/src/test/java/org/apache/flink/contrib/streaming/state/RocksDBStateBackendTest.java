@@ -19,11 +19,12 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -31,24 +32,25 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
+import org.apache.flink.util.IOUtils;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.junit.After;
 import org.junit.Rule;
@@ -74,6 +76,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -82,6 +85,7 @@ import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertNotNull;
+import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -120,6 +124,23 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 	// Store it because we need it for the cleanup test.
 	private String dbPath;
+	private RocksDB db = null;
+	private File instanceBasePath = null;
+	private ColumnFamilyHandle defaultCFHandle = null;
+	private ColumnFamilyOptions columnOptions = null;
+	private DBOptions dbOptions = null;
+
+	public void prepareRocksDB() throws Exception {
+		instanceBasePath = tempFolder.newFolder();
+		instanceBasePath.mkdirs();
+		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
+		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions();
+		dbOptions = PredefinedOptions.DEFAULT.createDBOptions().setCreateIfMissing(true);
+		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
+		db = RocksDBOperationUtils.openDB(dbPath, Collections.emptyList(),
+			columnFamilyHandles, columnOptions, dbOptions);
+		defaultCFHandle = columnFamilyHandles.remove(0);
+	}
 
 	@Override
 	protected RocksDBStateBackend getStateBackend() throws IOException {
@@ -130,7 +151,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		configuration.setString(
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-		backend = backend.configure(configuration);
+		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
@@ -147,12 +168,21 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			IOUtils.closeQuietly(keyedStateBackend);
 			keyedStateBackend.dispose();
 		}
+		IOUtils.closeQuietly(defaultCFHandle);
+		IOUtils.closeQuietly(db);
+		IOUtils.closeQuietly(columnOptions);
+		IOUtils.closeQuietly(dbOptions);
 
 		if (allCreatedCloseables != null) {
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
 				verify(rocksCloseable, times(1)).close();
 			}
 			allCreatedCloseables = null;
+		}
+		try {
+			org.apache.flink.util.FileUtils.deleteDirectory(instanceBasePath);
+		} catch (Exception ex) {
+			// ignored
 		}
 	}
 
@@ -165,19 +195,29 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		testStreamFactory.setWaiterLatch(waiter);
 		testStreamFactory.setAfterNumberInvocations(10);
 
-		RocksDBStateBackend backend = getStateBackend();
+		prepareRocksDB();
 		Environment env = new DummyEnvironment("TestTask", 1, 0);
 
-		keyedStateBackend = (RocksDBKeyedStateBackend<Integer>) backend.createKeyedStateBackend(
-				env,
-				new JobID(),
-				"Test",
-				IntSerializer.INSTANCE,
-				2,
-				new KeyGroupRange(0, 1),
-				mock(TaskKvStateRegistry.class));
-
-		keyedStateBackend.restore(null);
+		keyedStateBackend = new RocksDBKeyedStateBackendBuilder<>(
+			"Test",
+			Thread.currentThread().getContextClassLoader(),
+			instanceBasePath,
+			dbOptions,
+			stateName -> PredefinedOptions.DEFAULT.createColumnOptions(),
+			mock(TaskKvStateRegistry.class),
+			IntSerializer.INSTANCE,
+			2,
+			new KeyGroupRange(0, 1),
+			env.getExecutionConfig(),
+			env.getTaskStateManager().createLocalRecoveryConfig(),
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			spy(db),
+			defaultCFHandle,
+			new CloseableRegistry()).build();
 
 		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
@@ -190,9 +230,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				new ValueStateDescriptor<>("TestState-2", String.class, ""));
 
 		allCreatedCloseables = new ArrayList<>();
-
-		keyedStateBackend.db = spy(keyedStateBackend.db);
-		keyedStateBackend.initializeSnapshotStrategy(null);
 
 		doAnswer(new Answer<Object>() {
 
@@ -232,31 +269,41 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Test
-	public void testCorrectMergeOperatorSet() throws IOException {
-
+	public void testCorrectMergeOperatorSet() throws Exception {
+		prepareRocksDB();
 		final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
 		RocksDBKeyedStateBackend<Integer> test = null;
-		try {
-			test = new RocksDBKeyedStateBackend<>(
+		try (DBOptions options = new DBOptions().setCreateIfMissing(true)) {
+			ExecutionConfig executionConfig = new ExecutionConfig();
+			test = new RocksDBKeyedStateBackendBuilder<>(
 				"test",
 				Thread.currentThread().getContextClassLoader(),
 				tempFolder.newFolder(),
-				mock(DBOptions.class),
-				columnFamilyOptions,
+				options,
+				stateName -> columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				IntSerializer.INSTANCE,
 				1,
 				new KeyGroupRange(0, 0),
-				new ExecutionConfig(),
-				enableIncrementalCheckpointing,
-				1,
-				TestLocalRecoveryConfig.disabled(),
+				executionConfig,
+				mock(LocalRecoveryConfig.class),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
-				new RocksDBNativeMetricOptions(),
-				new UnregisteredMetricsGroup());
+				new UnregisteredMetricsGroup(),
+				Collections.emptyList(),
+				AbstractStateBackend.getCompressionDecorator(executionConfig),
+				db,
+				defaultCFHandle,
+				new CloseableRegistry()).build();
+			ValueStateDescriptor<String> stubState1 =
+				new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
+			test.createInternalState(StringSerializer.INSTANCE, stubState1);
+			ValueStateDescriptor<String> stubState2 =
+				new ValueStateDescriptor<>("StubState-2", StringSerializer.INSTANCE);
+			test.createInternalState(StringSerializer.INSTANCE, stubState2);
 
-			verify(columnFamilyOptions, Mockito.times(1))
+			// The default CF is pre-created so sum up to 2 times (once for each stub state)
+			verify(columnFamilyOptions, Mockito.times(2))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 		} finally {
 			if (test != null) {
@@ -292,7 +339,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			this.keyedStateBackend.dispose();
 
 			verify(spyDB, times(1)).close();
-			assertEquals(null, keyedStateBackend.db);
+			assertEquals(true, keyedStateBackend.isDisposed());
 
 			//Ensure every RocksObjects was closed exactly once
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
@@ -450,7 +497,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				ValueState<String> state =
 					backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-				Queue<IncrementalKeyedStateHandle> previousStateHandles = new LinkedList<>();
+				Queue<IncrementalRemoteKeyedStateHandle> previousStateHandles = new LinkedList<>();
 				SharedStateRegistry sharedStateRegistry = spy(new SharedStateRegistry());
 				for (int checkpointId = 0; checkpointId < 3; ++checkpointId) {
 
@@ -469,8 +516,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 					SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
 
-					IncrementalKeyedStateHandle stateHandle =
-						(IncrementalKeyedStateHandle) snapshotResult.getJobManagerOwnedSnapshot();
+					IncrementalRemoteKeyedStateHandle stateHandle =
+						(IncrementalRemoteKeyedStateHandle) snapshotResult.getJobManagerOwnedSnapshot();
 
 					Map<StateHandleID, StreamStateHandle> sharedState =
 						new HashMap<>(stateHandle.getSharedState());
@@ -506,7 +553,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		}
 	}
 
-	private void checkRemove(IncrementalKeyedStateHandle remove, SharedStateRegistry registry) throws Exception {
+	private void checkRemove(IncrementalRemoteKeyedStateHandle remove, SharedStateRegistry registry) throws Exception {
 		for (StateHandleID id : remove.getSharedState().keySet()) {
 			verify(registry, times(0)).unregisterReference(
 				remove.createSharedStateRegistryKeyFromFileName(id));
@@ -547,7 +594,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		keyedStateBackend.dispose();
 		verify(spyDB, times(1)).close();
-		assertEquals(null, keyedStateBackend.db);
+		assertEquals(true, keyedStateBackend.isDisposed());
 	}
 
 	private static class AcceptAllFilter implements IOFileFilter {

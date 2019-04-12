@@ -23,8 +23,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
 
@@ -300,22 +298,6 @@ public class StreamSourceContextIdleDetectionTests {
 		processingTimeService.setCurrentTime(initialTime + 11 * watermarkInterval);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 		assertEquals(expectedOutput, output);
-	}
-
-	private static class MockStreamStatusMaintainer implements StreamStatusMaintainer {
-		StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
-
-		@Override
-		public void toggleStreamStatus(StreamStatus streamStatus) {
-			if (!currentStreamStatus.equals(streamStatus)) {
-				currentStreamStatus = streamStatus;
-			}
-		}
-
-		@Override
-		public StreamStatus getStreamStatus() {
-			return currentStreamStatus;
-		}
 	}
 
 	@Parameterized.Parameters(name = "TestMethod = {0}")

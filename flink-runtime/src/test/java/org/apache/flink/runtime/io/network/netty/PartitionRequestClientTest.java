@@ -92,7 +92,7 @@ public class PartitionRequestClientTest {
 			assertNull(channel.readOutbound());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
@@ -127,7 +127,7 @@ public class PartitionRequestClientTest {
 			assertNull(channel.readOutbound());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();

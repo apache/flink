@@ -210,7 +210,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 			V value = priorSerializer.deserialize(serializedOldValueInput);
 			newSerializer.serialize(value, serializedMigratedValueOutput);
 		} catch (Exception e) {
-			throw new StateMigrationException("Error while trying to migration RocksDB state.", e);
+			throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
 		}
 	}
 
@@ -234,5 +234,10 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 		} else {
 			return null;
 		}
+	}
+
+	@Override
+	public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		throw new UnsupportedOperationException("Global state entry iterator is unsupported for RocksDb backend");
 	}
 }

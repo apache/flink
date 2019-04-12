@@ -176,14 +176,14 @@ WHERE
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table result = orders
-    .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
+    .joinLateral("rates(o_proctime)", "o_currency = r_currency")
     .select("(o_amount * r_rate).sum as amount");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val result = orders
-    .join(rates('o_proctime), 'r_currency === 'o_currency)
+    .joinLateral(rates('o_proctime), 'r_currency === 'o_currency)
     .select(('o_amount * 'r_rate).sum as 'amount)
 {% endhighlight %}
 </div>

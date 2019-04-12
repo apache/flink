@@ -92,7 +92,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()); // append mode
+		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND); // append mode
 		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA); // kafka
 		context.put(CONNECTOR_VERSION, kafkaVersion()); // version
 		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility

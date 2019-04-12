@@ -34,14 +34,19 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -58,7 +63,6 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 	//  retrying operations
 	// ------------------------------------------------------------------------
-
 
 	/**
 	 * Retry the given operation the given number of times in case of a failure.
@@ -332,8 +336,28 @@ public class FutureUtils {
 	 * @return The timeout enriched future
 	 */
 	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
+		return orTimeout(future, timeout, timeUnit, Executors.directExecutor());
+	}
+
+	/**
+	 * Times the given future out after the timeout.
+	 *
+	 * @param future to time out
+	 * @param timeout after which the given future is timed out
+	 * @param timeUnit time unit of the timeout
+	 * @param timeoutFailExecutor executor that will complete the future exceptionally after the timeout is reached
+	 * @param <T> type of the given future
+	 * @return The timeout enriched future
+	 */
+	public static <T> CompletableFuture<T> orTimeout(
+		CompletableFuture<T> future,
+		long timeout,
+		TimeUnit timeUnit,
+		Executor timeoutFailExecutor) {
+
 		if (!future.isDone()) {
-			final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
+			final ScheduledFuture<?> timeoutFuture = Delayer.delay(
+				() -> timeoutFailExecutor.execute(new Timeout(future)), timeout, timeUnit);
 
 			future.whenComplete((T value, Throwable throwable) -> {
 				if (!timeoutFuture.isDone()) {
@@ -348,6 +372,27 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 	//  Future actions
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Run the given {@code RunnableFuture} if it is not done, and then retrieves its result.
+	 * @param future to run if not done and get
+	 * @param <T> type of the result
+	 * @return the result after running the future
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the current thread has been interrupted
+	 */
+	public static <T> T runIfNotDoneAndGet(RunnableFuture<T> future) throws ExecutionException, InterruptedException {
+
+		if (null == future) {
+			return null;
+		}
+
+		if (!future.isDone()) {
+			future.run();
+		}
+
+		return future.get();
+	}
 
 	/**
 	 * Run the given action after the completion of the given future. The given future can be
@@ -518,9 +563,6 @@ public class FutureUtils {
 		/** The total number of futures in the conjunction. */
 		private final int numTotal;
 
-		/** The next free index in the results arrays. */
-		private final AtomicInteger nextIndex = new AtomicInteger(0);
-
 		/** The number of futures in the conjunction that are already complete. */
 		private final AtomicInteger numCompleted = new AtomicInteger(0);
 
@@ -530,12 +572,10 @@ public class FutureUtils {
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
-		private void handleCompletedFuture(T value, Throwable throwable) {
+		private void handleCompletedFuture(int index, T value, Throwable throwable) {
 			if (throwable != null) {
 				completeExceptionally(throwable);
 			} else {
-				int index = nextIndex.getAndIncrement();
-
 				results[index] = value;
 
 				if (numCompleted.incrementAndGet() == numTotal) {
@@ -553,8 +593,11 @@ public class FutureUtils {
 				complete(Collections.emptyList());
 			}
 			else {
+				int counter = 0;
 				for (CompletableFuture<? extends T> future : resultFutures) {
-					future.whenComplete(this::handleCompletedFuture);
+					final int index = counter;
+					counter++;
+					future.whenComplete((value, throwable) -> handleCompletedFuture(index, value, throwable));
 				}
 			}
 		}
@@ -777,6 +820,110 @@ public class FutureUtils {
 		}, Executors.directExecutionContext());
 
 		return result;
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a function to apply to this future. If the input future
+	 * is already done, this function returns {@link CompletableFuture#thenApply(Function)}. Otherwise, the return
+	 * value is {@link CompletableFuture#thenApplyAsync(Function, Executor)} with the given executor.
+	 *
+	 * @param completableFuture the completable future for which we want to apply.
+	 * @param executor the executor to run the apply function if the future is not yet done.
+	 * @param applyFun the function to apply.
+	 * @param <IN> type of the input future.
+	 * @param <OUT> type of the output future.
+	 * @return a completable future that is applying the given function to the input future.
+	 */
+	public static <IN, OUT> CompletableFuture<OUT> thenApplyAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		Function<? super IN, ? extends OUT> applyFun) {
+		return completableFuture.isDone() ?
+			completableFuture.thenApply(applyFun) :
+			completableFuture.thenApplyAsync(applyFun, executor);
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a function to compose with this future. If the input future
+	 * is already done, this function returns {@link CompletableFuture#thenCompose(Function)}. Otherwise, the return
+	 * value is {@link CompletableFuture#thenComposeAsync(Function, Executor)} with the given executor.
+	 *
+	 * @param completableFuture the completable future for which we want to compose.
+	 * @param executor the executor to run the compose function if the future is not yet done.
+	 * @param composeFun the function to compose.
+	 * @param <IN> type of the input future.
+	 * @param <OUT> type of the output future.
+	 * @return a completable future that is a composition of the input future and the function.
+	 */
+	public static <IN, OUT> CompletableFuture<OUT> thenComposeAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		Function<? super IN, ? extends CompletionStage<OUT>> composeFun) {
+		return completableFuture.isDone() ?
+			completableFuture.thenCompose(composeFun) :
+			completableFuture.thenComposeAsync(composeFun, executor);
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a bi-consumer to call on completion of this future. If the
+	 * input future is already done, this function returns {@link CompletableFuture#whenComplete(BiConsumer)}.
+	 * Otherwise, the return value is {@link CompletableFuture#whenCompleteAsync(BiConsumer, Executor)} with the given
+	 * executor.
+	 *
+	 * @param completableFuture the completable future for which we want to call #whenComplete.
+	 * @param executor the executor to run the whenComplete function if the future is not yet done.
+	 * @param whenCompleteFun the bi-consumer function to call when the future is completed.
+	 * @param <IN> type of the input future.
+	 * @return the new completion stage.
+	 */
+	public static <IN> CompletableFuture<IN> whenCompleteAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		BiConsumer<? super IN, ? super Throwable> whenCompleteFun) {
+		return completableFuture.isDone() ?
+			completableFuture.whenComplete(whenCompleteFun) :
+			completableFuture.whenCompleteAsync(whenCompleteFun, executor);
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a consumer to accept the result of this future. If the input
+	 * future is already done, this function returns {@link CompletableFuture#thenAccept(Consumer)}. Otherwise, the
+	 * return value is {@link CompletableFuture#thenAcceptAsync(Consumer, Executor)} with the given executor.
+	 *
+	 * @param completableFuture the completable future for which we want to call #thenAccept.
+	 * @param executor the executor to run the thenAccept function if the future is not yet done.
+	 * @param consumer the consumer function to call when the future is completed.
+	 * @param <IN> type of the input future.
+	 * @return the new completion stage.
+	 */
+	public static <IN> CompletableFuture<Void> thenAcceptAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		Consumer<? super IN> consumer) {
+		return completableFuture.isDone() ?
+			completableFuture.thenAccept(consumer) :
+			completableFuture.thenAcceptAsync(consumer, executor);
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a handler function for the result of this future. If the
+	 * input future is already done, this function returns {@link CompletableFuture#handle(BiFunction)}. Otherwise,
+	 * the return value is {@link CompletableFuture#handleAsync(BiFunction, Executor)} with the given executor.
+	 *
+	 * @param completableFuture the completable future for which we want to call #handle.
+	 * @param executor the executor to run the handle function if the future is not yet done.
+	 * @param handler the handler function to call when the future is completed.
+	 * @param <IN> type of the handler input argument.
+	 * @param <OUT> type of the handler return value.
+	 * @return the new completion stage.
+	 */
+	public static <IN, OUT> CompletableFuture<OUT> handleAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		BiFunction<? super IN, Throwable, ? extends OUT> handler) {
+		return completableFuture.isDone() ?
+			completableFuture.handle(handler) :
+			completableFuture.handleAsync(handler, executor);
 	}
 
 	/**

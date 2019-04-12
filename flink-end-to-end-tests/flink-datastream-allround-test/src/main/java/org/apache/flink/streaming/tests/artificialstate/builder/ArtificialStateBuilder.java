@@ -30,9 +30,9 @@ public abstract class ArtificialStateBuilder<T> implements Serializable {
 
 	private static final long serialVersionUID = -5887676929924485788L;
 
-	protected final String stateName;
+	final String stateName;
 
-	public ArtificialStateBuilder(String stateName) {
+	ArtificialStateBuilder(String stateName) {
 		this.stateName = stateName;
 	}
 

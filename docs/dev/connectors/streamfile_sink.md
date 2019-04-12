@@ -26,14 +26,6 @@ under the License.
 This connector provides a Sink that writes partitioned files to filesystems
 supported by the [Flink `FileSystem` abstraction]({{ site.baseurl}}/ops/filesystems.html).
 
-<span class="label label-danger">Important Note</span>: For S3, the `StreamingFileSink` 
-supports only the [Hadoop-based](https://hadoop.apache.org/) FileSystem implementation, not
-the implementation based on [Presto](https://prestodb.io/). In case your job uses the 
-`StreamingFileSink` to write to S3 but you want to use the Presto-based one for checkpointing,
-it is advised to use explicitly *"s3a://"* (for Hadoop) as the scheme for the target path of
-the sink and *"s3p://"* for checkpointing (for Presto). Using *"s3://"* for both the sink
-and checkpointing may lead to unpredictable behavior, as both implementations "listen" to that scheme.
-
 Since in streaming the input is potentially infinite, the streaming file sink writes data
 into buckets. The bucketing behaviour is configurable but a useful default is time-based
 bucketing where we start writing a new bucket every hour and thus get
@@ -122,5 +114,25 @@ has static methods for creating a `BulkWriter.Factory` for various types.
     `OnCheckpointRollingPolicy`, which rolls the in-progress part file on
     every checkpoint.
 </div>
+
+#### Important Considerations for S3
+
+<span class="label label-danger">Important Note 1</span>: For S3, the `StreamingFileSink` 
+supports only the [Hadoop-based](https://hadoop.apache.org/) FileSystem implementation, not
+the implementation based on [Presto](https://prestodb.io/). In case your job uses the 
+`StreamingFileSink` to write to S3 but you want to use the Presto-based one for checkpointing,
+it is advised to use explicitly *"s3a://"* (for Hadoop) as the scheme for the target path of
+the sink and *"s3p://"* for checkpointing (for Presto). Using *"s3://"* for both the sink
+and checkpointing may lead to unpredictable behavior, as both implementations "listen" to that scheme.
+
+<span class="label label-danger">Important Note 2</span>: To guarantee exactly-once semantics while
+being efficient, the `StreamingFileSink` uses the [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html)
+feature of S3 (MPU from now on). This feature allows to upload files in independent chunks (thus the "multi-part")
+which can be combined into the original file when all the parts of the MPU are successfully uploaded. 
+For inactive MPUs, S3 supports a bucket lifecycle rule that the user can use to abort multipart uploads 
+that don't complete within a specified number of days after being initiated. This implies that if you set this rule 
+aggressively and take a savepoint with some part-files being not fully uploaded, their associated MPUs may time-out 
+before the job is restarted. This will result in your job not being able to restore from that savepoint as the
+pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
 
 {% top %}

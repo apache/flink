@@ -169,8 +169,7 @@ public class ZooKeeperUtils {
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
-		final Configuration configuration) throws Exception
-	{
+		final Configuration configuration) throws Exception {
 		return createLeaderRetrievalService(client, configuration, "");
 	}
 
@@ -294,12 +293,31 @@ public class ZooKeeperUtils {
 
 		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
-		return new ZooKeeperCompletedCheckpointStore(
+		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			maxNumberOfCheckpointsToRetain,
-			client,
-			checkpointsPath,
-			stateStorage,
+			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage),
 			executor);
+
+		LOG.info("Initialized {} in '{}'.", ZooKeeperCompletedCheckpointStore.class.getSimpleName(), checkpointsPath);
+		return zooKeeperCompletedCheckpointStore;
+	}
+
+	/**
+	 * Creates an instance of {@link ZooKeeperStateHandleStore}.
+	 *
+	 * @param client       ZK client
+	 * @param path         Path to use for the client namespace
+	 * @param stateStorage RetrievableStateStorageHelper that persist the actual state and whose
+	 *                     returned state handle is then written to ZooKeeper
+	 * @param <T>          Type of state
+	 * @return {@link ZooKeeperStateHandleStore} instance
+	 * @throws Exception ZK errors
+	 */
+	public static <T extends Serializable> ZooKeeperStateHandleStore<T> createZooKeeperStateHandleStore(
+			final CuratorFramework client,
+			final String path,
+			final RetrievableStateStorageHelper<T> stateStorage) throws Exception {
+		return new ZooKeeperStateHandleStore<>(useNamespaceAndEnsurePath(client, path), stateStorage);
 	}
 
 	/**
@@ -360,6 +378,27 @@ public class ZooKeeperUtils {
 		}
 
 		return root + namespace;
+	}
+
+	/**
+	 * Returns a facade of the client that uses the specified namespace, and ensures that all nodes
+	 * in the path exist.
+	 *
+	 * @param client ZK client
+	 * @param path the new namespace
+	 * @return ZK Client that uses the new namespace
+	 * @throws Exception ZK errors
+	 */
+	public static CuratorFramework useNamespaceAndEnsurePath(final CuratorFramework client, final String path) throws Exception {
+		Preconditions.checkNotNull(client, "client must not be null");
+		Preconditions.checkNotNull(path, "path must not be null");
+
+		// Ensure that the checkpoints path exists
+		client.newNamespaceAwareEnsurePath(path)
+			.ensure(client.getZookeeperClient());
+
+		// All operations will have the path as root
+		return client.usingNamespace(generateZookeeperPath(client.getNamespace(), path));
 	}
 
 	/**

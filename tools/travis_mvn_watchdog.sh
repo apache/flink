@@ -284,23 +284,29 @@ upload_artifacts_s3
 cd ../../
 
 # only run end-to-end tests in misc because we only have flink-dist here
-case $TEST in
-	(misc)
-		if [ $EXIT_CODE == 0 ]; then
-			printf "\n\n==============================================================================\n"
-			printf "Running end-to-end tests\n"
-			printf "==============================================================================\n"
-
-			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-
-			EXIT_CODE=$?
-		else
-			printf "\n==============================================================================\n"
-			printf "Previous build failure detected, skipping end-to-end tests.\n"
-			printf "==============================================================================\n"
-		fi
-	;;
-esac
+if [[ ${PROFILE} == *"jdk9"* ]]; then
+    printf "\n\n==============================================================================\n"
+    printf "Skipping end-to-end tests since they fail on Java 9.\n"
+    printf "==============================================================================\n"
+else
+    case $TEST in
+        (misc)
+            if [ $EXIT_CODE == 0 ]; then
+                printf "\n\n==============================================================================\n"
+                printf "Running end-to-end tests\n"
+                printf "==============================================================================\n"
+    
+                FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
+    
+                EXIT_CODE=$?
+            else
+                printf "\n==============================================================================\n"
+                printf "Previous build failure detected, skipping end-to-end tests.\n"
+                printf "==============================================================================\n"
+            fi
+        ;;
+    esac
+fi
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE

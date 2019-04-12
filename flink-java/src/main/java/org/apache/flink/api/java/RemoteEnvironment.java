@@ -231,7 +231,6 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		try {
 			PlanExecutor executor = this.executor;
 			if (executor != null) {
-				executor.endSession(jobID);
 				executor.stop();
 			}
 		}

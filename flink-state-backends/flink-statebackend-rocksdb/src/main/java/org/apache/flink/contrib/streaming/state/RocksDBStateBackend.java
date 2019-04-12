@@ -18,11 +18,13 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -32,14 +34,19 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -50,6 +57,7 @@ import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -58,11 +66,14 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TTL_COMPACT_FILTER_ENABLED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -98,7 +109,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** Flag whether the native library has been loaded. */
 	private static boolean rocksDbInitialized = false;
 
-	private static final int UNDEFINED_NUMBER_OF_RESTORING_THREADS = -1;
+	private static final int UNDEFINED_NUMBER_OF_TRANSFERING_THREADS = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -114,7 +125,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private File[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
-	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
+	@Nullable
+	private PredefinedOptions predefinedOptions;
 
 	/** The options factory to create the RocksDB options in the cluster. */
 	@Nullable
@@ -123,8 +135,16 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
 
-	/** Thread number used to download from DFS when restore, default value: 1. */
-	private int numberOfRestoringThreads;
+	/** Thread number used to transfer (download and upload) state, default value: 1. */
+	private int numberOfTransferingThreads;
+
+	/**
+	 * This determines if compaction filter to cleanup state with TTL is enabled.
+	 *
+	 * <p>Note: User can still decide in state TTL configuration in state descriptor
+	 * whether the filter is active for particular state or not.
+	 */
+	private TernaryBoolean enableTtlCompactionFilter;
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
@@ -244,10 +264,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
-		this.numberOfRestoringThreads = UNDEFINED_NUMBER_OF_RESTORING_THREADS;
+		this.numberOfTransferingThreads = UNDEFINED_NUMBER_OF_TRANSFERING_THREADS;
 		// for now, we use still the heap-based implementation as default
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
+		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 	}
 
 	/**
@@ -271,23 +292,27 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @param original The state backend to re-configure.
 	 * @param config The configuration.
+	 * @param classLoader The class loader.
 	 */
-	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config) {
+	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config, ClassLoader classLoader) {
 		// reconfigure the state backend backing the streams
 		final StateBackend originalStreamBackend = original.checkpointStreamBackend;
 		this.checkpointStreamBackend = originalStreamBackend instanceof ConfigurableStateBackend ?
-				((ConfigurableStateBackend) originalStreamBackend).configure(config) :
+				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader) :
 				originalStreamBackend;
 
 		// configure incremental checkpoints
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
-		if (original.numberOfRestoringThreads == UNDEFINED_NUMBER_OF_RESTORING_THREADS) {
-			this.numberOfRestoringThreads = config.getInteger(RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM);
+		if (original.numberOfTransferingThreads == UNDEFINED_NUMBER_OF_TRANSFERING_THREADS) {
+			this.numberOfTransferingThreads = config.getInteger(CHECKPOINT_TRANSFER_THREAD_NUM);
 		} else {
-			this.numberOfRestoringThreads = original.numberOfRestoringThreads;
+			this.numberOfTransferingThreads = original.numberOfTransferingThreads;
 		}
+
+		this.enableTtlCompactionFilter = original.enableTtlCompactionFilter
+			.resolveUndefined(config.getBoolean(TTL_COMPACT_FILTER_ENABLED));
 
 		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
 
@@ -316,9 +341,21 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// configure metric options
 		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
-		// copy remaining settings
-		this.predefinedOptions = original.predefinedOptions;
-		this.optionsFactory = original.optionsFactory;
+		// configure RocksDB predefined options
+		this.predefinedOptions = original.predefinedOptions == null ?
+			PredefinedOptions.valueOf(config.getString(RocksDBOptions.PREDEFINED_OPTIONS)) : original.predefinedOptions;
+		LOG.info("Using predefined options: {}.", predefinedOptions.name());
+
+		// configure RocksDB options factory
+		try {
+			this.optionsFactory = configureOptionsFactory(
+				original.optionsFactory,
+				config.getString(RocksDBOptions.OPTIONS_FACTORY),
+				config,
+				classLoader);
+		} catch (DynamicCodeLoadingException e) {
+			throw new FlinkRuntimeException(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -329,12 +366,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Creates a copy of this state backend that uses the values defined in the configuration
 	 * for fields where that were not yet specified in this state backend.
 	 *
-	 * @param config the configuration
+	 * @param config The configuration.
+	 * @param classLoader The class loader.
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public RocksDBStateBackend configure(Configuration config) {
-		return new RocksDBStateBackend(this, config);
+	public RocksDBStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new RocksDBStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
@@ -426,15 +464,17 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws IOException {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -453,37 +493,95 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
-		return new RocksDBKeyedStateBackend<>(
-				operatorIdentifier,
-				env.getUserClassLoader(),
-				instanceBasePath,
-				getDbOptions(),
-				getColumnOptions(),
-				kvStateRegistry,
-				keySerializer,
-				numberOfKeyGroups,
-				keyGroupRange,
-				env.getExecutionConfig(),
-				isIncrementalCheckpointsEnabled(),
-				getNumberOfRestoringThreads(),
-				localRecoveryConfig,
-				priorityQueueStateType,
-				ttlTimeProvider,
-				getMemoryWatcherOptions(),
-				metricGroup);
+		ExecutionConfig executionConfig = env.getExecutionConfig();
+		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
+		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
+			operatorIdentifier,
+			env.getUserClassLoader(),
+			instanceBasePath,
+			getDbOptions(),
+			stateName -> getColumnOptions(),
+			kvStateRegistry,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			executionConfig,
+			localRecoveryConfig,
+			priorityQueueStateType,
+			ttlTimeProvider,
+			metricGroup,
+			stateHandles,
+			keyGroupCompressionDecorator,
+			cancelStreamRegistry
+		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
+			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
+			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())
+			.setNativeMetricOptions(getMemoryWatcherOptions());
+		return builder.build();
 	}
 
 	@Override
 	public OperatorStateBackend createOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier) throws Exception {
+		Environment env,
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception {
 
 		//the default for RocksDB; eventually there can be a operator state backend based on RocksDB, too.
 		final boolean asyncSnapshots = true;
-		return new DefaultOperatorStateBackend(
-				env.getUserClassLoader(),
-				env.getExecutionConfig(),
-				asyncSnapshots);
+		return new DefaultOperatorStateBackendBuilder(
+			env.getUserClassLoader(),
+			env.getExecutionConfig(),
+			asyncSnapshots,
+			stateHandles,
+			cancelStreamRegistry).build();
+	}
+
+	private OptionsFactory configureOptionsFactory(
+			@Nullable OptionsFactory originalOptionsFactory,
+			String factoryClassName,
+			Configuration config,
+			ClassLoader classLoader) throws DynamicCodeLoadingException {
+
+		if (originalOptionsFactory != null) {
+			if (originalOptionsFactory instanceof ConfigurableOptionsFactory) {
+				originalOptionsFactory = ((ConfigurableOptionsFactory) originalOptionsFactory).configure(config);
+			}
+			LOG.info("Using application-defined options factory: {}.", originalOptionsFactory);
+
+			return originalOptionsFactory;
+		}
+
+		// if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed up.
+		if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
+			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+			optionsFactory.configure(config);
+			LOG.info("Using default options factory: {}.", optionsFactory);
+
+			return optionsFactory;
+		} else {
+			try {
+				@SuppressWarnings("rawtypes")
+				Class<? extends OptionsFactory> clazz =
+					Class.forName(factoryClassName, false, classLoader)
+						.asSubclass(OptionsFactory.class);
+
+				OptionsFactory optionsFactory = clazz.newInstance();
+				if (optionsFactory instanceof ConfigurableOptionsFactory) {
+					optionsFactory = ((ConfigurableOptionsFactory) optionsFactory).configure(config);
+				}
+				LOG.info("Using configured options factory: {}.", optionsFactory);
+
+				return optionsFactory;
+			} catch (ClassNotFoundException e) {
+				throw new DynamicCodeLoadingException(
+					"Cannot find configured options factory class: " + factoryClassName, e);
+			} catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+				throw new DynamicCodeLoadingException("The class configured under '" +
+					RocksDBOptions.OPTIONS_FACTORY.key() + "' is not a valid options factory (" +
+					factoryClassName + ')', e);
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -601,6 +699,23 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		return enableIncrementalCheckpointing.getOrDefault(CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue());
 	}
 
+	/**
+	 * Gets whether incremental checkpoints are enabled for this state backend.
+	 */
+	public boolean isTtlCompactionFilterEnabled() {
+		return enableTtlCompactionFilter.getOrDefault(TTL_COMPACT_FILTER_ENABLED.defaultValue());
+	}
+
+	/**
+	 * Enable compaction filter to cleanup state with TTL is enabled.
+	 *
+	 * <p>Note: User can still decide in state TTL configuration in state descriptor
+	 * whether the filter is active for particular state or not.
+	 */
+	public void enableTtlCompactionFilter() {
+		enableTtlCompactionFilter = TernaryBoolean.TRUE;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Parametrize with RocksDB Options
 	// ------------------------------------------------------------------------
@@ -608,9 +723,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/**
 	 * Sets the predefined options for RocksDB.
 	 *
-	 * <p>If a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through flink-conf.yaml)
+	 * or a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
 	 * then the options from the factory are applied on top of the here specified
-	 * predefined options.
+	 * predefined options and customized options.
 	 *
 	 * @param options The options to set (must not be null).
 	 */
@@ -623,12 +739,16 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * The default options (if nothing was set via {@link #setPredefinedOptions(PredefinedOptions)})
 	 * are {@link PredefinedOptions#DEFAULT}.
 	 *
-	 * <p>If a user-defined  options factory is set (via {@link #setOptions(OptionsFactory)}),
-	 * then the options from the factory are applied on top of the predefined options.
+	 * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through flink-conf.yaml)
+	 * of a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * then the options from the factory are applied on top of the predefined and customized options.
 	 *
 	 * @return The currently set predefined options for RocksDB.
 	 */
 	public PredefinedOptions getPredefinedOptions() {
+		if (predefinedOptions == null) {
+			predefinedOptions = PredefinedOptions.DEFAULT;
+		}
 		return predefinedOptions;
 	}
 
@@ -663,9 +783,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public DBOptions getDbOptions() {
 		// initial options from pre-defined profile
-		DBOptions opt = predefinedOptions.createDBOptions();
+		DBOptions opt = getPredefinedOptions().createDBOptions();
 
-		// add user-defined options, if specified
+		// add user-defined options factory, if specified
 		if (optionsFactory != null) {
 			opt = optionsFactory.createDBOptions(opt);
 		}
@@ -681,7 +801,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
-		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
+		ColumnFamilyOptions opt = getPredefinedOptions().createColumnOptions();
 
 		// add user-defined options, if specified
 		if (optionsFactory != null) {
@@ -701,17 +821,22 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	/**
-	 * Gets the thread number will used for downloading files from DFS when restore.
+	 * Gets the number of threads used to transfer files while snapshotting/restoring.
 	 */
-	public int getNumberOfRestoringThreads() {
-		return numberOfRestoringThreads == UNDEFINED_NUMBER_OF_RESTORING_THREADS ?
-			RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM.defaultValue() : numberOfRestoringThreads;
+	public int getNumberOfTransferingThreads() {
+		return numberOfTransferingThreads == UNDEFINED_NUMBER_OF_TRANSFERING_THREADS ?
+			CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue() : numberOfTransferingThreads;
 	}
 
-	public void setNumberOfRestoringThreads(int numberOfRestoringThreads) {
-		Preconditions.checkArgument(numberOfRestoringThreads > 0,
-			"The number of threads used to download files from DFS in RocksDBStateBackend should > 0.");
-		this.numberOfRestoringThreads = numberOfRestoringThreads;
+	/**
+	 * Sets the number of threads used to transfer files while snapshotting/restoring.
+	 *
+	 * @param numberOfTransferingThreads The number of threads used to transfer files while snapshotting/restoring.
+	 */
+	public void setNumberOfTransferingThreads(int numberOfTransferingThreads) {
+		Preconditions.checkArgument(numberOfTransferingThreads > 0,
+			"The number of threads used to transfer files in RocksDBStateBackend should be greater than zero.");
+		this.numberOfTransferingThreads = numberOfTransferingThreads;
 	}
 
 	// ------------------------------------------------------------------------
@@ -724,7 +849,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				"checkpointStreamBackend=" + checkpointStreamBackend +
 				", localRocksDbDirectories=" + Arrays.toString(localRocksDbDirectories) +
 				", enableIncrementalCheckpointing=" + enableIncrementalCheckpointing +
-				", numberOfRestoringThreads=" + numberOfRestoringThreads +
+				", numberOfTransferingThreads=" + numberOfTransferingThreads +
 				'}';
 	}
 

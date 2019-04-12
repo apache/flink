@@ -24,28 +24,25 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleFailingActorGateway;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -63,11 +60,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
-			// mock taskmanager to simply accept the call
-			Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -101,10 +94,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
-			final Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -143,10 +133,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new SimpleActorGateway(TestingUtils.defaultExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -188,10 +175,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new SimpleFailingActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot(new SubmitFailingSimpleAckingTaskManagerGateway());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -218,10 +202,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new SimpleFailingActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot(new SubmitFailingSimpleAckingTaskManagerGateway());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -254,21 +235,15 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final TestingUtils.QueuedActionExecutionContext ec = TestingUtils.queuedActionExecutionContext();
-			final TestingUtils.ActionQueue queue = ec.actionQueue();
-
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, ec);
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlot(new SubmitBlockingSimpleAckingTaskManagerGateway());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			vertex.deployToSlot(slot);
+			vertex.deployToSlot(testingLogicalSlot);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
 			Exception testError = new Exception("test error");
@@ -276,9 +251,6 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			assertEquals(testError, vertex.getFailureCause());
-
-			queue.triggerNextAction();
-			queue.triggerNextAction();
 
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
@@ -289,66 +261,19 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testFailCallOvertakesDeploymentAnswer() {
+	private static class SubmitFailingSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
+		@Override
+		public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+			CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+			future.completeExceptionally(new Exception(ERROR_MESSAGE));
+			return future;
+		}
+	}
 
-		try {
-			final TestingUtils.QueuedActionExecutionContext context = TestingUtils.queuedActionExecutionContext();
-			final TestingUtils.ActionQueue queue = context.actionQueue();
-
-			final JobVertexID jid = new JobVertexID();
-
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, context);
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
-
-			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
-
-			final Instance instance = getInstance(
-				new ActorTaskManagerGateway(
-					new ExecutionVertexCancelTest.CancelSequenceActorGateway(
-						context,
-						2)));
-
-			final SimpleSlot slot = instance.allocateSimpleSlot();
-
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-
-			vertex.deployToSlot(slot);
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
-
-			Exception testError = new Exception("test error");
-			vertex.fail(testError);
-
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-
-			// cancel call overtakes deploy call
-			Runnable deploy = queue.popNextAction();
-			Runnable cancel1 = queue.popNextAction();
-
-			cancel1.run();
-			// execute the FutureUtils.retry loop (will complete immediately)
-			queue.triggerNextAction();
-			// execute the exceptionallyAsync call in Execution#sendRpcCall which won't don anything
-			queue.triggerNextAction();
-
-			deploy.run();
-
-			// execute exceptionallyAsync call in Execution#deployToSlot
-			queue.triggerNextAction();
-
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-
-			assertEquals(testError, vertex.getFailureCause());
-
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-
-			assertTrue(queue.isEmpty());
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+	private static class SubmitBlockingSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
+		@Override
+		public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+			return new CompletableFuture<>();
 		}
 	}
 
@@ -357,8 +282,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	 */
 	@Test
 	public void testTddProducedPartitionsLazyScheduling() throws Exception {
-		TestingUtils.QueuedActionExecutionContext context = TestingUtils.queuedActionExecutionContext();
-		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), context);
+		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
 
 		IntermediateResult result =
 				new IntermediateResult(new IntermediateDataSetID(), jobVertex, 1, ResultPartitionType.PIPELINED);

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -55,7 +55,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private final ResultPartitionManager partitionManager;
 
 	/** Task event dispatcher for backwards events. */
-	private final TaskEventDispatcher taskEventDispatcher;
+	private final TaskEventPublisher taskEventPublisher;
 
 	/** The consumed subpartition. */
 	private volatile ResultSubpartitionView subpartitionView;
@@ -67,10 +67,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int channelIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
-		TaskEventDispatcher taskEventDispatcher,
+		TaskEventPublisher taskEventPublisher,
 		TaskIOMetricGroup metrics) {
 
-		this(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
+		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
 			0, 0, metrics);
 	}
 
@@ -79,7 +79,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int channelIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
-		TaskEventDispatcher taskEventDispatcher,
+		TaskEventPublisher taskEventPublisher,
 		int initialBackoff,
 		int maxBackoff,
 		TaskIOMetricGroup metrics) {
@@ -87,7 +87,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
-		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
+		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 	}
 
 	// ------------------------------------------------------------------------
@@ -223,7 +223,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		checkError();
 		checkState(subpartitionView != null, "Tried to send task event to producer before requesting the subpartition.");
 
-		if (!taskEventDispatcher.publish(partitionId, event)) {
+		if (!taskEventPublisher.publish(partitionId, event)) {
 			throw new IOException("Error while publishing event " + event + " to producer. The producer could not be found.");
 		}
 	}

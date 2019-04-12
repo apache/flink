@@ -40,7 +40,7 @@ public class HeartbeatServices {
 
 	public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
 		Preconditions.checkArgument(0L < heartbeatInterval, "The heartbeat interval must be larger than 0.");
-		Preconditions.checkArgument(heartbeatInterval <= heartbeatTimeout, "The heartbeat timeout should be larger or equal than the heartbeat timeout.");
+		Preconditions.checkArgument(heartbeatInterval <= heartbeatTimeout, "The heartbeat timeout should be larger or equal than the heartbeat interval.");
 
 		this.heartbeatInterval = heartbeatInterval;
 		this.heartbeatTimeout = heartbeatTimeout;

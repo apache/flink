@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -119,7 +119,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}-${hadoop.version}</version>
+			<version>${hadoop.version}-${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop2-uber</artifactId>
+			<version>${hadoop.version}-${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -167,9 +174,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Set the root directory for all tests to the project root.
-			We need this to be able to locate the final build (in flink-dist)
-			-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
@@ -179,6 +183,8 @@ under the License.
 						<configuration>
 							<!-- Enforce single threaded execution due to port conflicts with the mini yarn cluster -->
 							<forkCount>1</forkCount>
+							<!-- Some plugin has a nasty side-effect that sets the working directory to
+							.../flink-yarn-tests/target during integration tests, which is rather unusual -->
 							<workingDirectory>../</workingDirectory>
 						</configuration>
 					</execution>
@@ -383,6 +389,14 @@ under the License.
 				</executions>
 				<configuration>
 					<artifactItems>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-shaded-hadoop2-uber</artifactId>
+							<version>${hadoop.version}-${project.version}</version>
+							<type>jar</type>
+							<overWrite>true</overWrite>
+							<outputDirectory>${project.build.directory}/shaded-hadoop</outputDirectory>
+						</artifactItem>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
 							<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>

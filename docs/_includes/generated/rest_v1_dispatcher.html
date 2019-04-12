@@ -321,6 +321,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "parallelism" : {
       "type" : "integer"
+    },
+    "jobId" : {
+      "type" : "any"
     }
   }
 }            </code>
@@ -410,6 +413,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "parallelism" : {
       "type" : "integer"
+    },
+    "jobId" : {
+      "type" : "any"
     },
     "allowNonRestoredState" : {
       "type" : "boolean"
@@ -2361,7 +2367,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "host" : {
             "type" : "string"
           },
-          "start_time" : {
+          "start-time" : {
             "type" : "integer"
           },
           "end-time" : {
@@ -2399,6 +2405,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                 "type" : "boolean"
               }
             }
+          },
+          "start_time" : {
+            "type" : "integer"
           }
         }
       }
@@ -3871,5 +3880,3 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     </tr>
   </tbody>
 </table>
-
-{% top %}

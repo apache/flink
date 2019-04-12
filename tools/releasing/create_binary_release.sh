@@ -96,14 +96,14 @@ make_binary_release() {
 }
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
-  make_binary_release "" "-DwithoutHadoop" "2.12"
-  make_binary_release "" "-DwithoutHadoop" "2.11"
+  make_binary_release "" "" "2.12"
+  make_binary_release "" "" "2.11"
 elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
 then
-  make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
+  make_binary_release "hadoop2" "-Pinclude-hadoop -Dhadoop.version=$HADOOP_VERSION" "2.11"
 elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
 then
-  make_binary_release "" "-DwithoutHadoop" "$SCALA_VERSION"
+  make_binary_release "" "" "$SCALA_VERSION"
 else
-  make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
+  make_binary_release "hadoop2x" "-Pinclude-hadoop -Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
 fi

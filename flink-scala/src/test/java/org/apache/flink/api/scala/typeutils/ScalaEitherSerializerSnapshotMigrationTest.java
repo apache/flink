@@ -21,27 +21,39 @@ package org.apache.flink.api.scala.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Collection;
 
 import scala.util.Either;
 
 /**
  * Migration test for the {@link ScalaEitherSerializerSnapshot}.
  */
+@RunWith(Parameterized.class)
 public class ScalaEitherSerializerSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTestBase<Either<Integer, String>> {
 
-	private static final String DATA = "flink-1.6-scala-either-serializer-data";
-	private static final String SNAPSHOT = "flink-1.6-scala-either-serializer-snapshot";
+	private static final String SPEC_NAME = "scala-either-serializer";
 
-	public ScalaEitherSerializerSnapshotMigrationTest() {
-		super(
-			TestSpecification.<Either<Integer, String>>builder(
-					"1.6-scala-either-serializer",
-					EitherSerializer.class,
-					ScalaEitherSerializerSnapshot.class)
-				.withSerializerProvider(() -> new EitherSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE))
-				.withSnapshotDataLocation(SNAPSHOT)
-				.withTestData(DATA, 10)
-		);
+	public ScalaEitherSerializerSnapshotMigrationTest(TestSpecification<Either<Integer, String>> testSpecification) {
+		super(testSpecification);
 	}
 
+	@SuppressWarnings("unchecked")
+	@Parameterized.Parameters(name = "Test Specification = {0}")
+	public static Collection<TestSpecification<?>> testSpecifications() {
+
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
+
+		testSpecifications.add(
+			SPEC_NAME,
+			EitherSerializer.class,
+			ScalaEitherSerializerSnapshot.class,
+			() -> new EitherSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE));
+
+		return testSpecifications.get();
+	}
 }

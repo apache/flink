@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener;
@@ -32,7 +31,6 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorRef;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.junit.AfterClass;
@@ -78,9 +76,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		if (ZooKeeper != null) {
-			ZooKeeper.shutdown();
-		}
+		ZooKeeper.shutdown();
 	}
 
 	@Before
@@ -97,7 +93,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 			jobGraphs.start(listener);
 
-			SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID(), 0);
+			SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID(), "JobName");
 
 			// Empty state
 			assertEquals(0, jobGraphs.getJobIds().size());
@@ -114,7 +110,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 			verifyJobGraphs(jobGraph, jobGraphs.recoverJobGraph(jobId));
 
 			// Update (same ID)
-			jobGraph = createSubmittedJobGraph(jobGraph.getJobId(), 1);
+			jobGraph = createSubmittedJobGraph(jobGraph.getJobId(), "Updated JobName");
 			jobGraphs.putJobGraph(jobGraph);
 
 			// Verify updated
@@ -171,9 +167,9 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 			HashMap<JobID, SubmittedJobGraph> expected = new HashMap<>();
 			JobID[] jobIds = new JobID[] { new JobID(), new JobID(), new JobID() };
 
-			expected.put(jobIds[0], createSubmittedJobGraph(jobIds[0], 0));
-			expected.put(jobIds[1], createSubmittedJobGraph(jobIds[1], 1));
-			expected.put(jobIds[2], createSubmittedJobGraph(jobIds[2], 2));
+			expected.put(jobIds[0], createSubmittedJobGraph(jobIds[0]));
+			expected.put(jobIds[1], createSubmittedJobGraph(jobIds[1]));
+			expected.put(jobIds[2], createSubmittedJobGraph(jobIds[2]));
 
 			// Add all
 			for (SubmittedJobGraph jobGraph : expected.values()) {
@@ -215,8 +211,8 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 			otherJobGraphs = createZooKeeperSubmittedJobGraphStore("/testConcurrentAddJobGraph");
 
-			SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID(), 0);
-			SubmittedJobGraph otherJobGraph = createSubmittedJobGraph(new JobID(), 0);
+			SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID());
+			SubmittedJobGraph otherJobGraph = createSubmittedJobGraph(new JobID());
 
 			SubmittedJobGraphListener listener = mock(SubmittedJobGraphListener.class);
 
@@ -274,7 +270,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 		jobGraphs.start(null);
 		otherJobGraphs.start(null);
 
-		SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID(), 0);
+		SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID());
 
 		jobGraphs.putJobGraph(jobGraph);
 
@@ -283,32 +279,27 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 	// ---------------------------------------------------------------------------------------------
 
-	private SubmittedJobGraph createSubmittedJobGraph(JobID jobId, long start) {
-		final JobGraph jobGraph = new JobGraph(jobId, "Test JobGraph");
+	private SubmittedJobGraph createSubmittedJobGraph(JobID jobId) {
+		return createSubmittedJobGraph(jobId, "Test JobGraph");
+	}
+
+	private SubmittedJobGraph createSubmittedJobGraph(JobID jobId, String jobName) {
+		final JobGraph jobGraph = new JobGraph(jobId, jobName);
 
 		final JobVertex jobVertex = new JobVertex("Test JobVertex");
 		jobVertex.setParallelism(1);
 
 		jobGraph.addVertex(jobVertex);
 
-		final JobInfo jobInfo = new JobInfo(
-				ActorRef.noSender(), ListeningBehaviour.DETACHED, start, Integer.MAX_VALUE);
-
-		return new SubmittedJobGraph(jobGraph, jobInfo);
+		return new SubmittedJobGraph(jobGraph);
 	}
 
-	protected void verifyJobGraphs(SubmittedJobGraph expected, SubmittedJobGraph actual)
-			throws Exception {
+	private void verifyJobGraphs(SubmittedJobGraph expected, SubmittedJobGraph actual) {
 
 		JobGraph expectedJobGraph = expected.getJobGraph();
 		JobGraph actualJobGraph = actual.getJobGraph();
 
 		assertEquals(expectedJobGraph.getName(), actualJobGraph.getName());
 		assertEquals(expectedJobGraph.getJobID(), actualJobGraph.getJobID());
-
-		JobInfo expectedJobInfo = expected.getJobInfo();
-		JobInfo actualJobInfo = actual.getJobInfo();
-
-		assertEquals(expectedJobInfo, actualJobInfo);
 	}
 }

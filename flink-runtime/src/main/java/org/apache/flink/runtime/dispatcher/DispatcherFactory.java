@@ -26,8 +26,11 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
+
+import java.util.UUID;
 
 /**
  * {@link Dispatcher} factory interface.
@@ -41,12 +44,20 @@ public interface DispatcherFactory<T extends Dispatcher> {
 		Configuration configuration,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
+		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
+		@Nullable String metricQueryServiceAddress,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
 		HistoryServerArchivist historyServerArchivist) throws Exception;
+
+	default String generateEndpointIdWithUUID() {
+		return getEndpointId() + UUID.randomUUID();
+	}
+
+	default String getEndpointId() {
+		return Dispatcher.DISPATCHER_NAME;
+	}
 }

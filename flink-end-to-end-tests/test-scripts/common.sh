@@ -47,7 +47,7 @@ cd $TEST_INFRA_DIR
 TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
-NODENAME=`hostname -f`
+NODENAME=${NODENAME:-`hostname -f`}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API
@@ -152,8 +152,8 @@ function create_ha_config() {
 
     rest.port: 8081
 
-    query.server.ports: 9000-9009
-    query.proxy.ports: 9010-9019
+    queryable-state.server.ports: 9000-9009
+    queryable-state.proxy.ports: 9010-9019
 EOL
 }
 
@@ -212,7 +212,7 @@ function start_local_zk {
 function wait_dispatcher_running {
   # wait at most 10 seconds until the dispatcher is up
   local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
-  local TIMEOUT=10
+  local TIMEOUT=20
   for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
     QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
@@ -296,7 +296,7 @@ function check_logs_for_errors {
       | grep -v "AskTimeoutException" \
       | grep -v "Error while loading kafka-version.properties" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-      | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+      | grep -v "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -v "jvm-exit-on-fatal-error" \
       | grep -v '^INFO:.*AWSErrorCode=\[400 Bad Request\].*ServiceEndpoint=\[https://.*\.s3\.amazonaws\.com\].*RequestType=\[HeadBucketRequest\]' \
       | grep -v "RejectedExecutionException" \
@@ -305,6 +305,7 @@ function check_logs_for_errors {
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
       | grep -v "org.apache.flink.fs.shaded.hadoop3.org.apache.commons.beanutils.FluentPropertyBeanIntrospector  - Error when creating PropertyDescriptor for public final void org.apache.flink.fs.shaded.hadoop3.org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
       | grep -v "Error while loading kafka-version.properties :null" \
+      | grep -v "Failed Elasticsearch item request" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files:"
@@ -337,6 +338,8 @@ function check_logs_for_exceptions {
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
    | grep -v "org.apache.flink.runtime.checkpoint.decline" \
+   | grep -v "org.elasticsearch.ElasticsearchException" \
+   | grep -v "Elasticsearch exception" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files:"

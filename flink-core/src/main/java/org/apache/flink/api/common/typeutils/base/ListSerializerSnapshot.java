@@ -20,12 +20,13 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
 import java.util.List;
 
 /**
  * Snapshot class for the {@link ListSerializer}.
  */
-public class ListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<List<T>, ListSerializer> {
+public class ListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<List<T>, ListSerializer<T>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -49,14 +50,14 @@ public class ListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<L
 	}
 
 	@Override
-	protected ListSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected ListSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
 		return new ListSerializer<>(elementSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(ListSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(ListSerializer<T> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getElementSerializer() };
 	}
 }

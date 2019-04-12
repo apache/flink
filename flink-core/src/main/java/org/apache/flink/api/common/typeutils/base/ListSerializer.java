@@ -160,11 +160,6 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return true;
-	}
-
-	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
 	}

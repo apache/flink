@@ -175,6 +175,15 @@ public class MetricOptions {
 			" by Akka's thread pool executor. " +
 			"The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). " +
 			"Warning, increasing this value may bring the main Flink components down.");
+	/**
+	 * The config parameter defining the update interval for the metric fetcher used by the web UI in milliseconds.
+	 */
+	public static final ConfigOption<Long> METRIC_FETCHER_UPDATE_INTERVAL =
+		key("metrics.fetcher.update-interval")
+			.defaultValue(10000L)
+			.withDescription("Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for " +
+				"faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 " +
+				"disables the metric fetching completely.");
 
 	private MetricOptions() {
 	}

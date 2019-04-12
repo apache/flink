@@ -39,8 +39,6 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.Assume;
 import org.junit.Before;
 
-import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
-
 /**
  * Test WordCount with Hadoop input and output "mapreduce" (modern) formats.
  */
@@ -68,24 +66,16 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		internalRun(true);
-		postSubmit();
-		resultPath = getTempDirPath("result2");
-		internalRun(false);
+		internalRun();
 		postSubmit();
 	}
 
-	private void internalRun(boolean isTestDeprecatedAPI) throws Exception {
+	private void internalRun() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple2<LongWritable, Text>> input;
-		if (isTestDeprecatedAPI) {
-			input = env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
-				LongWritable.class, Text.class, textPath));
-		} else {
-			input = env.createInput(readHadoopFile(new TextInputFormat(),
-				LongWritable.class, Text.class, textPath));
-		}
+		input = env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
+			LongWritable.class, Text.class, textPath));
 
 		DataSet<String> text = input.map(new MapFunction<Tuple2<LongWritable, Text>, String>() {
 			@Override

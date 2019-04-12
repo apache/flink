@@ -27,7 +27,7 @@ import java.io.IOException;
 /**
  * A buffer-oriented runtime result writer API for producing results.
  */
-public interface ResultPartitionWriter {
+public interface ResultPartitionWriter extends AutoCloseable {
 
 	BufferProvider getBufferProvider();
 

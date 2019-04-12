@@ -35,7 +35,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Tests for the {@link PackagedProgramTest}.
+ * Tests for the {@link PackagedProgram}.
  */
 public class PackagedProgramTest {
 

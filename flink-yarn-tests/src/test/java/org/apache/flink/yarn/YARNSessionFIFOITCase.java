@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,15 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -51,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -103,6 +97,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		args.add("-t");
 		args.add(flinkLibFolder.getAbsolutePath());
+
+		args.add("-t");
+		args.add(flinkShadedHadoopDir.getAbsolutePath());
 
 		args.add("-n");
 		args.add("1");
@@ -234,7 +231,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testResourceComputation() throws IOException {
 		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
 		LOG.info("Starting testResourceComputation()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
+		runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-n", "5",
 				"-jm", "256m",
 				"-tm", "1585m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
@@ -262,78 +262,15 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testfullAlloc() throws IOException {
 		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
 		LOG.info("Starting testfullAlloc()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
+		runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-n", "2",
 				"-jm", "256m",
 				"-tm", "3840m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testfullAlloc()");
 		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
-	}
-
-	/**
-	 * Test the YARN Java API.
-	 */
-	@Test
-	public void testJavaAPI() throws Exception {
-		final int waitTime = 15;
-		LOG.info("Starting testJavaAPI()");
-
-		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		Configuration configuration = GlobalConfiguration.loadConfiguration();
-
-		try (final AbstractYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			confDirPath,
-			getYarnClient(),
-			true)) {
-			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
-			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-
-			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(768)
-				.setTaskManagerMemoryMB(1024)
-				.setNumberTaskManagers(1)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification();
-			// deploy
-			ClusterClient<ApplicationId> yarnClusterClient = null;
-			try {
-				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
-
-				GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-				for (int second = 0; second < waitTime * 2; second++) { // run "forever"
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						LOG.warn("Interrupted", e);
-					}
-					GetClusterStatusResponse status = yarnClusterClient.getClusterStatus();
-					if (status != null && status.equals(expectedStatus)) {
-						LOG.info("ClusterClient reached status " + status);
-						break; // all good, cluster started
-					}
-					if (second > waitTime) {
-						// we waited for 15 seconds. cluster didn't come up correctly
-						Assert.fail("The custer didn't start after " + waitTime + " seconds");
-					}
-				}
-
-				// use the cluster
-				Assert.assertNotNull(yarnClusterClient.getClusterConnectionInfo());
-				Assert.assertNotNull(yarnClusterClient.getWebInterfaceURL());
-				LOG.info("All tests passed.");
-			} finally {
-				if (yarnClusterClient != null) {
-					// shutdown cluster
-					LOG.info("Shutting down the Flink Yarn application.");
-					yarnClusterClient.shutDownCluster();
-					yarnClusterClient.shutdown();
-				}
-			}
-		}
-		LOG.info("Finished testJavaAPI()");
 	}
 }

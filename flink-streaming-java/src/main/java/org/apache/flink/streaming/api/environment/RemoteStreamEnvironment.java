@@ -168,6 +168,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param savepointRestoreSettings
 	 *            Optional savepoint restore settings for job execution.
 	 */
+	@PublicEvolving
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths, SavepointRestoreSettings savepointRestoreSettings) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(

@@ -35,24 +35,22 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.tuple.Tuple2
-import org.apache.flink.runtime.state.{StateBackendLoader, FunctionInitializationContext, FunctionSnapshotContext}
+import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.streaming.util.migration.MigrationVersion
+import org.apache.flink.testutils.migration.MigrationVersion
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Ignore, Test}
 
-import scala.util.{Failure, Properties, Try}
+import scala.util.{Failure, Try}
 
 object StatefulJobSavepointMigrationITCase {
 
   @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
   def parameters: util.Collection[(MigrationVersion, String)] = {
     util.Arrays.asList(
-      (MigrationVersion.v1_2, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_2, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),

@@ -52,11 +52,12 @@ The following tables list all available connectors and formats. Their mutual com
 
 ### Formats
 
-| Name              | Maven dependency             | SQL Client JAR         |
-| :---------------- | :--------------------------- | :--------------------- |
-| CSV               | Built-in                     | Built-in               |
-| JSON              | `flink-json`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
-| Apache Avro       | `flink-avro`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
+| Name                       | Maven dependency             | SQL Client JAR         |
+| :------------------------- | :--------------------------- | :--------------------- |
+| Old CSV (for files)        | Built-in                     | Built-in               |
+| CSV (for Kafka)            | `flink-csv`                  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
+| JSON                       | `flink-json`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
+| Apache Avro                | `flink-avro`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
 
 {% else %}
 
@@ -708,21 +709,47 @@ A format tag indicates the format type for matching with a connector.
 
 ### CSV Format
 
-The CSV format allows to read and write comma-separated rows.
+<span class="label label-info">Format: Serialization Schema</span>
+<span class="label label-info">Format: Deserialization Schema</span>
+
+The CSV format aims to comply with [RFC-4180](https://tools.ietf.org/html/rfc4180) ("Common Format and
+MIME Type for Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
+
+The format allows to read and write CSV data that corresponds to a given format schema. The format schema can be
+defined either as a Flink type or derived from the desired table schema.
+
+If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for
+defining schema information only once. The names, types, and fields' order of the format are determined by the
+table's schema. Time attributes are ignored if their origin is not a field. A `from` definition in the table
+schema is interpreted as a field renaming in the format.
+
+The CSV format can be used as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .withFormat(
   new Csv()
-    .field("field1", Types.STRING)    // required: ordered format fields
-    .field("field2", Types.TIMESTAMP)
-    .fieldDelimiter(",")              // optional: string delimiter "," by default
-    .lineDelimiter("\n")              // optional: string delimiter "\n" by default
-    .quoteCharacter('"')              // optional: single character for string values, empty by default
-    .commentPrefix('#')               // optional: string to indicate comments, empty by default
-    .ignoreFirstLine()                // optional: ignore the first line, by default it is not skipped
-    .ignoreParseErrors()              // optional: skip records with parse error instead of failing by default
+
+    // required: define the schema either by using type information
+    .schema(Type.ROW(...))
+
+    // or use the table's schema
+    .deriveSchema()
+
+    .fieldDelimiter(';')         // optional: field delimiter character (',' by default)
+    .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
+                                 //   otherwise "\r" or "\r\n" are allowed)
+    .quoteCharacter('\'')        // optional: quote character for enclosing field values ('"' by default)
+    .allowComments()             // optional: ignores comment lines that start with '#' (disabled by default);
+                                 //   if enabled, make sure to also ignore parse errors to allow empty rows
+    .ignoreParseErrors()         // optional: skip fields and rows with parse errors instead of failing;
+                                 //   fields are set to null in case of errors
+    .arrayElementDelimiter("|")  // optional: the array element delimiter string for separating
+                                 //   array and row element values (";" by default)
+    .escapeCharacter('\\')       // optional: escape character for escaping values (disabled by default)
+    .nullLiteral("n/a")          // optional: null literal string that is interpreted as a
+                                 //   null value (disabled by default)
 )
 {% endhighlight %}
 </div>
@@ -731,24 +758,76 @@ The CSV format allows to read and write comma-separated rows.
 {% highlight yaml %}
 format:
   type: csv
-  fields:                    # required: ordered format fields
-    - name: field1
-      type: VARCHAR
-    - name: field2
-      type: TIMESTAMP
-  field-delimiter: ","       # optional: string delimiter "," by default
-  line-delimiter: "\n"       # optional: string delimiter "\n" by default
-  quote-character: '"'       # optional: single character for string values, empty by default
-  comment-prefix: '#'        # optional: string to indicate comments, empty by default
-  ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
-  ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
+
+  # required: define the schema either by using type information
+  schema: "ROW(lon FLOAT, rideTime TIMESTAMP)"
+
+  # or use the table's schema
+  derive-schema: true
+
+  field-delimiter: ";"         # optional: field delimiter character (',' by default)
+  line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed)
+  quote-character: "'"         # optional: quote character for enclosing field values ('"' by default)
+  allow-comments: true         # optional: ignores comment lines that start with "#" (disabled by default);
+                               #   if enabled, make sure to also ignore parse errors to allow empty rows
+  ignore-parse-errors: true    # optional: skip fields and rows with parse errors instead of failing;
+                               #   fields are set to null in case of errors
+  array-element-delimiter: "|" # optional: the array element delimiter string for separating
+                               #   array and row element values (";" by default)
+  escape-character: "\\"       # optional: escape character for escaping values (disabled by default)
+  null-literal: "n/a"          # optional: null literal string that is interpreted as a
+                               #   null value (disabled by default)
 {% endhighlight %}
 </div>
 </div>
 
-The CSV format is included in Flink and does not require additional dependencies.
+The following table lists supported types that can be read and written:
 
-<span class="label label-danger">Attention</span> The CSV format for writing rows is limited at the moment. Only a custom field delimiter is supported as optional parameter.
+| Supported Flink SQL Types |
+| :------------------------ |
+| `ROW`                    |
+| `VARCHAR`                |
+| `ARRAY[_]`               |
+| `INT`                    |
+| `BIGINT`                 |
+| `FLOAT`                  |
+| `DOUBLE`                 |
+| `BOOLEAN`                |
+| `DATE`                   |
+| `TIME`                   |
+| `TIMESTAMP`              |
+| `DECIMAL`                |
+| `NULL` (unsupported yet) |
+
+**Numeric types:** Value should be a number but the literal `"null"` can also be understood. An empty string is
+considered `null`. Values are also trimmed (leading/trailing white space). Numbers are parsed using
+Java's `valueOf` semantics. Other non-numeric strings may cause a parsing exception.
+
+**String and time types:** Value is not trimmed. The literal `"null"` can also be understood. Time types
+must be formatted according to the Java SQL time format with millisecond precision. For example:
+`2018-01-01` for date, `20:43:59` for time, and `2018-01-01 20:43:59.999` for timestamp.
+
+**Boolean type:** Value is expected to be a boolean (`"true"`, `"false"`) string or `"null"`. Empty strings are
+interpreted as `false`. Values are trimmed (leading/trailing white space). Other values result in an exception.
+
+**Nested types:** Array and row types are supported for one level of nesting using the array element delimiter.
+
+**Primitive byte arrays:** Primitive byte arrays are handled in Base64-encoded representation.
+
+**Line endings:** Line endings need to be considered even for row-based connectors (such as Kafka)
+to be ignored for unquoted string fields at the end of a row.
+
+**Escaping and quoting:** The following table shows examples of how escaping and quoting affect the parsing
+of a string using `*` for escaping and `'` for quoting:
+
+| CSV Field         | Parsed String        |
+| :---------------- | :------------------- |
+| `123*'4**`        | `123'4*`             |
+| `'123''4**'`      | `123'4*`             |
+| `'a;b*'c'`        | `a;b'c`              |
+| `'a;b''c'`        | `a;b'c`              |
+
+Make sure to add the CSV format as a dependency.
 
 ### JSON Format
 
@@ -757,7 +836,9 @@ The CSV format is included in Flink and does not require additional dependencies
 
 The JSON format allows to read and write JSON data that corresponds to a given format schema. The format schema can be defined either as a Flink type, as a JSON schema, or derived from the desired table schema. A Flink type enables a more SQL-like definition and mapping to the corresponding SQL data types. The JSON schema allows for more complex and nested structures.
 
-If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for defining schema information only once. The names, types, and field order of the format are determined by the table's schema. Time attributes are ignored if their origin is not a field. A `from` definition in the table schema is interpreted as a field renaming in the format.
+If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for defining schema information only once. The names, types, and fields' order of the format are determined by the table's schema. Time attributes are ignored if their origin is not a field. A `from` definition in the table schema is interpreted as a field renaming in the format.
+
+The JSON format can be used as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -837,7 +918,6 @@ The following table shows the mapping of JSON schema types to Flink SQL types:
 | `string` with `encoding: base64`  | `ARRAY[TINYINT]`        |
 | `null`                            | `NULL` (unsupported yet)|
 
-
 Currently, Flink supports only a subset of the [JSON schema specification](http://json-schema.org/) `draft-07`. Union types (as well as `allOf`, `anyOf`, `not`) are not supported yet. `oneOf` and arrays of types are only supported for specifying nullability.
 
 Simple references that link to a common definition in the document are supported as shown in the more complex example below:
@@ -891,13 +971,14 @@ Simple references that link to a common definition in the document are supported
 
 Make sure to add the JSON format as a dependency.
 
-
 ### Apache Avro Format
 
 <span class="label label-info">Format: Serialization Schema</span>
 <span class="label label-info">Format: Deserialization Schema</span>
 
 The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro data that corresponds to a given format schema. The format schema can be defined either as a fully qualified class name of an Avro specific record or as an Avro schema string. If a class name is used, the class must be available in the classpath during runtime.
+
+The Avro format can be used as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -974,6 +1055,56 @@ Avro types are mapped to the corresponding SQL data types. Union types are only 
 Avro uses [Joda-Time](http://www.joda.org/joda-time/) for representing logical date and time types in specific record classes. The Joda-Time dependency is not part of Flink's distribution. Therefore, make sure that Joda-Time is in your classpath together with your specific record class during runtime. Avro formats specified via a schema string do not require Joda-Time to be present.
 
 Make sure to add the Apache Avro dependency.
+
+### Old CSV Format
+
+<span class="label label-danger">Attention</span> For prototyping purposes only!
+
+The old CSV format allows to read and write comma-separated rows using the filesystem connector.
+
+This format describes Flink's non-standard CSV table source/sink. In the future, the format will be
+replaced by a proper RFC-compliant version. Use the RFC-compliant CSV format when writing to Kafka.
+Use the old one for stream/batch filesystem operations for now.
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+.withFormat(
+  new OldCsv()
+    .field("field1", Types.STRING)    // required: ordered format fields
+    .field("field2", Types.TIMESTAMP)
+    .fieldDelimiter(",")              // optional: string delimiter "," by default
+    .lineDelimiter("\n")              // optional: string delimiter "\n" by default
+    .quoteCharacter('"')              // optional: single character for string values, empty by default
+    .commentPrefix('#')               // optional: string to indicate comments, empty by default
+    .ignoreFirstLine()                // optional: ignore the first line, by default it is not skipped
+    .ignoreParseErrors()              // optional: skip records with parse error instead of failing by default
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+format:
+  type: csv
+  fields:                    # required: ordered format fields
+    - name: field1
+      type: VARCHAR
+    - name: field2
+      type: TIMESTAMP
+  field-delimiter: ","       # optional: string delimiter "," by default
+  line-delimiter: "\n"       # optional: string delimiter "\n" by default
+  quote-character: '"'       # optional: single character for string values, empty by default
+  comment-prefix: '#'        # optional: string to indicate comments, empty by default
+  ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
+  ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
+{% endhighlight %}
+</div>
+</div>
+
+The old CSV format is included in Flink and does not require additional dependencies.
+
+<span class="label label-danger">Attention</span> The old CSV format for writing rows is limited at the moment. Only a custom field delimiter is supported as optional parameter.
 
 {% top %}
 

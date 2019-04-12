@@ -46,7 +46,7 @@ import java.util.concurrent.Executor;
  */
 public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> {
 
-	private final MetricFetcher<?> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	public SubtaskCurrentAttemptDetailsHandler(
 		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -55,7 +55,7 @@ public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<
 		MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> messageHeaders,
 		ExecutionGraphCache executionGraphCache,
 		Executor executor,
-		MetricFetcher<?> metricFetcher) {
+		MetricFetcher metricFetcher) {
 
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
