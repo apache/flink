@@ -47,11 +47,11 @@ class BatchExecOverAggregate(
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
-    windowGroupToAggCallToAggFunction: Seq[
-      (Window.Group, Seq[(AggregateCall, UserDefinedFunction)])],
     grouping: Array[Int],
     orderKeyIndices: Array[Int],
     orders: Array[Boolean],
+    windowGroupToAggCallToAggFunction: Seq[
+      (Window.Group, Seq[(AggregateCall, UserDefinedFunction)])],
     nullIsLasts: Array[Boolean],
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
@@ -76,10 +76,10 @@ class BatchExecOverAggregate(
       inputs.get(0),
       outputRowType,
       inputRowType,
-      windowGroupToAggCallToAggFunction,
       grouping,
       orderKeyIndices,
       orders,
+      windowGroupToAggCallToAggFunction,
       nullIsLasts,
       logicWindow)
   }
