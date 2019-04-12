@@ -209,10 +209,11 @@ public class TaskAsyncCallTest extends TestLogger {
 			awaitLatch.await();
 
 			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+			triggerLatch.await();
+
 			task.notifyCheckpointComplete(1);
 			task.stopExecution();
 
-			triggerLatch.await();
 			notifyCheckpointCompleteLatch.await();
 			stopLatch.await();
 
