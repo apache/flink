@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.slf4j.Logger;
@@ -678,9 +679,11 @@ public class SingleInputGate implements InputGate {
 
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
+		final NetworkEnvironmentConfiguration networkConfig = networkEnvironment.getConfiguration();
+
 		final SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, metrics, networkEnvironment.isCreditBased());
+			icdd.length, taskActions, metrics, networkConfig.isCreditBased());
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -697,8 +700,8 @@ public class SingleInputGate implements InputGate {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
 					networkEnvironment.getResultPartitionManager(),
 					taskEventPublisher,
-					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestMaxBackoff(),
+					networkConfig.partitionRequestInitialBackoff(),
+					networkConfig.partitionRequestMaxBackoff(),
 					metrics
 				);
 
@@ -708,8 +711,8 @@ public class SingleInputGate implements InputGate {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
 					partitionLocation.getConnectionId(),
 					networkEnvironment.getConnectionManager(),
-					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestMaxBackoff(),
+					networkConfig.partitionRequestInitialBackoff(),
+					networkConfig.partitionRequestMaxBackoff(),
 					metrics
 				);
 
@@ -720,8 +723,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getResultPartitionManager(),
 					taskEventPublisher,
 					networkEnvironment.getConnectionManager(),
-					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestMaxBackoff(),
+					networkConfig.partitionRequestInitialBackoff(),
+					networkConfig.partitionRequestMaxBackoff(),
 					metrics
 				);
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -28,16 +29,17 @@ import org.junit.Test;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * Unit test for {@link TaskManagerServices}.
  */
-public class TaskManagerServicesTest extends TestLogger {
+public class NetworkEnvironmentConfigurationTest extends TestLogger {
 
 	/**
-	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} using old
+	 * Test for {@link NetworkEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)} using old
 	 * configurations via {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}.
 	 */
 	@SuppressWarnings("deprecation")
@@ -48,18 +50,18 @@ public class TaskManagerServicesTest extends TestLogger {
 
 		// note: actual network buffer memory size is independent of the totalJavaMemorySize
 		assertEquals(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes(),
-			TaskManagerServices.calculateNetworkBufferMemory(10L << 20, config));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(10L << 20, config));
 		assertEquals(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes(),
-			TaskManagerServices.calculateNetworkBufferMemory(64L << 20, config));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(64L << 20, config));
 
 		// test integer overflow in the memory size
 		int numBuffers = (int) ((2L << 32) / MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()); // 2^33
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, numBuffers);
-		assertEquals(2L << 32, TaskManagerServices.calculateNetworkBufferMemory(2L << 33, config));
+		assertEquals(2L << 32, NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(2L << 33, config));
 	}
 
 	/**
-	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} using new
+	 * Test for {@link NetworkEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)} using new
 	 * configurations via {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION},
 	 * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN} and
 	 * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}.
@@ -73,15 +75,15 @@ public class TaskManagerServicesTest extends TestLogger {
 		final Long defaultMin = MemorySize.parse(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.defaultValue()).getBytes();
 		final Long defaultMax = MemorySize.parse(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.defaultValue()).getBytes();
 		assertEquals(enforceBounds((long) (defaultFrac * (10L << 20)), defaultMin, defaultMax),
-			TaskManagerServices.calculateNetworkBufferMemory((64L << 20 + 1), config));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((64L << 20 + 1), config));
 		assertEquals(enforceBounds((long) (defaultFrac * (10L << 30)), defaultMin, defaultMax),
-			TaskManagerServices.calculateNetworkBufferMemory((10L << 30), config));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((10L << 30), config));
 
 		calculateNetworkBufNew(config);
 	}
 
 	/**
-	 * Helper to test {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} with the
+	 * Helper to test {@link NetworkEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)} with the
 	 * new configuration parameters.
 	 *
 	 * @param config configuration object
@@ -93,9 +95,9 @@ public class TaskManagerServicesTest extends TestLogger {
 
 
 		// note: actual network buffer memory size is independent of the totalJavaMemorySize
-		assertEquals(1 << 20, TaskManagerServices.calculateNetworkBufferMemory(10L << 20, config));
-		assertEquals(1 << 20, TaskManagerServices.calculateNetworkBufferMemory(64L << 20, config));
-		assertEquals(1 << 20, TaskManagerServices.calculateNetworkBufferMemory(1L << 30, config));
+		assertEquals(1 << 20, NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(10L << 20, config));
+		assertEquals(1 << 20, NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(64L << 20, config));
+		assertEquals(1 << 20, NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(1L << 30, config));
 
 		// (3) random fraction, min, and max values
 		Random ran = new Random();
@@ -112,7 +114,7 @@ public class TaskManagerServicesTest extends TestLogger {
 
 			long javaMem = Math.max(max + 1, ran.nextLong());
 
-			final long networkBufMem = TaskManagerServices.calculateNetworkBufferMemory(javaMem, config);
+			final long networkBufMem = NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(javaMem, config);
 
 			if (networkBufMem < min) {
 				fail("Lower bound not met with configuration: " + config.toString());
@@ -132,7 +134,7 @@ public class TaskManagerServicesTest extends TestLogger {
 	}
 
 	/**
-	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} using mixed
+	 * Test for {@link NetworkEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)} using mixed
 	 * old/new configurations.
 	 */
 	@SuppressWarnings("deprecation")
@@ -150,26 +152,26 @@ public class TaskManagerServicesTest extends TestLogger {
 		Configuration config1 = config.clone();
 		config1.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertEquals(enforceBounds((long) (0.1f * (10L << 20)), defaultMin, defaultMax),
-			TaskManagerServices.calculateNetworkBufferMemory((64L << 20 + 1), config1));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((64L << 20 + 1), config1));
 		assertEquals(enforceBounds((long) (0.1f * (10L << 30)), defaultMin, defaultMax),
-			TaskManagerServices.calculateNetworkBufferMemory((10L << 30), config1));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((10L << 30), config1));
 
 		config1 = config.clone();
 		long newMin = MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes(); // smallest value possible
 		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(newMin));
 		assertEquals(enforceBounds((long) (defaultFrac * (10L << 20)), newMin, defaultMax),
-			TaskManagerServices.calculateNetworkBufferMemory((10L << 20), config1));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((10L << 20), config1));
 		assertEquals(enforceBounds((long) (defaultFrac * (10L << 30)), newMin, defaultMax),
-			TaskManagerServices.calculateNetworkBufferMemory((10L << 30), config1));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((10L << 30), config1));
 
 		config1 = config.clone();
 		long newMax = Math.max(64L << 20 + 1, MemorySize.parse(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.defaultValue()).getBytes());
 		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(newMax));
 		assertEquals(enforceBounds((long) (defaultFrac * (10L << 20)), defaultMin, newMax),
-			TaskManagerServices.calculateNetworkBufferMemory((64L << 20 + 1), config1));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((64L << 20 + 1), config1));
 		assertEquals(enforceBounds((long) (defaultFrac * (10L << 30)), defaultMin, newMax),
-			TaskManagerServices.calculateNetworkBufferMemory((10L << 30), config1));
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
+			NetworkEnvironmentConfiguration.calculateNetworkBufferMemory((10L << 30), config1));
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config1));
 
 		// old + any new parameter = new:
 		calculateNetworkBufNew(config);
@@ -214,5 +216,85 @@ public class TaskManagerServicesTest extends TestLogger {
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0"); // use fraction of given memory
 		config.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.1f); // 10%
 		assertEquals(810, TaskManagerServices.calculateHeapSizeMB(1000, config));
+	}
+
+	/**
+	 * Verifies that {@link NetworkEnvironmentConfiguration#hasNewNetworkConfig(Configuration)}
+	 * returns the correct result for old configurations via
+	 * {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}.
+	 */
+	@SuppressWarnings("deprecation")
+	@Test
+	public void hasNewNetworkBufConfOld() throws Exception {
+		Configuration config = new Configuration();
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1);
+
+		assertFalse(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+	}
+
+	/**
+	 * Verifies that {@link NetworkEnvironmentConfiguration#hasNewNetworkConfig(Configuration)}
+	 * returns the correct result for new configurations via
+	 * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION},
+	 * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN} and {@link
+	 * TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}.
+	 */
+	@Test
+	public void hasNewNetworkBufConfNew() throws Exception {
+		Configuration config = new Configuration();
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+
+		// fully defined:
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "2048");
+
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+
+		// partly defined:
+		config = new Configuration();
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+
+		config = new Configuration();
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+
+		config = new Configuration();
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+	}
+
+	/**
+	 * Verifies that {@link NetworkEnvironmentConfiguration#hasNewNetworkConfig(Configuration)}
+	 * returns the correct result for mixed old/new configurations.
+	 */
+	@SuppressWarnings("deprecation")
+	@Test
+	public void hasNewNetworkBufConfMixed() throws Exception {
+		Configuration config = new Configuration();
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1);
+		assertFalse(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config));
+
+		// old + 1 new parameter = new:
+		Configuration config1 = config.clone();
+		config1.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config1));
+
+		config1 = config.clone();
+		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config1));
+
+		config1 = config.clone();
+		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
+		assertTrue(NetworkEnvironmentConfiguration.hasNewNetworkConfig(config1));
 	}
 }

@@ -22,10 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -48,6 +51,8 @@ public class NetworkEnvironment {
 
 	private final Object lock = new Object();
 
+	private final NetworkEnvironmentConfiguration config;
+
 	private final NetworkBufferPool networkBufferPool;
 
 	private final ConnectionManager connectionManager;
@@ -56,64 +61,25 @@ public class NetworkEnvironment {
 
 	private final TaskEventPublisher taskEventPublisher;
 
-	private final int partitionRequestInitialBackoff;
-
-	private final int partitionRequestMaxBackoff;
-
-	/** Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel). */
-	private final int networkBuffersPerChannel;
-
-	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
-	private final int extraNetworkBuffersPerGate;
-
-	private final boolean enableCreditBased;
-
 	private boolean isShutdown;
 
-	public NetworkEnvironment(
-		int numBuffers,
-		int memorySegmentSize,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
-		this(
-			new NetworkBufferPool(numBuffers, memorySegmentSize),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			partitionRequestInitialBackoff,
-			partitionRequestMaxBackoff,
-			networkBuffersPerChannel,
-			extraNetworkBuffersPerGate,
-			enableCreditBased);
-	}
+	public NetworkEnvironment(NetworkEnvironmentConfiguration config, TaskEventPublisher taskEventPublisher) {
+		this.config = checkNotNull(config);
 
-	public NetworkEnvironment(
-			NetworkBufferPool networkBufferPool,
-			ConnectionManager connectionManager,
-			ResultPartitionManager resultPartitionManager,
-			TaskEventPublisher taskEventPublisher,
-			int partitionRequestInitialBackoff,
-			int partitionRequestMaxBackoff,
-			int networkBuffersPerChannel,
-			int extraNetworkBuffersPerGate,
-			boolean enableCreditBased) {
+		this.networkBufferPool = new NetworkBufferPool(config.numNetworkBuffers(), config.networkBufferSize());
 
-		this.networkBufferPool = checkNotNull(networkBufferPool);
-		this.connectionManager = checkNotNull(connectionManager);
-		this.resultPartitionManager = checkNotNull(resultPartitionManager);
+		NettyConfig nettyConfig = config.nettyConfig();
+		if (nettyConfig != null) {
+			this.connectionManager = new NettyConnectionManager(nettyConfig, config.isCreditBased());
+		} else {
+			this.connectionManager = new LocalConnectionManager();
+		}
+
+		this.resultPartitionManager = new ResultPartitionManager();
+
 		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 
-		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
-		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
-
 		isShutdown = false;
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
-		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
-
-		this.enableCreditBased = enableCreditBased;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -132,16 +98,8 @@ public class NetworkEnvironment {
 		return networkBufferPool;
 	}
 
-	public int getPartitionRequestInitialBackoff() {
-		return partitionRequestInitialBackoff;
-	}
-
-	public int getPartitionRequestMaxBackoff() {
-		return partitionRequestMaxBackoff;
-	}
-
-	public boolean isCreditBased() {
-		return enableCreditBased;
+	public NetworkEnvironmentConfiguration getConfiguration() {
+		return config;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -174,8 +132,8 @@ public class NetworkEnvironment {
 
 		try {
 			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-				partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+				partition.getNumberOfSubpartitions() * config.networkBuffersPerChannel() +
+					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 			// If the partition type is back pressure-free, we register with the buffer pool for
 			// callbacks to release memory.
 			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
@@ -203,17 +161,17 @@ public class NetworkEnvironment {
 		BufferPool bufferPool = null;
 		int maxNumberOfMemorySegments;
 		try {
-			if (enableCreditBased) {
+			if (config.isCreditBased()) {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 
 				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+				gate.assignExclusiveSegments(networkBufferPool, config.networkBuffersPerChannel());
 				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
 			} else {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					gate.getNumberOfInputChannels() * networkBuffersPerChannel +
-						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					gate.getNumberOfInputChannels() * config.networkBuffersPerChannel() +
+						config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 
 				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
 					maxNumberOfMemorySegments);

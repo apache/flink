@@ -43,7 +43,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final long MEM_SIZE_PARAM = 128L*1024*1024;
+	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
 
 	/**
 	 * This tests that the creation of {@link TaskManagerServices} correctly creates the local state root directory
@@ -67,7 +67,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		final ResourceID tmResourceID = ResourceID.generate();
 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+			TaskManagerServicesConfiguration.fromConfiguration(config, MEM_SIZE_PARAM, InetAddress.getLocalHost(), true);
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
@@ -108,7 +108,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		final ResourceID tmResourceID = ResourceID.generate();
 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+			TaskManagerServicesConfiguration.fromConfiguration(config, MEM_SIZE_PARAM, InetAddress.getLocalHost(), true);
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,

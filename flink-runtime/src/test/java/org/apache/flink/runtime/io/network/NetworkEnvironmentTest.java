@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfigurationBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.Task;
 
@@ -56,9 +57,6 @@ import static org.powermock.api.mockito.PowerMockito.spy;
  */
 @RunWith(Parameterized.class)
 public class NetworkEnvironmentTest {
-	private static final int numBuffers = 1024;
-
-	private static final int memorySegmentSize = 128;
 
 	@Parameterized.Parameter
 	public boolean enableCreditBasedFlowControl;
@@ -77,8 +75,10 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
-		final NetworkEnvironment network = new NetworkEnvironment(
-			numBuffers, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build(),
+			new TaskEventDispatcher());
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
@@ -181,8 +181,11 @@ public class NetworkEnvironmentTest {
 	}
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
-		final NetworkEnvironment network = new NetworkEnvironment(
-			bufferPoolSize, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+			.setNumNetworkBuffers(bufferPoolSize)
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build(),
+			new TaskEventDispatcher());
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 

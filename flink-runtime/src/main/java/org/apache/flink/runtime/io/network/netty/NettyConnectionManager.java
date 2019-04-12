@@ -35,20 +35,21 @@ public class NettyConnectionManager implements ConnectionManager {
 
 	private final PartitionRequestClientFactory partitionRequestClientFactory;
 
-	public NettyConnectionManager(NettyConfig nettyConfig) {
+	private final boolean isCreditBased;
+
+	public NettyConnectionManager(NettyConfig nettyConfig, boolean isCreditBased) {
 		this.server = new NettyServer(nettyConfig);
 		this.client = new NettyClient(nettyConfig);
 		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
 
 		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
+
+		this.isCreditBased = isCreditBased;
 	}
 
 	@Override
 	public void start(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher) throws IOException {
-		NettyProtocol partitionRequestProtocol = new NettyProtocol(
-			partitionProvider,
-			taskEventPublisher,
-			client.getConfig().isCreditBasedEnabled());
+		NettyProtocol partitionRequestProtocol = new NettyProtocol(partitionProvider, taskEventPublisher, isCreditBased);
 
 		client.init(partitionRequestProtocol, bufferPool);
 		server.init(partitionRequestProtocol, bufferPool);
