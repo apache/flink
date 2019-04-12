@@ -44,6 +44,7 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfigurationBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.junit.Test;
@@ -341,8 +342,12 @@ public class SingleInputGateTest {
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
 
-		final NetworkEnvironment netEnv = new NetworkEnvironment(
-			100, 32, initialBackoff, maxBackoff, 2, 8, enableCreditBasedFlowControl);
+		final NetworkEnvironment netEnv = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+			.setPartitionRequestInitialBackoff(initialBackoff)
+			.setPartitionRequestMaxBackoff(maxBackoff)
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build(),
+			new TaskEventDispatcher());
 
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
@@ -402,8 +407,7 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = new NetworkEnvironment(
-			100, 32, 0, 0, buffersPerChannel, extraNetworkBuffersPerGate, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -441,8 +445,7 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = new NetworkEnvironment(
-			100, 32, 0, 0, buffersPerChannel, extraNetworkBuffersPerGate, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -492,9 +495,7 @@ public class SingleInputGateTest {
 	@Test
 	public void testUpdateUnknownInputChannel() throws Exception {
 		final SingleInputGate inputGate = createInputGate(2);
-		int buffersPerChannel = 2;
-		final NetworkEnvironment network = new NetworkEnvironment(
-			100, 32, 0, 0, buffersPerChannel, 8, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID localResultPartitionId = new ResultPartitionID();
@@ -586,8 +587,8 @@ public class SingleInputGateTest {
 			network.getResultPartitionManager(),
 			new TaskEventDispatcher(),
 			network.getConnectionManager(),
-			network.getPartitionRequestInitialBackoff(),
-			network.getPartitionRequestMaxBackoff(),
+			network.getConfiguration().partitionRequestInitialBackoff(),
+			network.getConfiguration().partitionRequestMaxBackoff(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()
 		);
 	}
@@ -602,6 +603,13 @@ public class SingleInputGateTest {
 			createUnknownInputChannel(network, inputGate, partitionId, channelIndex)
 				.toRemoteInputChannel(connectionId);
 		inputGate.setInputChannel(partitionId.getPartitionId(), remote);
+	}
+
+	private NetworkEnvironment createNetworkEnvironment() {
+		return new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build(),
+			new TaskEventDispatcher());
 	}
 
 	static void verifyBufferOrEvent(

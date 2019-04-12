@@ -353,6 +353,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
 			TaskManagerServicesConfiguration.fromConfiguration(
 				configuration,
+				EnvironmentInformation.getMaxJvmHeapMemory(),
 				remoteAddress,
 				localCommunicationOnly);
 
