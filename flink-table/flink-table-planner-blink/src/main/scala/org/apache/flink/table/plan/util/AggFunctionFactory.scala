@@ -480,8 +480,8 @@ class AggFunctionFactory(
           val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
           new DecimalFirstValueAggFunction(decimalTypeInfo)
         case t: InternalType =>
-          throw new TableException(s"FIRST_VALUE aggregate function does not support type: ''$t''.\n" +
-            s"Please re-check the data type.")
+          throw new TableException(s"FIRST_VALUE aggregate function does not support " +
+            s"type: ''$t''.\nPlease re-check the data type.")
       }
     }
   }
@@ -536,8 +536,8 @@ class AggFunctionFactory(
           val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
           new DecimalLastValueAggFunction(decimalTypeInfo)
         case t: InternalType =>
-          throw new TableException(s"LAST_VALUE aggregate function does not support type: ''$t''.\n" +
-            s"Please re-check the data type.")
+          throw new TableException(s"LAST_VALUE aggregate function does not support " +
+            s"type: ''$t''.\nPlease re-check the data type.")
       }
     }
   }
