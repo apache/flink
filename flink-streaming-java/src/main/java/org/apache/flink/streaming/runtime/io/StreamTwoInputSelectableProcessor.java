@@ -101,6 +101,7 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 
 	private Counter numRecordsIn;
 
+	@SuppressWarnings("unchecked")
 	public StreamTwoInputSelectableProcessor(
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
@@ -309,7 +310,7 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 			checkState(futures.size() > 0, "No input in listening.");
 
 			// block to wait for a available input
-			CompletableFuture.anyOf(futures.toArray(new CompletableFuture<?>[futures.size()])).get();
+			CompletableFuture.anyOf(futures.toArray(new CompletableFuture<?>[0])).get();
 
 			// clear all completed futures
 			for (CompletableFuture<Integer> future : futures) {

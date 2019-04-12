@@ -88,6 +88,7 @@ public final class NetworkInput implements Input, InputGateListener {
 
 	private boolean isFinished = false;
 
+	@SuppressWarnings("unchecked")
 	public NetworkInput(
 		int inputId,
 		Collection<InputGate> inputGates,
@@ -97,7 +98,7 @@ public final class NetworkInput implements Input, InputGateListener {
 
 		this.inputId = inputId;
 
-		this.inputGate = InputGateUtil.createInputGate(inputGates.toArray(new InputGate[inputGates.size()]));
+		this.inputGate = InputGateUtil.createInputGate(inputGates.toArray(new InputGate[0]));
 
 		StreamElementSerializer<?> ser1 = new StreamElementSerializer<>(inputSerializer);
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(ser1);

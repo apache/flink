@@ -184,9 +184,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		requestPartitions();
 
 		InputGateWithData inputGateWithData = waitAndGetNextInputGate(blocking);
-		if (!blocking && inputGateWithData == null) {
+		if (inputGateWithData == null) {
+			// In the case that `blocking` is false, `inputGateWithData` may be null
 			return Optional.empty();
-		} // else, inputGateWithData must not be null
+		}
+
 		InputGate inputGate = inputGateWithData.inputGate;
 		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
 

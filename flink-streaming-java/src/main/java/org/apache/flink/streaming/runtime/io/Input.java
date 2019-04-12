@@ -62,8 +62,6 @@ public interface Input {
 
 	/**
 	 * Closes this input and releases any resources associated with the input.
-	 *
-	 * @throws Exception
 	 */
 	void close() throws Exception;
 }
