@@ -87,7 +87,8 @@ abstract class BatchAggTestBase extends AggTestBase {
 
     val op = testHarness.getTask.getStreamStatusMaintainer.asInstanceOf[OperatorChain[_, _]]
         .getHeadOperator.asInstanceOf[OneInputOperatorWrapper[_, _]].getOperator
-    op.getClass.getMethod("endInput").invoke(op)
+    // TODO close will invoke endInput
+    // op.getClass.getMethod("endInput").invoke(op)
 
     testHarness.endInput()
     testHarness.waitForTaskCompletion()

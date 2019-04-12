@@ -100,6 +100,8 @@ object OperatorCodeGenerator extends Logging {
 
         @Override
         public void close() throws Exception {
+           // TODO remove it after introduce endInput in runtime.
+           endInput();
            super.close();
           ${ctx.reuseCloseCode()}
         }

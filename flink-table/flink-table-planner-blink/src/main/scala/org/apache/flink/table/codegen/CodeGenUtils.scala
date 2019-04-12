@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.generated.HashFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.util.MurmurHashUtil
 import org.apache.flink.types.Row
@@ -196,11 +197,20 @@ object CodeGenUtils {
     case InternalTypes.TIME => s"${className[JInt]}.hashCode($term)"
     case _: TimestampType => s"${className[JLong]}.hashCode($term)"
     case _: ArrayType => throw new IllegalArgumentException(s"Not support type to hash: $t")
+    case rowType: RowType =>
+      val subCtx = CodeGeneratorContext(ctx.tableConfig)
+      val genHash = HashCodeGenerator.generateRowHash(
+        subCtx, rowType, "SubHashRow", (0 until rowType.getArity).toArray)
+      ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
+      val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
+      val hashFunc = newName("hashFunc")
+      ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
+      ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
+      s"$hashFunc.hashCode($term)"
     case gt: GenericType[_] =>
       val serTerm = ctx.addReusableObject(gt.getSerializer, "serializer")
       s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
   }
-
 
   // ----------------------------------------------------------------------------------------------
 
@@ -459,7 +469,7 @@ object CodeGenUtils {
 
   def binaryRowSetNull(indexTerm: String, rowTerm: String, t: InternalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.precision()) =>
-      s"$rowTerm.setDecimal($indexTerm, null, ${d.precision()}, ${d.scale()})"
+      s"$rowTerm.setDecimal($indexTerm, null, ${d.precision()})"
     case _ => s"$rowTerm.setNullAt($indexTerm)"
   }
 
@@ -488,7 +498,7 @@ object CodeGenUtils {
       case InternalTypes.TIME =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case _: TimestampType =>  s"$binaryRowTerm.setLong($index, $fieldValTerm)"
       case d: DecimalType =>
-        s"$binaryRowTerm.setDecimal($index, $fieldValTerm, ${d.precision()}, ${d.scale()})"
+        s"$binaryRowTerm.setDecimal($index, $fieldValTerm, ${d.precision()})"
       case _ =>
         throw new CodeGenException("Fail to find binary row field setter method of InternalType "
           + fieldType + ".")

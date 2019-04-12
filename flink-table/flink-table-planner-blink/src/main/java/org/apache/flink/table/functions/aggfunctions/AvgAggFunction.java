@@ -170,7 +170,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
 		@Override
 		public Expression[] initialValuesExpressions() {
-			return new Expression[] {literal(new BigDecimal(0)), literal(0L)};
+			return new Expression[] {literal(new BigDecimal(0), getSumType()), literal(0L)};
 		}
 	}
 }

@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.util.RelExplainUtil
 
@@ -40,6 +44,7 @@ class BatchExecHashAggregate(
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
+    aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
@@ -51,6 +56,7 @@ class BatchExecHashAggregate(
     inputRel,
     outputRowType,
     inputRowType,
+    aggInputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
@@ -65,6 +71,7 @@ class BatchExecHashAggregate(
       inputs.get(0),
       outputRowType,
       inputRowType,
+      aggInputRowType,
       grouping,
       auxGrouping,
       aggCallToAggFunction,
@@ -87,4 +94,14 @@ class BatchExecHashAggregate(
         isGlobal = true))
   }
 
+  override def getDamBehavior = DamBehavior.FULL_DAM
+
+  override def getOperatorName: String = {
+    val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
+    aggOperatorName(aggregateNamePrefix + "HashAggregate")
+  }
+
+  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int = {
+    if (isFinal && grouping.length == 0) 1 else input.getParallelism
+  }
 }

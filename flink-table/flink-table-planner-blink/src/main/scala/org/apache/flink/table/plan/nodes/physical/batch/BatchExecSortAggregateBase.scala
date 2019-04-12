@@ -17,8 +17,17 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.agg.batch.{AggWithoutKeysCodeGenerator, HashAggCodeGenerator, SortAggCodeGenerator}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
+import org.apache.flink.table.runtime.OneInputOperatorWrapper
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -26,6 +35,10 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for sort-based aggregate operator.
@@ -39,6 +52,7 @@ abstract class BatchExecSortAggregateBase(
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
+    aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
@@ -55,7 +69,8 @@ abstract class BatchExecSortAggregateBase(
     auxGrouping,
     aggCallToAggFunction,
     isMerge,
-    isFinal) {
+    isFinal)
+  with BatchExecNode[BaseRow]{
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRows = mq.getRowCount(getInput())
@@ -69,5 +84,39 @@ abstract class BatchExecSortAggregateBase(
     val rowCount = mq.getRowCount(this)
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
+  }
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  def getOperatorName: String
+
+  def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val ctx = CodeGeneratorContext(tableEnv.getConfig)
+    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toInternalRowType(inputRowType)
+
+    val aggInfos = transformToBatchAggregateInfoList(
+      aggCallToAggFunction.map(_._1), aggInputRowType)
+
+    val generatedOperator = if (grouping.isEmpty) {
+      AggWithoutKeysCodeGenerator.genWithoutKeys(
+        ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
+    } else {
+      SortAggCodeGenerator.genWithKeys(
+        ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal)
+    }
+    val operator = new OneInputOperatorWrapper[BaseRow, BaseRow](generatedOperator)
+    new OneInputTransformation(
+      input,
+      getOperatorName,
+      operator,
+      outputType.toTypeInfo,
+      getParallelism(input, tableEnv.config))
   }
 }

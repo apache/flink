@@ -86,7 +86,7 @@ object TestData {
     row(2, 3L, 2, "Hallo Welt wie", 1L)
   )
 
-  val nullablesOfSmallData5 = Seq(false, false, false, false, false)
+  val nullablesOfSmallData5 = Array(false, false, false, false, false)
 
   lazy val buildInData = Seq(
     row(false, 1.toByte, 2, 3L, 2.56, "abcd", "f%g", UTCDate("2017-12-12"),

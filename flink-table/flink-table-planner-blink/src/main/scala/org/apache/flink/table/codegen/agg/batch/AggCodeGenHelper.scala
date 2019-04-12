@@ -19,6 +19,7 @@
 package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.TypeConverters.{createInternalTypeFromTypeInfo, createInternalTypeInfoFromInternalType}
@@ -30,8 +31,8 @@ import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprC
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
 import org.apache.flink.table.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
 import org.apache.flink.table.runtime.context.ExecutionContextImpl
 
@@ -132,6 +133,7 @@ object AggCodeGenHelper {
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
       aggArgs: Array[Array[Int]],
       aggregates: Seq[UserDefinedFunction],
+      aggResultTypes: Seq[TypeInformation[_]],
       udaggs: Map[AggregateFunction[_, _], String],
       inputTerm: String,
       inputType: RowType,
@@ -192,6 +194,7 @@ object AggCodeGenHelper {
       grouping,
       auxGrouping,
       aggregates,
+      aggResultTypes,
       udaggs,
       argsMapping,
       aggBufferNames,
@@ -472,6 +475,7 @@ object AggCodeGenHelper {
       grouping: Array[Int],
       auxGrouping: Array[Int],
       aggregates: Seq[UserDefinedFunction],
+      aggResultTypes: Seq[TypeInformation[_]],
       udaggs: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, InternalType)]],
       aggBufferNames: Array[Array[String]],
@@ -488,6 +492,7 @@ object AggCodeGenHelper {
         builder,
         auxGrouping,
         aggregates,
+        aggResultTypes,
         udaggs,
         argsMapping,
         aggBufferNames,
@@ -513,6 +518,7 @@ object AggCodeGenHelper {
       builder: RelBuilder,
       auxGrouping: Array[Int],
       aggregates: Seq[UserDefinedFunction],
+      aggResultTypes: Seq[TypeInformation[_]],
       udaggs: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, InternalType)]],
       aggBufferNames: Array[Array[String]],
@@ -540,7 +546,7 @@ object AggCodeGenHelper {
     }.map {
       case (rex: RexNode) => exprCodegen.generateExpression(rex)
       case (agg: AggregateFunction[_, _], aggIndex: Int) =>
-        val resultType = getResultTypeOfAggregateFunction(agg)
+        val resultType = aggResultTypes(aggIndex - auxGrouping.length)
         val accType = getAccumulatorTypeOfAggregateFunction(agg)
         val resultTerm = genToInternal(ctx, resultType,
           s"${udaggs(agg)}.getValue(${genToExternal(ctx, accType, aggBufferNames(aggIndex)(0))})")

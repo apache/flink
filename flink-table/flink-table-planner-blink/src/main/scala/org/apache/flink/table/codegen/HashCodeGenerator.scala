@@ -75,6 +75,8 @@ object HashCodeGenerator {
           $hashBody
           return $resultTerm;
         }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
       }
     """.stripMargin
 

@@ -17,7 +17,12 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -27,6 +32,8 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for local hash-based aggregate operator.
@@ -49,6 +56,7 @@ class BatchExecLocalHashAggregate(
     traitSet,
     inputRel,
     outputRowType,
+    inputRowType,
     inputRowType,
     grouping,
     auxGrouping,
@@ -84,4 +92,12 @@ class BatchExecLocalHashAggregate(
         isGlobal = false))
   }
 
+  override def getDamBehavior: DamBehavior = {
+    if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
+  }
+
+  override def getOperatorName: String = aggOperatorName("LocalHashAggregate")
+
+  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int =
+    input.getParallelism
 }

@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.util.RelExplainUtil
 
@@ -49,6 +53,7 @@ class BatchExecLocalSortAggregate(
     traitSet,
     inputRel,
     outputRowType,
+    inputRowType,
     inputRowType,
     grouping,
     auxGrouping,
@@ -84,5 +89,14 @@ class BatchExecLocalSortAggregate(
         isMerge = false,
         isGlobal = false))
   }
+
+  override def getDamBehavior: DamBehavior = {
+    if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
+  }
+
+  override def getOperatorName: String = aggOperatorName("LocalSortAggregate")
+
+  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int =
+    input.getParallelism
 
 }

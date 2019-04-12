@@ -70,6 +70,7 @@ object AggWithoutKeysCodeGenerator {
       aggCallToAggFunction,
       aggArgs,
       aggregates,
+      aggInfoList.aggInfos.map(_.externalResultType),
       udaggs,
       inputTerm,
       inputType,

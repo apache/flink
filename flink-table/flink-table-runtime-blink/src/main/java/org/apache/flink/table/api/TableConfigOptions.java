@@ -65,6 +65,12 @@ public class TableConfigOptions {
 					.defaultValue(true)
 					.withDescription("Whether to asynchronously merge sort spill files.");
 
+	public static final ConfigOption<Integer> SQL_EXEC_PER_REQUEST_MEM =
+			key("sql.exec.per-request.mem.mb")
+					.defaultValue(32)
+					.withDescription("Sets the number of per-requested buffers when the operator " +
+							"allocates much more segments from the floating memory pool.");
+
 	// ------------------------------------------------------------------------
 	//  Spill Options
 	// ------------------------------------------------------------------------
@@ -107,10 +113,25 @@ public class TableConfigOptions {
 					.defaultValue(10)
 					.withDescription("Sets the externalBuffer memory size that is used in sortMergeJoin and overWindow.");
 
+	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MEM =
+			key("sql.resource.hash-agg.table.memory.mb")
+					.defaultValue(32)
+					.withDescription("Sets the table reserved memory size of hashAgg operator. It defines the lower limit.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM =
+			key("sql.resource.hash-agg.table-max-memory-mb")
+					.defaultValue(512)
+					.withDescription("Sets the table max memory size of hashAgg operator. It defines the upper limit.");
+
 	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
 			key("sql.resource.sort.buffer.memory.mb")
 					.defaultValue(32)
 					.withDescription("Sets the buffer reserved memory size for sort. It defines the lower limit for the sort.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MAX_MEM =
+			key("sql.resource.sort.buffer-max-memory-mb")
+					.defaultValue(512)
+					.withDescription("Sets the max buffer memory size for sort. It defines the upper memory for the sort.");
 
 	// ------------------------------------------------------------------------
 	//  MiniBatch Options
