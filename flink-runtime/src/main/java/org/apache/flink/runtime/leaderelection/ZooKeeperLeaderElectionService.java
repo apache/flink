@@ -202,7 +202,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			}
 		} else {
 			LOG.warn("The leader session ID {} was confirmed even though the " +
-					"corresponding JobManager was not elected as the leader.", leaderSessionID);
+					"corresponding LeaderContender was not elected as the leader.", leaderSessionID);
 		}
 	}
 
