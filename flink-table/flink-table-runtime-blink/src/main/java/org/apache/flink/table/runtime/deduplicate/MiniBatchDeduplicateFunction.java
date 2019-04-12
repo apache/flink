@@ -20,10 +20,9 @@ package org.apache.flink.table.runtime.deduplicate;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
@@ -46,33 +45,35 @@ public class MiniBatchDeduplicateFunction
 	private BaseRowTypeInfo rowTypeInfo;
 	private boolean generateRetraction;
 	private boolean keepLastRow;
-	private ValueState<BaseRow> pkRow;
+
+	// state stores complete row if keep last row and generate retraction is true,
+	// else stores a flag to indicate whether key appears before.
+	private ValueState state;
 	private TypeSerializer<BaseRow> ser;
-	private GeneratedRecordEqualiser generatedEqualiser;
-	private transient RecordEqualiser equaliser;
 
 	public MiniBatchDeduplicateFunction(
 			BaseRowTypeInfo rowTypeInfo,
 			boolean generateRetraction,
 			TypeSerializer<BaseRow> typeSerializer,
-			boolean keepLastRow,
-			GeneratedRecordEqualiser generatedEqualiser) {
+			boolean keepLastRow) {
 		this.rowTypeInfo = rowTypeInfo;
-		this.generateRetraction = generateRetraction;
 		this.keepLastRow = keepLastRow;
+		this.generateRetraction = generateRetraction;
 		ser = typeSerializer;
-		this.generatedEqualiser = generatedEqualiser;
 	}
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
-		ValueStateDescriptor<BaseRow> rowStateDesc = new ValueStateDescriptor("rowState", rowTypeInfo);
-		pkRow = ctx.getRuntimeContext().getState(rowStateDesc);
-
-		// compile equaliser
-		equaliser = generatedEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
-		generatedEqualiser = null;
+		ValueStateDescriptor stateDesc = null;
+		if (keepLastRow && generateRetraction) {
+			// if need generate retraction and keep last row, stores complete row into state
+			stateDesc = new ValueStateDescriptor("deduplicateFunction", rowTypeInfo);
+		} else {
+			// else stores a flag to indicator whether pk appears before.
+			stateDesc = new ValueStateDescriptor("fistValueState", Types.BOOLEAN);
+		}
+		state = ctx.getRuntimeContext().getState(stateDesc);
 	}
 
 	@Override
@@ -93,12 +94,11 @@ public class MiniBatchDeduplicateFunction
 			BaseRow currentKey = entry.getKey();
 			BaseRow currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-			BaseRow preRow = pkRow.value();
 
 			if (keepLastRow) {
-				processLastRow(preRow, currentRow, generateRetraction, false, pkRow, equaliser, out);
+				processLastRow(currentRow, generateRetraction, state, out);
 			} else {
-				processFirstRow(preRow, currentRow, pkRow, out);
+				processFirstRow(currentRow, state, out);
 			}
 		}
 	}

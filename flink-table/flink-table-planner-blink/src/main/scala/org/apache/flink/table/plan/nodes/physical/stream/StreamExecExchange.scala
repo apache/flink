@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -44,10 +45,8 @@ class StreamExecExchange(
     relNode: RelNode,
     relDistribution: RelDistribution)
   extends CommonPhysicalExchange(cluster, traitSet, relNode, relDistribution)
-  with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  private val DEFAULT_MAX_PARALLELISM = 1 << 7
+    with StreamPhysicalRel
+    with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 
@@ -88,9 +87,11 @@ class StreamExecExchange(
         transformation
       case RelDistribution.Type.HASH_DISTRIBUTED =>
         // TODO Eliminate duplicate keys
+
         val selector = KeySelectorUtil.getBaseRowSelector(
           relDistribution.getKeys.map(_.toInt).toArray, inputTypeInfo)
-        val partitioner = new KeyGroupStreamPartitioner(selector, DEFAULT_MAX_PARALLELISM)
+        val partitioner = new KeyGroupStreamPartitioner(selector,
+          DEFAULT_LOWER_BOUND_MAX_PARALLELISM)
         val transformation = new PartitionTransformation(
           inputTransform,
           partitioner.asInstanceOf[StreamPartitioner[BaseRow]])

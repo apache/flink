@@ -62,8 +62,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List(
-      "book,1,12,2",
       "book,2,19,1",
+      "book,1,12,2",
       "fruit,3,44,1",
       "fruit,4,33,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

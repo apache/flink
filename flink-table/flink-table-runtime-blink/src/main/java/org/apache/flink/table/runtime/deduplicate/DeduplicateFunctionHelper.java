@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.deduplicate;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -30,35 +29,52 @@ import org.apache.flink.util.Preconditions;
  */
 class DeduplicateFunctionHelper {
 
-	static void processLastRow(BaseRow preRow, BaseRow currentRow, boolean generateRetraction,
-			boolean stateCleaningEnabled, ValueState<BaseRow> pkRow, RecordEqualiser equaliser,
+	/**
+	 * Processes element to deduplicate on keys, sends current element as last row, retracts previous element if
+	 * needed.
+	 *
+	 * @param currentRow latest row received by deduplicate function
+	 * @param generateRetraction whether need to send retract message to downstream
+	 * @param state state of function
+	 * @param out underlying collector
+	 * @throws Exception
+	 */
+	static void processLastRow(BaseRow currentRow, boolean generateRetraction, ValueState state,
 			Collector<BaseRow> out) throws Exception {
-		// should be accumulate msg.
+		// should be accumulate msg
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
-		if (!stateCleaningEnabled && preRow != null &&
-				equaliser.equalsWithoutHeader(preRow, currentRow)) {
-			// If state cleaning is not enabled, don't emit retraction and acc message. But if state cleaning is
-			// enabled, we have to emit message to prevent too early state eviction of downstream operators.
-			return;
-		}
-		pkRow.update(currentRow);
-		if (preRow != null && generateRetraction) {
-			preRow.setHeader(BaseRowUtil.RETRACT_MSG);
-			out.collect(preRow);
+		if (generateRetraction) {
+			// state stores complete row if generateRetraction is true
+			BaseRow preRow = (BaseRow) state.value();
+			state.update(currentRow);
+			if (preRow != null) {
+				preRow.setHeader(BaseRowUtil.RETRACT_MSG);
+				out.collect(preRow);
+			}
+		} else {
+			// state stores a flag to indicator whether pk appears before
+			state.update(true);
 		}
 		out.collect(currentRow);
 	}
 
-	static void processFirstRow(BaseRow preRow, BaseRow currentRow, ValueState<BaseRow> pkRow,
-			Collector<BaseRow> out) throws Exception {
+	/**
+	 * Processes element to deduplicate on keys, sends current element if it is first row.
+	 *
+	 * @param currentRow latest row received by deduplicate function
+	 * @param state state of function
+	 * @param out underlying collector
+	 * @throws Exception
+	 */
+	static void processFirstRow(BaseRow currentRow, ValueState state, Collector<BaseRow> out)
+			throws Exception {
 		// should be accumulate msg.
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
 		// ignore record with timestamp bigger than preRow
-		if (preRow != null) {
+		if (state.value() != null) {
 			return;
 		}
-
-		pkRow.update(currentRow);
+		state.update(true);
 		out.collect(currentRow);
 	}
 

@@ -31,8 +31,8 @@ import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BaseRowRecordEqualiser;
-import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 

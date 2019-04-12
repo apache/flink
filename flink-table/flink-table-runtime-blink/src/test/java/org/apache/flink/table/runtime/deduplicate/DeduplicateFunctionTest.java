@@ -23,6 +23,11 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
+import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Test;
 
@@ -35,15 +40,25 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
 /**
  * Tests for {@link DeduplicateFunction}.
  */
-public class DeduplicateFunctionTest extends BaseDeduplicateFunctionTest {
+public class DeduplicateFunctionTest {
 
 	private Time minTime = Time.milliseconds(10);
 	private Time maxTime = Time.milliseconds(20);
 
+	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.LONG,
+			InternalTypes.INT);
+
+	private int rowKeyIdx = 1;
+	private BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
+			inputRowType.getInternalTypes());
+
+	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
+			inputRowType.getFieldTypes(),
+			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getInternalTypes()[rowKeyIdx]));
+
 	private DeduplicateFunction createFunction(boolean generateRetraction, boolean keepLastRow) {
 		DeduplicateFunction func = new DeduplicateFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
-				inputRowType, generateRetraction, keepLastRow,
-				generatedEqualiser);
+				inputRowType, generateRetraction, keepLastRow);
 		return func;
 	}
 
@@ -118,8 +133,8 @@ public class DeduplicateFunctionTest extends BaseDeduplicateFunctionTest {
 		List<Object> expectedOutputOutput = new ArrayList<>();
 		expectedOutputOutput.add(record("book", 1L, 12));
 		expectedOutputOutput.add(retractRecord("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 11));
 		expectedOutputOutput.add(record("book", 1L, 13));
+		expectedOutputOutput.add(record("book", 2L, 11));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
 	}
 }

@@ -76,11 +76,13 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	// a buffer stores mapping from sort key to rowKey list
 	private transient TopNBuffer buffer;
 
+	// the kvSortedMap stores mapping from partition key to it's buffer
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
 	// a HashMap stores mapping from rowKey to record, a heap mirror to dataState
 	private transient Map<BaseRow, RankRow> rowKeyMap;
 
+	// the kvRowKeyMap store mapping from partitionKey to its rowKeyMap.
 	private transient LRUMap<BaseRow, Map<BaseRow, RankRow>> kvRowKeyMap;
 
 	private final TypeSerializer<BaseRow> inputRowSer;

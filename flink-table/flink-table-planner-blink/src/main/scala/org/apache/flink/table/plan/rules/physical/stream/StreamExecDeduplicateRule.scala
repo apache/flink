@@ -68,10 +68,6 @@ class StreamExecDeduplicateRule
 
   override def convert(rel: RelNode): RelNode = {
     val rank = rel.asInstanceOf[FlinkLogicalRank]
-    val fieldCollation = rank.orderKey.getFieldCollations.get(0)
-    val fieldType = rank.getInput.getRowType.getFieldList.get(fieldCollation.getFieldIndex).getType
-    val isRowtime = FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
-
     val requiredDistribution = FlinkRelDistribution.hash(rank.partitionKey.toList)
     val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
       .replace(FlinkConventions.STREAM_PHYSICAL)
@@ -79,6 +75,7 @@ class StreamExecDeduplicateRule
     val convInput: RelNode = RelOptRule.convert(rank.getInput, requiredTraitSet)
 
     // order by timeIndicator desc ==> lastRow, otherwise is firstRow
+    val fieldCollation = rank.orderKey.getFieldCollations.get(0)
     val isLastRow = fieldCollation.direction.isDescending
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     new StreamExecDeduplicate(
@@ -86,7 +83,6 @@ class StreamExecDeduplicateRule
       providedTraitSet,
       convInput,
       rank.partitionKey.toArray,
-      isRowtime,
       isLastRow)
   }
 }

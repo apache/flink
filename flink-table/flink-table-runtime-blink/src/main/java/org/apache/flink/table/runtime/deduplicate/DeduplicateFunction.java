@@ -20,10 +20,9 @@ package org.apache.flink.table.runtime.deduplicate;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
@@ -42,30 +41,33 @@ public class DeduplicateFunction
 	private final BaseRowTypeInfo rowTypeInfo;
 	private final boolean generateRetraction;
 	private final boolean keepLastRow;
-	private ValueState<BaseRow> pkRow;
-	private GeneratedRecordEqualiser generatedEqualiser;
-	private transient RecordEqualiser equaliser;
+
+	// state stores complete row if keep last row and generate retraction is true,
+	// else stores a flag to indicate whether key appears before.
+	private ValueState state;
 
 	public DeduplicateFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo rowTypeInfo,
-			boolean generateRetraction, boolean keepLastRow, GeneratedRecordEqualiser generatedEqualiser) {
+			boolean generateRetraction, boolean keepLastRow) {
 		super(minRetentionTime, maxRetentionTime);
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateRetraction = generateRetraction;
 		this.keepLastRow = keepLastRow;
-		this.generatedEqualiser = generatedEqualiser;
 	}
 
 	@Override
 	public void open(Configuration configure) throws Exception {
 		super.open(configure);
-		String stateName = keepLastRow ? "DeduplicateFunctionCleanupTime" : "DeduplicateFunctionCleanupTime";
+		String stateName = keepLastRow ? "DeduplicateFunctionKeepLastRow" : "DeduplicateFunctionKeepFirstRow";
 		initCleanupTimeState(stateName);
-		ValueStateDescriptor rowStateDesc = new ValueStateDescriptor("rowState", rowTypeInfo);
-		pkRow = getRuntimeContext().getState(rowStateDesc);
-
-		// compile equaliser
-		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		generatedEqualiser = null;
+		ValueStateDescriptor stateDesc = null;
+		if (keepLastRow && generateRetraction) {
+			// if need generate retraction and keep last row, stores complete row into state
+			stateDesc = new ValueStateDescriptor("deduplicateFunction", rowTypeInfo);
+		} else {
+			// else stores a flag to indicator whether pk appears before.
+			stateDesc = new ValueStateDescriptor("fistValueState", Types.BOOLEAN);
+		}
+		state = getRuntimeContext().getState(stateDesc);
 	}
 
 	@Override
@@ -74,26 +76,17 @@ public class DeduplicateFunction
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, currentTime);
 
-		BaseRow preRow = pkRow.value();
 		if (keepLastRow) {
-			processLastRow(preRow, input, generateRetraction, stateCleaningEnabled, pkRow, equaliser, out);
+			processLastRow(input, generateRetraction, state, out);
 		} else {
-			processFirstRow(preRow, input, pkRow, out);
+			processFirstRow(input, state, out);
 		}
 	}
 
 	@Override
-	public void close() throws Exception {
-		super.close();
-	}
-
-	@Override
-	public void onTimer(
-			long timestamp,
-			OnTimerContext ctx,
-			Collector<BaseRow> out) throws Exception {
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
 		if (stateCleaningEnabled) {
-			cleanupState(pkRow);
+			cleanupState(state);
 		}
 	}
 }

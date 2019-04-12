@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
@@ -61,6 +60,8 @@ public class AppendRankFunction extends AbstractRankFunction {
 
 	// the buffer stores mapping from sort key to records list, a heap mirror to dataState
 	private transient TopNBuffer buffer;
+
+	// the kvSortedMap stores mapping from partition key to it's buffer
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
 	public AppendRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,

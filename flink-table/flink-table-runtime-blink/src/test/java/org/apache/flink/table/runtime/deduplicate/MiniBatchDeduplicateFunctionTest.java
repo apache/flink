@@ -26,6 +26,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger;
+import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
+import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,12 +44,25 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
 /**
  * Tests for {@link MiniBatchDeduplicateFunction}.
  */
-public class MiniBatchDeduplicateFunctionTest extends BaseDeduplicateFunctionTest {
+public class MiniBatchDeduplicateFunctionTest {
+
+	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.LONG,
+			InternalTypes.INT);
+
+	private int rowKeyIdx = 1;
+	private BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
+			inputRowType.getInternalTypes());
+
+
+	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
+			inputRowType.getFieldTypes(),
+			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getInternalTypes()[rowKeyIdx]));
+
 	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 
 	private MiniBatchDeduplicateFunction createFunction(boolean generateRetraction, boolean keepLastRow) {
 		MiniBatchDeduplicateFunction func = new MiniBatchDeduplicateFunction(inputRowType, generateRetraction,
-				typeSerializer, keepLastRow, generatedEqualiser);
+				typeSerializer, keepLastRow);
 		return func;
 	}
 
@@ -119,6 +137,7 @@ public class MiniBatchDeduplicateFunctionTest extends BaseDeduplicateFunctionTes
 		testHarness.processElement(record("book", 3L, 11));
 
 		expectedOutputOutput.add(record("book", 1L, 12));
+		expectedOutputOutput.add(record("book", 2L, 11));
 		expectedOutputOutput.add(record("book", 3L, 11));
 		testHarness.close();
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
@@ -148,6 +167,8 @@ public class MiniBatchDeduplicateFunctionTest extends BaseDeduplicateFunctionTes
 		// this will send retract message to downstream
 		expectedOutputOutput.add(retractRecord("book", 1L, 13));
 		expectedOutputOutput.add(record("book", 1L, 12));
+		expectedOutputOutput.add(retractRecord("book", 2L, 11));
+		expectedOutputOutput.add(record("book", 2L, 11));
 		expectedOutputOutput.add(record("book", 3L, 11));
 		testHarness.close();
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
