@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.codegen.agg.batch
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.`type`.{InternalType, RowType}
@@ -113,13 +114,11 @@ object HashAggCodeGenHelper {
       groupingAndAuxGrouping: (Array[Int], Array[Int]),
       inputTerm: String,
       inputType: RowType,
-      aggregateCalls: Seq[AggregateCall],
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
       aggArgs: Array[Array[Int]],
       aggregates: Seq[UserDefinedFunction],
       currentAggBufferTerm: String,
       aggBufferRowType: RowType,
-      aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[InternalType]],
       outputTerm: String,
       outputType: RowType,
@@ -577,7 +576,7 @@ object HashAggCodeGenHelper {
       groupingAndAuxGrouping: (Array[Int], Array[Int]),
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
       aggArgs: Array[Array[Int]],
-      aggregates: Seq[UserDefinedFunction],
+      aggResultTypes: Seq[TypeInformation[_]],
       udaggs: Map[AggregateFunction[_, _], String],
       logTerm: String,
       aggregateMapTerm: String,
@@ -611,7 +610,8 @@ object HashAggCodeGenHelper {
         auxGrouping,
         aggCallToAggFunction,
         aggArgs,
-        aggregates,
+        aggCallToAggFunction.map(_._2),
+        aggResultTypes,
         udaggs,
         aggregateMapTerm,
         (groupKeyRowType, aggBufferRowType),
@@ -739,6 +739,7 @@ object HashAggCodeGenHelper {
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
       aggArgs: Array[Array[Int]],
       aggregates: Seq[UserDefinedFunction],
+      aggResultTypes: Seq[TypeInformation[_]],
       udaggs: Map[AggregateFunction[_, _], String],
       mapTerm: String,
       mapKVRowTypes: (RowType, RowType),
@@ -770,6 +771,7 @@ object HashAggCodeGenHelper {
       aggCallToAggFunction,
       aggArgs,
       aggregates,
+      aggResultTypes,
       udaggs,
       fallbackInputTerm,
       fallbackInputType,

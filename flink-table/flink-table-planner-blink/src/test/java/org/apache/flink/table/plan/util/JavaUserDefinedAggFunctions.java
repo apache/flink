@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.functions.AggregateFunction;
 
+import java.util.Iterator;
+
 /**
  * Test aggregator functions.
  */
@@ -115,6 +117,81 @@ public class JavaUserDefinedAggFunctions {
 		@Override
 		public TypeInformation<Long> getResultType() {
 			return Types.LONG;
+		}
+	}
+
+	/**
+	 * Accumulator for WeightedAvg.
+	 */
+	public static class WeightedAvgAccum {
+		public long sum = 0;
+		public int count = 0;
+	}
+
+	/**
+	 * Base class for WeightedAvg.
+	 */
+	public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum> {
+		@Override
+		public WeightedAvgAccum createAccumulator() {
+			return new WeightedAvgAccum();
+		}
+
+		@Override
+		public Long getValue(WeightedAvgAccum accumulator) {
+			if (accumulator.count == 0) {
+				return null;
+			} else {
+				return accumulator.sum / accumulator.count;
+			}
+		}
+
+		// overloaded accumulate method
+		// dummy to test constants
+		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight, int x, String string) {
+			accumulator.sum += (iValue + Integer.parseInt(string)) * iWeight;
+			accumulator.count += iWeight;
+		}
+
+		// overloaded accumulate method
+		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight) {
+			accumulator.sum += iValue * iWeight;
+			accumulator.count += iWeight;
+		}
+
+		//Overloaded accumulate method
+		public void accumulate(WeightedAvgAccum accumulator, int iValue, int iWeight) {
+			accumulator.sum += iValue * iWeight;
+			accumulator.count += iWeight;
+		}
+	}
+
+	/**
+	 * A WeightedAvg class with merge method.
+	 */
+	public static class WeightedAvgWithMerge extends WeightedAvg {
+		public void merge(WeightedAvgAccum acc, Iterable<WeightedAvgAccum> it) {
+			Iterator<WeightedAvgAccum> iter = it.iterator();
+			while (iter.hasNext()) {
+				WeightedAvgAccum a = iter.next();
+				acc.count += a.count;
+				acc.sum += a.sum;
+			}
+		}
+
+		@Override
+		public String toString() {
+			return "myWeightedAvg";
+		}
+	}
+
+	/**
+	 * A WeightedAvg class with merge and reset method.
+	 */
+	public static class WeightedAvgWithMergeAndReset extends WeightedAvgWithMerge {
+		public void resetAccumulator(WeightedAvgAccum acc) {
+			acc.count = 0;
+			acc.sum = 0L;
 		}
 	}
 }

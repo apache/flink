@@ -26,6 +26,7 @@ import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateVi
 import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.sql.AggSqlFunctions
+import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
@@ -212,13 +213,19 @@ object AggregateUtil extends Enumeration {
             TypeConverters.createInternalTypeInfoFromInternalType)
           (bufferTypeInfos, Array.empty[DataViewSpec], a.getResultType)
         case a: AggregateFunction[_, _] =>
-          val externalAccType = getAccumulatorTypeOfAggregateFunction(a)
+          val (implicitAccType, implicitResultType) = call.getAggregation match {
+            case aggSqlFun: AggSqlFunction =>
+              (aggSqlFun.externalAccType, aggSqlFun.externalResultType)
+            case _ => (null, null)
+          }
+          val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
           val (newExternalAccType, specs) = useNullSerializerForStateViewFieldsFromAccType(
             index,
             a,
             externalAccType,
             isStateBackedDataViews)
-          (Array(newExternalAccType), specs, getResultTypeOfAggregateFunction(a))
+          (Array(newExternalAccType), specs,
+              getResultTypeOfAggregateFunction(a, implicitResultType))
         case _ => throw new TableException(s"Unsupported function: $function")
       }
 

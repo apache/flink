@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.util.DiffRepository
 import org.apache.flink.test.util.AbstractTestBase
@@ -56,6 +57,7 @@ class BatchTestBase extends AbstractTestBase {
   val jobConfig = new Configuration()
   val env: ScalaExecEnv = generatorScalaTestEnv
   val javaEnv: StreamExecutionEnvironment = generatorTestEnv
+  env.getConfig.enableObjectReuse()
   val tEnv: ScalaBatchTableEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
   val javaTableEnv: JavaBatchTableEnv = TableEnvironment.getBatchTableEnvironment(javaEnv, conf)
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
@@ -388,6 +390,21 @@ class BatchTestBase extends AbstractTestBase {
       fields: String): Unit = {
     BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
   }
+
+  def registerCollection(
+      tableName: String,
+      data: Iterable[Row],
+      typeInfo: TypeInformation[Row],
+      fields: String,
+      fieldNullables: Array[Boolean]): Unit = {
+    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
+  }
+
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: AggregateFunction[T, ACC]): Unit = {
+    tEnv.registerFunction(name, f)
+  }
 }
 
 object BatchTestBase {
@@ -410,6 +427,7 @@ object BatchTestBase {
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, PARALLELISM)
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 2)
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
     conf
   }
 

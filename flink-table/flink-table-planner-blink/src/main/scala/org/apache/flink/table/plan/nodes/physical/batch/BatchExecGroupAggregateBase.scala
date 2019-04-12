@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -70,5 +71,17 @@ abstract class BatchExecGroupAggregateBase(
   def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
 
   def getAggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)] = aggCallToAggFunction
+
+  def aggOperatorName(prefix: String): String = {
+    RelExplainUtil.aggOperatorName(
+      prefix,
+      grouping,
+      auxGrouping,
+      inputRowType,
+      outputRowType,
+      aggCallToAggFunction,
+      isMerge,
+      isFinal)
+  }
 
 }

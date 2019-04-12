@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.util.RelExplainUtil
 
@@ -40,6 +44,7 @@ class BatchExecSortAggregate(
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
+    aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
@@ -51,6 +56,7 @@ class BatchExecSortAggregate(
     inputRel,
     outputRowType,
     inputRowType,
+    aggInputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
@@ -65,6 +71,7 @@ class BatchExecSortAggregate(
       inputs.get(0),
       outputRowType,
       inputRowType,
+      aggInputRowType,
       grouping,
       auxGrouping,
       aggCallToAggFunction,
@@ -86,6 +93,19 @@ class BatchExecSortAggregate(
         aggCallToAggFunction,
         isMerge,
         isGlobal = true))
+  }
+
+  override def getDamBehavior: DamBehavior = {
+    if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.PIPELINED
+  }
+
+  override def getOperatorName: String = {
+    val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
+    aggOperatorName(aggregateNamePrefix + "SortAggregate")
+  }
+
+  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int = {
+    if (isFinal && grouping.length == 0) 1 else input.getParallelism
   }
 
 }
