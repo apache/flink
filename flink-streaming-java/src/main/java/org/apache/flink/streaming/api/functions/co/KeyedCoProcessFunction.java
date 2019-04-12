@@ -53,10 +53,10 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * This method is called for each element in the first of the connected streams.
 	 *
 	 * <p>This function can output zero or more elements using the {@link Collector} parameter
-	 * and also update internal state or set timers using the {@link KeyedCoProcessFunction.Context} parameter.
+	 * and also update internal state or set timers using the {@link Context} parameter.
 	 *
 	 * @param value The stream element
-	 * @param ctx A {@link KeyedCoProcessFunction.Context} that allows querying the timestamp of the element,
+	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -70,10 +70,10 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * This method is called for each element in the second of the connected streams.
 	 *
 	 * <p>This function can output zero or more elements using the {@link Collector} parameter
-	 * and also update internal state or set timers using the {@link KeyedCoProcessFunction.Context} parameter.
+	 * and also update internal state or set timers using the {@link Context} parameter.
 	 *
 	 * @param value The stream element
-	 * @param ctx A {@link KeyedCoProcessFunction.Context} that allows querying the timestamp of the element,
+	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -87,7 +87,7 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * Called when a timer set using {@link TimerService} fires.
 	 *
 	 * @param timestamp The timestamp of the firing timer.
-	 * @param ctx An {@link KeyedCoProcessFunction.OnTimerContext} that allows querying the timestamp of the firing timer,
+	 * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the firing timer,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -99,9 +99,9 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {}
 
 	/**
-	 * Information available in an invocation of {@link #processElement1(Object, KeyedCoProcessFunction.Context, Collector)}/
-	 * {@link #processElement2(Object, KeyedCoProcessFunction.Context, Collector)}
-	 * or {@link #onTimer(long, KeyedCoProcessFunction.OnTimerContext, Collector)}.
+	 * Information available in an invocation of {@link #processElement1(Object, Context, Collector)}/
+	 * {@link #processElement2(Object, Context, Collector)}
+	 * or {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
 	public abstract class Context {
 
@@ -133,7 +133,7 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	}
 
 	/**
-	 * Information available in an invocation of {@link #onTimer(long, KeyedCoProcessFunction.OnTimerContext, Collector)}.
+	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
 	public abstract class OnTimerContext extends Context {
 		/**
