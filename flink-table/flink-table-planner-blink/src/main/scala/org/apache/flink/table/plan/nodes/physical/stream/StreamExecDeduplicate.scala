@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.deduplicate.{DeduplicateFunction,
 MiniBatchDeduplicateFunction}
 import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils.isRowTime
 
@@ -98,8 +99,7 @@ class StreamExecDeduplicate(
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
 
-    // FIXME checkInput is not acc retract after FLINK-12098 is done
-    val inputIsAccRetract = false
+    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
 
     if (inputIsAccRetract) {
       throw new TableException(
@@ -113,8 +113,7 @@ class StreamExecDeduplicate(
 
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
 
-    // FIXME infer generate retraction after FLINK-12098 is done
-    val generateRetraction = true
+    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
 
     val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
     val rowTimeFieldIndex = inputRowType.getFieldTypes.zipWithIndex
@@ -127,15 +126,15 @@ class StreamExecDeduplicate(
       throw new TableException("Currently not support Deduplicate on rowtime.")
     }
     val tableConfig = tableEnv.getConfig
-    val exeConfig = tableEnv.execEnv.getConfig
     val isMiniBatchEnabled = tableConfig.getConf.getLong(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
     val generatedRecordEqualiser = generateRecordEqualiser(rowTypeInfo)
     val operator = if (isMiniBatchEnabled) {
+      val exeConfig = tableEnv.execEnv.getConfig
       val processFunction = new MiniBatchDeduplicateFunction(
         rowTypeInfo,
         generateRetraction,
-        exeConfig,
+        rowTypeInfo.createSerializer(exeConfig),
         keepLastRow,
         generatedRecordEqualiser)
       val trigger = new CountBundleTrigger[BaseRow](

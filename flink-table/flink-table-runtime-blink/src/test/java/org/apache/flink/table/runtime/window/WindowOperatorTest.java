@@ -35,6 +35,7 @@ import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.TumblingWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.WindowAssigner;
@@ -47,17 +48,15 @@ import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Test;
 
-import java.io.Serializable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
-import static org.apache.flink.table.runtime.window.WindowTestUtils.record;
-import static org.apache.flink.table.runtime.window.WindowTestUtils.retractRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -70,10 +69,10 @@ public class WindowOperatorTest {
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
 
-	private InternalType[] inputFieldTypes = new InternalType[]{
+	private InternalType[] inputFieldTypes = new InternalType[] {
 			InternalTypes.STRING,
 			InternalTypes.INT,
-			InternalTypes.LONG};
+			InternalTypes.LONG };
 
 	private BaseRowTypeInfo outputType = new BaseRowTypeInfo(
 			InternalTypes.STRING,
@@ -83,15 +82,15 @@ public class WindowOperatorTest {
 			InternalTypes.LONG,
 			InternalTypes.LONG);
 
-	private InternalType[] aggResultTypes = new InternalType[]{InternalTypes.LONG, InternalTypes.LONG};
-	private InternalType[] accTypes = new InternalType[]{InternalTypes.LONG, InternalTypes.LONG};
-	private InternalType[] windowTypes = new InternalType[]{InternalTypes.LONG, InternalTypes.LONG, InternalTypes.LONG};
+	private InternalType[] aggResultTypes = new InternalType[] { InternalTypes.LONG, InternalTypes.LONG };
+	private InternalType[] accTypes = new InternalType[] { InternalTypes.LONG, InternalTypes.LONG };
+	private InternalType[] windowTypes = new InternalType[] { InternalTypes.LONG, InternalTypes.LONG, InternalTypes.LONG };
 	private GenericRowEqualiser equaliser = new GenericRowEqualiser(accTypes, windowTypes);
-	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[]{0}, inputFieldTypes);
+	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { 0 }, inputFieldTypes);
 	private TypeInformation<BaseRow> keyType = keySelector.getProducedType();
 	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
 			outputType.getFieldTypes(),
-			new GenericRowResultSortComparator());
+			new GenericRowRecordSortComparator(0, InternalTypes.STRING));
 
 	@Test
 	public void testEventTimeSlidingWindows() throws Exception {
@@ -709,7 +708,7 @@ public class WindowOperatorTest {
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
 		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
-				outputType.getFieldTypes(), new GenericRowResultSortComparator());
+				outputType.getFieldTypes(), new GenericRowRecordSortComparator(0, InternalTypes.STRING));
 
 		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
 
@@ -953,7 +952,7 @@ public class WindowOperatorTest {
 	public void testTumblingCountWindow() throws Exception {
 		closeCalled.set(0);
 		final int windowSize = 3;
-		InternalType[] windowTypes = new InternalType[]{InternalTypes.LONG};
+		InternalType[] windowTypes = new InternalType[] { InternalTypes.LONG };
 
 		WindowOperator operator = WindowOperatorBuilder.builder()
 				.withInputFields(inputFieldTypes)
@@ -1023,7 +1022,7 @@ public class WindowOperatorTest {
 		closeCalled.set(0);
 		final int windowSize = 5;
 		final int windowSlide = 3;
-		InternalType[] windowTypes = new InternalType[]{InternalTypes.LONG};
+		InternalType[] windowTypes = new InternalType[] { InternalTypes.LONG };
 
 		WindowOperator operator = WindowOperatorBuilder.builder()
 				.withInputFields(inputFieldTypes)
@@ -1124,19 +1123,6 @@ public class WindowOperatorTest {
 		@Override
 		public SessionWindowAssigner withProcessingTime() {
 			return new PointSessionWindowAssigner(sessionTimeout, false);
-		}
-	}
-
-	// schema: String, Long, Long, Long, Long
-	private static class GenericRowResultSortComparator implements Comparator<GenericRow>, Serializable {
-
-		private static final long serialVersionUID = -4988371592272863772L;
-
-		@Override
-		public int compare(GenericRow row1, GenericRow row2) {
-			String key1 = row1.getString(0).toString();
-			String key2 = row2.getString(0).toString();
-			return key1.compareTo(key2);
 		}
 	}
 

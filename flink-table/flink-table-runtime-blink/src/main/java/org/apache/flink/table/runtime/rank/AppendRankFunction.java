@@ -22,12 +22,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
@@ -43,7 +44,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * RankFunction in Append Stream mode.
+ * AppendRankFunction's input stream only contains append record.
  */
 public class AppendRankFunction extends AbstractRankFunction {
 
@@ -63,13 +64,12 @@ public class AppendRankFunction extends AbstractRankFunction {
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
 	public AppendRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			BaseRowTypeInfo sortKeyType, GeneratedRecordComparator sortKeyGeneratedRecordComparator,
-			KeySelector<BaseRow, BaseRow> sortKeySelector, RankType rankType, RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction, boolean outputRankNumber,
-			long cacheSize) {
+			GeneratedRecordComparator sortKeyGeneratedRecordComparator, BaseRowKeySelector sortKeySelector,
+			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
+			boolean generateRetraction, boolean outputRankNumber, long cacheSize) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, sortKeyGeneratedRecordComparator, sortKeySelector,
 				rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
-		this.sortKeyType = sortKeyType;
+		this.sortKeyType = sortKeySelector.getProducedType();
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
 		this.cacheSize = cacheSize;
 	}
@@ -121,7 +121,7 @@ public class AppendRankFunction extends AbstractRankFunction {
 			long timestamp,
 			OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
-		if (needToCleanupState(timestamp)) {
+		if (stateCleaningEnabled) {
 			// cleanup cache
 			kvSortedMap.remove(keyContext.getCurrentKey());
 			cleanupState(dataState);
@@ -214,8 +214,12 @@ public class AppendRankFunction extends AbstractRankFunction {
 			} else {
 				dataState.put(lastKey, lastList);
 			}
-			// lastElement shouldn't be null
-			delete(out, lastElement);
+			if (input.equals(lastElement)) {
+				return;
+			} else {
+				// lastElement shouldn't be null
+				delete(out, lastElement);
+			}
 		}
 		collect(out, input);
 	}

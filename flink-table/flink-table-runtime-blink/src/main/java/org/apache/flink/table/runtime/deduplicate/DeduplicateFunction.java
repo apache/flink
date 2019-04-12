@@ -28,6 +28,9 @@ import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupS
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
+import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processFirstRow;
+import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processLastRow;
+
 /**
  * This function is used to deduplicate on keys and keeps only first row or last row.
  */
@@ -43,13 +46,8 @@ public class DeduplicateFunction
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private transient RecordEqualiser equaliser;
 
-	public DeduplicateFunction(
-			long minRetentionTime,
-			long maxRetentionTime,
-			BaseRowTypeInfo rowTypeInfo,
-			boolean generateRetraction,
-			boolean keepLastRow,
-			GeneratedRecordEqualiser generatedEqualiser) {
+	public DeduplicateFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo rowTypeInfo,
+			boolean generateRetraction, boolean keepLastRow, GeneratedRecordEqualiser generatedEqualiser) {
 		super(minRetentionTime, maxRetentionTime);
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateRetraction = generateRetraction;
@@ -78,11 +76,9 @@ public class DeduplicateFunction
 
 		BaseRow preRow = pkRow.value();
 		if (keepLastRow) {
-			DeduplicateFunctionHelper
-					.processLastRow(preRow, input, generateRetraction, stateCleaningEnabled, pkRow, equaliser, out);
+			processLastRow(preRow, input, generateRetraction, stateCleaningEnabled, pkRow, equaliser, out);
 		} else {
-			DeduplicateFunctionHelper
-					.processFirstRow(preRow, input, pkRow, out);
+			processFirstRow(preRow, input, pkRow, out);
 		}
 	}
 
@@ -96,7 +92,7 @@ public class DeduplicateFunction
 			long timestamp,
 			OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
-		if (needToCleanupState(timestamp)) {
+		if (stateCleaningEnabled) {
 			cleanupState(pkRow);
 		}
 	}

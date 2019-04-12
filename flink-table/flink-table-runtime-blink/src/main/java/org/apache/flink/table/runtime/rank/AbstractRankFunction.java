@@ -34,6 +34,9 @@ import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
+import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
+import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -51,10 +54,14 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRankFunction.class);
 
+	private static final String RANK_UNSUPPORTED_MSG = "RANK() on streaming table is not supported currently";
+
+	private static final String DENSE_RANK_UNSUPPORTED_MSG = "DENSE_RANK() on streaming table is not supported currently";
+
+	private static final String WITHOUT_RANK_END_UNSUPPORTED_MSG = "Rank end is not specified. Currently rank only support TopN, which means the rank end must be specified.";
+
 	// we set default topN size to 100
 	private static final long DEFAULT_TOPN_SIZE = 100;
-
-	private final RankRange rankRange;
 
 	/**
 	 * The util to compare two BaseRow equals to each other.
@@ -75,10 +82,10 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected final KeySelector<BaseRow, BaseRow> sortKeySelector;
 
 	protected KeyContext keyContext;
-	private boolean isConstantRankEnd;
-	private long rankStart = -1;
-	protected long rankEnd = -1;
-	private int rankEndIndex;
+	private final boolean isConstantRankEnd;
+	private final long rankStart;
+	protected long rankEnd;
+	private final int rankEndIndex;
 	private ValueState<Long> rankEndState;
 	private Counter invalidCounter;
 	private JoinedRow outputRow;
@@ -88,7 +95,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected long requestCount = 0L;
 
 	AbstractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			GeneratedRecordComparator generatedSortKeyComparator, KeySelector<BaseRow, BaseRow> sortKeySelector,
+			GeneratedRecordComparator generatedSortKeyComparator, BaseRowKeySelector sortKeySelector,
 			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
 			boolean generateRetraction, boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
@@ -97,16 +104,42 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			case ROW_NUMBER:
 				break;
 			case RANK:
-				LOG.error("RANK() on streaming table is not supported currently");
-				throw new UnsupportedOperationException("RANK() on streaming table is not supported currently");
+				LOG.error(RANK_UNSUPPORTED_MSG);
+				throw new UnsupportedOperationException(RANK_UNSUPPORTED_MSG);
 			case DENSE_RANK:
-				LOG.error("DENSE_RANK() on streaming table is not supported currently");
-				throw new UnsupportedOperationException("DENSE_RANK() on streaming table is not supported currently");
+				LOG.error(DENSE_RANK_UNSUPPORTED_MSG);
+				throw new UnsupportedOperationException(DENSE_RANK_UNSUPPORTED_MSG);
 			default:
 				LOG.error("Streaming tables do not support {}", rankType.name());
 				throw new UnsupportedOperationException("Streaming tables do not support " + rankType.toString());
 		}
-		this.rankRange = rankRange;
+
+		if (rankRange instanceof ConstantRankRange) {
+			ConstantRankRange constantRankRange = (ConstantRankRange) rankRange;
+			isConstantRankEnd = true;
+			rankStart = constantRankRange.getRankStart();
+			rankEnd = constantRankRange.getRankEnd();
+			rankEndIndex = -1;
+		} else if (rankRange instanceof VariableRankRange) {
+			VariableRankRange variableRankRange = (VariableRankRange) rankRange;
+			int rankEndIdx = variableRankRange.getRankEndIndex();
+			InternalType rankEndIdxType = inputRowType.getInternalTypes()[rankEndIdx];
+			if (!rankEndIdxType.equals(InternalTypes.LONG)) {
+				LOG.error("variable rank index column must be long type, while input type is {}",
+						rankEndIdxType.getClass().getName());
+				throw new UnsupportedOperationException(
+						"variable rank index column must be long type, while input type is " +
+								rankEndIdxType.getClass().getName());
+			}
+			rankEndIndex = rankEndIdx;
+			isConstantRankEnd = false;
+			rankStart = -1;
+			rankEnd = -1;
+
+		} else {
+			LOG.error(WITHOUT_RANK_END_UNSUPPORTED_MSG);
+			throw new UnsupportedOperationException(WITHOUT_RANK_END_UNSUPPORTED_MSG);
+		}
 		this.generatedEqualiser = generatedEqualiser;
 		this.generatedSortKeyComparator = generatedSortKeyComparator;
 		this.generateRetraction = generateRetraction;
@@ -121,20 +154,10 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 		initCleanupTimeState("RankFunctionCleanupTime");
 		outputRow = new JoinedRow();
 
-		// variable rank limit
-		if (rankRange instanceof ConstantRankRange) {
-			ConstantRankRange constantRankRange = (ConstantRankRange) rankRange;
-			isConstantRankEnd = true;
-			rankEnd = constantRankRange.getRankEnd();
-			rankStart = constantRankRange.getRankStart();
-		} else if (rankRange instanceof VariableRankRange) {
-			VariableRankRange variableRankRange = (VariableRankRange) rankRange;
-			isConstantRankEnd = false;
-			rankEndIndex = variableRankRange.getRankEndIndex();
+		if (!isConstantRankEnd) {
 			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor("rankEnd", Types.LONG);
 			rankEndState = getRuntimeContext().getState(rankStateDesc);
 		}
-
 		// compile equaliser
 		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		generatedEqualiser = null;

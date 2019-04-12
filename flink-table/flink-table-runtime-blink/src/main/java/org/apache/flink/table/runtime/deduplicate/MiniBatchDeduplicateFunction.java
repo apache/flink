@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.deduplicate;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -34,6 +33,9 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
+import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processFirstRow;
+import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processLastRow;
+
 /**
  * This function is used to get the first row or last row for every key partition in miniBatch
  * mode.
@@ -44,7 +46,7 @@ public class MiniBatchDeduplicateFunction
 	private BaseRowTypeInfo rowTypeInfo;
 	private boolean generateRetraction;
 	private boolean keepLastRow;
-	protected ValueState<BaseRow> pkRow;
+	private ValueState<BaseRow> pkRow;
 	private TypeSerializer<BaseRow> ser;
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private transient RecordEqualiser equaliser;
@@ -52,13 +54,13 @@ public class MiniBatchDeduplicateFunction
 	public MiniBatchDeduplicateFunction(
 			BaseRowTypeInfo rowTypeInfo,
 			boolean generateRetraction,
-			ExecutionConfig executionConfig,
+			TypeSerializer<BaseRow> typeSerializer,
 			boolean keepLastRow,
 			GeneratedRecordEqualiser generatedEqualiser) {
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateRetraction = generateRetraction;
 		this.keepLastRow = keepLastRow;
-		ser = rowTypeInfo.createSerializer(executionConfig);
+		ser = typeSerializer;
 		this.generatedEqualiser = generatedEqualiser;
 	}
 
@@ -94,11 +96,9 @@ public class MiniBatchDeduplicateFunction
 			BaseRow preRow = pkRow.value();
 
 			if (keepLastRow) {
-				DeduplicateFunctionHelper
-						.processLastRow(preRow, currentRow, generateRetraction, false, pkRow, equaliser, out);
+				processLastRow(preRow, currentRow, generateRetraction, false, pkRow, equaliser, out);
 			} else {
-				DeduplicateFunctionHelper
-						.processFirstRow(preRow, currentRow, pkRow, out);
+				processFirstRow(preRow, currentRow, pkRow, out);
 			}
 		}
 	}

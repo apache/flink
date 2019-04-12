@@ -27,12 +27,14 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 
 /**
  * A function that processes elements of a stream, and could cleanup state.
- *
  * @param <K> Type of the key.
- * @param <IN> Type of the input elements.
+ * @param <IN>  Type of the input elements.
  * @param <OUT> Type of the output elements.
  */
-public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT> extends KeyedProcessFunction<K, IN, OUT> {
+public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT>
+		extends KeyedProcessFunction<K, IN, OUT> implements CleanupState {
+
+	private static final long serialVersionUID = 2084560869233898457L;
 
 	protected final long minRetentionTime;
 	protected final long maxRetentionTime;
@@ -49,39 +51,25 @@ public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT> extends K
 
 	protected void initCleanupTimeState(String stateName) {
 		if (stateCleaningEnabled) {
-			ValueStateDescriptor<Long> inputCntDescriptor = new ValueStateDescriptor(stateName, Types.LONG);
+			ValueStateDescriptor<Long> inputCntDescriptor = new ValueStateDescriptor<>(stateName, Types.LONG);
 			cleanupTimeState = getRuntimeContext().getState(inputCntDescriptor);
 		}
 	}
 
 	protected void registerProcessingCleanupTimer(Context ctx, long currentTime) throws Exception {
 		if (stateCleaningEnabled) {
-			// last registered timer
-			Long curCleanupTime = cleanupTimeState.value();
-
-			// check if a cleanup timer is registered and that the current cleanup timer won't delete state we need to keep
-			if (curCleanupTime == null || (currentTime + minRetentionTime) > curCleanupTime) {
-				// we need to register a new (later) timer
-				Long cleanupTime = currentTime + maxRetentionTime;
-				// register timer and remember clean-up time
-				ctx.timerService().registerProcessingTimeTimer(cleanupTime);
-				cleanupTimeState.update(cleanupTime);
-			}
+			registerProcessingCleanupTimer(
+					cleanupTimeState,
+					currentTime,
+					minRetentionTime,
+					maxRetentionTime,
+					ctx.timerService()
+			);
 		}
 	}
 
 	protected boolean isProcessingTimeTimer(OnTimerContext ctx) {
 		return ctx.timeDomain() == TimeDomain.PROCESSING_TIME;
-	}
-
-	protected boolean needToCleanupState(long timestamp) throws Exception {
-		if (stateCleaningEnabled) {
-			Long cleanupTime = cleanupTimeState.value();
-			// check that the triggered timer is the last registered processing time timer.
-			return null != cleanupTime && timestamp == cleanupTime;
-		} else {
-			return false;
-		}
 	}
 
 	protected void cleanupState(State... states) {

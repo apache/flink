@@ -25,9 +25,9 @@ import org.apache.flink.table.codegen.{EqualiserCodeGenerator, SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Rank
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.rank._
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -140,8 +140,7 @@ class StreamExecRank(
       tableConfig, sortFields.indices.toArray, sortKeyType.getInternalTypes,
       sortDirections, nullsIsLast)
     val sortKeyComparator = sortCodeGen.generateRecordComparator("StreamExecSortComparator")
-    // FIXME infer generate retraction after FLINK-12098 is done
-    val generateRetraction = true
+    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
@@ -153,7 +152,6 @@ class StreamExecRank(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
-          sortKeyType,
           sortKeyComparator,
           sortKeySelector,
           rankType,
@@ -164,15 +162,11 @@ class StreamExecRank(
           cacheSize)
 
       case UpdateFastStrategy(primaryKeys) =>
-        val internalTypes = inputRowTypeInfo.getInternalTypes
-        val fieldTypes = primaryKeys.map(internalTypes)
-        val rowKeyType = new BaseRowTypeInfo(fieldTypes: _*)
         val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
         new UpdateRankFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
-          rowKeyType,
           rowKeySelector,
           sortKeyComparator,
           sortKeySelector,
@@ -189,7 +183,6 @@ class StreamExecRank(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
-          sortKeyType,
           sortKeyComparator,
           sortKeySelector,
           rankType,

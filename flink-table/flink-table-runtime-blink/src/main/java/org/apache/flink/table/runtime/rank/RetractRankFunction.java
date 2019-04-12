@@ -23,13 +23,13 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.typeutils.SortedMapTypeInfo;
 import org.apache.flink.util.Collector;
@@ -45,7 +45,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- * RankFunction in Update Stream mode.
+ * RetractRankFunction's input stream could contain append record, update record, delete record.
  */
 public class RetractRankFunction extends AbstractRankFunction {
 
@@ -69,12 +69,12 @@ public class RetractRankFunction extends AbstractRankFunction {
 	private transient ValueState<SortedMap<BaseRow, Long>> treeMap;
 
 	public RetractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			BaseRowTypeInfo sortKeyType, GeneratedRecordComparator generatedRecordComparator,
-			KeySelector<BaseRow, BaseRow> sortKeySelector, RankType rankType, RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction, boolean outputRankNumber) {
+			GeneratedRecordComparator generatedRecordComparator, BaseRowKeySelector sortKeySelector,
+			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
+			boolean generateRetraction, boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
 				rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
-		this.sortKeyType = sortKeyType;
+		this.sortKeyType = sortKeySelector.getProducedType();
 	}
 
 	@Override
@@ -210,7 +210,7 @@ public class RetractRankFunction extends AbstractRankFunction {
 		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
 		long curRank = 0L;
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankRange(curRank)) {
+		while (iterator.hasNext() && isInRankEnd(curRank)) {
 			Map.Entry<BaseRow, Long> entry = iterator.next();
 			BaseRow key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
@@ -228,7 +228,7 @@ public class RetractRankFunction extends AbstractRankFunction {
 					}
 				} else {
 					int i = 0;
-					while (i < inputs.size() && isInRankRange(curRank)) {
+					while (i < inputs.size() && isInRankEnd(curRank)) {
 						curRank += 1;
 						BaseRow prevRow = inputs.get(i);
 						retract(out, prevRow, curRank - 1);

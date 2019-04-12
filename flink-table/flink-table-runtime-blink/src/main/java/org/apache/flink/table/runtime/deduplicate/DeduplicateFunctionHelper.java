@@ -35,9 +35,10 @@ class DeduplicateFunctionHelper {
 			Collector<BaseRow> out) throws Exception {
 		// should be accumulate msg.
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
-		// ignore same record
 		if (!stateCleaningEnabled && preRow != null &&
 				equaliser.equalsWithoutHeader(preRow, currentRow)) {
+			// If state cleaning is not enabled, don't emit retraction and acc message. But if state cleaning is
+			// enabled, we have to emit message to prevent too early state eviction of downstream operators.
 			return;
 		}
 		pkRow.update(currentRow);

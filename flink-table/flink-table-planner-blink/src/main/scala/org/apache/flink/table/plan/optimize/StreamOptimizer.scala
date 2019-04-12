@@ -22,7 +22,7 @@ import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig}
 import org.apache.flink.table.plan.`trait`.UpdateAsRetractionTraitDef
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
-import org.apache.flink.table.sinks.RetractStreamTableSink
+import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.VolcanoPlanner
@@ -38,7 +38,10 @@ class StreamOptimizer(tEnv: StreamTableEnvironment) extends Optimizer {
     roots.map { root =>
       val retractionFromRoot = root match {
         case n: Sink =>
-          n.sink.isInstanceOf[RetractStreamTableSink[_]]
+          n.sink match {
+            case _: RetractStreamTableSink[_] => true
+            case s: DataStreamTableSink[_] => s.updatesAsRetraction
+          }
         case o =>
           o.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE).sendsUpdatesAsRetractions
       }

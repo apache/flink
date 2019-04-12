@@ -18,21 +18,19 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
  * A utility class which will extract key from BaseRow.
  */
-public class BinaryRowKeySelector implements KeySelector<BaseRow, BaseRow>, ResultTypeQueryable<BaseRow> {
+public class BinaryRowKeySelector implements BaseRowKeySelector {
 
 	private final int[] keyFields;
 	private final InternalType[] inputFieldTypes;
@@ -67,7 +65,7 @@ public class BinaryRowKeySelector implements KeySelector<BaseRow, BaseRow>, Resu
 	}
 
 	@Override
-	public TypeInformation<BaseRow> getProducedType() {
+	public BaseRowTypeInfo getProducedType() {
 		return new BaseRowTypeInfo(keyFieldTypes);
 	}
 }

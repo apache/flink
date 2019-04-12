@@ -18,16 +18,10 @@
 
 package org.apache.flink.table.runtime.window;
 
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.window.TimeWindow;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-
-import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
 /**
  * Utilities that are useful for working with Window tests.
@@ -38,20 +32,4 @@ public interface WindowTestUtils {
 		return Matchers.equalTo(new TimeWindow(start, end));
 	}
 
-	static StreamRecord<BaseRow> record(String key, Object... fields) {
-		return new StreamRecord<>(baserow(key, fields));
-	}
-
-	static StreamRecord<BaseRow> retractRecord(String key, Object... fields) {
-		BaseRow row = baserow(key, fields);
-		BaseRowUtil.setRetract(row);
-		return new StreamRecord<>(row);
-	}
-
-	static BaseRow baserow(String key, Object... fields) {
-		Object[] objects = new Object[fields.length + 1];
-		objects[0] = fromString(key);
-		System.arraycopy(fields, 0, objects, 1, fields.length);
-		return GenericRow.of(objects);
-	}
 }

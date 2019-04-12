@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
@@ -51,8 +52,12 @@ import java.util.TreeMap;
 import java.util.function.Supplier;
 
 /**
- * A fast version of rank process function which only hold top n data in state,
- * and keep sorted map in heap. This only works in some special scenarios, such as, rank a count(*) stream
+ * A fast version of rank process function which only hold top n data in state, and keep sorted map in heap.
+ * This only works in some special scenarios:
+ * 1. sort field collation is ascending and its mono is decreasing, or sort field collation is descending and its mono
+ * is increasing
+ * 2. input data has unique keys
+ * 3. input stream could not contain delete record or retract record
  */
 public class UpdateRankFunction extends AbstractRankFunction implements CheckpointedFunction {
 
@@ -68,12 +73,12 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	// the f1 is used to preserve the record order in the same sort_key
 	private transient MapState<BaseRow, Tuple2<BaseRow, Integer>> dataState;
 
-	// a buffer stores mapping from sort key to record list
+	// a buffer stores mapping from sort key to rowKey list
 	private transient TopNBuffer buffer;
 
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
-	// a HashMap stores mapping from rowkey to record, a heap mirror to dataState
+	// a HashMap stores mapping from rowKey to record, a heap mirror to dataState
 	private transient Map<BaseRow, RankRow> rowKeyMap;
 
 	private transient LRUMap<BaseRow, Map<BaseRow, RankRow>> kvRowKeyMap;
@@ -82,13 +87,13 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	private final KeySelector<BaseRow, BaseRow> rowKeySelector;
 
 	public UpdateRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			BaseRowTypeInfo rowKeyType, KeySelector<BaseRow, BaseRow> rowKeySelector,
-			GeneratedRecordComparator generatedRecordComparator, KeySelector<BaseRow, BaseRow> sortKeySelector,
-			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction, boolean outputRankNumber, long cacheSize) {
+			BaseRowKeySelector rowKeySelector, GeneratedRecordComparator generatedRecordComparator,
+			BaseRowKeySelector sortKeySelector, RankType rankType,
+			RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser, boolean generateRetraction,
+			boolean outputRankNumber, long cacheSize) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
 				rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
-		this.rowKeyType = rowKeyType;
+		this.rowKeyType = rowKeySelector.getProducedType();
 		this.cacheSize = cacheSize;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
 		this.rowKeySelector = rowKeySelector;
@@ -118,7 +123,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 			long timestamp,
 			OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
-		if (needToCleanupState(timestamp)) {
+		if (stateCleaningEnabled) {
 			BaseRow partitionKey = (BaseRow) keyContext.getCurrentKey();
 			// cleanup cache
 			kvRowKeyMap.remove(partitionKey);
@@ -191,11 +196,11 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 				Map<BaseRow, TreeMap<Integer, BaseRow>> tempSortedMap = new HashMap<>();
 				while (iter.hasNext()) {
 					Map.Entry<BaseRow, Tuple2<BaseRow, Integer>> entry = iter.next();
-					BaseRow rowkey = entry.getKey();
+					BaseRow rowKey = entry.getKey();
 					Tuple2<BaseRow, Integer> recordAndInnerRank = entry.getValue();
 					BaseRow record = recordAndInnerRank.f0;
 					Integer innerRank = recordAndInnerRank.f1;
-					rowKeyMap.put(rowkey, new RankRow(record, innerRank, false));
+					rowKeyMap.put(rowKey, new RankRow(record, innerRank, false));
 
 					// insert into temp sort map to preserve the record order in the same sort key
 					BaseRow sortKey = sortKeySelector.getKey(record);
@@ -204,7 +209,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 						treeMap = new TreeMap<>();
 						tempSortedMap.put(sortKey, treeMap);
 					}
-					treeMap.put(innerRank, rowkey);
+					treeMap.put(innerRank, rowKey);
 				}
 
 				// build sorted map from the temp map
@@ -313,7 +318,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 		int curRank = 0;
 		// whether we have found the sort key in the buffer
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank + 1)) {
+		while (iterator.hasNext() && isInRankEnd(curRank)) {
 			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
 			BaseRow curSortKey = entry.getKey();
 			Collection<BaseRow> rowKeys = entry.getValue();
@@ -329,7 +334,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 				if (oldSortKey == null) {
 					// this is a new row, emit updates for all rows in the topn
 					Iterator<BaseRow> rowKeyIter = rowKeys.iterator();
-					while (rowKeyIter.hasNext() && isInRankEnd(curRank + 1)) {
+					while (rowKeyIter.hasNext() && isInRankEnd(curRank)) {
 						curRank += 1;
 						BaseRow rowKey = rowKeyIter.next();
 						RankRow prevRow = rowKeyMap.get(rowKey);
@@ -343,7 +348,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 					if (compare <= 0) {
 						Iterator<BaseRow> rowKeyIter = rowKeys.iterator();
 						int curInnerRank = 0;
-						while (rowKeyIter.hasNext() && isInRankEnd(curRank + 1)) {
+						while (rowKeyIter.hasNext() && isInRankEnd(curRank)) {
 							curRank += 1;
 							curInnerRank += 1;
 							if (compare == 0 && curInnerRank >= oldInnerRank) {
@@ -445,8 +450,8 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 			Iterator<BaseRow> iter = list.iterator();
 			int innerRank = 1;
 			while (iter.hasNext()) {
-				BaseRow rowkey = iter.next();
-				RankRow row = rowKeyMap.get(rowkey);
+				BaseRow rowKey = iter.next();
+				RankRow row = rowKeyMap.get(rowKey);
 				if (row.innerRank != innerRank) {
 					row.innerRank = innerRank;
 					row.dirty = true;

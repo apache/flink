@@ -19,9 +19,7 @@
 package org.apache.flink.table.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 import java.util.Comparator;
 import java.util.SortedMap;
@@ -59,8 +57,6 @@ public final class SortedMapSerializer<K, V> extends AbstractMapSerializer<K, V,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<V> valueSerializer) {
 		super(keySerializer, valueSerializer);
-
-		Preconditions.checkNotNull(comparator, "The comparator cannot be null.");
 		this.comparator = comparator;
 	}
 
@@ -112,9 +108,12 @@ public final class SortedMapSerializer<K, V> extends AbstractMapSerializer<K, V,
 				"}";
 	}
 
-	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return new MapSerializerConfigSnapshot<>(keySerializer, valueSerializer);
-	}
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshot
+	// --------------------------------------------------------------------------------------------
 
+	@Override
+	public TypeSerializerSnapshot<SortedMap<K, V>> snapshotConfiguration() {
+		return new SortedMapSerializerSnapshot<>(this);
+	}
 }
