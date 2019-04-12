@@ -21,12 +21,13 @@ package org.apache.flink.table.codegen
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.table.`type`._
-import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.dataformat._
+import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isReference, isTemporal}
+
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.commons.lang3.StringEscapeUtils
 
@@ -653,7 +654,7 @@ object GenerateUtils {
       val compareFunc = newName("compareArray")
       val compareCode = generateArrayCompare(
         ctx,
-        FlinkPlannerImpl.getNullDefaultOrder(true), at, "a", "b")
+        SortUtil.getNullDefaultOrder(true), at, "a", "b")
       val funcCode: String =
         s"""
           public int $compareFunc($BINARY_ARRAY a, $BINARY_ARRAY b) {
@@ -670,7 +671,7 @@ object GenerateUtils {
         rowType.getFieldTypes.indices.toArray,
         rowType.getFieldTypes,
         orders,
-        FlinkPlannerImpl.getNullDefaultOrders(orders),
+        SortUtil.getNullDefaultOrders(orders),
         "a",
         "b")
       val compareFunc = newName("compareRow")

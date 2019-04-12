@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.functions.async.{AsyncFunction, RichAsyncF
 import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.generated.GeneratedFunction
+import org.apache.flink.table.generated.{GeneratedFunction, GeneratedJoinCondition, JoinCondition}
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -158,5 +158,51 @@ object FunctionCodeGenerator {
     """.stripMargin
 
     new GeneratedFunction(funcName, funcCode, ctx.references.toArray)
+  }
+
+  /**
+    * Generates a [[JoinCondition]] that can be passed to Java compiler.
+    *
+    * @param ctx The context of the code generator
+    * @param name Class name of the Function. Not must be unique but has to be a valid Java class
+    *             identifier.
+    * @param bodyCode code contents of the SAM (Single Abstract Method).
+    * @param input1Term the first input term
+    * @param input2Term the second input term.
+    * @return instance of GeneratedJoinCondition
+    */
+  def generateJoinCondition(
+      ctx: CodeGeneratorContext,
+      name: String,
+      bodyCode: String,
+      input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
+      input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): GeneratedJoinCondition = {
+    val funcName = newName(name)
+
+    val baseClass = classOf[JoinCondition]
+
+    val funcCode =
+      j"""
+      public class $funcName implements ${baseClass.getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $funcName(Object[] references) throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        ${ctx.reuseConstructorCode(funcName)}
+
+        @Override
+        public boolean apply($BASE_ROW $input1Term, $BASE_ROW $input2Term) throws Exception {
+          ${ctx.reusePerRecordCode()}
+          ${ctx.reuseLocalVariableCode()}
+          ${ctx.reuseInputUnboxingCode()}
+          $bodyCode
+        }
+      }
+     """.stripMargin
+
+    new GeneratedJoinCondition(funcName, funcCode, ctx.references.toArray)
   }
 }

@@ -221,16 +221,4 @@ object FlinkPlannerImpl {
     * the default field collation if not specified, Consistent with CALCITE.
     */
   val defaultCollationDirection: RelFieldCollation.Direction = RelFieldCollation.Direction.ASCENDING
-
-  /** Returns the default null direction if not specified. */
-  def getNullDefaultOrders(ascendings: Array[Boolean]): Array[Boolean] = {
-    ascendings.map { asc =>
-      FlinkPlannerImpl.defaultNullCollation.last(!asc)
-    }
-  }
-
-  /** Returns the default null direction if not specified. */
-  def getNullDefaultOrder(ascending: Boolean): Boolean = {
-    FlinkPlannerImpl.defaultNullCollation.last(!ascending)
-  }
 }

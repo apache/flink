@@ -91,11 +91,26 @@ public class TableConfigOptions {
 	//  Resource Options
 	// ------------------------------------------------------------------------
 
+	/**
+	 * How many Bytes per MB.
+	 */
+	public static final long SIZE_IN_MB =  1024L * 1024;
+
 	public static final ConfigOption<Integer> SQL_RESOURCE_DEFAULT_PARALLELISM =
 			key("sql.resource.default.parallelism")
 					.defaultValue(-1)
 					.withDescription("Default parallelism of the job. If any node do not have special parallelism, use it." +
 							"Its default value is the num of cpu cores in the client host.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_EXTERNAL_BUFFER_MEM =
+			key("sql.resource.external-buffer.memory.mb")
+					.defaultValue(10)
+					.withDescription("Sets the externalBuffer memory size that is used in sortMergeJoin and overWindow.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
+			key("sql.resource.sort.buffer.memory.mb")
+					.defaultValue(32)
+					.withDescription("Sets the buffer reserved memory size for sort. It defines the lower limit for the sort.");
 
 	// ------------------------------------------------------------------------
 	//  MiniBatch Options
