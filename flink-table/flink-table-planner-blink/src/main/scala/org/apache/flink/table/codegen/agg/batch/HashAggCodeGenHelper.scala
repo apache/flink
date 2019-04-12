@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull}
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator, SortCodeGenerator}
@@ -31,6 +30,7 @@ import org.apache.flink.table.expressions.{CallExpression, Expression, Expressio
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.generated.{NormalizedKeyComputer, RecordComparator}
+import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.runtime.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
 import org.apache.flink.table.runtime.sort.BufferedKVExternalSorter
 import org.apache.flink.table.typeutils.BinaryRowSerializer
@@ -835,7 +835,7 @@ object HashAggCodeGenHelper {
     val keyFieldTypes = aggMapKeyType.getFieldTypes
     val keys = keyFieldTypes.indices.toArray
     val orders = keys.map((_) => true)
-    val nullsIsLast = FlinkPlannerImpl.getNullDefaultOrders(orders)
+    val nullsIsLast = SortUtil.getNullDefaultOrders(orders)
 
     val sortCodeGenerator = new SortCodeGenerator(
       ctx.tableConfig, keys, keyFieldTypes, orders, nullsIsLast)

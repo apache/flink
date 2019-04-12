@@ -49,8 +49,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest.endInput1;
-import static org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest.endInput2;
 import static org.apache.flink.table.runtime.join.String2HashJoinOperatorTest.newRow;
 import static org.apache.flink.table.runtime.join.String2HashJoinOperatorTest.transformToBinary;
 
@@ -163,8 +161,6 @@ public class String2SortMergeJoinOperatorTest {
 		testHarness.processElement(new StreamRecord<>(newRow("b", "4"), initialTime), 1, 0);
 		testHarness.waitForInputProcessing();
 
-		endInput1(testHarness);
-		endInput2(testHarness);
 		testHarness.endInput();
 		return testHarness;
 	}

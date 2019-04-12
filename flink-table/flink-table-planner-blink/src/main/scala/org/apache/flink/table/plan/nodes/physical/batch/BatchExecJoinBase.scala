@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.table.`type`.RowType
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.generated.GeneratedJoinCondition
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 
 import org.apache.calcite.rel.core.Join
@@ -26,4 +30,30 @@ import org.apache.calcite.rel.core.Join
   */
 trait BatchExecJoinBase extends CommonPhysicalJoin with BatchPhysicalRel {
 
+  private[flink] def generateCondition(
+      config: TableConfig,
+      leftType: RowType,
+      rightType: RowType): GeneratedJoinCondition = {
+    val ctx = CodeGeneratorContext(config)
+    val exprGenerator = new ExprCodeGenerator(ctx, false)
+        .bindInput(leftType)
+        .bindSecondInput(rightType)
+
+    val body = if (joinInfo.isEqui) {
+      // only equality condition
+      "return true;"
+    } else {
+      val nonEquiPredicates = joinInfo.getRemaining(getCluster.getRexBuilder)
+      val condition = exprGenerator.generateExpression(nonEquiPredicates)
+      s"""
+         |${condition.code}
+         |return ${condition.resultTerm};
+         |""".stripMargin
+    }
+
+    FunctionCodeGenerator.generateJoinCondition(
+      ctx,
+      "JoinConditionFunction",
+      body)
+  }
 }

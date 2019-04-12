@@ -248,6 +248,18 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			int expectOutKeySize,
 			int expectOutVal,
 			boolean semiJoin) throws Exception {
+		joinAndAssert(operator, input1, input2, expectOutSize, expectOutKeySize, expectOutVal, semiJoin, true);
+	}
+
+	static void joinAndAssert(
+			StreamOperator operator,
+			MutableObjectIterator<BinaryRow> input1,
+			MutableObjectIterator<BinaryRow> input2,
+			int expectOutSize,
+			int expectOutKeySize,
+			int expectOutVal,
+			boolean semiJoin,
+			boolean invokeEndInput) throws Exception {
 		BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(InternalTypes.INT, InternalTypes.INT);
 		BaseRowTypeInfo baseRowType = new BaseRowTypeInfo(
 				InternalTypes.INT, InternalTypes.INT, InternalTypes.INT, InternalTypes.INT);
@@ -268,14 +280,18 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			testHarness.processElement(new StreamRecord<>(row1), 0, 0);
 		}
 		testHarness.waitForInputProcessing();
-		endInput1(testHarness);
+		if (invokeEndInput) {
+			endInput1(testHarness);
+		}
 
 		BinaryRow row2;
 		while ((row2 = input2.next()) != null) {
 			testHarness.processElement(new StreamRecord<>(row2), 1, 0);
 		}
 		testHarness.waitForInputProcessing();
-		endInput2(testHarness);
+		if (invokeEndInput) {
+			endInput2(testHarness);
+		}
 
 		testHarness.endInput();
 		testHarness.waitForInputProcessing();

@@ -60,9 +60,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest.endInput1;
-import static org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest.endInput2;
-
 /**
  * Test for sort merge inner join.
  */
@@ -269,28 +266,24 @@ public class RandomSortMergeInnerJoinTest {
 				testHarness.processElement(new StreamRecord<>(newRow(tuple2.f0, tuple2.f1), initialTime), 0, 0);
 			}
 			testHarness.waitForInputProcessing();
-			endInput1(testHarness);
 
 			tuple2 = new Tuple2<>();
 			while ((tuple2 = input2.next(tuple2)) != null) {
 				testHarness.processElement(new StreamRecord<>(newRow(tuple2.f0, tuple2.f1), initialTime), 1, 0);
 			}
 			testHarness.waitForInputProcessing();
-			endInput2(testHarness);
 		} else {
 			Tuple2<Integer, String> tuple2 = new Tuple2<>();
 			while ((tuple2 = input2.next(tuple2)) != null) {
 				testHarness.processElement(new StreamRecord<>(newRow(tuple2.f0, tuple2.f1), initialTime), 1, 0);
 			}
 			testHarness.waitForInputProcessing();
-			endInput2(testHarness);
 
 			tuple2 = new Tuple2<>();
 			while ((tuple2 = input1.next(tuple2)) != null) {
 				testHarness.processElement(new StreamRecord<>(newRow(tuple2.f0, tuple2.f1), initialTime), 0, 0);
 			}
 			testHarness.waitForInputProcessing();
-			endInput1(testHarness);
 		}
 
 		testHarness.endInput();

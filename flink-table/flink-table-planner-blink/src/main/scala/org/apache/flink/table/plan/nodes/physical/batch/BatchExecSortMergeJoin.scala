@@ -17,9 +17,20 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{StreamTransformation, TwoInputTransformation}
+import org.apache.flink.table.`type`.{RowType, TypeConverters}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
+import org.apache.flink.table.codegen.{CodeGeneratorContext, SortCodeGenerator}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.nodes.ExpressionFormat
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, SortUtil}
+import org.apache.flink.table.runtime.join.SortMergeJoinOperator
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -27,12 +38,14 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
+import java.util
+
 import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for sort-merge [[Join]].
   */
-trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
+trait BatchExecSortMergeJoinBase extends BatchExecJoinBase with BatchExecNode[BaseRow] {
 
   // true if LHS is sorted by left join keys, else false
   val leftSorted: Boolean
@@ -103,6 +116,102 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
     }
     val rowCount = mq.getRowCount(this)
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
+  }
+
+  /**
+    * Now must be full dam without two input operator chain.
+    * TODO two input operator chain will return different value.
+    */
+  override def getDamBehavior: DamBehavior = {
+    DamBehavior.FULL_DAM
+  }
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+
+    val config = tableEnv.getConfig
+
+    val leftInput = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val rightInput = getInputNodes.get(1).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+
+    val leftType = TypeConverters.createInternalTypeFromTypeInfo(
+      leftInput.getOutputType).asInstanceOf[RowType]
+    val rightType = TypeConverters.createInternalTypeFromTypeInfo(
+      rightInput.getOutputType).asInstanceOf[RowType]
+
+    val keyType = new RowType(leftAllKey.map(leftType.getFieldTypes()(_)): _*)
+
+    val condFunc = generateCondition(config, leftType, rightType)
+
+    val externalBufferMemory = config.getConf.getInteger(
+      TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB
+
+    val sortMemory = config.getConf.getInteger(
+      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB
+
+    def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
+      val originalOrders = originalKeys.map(_ => true)
+      val (keys, orders, nullsIsLast) = SortUtil.deduplicateSortKeys(
+        originalKeys,
+        originalOrders,
+        SortUtil.getNullDefaultOrders(originalOrders))
+      val types = keys.map(t.getTypeAt)
+      new SortCodeGenerator(config, keys, types, orders, nullsIsLast)
+    }
+
+    val leftSortGen = newSortGen(leftAllKey, leftType)
+    val rightSortGen = newSortGen(rightAllKey, rightType)
+
+    val operator = new SortMergeJoinOperator(
+      sortMemory,
+      sortMemory,
+      externalBufferMemory,
+      flinkJoinType match {
+        case FlinkJoinRelType.INNER => SortMergeJoinOperator.SortMergeJoinType.INNER
+        case FlinkJoinRelType.LEFT => SortMergeJoinOperator.SortMergeJoinType.LEFT
+        case FlinkJoinRelType.RIGHT => SortMergeJoinOperator.SortMergeJoinType.RIGHT
+        case FlinkJoinRelType.FULL => SortMergeJoinOperator.SortMergeJoinType.FULL
+        case FlinkJoinRelType.SEMI => SortMergeJoinOperator.SortMergeJoinType.SEMI
+        case FlinkJoinRelType.ANTI => SortMergeJoinOperator.SortMergeJoinType.ANTI
+      },
+      estimateOutputSize(getLeft) < estimateOutputSize(getRight),
+      condFunc,
+      generateProjection(
+        CodeGeneratorContext(config), "SMJProjection", leftType, keyType, leftAllKey),
+      generateProjection(
+        CodeGeneratorContext(config), "SMJProjection", rightType, keyType, rightAllKey),
+      leftSortGen.generateNormalizedKeyComputer("LeftComputer"),
+      leftSortGen.generateRecordComparator("LeftComparator"),
+      rightSortGen.generateNormalizedKeyComputer("RightComputer"),
+      rightSortGen.generateRecordComparator("RightComparator"),
+      newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
+      filterNulls)
+
+    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+      leftInput,
+      rightInput,
+      getOperatorName,
+      operator,
+      FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo,
+      leftInput.getParallelism)
+  }
+
+  private def estimateOutputSize(relNode: RelNode): Double = {
+    val mq = relNode.getCluster.getMetadataQuery
+    mq.getAverageRowSize(relNode) * mq.getRowCount(relNode)
+  }
+
+  private def getOperatorName: String = if (getCondition != null) {
+    val inFields = inputRowType.getFieldNames.toList
+    s"SortMergeJoin(where: ${
+      getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)})"
+  } else {
+    "SortMergeJoin"
   }
 }
 

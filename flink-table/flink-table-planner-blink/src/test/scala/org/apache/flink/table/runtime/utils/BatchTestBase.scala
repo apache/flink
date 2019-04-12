@@ -408,6 +408,8 @@ object BatchTestBase {
   def initConfigForTest(conf: TableConfig): TableConfig = {
     // TODO prepare for some resource config
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, PARALLELISM)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 2)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
     conf
   }
 

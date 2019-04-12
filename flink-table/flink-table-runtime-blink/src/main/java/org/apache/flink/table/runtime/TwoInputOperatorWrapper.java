@@ -60,6 +60,11 @@ public class TwoInputOperatorWrapper<IN1, IN2, OUT>
 		return operator;
 	}
 
+	@VisibleForTesting
+	public GeneratedClass<TwoInputStreamOperator<IN1, IN2, OUT>> getGeneratedClass() {
+		return generatedClass;
+	}
+
 	@Override
 	public void open() throws Exception {
 		operator.open();

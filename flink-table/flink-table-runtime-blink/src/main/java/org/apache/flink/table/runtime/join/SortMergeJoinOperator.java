@@ -447,6 +447,8 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 	@Override
 	public void close() throws Exception {
+		endInput1(); // TODO remove it
+		endInput2(); // TODO remove it
 		super.close();
 		if (this.sorter1 != null) {
 			this.sorter1.close();

@@ -28,7 +28,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -43,6 +42,7 @@ import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
+import org.apache.flink.table.plan.util.SortUtil;
 import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
 import org.apache.flink.table.type.ArrayType;
 import org.apache.flink.table.type.DecimalType;
@@ -126,7 +126,7 @@ public class SortCodeGeneratorTest {
 
 			keys = new int[] {0};
 			orders = new boolean[] {rnd.nextBoolean()};
-			nullsIsLast = FlinkPlannerImpl.getNullDefaultOrders(orders);
+			nullsIsLast = SortUtil.getNullDefaultOrders(orders);
 			testInner();
 		}
 	}
@@ -149,7 +149,7 @@ public class SortCodeGeneratorTest {
 			keys[i] = indexQueue.poll();
 			orders[i] = rnd.nextBoolean();
 		}
-		nullsIsLast = FlinkPlannerImpl.getNullDefaultOrders(orders);
+		nullsIsLast = SortUtil.getNullDefaultOrders(orders);
 	}
 
 	private Object[] shuffle(Object[] objects) {

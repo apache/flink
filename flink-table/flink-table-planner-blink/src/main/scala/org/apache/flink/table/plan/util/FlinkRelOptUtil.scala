@@ -17,13 +17,11 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.api.common.operators.Order
 import org.apache.flink.table.api.TableException
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelFieldCollation.Direction
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{AggregateCall, JoinInfo}
-import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.util.ImmutableIntList
@@ -125,58 +123,6 @@ object FlinkRelOptUtil {
       // TODO return Long.MaxValue when providing FlinkRelMdRowCount on Sort ?
       Integer.MAX_VALUE
     }
-  }
-
-  /**
-    * Converts [[Direction]] to [[Order]].
-    */
-  def directionToOrder(direction: Direction): Order = {
-    direction match {
-      case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
-      case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
-      case _ => throw new IllegalArgumentException("Unsupported direction.")
-    }
-  }
-
-  /**
-    * Gets sort key indices, sort orders and null directions from given field collations.
-    */
-  def getSortKeysAndOrders(
-      fieldCollations: Seq[RelFieldCollation]): (Array[Int], Array[Boolean], Array[Boolean]) = {
-    val fieldMappingDirections = fieldCollations.map {
-      c => (c.getFieldIndex, directionToOrder(c.getDirection))
-    }
-    val keys = fieldMappingDirections.map(_._1)
-    val orders = fieldMappingDirections.map(_._2 == Order.ASCENDING)
-    val nullsIsLast = fieldCollations.map(_.nullDirection).map {
-      case RelFieldCollation.NullDirection.LAST => true
-      case RelFieldCollation.NullDirection.FIRST => false
-      case RelFieldCollation.NullDirection.UNSPECIFIED =>
-        throw new TableException(s"Do not support UNSPECIFIED for null order.")
-    }.toArray
-
-    deduplicateSortKeys(keys.toArray, orders.toArray, nullsIsLast)
-  }
-
-  /**
-    * Removes duplicate sort keys.
-    */
-  private def deduplicateSortKeys(
-      keys: Array[Int],
-      orders: Array[Boolean],
-      nullsIsLast: Array[Boolean]): (Array[Int], Array[Boolean], Array[Boolean]) = {
-    val keySet = new mutable.HashSet[Int]
-    val keyBuffer = new mutable.ArrayBuffer[Int]
-    val orderBuffer = new mutable.ArrayBuffer[Boolean]
-    val nullsIsLastBuffer = new mutable.ArrayBuffer[Boolean]
-    for (i <- keys.indices) {
-      if (keySet.add(keys(i))) {
-        keyBuffer += keys(i)
-        orderBuffer += orders(i)
-        nullsIsLastBuffer += nullsIsLast(i)
-      }
-    }
-    (keyBuffer.toArray, orderBuffer.toArray, nullsIsLastBuffer.toArray)
   }
 
   /**
