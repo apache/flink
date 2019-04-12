@@ -86,6 +86,11 @@ public class IntermediateResultPartition {
 	}
 
 	void resetForNewExecution() {
+		if (getResultType().isBlocking() && hasDataProduced) {
+			// A BLOCKING result partition with data produced means it is finished
+			// Need to add the running producer count of the result on resetting it
+			totalResult.incrementNumberOfRunningProducersAndGetRemaining();
+		}
 		hasDataProduced = false;
 	}
 
