@@ -1115,12 +1115,14 @@ public class CliFrontend {
 				configuration,
 				customCommandLines);
 
-			Tuple2<CommandLine, FunctionWithException<CommandLine, Integer, Exception>> commandLineAction = cli.parseParameters(args);
+			final Tuple2<CommandLine, FunctionWithException<CommandLine, Integer, Exception>> commandLineAction = cli.parseParameters(args);
 
 			// apply command options to configuration.
-			final CustomCommandLine<?> customCommandLine = cli.getActiveCustomCommandLine(commandLineAction.f0);
-			final Configuration effectiveConfiguration =
-				commandLineAction.f0 == null ? cli.configuration : customCommandLine.applyCommandLineOptionsToConfiguration(cli.configuration, commandLineAction.f0);
+			Configuration effectiveConfiguration = cli.configuration;
+			if (commandLineAction.f0 != null) {
+				final CustomCommandLine<?> customCommandLine = cli.getActiveCustomCommandLine(commandLineAction.f0);
+				effectiveConfiguration = customCommandLine.applyCommandLineOptionsToConfiguration(cli.configuration, commandLineAction.f0);
+			}
 
 			SecurityUtils.install(new SecurityConfiguration(effectiveConfiguration));
 			int retCode = SecurityUtils.getInstalledContext().runSecured(() -> {
