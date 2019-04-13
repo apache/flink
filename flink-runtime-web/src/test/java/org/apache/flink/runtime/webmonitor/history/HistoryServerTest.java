@@ -174,7 +174,7 @@ public class HistoryServerTest extends TestLogger {
 						try (JsonObject tasks = new JsonObject(gen, "tasks")) {
 							gen.writeNumberField("total", 0);
 
-							gen.writeNumberField("pending", 0);
+							gen.writeNumberField("scheduled", 0);
 							gen.writeNumberField("running", 0);
 							gen.writeNumberField("finished", 0);
 							gen.writeNumberField("canceling", 0);
