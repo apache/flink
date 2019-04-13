@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.stream.sql
+package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}

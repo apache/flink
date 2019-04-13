@@ -77,7 +77,8 @@ class StreamExecGroupAggregate(
       inputs.get(0),
       outputRowType,
       grouping,
-      aggCalls)
+      aggCalls,
+      partialFinalType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

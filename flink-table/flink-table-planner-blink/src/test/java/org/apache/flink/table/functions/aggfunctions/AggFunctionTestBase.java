@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
 import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator;
@@ -36,7 +37,8 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- *  Base class for aggregate function test.
+ * Base class for aggregate function test.
+ *
  * @param <T> the type for the aggregation result
  * @param <ACC> accumulate type
  */
@@ -100,7 +102,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
 				List<T> inputValues = inputValueSets.get(i);
 				T expected = expectedResults.get(i);
 				// equally split the vals sequence into two sequences
-				Tuple2<List<T>, List<T>> splitValues = splitAt(inputValues, inputValues.size() / 2);
+				Tuple2<List<T>, List<T>> splitValues = splitValues(inputValues);
 				List<T> firstValues = splitValues.f0;
 				List<T> secondValues = splitValues.f1;
 				// 1. verify merge with accumulate
@@ -163,7 +165,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		}
 	}
 
-	private <E> void validateResult(E expected, E result) {
+	protected <E> void validateResult(E expected, E result) {
 		if (expected instanceof BigDecimal && result instanceof BigDecimal) {
 			// BigDecimal.equals() value and scale but we are only interested in value.
 			assertEquals(0, ((BigDecimal) expected).compareTo((BigDecimal) result));
@@ -184,7 +186,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		}
 	}
 
-	private ACC accumulateValues(List<T> values)
+	protected ACC accumulateValues(List<T> values)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		AggregateFunction<T, ACC> aggregator = getAggregator();
 		ACC accumulator = getAggregator().createAccumulator();
@@ -192,27 +194,35 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		for (T value : values) {
 			if (accumulateFunc.getParameterCount() == 1) {
 				accumulateFunc.invoke(aggregator, (Object) accumulator);
-			} else {
+			} else if (accumulateFunc.getParameterCount() == 2) {
 				accumulateFunc.invoke(aggregator, (Object) accumulator, (Object) value);
+			} else {
+				throw new TableException("Unsupported now");
 			}
 		}
 		return accumulator;
 	}
 
-	private void retractValues(ACC accumulator, List<T> values)
+	protected void retractValues(ACC accumulator, List<T> values)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		AggregateFunction<T, ACC> aggregator = getAggregator();
 		Method retractFunc = getRetractFunc();
 		for (T value : values) {
 			if (retractFunc.getParameterCount() == 1) {
 				retractFunc.invoke(aggregator, (Object) accumulator);
-			} else {
+			} else if (retractFunc.getParameterCount() == 2) {
 				retractFunc.invoke(aggregator, (Object) accumulator, (Object) value);
+			} else {
+				throw new TableException("Unsupported now");
 			}
 		}
 	}
 
-	private Tuple2<List<T>, List<T>> splitAt(List<T> values, int index) {
+	protected Tuple2<List<T>, List<T>> splitValues(List<T> values) {
+		return splitValues(values, values.size() / 2);
+	}
+
+	protected Tuple2<List<T>, List<T>> splitValues(List<T> values, int index) {
 		List<T> firstValues = new ArrayList<>();
 		List<T> secondValues = new ArrayList<>();
 		int i;

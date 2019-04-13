@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.sql;
 import org.apache.flink.table.calcite.type.FlinkReturnTypes;
 import org.apache.flink.table.calcite.type.NumericExceptFirstOperandChecker;
 import org.apache.flink.table.calcite.type.RepeatFamilyOperandTypeChecker;
+import org.apache.flink.table.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBinaryOperator;
@@ -854,6 +855,38 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING),
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.STRING);
+
+	/**
+	 * <code>AUXILIARY_GROUP</code> aggregate function.
+	 * Only be used in internally.
+	 */
+	public static final SqlAggFunction AUXILIARY_GROUP = new SqlAuxiliaryGroupAggFunction();
+
+	/**
+	 * <code>FIRST_VALUE</code> aggregate function.
+	 */
+	public static final SqlFirstLastValueAggFunction FIRST_VALUE =
+			new SqlFirstLastValueAggFunction(SqlKind.FIRST_VALUE);
+
+	/**
+	 * <code>LAST_VALUE</code> aggregate function.
+	 */
+	public static final SqlFirstLastValueAggFunction LAST_VALUE = new SqlFirstLastValueAggFunction(SqlKind.LAST_VALUE);
+
+	/**
+	 * <code>CONCAT_AGG</code> aggregate function.
+	 */
+	public static final SqlConcatAggFunction CONCAT_AGG = new SqlConcatAggFunction();
+
+	/**
+	 * <code>INCR_SUM</code> aggregate function.
+	 */
+	public static final SqlIncrSumAggFunction INCR_SUM = new SqlIncrSumAggFunction();
+
+	/**
+	 * <code>MAX2ND</code> aggregate function.
+	 */
+	public static final SqlMax2ndAggFunction MAX2ND = new SqlMax2ndAggFunction();
 
 	// -----------------------------------------------------------------------------
 	// Window SQL functions

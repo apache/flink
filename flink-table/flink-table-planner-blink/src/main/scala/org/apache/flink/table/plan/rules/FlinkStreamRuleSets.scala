@@ -213,7 +213,10 @@ object FlinkStreamRuleSets {
     */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transform over window to topn node
-    FlinkLogicalRankRule.INSTANCE
+    FlinkLogicalRankRule.INSTANCE,
+    // split distinct aggregate to reduce data skew
+    SplitAggregateRule.INSTANCE
+    // TODO add flink calc merge rule
   )
 
   /**
@@ -233,6 +236,7 @@ object FlinkStreamRuleSets {
     StreamExecTemporalSortRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
     StreamExecGroupAggregateRule.INSTANCE,
+    StreamExecExpandRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE
   )
@@ -252,7 +256,9 @@ object FlinkStreamRuleSets {
     */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
     //optimize agg rule
-    TwoStageOptimizedAggregateRule.INSTANCE
+    TwoStageOptimizedAggregateRule.INSTANCE,
+    // incremental agg rule
+    IncrementalAggregateRule.INSTANCE
   )
 
 }

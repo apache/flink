@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo
 import org.apache.flink.table.`type`.{RowType, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.typeutils._
 
@@ -80,11 +80,14 @@ object DataViewUtils {
         val pojoTypeInfo = new PojoTypeInfo(externalAccType.getTypeClass, newPojoFields)
         (pojoTypeInfo, accumulatorSpecs.toArray)
 
-      // RowType's ExternalTypeInfo is RowTypeInfo
+      // RowType's ExternalTypeInfo is RowTypeInfo or BaseRowTypeInfo
       // so we add another check => acc.isInstanceOf[GenericRow]
-      case r: RowTypeInfo if acc.isInstanceOf[GenericRow] =>
+      case r@(_: RowTypeInfo | _: BaseRowTypeInfo) if acc.isInstanceOf[GenericRow] =>
         val accInstance = acc.asInstanceOf[GenericRow]
-        val (arity, fieldNames, fieldTypes) = (r.getArity, r.getFieldNames, r.getFieldTypes)
+        val (arity, fieldNames, fieldTypes) = r match {
+          case t: RowTypeInfo => (r.getArity, t.getFieldNames, t.getFieldTypes)
+          case t: BaseRowTypeInfo => (r.getArity, t.getFieldNames, t.getFieldTypes)
+        }
         val newFieldTypes = for (i <- 0 until arity) yield {
           val fieldName = fieldNames(i)
           val fieldInstance = accInstance.getField(i)
@@ -104,6 +107,7 @@ object DataViewUtils {
 
         val newType = new RowType(newFieldTypes.toArray, fieldNames)
         (TypeConverters.createExternalTypeInfoFromInternalType(newType), accumulatorSpecs.toArray)
+
       case ct: CompositeType[_] if includesDataView(ct) =>
         throw new TableException(
           "MapView, SortedMapView and ListView only supported in accumulators of POJO type.")
@@ -140,7 +144,13 @@ object DataViewUtils {
           "MapView, SortedMapView and ListView only supported at first level of " +
             "accumulators of Pojo type.")
       case map: MapViewTypeInfo[_, _] =>
-        val mapView = instance.asInstanceOf[MapView[_, _]]
+        val mapView = instance match {
+          case b: BinaryGeneric[_] =>
+            b.getJavaObject.asInstanceOf[MapView[_, _]]
+          case _ =>
+            instance.asInstanceOf[MapView[_, _]]
+        }
+
         val newTypeInfo = if (mapView != null && mapView.keyType != null &&
           mapView.valueType != null) {
 
@@ -169,7 +179,12 @@ object DataViewUtils {
       // TODO supports SortedMapViewTypeInfo
 
       case list: ListViewTypeInfo[_] =>
-        val listView = instance.asInstanceOf[ListView[_]]
+        val listView = instance match {
+          case b: BinaryGeneric[_] =>
+            b.getJavaObject.asInstanceOf[ListView[_]]
+          case _ =>
+            instance.asInstanceOf[ListView[_]]
+        }
         val newTypeInfo = if (listView != null && listView.elementType != null) {
           // todo support analysis the DataView generic class of udaf.
           new ListViewTypeInfo(listView.elementType)

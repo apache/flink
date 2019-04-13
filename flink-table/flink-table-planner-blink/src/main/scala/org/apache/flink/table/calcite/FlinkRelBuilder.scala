@@ -18,15 +18,23 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
 import org.apache.flink.table.expressions.WindowProperty
+import org.apache.flink.table.plan.nodes.calcite.RankRange
+import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
+import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.volcano.VolcanoPlanner
-import org.apache.calcite.rex.RexBuilder
-import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
+import org.apache.calcite.rel.RelCollation
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rex.{RexBuilder, RexNode}
+import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelBuilderFactory}
+import org.apache.calcite.util.{ImmutableBitSet, Util}
 
+import java.util
 import java.util.{Collections, Properties}
 
 import scala.collection.JavaConversions._
@@ -43,6 +51,20 @@ class FlinkRelBuilder(
     relOptCluster,
     relOptSchema) {
 
+  require(context != null)
+
+  private val expandFactory: ExpandFactory = {
+    Util.first(context.unwrap(classOf[ExpandFactory]), FlinkRelFactories.DEFAULT_EXPAND_FACTORY)
+  }
+
+  private val rankFactory: RankFactory = {
+    Util.first(context.unwrap(classOf[RankFactory]), FlinkRelFactories.DEFAULT_RANK_FACTORY)
+  }
+
+  private val sinkFactory: SinkFactory = {
+    Util.first(context.unwrap(classOf[SinkFactory]), FlinkRelFactories.DEFAULT_SINK_FACTORY)
+  }
+
   def getRelOptSchema: RelOptSchema = relOptSchema
 
   def getPlanner: RelOptPlanner = cluster.getPlanner
@@ -51,6 +73,34 @@ class FlinkRelBuilder(
 
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
+  def expand(
+      outputRowType: RelDataType,
+      projects: util.List[util.List[RexNode]],
+      expandIdIndex: Int): RelBuilder = {
+    val input = build()
+    val expand = expandFactory.createExpand(input, outputRowType, projects, expandIdIndex)
+    push(expand)
+  }
+
+  def sink(sink: TableSink[_], sinkName: String): RelBuilder = {
+    val input = build()
+    val sinkNode = sinkFactory.createSink(input, sink, sinkName)
+    push(sinkNode)
+  }
+
+  def rank(
+      partitionKey: ImmutableBitSet,
+      orderKey: RelCollation,
+      rankType: RankType,
+      rankRange: RankRange,
+      rankNumberType: RelDataTypeField,
+      outputRankNumber: Boolean): RelBuilder = {
+    val input = build()
+    val rank = rankFactory.createRank(input, partitionKey, orderKey, rankType, rankRange,
+      rankNumberType, outputRankNumber)
+    push(rank)
+  }
 }
 
 object FlinkRelBuilder {
@@ -91,4 +141,9 @@ object FlinkRelBuilder {
     * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
     */
   case class NamedWindowProperty(name: String, property: WindowProperty)
+
+  def proto(context: Context): RelBuilderFactory = new RelBuilderFactory() {
+    def create(cluster: RelOptCluster, schema: RelOptSchema): RelBuilder =
+      new FlinkRelBuilder(context, cluster, schema)
+  }
 }
