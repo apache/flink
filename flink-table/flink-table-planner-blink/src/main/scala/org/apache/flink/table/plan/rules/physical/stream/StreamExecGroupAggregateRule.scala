@@ -74,7 +74,7 @@ class StreamExecGroupAggregateRule
       rel.getRowType,
       agg.getGroupSet.toArray,
       agg.getAggCallList,
-      PartialFinalType.NONE)
+      agg.partialFinalType)
   }
 }
 

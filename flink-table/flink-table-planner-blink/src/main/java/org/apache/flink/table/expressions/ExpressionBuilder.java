@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CONCAT;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GREATER_THAN;
@@ -31,6 +33,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MINUS;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS;
 
 /**
@@ -56,6 +59,14 @@ public class ExpressionBuilder {
 
 	public static Expression call(FunctionDefinition functionDefinition, List<Expression> args) {
 		return new CallExpression(functionDefinition, args);
+	}
+
+	public static Expression and(Expression... args) {
+		return new CallExpression(AND, Arrays.asList(args));
+	}
+
+	public static Expression or(Expression... args) {
+		return new CallExpression(OR, Arrays.asList(args));
 	}
 
 	public static Expression isNull(Expression input) {
@@ -96,5 +107,9 @@ public class ExpressionBuilder {
 
 	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
 		return new TypeLiteralExpression(type);
+	}
+
+	public static Expression concat(Expression input1, Expression input2) {
+		return call(CONCAT, input1, input2);
 	}
 }
