@@ -586,12 +586,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return effectiveConfiguration;
 	}
 
-	public int run(String[] args) throws CliArgsException, FlinkException {
-		//
-		//	Command Line Options
-		//
-		final CommandLine cmd = parseCommandLineOptions(args, true);
-
+	public int run(CommandLine cmd) throws FlinkException {
 		if (cmd.hasOption(help.getOpt())) {
 			printUsage();
 			return 0;
@@ -842,9 +837,15 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 				"",
 				""); // no prefix for the YARN session
 
-			SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+			//
+			//	Command Line Options
+			//
+			final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
+			Configuration effectiveConfiguraion = cli.applyCommandLineOptionsToConfiguration(flinkConfiguration, commandLine);
 
-			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
+			SecurityUtils.install(new SecurityConfiguration(effectiveConfiguraion));
+
+			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(commandLine));
 		} catch (CliArgsException e) {
 			retCode = handleCliArgsException(e);
 		} catch (Throwable t) {
