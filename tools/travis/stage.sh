@@ -100,7 +100,6 @@ MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-formats/flink-avro,\
 !flink-connectors/flink-hbase,\
 !flink-connectors/flink-connector-cassandra,\
-!flink-connectors/flink-connector-elasticsearch,\
 !flink-connectors/flink-connector-kafka-0.9,\
 !flink-connectors/flink-connector-kafka-0.10,\
 !flink-connectors/flink-connector-kafka-0.11"
