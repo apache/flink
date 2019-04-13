@@ -41,6 +41,7 @@ import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -107,7 +108,7 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 			// Avoid extracting a project same with the input project.
 			return;
 		}
-		relBuilder.project(projects);
+		relBuilder.project(projects, new LinkedList<>(), true);
 
 		final ImmutableBitSet newGroupSet =
 			Mappings.apply(mapping, aggregate.getGroupSet());

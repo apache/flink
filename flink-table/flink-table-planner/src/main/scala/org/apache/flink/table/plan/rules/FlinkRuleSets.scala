@@ -57,7 +57,8 @@ object FlinkRuleSets {
   val PRE_LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     new FlinkAggregateExtractProjectRule(
       operand(classOf[Aggregate],
-        operand(classOf[RelNode], none)), RelFactories.LOGICAL_BUILDER))
+        operand(classOf[RelNode], none)), RelFactories.LOGICAL_BUILDER),
+    ReduceExpressionsRule.PROJECT_INSTANCE)
 
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
 

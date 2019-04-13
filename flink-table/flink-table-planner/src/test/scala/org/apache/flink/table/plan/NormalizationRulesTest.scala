@@ -50,11 +50,13 @@ class NormalizationRulesTest extends TableTestBase {
     // expect double aggregate
     val expected = unaryNode("LogicalProject",
       unaryNode("LogicalAggregate",
-        unaryNode("LogicalAggregate",
-          unaryNode("LogicalProject",
-            values("LogicalTableScan", term("table", "[_DataSetTable_0]")),
-            term("b", "$1"), term("a", "$0")),
-          term("group", "{0, 1}")),
+        unaryNode("LogicalProject",
+          unaryNode("LogicalAggregate",
+            unaryNode("LogicalProject",
+              values("LogicalTableScan", term("table", "[_DataSetTable_0]")),
+              term("b", "$1"), term("a", "$0")),
+            term("group", "{0, 1}")),
+          term("b", "$0"), term("a", "$1")),
         term("group", "{0}"), term("EXPR$0", "COUNT($1)")
       ),
       term("EXPR$0", "$1")
@@ -85,13 +87,15 @@ class NormalizationRulesTest extends TableTestBase {
     val expected = unaryNode(
       "LogicalProject",
       unaryNode("LogicalAggregate",
-        unaryNode("LogicalAggregate",
-          unaryNode("LogicalProject",
-            values("LogicalTableScan", term("table", "[_DataStreamTable_0]")),
-            term("b", "$1"), term("a", "$0")),
-          term("group", "{0, 1}")),
-        term("group", "{0}"), term("EXPR$0", "COUNT($1)")
-      ),
+        unaryNode("LogicalProject",
+          unaryNode("LogicalAggregate",
+            unaryNode("LogicalProject",
+              values("LogicalTableScan", term("table", "[_DataStreamTable_0]")),
+              term("b", "$1"), term("a", "$0")),
+            term("group", "{0, 1}")),
+          term("b", "$0"), term("a", "$1")
+        ),
+        term("group", "{0}"), term("EXPR$0", "COUNT($1)")),
       term("EXPR$0", "$1")
     )
 

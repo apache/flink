@@ -88,7 +88,9 @@ class AggregateTest extends TableTestBase {
     val calcNode = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select", "a", "b", "c"),
+      // ReduceExpressionsRule will add cast for Project node by force
+      // if the input of the Project node has constant expression.
+      term("select", "CAST(1) AS a", "b", "c"),
       term("where", "=(a, 1)")
     )
 
