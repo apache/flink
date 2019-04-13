@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
@@ -90,9 +91,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     .operatorTable(ChainedSqlOperatorTable.of(
       new ListSqlOperatorTable(functionCatalog.sqlFunctions),
       FlinkSqlOperatorTable.instance()))
-    // TODO: introduce ExpressionReducer after codegen
     // set the executor to evaluate constant expressions
-    // .executor(new ExpressionReducer(config))
+    .executor(new ExpressionReducer(config))
     .context(new FlinkContextImpl(config))
     .traitDefs(getTraitDefs: _*)
     .build
