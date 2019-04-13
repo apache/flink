@@ -62,11 +62,11 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 		JobID jid = new JobID();
 		String jidString = jid.toString();
 
-		String[] parameters = { jidString };
+		String[] parameters = {"stop", jidString };
 		final ClusterClient<String> clusterClient = createClusterClient(null);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-		testFrontend.stop(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 
 		Mockito.verify(clusterClient, times(1)).stop(any(JobID.class));
 	}
@@ -74,23 +74,23 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
-		String[] parameters = { "-v", "-l" };
+		String[] parameters = {"stop", "-v", "-l" };
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
-		testFrontend.stop(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testMissingJobId() throws Exception {
 		// test missing job id
-		String[] parameters = {};
+		String[] parameters = {"stop"};
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
-		testFrontend.stop(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 	}
 
 	@Test
@@ -98,14 +98,14 @@ public class CliFrontendStopTest extends CliFrontendTestBase {
 		// test unknown job Id
 		JobID jid = new JobID();
 
-		String[] parameters = { jid.toString() };
+		String[] parameters = {"stop", jid.toString() };
 		String expectedMessage = "Test exception";
 		FlinkException testException = new FlinkException(expectedMessage);
 		final ClusterClient<String> clusterClient = createClusterClient(testException);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
 		try {
-			testFrontend.stop(parameters);
+			parseParametersAndRun(testFrontend, parameters);
 			fail("Should have failed.");
 		} catch (FlinkException e) {
 			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedMessage).isPresent());

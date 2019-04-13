@@ -18,9 +18,13 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.FunctionWithException;
+
+import org.apache.commons.cli.CommandLine;
 
 /**
  * Base test class for {@link CliFrontend} tests.
@@ -35,5 +39,10 @@ public abstract class CliFrontendTestBase extends TestLogger {
 
 	static AbstractCustomCommandLine<?> getCli(Configuration configuration) {
 		return new DefaultCLI(configuration);
+	}
+
+	static int parseParametersAndRun(CliFrontend cliFrontend, String[] args) throws Exception {
+		Tuple2<CommandLine, FunctionWithException<CommandLine, Integer, Exception>> commandLineAction = cliFrontend.parseParameters(args);
+		return commandLineAction.f1.apply(commandLineAction.f0);
 	}
 }

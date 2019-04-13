@@ -112,34 +112,34 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
-		String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
+		String[] parameters = {"run", "-v", "-l", "-a", "some", "program", "arguments"};
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
-		testFrontend.run(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testInvalidParallelismOption() throws Exception {
 		// test configure parallelism with non integer value
-		String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
+		String[] parameters = {"run", "-v", "-p", "text",  getTestJarPath()};
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
-		testFrontend.run(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testParallelismWithOverflow() throws Exception {
 		// test configure parallelism with overflow integer value
-		String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
+		String[] parameters = {"run", "-v", "-p", "475871387138",  getTestJarPath()};
 		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
-		testFrontend.run(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -153,7 +153,11 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		RunTestingCliFrontend testFrontend =
 			new RunTestingCliFrontend(cli, expectedParallelism, logging,
 				isDetached);
-		testFrontend.run(parameters); // verifies the expected values (see below)
+
+		String[] args = new String[parameters.length + 1];
+		args[0] = "run";
+		System.arraycopy(parameters, 0, args, 1, parameters.length);
+		parseParametersAndRun(testFrontend, args); // verifies the expected values (see below)
 	}
 
 	private static final class RunTestingCliFrontend extends CliFrontend {

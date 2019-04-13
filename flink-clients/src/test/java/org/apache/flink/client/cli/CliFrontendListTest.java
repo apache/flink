@@ -90,22 +90,22 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
-		String[] parameters = {"-v", "-k"};
+		String[] parameters = {"list", "-v", "-k"};
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
-		testFrontend.list(parameters);
+		parseParametersAndRun(testFrontend, parameters);
 	}
 
 	@Test
 	public void testList() throws Exception {
 		// test list properly
 		{
-			String[] parameters = {"-r", "-s", "-a"};
+			String[] parameters = {"list", "-r", "-s", "-a"};
 			ClusterClient<String> clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			testFrontend.list(parameters);
+			parseParametersAndRun(testFrontend, parameters);
 			Mockito.verify(clusterClient, times(1))
 				.listJobs();
 		}

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -59,6 +60,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -174,16 +176,10 @@ public class CliFrontend {
 	/**
 	 * Executions the run action.
 	 *
-	 * @param args Command line arguments for the run action.
+	 * @param commandLine Command line for the run action.
 	 */
-	protected void run(String[] args) throws Exception {
+	protected void run(CommandLine commandLine) throws Exception {
 		LOG.info("Running 'run' command.");
-
-		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
 
 		final RunOptions runOptions = new RunOptions(commandLine);
 
@@ -310,14 +306,10 @@ public class CliFrontend {
 	/**
 	 * Executes the info action.
 	 *
-	 * @param args Command line arguments for the info action.
+	 * @param commandLine Command line for the info action.
 	 */
-	protected void info(String[] args) throws CliArgsException, FileNotFoundException, ProgramInvocationException {
+	protected void info(CommandLine commandLine) throws CliArgsException, FileNotFoundException, ProgramInvocationException {
 		LOG.info("Running 'info' command.");
-
-		final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
 
 		InfoOptions infoOptions = new InfoOptions(commandLine);
 
@@ -381,16 +373,10 @@ public class CliFrontend {
 	/**
 	 * Executes the list action.
 	 *
-	 * @param args Command line arguments for the list action.
+	 * @param commandLine Command line for the list action.
 	 */
-	protected void list(String[] args) throws Exception {
+	protected void list(CommandLine commandLine) throws Exception {
 		LOG.info("Running 'list' command.");
-
-		final Options commandOptions = CliFrontendParser.getListCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		ListOptions listOptions = new ListOptions(commandLine);
 
@@ -504,16 +490,10 @@ public class CliFrontend {
 	/**
 	 * Executes the STOP action.
 	 *
-	 * @param args Command line arguments for the stop action.
+	 * @param commandLine Command line for the stop action.
 	 */
-	protected void stop(String[] args) throws Exception {
+	protected void stop(CommandLine commandLine) throws Exception {
 		LOG.info("Running 'stop' command.");
-
-		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		StopOptions stopOptions = new StopOptions(commandLine);
 
@@ -554,16 +534,10 @@ public class CliFrontend {
 	/**
 	 * Executes the CANCEL action.
 	 *
-	 * @param args Command line arguments for the cancel action.
+	 * @param commandLine Command line for the cancel action.
 	 */
-	protected void cancel(String[] args) throws Exception {
+	protected void cancel(CommandLine commandLine) throws Exception {
 		LOG.info("Running 'cancel' command.");
-
-		final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		CancelOptions cancelOptions = new CancelOptions(commandLine);
 
@@ -636,16 +610,10 @@ public class CliFrontend {
 	/**
 	 * Executes the SAVEPOINT action.
 	 *
-	 * @param args Command line arguments for the savepoint action.
+	 * @param commandLine Command line for the savepoint action.
 	 */
-	protected void savepoint(String[] args) throws Exception {
+	protected void savepoint(CommandLine commandLine) throws Exception {
 		LOG.info("Running 'savepoint' command.");
-
-		final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		final SavepointOptions savepointOptions = new SavepointOptions(commandLine);
 
@@ -744,14 +712,8 @@ public class CliFrontend {
 		logAndSysout("Savepoint '" + savepointPath + "' disposed.");
 	}
 
-	protected void modify(String[] args) throws CliArgsException, FlinkException {
+	protected void modify(CommandLine commandLine) throws CliArgsException, FlinkException {
 		LOG.info("Running 'modify' command.");
-
-		final Options commandOptions = CliFrontendParser.getModifyOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForModify(customCommandLines);
@@ -1016,18 +978,19 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Parses the command line arguments and starts the requested action.
+	 * Parses the command line arguments.
 	 *
 	 * @param args command line arguments of the client.
-	 * @return The return code of the program
+	 * @return The command line and the requested action.
+	 * @throws CliArgsException Thrown if parse command line failed.
 	 */
-	public int parseParameters(String[] args) {
+	public Tuple2<CommandLine, FunctionWithException<CommandLine, Integer, Exception>> parseParameters(String[] args) throws CliArgsException {
 
 		// check for action
 		if (args.length < 1) {
 			CliFrontendParser.printHelp(customCommandLines);
 			System.out.println("Please specify an action.");
-			return 1;
+			return Tuple2.of(null, ignored -> 1);
 		}
 
 		// get action
@@ -1036,59 +999,97 @@ public class CliFrontend {
 		// remove action from parameters
 		final String[] params = Arrays.copyOfRange(args, 1, args.length);
 
-		try {
-			// do action
-			switch (action) {
-				case ACTION_RUN:
-					run(params);
+		// do action
+		switch (action) {
+			case ACTION_RUN: {
+				final Options commandOptions = CliFrontendParser.getRunCommandOptions();
+				final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+				final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, params, true);
+
+				return Tuple2.of(commandLine, c -> {
+					this.run(c);
 					return 0;
-				case ACTION_LIST:
-					list(params);
-					return 0;
-				case ACTION_INFO:
-					info(params);
-					return 0;
-				case ACTION_CANCEL:
-					cancel(params);
-					return 0;
-				case ACTION_STOP:
-					stop(params);
-					return 0;
-				case ACTION_SAVEPOINT:
-					savepoint(params);
-					return 0;
-				case ACTION_MODIFY:
-					modify(params);
-					return 0;
-				case "-h":
-				case "--help":
-					CliFrontendParser.printHelp(customCommandLines);
-					return 0;
-				case "-v":
-				case "--version":
-					String version = EnvironmentInformation.getVersion();
-					String commitID = EnvironmentInformation.getRevisionInformation().commitId;
-					System.out.print("Version: " + version);
-					System.out.println(commitID.equals(EnvironmentInformation.UNKNOWN) ? "" : ", Commit ID: " + commitID);
-					return 0;
-				default:
-					System.out.printf("\"%s\" is not a valid action.\n", action);
-					System.out.println();
-					System.out.println("Valid actions are \"run\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
-					System.out.println();
-					System.out.println("Specify the version option (-v or --version) to print Flink version.");
-					System.out.println();
-					System.out.println("Specify the help option (-h or --help) to get help on the command.");
-					return 1;
+				});
 			}
-		} catch (CliArgsException ce) {
-			return handleArgException(ce);
-		} catch (ProgramParametrizationException ppe) {
-			return handleParametrizationException(ppe);
-		} catch (ProgramMissingJobException pmje) {
-			return handleMissingJobException();
-		} catch (Exception e) {
-			return handleError(e);
+			case ACTION_LIST: {
+				final Options commandOptions = CliFrontendParser.getListCommandOptions();
+				final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+				final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, params, false);
+
+				return Tuple2.of(commandLine, c -> {
+					list(c);
+					return 0;
+				});
+			}
+			case ACTION_INFO: {
+				final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
+				final CommandLine commandLine = CliFrontendParser.parse(commandOptions, params, true);
+
+				return Tuple2.of(commandLine, c -> {
+					info(c);
+					return 0;
+				});
+			}
+			case ACTION_CANCEL: {
+				final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
+				final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+				final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, params, false);
+
+				return Tuple2.of(commandLine, c -> {
+					cancel(c);
+					return 0;
+				});
+			}
+			case ACTION_STOP: {
+				final Options commandOptions = CliFrontendParser.getStopCommandOptions();
+				final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+				final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, params, false);
+
+				return Tuple2.of(commandLine, c -> {
+					stop(c);
+					return 0;
+				});
+			}
+			case ACTION_SAVEPOINT: {
+				final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
+				final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+				final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, params, false);
+
+				return Tuple2.of(commandLine, c -> {
+					savepoint(c);
+					return 0;
+				});
+			}
+			case ACTION_MODIFY: {
+				final Options commandOptions = CliFrontendParser.getModifyOptions();
+				final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+				final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, params, false);
+
+				return Tuple2.of(commandLine, c -> {
+					modify(c);
+					return 0;
+				});
+			}
+			case "-h":
+			case "--help":
+				CliFrontendParser.printHelp(customCommandLines);
+				return Tuple2.of(null, ignored -> 0);
+			case "-v":
+			case "--version":
+				String version = EnvironmentInformation.getVersion();
+				String commitID = EnvironmentInformation.getRevisionInformation().commitId;
+				System.out.print("Version: " + version);
+				System.out.println(commitID.equals(EnvironmentInformation.UNKNOWN) ? "" : ", Commit ID: " + commitID);
+				return Tuple2.of(null, ignored -> 0);
+			default:
+				System.out.printf("\"%s\" is not a valid action.\n", action);
+				System.out.println();
+				System.out.println("Valid actions are \"run\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
+				System.out.println();
+				System.out.println("Specify the version option (-v or --version) to print Flink version.");
+				System.out.println();
+				System.out.println("Specify the help option (-h or --help) to get help on the command.");
+				return Tuple2.of(null, ignored -> 1);
 		}
 	}
 
@@ -1113,17 +1114,31 @@ public class CliFrontend {
 			final CliFrontend cli = new CliFrontend(
 				configuration,
 				customCommandLines);
+
+			Tuple2<CommandLine, FunctionWithException<CommandLine, Integer, Exception>> commandLineAction = cli.parseParameters(args);
+
 			// apply command options to configuration.
-			final CommandLine commandLine = CliFrontendParser.parse(cli.customCommandLineOptions, args, false);
-			final CustomCommandLine<?> customCommandLine = cli.getActiveCustomCommandLine(commandLine);
-			final Configuration effectiveConfiguration = customCommandLine.applyCommandLineOptionsToConfiguration(cli.configuration, commandLine);
+			final CustomCommandLine<?> customCommandLine = cli.getActiveCustomCommandLine(commandLineAction.f0);
+			final Configuration effectiveConfiguration =
+				commandLineAction.f0 == null ? cli.configuration : customCommandLine.applyCommandLineOptionsToConfiguration(cli.configuration, commandLineAction.f0);
 
 			SecurityUtils.install(new SecurityConfiguration(effectiveConfiguration));
-			int retCode = SecurityUtils.getInstalledContext()
-					.runSecured(() -> cli.parseParameters(args));
+			int retCode = SecurityUtils.getInstalledContext().runSecured(() -> {
+				try {
+					return commandLineAction.f1.apply(commandLineAction.f0);
+				} catch (ProgramParametrizationException ppe) {
+					return handleParametrizationException(ppe);
+				} catch (ProgramMissingJobException pmje) {
+					return handleMissingJobException();
+				} catch (Exception e) {
+					return handleError(e);
+				}
+			});
 			System.exit(retCode);
-		}
-		catch (Throwable t) {
+		} catch (CliArgsException ce) {
+			handleArgException(ce);
+			System.exit(1);
+		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 			LOG.error("Fatal error while running command line interface.", strippedThrowable);
 			strippedThrowable.printStackTrace();

@@ -85,8 +85,8 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		try {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-			String[] parameters = { jobId.toString() };
-			frontend.savepoint(parameters);
+			String[] parameters = {"savepoint", jobId.toString() };
+			parseParametersAndRun(frontend, parameters);
 
 			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), isNull(String.class));
@@ -113,10 +113,10 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		try {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-			String[] parameters = { jobId.toString() };
+			String[] parameters = {"savepoint", jobId.toString() };
 
 			try {
-				frontend.savepoint(parameters);
+				parseParametersAndRun(frontend, parameters);
 
 				fail("Savepoint should have failed.");
 			} catch (FlinkException e) {
@@ -136,9 +136,9 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		try {
 			CliFrontend frontend = new MockedCliFrontend(new RestClusterClient<>(getConfiguration(), StandaloneClusterId.getInstance()));
 
-			String[] parameters = { "invalid job id" };
+			String[] parameters = {"savepoint", "invalid job id" };
 			try {
-				frontend.savepoint(parameters);
+				parseParametersAndRun(frontend, parameters);
 				fail("Should have failed.");
 			} catch (CliArgsException e) {
 				assertThat(e.getMessage(), Matchers.containsString("Cannot parse JobID"));
@@ -166,8 +166,8 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		try {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-			String[] parameters = { jobId.toString(), savepointDirectory };
-			frontend.savepoint(parameters);
+			String[] parameters = {"savepoint", jobId.toString(), savepointDirectory };
+			parseParametersAndRun(frontend, parameters);
 
 			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), eq(savepointDirectory));
@@ -198,8 +198,8 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-			String[] parameters = { "-d", savepointPath };
-			frontend.savepoint(parameters);
+			String[] parameters = {"savepoint", "-d", savepointPath };
+			parseParametersAndRun(frontend, parameters);
 
 			String outMsg = buffer.toString();
 			assertTrue(outMsg.contains(savepointPath));
@@ -235,9 +235,9 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 			out.close();
 
 			final String disposePath = "any-path";
-			String[] parameters = { "-d", disposePath, "-j", f.getAbsolutePath() };
+			String[] parameters = {"savepoint", "-d", disposePath, "-j", f.getAbsolutePath() };
 
-			frontend.savepoint(parameters);
+			parseParametersAndRun(frontend, parameters);
 
 			final String actualSavepointPath = disposeSavepointFuture.get();
 
@@ -261,10 +261,10 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
 
-			String[] parameters = { "-d", savepointPath };
+			String[] parameters = {"savepoint", "-d", savepointPath };
 
 			try {
-				frontend.savepoint(parameters);
+				parseParametersAndRun(frontend, parameters);
 
 				fail("Savepoint should have failed.");
 			} catch (Exception e) {

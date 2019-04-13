@@ -108,7 +108,11 @@ public class CliFrontendModifyTest extends CliFrontendTestBase {
 		final TestingClusterClient clusterClient = new TestingClusterClient(rescaleJobFuture, getConfiguration());
 		final MockedCliFrontend cliFrontend = new MockedCliFrontend(clusterClient);
 
-		cliFrontend.modify(args);
+		String[] parameters = new String[args.length + 1];
+		parameters[0] = "modify";
+		System.arraycopy(args, 0, parameters, 1, args.length);
+
+		parseParametersAndRun(cliFrontend, parameters);
 
 		assertThat(rescaleJobFuture.isDone(), Matchers.is(true));
 
