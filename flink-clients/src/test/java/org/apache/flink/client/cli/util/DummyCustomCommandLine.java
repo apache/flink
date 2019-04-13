@@ -22,6 +22,8 @@ import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -73,5 +75,10 @@ public class DummyCustomCommandLine<T> implements CustomCommandLine {
 	@Override
 	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
 		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
+	}
+
+	@Override
+	public Configuration applyCommandLineOptionsToConfiguration(Configuration configuration, CommandLine commandLine) throws FlinkException {
+		return configuration;
 	}
 }

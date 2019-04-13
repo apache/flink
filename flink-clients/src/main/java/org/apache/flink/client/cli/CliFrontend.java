@@ -1114,12 +1114,9 @@ public class CliFrontend {
 				configuration,
 				customCommandLines);
 			// apply command options to configuration.
-			Configuration effectiveConfiguration = cli.configuration;
 			final CommandLine commandLine = CliFrontendParser.parse(cli.customCommandLineOptions, args, false);
 			final CustomCommandLine<?> customCommandLine = cli.getActiveCustomCommandLine(commandLine);
-			if (customCommandLine instanceof AbstractCustomCommandLine) {
-				effectiveConfiguration = ((AbstractCustomCommandLine) customCommandLine).applyCommandLineOptionsToConfiguration(commandLine);
-			}
+			final Configuration effectiveConfiguration = customCommandLine.applyCommandLineOptionsToConfiguration(cli.configuration, commandLine);
 
 			SecurityUtils.install(new SecurityConfiguration(effectiveConfiguration));
 			int retCode = SecurityUtils.getInstalledContext()

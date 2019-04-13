@@ -448,7 +448,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 	@Override
 	public AbstractYarnClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException {
-		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(configuration, commandLine);
 
 		return createDescriptor(
 			effectiveConfiguration,
@@ -471,13 +471,13 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 	@Override
 	public ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException {
-		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(configuration, commandLine);
 
 		return createClusterSpecification(effectiveConfiguration, commandLine);
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	public Configuration applyCommandLineOptionsToConfiguration(Configuration configuration, CommandLine commandLine) throws FlinkException {
 		// we ignore the addressOption because it can only contain "yarn-cluster"
 		final Configuration effectiveConfiguration = new Configuration(configuration);
 

@@ -20,6 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -90,6 +91,15 @@ public interface CustomCommandLine<T> {
 	 * @throws FlinkException if the ClusterSpecification could not be created
 	 */
 	ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException;
+
+	/**
+	 * Override configuration settings by specified command line options.
+	 *
+	 * @param configuration containing the current values
+	 * @param commandLine containing the overriding values
+	 * @return Effective configuration with the overridden configuration settings
+	 */
+	Configuration applyCommandLineOptionsToConfiguration(Configuration configuration, CommandLine commandLine) throws FlinkException;
 
 	default CommandLine parseCommandLineOptions(String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final Options options = new Options();
