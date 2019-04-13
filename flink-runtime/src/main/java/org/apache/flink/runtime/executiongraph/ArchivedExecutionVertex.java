@@ -101,4 +101,13 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
+
+	@Override
+	public int getValidAttemptStartIndex() {
+		if (priorExecutions.size() <= priorExecutions.getSizeLimit()) {
+			return 0;
+		} else {
+			return priorExecutions.size() - priorExecutions.getSizeLimit();
+		}
+	}
 }

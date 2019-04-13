@@ -316,6 +316,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	@Override
+	public int getValidAttemptStartIndex() {
+		throw new UnsupportedOperationException("ExecutionVertex doesn't need to implement this method.");
+	}
+
 	public ArchivedExecution getLatestPriorExecution() {
 		synchronized (priorExecutions) {
 			final int size = priorExecutions.size();

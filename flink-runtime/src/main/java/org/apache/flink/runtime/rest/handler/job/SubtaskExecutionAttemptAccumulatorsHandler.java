@@ -98,7 +98,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 
 				archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
 
-				for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
+				for (int x = subtask.getValidAttemptStartIndex(); x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
 					AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
 					ResponseBody json = createAccumulatorInfo(attempt);
 					String path = getMessageHeaders().getTargetRestEndpointURL()

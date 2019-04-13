@@ -82,4 +82,11 @@ public interface AccessExecutionVertex {
 	 * @return execution for the given attempt number
 	 */
 	AccessExecution getPriorExecutionAttempt(int attemptNumber);
+
+	/**
+	 * Returns the valid attempt start index for the given execution.
+	 *
+	 * @return valid attempt start index for the given execution.
+	 */
+	int getValidAttemptStartIndex();
 }
