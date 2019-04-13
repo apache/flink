@@ -24,7 +24,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.OperationExpressionsUtils.{extractAggregationsAndProperties, extractFieldReferences}
+import org.apache.flink.table.operations.OperationExpressionsUtils.{extractAggregationsAndProperties}
 import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
@@ -89,12 +89,10 @@ class TableImpl(
     }
 
     if (!extracted.getAggregations.isEmpty) {
-      val projectFields = extractFieldReferences(expressionsWithResolvedCalls)
-
       wrap(
         operationTreeBuilder.project(extracted.getProjections,
           operationTreeBuilder.aggregate(emptyList[Expression], extracted.getAggregations,
-            operationTreeBuilder.project(projectFields, operationTree)
+            operationTree
           )
         )
       )
@@ -505,15 +503,12 @@ class GroupedTableImpl(
       throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    val projectFields = extractFieldReferences((expressionsWithResolvedCalls.asScala ++ groupKey)
-      .asJava)
-
     new TableImpl(tableImpl.tableEnv,
       tableImpl.operationTreeBuilder.project(extracted.getProjections,
         tableImpl.operationTreeBuilder.aggregate(
           groupKey.asJava,
           extracted.getAggregations,
-          tableImpl.operationTreeBuilder.project(projectFields, tableImpl.operationTree)
+          tableImpl.operationTree
         )
       ))
   }
@@ -574,10 +569,6 @@ class WindowGroupedTableImpl(
       expressionsWithResolvedCalls,
       tableImpl.getUniqueAttributeSupplier)
 
-    val projectFields = extractFieldReferences(
-      (expressionsWithResolvedCalls.asScala ++ groupKeys :+ this.window.getTimeField)
-        .asJava)
-
     new TableImpl(tableImpl.tableEnv,
       tableImpl.operationTreeBuilder.project(
         extracted.getProjections,
@@ -586,7 +577,7 @@ class WindowGroupedTableImpl(
           window,
           extracted.getWindowProperties,
           extracted.getAggregations,
-          tableImpl.operationTreeBuilder.project(projectFields, tableImpl.operationTree)
+          tableImpl.operationTree
         ),
         // required for proper resolution of the time attribute in multi-windows
         explicitAlias = true
