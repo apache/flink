@@ -54,13 +54,15 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -68,6 +70,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -79,7 +82,6 @@ import java.util.concurrent.Executors;
 
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Test that verifies the behavior of blocking shutdown hooks and of the
@@ -166,9 +168,6 @@ public class JvmExitOnFatalErrorTest {
 				final IOManager ioManager = new IOManagerAsync();
 
 				final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-				when(networkEnvironment.createKvStateTaskRegistry(jid, jobVertexId)).thenReturn(mock(TaskKvStateRegistry.class));
-				TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-				when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig);
 
@@ -207,11 +206,14 @@ public class JvmExitOnFatalErrorTest {
 						memoryManager,
 						ioManager,
 						networkEnvironment,
+						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
+						new TaskEventDispatcher(),
 						slotStateManager,
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
 						new NoOpCheckpointResponder(),
+						new TestGlobalAggregateManager(),
 						blobService,
 						new BlobLibraryCacheManager(
 							blobService.getPermanentBlobService(),

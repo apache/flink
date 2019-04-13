@@ -38,11 +38,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.IntegerSource;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
@@ -66,7 +66,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka producer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaProducerTestBase extends KafkaTestBase {
+public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 	private static final long KAFKA_READ_TIMEOUT = 60_000L;
 

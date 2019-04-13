@@ -65,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link HistoryServerOptions#HISTORY_SERVER_ARCHIVE_DIRS}. The directories are polled in regular intervals, defined
  * by {@link HistoryServerOptions#HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL}.
  *
- * <p>The archives are downloaded and expanded into a file structure analog to the REST API defined in the WebRuntimeMonitor.
+ * <p>The archives are downloaded and expanded into a file structure analog to the REST API.
  */
 class HistoryServerArchiveFetcher {
 

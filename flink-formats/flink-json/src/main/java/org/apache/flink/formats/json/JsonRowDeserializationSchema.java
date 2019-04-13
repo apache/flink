@@ -46,7 +46,7 @@ import java.util.Objects;
  * <p>Deserializes a <code>byte[]</code> message as a JSON object and reads
  * the specified fields.
  *
- * <p>Failure during deserialization are forwarded as wrapped IOExceptions.
+ * <p>Failures during deserialization are forwarded as wrapped IOExceptions.
  */
 @PublicEvolving
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {

@@ -24,9 +24,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateEntry;
+import org.apache.flink.runtime.state.StateEntry.SimpleStateEntry;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
@@ -34,8 +38,11 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -69,12 +76,15 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	/**
 	 * Creates a new {@link NestedMapsStateTable} for the given key context and meta info.
-	 *
-	 * @param keyContext the key context.
+	 *  @param keyContext the key context.
 	 * @param metaInfo the meta information for this state table.
+	 * @param keySerializer the serializer of the key.
 	 */
-	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
-		super(keyContext, metaInfo);
+	public NestedMapsStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		TypeSerializer<K> keySerializer) {
+		super(keyContext, metaInfo, keySerializer);
 		this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
 
 		@SuppressWarnings("unchecked")
@@ -182,6 +192,11 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 			.filter(Objects::nonNull)
 			.map(namespaces -> namespaces.getOrDefault(namespace, Collections.emptyMap()))
 			.flatMap(namespaceSate -> namespaceSate.keySet().stream());
+	}
+
+	@Override
+	public StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		return new StateEntryIterator();
 	}
 
 	// ------------------------------------------------------------------------
@@ -319,7 +334,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Nonnull
 	@Override
 	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getSnapshotTransformer());
+		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getStateSnapshotTransformFactory());
 	}
 
 	/**
@@ -337,10 +352,13 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		private final TypeSerializer<S> stateSerializer;
 		private final StateSnapshotTransformer<S> snapshotFilter;
 
-		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable, StateSnapshotTransformer<S> snapshotFilter) {
+		NestedMapsStateTableSnapshot(
+			NestedMapsStateTable<K, N, S> owningTable,
+			StateSnapshotTransformFactory<S> snapshotTransformFactory) {
+
 			super(owningTable);
-			this.snapshotFilter = snapshotFilter;
-			this.keySerializer = owningStateTable.keyContext.getKeySerializer();
+			this.snapshotFilter = snapshotTransformFactory.createForDeserializedState().orElse(null);
+			this.keySerializer = owningStateTable.keySerializer;
 			this.namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
 			this.stateSerializer = owningStateTable.metaInfo.getStateSerializer();
 		}
@@ -409,6 +427,111 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 				}
 			}
 			return filtered;
+		}
+	}
+
+	/**
+	 * Iterator over state entries in a {@link NestedMapsStateTable}.
+	 *
+	 * <p>The iterator keeps a snapshotted copy of key/namespace sets, available at the beginning of iteration.
+	 * While further iterating the copy, the iterator returns the actual state value from primary maps
+	 * if exists at that moment.
+	 *
+	 * <p>Note: Usage of this iterator can have a heap memory consumption impact.
+	 */
+	class StateEntryIterator implements StateIncrementalVisitor<K, N, S>, Iterator<StateEntry<K, N, S>> {
+		private int keyGropuIndex;
+		private Iterator<Map.Entry<N, Map<K, S>>> namespaceIterator;
+		private Map.Entry<N, Map<K, S>> namespace;
+		private Iterator<Map.Entry<K, S>> keyValueIterator;
+		private StateEntry<K, N, S> nextEntry;
+		private StateEntry<K, N, S> lastReturnedEntry;
+
+		StateEntryIterator() {
+			keyGropuIndex = 0;
+			namespace = null;
+			keyValueIterator = null;
+			nextKeyIterator();
+		}
+
+		@Override
+		public boolean hasNext() {
+			nextKeyIterator();
+			return keyIteratorHasNext();
+		}
+
+		@Override
+		public Collection<StateEntry<K, N, S>> nextEntries() {
+			StateEntry<K, N, S> nextEntry = next();
+			return nextEntry == null ? Collections.emptyList() : Collections.singletonList(nextEntry);
+		}
+
+		@Override
+		public StateEntry<K, N, S> next() {
+			StateEntry<K, N, S> next = null;
+			if (hasNext()) {
+				next = nextEntry;
+			}
+			nextEntry = null;
+			lastReturnedEntry = next;
+			return next;
+		}
+
+		private void nextKeyIterator() {
+			while (!keyIteratorHasNext()) {
+				nextNamespaceIterator();
+				if (namespaceIteratorHasNext()) {
+					namespace = namespaceIterator.next();
+					keyValueIterator = new HashSet<>(namespace.getValue().entrySet()).iterator();
+				} else {
+					break;
+				}
+			}
+		}
+
+		private void nextNamespaceIterator() {
+			while (!namespaceIteratorHasNext()) {
+				while (keyGropuIndex < state.length && state[keyGropuIndex] == null) {
+					keyGropuIndex++;
+				}
+				if (keyGropuIndex < state.length && state[keyGropuIndex] != null) {
+					namespaceIterator = new HashSet<>(state[keyGropuIndex++].entrySet()).iterator();
+				} else {
+					break;
+				}
+			}
+		}
+
+		private boolean keyIteratorHasNext() {
+			while (nextEntry == null && keyValueIterator != null && keyValueIterator.hasNext()) {
+				Map.Entry<K, S> next = keyValueIterator.next();
+				Map<K, S> ns = state[keyGropuIndex - 1] == null ? null :
+					state[keyGropuIndex - 1].getOrDefault(namespace.getKey(), null);
+				S upToDateValue = ns == null ? null : ns.getOrDefault(next.getKey(), null);
+				if (upToDateValue != null) {
+					nextEntry = new SimpleStateEntry<>(next.getKey(), namespace.getKey(), upToDateValue);
+				}
+			}
+			return nextEntry != null;
+		}
+
+		private boolean namespaceIteratorHasNext() {
+			return namespaceIterator != null && namespaceIterator.hasNext();
+		}
+
+		@Override
+		public void remove() {
+			remove(lastReturnedEntry);
+		}
+
+		@Override
+		public void remove(StateEntry<K, N, S> stateEntry) {
+			state[keyGropuIndex - 1].get(stateEntry.getNamespace()).remove(stateEntry.getKey());
+		}
+
+		@Override
+		public void update(StateEntry<K, N, S> stateEntry, S newValue) {
+			state[keyGropuIndex - 1].get(stateEntry.getNamespace()).put(stateEntry.getKey(), newValue);
 		}
 	}
 }

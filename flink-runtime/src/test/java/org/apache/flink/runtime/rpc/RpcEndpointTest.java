@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -49,7 +50,7 @@ public class RpcEndpointTest extends TestLogger {
 	@BeforeClass
 	public static void setup() {
 		actorSystem = AkkaUtils.createDefaultActorSystem();
-		rpcService = new AkkaRpcService(actorSystem, TIMEOUT);
+		rpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 	}
 
 	@AfterClass
@@ -81,7 +82,7 @@ public class RpcEndpointTest extends TestLogger {
 
 			assertEquals(Integer.valueOf(expectedValue), foobar.get());
 		} finally {
-			baseEndpoint.shutDown();
+			RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
 		}
 	}
 
@@ -101,7 +102,7 @@ public class RpcEndpointTest extends TestLogger {
 
 			fail("Expected to fail with a RuntimeException since we requested the wrong gateway type.");
 		} finally {
-			baseEndpoint.shutDown();
+			RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
 		}
 	}
 
@@ -130,7 +131,7 @@ public class RpcEndpointTest extends TestLogger {
 			assertEquals(Integer.valueOf(barfoo), extendedGateway.barfoo().get());
 			assertEquals(foo, differentGateway.foo().get());
 		} finally {
-			endpoint.shutDown();
+			RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
 		}
 	}
 
@@ -159,11 +160,6 @@ public class RpcEndpointTest extends TestLogger {
 		@Override
 		public CompletableFuture<Integer> foobar() {
 			return CompletableFuture.completedFuture(foobarValue);
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 	}
 

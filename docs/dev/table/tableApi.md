@@ -46,7 +46,7 @@ The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. 
 {% highlight java %}
 // environment configuration
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 // register Orders table in table environment
 // ...
@@ -77,7 +77,7 @@ import org.apache.flink.table.api.scala._
 
 // environment configuration
 val env = ExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val tEnv = BatchTableEnvironment.create(env)
 
 // register Orders table in table environment
 // ...
@@ -109,7 +109,7 @@ Table orders = tEnv.scan("Orders"); // schema (a, b, c, rowtime)
 
 Table result = orders
         .filter("a.isNotNull && b.isNotNull && c.isNotNull")
-        .select("a.lowerCase(), b, rowtime")
+        .select("a.lowerCase() as a, b, rowtime")
         .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow"))
         .groupBy("hourlyWindow, a")
         .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount");
@@ -128,7 +128,7 @@ val orders: Table = tEnv.scan("Orders") // schema (a, b, c, rowtime)
 
 val result: Table = orders
         .filter('a.isNotNull && 'b.isNotNull && 'c.isNotNull)
-        .select('a.lowerCase(), 'b, 'rowtime)
+        .select('a.lowerCase() as 'a, 'b, 'rowtime)
         .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
         .groupBy('hourlyWindow, 'a)
         .select('a, 'hourlyWindow.end as 'hour, 'b.avg as 'avgBillingAmount)
@@ -186,9 +186,8 @@ Table result = orders.select("a, c as d");
 {% highlight java %}
 Table result = orders.select("*");
 {% endhighlight %}
-      </td>
-    </tr>
-
+</td>
+        </tr>
     <tr>
       <td>
         <strong>As</strong><br>
@@ -265,7 +264,6 @@ val result = orders.select('*)
 {% endhighlight %}
       </td>
     </tr>
-
     <tr>
       <td>
         <strong>As</strong><br>
@@ -297,6 +295,144 @@ val result = orders.where('b === "red")
 {% endhighlight %}
       </td>
     </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+{% top %}
+
+### Column Operations
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  <tr>
+          <td>
+            <strong>AddColumns</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+          </td>
+          <td>
+          <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.addColumns("concat(c, 'sunny')");
+{% endhighlight %}
+</td>
+        </tr>
+        
+ <tr>
+     <td>
+                    <strong>AddOrReplaceColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.addOrReplaceColumns("concat(c, 'sunny') as desc");
+{% endhighlight %}
+                  </td>
+                </tr>
+         <tr>
+                  <td>
+                    <strong>DropColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                  <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.dropColumns("b, c");
+{% endhighlight %}
+                  </td>
+                </tr>
+         <tr>
+                  <td>
+                    <strong>RenameColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                  <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders.renameColumns("b as b2, c as c2");
+{% endhighlight %}
+                  </td>
+                </tr>
+  </tbody>
+</table>
+
+</div>
+<div data-lang="scala" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+     <tr>
+          <td>
+            <strong>AddColumns</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+          </td>
+          <td>
+            <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.addColumns(concat('c, "Sunny"))
+{% endhighlight %}
+          </td>
+        </tr>
+         <tr>
+                  <td>
+                    <strong>AddOrReplaceColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                     <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.addOrReplaceColumns(concat('c, "Sunny") as 'desc)
+{% endhighlight %}
+                  </td>
+                </tr>
+         <tr>
+                  <td>
+                    <strong>DropColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                    <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.dropColumns('b, 'c)
+{% endhighlight %}
+                  </td>
+                </tr>
+ <tr>
+                  <td>
+                    <strong>RenameColumns</strong><br>
+                    <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+                  </td>
+                  <td>
+                    <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
+{% highlight scala %}
+val orders = tableEnv.scan("Orders");
+val result = orders.renameColumns('b as 'b2, 'c as 'c2)
+{% endhighlight %}
+                  </td>
+                </tr>                
   </tbody>
 </table>
 </div>
@@ -642,7 +778,7 @@ tableEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tableEnv, "split(c)").as("s", "t", "v"))
+    .joinLateral("split(c).as(s, t, v)")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -663,7 +799,7 @@ tableEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .leftOuterJoin(new Table(tableEnv, "split(c)").as("s", "t", "v"))
+    .leftOuterJoinLateral("split(c).as(s, t, v)")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -691,7 +827,7 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
+    .joinLateral("rates(o_proctime)", "o_currency = r_currency")
 {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
@@ -788,7 +924,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .join(split('c) as ('s, 't, 'v))
+    .joinLateral(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
         </td>
@@ -806,7 +942,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .leftOuterJoin(split('c) as ('s, 't, 'v))
+    .leftOuterJoinLateral(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
       </td>
@@ -832,7 +968,7 @@ val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency)
 // join with "Orders" based on the time attribute and key
 val orders = tableEnv.scan("Orders")
 val result = orders
-    .join(rates('o_rowtime), 'r_currency === 'o_currency)
+    .joinLateral(rates('o_rowtime), 'r_currency === 'o_currency)
 {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
@@ -1271,14 +1407,14 @@ orders.insertInto("OutOrders")
 
 Group window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
-Windows are defined using the `window(w: Window)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
 The following example shows how to define a window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy("w")  // group the table by window w
   .select("b.sum");  // aggregate
 {% endhighlight %}
@@ -1287,7 +1423,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w)  // define window with alias w
+  .window([w: GroupWindow] as 'w)  // define window with alias w
   .groupBy('w)   // group the table by window w
   .select('b.sum)  // aggregate
 {% endhighlight %}
@@ -1301,7 +1437,7 @@ The following example shows how to define a window aggregation with additional g
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
   .select("a, b.sum");  // aggregate
 {% endhighlight %}
@@ -1310,7 +1446,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w) // define window with alias w
+  .window([w: GroupWindow] as 'w) // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
   .select('a, 'b.sum)  // aggregate
 {% endhighlight %}
@@ -1323,7 +1459,7 @@ Window properties such as the start, end, or rowtime timestamp of a time window 
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
   .select("a, w.start, w.end, w.rowtime, b.count"); // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
@@ -1332,7 +1468,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w)  // define window with alias w
+  .window([w: GroupWindow] as 'w)  // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
   .select('a, 'w.start, 'w.end, 'w.rowtime, 'b.count) // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
@@ -1682,6 +1818,71 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
 {% top %}
 
+### Row-based Operations
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Map</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
+{% highlight java %}
+ScalarFunction func = new MyMapFunction();
+tableEnv.registerFunction("func", func);
+
+Table table = input
+  .map(func("c")).as("a, b")
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<div data-lang="scala" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Map</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
+{% highlight scala %}
+val func: ScalarFunction = new MyMapFunction()
+
+val table = input
+  .map(func('c)).as('a, 'b)
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+</div>
+
+{% top %}
+
 Data Types
 ----------
 
@@ -1780,7 +1981,7 @@ atom = ( "(" , expression , ")" ) | literal | fieldReference ;
 
 fieldReference = "*" | identifier ;
 
-nullLiteral = "Null(" , dataType , ")" ;
+nullLiteral = "nullOf(" , dataType , ")" ;
 
 timeIntervalUnit = "YEAR" | "YEAR_TO_MONTH" | "MONTH" | "QUARTER" | "WEEK" | "DAY" | "DAY_TO_HOUR" | "DAY_TO_MINUTE" | "DAY_TO_SECOND" | "HOUR" | "HOUR_TO_MINUTE" | "HOUR_TO_SECOND" | "MINUTE" | "MINUTE_TO_SECOND" | "SECOND" ;
 
@@ -1794,16 +1995,20 @@ timeIndicator = fieldReference , "." , ( "proctime" | "rowtime" ) ;
 
 {% endhighlight %}
 
-Here, `literal` is a valid Java literal. String literals can be specified using single or double quotes. Duplicate the quote for escaping (e.g. `'It''s me.'` or `"I ""like"" dogs."`).
+**Literals:** Here, `literal` is a valid Java literal. String literals can be specified using single or double quotes. Duplicate the quote for escaping (e.g. `'It''s me.'` or `"I ""like"" dogs."`).
 
-The `fieldReference` specifies a column in the data (or all columns if `*` is used), and `functionIdentifier` specifies a supported scalar function. The column names and function names follow Java identifier syntax.
+**Null literals:** Null literals must have a type attached. Use `nullOf(type)` (e.g. `nullOf(INT)`) for creating a null value.
 
-Expressions specified as strings can also use prefix notation instead of suffix notation to call operators and functions.
+**Field references:** The `fieldReference` specifies a column in the data (or all columns if `*` is used), and `functionIdentifier` specifies a supported scalar function. The column names and function names follow Java identifier syntax.
 
-If working with exact numeric values or large decimals is required, the Table API also supports Java's BigDecimal type. In the Scala Table API decimals can be defined by `BigDecimal("123456")` and in Java by appending a "p" for precise e.g. `123456p`.
+**Function calls:** Expressions specified as strings can also use prefix notation instead of suffix notation to call operators and functions.
 
-In order to work with temporal values the Table API supports Java SQL's Date, Time, and Timestamp types. In the Scala Table API literals can be defined by using `java.sql.Date.valueOf("2016-06-27")`, `java.sql.Time.valueOf("10:10:42")`, or `java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")`. The Java and Scala Table API also support calling `"2016-06-27".toDate()`, `"10:10:42".toTime()`, and `"2016-06-27 10:10:42.123".toTimestamp()` for converting Strings into temporal types. *Note:* Since Java's temporal SQL types are time zone dependent, please make sure that the Flink Client and all TaskManagers use the same time zone.
+**Decimals:** If working with exact numeric values or large decimals is required, the Table API also supports Java's BigDecimal type. In the Scala Table API decimals can be defined by `BigDecimal("123456")` and in Java by appending a "p" for precise e.g. `123456p`.
 
-Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTHS`) or number of milliseconds (`Types.INTERVAL_MILLIS`). Intervals of same type can be added or subtracted (e.g. `1.hour + 10.minutes`). Intervals of milliseconds can be added to time points (e.g. `"2016-08-10".toDate + 5.days`).
+**Time representation:** In order to work with temporal values the Table API supports Java SQL's Date, Time, and Timestamp types. In the Scala Table API literals can be defined by using `java.sql.Date.valueOf("2016-06-27")`, `java.sql.Time.valueOf("10:10:42")`, or `java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")`. The Java and Scala Table API also support calling `"2016-06-27".toDate()`, `"10:10:42".toTime()`, and `"2016-06-27 10:10:42.123".toTimestamp()` for converting Strings into temporal types. *Note:* Since Java's temporal SQL types are time zone dependent, please make sure that the Flink Client and all TaskManagers use the same time zone.
+
+**Temporal intervals:** Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTHS`) or number of milliseconds (`Types.INTERVAL_MILLIS`). Intervals of same type can be added or subtracted (e.g. `1.hour + 10.minutes`). Intervals of milliseconds can be added to time points (e.g. `"2016-08-10".toDate + 5.days`).
+
+**Scala expressions:** Scala expressions use implicit conversions. Therefore, make sure to add the wildcard import `org.apache.flink.table.api.scala._` to your programs. In case a literal is not treated as an expression, use `.toExpr` such as `3.toExpr` to force a literal to be converted.
 
 {% top %}

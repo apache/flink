@@ -146,6 +146,16 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
+If you want to use the `RocksDBStateBackend`, then you have to add the following dependency to your Flink project.
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
+    <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
 
 ### Setting Default State Backend
 

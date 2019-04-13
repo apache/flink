@@ -30,11 +30,13 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -49,7 +51,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
-import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -144,7 +145,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected StateBackend stateBackend;
 
 	/** The external storage where checkpoint data is persisted. */
-	private CheckpointStorage checkpointStorage;
+	private CheckpointStorageWorkerView checkpointStorage;
 
 	/**
 	 * The internal {@link ProcessingTimeService} used to define the current
@@ -177,7 +178,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Wrapper for synchronousCheckpointExceptionHandler to deal with rethrown exceptions. Used in the async part. */
 	private AsyncCheckpointExceptionHandler asynchronousCheckpointExceptionHandler;
 
-	private final List<StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>> streamRecordWriters;
+	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
 
 	// ------------------------------------------------------------------------
 
@@ -209,7 +210,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.timerService = timeProvider;
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
-		this.streamRecordWriters = createStreamRecordWriters(configuration, environment);
+		this.recordWriters = createRecordWriters(configuration, environment);
 	}
 
 	// ------------------------------------------------------------------------
@@ -264,7 +265,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				timerService = new SystemProcessingTimeService(this, getCheckpointLock(), timerThreadFactory);
 			}
 
-			operatorChain = new OperatorChain<>(this, streamRecordWriters);
+			operatorChain = new OperatorChain<>(this, recordWriters);
 			headOperator = operatorChain.getHeadOperator();
 
 			// task specific initialization
@@ -529,7 +530,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return lock;
 	}
 
-	public CheckpointStorage getCheckpointStorage() {
+	public CheckpointStorageWorkerView getCheckpointStorage() {
 		return checkpointStorage;
 	}
 
@@ -650,9 +651,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
 				Exception exception = null;
 
-				for (StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> streamRecordWriter : streamRecordWriters) {
+				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter : recordWriters) {
 					try {
-						streamRecordWriter.broadcastEvent(message);
+						recordWriter.broadcastEvent(message);
 					} catch (Exception e) {
 						exception = ExceptionUtils.firstOrSuppressed(
 							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
@@ -1157,27 +1158,27 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@VisibleForTesting
-	public static <OUT> List<StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>> createStreamRecordWriters(
+	public static <OUT> List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> createRecordWriters(
 			StreamConfig configuration,
 			Environment environment) {
-		List<StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>> streamRecordWriters = new ArrayList<>();
+		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters = new ArrayList<>();
 		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(environment.getUserClassLoader());
 		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigsWithSelf(environment.getUserClassLoader());
 
 		for (int i = 0; i < outEdgesInOrder.size(); i++) {
 			StreamEdge edge = outEdgesInOrder.get(i);
-			streamRecordWriters.add(
-				createStreamRecordWriter(
+			recordWriters.add(
+				createRecordWriter(
 					edge,
 					i,
 					environment,
 					environment.getTaskInfo().getTaskName(),
 					chainedConfigs.get(edge.getSourceId()).getBufferTimeout()));
 		}
-		return streamRecordWriters;
+		return recordWriters;
 	}
 
-	private static <OUT> StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> createStreamRecordWriter(
+	private static <OUT> RecordWriter<SerializationDelegate<StreamRecord<OUT>>> createRecordWriter(
 			StreamEdge edge,
 			int outputIndex,
 			Environment environment,
@@ -1198,8 +1199,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
-		StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> output =
-			new StreamRecordWriter<>(bufferWriter, outputPartitioner, bufferTimeout, taskName);
+		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriterBuilder()
+			.setChannelSelector(outputPartitioner)
+			.setTimeout(bufferTimeout)
+			.setTaskName(taskName)
+			.build(bufferWriter);
 		output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
 		return output;
 	}

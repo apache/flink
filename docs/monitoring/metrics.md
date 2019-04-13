@@ -644,6 +644,35 @@ metrics.reporter.grph.protocol: TCP
 
 {% endhighlight %}
 
+### InfluxDB (org.apache.flink.metrics.influxdb.InfluxdbReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Parameters:
+
+- `host` - the InfluxDB server host
+- `port` - (optional) the InfluxDB server port, defaults to `8086`
+- `db` - the InfluxDB database to store metrics
+- `username` - (optional) InfluxDB username used for authentication
+- `password` - (optional) InfluxDB username's password used for authentication
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporter.influxdb.class: org.apache.flink.metrics.influxdb.InfluxdbReporter
+metrics.reporter.influxdb.host: localhost
+metrics.reporter.influxdb.port: 8086
+metrics.reporter.influxdb.db: flink
+metrics.reporter.influxdb.username: flink-metrics
+metrics.reporter.influxdb.password: qwerty
+
+{% endhighlight %}
+
+The reporter would send metrics using http protocol with default retention policy defined on InfluxDB server.
+All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported as InfluxDB tags.
+
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/lib` folder
@@ -652,6 +681,7 @@ of your Flink distribution.
 Parameters:
 
 - `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations). In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
+- `filterLabelValueCharacters` - (optional) Specifies whether to filter label value characters. If enabled, all characters not matching \[a-zA-Z0-9:_\] will be removed, otherwise no characters will be removed. Before disabling this option please ensure that your label values meet the [Prometheus requirements](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels).
 
 Example configuration:
 
@@ -730,6 +760,8 @@ Parameters:
 
 - `apikey` - the Datadog API key
 - `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Tags should be separated by comma only
+- `proxyHost` - (optional) The proxy host to use when sending to Datadog.
+- `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 
 Example configuration:
 
@@ -738,6 +770,8 @@ Example configuration:
 metrics.reporter.dghttp.class: org.apache.flink.metrics.datadog.DatadogHttpReporter
 metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
+metrics.reporter.dghttp.proxyHost: my.web.proxy.com
+metrics.reporter.dghttp.proxyPort: 8080
 
 {% endhighlight %}
 
@@ -1627,16 +1661,18 @@ bypassing them. In particular the markers are not accounting for the time record
 Only if operators are not able to accept new records, thus they are queuing up, the latency measured using
 the markers will reflect that.
 
-All intermediate operators keep a list of the last `n` latencies from each source to compute 
-a latency distribution.
-The sink operators keep a list from each source, and each parallel source instance to allow detecting 
-latency issues caused by individual machines.
+The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each 
+downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can 
+be controlled in the [Flink configuration]({{ site.baseurl }}/ops/config.html#metrics-latency-interval). For the highest 
+granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream 
+subtask, which results in quadratic (in the terms of the parallelism) number of histograms. 
 
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
 <span class="label label-danger">Warning</span> Enabling latency metrics can significantly impact the performance
-of the cluster. It is highly recommended to only use them for debugging purposes.
+of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging 
+purposes.
 
 ## REST API integration
 

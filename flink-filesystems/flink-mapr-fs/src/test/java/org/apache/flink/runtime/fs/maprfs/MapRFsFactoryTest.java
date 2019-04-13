@@ -20,6 +20,7 @@ package org.apache.flink.runtime.fs.maprfs;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.util.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertEquals;
@@ -50,8 +52,10 @@ public class MapRFsFactoryTest extends TestLogger {
 
 		final String testClassName = "org.apache.flink.runtime.fs.maprfs.MapRFreeTests";
 
-		URLClassLoader parent = (URLClassLoader) getClass().getClassLoader();
-		ClassLoader maprFreeClassLoader = new MapRFreeClassLoader(parent);
+		final URL[] urls = ClassLoaderUtils.getClasspathURLs();
+
+		ClassLoader parent = getClass().getClassLoader();
+		ClassLoader maprFreeClassLoader = new MapRFreeClassLoader(urls, parent);
 		Class<?> testClass = Class.forName(testClassName, false, maprFreeClassLoader);
 		Method m = testClass.getDeclaredMethod("test");
 
@@ -95,8 +99,8 @@ public class MapRFsFactoryTest extends TestLogger {
 
 		private final ClassLoader properParent;
 
-		MapRFreeClassLoader(URLClassLoader parent) {
-			super(parent.getURLs(), null);
+		MapRFreeClassLoader(URL[] urls, ClassLoader parent) {
+			super(urls, null);
 			properParent = parent;
 		}
 

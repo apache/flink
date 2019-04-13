@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -66,9 +66,14 @@ under the License.
 							</artifactSet>
 							<filters>
 								<filter>
-									<artifact>*:*</artifact>
+									<artifact>org.apache.kafka:*</artifact>
 									<excludes>
 										<exclude>kafka/kafka-version.properties</exclude>
+										<exclude>LICENSE</exclude>
+										<!-- Does not contain anything relevant.
+											Cites a binary dependency on jersey, but this is neither reflected in the
+											dependency graph, nor are any jersey files bundled. -->
+										<exclude>NOTICE</exclude>
 									</excludes>
 								</filter>
 							</filters>

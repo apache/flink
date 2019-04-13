@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -72,8 +71,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
  */
 public class ExecutionGraphBuilder {
-	public static final String PARALLELISM_AUTO_MAX_ERROR_MESSAGE =
-		"PARALLELISM_AUTO_MAX is no longer supported. Please specify a concrete value for the parallelism.";
 
 	/**
 	 * Builds the ExecutionGraph from the JobGraph.
@@ -92,48 +89,6 @@ public class ExecutionGraphBuilder {
 			Time rpcTimeout,
 			RestartStrategy restartStrategy,
 			MetricGroup metrics,
-			BlobWriter blobWriter,
-			Time allocationTimeout,
-			Logger log)
-		throws JobExecutionException, JobException {
-
-		return buildGraph(
-			prior,
-			jobGraph,
-			jobManagerConfig,
-			futureExecutor,
-			ioExecutor,
-			slotProvider,
-			classLoader,
-			recoveryFactory,
-			rpcTimeout,
-			restartStrategy,
-			metrics,
-			-1,
-			blobWriter,
-			allocationTimeout,
-			log);
-	}
-
-	/**
-	 * Builds the ExecutionGraph from the JobGraph.
-	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
-	 * graph exists, then the JobGraph will become attach to a new empty execution graph.
-	 */
-	@Deprecated
-	public static ExecutionGraph buildGraph(
-			@Nullable ExecutionGraph prior,
-			JobGraph jobGraph,
-			Configuration jobManagerConfig,
-			ScheduledExecutorService futureExecutor,
-			Executor ioExecutor,
-			SlotProvider slotProvider,
-			ClassLoader classLoader,
-			CheckpointRecoveryFactory recoveryFactory,
-			Time rpcTimeout,
-			RestartStrategy restartStrategy,
-			MetricGroup metrics,
-			int parallelismForAutoMax,
 			BlobWriter blobWriter,
 			Time allocationTimeout,
 			Logger log)
@@ -199,17 +154,6 @@ public class ExecutionGraphBuilder {
 			if (executableClass == null || executableClass.isEmpty()) {
 				throw new JobSubmissionException(jobId,
 						"The vertex " + vertex.getID() + " (" + vertex.getName() + ") has no invokable class.");
-			}
-
-			if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_AUTO_MAX) {
-				if (parallelismForAutoMax < 0) {
-					throw new JobSubmissionException(
-						jobId,
-						PARALLELISM_AUTO_MAX_ERROR_MESSAGE);
-				}
-				else {
-					vertex.setParallelism(parallelismForAutoMax);
-				}
 			}
 
 			try {
@@ -279,9 +223,6 @@ public class ExecutionGraphBuilder {
 					ackVertices,
 					snapshotSettings.getCheckpointCoordinatorConfiguration(),
 					metrics);
-
-			// The default directory for externalized checkpoints
-			String externalizedCheckpointsDir = jobManagerConfig.getString(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
 
 			// load the state backend from the application settings
 			final StateBackend applicationConfiguredBackend;

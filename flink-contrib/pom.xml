@@ -27,7 +27,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -37,8 +37,6 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-storm</module>
-		<module>flink-storm-examples</module>
 		<module>flink-connector-wikiedits</module>
 	</modules>
 

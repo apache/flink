@@ -187,11 +187,6 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return (obj != null && obj.getClass() == getClass());
-	}
-
-	@Override
 	public int hashCode() {
 		return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
 	}

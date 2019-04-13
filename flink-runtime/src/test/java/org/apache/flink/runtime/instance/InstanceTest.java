@@ -28,7 +28,6 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -76,7 +75,7 @@ public class InstanceTest {
 			// no more slots
 			assertNull(instance.allocateSimpleSlot());
 			try {
-				instance.returnAllocatedSlot(slot2);
+				instance.returnLogicalSlot(slot2);
 				fail("instance accepted a non-cancelled slot.");
 			}
 			catch (IllegalArgumentException e) {
@@ -92,10 +91,10 @@ public class InstanceTest {
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
 
-			assertFalse(instance.returnAllocatedSlot(slot1).get());
-			assertFalse(instance.returnAllocatedSlot(slot2).get());
-			assertFalse(instance.returnAllocatedSlot(slot3).get());
-			assertFalse(instance.returnAllocatedSlot(slot4).get());
+			instance.returnLogicalSlot(slot1);
+			instance.returnLogicalSlot(slot2);
+			instance.returnLogicalSlot(slot3);
+			instance.returnLogicalSlot(slot4);
 
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());

@@ -23,8 +23,11 @@ cache:
   # default timeout is too low
   timeout: 600
   directories:
+  - $HOME/.rvm/
   - $HOME/.m2
   - $HOME/flink_cache
+  # keep in sync with tools/travis/setup_maven.sh
+  - $HOME/maven_cache
 
 # do not cache our own artifacts
 before_cache:
@@ -42,55 +45,244 @@ env:
     # Global variable to avoid hanging travis builds when downloading cache archives.
     - MALLOC_ARENA_MAX=2
     - DOCKER_COMPOSE_VERSION=1.22.0
+    - CHANGE_MINIKUBE_NONE_USER=true
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
    - "export -f travis_nanoseconds"
    - "export -f travis_time_start"
    - "export -f travis_time_finish"
+  # Download kubectl, which is a requirement for using minikube.
+   - curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+  # Download minikube.
+   - curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.25.2/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+   - sudo minikube start --vm-driver=none --kubernetes-version=v1.9.0
+  # Fix the kubectl context, as it's often stale.
+   - minikube update-context
+  # Wait for Kubernetes to be up and ready.
+   - JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do sleep 1; done
 
 # Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
 before_install:
-   - "wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.zip"
-   - "unzip -qq apache-maven-3.2.5-bin.zip"
-   - "rm apache-maven-3.2.5-bin.zip"
-   - "export M2_HOME=$PWD/apache-maven-3.2.5"
-   - "export PATH=$M2_HOME/bin:$PATH"
-   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
-# just in case: clean up the .m2 home and remove invalid jar files
-   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi'' \;'
+   - source ./tools/travis/setup_maven.sh
 # Installing the specified docker compose version
    - sudo rm /usr/local/bin/docker-compose
    - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
    - chmod +x docker-compose
    - sudo mv docker-compose /usr/local/bin
 
-# When modifying the matrix you also have to modify travis_controller.sh#getCurrentStage
+notifications:
+  slack:
+    rooms:
+      - secure: ikPQn5JTpkyzxVyOPm/jIl3FPm6hY8xAdG4pSwxGWjBqF+NmmNTp9YZsJ6fD8xPql6T5n1hNDbZSC14jVUw/vvXGvibDXLN+06f25ZQl+4LJBXaiR7gTG6y3nO8G90Vw7XpvCme6n5Md9tvjygb17a4FEgRJFfwzWnnyPA1yvK0=
+    on_success: never
+    on_pull_requests: false
+
+stages:
+  - name: compile
+  - name: test
+  - name: E2E
+    if: type = cron
+  - name: cleanup
+
 jdk: "oraclejdk8"
 jobs:
   include:
     # main profile
-    - stage: compile
-      script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      stage: compile
+      script: ./tools/travis_controller.sh compile
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: compile
-    - stage: test
-      script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      stage: test
+      script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: core
-    - script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: libraries
-    - script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh connectors
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: connectors
-    - script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: tests
-    - script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: misc
-    - stage: cleanup
-      script: ./tools/travis_controller.sh
+    - if: type in (pull_request, push)
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: cleanup
+    # hadoop 2.4.1 profile
+    - if: type = cron
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: compile - hadoop 2.4.1
+    - if: type = cron
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: core - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: libraries - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: connectors - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: tests - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: misc - hadoop 2.4.1
+    - if: type = cron
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: cleanup - hadoop 2.4.1
+    # scala 2.12 profile
+    - if: type = cron
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: compile - scala 2.12
+    - if: type = cron
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: core - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: libraries - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: connectors - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: tests - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: misc - scala 2.12
+    - if: type = cron
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      name: cleanup - scala 2.12
+    # JDK9 profile
+    - if: type = cron
+      jdk: "openjdk9"
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: compile - jdk 9
+    - if: type = cron
+      jdk: "openjdk9"
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: core - jdk 9
+    - if: type = cron
+      jdk: "openjdk9"
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: libraries - jdk 9
+    - if: type = cron
+      jdk: "openjdk9"
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: connectors - jdk 9
+    - if: type = cron
+      jdk: "openjdk9"
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: tests - jdk 9
+    - if: type = cron
+      jdk: "openjdk9"
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: misc
+    - if: type = cron
+      jdk: "openjdk9"
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      name: cleanup - jdk 9
+    # Documentation 404 check
+    - if: type = cron
+      stage: compile
+      script: ./tools/travis/docs.sh
+      language: ruby
+      rvm: 2.4.0
+      name: Documentation links check
+    # E2E profile
+    - stage: E2E
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_misc.sh
+      name: misc - hadoop 2.8
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: ha - hadoop 2.8
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: sticky - hadoop 2.8
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: checkpoints - hadoop 2.8
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: container - hadoop 2.8
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: heavy - hadoop 2.8
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_misc.sh
+      name: misc - scala 2.12
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: ha - scala 2.12
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: sticky - scala 2.12
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: checkpoints - scala 2.12
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: container - scala 2.12
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: heavy - scala 2.12
+    - env: PROFILE="-De2e-metrics -Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_misc_hadoopfree.sh
+      name: misc
+    - env: PROFILE="-Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: ha
+    - env: PROFILE="-Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: sticky
+    - env: PROFILE="-Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: checkpoints
+    - env: PROFILE="-Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: container
+    - env: PROFILE="-Dinclude-kinesis"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: heavy

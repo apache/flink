@@ -47,6 +47,8 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
@@ -97,6 +99,8 @@ public class StreamMockEnvironment implements Environment {
 	private final ExecutionConfig executionConfig;
 
 	private final TaskStateManager taskStateManager;
+
+	private final GlobalAggregateManager aggregateManager;
 
 	private volatile boolean wasFailedExternally = false;
 
@@ -150,6 +154,7 @@ public class StreamMockEnvironment implements Environment {
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
+		this.aggregateManager = new TestGlobalAggregateManager();
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
 
@@ -283,6 +288,11 @@ public class StreamMockEnvironment implements Environment {
 	@Override
 	public TaskStateManager getTaskStateManager() {
 		return taskStateManager;
+	}
+
+	@Override
+	public GlobalAggregateManager getGlobalAggregateManager() {
+		return aggregateManager;
 	}
 
 	@Override

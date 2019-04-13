@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -25,9 +26,11 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+
+import static org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.IntermediateCompatibilityResult;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link CompositeTypeSerializerSnapshot} is a convenient serializer snapshot class that can be used by
@@ -77,7 +80,7 @@ import java.io.IOException;
  * @param <S> The type of the originating serializer.
  */
 @PublicEvolving
-public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerializer> implements TypeSerializerSnapshot<T> {
+public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerializer<T>> implements TypeSerializerSnapshot<T> {
 
 	/** Magic number for integrity checks during deserialization. */
 	private static final int MAGIC_NUMBER = 911108;
@@ -108,8 +111,9 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 *
 	 * @param correspondingSerializerClass the expected class of the new serializer.
 	 */
-	public CompositeTypeSerializerSnapshot(Class<S> correspondingSerializerClass) {
-		this.correspondingSerializerClass = Preconditions.checkNotNull(correspondingSerializerClass);
+	@SuppressWarnings("unchecked")
+	public CompositeTypeSerializerSnapshot(Class<? extends TypeSerializer> correspondingSerializerClass) {
+		this.correspondingSerializerClass = (Class<S>) checkNotNull(correspondingSerializerClass);
 	}
 
 	/**
@@ -119,7 +123,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 */
 	@SuppressWarnings("unchecked")
 	public CompositeTypeSerializerSnapshot(S serializerInstance) {
-		Preconditions.checkNotNull(serializerInstance);
+		checkNotNull(serializerInstance);
 		this.nestedSerializersSnapshotDelegate = new NestedSerializersSnapshotDelegate(getNestedSerializers(serializerInstance));
 		this.correspondingSerializerClass = (Class<S>) serializerInstance.getClass();
 	}
@@ -147,6 +151,13 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 
 	@Override
 	public final TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+		return internalResolveSchemaCompatibility(newSerializer, nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots());
+	}
+
+	@Internal
+	TypeSerializerSchemaCompatibility<T> internalResolveSchemaCompatibility(
+			TypeSerializer<T> newSerializer,
+			TypeSerializerSnapshot<?>[] snapshots) {
 		if (newSerializer.getClass() != correspondingSerializerClass) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
@@ -158,10 +169,18 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		// since outer configuration is compatible, the final compatibility result depends only on the nested serializers
-		return constructFinalSchemaCompatibilityResult(
-			getNestedSerializers(castedNewSerializer),
-			nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots());
+		final TypeSerializer<?>[] newNestedSerializers = getNestedSerializers(castedNewSerializer);
+		// check that nested serializer arity remains identical; if not, short circuit result
+		if (newNestedSerializers.length != snapshots.length) {
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
+
+		return constructFinalSchemaCompatibilityResult(newNestedSerializers, snapshots);
+	}
+
+	@Internal
+	void setNestedSerializersSnapshotDelegate(NestedSerializersSnapshotDelegate delegate) {
+		this.nestedSerializersSnapshotDelegate = checkNotNull(delegate);
 	}
 
 	@Override
@@ -290,57 +309,15 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 			TypeSerializer<?>[] newNestedSerializers,
 			TypeSerializerSnapshot<?>[] nestedSerializerSnapshots) {
 
-		Preconditions.checkArgument(newNestedSerializers.length == nestedSerializerSnapshots.length,
-			"Different number of new serializers and existing serializer snapshots.");
+		IntermediateCompatibilityResult<T> intermediateResult =
+			CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(newNestedSerializers, nestedSerializerSnapshots);
 
-		TypeSerializer<?>[] reconfiguredNestedSerializers = new TypeSerializer[newNestedSerializers.length];
-
-		// check nested serializers for compatibility
-		boolean nestedSerializerRequiresMigration = false;
-		boolean hasReconfiguredNestedSerializers = false;
-		for (int i = 0; i < nestedSerializerSnapshots.length; i++) {
-			TypeSerializerSchemaCompatibility<?> compatibility =
-				resolveCompatibility(newNestedSerializers[i], nestedSerializerSnapshots[i]);
-
-			// if any one of the new nested serializers is incompatible, we can just short circuit the result
-			if (compatibility.isIncompatible()) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			}
-
-			if (compatibility.isCompatibleAfterMigration()) {
-				nestedSerializerRequiresMigration = true;
-			} else if (compatibility.isCompatibleWithReconfiguredSerializer()) {
-				hasReconfiguredNestedSerializers = true;
-				reconfiguredNestedSerializers[i] = compatibility.getReconfiguredSerializer();
-			} else if (compatibility.isCompatibleAsIs()) {
-				reconfiguredNestedSerializers[i] = newNestedSerializers[i];
-			} else {
-				throw new IllegalStateException("Undefined compatibility type.");
-			}
-		}
-
-		if (nestedSerializerRequiresMigration) {
-			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-		}
-
-		if (hasReconfiguredNestedSerializers) {
+		if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {
 			@SuppressWarnings("unchecked")
-			TypeSerializer<T> reconfiguredCompositeSerializer = createOuterSerializerWithNestedSerializers(reconfiguredNestedSerializers);
+			TypeSerializer<T> reconfiguredCompositeSerializer = createOuterSerializerWithNestedSerializers(intermediateResult.getNestedSerializers());
 			return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(reconfiguredCompositeSerializer);
 		}
 
-		// ends up here if everything is compatible as is
-		return TypeSerializerSchemaCompatibility.compatibleAsIs();
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <E> TypeSerializerSchemaCompatibility<E> resolveCompatibility(
-		TypeSerializer<?> serializer,
-		TypeSerializerSnapshot<?> snapshot) {
-
-		TypeSerializer<E> typedSerializer = (TypeSerializer<E>) serializer;
-		TypeSerializerSnapshot<E> typedSnapshot = (TypeSerializerSnapshot<E>) snapshot;
-
-		return typedSnapshot.resolveSchemaCompatibility(typedSerializer);
+		return intermediateResult.getFinalResult();
 	}
 }

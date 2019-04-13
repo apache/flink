@@ -23,20 +23,25 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
-import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
@@ -48,6 +53,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -87,7 +93,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration)} method.
+ * {@link #configure(Configuration, ClassLoader)} method.
  */
 @PublicEvolving
 public class FsStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -334,7 +340,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
 	 */
-	private FsStateBackend(FsStateBackend original, Configuration configuration) {
+	private FsStateBackend(FsStateBackend original, Configuration configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		// if asynchronous snapshots were configured, use that setting,
@@ -430,8 +436,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public FsStateBackend configure(Configuration config) {
-		return new FsStateBackend(this, config);
+	public FsStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new FsStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
@@ -458,35 +464,44 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup) {
+		MetricGroup metricGroup,
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =
 			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
 
-		return new HeapKeyedStateBackend<>(
-				kvStateRegistry,
-				keySerializer,
-				env.getUserClassLoader(),
-				numberOfKeyGroups,
-				keyGroupRange,
-				isUsingAsynchronousSnapshots(),
-				env.getExecutionConfig(),
-				localRecoveryConfig,
-				priorityQueueSetFactory,
-				ttlTimeProvider);
+		return new HeapKeyedStateBackendBuilder<>(
+			kvStateRegistry,
+			keySerializer,
+			env.getUserClassLoader(),
+			numberOfKeyGroups,
+			keyGroupRange,
+			env.getExecutionConfig(),
+			ttlTimeProvider,
+			stateHandles,
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			localRecoveryConfig,
+			priorityQueueSetFactory,
+			isUsingAsynchronousSnapshots(),
+			cancelStreamRegistry).build();
 	}
 
 	@Override
 	public OperatorStateBackend createOperatorStateBackend(
 		Environment env,
-		String operatorIdentifier) {
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
-		return new DefaultOperatorStateBackend(
+		return new DefaultOperatorStateBackendBuilder(
 			env.getUserClassLoader(),
 			env.getExecutionConfig(),
-				isUsingAsynchronousSnapshots());
+			isUsingAsynchronousSnapshots(),
+			stateHandles,
+			cancelStreamRegistry).build();
 	}
 
 	// ------------------------------------------------------------------------

@@ -37,7 +37,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * A series of tests (reusing one FlinkMiniCluster) where tasks fail (one or more time)
+ * A series of tests (reusing one MiniCluster) where tasks fail (one or more time)
  * and the recovery should restart them to verify job completion.
  */
 @SuppressWarnings("serial")

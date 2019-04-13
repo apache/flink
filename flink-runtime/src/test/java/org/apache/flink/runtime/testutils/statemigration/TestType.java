@@ -243,11 +243,6 @@ public class TestType implements HeapPriorityQueueElement, PriorityComparable<Te
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return getClass().equals(obj.getClass());
-		}
-
-		@Override
 		public int hashCode() {
 			return getClass().hashCode();
 		}

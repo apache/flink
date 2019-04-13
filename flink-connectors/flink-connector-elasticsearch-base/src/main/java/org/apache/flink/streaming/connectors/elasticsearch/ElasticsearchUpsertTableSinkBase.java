@@ -31,7 +31,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.typeutils.TypeCheckUtils;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -185,7 +185,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			sinkOptions,
 			upsertFunction);
 		dataStream.addSink(sinkFunction)
-			.name(TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames()));
+			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
 	@Override

@@ -57,8 +57,7 @@ public class YarnConfigOptions {
 			.defaultValue("ORDER")
 			.withDescription("Defines whether user-jars are included in the system class path for per-job-clusters as" +
 				" well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the" +
-				" end (\"LAST\"), or be positioned based on their name (\"ORDER\"). Setting this parameter to" +
-				" \"DISABLED\" causes the jar to be included in the user class path instead.");
+				" end (\"LAST\"), or be positioned based on their name (\"ORDER\").");
 
 	/**
 	 * The vcores exposed by YARN.
@@ -156,7 +155,6 @@ public class YarnConfigOptions {
 
 	/** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
 	public enum UserJarInclusion {
-		DISABLED,
 		FIRST,
 		LAST,
 		ORDER

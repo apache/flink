@@ -89,7 +89,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.MODIFY_PARALLELISM_OPTION;
-import static org.apache.flink.client.program.ClusterClient.MAX_SLOTS_UNKNOWN;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -269,18 +268,12 @@ public class CliFrontend {
 				try {
 					client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
 					client.setDetached(runOptions.getDetachedMode());
-					LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
 					LOG.debug("{}", runOptions.getSavepointRestoreSettings());
 
 					int userParallelism = runOptions.getParallelism();
 					LOG.debug("User parallelism is set to {}", userParallelism);
-					if (client.getMaxSlots() != MAX_SLOTS_UNKNOWN && userParallelism == -1) {
-						logAndSysout("Using the parallelism provided by the remote cluster ("
-							+ client.getMaxSlots() + "). "
-							+ "To use another parallelism, set it at the ./bin/flink client.");
-						userParallelism = client.getMaxSlots();
-					} else if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
+					if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
 						userParallelism = defaultParallelism;
 					}
 

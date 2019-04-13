@@ -58,7 +58,8 @@ public class ResourceManagerRuntimeServices {
 			scheduledExecutor,
 			slotManagerConfiguration.getTaskManagerRequestTimeout(),
 			slotManagerConfiguration.getSlotRequestTimeout(),
-			slotManagerConfiguration.getTaskManagerTimeout());
+			slotManagerConfiguration.getTaskManagerTimeout(),
+			slotManagerConfiguration.isWaitResultConsumedBeforeRelease());
 
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,

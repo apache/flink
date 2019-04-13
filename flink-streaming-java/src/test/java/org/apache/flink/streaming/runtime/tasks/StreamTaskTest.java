@@ -64,7 +64,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -85,6 +85,8 @@ import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -896,14 +898,9 @@ public class StreamTaskTest extends TestLogger {
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 		Executor executor = mock(Executor.class);
-		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(partitionManager);
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-				.thenReturn(mock(TaskKvStateRegistry.class));
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
@@ -934,11 +931,14 @@ public class StreamTaskTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			network,
+			new KvStateService(new KvStateRegistry(), null, null),
 			mock(BroadcastVariableManager.class),
+			new TaskEventDispatcher(),
 			taskStateManager,
 			taskManagerActions,
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			new TestGlobalAggregateManager(),
 			blobService,
 			libCache,
 			mock(FileCache.class),
@@ -1009,7 +1009,7 @@ public class StreamTaskTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public AbstractStateBackend createFromConfig(Configuration config) {
+		public AbstractStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
 			return new TestSpyWrapperStateBackend(createInnerBackend(config));
 		}
 

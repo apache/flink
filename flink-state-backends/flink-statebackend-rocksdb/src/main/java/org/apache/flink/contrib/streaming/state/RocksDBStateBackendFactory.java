@@ -32,7 +32,7 @@ import java.io.IOException;
 public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBStateBackend> {
 
 	@Override
-	public RocksDBStateBackend createFromConfig(Configuration config)
+	public RocksDBStateBackend createFromConfig(Configuration config, ClassLoader classLoader)
 			throws IllegalConfigurationException, IOException {
 
 		// we need to explicitly read the checkpoint directory here, because that
@@ -44,6 +44,6 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBSt
 				"checkpoint directory '" + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key() + '\'');
 		}
 
-		return new RocksDBStateBackend(checkpointDirURI).configure(config);
+		return new RocksDBStateBackend(checkpointDirURI).configure(config, classLoader);
 	}
 }

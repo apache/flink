@@ -22,7 +22,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -56,6 +56,14 @@ under the License.
 			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 			<classifier>sql-jar</classifier>
 			<scope>provided</scope>
@@ -155,6 +163,13 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-json</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-csv</artifactId>
 									<version>${project.version}</version>
 									<classifier>sql-jar</classifier>
 									<type>jar</type>

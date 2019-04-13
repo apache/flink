@@ -97,7 +97,7 @@ public class MultipartUploadResource extends ExternalResource {
 	public void before() throws Exception {
 		temporaryFolder.create();
 		Configuration config = new Configuration();
-		config.setInteger(RestOptions.PORT, 0);
+		config.setString(RestOptions.BIND_PORT, "0");
 		config.setString(RestOptions.ADDRESS, "localhost");
 		// set this to a lower value on purpose to test that files larger than the content limit are still accepted
 		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);

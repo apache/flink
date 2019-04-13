@@ -27,13 +27,15 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.8-SNAPSHOT"
+version: "1.9-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.8-SNAPSHOT"
+version_title: "1.9-SNAPSHOT"
 # Branch on Github for this version
 github_branch: "master"
 
+# Plain Scala version is needed for e.g. the Gradle quickstart.
+scala_version: "2.11"
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
 
@@ -57,6 +59,7 @@ is_stable: false
 show_outdated_warning: false
 
 previous_docs:
+  1.8: http://ci.apache.org/projects/flink/flink-docs-release-1.8
   1.7: http://ci.apache.org/projects/flink/flink-docs-release-1.7
   1.6: http://ci.apache.org/projects/flink/flink-docs-release-1.6
   1.5: http://ci.apache.org/projects/flink/flink-docs-release-1.5

@@ -151,7 +151,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 	}
 
 	@Override
-	public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
+	public CheckpointStateOutputStream createTaskOwnedStateStream() {
 		return new FsCheckpointStateOutputStream(
 				taskOwnedStateDirectory,
 				fileSystem,
@@ -160,7 +160,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 	}
 
 	@Override
-	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) throws IOException {
+	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) {
 		final CheckpointStorageLocationReference reference = encodePathAsReference(location);
 		return new FsCheckpointStorageLocation(fs, location, location, location, reference, fileSizeThreshold);
 	}

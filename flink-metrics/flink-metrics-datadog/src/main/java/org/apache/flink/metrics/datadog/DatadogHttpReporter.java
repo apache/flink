@@ -56,6 +56,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private List<String> configTags;
 
 	public static final String API_KEY = "apikey";
+	public static final String PROXY_HOST = "proxyHost";
+	public static final String PROXY_PORT = "proxyPort";
 	public static final String TAGS = "tags";
 
 	@Override
@@ -102,7 +104,11 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	@Override
 	public void open(MetricConfig config) {
-		client = new DatadogHttpClient(config.getString(API_KEY, null));
+		String apiKey = config.getString(API_KEY, null);
+		String proxyHost = config.getString(PROXY_HOST, null);
+		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
+
+		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort);
 		LOGGER.info("Configured DatadogHttpReporter");
 
 		configTags = getTagsFromConfig(config.getString(TAGS, ""));
@@ -118,6 +124,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public void report() {
 		DatadogHttpRequest request = new DatadogHttpRequest();
 
+		List<Gauge> gaugesToRemove = new ArrayList<>();
 		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
 			try {
@@ -125,11 +132,19 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				// Flink uses Gauge to store many types other than Number
 				g.getMetricValue();
 				request.addGauge(g);
+			} catch (ClassCastException e) {
+				LOGGER.info("The metric {} will not be reported because only number types are supported by this reporter.", g.getMetric());
+				gaugesToRemove.add(entry.getKey());
 			} catch (Exception e) {
-				// Remove that Gauge if it's not of Number type
-				gauges.remove(entry.getKey());
+				if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("The metric {} will not be reported because it threw an exception.", g.getMetric(), e);
+				} else {
+					LOGGER.info("The metric {} will not be reported because it threw an exception.", g.getMetric());
+				}
+				gaugesToRemove.add(entry.getKey());
 			}
 		}
+		gaugesToRemove.forEach(gauges::remove);
 
 		for (DCounter c : counters.values()) {
 			request.addCounter(c);

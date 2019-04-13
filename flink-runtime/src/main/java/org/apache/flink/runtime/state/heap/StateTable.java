@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -51,13 +52,22 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
 
 	/**
-	 *
-	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
-	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
+	 * The serializer of the key.
 	 */
-	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	protected final TypeSerializer<K> keySerializer;
+
+	/**
+	 * @param keyContext    the key context provides the key scope for all put/get/delete operations.
+	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
+	 * @param keySerializer the serializer of the key.
+	 */
+	public StateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		TypeSerializer<K> keySerializer) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 	}
 
 	// Main interface methods of StateTable -------------------------------------------------------
@@ -165,6 +175,8 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	public abstract S get(K key, N namespace);
 
 	public abstract Stream<K> getKeys(N namespace);
+
+	public abstract StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords);
 
 	// Meta data setter / getter and toString -----------------------------------------------------
 

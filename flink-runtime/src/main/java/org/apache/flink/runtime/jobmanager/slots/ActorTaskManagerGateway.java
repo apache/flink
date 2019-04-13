@@ -22,18 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.Messages;
-import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
@@ -68,28 +63,6 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public String getAddress() {
 		return actorGateway.path();
-	}
-
-	@Override
-	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {
-		actorGateway.tell(new Messages.Disconnect(instanceId, cause));
-	}
-
-	@Override
-	public void stopCluster(final ApplicationStatus applicationStatus, final String message) {
-		actorGateway.tell(new StopCluster(applicationStatus, message));
-	}
-
-	@Override
-	public CompletableFuture<StackTrace> requestStackTrace(final Time timeout) {
-		Preconditions.checkNotNull(timeout);
-
-		scala.concurrent.Future<StackTrace> stackTraceFuture = actorGateway.ask(
-			TaskManagerMessages.SendStackTrace$.MODULE$.get(),
-			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
-			.mapTo(ClassTag$.MODULE$.<StackTrace>apply(StackTrace.class));
-
-		return FutureUtils.toJava(stackTraceFuture);
 	}
 
 	@Override
@@ -207,16 +180,6 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 		Preconditions.checkNotNull(jobId);
 
 		actorGateway.tell(new TriggerCheckpoint(jobId, executionAttemptID, checkpointId, timestamp, checkpointOptions));
-	}
-
-	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
-		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerLog(), timeout);
-	}
-
-	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
-		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerStdout(), timeout);
 	}
 
 	@Override

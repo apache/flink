@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -77,12 +77,21 @@ under the License.
 			<version>${kafka.version}</version>
 		</dependency>
 
+		<!-- Table ecosystem -->
+		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
-			<!-- Projects depending on this project, won't depend on flink-table. -->
+			<optional>true</optional>
+		</dependency>
+		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
 
@@ -174,13 +183,30 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>java9</id>
+			<activation>
+				<jdk>9</jdk>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+					<version>2.2.11</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>

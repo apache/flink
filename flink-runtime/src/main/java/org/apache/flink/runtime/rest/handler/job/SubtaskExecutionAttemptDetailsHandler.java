@@ -61,7 +61,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 	extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters>
 	implements JsonArchivist {
 
-	private final MetricFetcher<?> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	/**
 	 * Instantiates a new subtask execution attempt details handler.
@@ -80,7 +80,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
@@ -131,7 +131,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 			AccessExecution execution,
 			JobID jobID,
 			JobVertexID jobVertexID,
-			@Nullable MetricFetcher<?> metricFetcher) {
+			@Nullable MetricFetcher metricFetcher) {
 		final MutableIOMetrics ioMetrics = new MutableIOMetrics();
 
 		ioMetrics.addIOMetrics(

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -70,6 +71,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -670,7 +672,7 @@ public class SlotManagerTest extends TestLogger {
 	/**
 	 * Tests that idle task managers time out after the configured timeout. A timed out task manager
 	 * will be removed from the slot manager and the resource manager will be notified about the
-	 * timeout.
+	 * timeout, if it can be released.
 	 */
 	@Test
 	public void testTaskManagerTimeout() throws Exception {
@@ -693,16 +695,62 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			Time.milliseconds(tmTimeout))) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setTaskManagerTimeout(Time.milliseconds(tmTimeout))
+			.build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
 			mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
 
+			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
+		}
+	}
+
+	/**
+	 * Tests that idle but not releasable task managers will not be released even if timed out before it can be.
+	 */
+	@Test
+	public void testTaskManagerNotReleasedBeforeItCanBe() throws Exception {
+		final CompletableFuture<InstanceID> releaseFuture = new CompletableFuture<>();
+		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setReleaseResourceConsumer((instanceID, e) -> releaseFuture.complete(instanceID))
+			.build();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final ResourceID resourceID = ResourceID.generate();
+
+		final AtomicBoolean canBeReleased = new AtomicBoolean(false);
+		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setCanBeReleasedSupplier(canBeReleased::get)
+			.createTestingTaskExecutorGateway();
+		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
+
+		final SlotID slotId = new SlotID(resourceID, 0);
+		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
+		final SlotReport slotReport = new SlotReport(slotStatus);
+
+		final ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(mainThreadExecutor)
+			.setTaskManagerTimeout(Time.milliseconds(0L))
+			.build()) {
+
+			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
+
+			mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
+
+			// now it can not be released yet
+			canBeReleased.set(false);
+			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts);
+			mainThreadExecutor.triggerAll();
+			assertFalse(releaseFuture.isDone());
+
+			// now it can and should be released
+			canBeReleased.set(true);
+			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts);
+			mainThreadExecutor.triggerAll();
 			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
 		}
 	}
@@ -729,11 +777,9 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			Time.milliseconds(allocationTimeout),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setSlotRequestTimeout(Time.milliseconds(allocationTimeout))
+			.build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -869,11 +915,7 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (final SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder().build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -989,11 +1031,9 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (final SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setTaskManagerTimeout(Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))
+			.build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -1052,17 +1092,17 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceActions resourceActions = mock(ResourceActions.class);
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 
+		when(taskExecutorGateway.canBeReleased()).thenReturn(CompletableFuture.completedFuture(true));
+
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
 		final SlotStatus slotStatus = new SlotStatus(
 			new SlotID(resourceID, 0),
 			new ResourceProfile(1.0, 1));
 		final SlotReport initialSlotReport = new SlotReport(slotStatus);
 
-		try (final SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			taskManagerTimeout)) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setTaskManagerTimeout(taskManagerTimeout)
+			.build()) {
 
 			slotManager.start(resourceManagerId, Executors.directExecutor(), resourceActions);
 
@@ -1094,11 +1134,7 @@ public class SlotManagerTest extends TestLogger {
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskManagerId, taskExecutorGateway);
 
-		try (final SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder().build()) {
 
 			slotManager.start(ResourceManagerId.generate(), Executors.directExecutor(), resourceActions);
 
@@ -1379,14 +1415,8 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	private SlotManager createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions) {
-		SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime());
-
+		SlotManager slotManager = SlotManagerBuilder.newBuilder().build();
 		slotManager.start(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
-
 		return slotManager;
 	}
 
