@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.examples.modelserving.java.configuration.ModelServingConfiguration;
 import org.apache.flink.examples.modelserving.java.model.WineFactoryResolver;
@@ -33,10 +34,10 @@ import org.apache.flink.modelserving.java.model.ServingResult;
 import org.apache.flink.modelserving.java.server.keyed.DataProcessorKeyed;
 import org.apache.flink.modelserving.java.server.typeschema.ByteArraySchema;
 import org.apache.flink.modelserving.wine.Winerecord;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,6 +46,7 @@ import org.apache.flink.util.Collector;
 
 import java.util.Optional;
 import java.util.Properties;
+
 
 /**
  * Complete model serving application (keyed)
@@ -61,9 +63,10 @@ public class ModelServingKeyedJob {
 	 * Main method.
 	 */
 	public static void main(String[] args) {
-//    executeLocal();
+//		executeLocal();
 		executeServer();
 	}
+
 
 	/**
 	 *  Execute on the local Flink server.
@@ -79,21 +82,29 @@ public class ModelServingKeyedJob {
 		config.setInteger(JobManagerOptions.PORT, port);
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism);
+		// In a non MiniCluster setup queryable state is enabled by default.
+		config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069");
+		config.setInteger(QueryableStateOptions.PROXY_NETWORK_THREADS, 2);
+		config.setInteger(QueryableStateOptions.PROXY_ASYNC_QUERY_THREADS, 2);
+
+		config.setString(QueryableStateOptions.SERVER_PORT_RANGE, "9067");
+		config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 2);
+		config.setInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS, 2);
+
+		MiniClusterConfiguration clusterconfig =
+			new MiniClusterConfiguration(config, 1, RpcServiceSharing.DEDICATED, null);
 		try {
 			// Create a local Flink server
-			LocalFlinkMiniCluster flinkCluster = new LocalFlinkMiniCluster(config,
-				HighAvailabilityServicesUtils.createHighAvailabilityServices(config,
-					Executors.directExecutor(),
-					HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION), false);
+			MiniCluster flinkCluster = new MiniCluster(clusterconfig);
 			// Start server and create environment
-			flinkCluster.start(true);
+			flinkCluster.start();
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", port);
 			env.setParallelism(parallelism);
 			// Build Graph
 			buildGraph(env);
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			// Submit to the server and wait for completion
-			JobSubmissionResult result = flinkCluster.submitJobDetached(jobGraph);
+			JobSubmissionResult result = flinkCluster.submitJob(jobGraph).get();
 			System.out.println("Job ID : " + result.getJobID());
 			Thread.sleep(Long.MAX_VALUE);
 		} catch (Throwable t){

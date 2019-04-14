@@ -32,10 +32,10 @@ import org.apache.flink.modelserving.java.model.ServingResult;
 import org.apache.flink.modelserving.java.server.partitioned.DataProcessorMap;
 import org.apache.flink.modelserving.java.server.typeschema.ByteArraySchema;
 import org.apache.flink.modelserving.wine.Winerecord;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -61,7 +61,7 @@ public class ModelServingFlatJob {
 	 * Main method.
 	 */
 	public static void main(String[] args) {
-//    executeLocal();
+//		executeLocal();
 		executeServer();
 	}
 
@@ -79,21 +79,20 @@ public class ModelServingFlatJob {
 		config.setInteger(JobManagerOptions.PORT, port);
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism);
+		MiniClusterConfiguration clusterconfig =
+			new MiniClusterConfiguration(config, 1, RpcServiceSharing.DEDICATED, null);
 		try {
 			// Create a local Flink server
-			LocalFlinkMiniCluster flinkCluster = new LocalFlinkMiniCluster(config,
-				HighAvailabilityServicesUtils.createHighAvailabilityServices(config,
-					Executors.directExecutor(),
-					HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION), false);
+			MiniCluster flinkCluster = new MiniCluster(clusterconfig);
 			// Start server and create environment
-			flinkCluster.start(true);
+			flinkCluster.start();
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", port);
 			env.setParallelism(parallelism);
 			// Build Graph
 			buildGraph(env);
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			// Submit to the server and wait for completion
-			flinkCluster.submitJobAndWait(jobGraph, false);
+			flinkCluster.executeJobBlocking(jobGraph);
 		} catch (Throwable t){
 			t.printStackTrace();
 		}

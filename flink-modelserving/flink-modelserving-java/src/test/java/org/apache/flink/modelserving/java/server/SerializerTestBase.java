@@ -58,6 +58,7 @@ import static org.junit.Assert.fail;
  * internal state would be corrupt, which becomes evident when toString is called.
  * Adopted from https://github.com/apache/flink/blob/master/flink-core/src/test/java/org/apache/flink/api/common/typeutils/SerializerTestBase.java
  */
+
 public abstract class SerializerTestBase<T> extends TestLogger {
 
 	protected abstract TypeSerializer<T> createSerializer();
