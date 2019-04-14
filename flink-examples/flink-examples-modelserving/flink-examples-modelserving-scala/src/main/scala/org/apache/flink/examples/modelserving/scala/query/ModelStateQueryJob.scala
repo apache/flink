@@ -31,6 +31,6 @@ object ModelStateQueryJob {
     *
     */
   def main(args: Array[String]): Unit = {
-    ModelStateQuery.query("8caf4b9b36a530cad9cc4cae4a02735d", Seq("wine"))
+    ModelStateQuery.query("4fb3d3a9b38fecfcc528127c21a2ba24", Seq("wine"))
   }
 }

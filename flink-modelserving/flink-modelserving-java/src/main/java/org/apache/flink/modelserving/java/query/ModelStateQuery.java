@@ -89,7 +89,15 @@ public class ModelStateQuery {
 			for (String key : keys) {
                 // For every key obtain a corresponding state
 				CompletableFuture<ValueState<ModelToServeStats>> future =
-					client.getKvState(jobId, "currentModelState", key, keyType, descriptor);
+					client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
+						.handle((result, ex) -> {
+							if (result != null) {
+								return result;
+							} else {
+								System.err.println("exception: " + ex);
+								return null;
+							}
+						});
 				future.thenAccept(response -> {
 					try {
 						ModelToServeStats stats = response.value();

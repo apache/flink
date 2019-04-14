@@ -18,7 +18,7 @@
 
 package org.apache.flink.modelserving.scala.query
 
-import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.api.common.state.{ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.api.scala.createTypeInformation
@@ -39,7 +39,7 @@ object ModelStateQuery {
     *
     */
   def query(job: String, keys: Seq[String], host: String = "127.0.0.1", port: Int = 9069,
-            timeInterval: Long=defaulttimeInterval): Unit = {
+            timeInterval: Long = defaulttimeInterval): Unit = {
 
     // JobID, has to correspond to a running job
     val jobId = JobID.fromHexString(job)
@@ -63,6 +63,7 @@ object ModelStateQuery {
           // Get statistics
           val future = client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
           val stats = future.join().value()
+
           println(s" ${stats.name} | ${stats.description} | ${new DateTime(stats.since).
             toString("yyyy/MM/dd HH:MM:SS")} | ${stats.duration/stats.usage} |" +
             s"  ${stats.min} | ${stats.max} |")
