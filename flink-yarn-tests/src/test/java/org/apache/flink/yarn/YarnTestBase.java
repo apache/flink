@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -26,8 +27,10 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
@@ -833,14 +836,16 @@ public abstract class YarnTestBase extends TestLogger {
 							"",
 							"",
 							true);
-						returnValue = yCli.run(args);
+						final CommandLine commandLine = yCli.parseCommandLineOptions(args, true);
+						returnValue = yCli.run(commandLine);
 						break;
 					case CLI_FRONTEND:
 						try {
 							CliFrontend cli = new CliFrontend(
 								configuration,
 								CliFrontend.loadCustomCommandLines(configuration, configurationDirectory));
-							returnValue = cli.parseParameters(args);
+							Tuple2<CommandLine, FunctionWithException<CommandLine, Integer, Exception>> commandLineAction = cli.parseParameters(args);
+							returnValue = commandLineAction.f1.apply(commandLineAction.f0);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
 								+ Arrays.toString(args), e);
