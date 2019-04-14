@@ -96,7 +96,7 @@ public class FlinkKinesisConsumerMigrationTest {
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(MigrationVersion.v1_3, MigrationVersion.v1_4, MigrationVersion.v1_7);
+		return Arrays.asList(MigrationVersion.v1_3, MigrationVersion.v1_4, MigrationVersion.v1_7, MigrationVersion.v1_8);
 	}
 
 	public FlinkKinesisConsumerMigrationTest(MigrationVersion testMigrateVersion) {
