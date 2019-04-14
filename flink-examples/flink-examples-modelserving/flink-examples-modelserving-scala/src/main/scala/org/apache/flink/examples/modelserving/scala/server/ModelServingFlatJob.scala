@@ -27,10 +27,7 @@ import org.apache.flink.examples.modelserving.scala.model.WineFactoryResolver
 import org.apache.flink.configuration.{Configuration, JobManagerOptions, TaskManagerOptions}
 import org.apache.flink.modelserving.scala.server.partitioned.DataProcessorMap
 import org.apache.flink.modelserving.wine.winerecord.WineRecord
-import org.apache.flink.runtime.concurrent.Executors
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, RpcServiceSharing}
-//import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
