@@ -51,11 +51,11 @@ import static org.mockito.Mockito.verify;
 public class ResultPartitionTest {
 
 	/** Asynchronous I/O manager. */
-	private static final IOManager ioManager = new IOManagerAsync();
+	private static final IOManager IO_MANAGER = new IOManagerAsync();
 
 	@AfterClass
 	public static void shutdown() {
-		ioManager.shutdown();
+		IO_MANAGER.shutdown();
 	}
 
 	/**
@@ -277,7 +277,7 @@ public class ResultPartitionTest {
 			1,
 			mock(ResultPartitionManager.class),
 			notifier,
-			ioManager,
+			IO_MANAGER,
 			sendScheduleOrUpdateConsumersMessage);
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.Task;
 
+import org.junit.AfterClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -57,12 +59,19 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 @RunWith(Parameterized.class)
 public class NetworkEnvironmentTest {
 
+	private static final IOManager IO_MANAGER = new IOManagerAsync();
+
 	@Parameterized.Parameter
 	public boolean enableCreditBasedFlowControl;
 
 	@Parameterized.Parameters(name = "Credit-based = {0}")
 	public static List<Boolean> parameters() {
 		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
+	}
+
+	@AfterClass
+	public static void shutdownIOManager() {
+		IO_MANAGER.shutdown();
 	}
 
 	@Rule
@@ -277,6 +286,7 @@ public class NetworkEnvironmentTest {
 	 */
 	private static ResultPartition createResultPartition(
 			final ResultPartitionType partitionType, final int channels) {
+
 		return new ResultPartition(
 			"TestTask-" + partitionType + ":" + channels,
 			new NoOpTaskActions(),
@@ -287,7 +297,7 @@ public class NetworkEnvironmentTest {
 			channels,
 			mock(ResultPartitionManager.class),
 			new NoOpResultPartitionConsumableNotifier(),
-			mock(IOManager.class),
+			IO_MANAGER,
 			false);
 	}
 
