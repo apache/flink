@@ -182,7 +182,6 @@ class CalcITCase extends BatchTestBase {
       data3)
   }
 
-  @Ignore // TODO support like
   @Test
   def testFilterOnString(): Unit = {
     checkResult(
@@ -498,7 +497,6 @@ class CalcITCase extends BatchTestBase {
       Seq(row("Hi")))
   }
 
-  @Ignore // TODO support substring
   @Test
   def testComplexInLargeValues(): Unit = {
     checkResult(
@@ -578,7 +576,6 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support decimal with precision and scale
   @Test
   def testRowTypeWithDecimal(): Unit = {
     val d = Decimal.castFrom(2.0002, 5, 4).toBigDecimal

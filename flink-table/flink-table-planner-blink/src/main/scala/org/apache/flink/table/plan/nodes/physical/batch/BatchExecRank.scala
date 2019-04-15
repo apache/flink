@@ -18,11 +18,18 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
 import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, Rank, RankRange, RankType}
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.runtime.sort.RankOperator
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -60,7 +67,8 @@ class BatchExecRank(
     rankRange,
     rankNumberType,
     outputRankNumber)
-  with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   require(rankType == RankType.RANK, "Only RANK is supported now")
   val (rankStart, rankEnd) = rankRange match {
@@ -102,5 +110,64 @@ class BatchExecRank(
     val rowCount = mq.getRowCount(this)
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
+  }
+
+  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val partitionBySortingKeys = partitionKey.toArray
+    // The collation for the partition-by fields is inessential here, we only use the
+    // comparator to distinguish different groups.
+    // (order[is_asc], null_is_last)
+    val partitionBySortCollation = partitionBySortingKeys.map(_ => (true, true))
+
+    // The collation for the order-by fields is inessential here, we only use the
+    // comparator to distinguish order-by fields change.
+    // (order[is_asc], null_is_last)
+    val orderByCollation = orderKey.getFieldCollations.map(_ => (true, true)).toArray
+    val orderByKeys = orderKey.getFieldCollations.map(_.getFieldIndex).toArray
+
+    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    //operator needn't cache data
+    val operator = new RankOperator(
+      ComparatorCodeGenerator.gen(
+        tableEnv.getConfig,
+        "PartitionByComparator",
+        partitionBySortingKeys,
+        partitionBySortingKeys.map(inputType.getTypeAt),
+        partitionBySortCollation.map(_._1),
+        partitionBySortCollation.map(_._2)),
+      ComparatorCodeGenerator.gen(
+        tableEnv.getConfig,
+        "OrderByComparator",
+        orderByKeys,
+        orderByKeys.map(inputType.getTypeAt),
+        orderByCollation.map(_._1),
+        orderByCollation.map(_._2)),
+      rankStart,
+      rankEnd,
+      outputRankNumber)
+
+    new OneInputTransformation(
+      input,
+      getOperatorName,
+      operator,
+      outputType.toTypeInfo,
+      input.getParallelism)
+  }
+
+  private def getOperatorName: String = {
+    if (isGlobal) {
+      "GlobalRank"
+    } else {
+      "LocalRank"
+    }
   }
 }

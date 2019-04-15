@@ -836,7 +836,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testLimitPlusAgg(): Unit = {
     checkQuery(
