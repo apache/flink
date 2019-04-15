@@ -142,6 +142,18 @@ public class DataStreamAllroundTestJobFactory {
 		.key("environment.checkpoint_interval")
 		.defaultValue(1000L);
 
+	private static final ConfigOption<Boolean> ENVIRONMENT_EXTERNALIZE_CHECKPOINT = ConfigOptions
+		.key("environment.externalize_checkpoint")
+		.defaultValue(false);
+
+	private static final ConfigOption<String> ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP = ConfigOptions
+		.key("environment.externalize_checkpoint.cleanup")
+		.defaultValue("retain");
+
+	private static final ConfigOption<Boolean> ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS = ConfigOptions
+		.key("environment.fail_on_checkpointing_errors")
+		.defaultValue(true);
+
 	private static final ConfigOption<Integer> ENVIRONMENT_PARALLELISM = ConfigOptions
 		.key("environment.parallelism")
 		.defaultValue(1);
@@ -161,18 +173,6 @@ public class DataStreamAllroundTestJobFactory {
 	private static final ConfigOption<Long> ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY = ConfigOptions
 		.key("environment.restart_strategy.fixed.delay")
 		.defaultValue(0L);
-
-	private static final ConfigOption<Boolean> ENVIRONMENT_EXTERNALIZE_CHECKPOINT = ConfigOptions
-		.key("environment.externalize_checkpoint")
-		.defaultValue(false);
-
-	private static final ConfigOption<String> ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP = ConfigOptions
-		.key("environment.externalize_checkpoint.cleanup")
-		.defaultValue("retain");
-
-	private static final ConfigOption<Boolean> ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS = ConfigOptions
-		.key("environment.fail_on_checkpointing_errors")
-		.defaultValue(true);
 
 	private static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 		.key("state_backend")
