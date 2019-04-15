@@ -228,7 +228,7 @@ Action "run" compiles and runs a program.
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
      -c,--class <classname>               Class with the program entry point
-                                          ("main" method or "getPlan()" method.
+                                          ("main()" method or "getPlan()" method).
                                           Only needed if the JAR file does not
                                           specify the class in its manifest.
      -C,--classpath <url>                 Adds a URL to each user code
