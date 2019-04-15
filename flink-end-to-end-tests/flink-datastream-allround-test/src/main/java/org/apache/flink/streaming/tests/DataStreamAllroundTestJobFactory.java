@@ -53,6 +53,7 @@ import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialListSt
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueStateBuilder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -230,8 +231,18 @@ public class DataStreamAllroundTestJobFactory {
 		.defaultValue(250L);
 
 	public static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
+		setupCheckpointing(env, pt);
+		setupParallelism(env, pt);
+		setupRestartStrategy(env, pt);
+		setupStateBackend(env, pt);
 
-		// set checkpointing semantics
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(pt);
+	}
+
+	private static void setupCheckpointing(final StreamExecutionEnvironment env, final ParameterTool pt) {
 		String semantics = pt.get(TEST_SEMANTICS.key(), TEST_SEMANTICS.defaultValue());
 		long checkpointInterval = pt.getLong(ENVIRONMENT_CHECKPOINT_INTERVAL.key(), ENVIRONMENT_CHECKPOINT_INTERVAL.defaultValue());
 		CheckpointingMode checkpointingMode = semantics.equalsIgnoreCase("exactly-once")
@@ -239,59 +250,6 @@ public class DataStreamAllroundTestJobFactory {
 			: CheckpointingMode.AT_LEAST_ONCE;
 
 		env.enableCheckpointing(checkpointInterval, checkpointingMode);
-
-		// use event time
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-
-		// parallelism
-		env.setParallelism(pt.getInt(ENVIRONMENT_PARALLELISM.key(), ENVIRONMENT_PARALLELISM.defaultValue()));
-		env.setMaxParallelism(pt.getInt(ENVIRONMENT_MAX_PARALLELISM.key(), ENVIRONMENT_MAX_PARALLELISM.defaultValue()));
-
-		// restart strategy
-		String restartStrategyConfig = pt.get(ENVIRONMENT_RESTART_STRATEGY.key());
-		if (restartStrategyConfig != null) {
-			RestartStrategies.RestartStrategyConfiguration restartStrategy;
-			switch (restartStrategyConfig) {
-				case "fixed_delay":
-					restartStrategy = RestartStrategies.fixedDelayRestart(
-						pt.getInt(
-							ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.key(),
-							ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.defaultValue()),
-						pt.getLong(
-							ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY.key(),
-							ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY.defaultValue()));
-					break;
-				case "no_restart":
-					restartStrategy = RestartStrategies.noRestart();
-					break;
-				default:
-					throw new IllegalArgumentException("Unkown restart strategy: " + restartStrategyConfig);
-			}
-			env.setRestartStrategy(restartStrategy);
-		}
-
-		// state backend
-		final String stateBackend = pt.get(
-			STATE_BACKEND.key(),
-			STATE_BACKEND.defaultValue());
-
-		final String checkpointDir = pt.getRequired(STATE_BACKEND_CHECKPOINT_DIR.key());
-
-		if ("file".equalsIgnoreCase(stateBackend)) {
-			boolean asyncCheckpoints = pt.getBoolean(
-				STATE_BACKEND_FILE_ASYNC.key(),
-				STATE_BACKEND_FILE_ASYNC.defaultValue());
-
-			env.setStateBackend((StateBackend) new FsStateBackend(checkpointDir, asyncCheckpoints));
-		} else if ("rocks".equalsIgnoreCase(stateBackend)) {
-			boolean incrementalCheckpoints = pt.getBoolean(
-				STATE_BACKEND_ROCKS_INCREMENTAL.key(),
-				STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
-
-			env.setStateBackend((StateBackend) new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
-		} else {
-			throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
-		}
 
 		boolean enableExternalizedCheckpoints = pt.getBoolean(
 			ENVIRONMENT_EXTERNALIZE_CHECKPOINT.key(),
@@ -320,9 +278,59 @@ public class DataStreamAllroundTestJobFactory {
 			ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS.key(),
 			ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS.defaultValue());
 		env.getCheckpointConfig().setFailOnCheckpointingErrors(failOnCheckpointingErrors);
+	}
 
-		// make parameters available in the web interface
-		env.getConfig().setGlobalJobParameters(pt);
+	private static void setupParallelism(final StreamExecutionEnvironment env, final ParameterTool pt) {
+		env.setParallelism(pt.getInt(ENVIRONMENT_PARALLELISM.key(), ENVIRONMENT_PARALLELISM.defaultValue()));
+		env.setMaxParallelism(pt.getInt(ENVIRONMENT_MAX_PARALLELISM.key(), ENVIRONMENT_MAX_PARALLELISM.defaultValue()));
+	}
+
+	private static void setupRestartStrategy(final StreamExecutionEnvironment env, final ParameterTool pt) {
+		String restartStrategyConfig = pt.get(ENVIRONMENT_RESTART_STRATEGY.key());
+		if (restartStrategyConfig != null) {
+			RestartStrategies.RestartStrategyConfiguration restartStrategy;
+			switch (restartStrategyConfig) {
+				case "fixed_delay":
+					restartStrategy = RestartStrategies.fixedDelayRestart(
+						pt.getInt(
+							ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.key(),
+							ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.defaultValue()),
+						pt.getLong(
+							ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY.key(),
+							ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY.defaultValue()));
+					break;
+				case "no_restart":
+					restartStrategy = RestartStrategies.noRestart();
+					break;
+				default:
+					throw new IllegalArgumentException("Unkown restart strategy: " + restartStrategyConfig);
+			}
+			env.setRestartStrategy(restartStrategy);
+		}
+	}
+
+	private static void setupStateBackend(final StreamExecutionEnvironment env, final ParameterTool pt) throws IOException {
+		final String stateBackend = pt.get(
+			STATE_BACKEND.key(),
+			STATE_BACKEND.defaultValue());
+
+		final String checkpointDir = pt.getRequired(STATE_BACKEND_CHECKPOINT_DIR.key());
+
+		if ("file".equalsIgnoreCase(stateBackend)) {
+			boolean asyncCheckpoints = pt.getBoolean(
+				STATE_BACKEND_FILE_ASYNC.key(),
+				STATE_BACKEND_FILE_ASYNC.defaultValue());
+
+			env.setStateBackend((StateBackend) new FsStateBackend(checkpointDir, asyncCheckpoints));
+		} else if ("rocks".equalsIgnoreCase(stateBackend)) {
+			boolean incrementalCheckpoints = pt.getBoolean(
+				STATE_BACKEND_ROCKS_INCREMENTAL.key(),
+				STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
+
+			env.setStateBackend((StateBackend) new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+		} else {
+			throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
+		}
 	}
 
 	static SourceFunction<Event> createEventSource(ParameterTool pt) {
