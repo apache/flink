@@ -404,7 +404,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			SingleInputGate gate = SingleInputGate.create(
 				taskNameWithSubtaskAndId,
 				jobId,
-				executionId,
 				inputGateDeploymentDescriptor,
 				networkEnvironment,
 				taskEventDispatcher,

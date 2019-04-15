@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfigurationBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
@@ -300,23 +300,13 @@ public class NetworkEnvironmentTest {
 	 *
 	 * @param partitionType
 	 * 		the consumed partition type
-	 * @param channels
+	 * @param numberOfChannels
 	 * 		the number of input channels
 	 *
 	 * @return input gate with some fake settings
 	 */
-	private SingleInputGate createSingleInputGate(
-			final ResultPartitionType partitionType, final int channels) {
-		return spy(new SingleInputGate(
-			"Test Task Name",
-			new JobID(),
-			new IntermediateDataSetID(),
-			partitionType,
-			0,
-			channels,
-			new NoOpTaskActions(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			enableCreditBasedFlowControl));
+	private SingleInputGate createSingleInputGate(ResultPartitionType partitionType, int numberOfChannels) {
+		return spy(InputChannelTestUtils.createSingleInputGate(numberOfChannels, partitionType, enableCreditBasedFlowControl));
 	}
 
 	private static void createRemoteInputChannel(

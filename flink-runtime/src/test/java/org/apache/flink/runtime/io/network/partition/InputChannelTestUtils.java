@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -58,6 +62,26 @@ public class InputChannelTestUtils {
 				.thenAnswer(viewCreator);
 
 		return manager;
+	}
+
+	public static SingleInputGate createSingleInputGate(int numberOfChannels) {
+		return createSingleInputGate(numberOfChannels, ResultPartitionType.PIPELINED, true);
+	}
+
+	public static SingleInputGate createSingleInputGate(
+		int numberOfChannels,
+		ResultPartitionType partitionType,
+		boolean isCreditBased) {
+
+		return new SingleInputGate(
+			"InputGate",
+			new JobID(),
+			new IntermediateDataSetID(),
+			partitionType,
+			0,
+			numberOfChannels,
+			new NoOpTaskActions(),
+			isCreditBased);
 	}
 
 	public static ConnectionManager createDummyConnectionManager() throws Exception {

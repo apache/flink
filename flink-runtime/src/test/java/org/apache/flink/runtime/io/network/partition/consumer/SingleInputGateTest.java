@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -352,7 +353,6 @@ public class SingleInputGateTest {
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
 			new JobID(),
-			new ExecutionAttemptID(),
 			gateDesc,
 			netEnv,
 			new TaskEventDispatcher(),
@@ -547,18 +547,8 @@ public class SingleInputGateTest {
 		return createInputGate(numberOfInputChannels, ResultPartitionType.PIPELINED);
 	}
 
-	private SingleInputGate createInputGate(
-			int numberOfInputChannels, ResultPartitionType partitionType) {
-		SingleInputGate inputGate = new SingleInputGate(
-			"Test Task Name",
-			new JobID(),
-			new IntermediateDataSetID(),
-			partitionType,
-			0,
-			numberOfInputChannels,
-			new NoOpTaskActions(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			enableCreditBasedFlowControl);
+	private SingleInputGate createInputGate(int numberOfInputChannels, ResultPartitionType partitionType) {
+		SingleInputGate inputGate = createSingleInputGate(numberOfInputChannels, partitionType, enableCreditBasedFlowControl);
 
 		assertEquals(partitionType, inputGate.getConsumedPartitionType());
 

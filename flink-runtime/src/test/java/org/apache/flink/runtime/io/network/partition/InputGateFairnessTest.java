@@ -34,7 +34,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
@@ -91,14 +90,7 @@ public class InputGateFairnessTest {
 
 		ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -145,14 +137,7 @@ public class InputGateFairnessTest {
 
 			ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
-			SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+			final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 			for (int i = 0; i < numberOfChannels; i++) {
 				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -196,14 +181,7 @@ public class InputGateFairnessTest {
 
 		// ----- create some source channels and fill them with buffers -----
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -252,14 +230,7 @@ public class InputGateFairnessTest {
 
 		// ----- create some source channels and fill them with buffers -----
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -303,6 +274,17 @@ public class InputGateFairnessTest {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
+
+	private SingleInputGate createFairnessVerifyingInputGate(int numberOfChannels) {
+		return new FairnessVerifyingInputGate(
+			"Test Task Name",
+			new JobID(),
+			new IntermediateDataSetID(),
+			0,
+			numberOfChannels,
+			new NoOpTaskActions(),
+			true);
+	}
 
 	private void fillRandom(PipelinedSubpartition[] partitions, int numPerPartition, BufferConsumer buffer) throws Exception {
 		ArrayList<Integer> poss = new ArrayList<>(partitions.length * numPerPartition);
@@ -357,12 +339,10 @@ public class InputGateFairnessTest {
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels,
 				TaskActions taskActions,
-				TaskIOMetricGroup metrics,
 				boolean isCreditBased) {
 
 			super(owningTaskName, jobId, consumedResultId, ResultPartitionType.PIPELINED,
-				consumedSubpartitionIndex,
-					numberOfInputChannels, taskActions, metrics, isCreditBased);
+				consumedSubpartitionIndex, numberOfInputChannels, taskActions, isCreditBased);
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -29,11 +28,8 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -53,6 +49,7 @@ import java.util.concurrent.Future;
 
 import scala.Tuple2;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
@@ -353,7 +350,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -493,7 +490,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -569,7 +566,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -659,7 +656,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 3;
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel channel1 = spy(createRemoteInputChannel(inputGate));
 		final RemoteInputChannel channel2 = spy(createRemoteInputChannel(inputGate));
 		final RemoteInputChannel channel3 = spy(createRemoteInputChannel(inputGate));
@@ -731,7 +728,7 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			numTotalBuffers, 32);
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel successfulRemoteIC = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(successfulRemoteIC.partitionId.getPartitionId(), successfulRemoteIC);
 
@@ -796,7 +793,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -859,7 +856,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -911,7 +908,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -966,7 +963,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -1032,19 +1029,6 @@ public class RemoteInputChannelTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	private SingleInputGate createSingleInputGate() {
-		return new SingleInputGate(
-			"InputGate",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			1,
-			new NoOpTaskActions(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true);
-	}
 
 	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate)
 			throws IOException, InterruptedException {
