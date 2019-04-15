@@ -80,6 +80,7 @@ import static org.apache.flink.streaming.tests.TestOperatorEnum.RESULT_TYPE_QUER
  *     <li>environment.checkpoint_interval (long, default - 1000): the checkpoint interval.</li>
  *     <li>environment.externalize_checkpoint (boolean, default - false): whether or not checkpoints should be externalized.</li>
  *     <li>environment.externalize_checkpoint.cleanup (String, default - 'retain'): Configures the cleanup mode for externalized checkpoints. Can be 'retain' or 'delete'.</li>
+ *     <li>environment.fail_on_checkpointing_errors (String, default - true): Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure.</li>
  *     <li>environment.parallelism (int, default - 1): parallelism to use for the job.</li>
  *     <li>environment.max_parallelism (int, default - 128): max parallelism to use for the job</li>
  *     <li>environment.restart_strategy (String, default - 'fixed_delay'): The failure restart strategy to use. Can be 'fixed_delay' or 'no_restart'.</li>
@@ -167,6 +168,10 @@ public class DataStreamAllroundTestJobFactory {
 	private static final ConfigOption<String> ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP = ConfigOptions
 		.key("environment.externalize_checkpoint.cleanup")
 		.defaultValue("retain");
+
+	private static final ConfigOption<Boolean> ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS = ConfigOptions
+		.key("environment.fail_on_checkpointing_errors")
+		.defaultValue(true);
 
 	private static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 		.key("state_backend")
@@ -308,9 +313,13 @@ public class DataStreamAllroundTestJobFactory {
 				default:
 					throw new IllegalArgumentException("Unknown clean up mode for externalized checkpoints: " + cleanupModeConfig);
 			}
-
 			env.getCheckpointConfig().enableExternalizedCheckpoints(cleanupMode);
 		}
+
+		final boolean failOnCheckpointingErrors = pt.getBoolean(
+			ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS.key(),
+			ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS.defaultValue());
+		env.getCheckpointConfig().setFailOnCheckpointingErrors(failOnCheckpointingErrors);
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(pt);
