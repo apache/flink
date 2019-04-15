@@ -128,30 +128,27 @@ class BatchExecRank(
     // (order[is_asc], null_is_last)
     val partitionBySortCollation = partitionBySortingKeys.map(_ => (true, true))
 
-    val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-
-
-
     // The collation for the order-by fields is inessential here, we only use the
     // comparator to distinguish order-by fields change.
     // (order[is_asc], null_is_last)
     val orderByCollation = orderKey.getFieldCollations.map(_ => (true, true)).toArray
     val orderByKeys = orderKey.getFieldCollations.map(_.getFieldIndex).toArray
 
+    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
     //operator needn't cache data
     val operator = new RankOperator(
       ComparatorCodeGenerator.gen(
         tableEnv.getConfig,
         "PartitionByComparator",
         partitionBySortingKeys,
-        partitionBySortingKeys.map(inputRowType.getTypeAt),
+        partitionBySortingKeys.map(inputType.getTypeAt),
         partitionBySortCollation.map(_._1),
         partitionBySortCollation.map(_._2)),
       ComparatorCodeGenerator.gen(
         tableEnv.getConfig,
         "OrderByComparator",
         orderByKeys,
-        orderByKeys.map(inputRowType.getTypeAt),
+        orderByKeys.map(inputType.getTypeAt),
         orderByCollation.map(_._1),
         orderByCollation.map(_._2)),
       rankStart,
