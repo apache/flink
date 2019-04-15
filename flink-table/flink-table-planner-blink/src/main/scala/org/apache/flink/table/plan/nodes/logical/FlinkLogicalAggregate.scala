@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode

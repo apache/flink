@@ -30,6 +30,7 @@ import org.apache.calcite.util.mapping.IntPair
 import java.io.{PrintWriter, StringWriter}
 import java.util
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 object FlinkRelOptUtil {
@@ -104,8 +105,17 @@ object FlinkRelOptUtil {
     *
     * @return Whether any of the aggregates are accurate DISTINCT
     */
-  def containsAccurateDistinctCall(aggCalls: Seq[AggregateCall]): Boolean = {
+  def containsAccurateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls.exists(call => call.isDistinct && !call.isApproximate)
+  }
+
+  /**
+    * Returns whether any of the aggregates are approximate DISTINCT.
+    *
+    * @return Whether any of the aggregates are approximate DISTINCT
+    */
+  def containsApproximateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
+    aggCalls.exists(call => call.isDistinct && call.isApproximate)
   }
 
   /**

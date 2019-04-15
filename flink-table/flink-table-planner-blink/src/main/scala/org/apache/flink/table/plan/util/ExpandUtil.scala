@@ -38,15 +38,6 @@ import scala.collection.mutable
 
 object ExpandUtil {
 
-  def getGroupIdExprIndexes(aggCalls: Seq[AggregateCall]): Seq[Int] = {
-    aggCalls.zipWithIndex.filter { case (call, _) =>
-      call.getAggregation.getKind match {
-        case SqlKind.GROUP_ID | SqlKind.GROUPING | SqlKind.GROUPING_ID => true
-        case _ => false
-      }
-    }.map { case (_, idx) => idx }
-  }
-
   /**
     * Build the [[Expand]] node.
     * The input node should be pushed into the RelBuilder before calling this method
@@ -68,7 +59,7 @@ object ExpandUtil {
     // e.g. SELECT count(a) as a, count(b) as b, count(c) as c FROM MyTable
     //      GROUP BY GROUPING SETS ((a, b), (a, c))
     // only field 'b' and 'c' need be outputted as duplicate fields.
-    val groupIdExprs = getGroupIdExprIndexes(aggCalls)
+    val groupIdExprs = FlinkRelOptUtil.getGroupIdExprIndexes(aggCalls)
     val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
     val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
       case (aggCall, idx) =>

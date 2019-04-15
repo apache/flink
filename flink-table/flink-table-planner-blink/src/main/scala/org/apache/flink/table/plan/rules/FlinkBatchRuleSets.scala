@@ -159,9 +159,14 @@ object FlinkBatchRuleSets {
     AggregateJoinTransposeRule.EXTENDED,
     // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
+    // expand distinct aggregate to normal aggregate with groupby
+    FlinkAggregateExpandDistinctAggregatesRule.INSTANCE,
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     AggregateReduceFunctionsRule.INSTANCE,
+
+    // expand grouping sets
+    DecomposeGroupingSetsRule.INSTANCE,
 
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
@@ -222,6 +227,7 @@ object FlinkBatchRuleSets {
     BatchExecLimitRule.INSTANCE,
     BatchExecSortLimitRule.INSTANCE,
     BatchExecRankRule.INSTANCE,
+    BatchExecExpandRule.INSTANCE,
     BatchExecHashAggRule.INSTANCE,
     BatchExecSortAggRule.INSTANCE,
     BatchExecHashJoinRule.INSTANCE,
