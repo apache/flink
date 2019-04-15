@@ -271,7 +271,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Wraps the chunk of the underlying memory located between <tt>offset</tt> and
-	 * <tt>length</tt> in a NIO ByteBuffer.
+	 * <tt>offset + length</tt> in a NIO ByteBuffer.
 	 *
 	 * @param offset The offset in the memory segment.
 	 * @param length The number of bytes to be wrapped as a buffer.
@@ -1272,7 +1272,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes to target unsafe object and pointer.
-	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 * NOTE: This is a unsafe method, no check here, please be careful.
 	 *
 	 * @param offset The position where the bytes are started to be read from in this memory segment.
 	 * @param target The unsafe memory to copy the bytes to.
@@ -1294,7 +1294,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes from source unsafe object and pointer.
-	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 * NOTE: This is a unsafe method, no check here, please be careful.
 	 *
 	 * @param offset The position where the bytes are started to be write in this memory segment.
 	 * @param source The unsafe memory to copy the bytes from.
