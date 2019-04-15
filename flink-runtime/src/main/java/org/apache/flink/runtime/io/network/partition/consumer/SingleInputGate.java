@@ -593,7 +593,13 @@ public class SingleInputGate extends InputGate {
 			return new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable);
 		}
 		else {
-			final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+			final AbstractEvent event;
+			try {
+				event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+			}
+			finally {
+				buffer.recycleBuffer();
+			}
 
 			if (event.getClass() == EndOfPartitionEvent.class) {
 				channelsWithEndOfPartitionEvents.set(currentChannel.getChannelIndex());

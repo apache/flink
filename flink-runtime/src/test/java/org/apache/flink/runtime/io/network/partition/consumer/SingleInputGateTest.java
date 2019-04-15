@@ -114,6 +114,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(inputGate.isFinished());
+
+		for (TestInputChannel ic : inputChannels) {
+			ic.assertReturnedEventsAreRecycled();
+		}
 	}
 
 	@Test
