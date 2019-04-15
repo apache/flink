@@ -50,7 +50,7 @@ public class DistributedCache {
 	 */
 	public static class DistributedCacheEntry implements Serializable {
 
-		public String filePath;
+		public Path filePath;
 		public Boolean isExecutable;
 		public boolean isZipped;
 
@@ -68,7 +68,7 @@ public class DistributedCache {
 
 		/** Server-side constructor used during job-submission for zipped directories. */
 		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey, boolean isZipped) {
-			this.filePath = filePath;
+			this.filePath = new Path(filePath);
 			this.isExecutable = isExecutable;
 			this.blobKey = blobKey;
 			this.isZipped = isZipped;
@@ -82,7 +82,7 @@ public class DistributedCache {
 		@Override
 		public String toString() {
 			return "DistributedCacheEntry{" +
-				"filePath='" + filePath + '\'' +
+				"filePath='" + filePath.toString() + '\'' +
 				", isExecutable=" + isExecutable +
 				", isZipped=" + isZipped +
 				", blobKey=" + Arrays.toString(blobKey) +
@@ -133,9 +133,9 @@ public class DistributedCache {
 		int num = conf.getInteger(CACHE_FILE_NUM, 0) + 1;
 		conf.setInteger(CACHE_FILE_NUM, num);
 		conf.setString(CACHE_FILE_NAME + num, name);
-		conf.setString(CACHE_FILE_PATH + num, e.filePath);
-		conf.setBoolean(CACHE_FILE_EXE + num, e.isExecutable || new File(e.filePath).canExecute());
-		conf.setBoolean(CACHE_FILE_DIR + num, e.isZipped || new File(e.filePath).isDirectory());
+		conf.setString(CACHE_FILE_PATH + num, e.filePath.toString());
+		conf.setBoolean(CACHE_FILE_EXE + num, e.isExecutable || new File(e.filePath.toString()).canExecute());
+		conf.setBoolean(CACHE_FILE_DIR + num, e.isZipped || new File(e.filePath.toString()).isDirectory());
 		if (e.blobKey != null) {
 			conf.setBytes(CACHE_FILE_BLOB_KEY + num, e.blobKey);
 		}

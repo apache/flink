@@ -294,14 +294,14 @@ public class JobGraphTest extends TestLogger {
 		};
 
 		for (DistributedCache.DistributedCacheEntry entry : entries) {
-			jb.addUserArtifact(entry.filePath, entry);
+			jb.addUserArtifact(entry.filePath.toString(), entry);
 		}
 
 		for (DistributedCache.DistributedCacheEntry entry : entries) {
 			PermanentBlobKey blobKey = new PermanentBlobKey();
-			jb.setUserArtifactBlobKey(entry.filePath, blobKey);
+			jb.setUserArtifactBlobKey(entry.filePath.toString(), blobKey);
 
-			DistributedCache.DistributedCacheEntry jobGraphEntry = jb.getUserArtifacts().get(entry.filePath);
+			DistributedCache.DistributedCacheEntry jobGraphEntry = jb.getUserArtifacts().get(entry.filePath.toString());
 			assertNotNull(jobGraphEntry);
 			assertEquals(blobKey, InstantiationUtil.deserializeObject(jobGraphEntry.blobKey, ClassLoader.getSystemClassLoader(), false));
 			assertEquals(entry.isExecutable, jobGraphEntry.isExecutable);

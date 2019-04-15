@@ -113,10 +113,10 @@ public class ClientUtilsTest extends TestLogger {
 		);
 
 		for (DistributedCache.DistributedCacheEntry entry : localArtifacts) {
-			jobGraph.addUserArtifact(entry.filePath, entry);
+			jobGraph.addUserArtifact(entry.filePath.toString(), entry);
 		}
 		for (DistributedCache.DistributedCacheEntry entry : distributedArtifacts) {
-			jobGraph.addUserArtifact(entry.filePath, entry);
+			jobGraph.addUserArtifact(entry.filePath.toString(), entry);
 		}
 
 		final int totalNumArtifacts = localArtifacts.size() + distributedArtifacts.size();
@@ -132,10 +132,10 @@ public class ClientUtilsTest extends TestLogger {
 		// 1 unique key for each local artifact, and null for distributed artifacts
 		assertEquals(localArtifacts.size() + 1, jobGraph.getUserArtifacts().values().stream().map(entry -> entry.blobKey).distinct().count());
 		for (DistributedCache.DistributedCacheEntry original : localArtifacts) {
-			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), false, jobGraph.getJobID());
+			assertState(original, jobGraph.getUserArtifacts().get(original.filePath.toString()), false, jobGraph.getJobID());
 		}
 		for (DistributedCache.DistributedCacheEntry original : distributedArtifacts) {
-			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), true, jobGraph.getJobID());
+			assertState(original, jobGraph.getUserArtifacts().get(original.filePath.toString()), true, jobGraph.getJobID());
 		}
 	}
 

@@ -288,10 +288,10 @@ public class FileCache {
 		private boolean executable;
 
 		public CopyFromDFSProcess(DistributedCacheEntry e, Path cachedPath) {
-			this.filePath = new Path(e.filePath);
+			this.filePath = e.filePath;
 			this.executable = e.isExecutable;
 
-			String sourceFile = e.filePath;
+			String sourceFile = e.filePath.toString();
 			int posOfSep = sourceFile.lastIndexOf("/");
 			if (posOfSep > 0) {
 				sourceFile = sourceFile.substring(posOfSep + 1);

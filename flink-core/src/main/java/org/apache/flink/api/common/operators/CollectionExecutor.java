@@ -122,7 +122,7 @@ public class CollectionExecutor {
 
 	private void initCache(Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> files){
 		for(Map.Entry<String, DistributedCache.DistributedCacheEntry> file: files){
-			Future<Path> doNothing = new CompletedFuture(new Path(file.getValue().filePath));
+			Future<Path> doNothing = new CompletedFuture(file.getValue().filePath);
 			cachedFiles.put(file.getKey(), doNothing);
 		}
 	};

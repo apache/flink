@@ -269,7 +269,7 @@ public class JobGraphGeneratorTest {
 		assertNotNull(entry);
 		assertEquals(isExecutable, entry.isExecutable);
 		assertEquals(isZipped, entry.isZipped);
-		org.apache.flink.core.fs.Path filePath = new org.apache.flink.core.fs.Path(entry.filePath);
+		org.apache.flink.core.fs.Path filePath = entry.filePath;
 		assertTrue(filePath.getFileSystem().exists(filePath));
 		assertFalse(filePath.getFileSystem().getFileStatus(filePath).isDir());
 	}

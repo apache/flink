@@ -279,7 +279,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			try {
 				java.nio.file.Path tmpDir = Files.createTempDirectory("flink-distributed-cache-" + jobGraph.getJobID());
 				for (Tuple2<String, DistributedCache.DistributedCacheEntry> originalEntry : userArtifacts) {
-					Path filePath = new Path(originalEntry.f1.filePath);
+					Path filePath = originalEntry.f1.filePath;
 					boolean isLocalDir = false;
 					try {
 						FileSystem sourceFs = filePath.getFileSystem();

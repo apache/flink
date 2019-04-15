@@ -575,7 +575,7 @@ public class JobGraph implements Serializable {
 		serializedBlobKey = InstantiationUtil.serializeObject(blobKey);
 
 		userArtifacts.computeIfPresent(entryName, (key, originalEntry) -> new DistributedCache.DistributedCacheEntry(
-			originalEntry.filePath,
+			originalEntry.filePath.toString(),
 			originalEntry.isExecutable,
 			serializedBlobKey,
 			originalEntry.isZipped
