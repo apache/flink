@@ -212,11 +212,6 @@ public class ResultPartitionTest {
 	}
 
 	@Test
-	public void testReleaseMemoryOnBlockingPartition() throws Exception {
-		testReleaseMemory(ResultPartitionType.BLOCKING);
-	}
-
-	@Test
 	public void testReleaseMemoryOnPipelinedPartition() throws Exception {
 		testReleaseMemory(ResultPartitionType.PIPELINED);
 	}
