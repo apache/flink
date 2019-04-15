@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -183,43 +182,6 @@ public class NetworkEnvironment {
 			}
 
 			ExceptionUtils.rethrowIOException(t);
-		}
-	}
-
-	public void unregisterTask(Task task) {
-		LOG.debug("Unregister task {} from network environment (state: {}).",
-				task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionState());
-
-		final ExecutionAttemptID executionId = task.getExecutionId();
-
-		synchronized (lock) {
-			if (isShutdown) {
-				// no need to do anything when we are not operational
-				return;
-			}
-
-			if (task.isCanceledOrFailed()) {
-				resultPartitionManager.releasePartitionsProducedBy(executionId, task.getFailureCause());
-			}
-
-			for (ResultPartition partition : task.getProducedPartitions()) {
-				partition.close();
-			}
-
-			final SingleInputGate[] inputGates = task.getAllInputGates();
-
-			if (inputGates != null) {
-				for (SingleInputGate gate : inputGates) {
-					try {
-						if (gate != null) {
-							gate.close();
-						}
-					}
-					catch (IOException e) {
-						LOG.error("Error during release of reader resources: " + e.getMessage(), e);
-					}
-				}
-			}
 		}
 	}
 
