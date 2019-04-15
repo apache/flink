@@ -37,7 +37,7 @@ public class RowNumberAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public int operandCount() {
-		return 1;
+		return 0;
 	}
 
 	@Override
