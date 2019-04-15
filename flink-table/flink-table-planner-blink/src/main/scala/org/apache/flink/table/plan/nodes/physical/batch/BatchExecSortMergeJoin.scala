@@ -23,7 +23,8 @@ import org.apache.flink.table.`type`.{RowType, TypeConverters}
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
-import org.apache.flink.table.codegen.{CodeGeneratorContext, SortCodeGenerator}
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}

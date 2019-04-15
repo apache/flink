@@ -485,7 +485,6 @@ class JoinITCase() extends BatchTestBase with JoinITCaseBase {
   }
 
   // join with agg
-  @Ignore
   @Test
   def testJoinWithAggregation(): Unit = {
     checkResult(

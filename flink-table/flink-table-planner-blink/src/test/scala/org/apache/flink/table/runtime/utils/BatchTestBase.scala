@@ -23,12 +23,14 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
+import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
-import org.apache.flink.table.util.DiffRepository
+import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
@@ -382,10 +384,10 @@ class BatchTestBase extends AbstractTestBase {
     BatchTableEnvUtil.registerCollection(tEnv, tableName, data.asScala, typeInfo, fields)
   }
 
-  def registerCollection(
+  def registerCollection[T](
       tableName: String,
-      data: Iterable[Row],
-      typeInfo: TypeInformation[Row],
+      data: Iterable[T],
+      typeInfo: TypeInformation[T],
       fieldNullables: Array[Boolean],
       fields: String): Unit = {
     BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
@@ -419,6 +421,22 @@ object BatchTestBase {
       row.setField(i, values(i))
       i += 1
     }
+    row
+  }
+
+  def binaryRow(types: Array[InternalType], fields: Any*): BinaryRow = {
+    assertEquals(
+      "Filed count inconsistent with type information",
+      fields.length,
+      types.length)
+    val row = new BinaryRow(fields.length)
+    val writer = new BinaryRowWriter(row)
+    writer.reset()
+    fields.zipWithIndex.foreach { case (field, index) =>
+      if (field == null) writer.setNullAt(index)
+      else BaseRowTestUtil.write(writer, index, field, types(index))
+    }
+    writer.complete()
     row
   }
 

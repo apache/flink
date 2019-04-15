@@ -25,7 +25,8 @@ import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull}
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
-import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator, SortCodeGenerator}
+import org.apache.flink.table.codegen.sort.SortCodeGenerator
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction

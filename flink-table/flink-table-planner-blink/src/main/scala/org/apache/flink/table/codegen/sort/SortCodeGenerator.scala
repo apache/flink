@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.codegen
+package org.apache.flink.table.codegen.sort
 
 import org.apache.flink.table.`type`.{DateType, DecimalType, InternalType, InternalTypes, PrimitiveType, TimeType, TimestampType}
 import org.apache.flink.table.api.TableConfig
@@ -379,36 +379,7 @@ class SortCodeGenerator(
     * @return A GeneratedRecordComparator
     */
   def generateRecordComparator(name: String): GeneratedRecordComparator = {
-    val className = newName(name)
-    val baseClass = classOf[RecordComparator]
-
-    val ctx = new CodeGeneratorContext(conf)
-    val compareCode = GenerateUtils.generateRowCompare(
-      ctx, keys, keyTypes, orders, nullsIsLast, "o1", "o2")
-
-    val code =
-      j"""
-      public class $className implements ${baseClass.getCanonicalName} {
-
-        private final Object[] references;
-        ${ctx.reuseMemberCode()}
-
-        public $className(Object[] references) {
-          this.references = references;
-          ${ctx.reuseInitCode()}
-          ${ctx.reuseOpenCode()}
-        }
-
-        @Override
-        public int compare($BASE_ROW o1, $BASE_ROW o2) {
-          $compareCode
-          return 0;
-        }
-
-      }
-      """.stripMargin
-
-    new GeneratedRecordComparator(className, code, ctx.references.toArray)
+    ComparatorCodeGenerator.gen(conf, name, keys, keyTypes, orders, nullsIsLast)
   }
 
   def getter(t: InternalType, index: Int): String = {

@@ -17,15 +17,26 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.RelExplainUtil.fetchToString
+import org.apache.flink.table.runtime.sort.LimitOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for [[Sort]].
@@ -46,7 +57,8 @@ class BatchExecLimit(
     traitSet.getTrait(RelCollationTraitDef.INSTANCE),
     offset,
     fetch)
-  with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   private lazy val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
   private lazy val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
@@ -63,7 +75,7 @@ class BatchExecLimit(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
       .item("offset", limitStart)
-      .item("fetch", RelExplainUtil.fetchToString(fetch))
+      .item("fetch", fetchToString(fetch))
       .item("global", isGlobal)
   }
 
@@ -72,5 +84,29 @@ class BatchExecLimit(
     val cpuCost = COMPARE_CPU_COST * rowCount
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(rowCount, cpuCost, 0, 0, 0)
+  }
+
+  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val inputType = input.getOutputType
+    val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
+    new OneInputTransformation(
+      input,
+      getOperatorName,
+      operator,
+      inputType,
+      if (isGlobal) 1 else input.getParallelism)
+  }
+
+  private def getOperatorName = {
+    val prefix = if (isGlobal) "Global" else "Local"
+    s"${prefix}Limit(offset: $limitStart, fetch: ${fetchToString(fetch)})"
   }
 }

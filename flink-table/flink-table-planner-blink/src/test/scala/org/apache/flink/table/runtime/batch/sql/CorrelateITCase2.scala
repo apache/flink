@@ -90,7 +90,7 @@ class CorrelateITCase2 extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO Introduce FlinkRelMdSize to let RowSize not null
+  @Ignore
   @Test
   def testConstantTableFunc2(): Unit = {
     tEnv.registerFunction("str_split", new StringSplit())
@@ -136,7 +136,7 @@ class CorrelateITCase2 extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support substring
+  @Ignore
   @Test
   def testConstantTableFuncWithSubString(): Unit = {
     tEnv.registerFunction("str_split", new StringSplit())

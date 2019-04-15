@@ -116,7 +116,6 @@ class CorrelateITCase extends BatchTestBase {
         row("Anna#44", "Anna", 44)))
   }
 
-  @Ignore // TODO support substring
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
     tEnv.registerFunction("func", new TableFunc1)

@@ -19,6 +19,7 @@
 package org.apache.flink.table.util;
 
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.type.InternalType;
@@ -89,6 +90,10 @@ public class BaseRowTestUtil {
 			}
 			return row;
 		}
+	}
+
+	public static void write(BinaryWriter writer, int pos, Object o, InternalType type) {
+		BinaryWriter.write(writer, pos, o, type);
 	}
 
 }

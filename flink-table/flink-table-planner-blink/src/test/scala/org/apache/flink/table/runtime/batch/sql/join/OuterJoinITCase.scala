@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -198,7 +198,6 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
           row(6, "F", null, null) :: Nil)
   }
 
-  @Ignore
   @Test
   def testLeftUpperAndLowerWithAgg(): Unit = {
     checkResult(
@@ -262,7 +261,6 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
 
   }
 
-  @Ignore
   @Test
   def testRightUpperAndLowerWithAgg(): Unit = {
     checkResult(
@@ -330,7 +328,6 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
     }
   }
 
-  @Ignore
   @Test
   def testFullUpperAndLowerWithAgg(): Unit = {
     if (expectedJoinType != NestedLoopJoin && expectedJoinType != BroadcastHashJoin) {

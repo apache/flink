@@ -17,14 +17,27 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil, SortUtil}
+import org.apache.flink.table.runtime.sort.SortLimitOperator
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for [[Sort]].
@@ -44,10 +57,14 @@ class BatchExecSortLimit(
     fetch: RexNode,
     isGlobal: Boolean)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
-  with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   private val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
   private val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
+
+  private val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(
+    sortCollation.getFieldCollations)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -92,4 +109,41 @@ class BatchExecSortLimit(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
+  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    if (limitEnd == Long.MaxValue) {
+      throw new TableException("Not support limitEnd is max value now!")
+    }
+
+    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
+    val types = inputType.getFieldTypes.map(createInternalTypeFromTypeInfo)
+
+    // generate comparator
+    val genComparator = ComparatorCodeGenerator.gen(
+      tableEnv.getConfig, "SortLimitComparator", keys, keys.map(types(_)), orders, nullsIsLast)
+
+    // TODO If input is ordered, there is no need to use the heap.
+    val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)
+
+    new OneInputTransformation(
+      input,
+      getOperatorName,
+      operator,
+      inputType,
+      if (isGlobal) 1 else input.getParallelism)
+  }
+
+  private def getOperatorName = {
+    s"${if (isGlobal) "Global" else "Local"}SortLimit(" +
+        s"orderBy: [${RelExplainUtil.collationToString(sortCollation, getRowType)}], " +
+        s"offset: $limitStart, " +
+        s"fetch: ${RelExplainUtil.fetchToString(fetch)})"
+  }
 }
