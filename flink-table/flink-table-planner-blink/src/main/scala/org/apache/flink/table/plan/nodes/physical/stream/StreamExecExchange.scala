@@ -45,8 +45,8 @@ class StreamExecExchange(
     relNode: RelNode,
     relDistribution: RelDistribution)
   extends CommonPhysicalExchange(cluster, traitSet, relNode, relDistribution)
-    with StreamPhysicalRel
-    with StreamExecNode[BaseRow] {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 

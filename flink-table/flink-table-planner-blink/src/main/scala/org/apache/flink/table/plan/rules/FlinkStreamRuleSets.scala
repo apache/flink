@@ -165,6 +165,9 @@ object FlinkStreamRuleSets {
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     AggregateReduceFunctionsRule.INSTANCE,
 
+    // expand grouping sets
+    DecomposeGroupingSetsRule.INSTANCE,
+
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
 

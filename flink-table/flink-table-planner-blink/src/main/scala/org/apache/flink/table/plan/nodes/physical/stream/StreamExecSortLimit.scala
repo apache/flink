@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy}
+import org.apache.flink.table.plan.util.{RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -41,8 +41,8 @@ class StreamExecSortLimit(
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel {
 
-  private val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
-  private val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
+  private val limitStart: Long = SortUtil.getLimitStart(offset)
+  private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
 
   /** please uses [[getStrategy]] instead of this field */
   private var strategy: RankProcessStrategy = _

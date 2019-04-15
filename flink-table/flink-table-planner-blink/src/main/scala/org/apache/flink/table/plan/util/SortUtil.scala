@@ -25,6 +25,7 @@ import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.{RelCollation, RelFieldCollation}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 
 import scala.collection.mutable
 
@@ -32,6 +33,23 @@ import scala.collection.mutable
   * Common methods for Flink sort operators.
   */
 object SortUtil {
+
+  /**
+    * Returns limit start value (never null).
+    */
+  def getLimitStart(offset: RexNode): Long = if (offset != null) RexLiteral.intValue(offset) else 0L
+
+  /**
+    * Returns limit end value (never null).
+    */
+  def getLimitEnd(offset: RexNode, fetch: RexNode): Long = {
+    if (fetch != null) {
+      getLimitStart(offset) + RexLiteral.intValue(fetch)
+    } else {
+      // TODO return Long.MaxValue when providing FlinkRelMdRowCount on Sort ?
+      Integer.MAX_VALUE
+    }
+  }
 
   /**
     * Returns the direction of the first sort field.

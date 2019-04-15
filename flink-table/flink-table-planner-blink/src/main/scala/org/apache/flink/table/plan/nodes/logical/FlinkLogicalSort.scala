@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.logical
 import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.SortUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.convert.ConverterRule
@@ -46,7 +46,7 @@ class FlinkLogicalSort(
   extends Sort(cluster, traits, child, collation, sortOffset, sortFetch)
   with FlinkLogicalRel {
 
-  private lazy val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
+  private lazy val limitStart: Long = SortUtil.getLimitStart(offset)
 
   override def copy(
       traitSet: RelTraitSet,

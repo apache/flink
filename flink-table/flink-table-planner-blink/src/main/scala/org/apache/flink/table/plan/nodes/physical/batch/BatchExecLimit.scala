@@ -24,8 +24,8 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.plan.util.RelExplainUtil.fetchToString
+import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.runtime.sort.LimitOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -60,8 +60,8 @@ class BatchExecLimit(
   with BatchPhysicalRel
   with BatchExecNode[BaseRow] {
 
-  private lazy val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
-  private lazy val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
+  private lazy val limitStart: Long = SortUtil.getLimitStart(offset)
+  private lazy val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
 
   override def copy(
       traitSet: RelTraitSet,

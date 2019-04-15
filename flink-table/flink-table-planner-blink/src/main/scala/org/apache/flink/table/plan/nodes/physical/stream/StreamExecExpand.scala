@@ -17,7 +17,14 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.`type`.{RowType, TypeConverters}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Expand
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -25,6 +32,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexNode
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for [[Expand]].
@@ -37,7 +46,8 @@ class StreamExecExpand(
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
   extends Expand(cluster, traitSet, inputRel, outputRowType, projects, expandIdIndex)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 
@@ -51,6 +61,37 @@ class StreamExecExpand(
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
+  }
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    val config = tableEnv.getConfig
+    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+      .asInstanceOf[StreamTransformation[BaseRow]]
+    val inputType = TypeConverters.createInternalTypeFromTypeInfo(
+      inputTransform.getOutputType).asInstanceOf[RowType]
+    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+
+    val ctx = CodeGeneratorContext(config)
+    val operator = ExpandCodeGenerator.generateExpandOperator(
+      ctx,
+      inputType,
+      outputType,
+      config,
+      projects,
+      opName = "StreamExpand")
+
+    val operatorName = s"StreamExecExpand: ${getRowType.getFieldList.map(_.getName).mkString(", ")}"
+    new OneInputTransformation(
+      inputTransform,
+      operatorName,
+      operator,
+      outputType.toTypeInfo,
+      config.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 
 }

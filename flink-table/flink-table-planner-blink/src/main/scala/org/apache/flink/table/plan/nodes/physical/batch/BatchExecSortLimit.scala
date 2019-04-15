@@ -25,7 +25,7 @@ import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil, SortUtil}
+import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.sort.SortLimitOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
@@ -60,8 +60,8 @@ class BatchExecSortLimit(
   with BatchPhysicalRel
   with BatchExecNode[BaseRow] {
 
-  private val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
-  private val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
+  private val limitStart: Long = SortUtil.getLimitStart(offset)
+  private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
 
   private val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(
     sortCollation.getFieldCollations)

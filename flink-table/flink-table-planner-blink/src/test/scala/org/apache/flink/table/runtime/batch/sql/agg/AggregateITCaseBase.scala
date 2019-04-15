@@ -202,7 +202,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testGroupedDistinctAggregate(): Unit = {
     checkResult(
@@ -215,7 +214,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testDistinctAggregate(): Unit = {
     checkResult(
@@ -226,7 +224,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testUV(): Unit = {
     val data = (0 until 100).map { i => row("1", "1", s"${i % 10}", "1") }.toList
@@ -378,7 +375,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testRollup(): Unit = {
     checkQuery(
@@ -402,7 +398,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testCube(): Unit = {
     checkQuery(
@@ -428,7 +423,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testGrouping(): Unit = {
     checkQuery(
@@ -483,7 +477,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testRollupOverlappingColumns(): Unit = {
     checkQuery(
@@ -501,7 +494,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testCubeOverlappingColumns(): Unit = {
     checkQuery(
@@ -560,7 +552,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testAverageWithDistinct(): Unit = {
     checkQuery(
@@ -592,7 +583,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testNullAverageWithDistinct(): Unit = {
     val testData3: Seq[(Integer, Integer)] =
@@ -619,7 +609,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testZeroAvgWithDistinct(): Unit = {
     checkQuery(
@@ -629,7 +618,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testCount(): Unit = {
     checkQuery(
@@ -653,7 +641,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testNullCountWithDistinct(): Unit = {
     checkQuery(
@@ -669,7 +656,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test(expected = classOf[TableException])
   def testMultipleColumnDistinctCount(): Unit = {
     val testData = Seq(
@@ -702,7 +688,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testZeroCount(): Unit = {
     val emptyTable = Seq[(Int, Int)]()
@@ -767,7 +752,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testZeroSumDistinct(): Unit = {
     val emptyTable = Seq[(Int, Int)]()

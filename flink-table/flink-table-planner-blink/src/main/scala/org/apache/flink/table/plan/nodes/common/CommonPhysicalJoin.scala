@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.common
 
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{JoinUtil, RelExplainUtil}
 
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -40,7 +40,7 @@ trait CommonPhysicalJoin extends Join with FlinkPhysicalRel {
 
   lazy val (joinInfo, filterNulls) = {
     val filterNulls = new util.ArrayList[java.lang.Boolean]
-    val joinInfo = FlinkRelOptUtil.createJoinInfo(getLeft, getRight, getCondition, filterNulls)
+    val joinInfo = JoinUtil.createJoinInfo(getLeft, getRight, getCondition, filterNulls)
     (joinInfo, filterNulls.map(_.booleanValue()).toArray)
   }
 
