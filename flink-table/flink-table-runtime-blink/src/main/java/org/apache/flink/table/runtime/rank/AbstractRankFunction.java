@@ -155,7 +155,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 		outputRow = new JoinedRow();
 
 		if (!isConstantRankEnd) {
-			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor("rankEnd", Types.LONG);
+			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor<>("rankEnd", Types.LONG);
 			rankEndState = getRuntimeContext().getState(rankStateDesc);
 		}
 		// compile equaliser
@@ -223,7 +223,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			if (compare < 0) {
 				return true;
 			} else {
-				return buffer.getCurrentTopNum() < getMaxSizeOfBuffer();
+				return buffer.getCurrentTopNum() < getDefaultTopNSize();
 			}
 		}
 	}
@@ -231,24 +231,10 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected void registerMetric(long heapSize) {
 		getRuntimeContext().getMetricGroup().<Double, Gauge<Double>>gauge(
 				"topn.cache.hitRate",
-				new Gauge<Double>() {
-
-					@Override
-					public Double getValue() {
-						return requestCount == 0 ? 1.0 :
-								Long.valueOf(hitCount).doubleValue() / requestCount;
-					}
-				});
+				() -> requestCount == 0 ? 1.0 : Long.valueOf(hitCount).doubleValue() / requestCount);
 
 		getRuntimeContext().getMetricGroup().<Long, Gauge<Long>>gauge(
-				"topn.cache.size",
-				new Gauge<Long>() {
-
-					@Override
-					public Long getValue() {
-						return heapSize;
-					}
-				});
+				"topn.cache.size", () -> heapSize);
 	}
 
 	protected void collect(Collector<BaseRow> out, BaseRow inputRow) {
@@ -312,13 +298,6 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			return inputRow;
 		}
 	}
-
-	/**
-	 * Gets buffer size limit. Implementations may vary depending on each rank who has in-memory buffer.
-	 *
-	 * @return buffer size limit
-	 */
-	protected abstract long getMaxSizeOfBuffer();
 
 	/**
 	 * Sets keyContext to RankFunction.

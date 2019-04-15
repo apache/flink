@@ -18,17 +18,21 @@
 
 package org.apache.flink.table.runtime.deduplicate;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator;
+import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,12 +42,9 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 
 /**
- * Tests for {@link DeduplicateFunction}.
+ * Tests for {@link MiniBatchDeduplicateKeepLastRowFunction}.
  */
-public class DeduplicateFunctionTest {
-
-	private Time minTime = Time.milliseconds(10);
-	private Time maxTime = Time.milliseconds(20);
+public class MiniBatchDeduplicateKeepLastRowFunctionTest {
 
 	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.LONG,
 			InternalTypes.INT);
@@ -52,89 +53,81 @@ public class DeduplicateFunctionTest {
 	private BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
 			inputRowType.getInternalTypes());
 
+
 	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
 			inputRowType.getFieldTypes(),
 			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getInternalTypes()[rowKeyIdx]));
 
-	private DeduplicateFunction createFunction(boolean generateRetraction, boolean keepLastRow) {
-		DeduplicateFunction func = new DeduplicateFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
-				inputRowType, generateRetraction, keepLastRow);
-		return func;
+	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
+
+	private MiniBatchDeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
+		return new MiniBatchDeduplicateKeepLastRowFunction(inputRowType, generateRetraction, typeSerializer);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
-			DeduplicateFunction func)
+			MiniBatchDeduplicateKeepLastRowFunction func)
 			throws Exception {
-		KeyedProcessOperator operator = new KeyedProcessOperator(func);
-		return new KeyedOneInputStreamOperatorTestHarness(operator, rowKeySelector, rowKeySelector.getProducedType());
+		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
+		KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
+		return new KeyedOneInputStreamOperatorTestHarness<>(op, rowKeySelector, rowKeySelector.getProducedType());
 	}
 
 	@Test
-	public void testKeepFirstRowWithoutGenerateRetraction() throws Exception {
-		DeduplicateFunction func = createFunction(false, false);
+	public void testWithoutGenerateRetraction() throws Exception {
+		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
+		testHarness.processElement(record("book", 1L, 10));
 		testHarness.processElement(record("book", 2L, 11));
+		// output is empty because bundle not trigger yet.
+		Assert.assertTrue(testHarness.getOutput().isEmpty());
+
 		testHarness.processElement(record("book", 1L, 13));
-		testHarness.close();
 
 		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
-	}
-
-	@Test
-	public void testKeepFirstRowWithGenerateRetraction() throws Exception {
-		DeduplicateFunction func = createFunction(true, false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
-		testHarness.close();
-
-		// Keep FirstRow in deduplicate will not send retraction
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
-	}
-
-	@Test
-	public void testKeepLastWithoutGenerateRetraction() throws Exception {
-		DeduplicateFunction func = createFunction(false, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(record("book", 1L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
-		testHarness.close();
-
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
 		expectedOutputOutput.add(record("book", 2L, 11));
 		expectedOutputOutput.add(record("book", 1L, 13));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+
+		testHarness.processElement(record("book", 1L, 12));
+		testHarness.processElement(record("book", 2L, 11));
+		testHarness.processElement(record("book", 3L, 11));
+
+		expectedOutputOutput.add(record("book", 1L, 12));
+		expectedOutputOutput.add(record("book", 2L, 11));
+		expectedOutputOutput.add(record("book", 3L, 11));
+		testHarness.close();
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
 	}
 
 	@Test
-	public void testKeepLastRowWithGenerateRetraction() throws Exception {
-		DeduplicateFunction func = createFunction(true, true);
+	public void testWithGenerateRetraction() throws Exception {
+		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
+		testHarness.processElement(record("book", 1L, 10));
+		testHarness.processElement(record("book", 2L, 11));
+		// output is empty because bundle not trigger yet.
+		Assert.assertTrue(testHarness.getOutput().isEmpty());
+
+		testHarness.processElement(record("book", 1L, 13));
+
+		List<Object> expectedOutputOutput = new ArrayList<>();
+		expectedOutputOutput.add(record("book", 2L, 11));
+		expectedOutputOutput.add(record("book", 1L, 13));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+
 		testHarness.processElement(record("book", 1L, 12));
 		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 1L, 13));
-		testHarness.close();
+		testHarness.processElement(record("book", 3L, 11));
 
-		// Keep LastRow in deduplicate may send retraction
-		List<Object> expectedOutputOutput = new ArrayList<>();
+		// this will send retract message to downstream
+		expectedOutputOutput.add(retractRecord("book", 1L, 13));
 		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(retractRecord("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 1L, 13));
+		expectedOutputOutput.add(retractRecord("book", 2L, 11));
 		expectedOutputOutput.add(record("book", 2L, 11));
+		expectedOutputOutput.add(record("book", 3L, 11));
+		testHarness.close();
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
 	}
 }

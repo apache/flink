@@ -28,9 +28,11 @@ import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
- * A utility class which will extract key from BaseRow.
+ * A utility class which extracts key from BaseRow.
  */
 public class BinaryRowKeySelector implements BaseRowKeySelector {
+
+	private static final long serialVersionUID = -2327761762415377059L;
 
 	private final int[] keyFields;
 	private final InternalType[] inputFieldTypes;

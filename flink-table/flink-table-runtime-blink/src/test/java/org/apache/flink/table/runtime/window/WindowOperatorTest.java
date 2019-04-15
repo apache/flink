@@ -69,10 +69,10 @@ public class WindowOperatorTest {
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
 
-	private InternalType[] inputFieldTypes = new InternalType[] {
+	private InternalType[] inputFieldTypes = new InternalType[]{
 			InternalTypes.STRING,
 			InternalTypes.INT,
-			InternalTypes.LONG };
+			InternalTypes.LONG};
 
 	private BaseRowTypeInfo outputType = new BaseRowTypeInfo(
 			InternalTypes.STRING,

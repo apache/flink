@@ -20,9 +20,7 @@ package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{Table, TableImpl}
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.rules.{ExpectedException, TemporaryFolder}
@@ -53,10 +51,6 @@ class StreamingTestBase extends AbstractTestBase {
       this.env.getConfig.enableObjectReuse()
     }
     this.tEnv = StreamTableEnvironment.create(env)
-  }
-
-  def writeToSink(table: Table, sink: TableSink[_]): Unit = {
-    TableUtil.writeToSink(table.asInstanceOf[TableImpl], sink)
   }
 
 }

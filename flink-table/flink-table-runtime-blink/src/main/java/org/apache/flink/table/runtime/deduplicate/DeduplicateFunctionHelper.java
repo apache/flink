@@ -39,21 +39,18 @@ class DeduplicateFunctionHelper {
 	 * @param out underlying collector
 	 * @throws Exception
 	 */
-	static void processLastRow(BaseRow currentRow, boolean generateRetraction, ValueState state,
+	static void processLastRow(BaseRow currentRow, boolean generateRetraction, ValueState<BaseRow> state,
 			Collector<BaseRow> out) throws Exception {
-		// should be accumulate msg
+		// Check message should be accumulate
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
 		if (generateRetraction) {
 			// state stores complete row if generateRetraction is true
-			BaseRow preRow = (BaseRow) state.value();
+			BaseRow preRow = state.value();
 			state.update(currentRow);
 			if (preRow != null) {
 				preRow.setHeader(BaseRowUtil.RETRACT_MSG);
 				out.collect(preRow);
 			}
-		} else {
-			// state stores a flag to indicator whether pk appears before
-			state.update(true);
 		}
 		out.collect(currentRow);
 	}
@@ -66,9 +63,9 @@ class DeduplicateFunctionHelper {
 	 * @param out underlying collector
 	 * @throws Exception
 	 */
-	static void processFirstRow(BaseRow currentRow, ValueState state, Collector<BaseRow> out)
+	static void processFirstRow(BaseRow currentRow, ValueState<Boolean> state, Collector<BaseRow> out)
 			throws Exception {
-		// should be accumulate msg.
+		// Check message should be accumulate
 		Preconditions.checkArgument(BaseRowUtil.isAccumulateMsg(currentRow));
 		// ignore record with timestamp bigger than preRow
 		if (state.value() != null) {

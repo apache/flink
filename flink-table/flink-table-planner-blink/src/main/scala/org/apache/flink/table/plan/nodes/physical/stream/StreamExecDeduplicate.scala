@@ -26,8 +26,7 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.KeySelectorUtil
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.runtime.deduplicate.{DeduplicateFunction,
-MiniBatchDeduplicateFunction}
+import org.apache.flink.table.runtime.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
@@ -95,10 +94,7 @@ class StreamExecDeduplicate(
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
 
     if (inputIsAccRetract) {
-      throw new TableException(
-        "Deduplicate: Retraction on Deduplicate is not supported yet.\n" +
-          "please re-check sql grammar. \n" +
-          "Note: Deduplicate should not follow a non-windowed GroupBy aggregation.")
+      throw new TableException("Deduplicate doesn't support retraction input stream currently.")
     }
 
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
@@ -111,11 +107,12 @@ class StreamExecDeduplicate(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = tableEnv.execEnv.getConfig
-      val processFunction = new MiniBatchDeduplicateFunction(
-        rowTypeInfo,
-        generateRetraction,
-        rowTypeInfo.createSerializer(exeConfig),
-        keepLastRow)
+      val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
+      val processFunction = if (keepLastRow) {
+        new MiniBatchDeduplicateKeepLastRowFunction(rowTypeInfo, generateRetraction, rowSerializer)
+      } else {
+        new MiniBatchDeduplicateKeepFirstRowFunction(rowSerializer)
+      }
       val trigger = new CountBundleTrigger[BaseRow](
         tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
       new KeyedMapBundleOperator(
@@ -124,12 +121,12 @@ class StreamExecDeduplicate(
     } else {
       val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
       val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
-      val processFunction = new DeduplicateFunction(
-        minRetentionTime,
-        maxRetentionTime,
-        rowTypeInfo,
-        generateRetraction,
-        keepLastRow)
+      val processFunction = if (keepLastRow) {
+        new DeduplicateKeepLastRowFunction(minRetentionTime, maxRetentionTime, rowTypeInfo,
+          generateRetraction)
+      } else {
+        new DeduplicateKeepFirstRowFunction(minRetentionTime, maxRetentionTime)
+      }
       new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
     }
     val ret = new OneInputTransformation(

@@ -21,7 +21,8 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{EqualiserCodeGenerator, SortCodeGenerator}
+import org.apache.flink.table.codegen.EqualiserCodeGenerator
+import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Rank
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -110,7 +111,6 @@ class StreamExecRank(
       .item("orderBy", RelExplainUtil.collationToString(orderKey, inputRowType))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
-
 
   //~ ExecNode methods -----------------------------------------------------------
 

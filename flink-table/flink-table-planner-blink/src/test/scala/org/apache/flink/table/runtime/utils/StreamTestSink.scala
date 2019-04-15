@@ -293,8 +293,7 @@ final class TestingUpsertTableSink(keys: Array[Int], tz: TimeZone)
 
   override def configure(
       fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]])
-  : TableSink[JTuple2[JBoolean, BaseRow]] = {
+      fieldTypes: Array[TypeInformation[_]]): TestingUpsertTableSink = {
     val copy = new TestingUpsertTableSink(keys, tz)
     copy.fNames = fieldNames
     copy.fTypes = fieldTypes
@@ -501,7 +500,7 @@ final class TestingRetractTableSink(tz: TimeZone) extends RetractStreamTableSink
 
   override def configure(
       fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]]): TableSink[JTuple2[JBoolean, Row]] = {
+      fieldTypes: Array[TypeInformation[_]]): TestingRetractTableSink = {
     val copy = new TestingRetractTableSink(tz)
     copy.fNames = fieldNames
     copy.fTypes = fieldTypes

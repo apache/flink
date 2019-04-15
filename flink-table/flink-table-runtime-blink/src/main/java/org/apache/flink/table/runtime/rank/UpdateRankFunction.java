@@ -49,7 +49,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.function.Supplier;
 
 /**
  * A fast version of rank process function which only hold top n data in state, and keep sorted map in heap.
@@ -104,20 +103,20 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		int lruCacheSize = Math.max(1, (int) (cacheSize / getMaxSizeOfBuffer()));
+		int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
 		// make sure the cached map is in a fixed size, avoid OOM
 		kvSortedMap = new HashMap<>(lruCacheSize);
 		kvRowKeyMap = new LRUMap<>(lruCacheSize, new CacheRemovalListener());
 
-		LOG.info("Top{} operator is using LRU caches key-size: {}", getMaxSizeOfBuffer(), lruCacheSize);
+		LOG.info("Top{} operator is using LRU caches key-size: {}", getDefaultTopNSize(), lruCacheSize);
 
 		TupleTypeInfo<Tuple2<BaseRow, Integer>> valueTypeInfo = new TupleTypeInfo<>(inputRowType, Types.INT);
-		MapStateDescriptor<BaseRow, Tuple2<BaseRow, Integer>> mapStateDescriptor = new MapStateDescriptor(
+		MapStateDescriptor<BaseRow, Tuple2<BaseRow, Integer>> mapStateDescriptor = new MapStateDescriptor<>(
 				"data-state-with-update", rowKeyType, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
 		// metrics
-		registerMetric(kvSortedMap.size() * getMaxSizeOfBuffer());
+		registerMetric(kvSortedMap.size() * getDefaultTopNSize());
 	}
 
 	@Override
@@ -158,11 +157,6 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	}
 
 	@Override
-	protected long getMaxSizeOfBuffer() {
-		return getDefaultTopNSize();
-	}
-
-	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Iterator<Map.Entry<BaseRow, Map<BaseRow, RankRow>>> iter = kvRowKeyMap.entrySet().iterator();
 		while (iter.hasNext()) {
@@ -170,7 +164,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 			BaseRow partitionKey = entry.getKey();
 			Map<BaseRow, RankRow> currentRowKeyMap = entry.getValue();
 			keyContext.setCurrentKey(partitionKey);
-			synchronizeState(currentRowKeyMap);
+			flushBufferToState(currentRowKeyMap);
 		}
 	}
 
@@ -180,13 +174,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 		buffer = kvSortedMap.get(partitionKey);
 		rowKeyMap = kvRowKeyMap.get(partitionKey);
 		if (buffer == null) {
-			buffer = new TopNBuffer(sortKeyComparator, new Supplier<Collection<BaseRow>>() {
-
-				@Override
-				public Collection<BaseRow> get() {
-					return new LinkedHashSet<>();
-				}
-			});
+			buffer = new TopNBuffer(sortKeyComparator, LinkedHashSet::new);
 			rowKeyMap = new HashMap<>();
 			kvSortedMap.put(partitionKey, buffer);
 			kvRowKeyMap.put(partitionKey, rowKeyMap);
@@ -432,7 +420,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 		}
 	}
 
-	private void synchronizeState(Map<BaseRow, RankRow> curRowKeyMap) throws Exception {
+	private void flushBufferToState(Map<BaseRow, RankRow> curRowKeyMap) throws Exception {
 		Iterator<Map.Entry<BaseRow, RankRow>> iter = curRowKeyMap.entrySet().iterator();
 		while (iter.hasNext()) {
 			Map.Entry<BaseRow, RankRow> entry = iter.next();
@@ -473,7 +461,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 			keyContext.setCurrentKey(partitionKey);
 			kvSortedMap.remove(partitionKey);
 			try {
-				synchronizeState(currentRowKeyMap);
+				flushBufferToState(currentRowKeyMap);
 			} catch (Throwable e) {
 				LOG.error("Fail to synchronize state!", e);
 				throw new RuntimeException(e);

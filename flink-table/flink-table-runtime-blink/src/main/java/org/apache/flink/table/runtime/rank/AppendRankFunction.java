@@ -40,7 +40,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * AppendRankFunction's input stream only contains append record.
@@ -82,7 +81,7 @@ public class AppendRankFunction extends AbstractRankFunction {
 		LOG.info("Top{} operator is using LRU caches key-size: {}", getDefaultTopNSize(), lruCacheSize);
 
 		ListTypeInfo<BaseRow> valueTypeInfo = new ListTypeInfo<>(inputRowType);
-		MapStateDescriptor<BaseRow, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor(
+		MapStateDescriptor<BaseRow, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<>(
 				"data-state-with-append", sortKeyType, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
@@ -129,23 +128,12 @@ public class AppendRankFunction extends AbstractRankFunction {
 		}
 	}
 
-	@Override
-	protected long getMaxSizeOfBuffer() {
-		return getDefaultTopNSize();
-	}
-
 	private void initHeapStates() throws Exception {
 		requestCount += 1;
 		BaseRow currentKey = (BaseRow) keyContext.getCurrentKey();
 		buffer = kvSortedMap.get(currentKey);
 		if (buffer == null) {
-			buffer = new TopNBuffer(sortKeyComparator, new Supplier<Collection<BaseRow>>() {
-
-				@Override
-				public Collection<BaseRow> get() {
-					return new ArrayList<>();
-				}
-			});
+			buffer = new TopNBuffer(sortKeyComparator, ArrayList::new);
 			kvSortedMap.put(currentKey, buffer);
 			// restore buffer
 			Iterator<Map.Entry<BaseRow, List<BaseRow>>> iter = dataState.iterator();

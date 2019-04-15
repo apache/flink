@@ -125,9 +125,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= 2
       """.stripMargin
 
-    val sink = new TestingUpsertTableSink(Array(0, 3))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, sink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -186,9 +188,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= 3
       """.stripMargin
 
-    val sink = new TestingUpsertTableSink(Array(0, 3))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, sink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val updatedExpected = List(
@@ -248,7 +252,9 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
-    val sink = new TestingUpsertTableSink(Array(0, 3))
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.writeToSink(table, sink)
     env.execute()
 
@@ -292,8 +298,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
-    val sink = new TestingUpsertTableSink(Array(0, 3))
-    writeToSink(table, sink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val updatedExpected = List(
@@ -344,8 +352,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
-    val sink = new TestingUpsertTableSink(Array(0, 3))
-    writeToSink(table, sink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val updatedExpected = List(
@@ -387,15 +397,17 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
-    val tableSink = new TestingUpsertTableSink(Array(0, 3))
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val updatedExpected = List(
       "book,2,19,2",
       "fruit,5,34,2")
 
-    assertEquals(updatedExpected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -524,8 +536,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
-    val tableSink = new TestingUpsertTableSink(Array(0, 1))
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 1)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -536,7 +550,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "fruit,1,3,5",
       "fruit,2,2,4",
       "fruit,3,1,3")
-    assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -581,14 +595,16 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
-    val tableSink = new TestingUpsertTableSink(Array(0, 1))
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 1)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
       "book,3,2,2",
       "fruit,3,1,3")
-    assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -638,9 +654,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |WHERE rank_num <= 4
       """.stripMargin
 
-    val tableSink = new TestingUpsertTableSink(Array(0))
     val table = tEnv.sqlQuery(sql2)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -657,10 +675,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,3,book,d,4,2)",
       "(true,4,book,b,3,2)",
       "(true,4,book,b,3,2)")
-    assertEquals(expected.mkString("\n"), tableSink.getRawResults.mkString("\n"))
+    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
 
     val expected2 = List("1,fruit,b,6,1", "2,book,e,5,1", "3,book,d,4,2", "4,book,b,3,2")
-    assertEquals(expected2, tableSink.getUpsertResults.sorted)
+    assertEquals(expected2, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -699,9 +717,12 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     tEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE, 1)
-    val tableSink = new TestingUpsertTableSink(Array(0))
+
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -724,7 +745,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,3,book,b,3,2)",
       "(true,4,book,a,1,2)")
 
-    assertEquals(expected, tableSink.getRawResults)
+    assertEquals(expected, sink.getRawResults)
   }
 
   // FIXME
@@ -768,9 +789,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= topSize
       """.stripMargin
 
-    val tableSink = new TestingUpsertTableSink(Array(0, 1))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 1)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -780,7 +803,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "book,4,1,3",
       "fruit,1,3,5",
       "fruit,2,2,4")
-    assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -829,9 +852,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= 3
       """.stripMargin
 
-    val tableSink = new TestingUpsertTableSink(Array(0, 3))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -862,14 +887,14 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
       "(true,book,12,10,3)")
 
-    assertEquals(expected.mkString("\n"), tableSink.getRawResults.mkString("\n"))
+    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
 
     val updatedExpected = List(
       "book,2,9,1",
       "book,7,10,2",
       "book,12,10,3")
 
-    assertEquals(updatedExpected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -906,9 +931,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= 3
       """.stripMargin
 
-    val tableSink = new TestingUpsertTableSink(Array(0, 1))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 1)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -924,7 +951,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,book,1,225.0)",
       "(true,fruit,5,100.0)")
 
-    assertEquals(expected, tableSink.getRawResults)
+    assertEquals(expected, sink.getRawResults)
 
     val updatedExpected = List(
       "book,1,225.0",
@@ -932,7 +959,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "book,4,310.0",
       "fruit,5,100.0")
 
-    assertEquals(updatedExpected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -977,9 +1004,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= 3
       """.stripMargin
 
-    val tableSink = new TestingUpsertTableSink(Array(0, 1))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 1)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -1002,7 +1031,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,fruit,4,2)",
       "(true,fruit,5,2)",
       "(true,fruit,5,3)")
-    assertEquals(expected, tableSink.getRawResults)
+    assertEquals(expected, sink.getRawResults)
 
     val updatedExpected = List(
       "book,4,5",
@@ -1011,7 +1040,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "fruit,5,3",
       "fruit,4,2",
       "fruit,3,1")
-    assertEquals(updatedExpected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
   @Test
@@ -1040,9 +1069,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |WHERE rank_num <= 2
       """.stripMargin
 
-    val tableSink = new TestingUpsertTableSink(Array(0, 2))
     val table = tEnv.sqlQuery(sql)
-    writeToSink(table, tableSink)
+    val schema = table.getSchema
+    val sink = new TestingUpsertTableSink(Array(0, 2)).
+      configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.writeToSink(table, sink)
     env.execute()
 
     val expected = List(
@@ -1054,14 +1085,14 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,fruit,44,3)",
       "(false,fruit,33,4)",
       "(true,fruit,40,1)")
-    assertEquals(expected, tableSink.getRawResults)
+    assertEquals(expected, sink.getRawResults)
 
     val updatedExpected = List(
       "book,19,2",
       "book,20,5",
       "fruit,40,1",
       "fruit,44,3")
-    assertEquals(updatedExpected.sorted, tableSink.getUpsertResults.sorted)
+    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
   // FIXME
@@ -1113,7 +1144,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
 
     val sink2 = new TestingRetractSink
-    val table2 = tEnv.sqlQuery(
+    tEnv.sqlQuery(
       s"""
          |SELECT *
          |FROM (
@@ -1122,7 +1153,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin).toRetractStream[Row].addSink(sink2).setParallelism(1)
-
     env.execute()
 
     val expected2 = List(
@@ -1160,7 +1190,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val t1 = tEnv.sqlQuery(subquery)
     tEnv.registerTable("MyView", t1)
 
-    val sink1 = new TestingUpsertTableSink(Array(0, 3))
     val table1 = tEnv.sqlQuery(
       s"""
          |SELECT *
@@ -1170,9 +1199,12 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin)
-    writeToSink(table1, sink1)
+    val schema1 = table1.getSchema
+    val sink1 = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema1.getFieldNames, schema1
+      .getFieldTypes)
+    tEnv.writeToSink(table1, sink1)
 
-    val sink2 = new TestingUpsertTableSink(Array(0, 3))
     val table2 = tEnv.sqlQuery(
       s"""
          |SELECT *
@@ -1182,9 +1214,13 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin)
+    val schema2 = table2.getSchema
+    val sink2 = new TestingUpsertTableSink(Array(0, 3)).
+      configure(schema2.getFieldNames, schema2
+      .getFieldTypes)
+    tEnv.writeToSink(table2, sink2)
 
-    writeToSink(table2, sink2)
-
+    env.execute()
     val expected1 = List(
       "book,1,25,1",
       "book,2,19,2",
@@ -1227,7 +1263,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val t1 = tEnv.sqlQuery(subquery)
     tEnv.registerTable("MyView", t1)
 
-    val sink1 = new TestingRetractTableSink
     val table1 = tEnv.sqlQuery(
       s"""
          |SELECT *
@@ -1237,9 +1272,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin)
-    writeToSink(table1, sink1)
+    val schema1 = table1.getSchema
+    val sink1 = new TestingRetractTableSink().
+      configure(schema1.getFieldNames, schema1.getFieldTypes)
+    tEnv.writeToSink(table1, sink1)
 
-    val sink2 = new TestingRetractTableSink
     val table2 = tEnv.sqlQuery(
       s"""
          |SELECT *
@@ -1249,8 +1286,11 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin)
-
-    writeToSink(table2, sink2)
+    val schema2 = table2.getSchema
+    val sink2 = new TestingRetractTableSink().
+      configure(schema2.getFieldNames, schema2.getFieldTypes)
+    tEnv.writeToSink(table2, sink2)
+    env.execute()
 
     val expected1 = List(
       "book,1,2,1",

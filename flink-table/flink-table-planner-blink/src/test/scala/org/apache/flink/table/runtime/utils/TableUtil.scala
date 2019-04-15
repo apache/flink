@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
 import org.apache.flink.table.api.{BatchTableEnvironment, TableImpl}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink, TableSink}
+import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink}
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConversions._
@@ -61,14 +61,4 @@ object TableUtil {
       table, configuredSink.asInstanceOf[CollectTableSink[T]], jobName)
   }
 
-  def writeToSink(table: TableImpl, sink: TableSink[_]): Unit = {
-    // get schema information of table
-    val rowType = table.getRelNode.getRowType
-    val fieldNames = rowType.getFieldNames.asScala.toArray
-    val fieldTypes = rowType.getFieldList
-      .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
-    val configuredSink = sink.configure(
-      fieldNames, fieldTypes.map(createExternalTypeInfoFromInternalType))
-    table.tableEnv.writeToSink(table, configuredSink)
-  }
 }

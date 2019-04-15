@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -33,56 +32,38 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processFirstRow;
-import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processLastRow;
 
 /**
- * This function is used to get the first row or last row for every key partition in miniBatch
- * mode.
+ * This function is used to get the first row for every key partition in miniBatch mode.
  */
-public class MiniBatchDeduplicateFunction
+public class MiniBatchDeduplicateKeepFirstRowFunction
 		extends MapBundleFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
 
-	private BaseRowTypeInfo rowTypeInfo;
-	private boolean generateRetraction;
-	private boolean keepLastRow;
+	private static final long serialVersionUID = -7994602893547654994L;
 
-	// state stores complete row if keep last row and generate retraction is true,
-	// else stores a flag to indicate whether key appears before.
-	private ValueState state;
-	private TypeSerializer<BaseRow> ser;
+	private final TypeSerializer<BaseRow> typeSerializer;
 
-	public MiniBatchDeduplicateFunction(
-			BaseRowTypeInfo rowTypeInfo,
-			boolean generateRetraction,
-			TypeSerializer<BaseRow> typeSerializer,
-			boolean keepLastRow) {
-		this.rowTypeInfo = rowTypeInfo;
-		this.keepLastRow = keepLastRow;
-		this.generateRetraction = generateRetraction;
-		ser = typeSerializer;
+	// state stores a boolean flag to indicate whether key appears before.
+	private ValueState<Boolean> state;
+
+	public MiniBatchDeduplicateKeepFirstRowFunction(TypeSerializer<BaseRow> typeSerializer) {
+		this.typeSerializer = typeSerializer;
 	}
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
-		ValueStateDescriptor stateDesc = null;
-		if (keepLastRow && generateRetraction) {
-			// if need generate retraction and keep last row, stores complete row into state
-			stateDesc = new ValueStateDescriptor("deduplicateFunction", rowTypeInfo);
-		} else {
-			// else stores a flag to indicator whether pk appears before.
-			stateDesc = new ValueStateDescriptor("fistValueState", Types.BOOLEAN);
-		}
+		ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("existsState", Types.BOOLEAN);
 		state = ctx.getRuntimeContext().getState(stateDesc);
 	}
 
 	@Override
 	public BaseRow addInput(@Nullable BaseRow value, BaseRow input) {
-		if (value == null || keepLastRow || (!keepLastRow && value == null)) {
+		if (value == null) {
 			// put the input into buffer
-			return ser.copy(input);
+			return typeSerializer.copy(input);
 		} else {
-			// the input is not last row, ignore it
+			// the input is not first row, ignore it
 			return value;
 		}
 	}
@@ -94,12 +75,7 @@ public class MiniBatchDeduplicateFunction
 			BaseRow currentKey = entry.getKey();
 			BaseRow currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-
-			if (keepLastRow) {
-				processLastRow(currentRow, generateRetraction, state, out);
-			} else {
-				processFirstRow(currentRow, state, out);
-			}
+			processFirstRow(currentRow, state, out);
 		}
 	}
 }

@@ -81,13 +81,13 @@ public class RetractRankFunction extends AbstractRankFunction {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		ListTypeInfo<BaseRow> valueTypeInfo = new ListTypeInfo<>(inputRowType);
-		MapStateDescriptor<BaseRow, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor(
+		MapStateDescriptor<BaseRow, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<>(
 				"data-state", sortKeyType, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		ValueStateDescriptor<SortedMap<BaseRow, Long>> valueStateDescriptor = new ValueStateDescriptor(
+		ValueStateDescriptor<SortedMap<BaseRow, Long>> valueStateDescriptor = new ValueStateDescriptor<>(
 				"sorted-map",
-				new SortedMapTypeInfo(sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, sortKeyComparator));
+				new SortedMapTypeInfo<>(sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, sortKeyComparator));
 		treeMap = getRuntimeContext().getState(valueStateDescriptor);
 	}
 
@@ -242,9 +242,4 @@ public class RetractRankFunction extends AbstractRankFunction {
 		}
 	}
 
-	@Override
-	protected long getMaxSizeOfBuffer() {
-		// just let it go, retract rank has no interest in this
-		return 0L;
-	}
 }

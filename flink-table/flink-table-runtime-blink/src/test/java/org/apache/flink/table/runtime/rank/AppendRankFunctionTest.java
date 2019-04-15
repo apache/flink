@@ -37,10 +37,9 @@ public class AppendRankFunctionTest extends BaseRankFunctionTest {
 	@Override
 	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		AbstractRankFunction rankFunction = new AppendRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
+		return new AppendRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
 				inputRowType, sortKeyComparator, sortKeySelector, rankType, rankRange, generatedEqualiser,
 				generateRetraction, outputRankNumber, cacheSize);
-		return rankFunction;
 	}
 
 	@Test

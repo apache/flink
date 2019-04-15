@@ -112,32 +112,6 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   /**
     * Creates a DataStream from the given non-empty [[Seq]].
     */
-  def retainStateDataSource[T: TypeInformation](data: Seq[T]): DataStream[T] = {
-    env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
-    env.setRestartStrategy(RestartStrategies.noRestart())
-    env.setParallelism(1)
-    // reset failedBefore flag to false
-    FailingCollectionSource.reset()
-
-    require(data != null, "Data must not be null.")
-    val typeInfo = implicitly[TypeInformation[T]]
-
-    val collection = scala.collection.JavaConversions.asJavaCollection(data)
-    // must not have null elements and mixed elements
-    FromElementsFunction.checkCollection(data, typeInfo.getTypeClass)
-
-    val function = new FailingCollectionSource[T](
-      typeInfo.createSerializer(env.getConfig),
-      collection,
-      data.length, // fail after half elements
-      true)
-
-    env.addSource(function)(typeInfo).setMaxParallelism(1)
-  }
-
-  /**
-    * Creates a DataStream from the given non-empty [[Seq]].
-    */
   def failingDataSource[T: TypeInformation](data: Seq[T]): DataStream[T] = {
     env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))

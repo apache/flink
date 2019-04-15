@@ -41,6 +41,7 @@ class StreamOptimizer(tEnv: StreamTableEnvironment) extends Optimizer {
           n.sink match {
             case _: RetractStreamTableSink[_] => true
             case s: DataStreamTableSink[_] => s.updatesAsRetraction
+            case _ => false
           }
         case o =>
           o.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE).sendsUpdatesAsRetractions

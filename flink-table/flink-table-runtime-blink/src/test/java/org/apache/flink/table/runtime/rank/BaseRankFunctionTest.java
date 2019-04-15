@@ -50,9 +50,9 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
  */
 abstract class BaseRankFunctionTest {
 
-	protected Time minTime = Time.milliseconds(10);
-	protected Time maxTime = Time.milliseconds(20);
-	protected long cacheSize = 10000L;
+	Time minTime = Time.milliseconds(10);
+	Time maxTime = Time.milliseconds(20);
+	long cacheSize = 10000L;
 
 	BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
 			InternalTypes.STRING,
@@ -323,12 +323,12 @@ abstract class BaseRankFunctionTest {
 				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
 	}
 
-	protected OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
 			AbstractRankFunction rankFunction)
 			throws Exception {
-		KeyedProcessOperator operator = new KeyedProcessOperator(rankFunction);
+		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(rankFunction);
 		rankFunction.setKeyContext(operator);
-		return new KeyedOneInputStreamOperatorTestHarness(operator, keySelector, keySelector.getProducedType());
+		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
 	}
 
 	protected abstract AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,

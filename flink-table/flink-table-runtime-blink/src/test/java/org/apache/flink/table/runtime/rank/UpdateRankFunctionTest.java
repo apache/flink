@@ -38,11 +38,9 @@ public class UpdateRankFunctionTest extends BaseRankFunctionTest {
 	@Override
 	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-
-		AbstractRankFunction rankFunction = new UpdateRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
+		return new UpdateRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
 				inputRowType, rowKeySelector, sortKeyComparator, sortKeySelector, rankType, rankRange,
 				generatedEqualiser, generateRetraction, outputRankNumber, cacheSize);
-		return rankFunction;
 	}
 
 	@Test

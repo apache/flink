@@ -39,10 +39,9 @@ public class RetractRankFunctionTest extends BaseRankFunctionTest {
 	@Override
 	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		AbstractRankFunction rankFunction = new RetractRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
+		return new RetractRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
 				inputRowType, sortKeyComparator, sortKeySelector, rankType, rankRange, generatedEqualiser,
 				generateRetraction, outputRankNumber);
-		return rankFunction;
 	}
 
 	@Test

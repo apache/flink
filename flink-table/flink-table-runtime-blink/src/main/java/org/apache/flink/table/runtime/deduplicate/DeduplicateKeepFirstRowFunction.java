@@ -24,49 +24,30 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processFirstRow;
-import static org.apache.flink.table.runtime.deduplicate.DeduplicateFunctionHelper.processLastRow;
 
 /**
- * This function is used to deduplicate on keys and keeps only first row or last row.
+ * This function is used to deduplicate on keys and keeps only first row.
  */
-public class DeduplicateFunction
+public class DeduplicateKeepFirstRowFunction
 		extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
 
-	private static final long serialVersionUID = 4950071982706870944L;
+	private static final long serialVersionUID = 5865777137707602549L;
 
-	private final BaseRowTypeInfo rowTypeInfo;
-	private final boolean generateRetraction;
-	private final boolean keepLastRow;
+	// state stores a boolean flag to indicate whether key appears before.
+	private ValueState<Boolean> state;
 
-	// state stores complete row if keep last row and generate retraction is true,
-	// else stores a flag to indicate whether key appears before.
-	private ValueState state;
-
-	public DeduplicateFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo rowTypeInfo,
-			boolean generateRetraction, boolean keepLastRow) {
+	public DeduplicateKeepFirstRowFunction(long minRetentionTime, long maxRetentionTime) {
 		super(minRetentionTime, maxRetentionTime);
-		this.rowTypeInfo = rowTypeInfo;
-		this.generateRetraction = generateRetraction;
-		this.keepLastRow = keepLastRow;
 	}
 
 	@Override
 	public void open(Configuration configure) throws Exception {
 		super.open(configure);
-		String stateName = keepLastRow ? "DeduplicateFunctionKeepLastRow" : "DeduplicateFunctionKeepFirstRow";
-		initCleanupTimeState(stateName);
-		ValueStateDescriptor stateDesc = null;
-		if (keepLastRow && generateRetraction) {
-			// if need generate retraction and keep last row, stores complete row into state
-			stateDesc = new ValueStateDescriptor("deduplicateFunction", rowTypeInfo);
-		} else {
-			// else stores a flag to indicator whether pk appears before.
-			stateDesc = new ValueStateDescriptor("fistValueState", Types.BOOLEAN);
-		}
+		initCleanupTimeState("DeduplicateFunctionKeepFirstRow");
+		ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("existsState", Types.BOOLEAN);
 		state = getRuntimeContext().getState(stateDesc);
 	}
 
@@ -75,12 +56,7 @@ public class DeduplicateFunction
 		long currentTime = ctx.timerService().currentProcessingTime();
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, currentTime);
-
-		if (keepLastRow) {
-			processLastRow(input, generateRetraction, state, out);
-		} else {
-			processFirstRow(input, state, out);
-		}
+		processFirstRow(input, state, out);
 	}
 
 	@Override
