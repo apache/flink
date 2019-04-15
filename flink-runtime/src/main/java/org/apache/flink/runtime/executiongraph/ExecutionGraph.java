@@ -1291,26 +1291,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Restores the latest checkpointed state.
-	 *
-	 * <p>The recovery of checkpoints might block. Make sure that calls to this method don't
-	 * block the job manager actor and run asynchronously.
-	 *
-	 * @param errorIfNoCheckpoint Fail if there is no checkpoint available
-	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
-	 * to the ExecutionGraph vertices (if the checkpoint contains state for a
-	 * job vertex that is not part of this ExecutionGraph).
-	 */
-	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean allowNonRestoredState) throws Exception {
-		assertRunningInJobMasterMainThread();
-		synchronized (progressLock) {
-			if (checkpointCoordinator != null) {
-				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), errorIfNoCheckpoint, allowNonRestoredState);
-			}
-		}
-	}
-
-	/**
 	 * Returns the serializable {@link ArchivedExecutionConfig}.
 	 *
 	 * @return ArchivedExecutionConfig which may be null in case of errors
