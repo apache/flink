@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.disk.iomanager.NoOpIOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -49,14 +47,6 @@ import static org.mockito.Mockito.verify;
  * Tests for {@link ResultPartition}.
  */
 public class ResultPartitionTest {
-
-	/** Asynchronous I/O manager. */
-	private static final IOManager ioManager = new IOManagerAsync();
-
-	@AfterClass
-	public static void shutdown() {
-		ioManager.shutdown();
-	}
 
 	/**
 	 * Tests the schedule or update consumers message sending behaviour depending on the relevant flags.
@@ -277,7 +267,7 @@ public class ResultPartitionTest {
 			1,
 			mock(ResultPartitionManager.class),
 			notifier,
-			ioManager,
+			new NoOpIOManager(),
 			sendScheduleOrUpdateConsumersMessage);
 	}
 }

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.NoOpIOManager;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -276,6 +276,7 @@ public class NetworkEnvironmentTest {
 	 */
 	private static ResultPartition createResultPartition(
 			final ResultPartitionType partitionType, final int channels) {
+
 		return new ResultPartition(
 			"TestTask-" + partitionType + ":" + channels,
 			new NoOpTaskActions(),
@@ -286,7 +287,7 @@ public class NetworkEnvironmentTest {
 			channels,
 			mock(ResultPartitionManager.class),
 			new NoOpResultPartitionConsumableNotifier(),
-			mock(IOManager.class),
+			new NoOpIOManager(),
 			false);
 	}
 
