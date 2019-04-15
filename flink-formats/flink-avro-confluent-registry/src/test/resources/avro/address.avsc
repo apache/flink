@@ -1,0 +1,27 @@
+{
+  "type": "record",
+  "name": "Address",
+  "namespace": "org.apache.flink.formats.avro.generated",
+  "fields": [
+    {
+      "name": "num",
+      "type": "int"
+    },
+    {
+      "name": "street",
+      "type": "string"
+    },
+    {
+      "name": "city",
+      "type": "string"
+    },
+    {
+      "name": "state",
+      "type": "string"
+    },
+    {
+      "name": "zip",
+      "type": "string"
+    }
+  ]
+}

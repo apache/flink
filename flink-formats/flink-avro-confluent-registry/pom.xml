@@ -40,7 +40,7 @@ under the License.
 		<dependency>
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-schema-registry-client</artifactId>
-			<version>3.3.1</version>
+			<version>5.1.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.avro</groupId>
@@ -105,6 +105,25 @@ under the License.
 									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.101tec</shadedPattern>
 								</relocation>
 							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Generate Test class from avro schema -->
+			<plugin>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-maven-plugin</artifactId>
+				<version>${avro.version}</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>schema</goal>
+						</goals>
+						<configuration>
+							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
+							<testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
 						</configuration>
 					</execution>
 				</executions>
