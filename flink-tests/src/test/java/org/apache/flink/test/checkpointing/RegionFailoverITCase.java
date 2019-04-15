@@ -379,7 +379,7 @@ public class RegionFailoverITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<HashMap<Integer, Integer>> state) throws Exception {
-			if (state.isEmpty() || state.size() > 1) {
+			if (state.size() != 1) {
 				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
 			this.counts.putAll(state.get(0));

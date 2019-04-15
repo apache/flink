@@ -126,18 +126,7 @@ public class FailoverRegion {
 		return state;
 	}
 
-	public Map<JobVertexID, ExecutionJobVertex> getTasks() {
-		return tasks;
-	}
-
-	/**
-	 * get all execution vertexes contained in this region
-	 */
-	public List<ExecutionVertex> getAllExecutionVertexes() {
-		return connectedExecutionVertexes;
-	}
-
-	// Notice the region to failover, 
+	// Notice the region to failover,
 	private void failover(long globalModVersionOfFailover) {
 		if (!executionGraph.getRestartStrategy().canRestart()) {
 			executionGraph.failGlobal(new FlinkException("RestartStrategy validate fail"));
@@ -232,7 +221,7 @@ public class FailoverRegion {
 					// we restart the checkpoint scheduler for
 					// i) enable new checkpoint could be triggered without waiting for last checkpoint expired.
 					// ii) ensure the EXACTLY_ONCE semantics if needed.
-					executionGraph.getCheckpointCoordinator().cancelPendingCheckpoints();
+					executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(new Exception("FailoverRegion is restarting."));
 
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
 						tasks, false, true);

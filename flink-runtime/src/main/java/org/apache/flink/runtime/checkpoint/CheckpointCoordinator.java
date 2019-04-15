@@ -1202,15 +1202,23 @@ public class CheckpointCoordinator {
 				currentPeriodicTrigger = null;
 			}
 
-			abortPendingCheckpoints();
+			abortPendingCheckpoints(new Exception("Checkpoint Coordinator is suspending."));
 
 			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
 	}
 
-	public void cancelPendingCheckpoints() {
+	/**
+	 * Aborts all the pending checkpoints due to en exception.
+	 * @param exception The exception.
+	 */
+	public void abortPendingCheckpoints(Exception exception) {
 		synchronized (lock) {
-			abortPendingCheckpoints();
+			for (PendingCheckpoint p : pendingCheckpoints.values()) {
+				p.abortError(exception);
+			}
+
+			pendingCheckpoints.clear();
 		}
 	}
 
@@ -1315,16 +1323,5 @@ public class CheckpointCoordinator {
 				}
 			});
 		}
-	}
-
-	/**
-	 * Aborts all the pending checkpoints.
-	 */
-	private void abortPendingCheckpoints() {
-		for (PendingCheckpoint p : pendingCheckpoints.values()) {
-			p.abortError(new Exception("Checkpoint Coordinator is suspending."));
-		}
-
-		pendingCheckpoints.clear();
 	}
 }
