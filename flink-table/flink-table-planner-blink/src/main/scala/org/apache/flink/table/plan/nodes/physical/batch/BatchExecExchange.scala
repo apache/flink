@@ -93,7 +93,7 @@ class BatchExecExchange(
     relDistribution: RelDistribution)
   extends CommonPhysicalExchange(cluster, traitSet, inputRel, relDistribution)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow]{
+  with BatchExecNode[BaseRow] {
 
   // TODO reuse PartitionTransformation
   // currently, an Exchange' input transformation will be reused if it is reusable,

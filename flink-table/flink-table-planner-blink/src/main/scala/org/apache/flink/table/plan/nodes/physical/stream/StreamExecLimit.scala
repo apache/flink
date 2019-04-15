@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -44,8 +44,8 @@ class StreamExecLimit(
     fetch)
   with StreamPhysicalRel {
 
-  private lazy val limitStart: Long = FlinkRelOptUtil.getLimitStart(offset)
-  private lazy val limitEnd: Long = FlinkRelOptUtil.getLimitEnd(offset, fetch)
+  private lazy val limitStart: Long = SortUtil.getLimitStart(offset)
+  private lazy val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
 
   override def producesUpdates: Boolean = false
 

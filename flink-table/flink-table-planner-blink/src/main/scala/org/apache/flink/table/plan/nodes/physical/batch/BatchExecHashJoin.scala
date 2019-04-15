@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.typeutils.BinaryRowSerializer
 
 import org.apache.calcite.plan._
@@ -43,7 +43,7 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
   var haveInsertRf: Boolean
 
   private val (leftKeys, rightKeys) =
-    FlinkRelOptUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
+    JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
   val (buildKeys, probeKeys) = if (leftIsBuild) (leftKeys, rightKeys) else (rightKeys, leftKeys)
 
   // Inputs could be changed. See [[BiRel.replaceInput]].
