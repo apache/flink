@@ -526,9 +526,6 @@ class JoinITCase(
         Types.LONG,
         Types.MAP(Types.STRING, Types.STRING))
     )
-
-    println(typeInfo)
-
     val table = tEnv.fromDataSet(env.fromCollection(data))
     tEnv.registerTable("src", table)
 
