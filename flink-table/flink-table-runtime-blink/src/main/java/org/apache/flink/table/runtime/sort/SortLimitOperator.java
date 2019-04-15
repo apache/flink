@@ -71,7 +71,6 @@ public class SortLimitOperator extends TableStreamOperator<BaseRow>
 
 	@Override
 	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-
 		BaseRow record = element.getValue();
 
 		// Need copy element, because we will store record in heap.

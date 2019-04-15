@@ -22,7 +22,7 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.SortCodeGenerator
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.calcite.RankType.RankType
@@ -129,12 +129,7 @@ class BatchExecRank(
     val partitionBySortCollation = partitionBySortingKeys.map(_ => (true, true))
 
     val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-    val partitionByCodeGen = new SortCodeGenerator(
-      tableEnv.getConfig,
-      partitionBySortingKeys,
-      partitionBySortingKeys.map(inputRowType.getTypeAt),
-      partitionBySortCollation.map(_._1),
-      partitionBySortCollation.map(_._2))
+
 
 
     // The collation for the order-by fields is inessential here, we only use the
@@ -143,18 +138,22 @@ class BatchExecRank(
     val orderByCollation = orderKey.getFieldCollations.map(_ => (true, true)).toArray
     val orderByKeys = orderKey.getFieldCollations.map(_.getFieldIndex).toArray
 
-    val orderBySortCodeGen = new SortCodeGenerator(
-      tableEnv.getConfig,
-      orderByKeys,
-      orderByKeys.map(inputRowType.getTypeAt),
-      orderByCollation.map(_._1),
-      orderByCollation.map(_._2))
-
-
     //operator needn't cache data
     val operator = new RankOperator(
-      partitionByCodeGen.generateRecordComparator("PartitionByComparator"),
-      orderBySortCodeGen.generateRecordComparator("OrderByComparator"),
+      ComparatorCodeGenerator.gen(
+        tableEnv.getConfig,
+        "PartitionByComparator",
+        partitionBySortingKeys,
+        partitionBySortingKeys.map(inputRowType.getTypeAt),
+        partitionBySortCollation.map(_._1),
+        partitionBySortCollation.map(_._2)),
+      ComparatorCodeGenerator.gen(
+        tableEnv.getConfig,
+        "OrderByComparator",
+        orderByKeys,
+        orderByKeys.map(inputRowType.getTypeAt),
+        orderByCollation.map(_._1),
+        orderByCollation.map(_._2)),
       rankStart,
       rankEnd,
       outputRankNumber)

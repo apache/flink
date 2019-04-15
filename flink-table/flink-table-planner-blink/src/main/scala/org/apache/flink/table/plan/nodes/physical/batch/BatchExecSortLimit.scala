@@ -21,7 +21,7 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
-import org.apache.flink.table.codegen.SortCodeGenerator
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -126,15 +126,11 @@ class BatchExecSortLimit(
     val types = inputType.getFieldTypes.map(createInternalTypeFromTypeInfo)
 
     // generate comparator
-    val generator = new SortCodeGenerator(
-      tableEnv.getConfig, keys, keys.map(types(_)), orders, nullsIsLast)
+    val genComparator = ComparatorCodeGenerator.gen(
+      tableEnv.getConfig, "SortLimitComparator", keys, keys.map(types(_)), orders, nullsIsLast)
 
     // TODO If input is ordered, there is no need to use the heap.
-    val operator = new SortLimitOperator(
-      isGlobal,
-      limitStart,
-      limitEnd,
-      generator.generateRecordComparator("SortLimitComparator"))
+    val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)
 
     new OneInputTransformation(
       input,
