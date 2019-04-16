@@ -62,11 +62,11 @@ import java.util.TreeSet;
 /**
  * This rules is copied from Calcite's {@link org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule}.
  * Modification:
- * - Throws an exception if aggregate both contains approximate distinct aggregate call and distinct
+ * - Throws an exception if an aggregate contains both approximate distinct aggregate call and accurate distinct
  *   aggregate call.
- * - Exclude non-simple aggregate(e.g. CUBE, ROLLUP).
+ * - Excludes non-simple aggregate(e.g. CUBE, ROLLUP).
  * - Fix bug: Some aggregate functions (e.g. COUNT) has a non-null result even without any input.
- * - Fix bug: Add filter argument into rewritten aggregateCall if filter arg is not -1.
+ * - Fix bug: Add filter argument into rewritten aggregateCall if its filter argument is not -1.
  */
 
 /**
