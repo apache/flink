@@ -18,6 +18,7 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -92,8 +93,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 		}
 
 		Configuration configuration = loadConfiguration(clusterConfiguration);
-
-		configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
+		setDefaultExecutionModeIfNotConfigured(configuration);
 
 		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(
 			configuration,
@@ -103,5 +103,17 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			clusterConfiguration.getJobClassName());
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
+	}
+
+	@VisibleForTesting
+	static void setDefaultExecutionModeIfNotConfigured(Configuration configuration) {
+		if (isNoExecutionModeConfigured(configuration)) {
+			// In contrast to other places, the default for standalone job clusters is ExecutionMode.DETACHED
+			configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
+		}
+	}
+
+	private static boolean isNoExecutionModeConfigured(Configuration configuration) {
+		return configuration.getString(ClusterEntrypoint.EXECUTION_MODE, null) == null;
 	}
 }
