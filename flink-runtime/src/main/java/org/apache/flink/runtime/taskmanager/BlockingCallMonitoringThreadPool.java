@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,14 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A Thread Pool used by the {@link Task} to launch checkpointing tasks, namely
- * the {@link Task#triggerCheckpointBarrier(long, long, CheckpointOptions, boolean)}
- * and the {@link Task#notifyCheckpointComplete(long)} callback.
- *
- * <p>This thread pool monitors the number of in-flight calls executing a {@link CheckpointType#SYNC_SAVEPOINT},
- * and adjusts its pool size accordingly, so that the minimum number of threads are allocated. This is to
- * avoid any redundant idle threads consuming resources. In addition,this thread pool logs (in debug level)
- * when more than 1 such calls are in-flight.
+ * A Thread Pool used to monitor the number of in-flight calls that block and wait for another task executed
+ * by the same pool in order to get unblocked. When a call (blocking or non-blocking) is submitted, the size
+ * of the pool is set to {@code 1 + activeBlockingCalls}. This allows the thread pool size to follow the needs
+ * of the system and to avoid any redundant idle threads consuming resources.
  */
 public class BlockingCallMonitoringThreadPool {
 
@@ -85,9 +78,9 @@ public class BlockingCallMonitoringThreadPool {
 			LOG.debug("There are {} active threads with blocking calls", activeBlockingCalls);
 		}
 
-		final int newPoolSize = executor.getCorePoolSize() + activeBlockingCalls;
+		final int newPoolSize = 1 + activeBlockingCalls;
 
-		// We have to reset the core pool size because (quoted from javadoc):
+		// We have to reset the core pool size because (quoted from the official docs):
 		// ``
 		// If there are more than corePoolSize but less than maximumPoolSize threads running,
 		// ** a new thread will be created only if the queue is full **.
