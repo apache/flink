@@ -26,9 +26,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
-
 /**
  * Tests for {@link AppendRankFunction}.
  */
@@ -37,9 +34,9 @@ public class AppendRankFunctionTest extends BaseRankFunctionTest {
 	@Override
 	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		return new AppendRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
-				inputRowType, sortKeyComparator, sortKeySelector, rankType, rankRange, generatedEqualiser,
-				generateRetraction, outputRankNumber, cacheSize);
+		return new AppendRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
+				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
+				cacheSize);
 	}
 
 	@Test

@@ -27,6 +27,8 @@ import org.apache.flink.table.typeutils.BaseRowTypeInfo;
  */
 public class NullBinaryRowKeySelector implements BaseRowKeySelector {
 
+	public static final NullBinaryRowKeySelector INSTANCE = new NullBinaryRowKeySelector();
+
 	private static final long serialVersionUID = -2079386198687082032L;
 
 	private final BaseRowTypeInfo returnType = new BaseRowTypeInfo();

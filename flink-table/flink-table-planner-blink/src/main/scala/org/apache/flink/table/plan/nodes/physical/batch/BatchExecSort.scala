@@ -116,8 +116,8 @@ class BatchExecSort(
       reservedMemorySize,
       maxMemorySize,
       perRequestSize.toLong,
-      codeGen.generateNormalizedKeyComputer("SortBatchExecComputer"),
-      codeGen.generateRecordComparator("SortBatchExecComparator"))
+      codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
+      codeGen.generateRecordComparator("BatchExecSortComparator"))
 
     new OneInputTransformation(
       input,

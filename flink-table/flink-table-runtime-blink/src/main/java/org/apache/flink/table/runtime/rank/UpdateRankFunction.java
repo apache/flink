@@ -32,7 +32,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
@@ -87,21 +86,12 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	private final TypeSerializer<BaseRow> inputRowSer;
 	private final KeySelector<BaseRow, BaseRow> rowKeySelector;
 
-	public UpdateRankFunction(
-			long minRetentionTime,
-			long maxRetentionTime,
-			BaseRowTypeInfo inputRowType,
-			BaseRowKeySelector rowKeySelector,
-			GeneratedRecordComparator generatedRecordComparator,
-			BaseRowKeySelector sortKeySelector,
-			RankType rankType,
-			RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction,
-			boolean outputRankNumber,
-			long cacheSize) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator,
-			sortKeySelector, rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
+	public UpdateRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
+			BaseRowKeySelector rowKeySelector, GeneratedRecordComparator generatedRecordComparator,
+			BaseRowKeySelector sortKeySelector, RankType rankType,
+			RankRange rankRange, boolean generateRetraction, boolean outputRankNumber, long cacheSize) {
+		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
+				rankRange, generateRetraction, outputRankNumber);
 		this.rowKeyType = rowKeySelector.getProducedType();
 		this.cacheSize = cacheSize;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());

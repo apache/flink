@@ -31,8 +31,6 @@ import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.type.InternalType;
@@ -63,16 +61,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	// we set default topN size to 100
 	private static final long DEFAULT_TOPN_SIZE = 100;
 
-	/**
-	 * The util to compare two BaseRow equals to each other.
-	 * As different BaseRow can't be equals directly, we use a code generated util to handle this.
-	 */
-	private GeneratedRecordEqualiser generatedEqualiser;
-	protected RecordEqualiser equaliser;
-
-	/**
-	 * The util to compare two sortKey equals to each other.
-	 */
+	// The util to compare two sortKey equals to each other.
 	private GeneratedRecordComparator generatedSortKeyComparator;
 	protected Comparator<BaseRow> sortKeyComparator;
 
@@ -94,17 +83,9 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected long hitCount = 0L;
 	protected long requestCount = 0L;
 
-	AbstractRankFunction(
-			long minRetentionTime,
-			long maxRetentionTime,
-			BaseRowTypeInfo inputRowType,
-			GeneratedRecordComparator generatedSortKeyComparator,
-			BaseRowKeySelector sortKeySelector,
-			RankType rankType,
-			RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction,
-			boolean outputRankNumber) {
+	AbstractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
+			GeneratedRecordComparator generatedSortKeyComparator, BaseRowKeySelector sortKeySelector,
+			RankType rankType, RankRange rankRange, boolean generateRetraction, boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
 		// TODO support RANK and DENSE_RANK
 		switch (rankType) {
@@ -147,7 +128,6 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			LOG.error(WITHOUT_RANK_END_UNSUPPORTED_MSG);
 			throw new UnsupportedOperationException(WITHOUT_RANK_END_UNSUPPORTED_MSG);
 		}
-		this.generatedEqualiser = generatedEqualiser;
 		this.generatedSortKeyComparator = generatedSortKeyComparator;
 		this.generateRetraction = generateRetraction;
 		this.inputRowType = inputRowType;
@@ -165,9 +145,6 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor<>("rankEnd", Types.LONG);
 			rankEndState = getRuntimeContext().getState(rankStateDesc);
 		}
-		// compile equaliser
-		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		generatedEqualiser = null;
 		// compile comparator
 		sortKeyComparator = generatedSortKeyComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		generatedSortKeyComparator = null;

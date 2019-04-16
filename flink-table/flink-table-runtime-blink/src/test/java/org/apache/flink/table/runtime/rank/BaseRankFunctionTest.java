@@ -19,8 +19,10 @@
 package org.apache.flink.table.runtime.rank;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -33,6 +35,7 @@ import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BaseRowRecordEqualiser;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
+import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
@@ -40,10 +43,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 
 /**
  * Base Tests for all subclass of {@link AbstractRankFunction}.
@@ -59,7 +58,7 @@ abstract class BaseRankFunctionTest {
 			InternalTypes.LONG,
 			InternalTypes.INT);
 
-	GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
+	static GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
 
 		private static final long serialVersionUID = 1434685115916728955L;
 
@@ -75,7 +74,7 @@ abstract class BaseRankFunctionTest {
 	BinaryRowKeySelector sortKeySelector = new BinaryRowKeySelector(new int[] { sortKeyIdx },
 			inputRowType.getInternalTypes());
 
-	GeneratedRecordEqualiser generatedEqualiser = new GeneratedRecordEqualiser("", "", new Object[0]) {
+	static GeneratedRecordEqualiser generatedEqualiser = new GeneratedRecordEqualiser("", "", new Object[0]) {
 
 		private static final long serialVersionUID = 8932460173848746733L;
 
@@ -110,6 +109,12 @@ abstract class BaseRankFunctionTest {
 	private int rowKeyIdx = 1;
 	BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
 			inputRowType.getInternalTypes());
+
+	private StreamRecordHelper recordWrapperWithoutRowNumber = new StreamRecordHelper(
+			new RowTypeInfo(outputTypeWithoutRowNumber.getFieldTypes()));
+
+	private StreamRecordHelper recordWrapperWithRowNumber = new StreamRecordHelper(
+			new RowTypeInfo(outputTypeWithRowNumber.getFieldTypes()));
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testInvalidVariableRankRangeWithIntType() throws Exception {
@@ -331,7 +336,31 @@ abstract class BaseRankFunctionTest {
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
 	}
 
-	protected abstract AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	abstract AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber);
+
+	StreamRecord<BaseRow> record(Object... fields) {
+		if (fields.length == outputTypeWithoutRowNumber.getArity()) {
+			return recordWrapperWithoutRowNumber.record(fields);
+		} else {
+			return recordWrapperWithRowNumber.record(fields);
+		}
+	}
+
+	StreamRecord<BaseRow> retractRecord(Object... fields) {
+		if (fields.length == outputTypeWithoutRowNumber.getArity()) {
+			return recordWrapperWithoutRowNumber.retractRecord(fields);
+		} else {
+			return recordWrapperWithRowNumber.retractRecord(fields);
+		}
+	}
+
+	StreamRecord<BaseRow> deleteRecord(Object... fields) {
+		if (fields.length == outputTypeWithoutRowNumber.getArity()) {
+			return recordWrapperWithoutRowNumber.deleteRecord(fields);
+		} else {
+			return recordWrapperWithRowNumber.deleteRecord(fields);
+		}
+	}
 
 }
