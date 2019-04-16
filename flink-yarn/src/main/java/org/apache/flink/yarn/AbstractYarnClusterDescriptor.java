@@ -140,7 +140,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private String zookeeperNamespace;
 
 	private String nodeLabel;
-	/* This field can be override by dynamic property application-type */
+
 	private String applicationType;
 
 	/** Optional Jar file to include in the system class loader of all application nodes
@@ -471,8 +471,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
-
-		this.applicationType = dynProperties.getOrDefault("application-type", "");
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
@@ -990,7 +988,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final String customApplicationName = customName != null ? customName : applicationName;
 
 		appContext.setApplicationName(customApplicationName);
-		appContext.setApplicationType(applicationType.isEmpty() ? "Apache Flink" : applicationType);
+		appContext.setApplicationType(applicationType != null ? applicationType : "Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 
@@ -1287,6 +1285,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new IllegalArgumentException("The passed name is null");
 		}
 		customName = name;
+	}
+
+	public void setApplicationType(String type) {
+		if (type == null) {
+			throw new IllegalArgumentException("The passed application type is null");
+		}
+		applicationType = type;
 	}
 
 	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws
