@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.JobListener
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -55,6 +56,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * Gets cache files.
     */
   def getCachedFiles = javaEnv.getCachedFiles
+
+  def getJobListeners: java.util.List[JobListener] = javaEnv.getJobListeners
+
+  def addJobListener(jobListener: JobListener) = {
+    javaEnv.addJobListener(jobListener)
+  }
 
   /**
    * Sets the parallelism for operations executed through this environment.

@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.Configuration;
@@ -99,6 +100,8 @@ public abstract class ClusterClient<T> {
 	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
 
+	protected List<JobListener> jobListeners;
+
 	// ------------------------------------------------------------------------
 	//                            Construction
 	// ------------------------------------------------------------------------
@@ -171,6 +174,10 @@ public abstract class ClusterClient<T> {
 	 */
 	public void setPrintStatusDuringExecution(boolean print) {
 		this.printStatusDuringExecution = print;
+	}
+
+	public void setJobListeners(List<JobListener> jobListeners) {
+		this.jobListeners = jobListeners;
 	}
 
 	/**

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.StoppableFunction;
@@ -144,6 +145,7 @@ public abstract class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
+	protected List<JobListener> jobListeners = new ArrayList<>();
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -162,6 +164,15 @@ public abstract class StreamExecutionEnvironment {
 	public List<Tuple2<String, DistributedCache.DistributedCacheEntry>> getCachedFiles() {
 		return cacheFile;
 	}
+
+	public void addJobListener(JobListener jobListener) {
+		this.jobListeners.add(jobListener);
+	}
+
+	public List<JobListener> getJobListeners() {
+		return this.jobListeners;
+	}
+
 
 	/**
 	 * Sets the parallelism for operations executed through this environment.

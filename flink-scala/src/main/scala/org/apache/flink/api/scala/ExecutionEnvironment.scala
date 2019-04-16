@@ -18,12 +18,12 @@
 package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID, JobListener}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -86,6 +86,12 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * value can be overridden by individual operations using [[DataSet.setParallelism]]
    */
   def getParallelism = javaEnv.getParallelism
+
+  def getJobListeners : java.util.List[JobListener] = javaEnv.getJobListeners
+
+  def addJobListener(jobListener: JobListener) ={
+    javaEnv.addJobListener(jobListener)
+  }
 
   /**
     * Sets the restart strategy configuration. The configuration specifies which restart strategy

@@ -150,6 +150,7 @@ public class RemoteExecutor extends PlanExecutor {
 			if (client == null) {
 				client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
 				client.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
+				client.setJobListeners(this.jobListeners);
 			}
 			else {
 				throw new IllegalStateException("The remote executor was already started.");

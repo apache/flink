@@ -77,6 +77,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		);
 
 		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+		executor.setJobListeners(getJobListeners());
 
 		return executor;
 	}

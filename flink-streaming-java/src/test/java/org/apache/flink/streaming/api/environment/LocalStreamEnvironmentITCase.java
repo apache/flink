@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.TestLogger;
 
@@ -59,6 +62,19 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 		env.execute();
 	}
 
+	@Test
+	public void testLocalEnvironmentWithJobListener() throws Exception {
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
+		TestJobListener testJobListener = new TestJobListener();
+		env.addJobListener(testJobListener);
+		env.fromElements(1, 2, 3).print();
+		env.execute();
+
+		assertEquals(1, testJobListener.jobSubmissionCount);
+		assertEquals(1, testJobListener.jobExecutedCount);
+		assertEquals(0, testJobListener.jobCanceledCount);
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static void addSmallBoundedJob(StreamExecutionEnvironment env, int parallelism) {
@@ -69,4 +85,27 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 					.startNewChain()
 					.print().setParallelism(parallelism);
 	}
+
+	private static class TestJobListener implements JobListener {
+
+		int jobSubmissionCount = 0;
+		int jobExecutedCount = 0;
+		int jobCanceledCount = 0;
+
+		@Override
+		public void onJobSubmitted(JobID jobId) {
+			jobSubmissionCount++;
+		}
+
+		@Override
+		public void onJobExecuted(JobExecutionResult jobResult) {
+			jobExecutedCount++;
+		}
+
+		@Override
+		public void onJobCanceled(JobID jobId, String savepointPath) {
+
+		}
+	}
+
 }

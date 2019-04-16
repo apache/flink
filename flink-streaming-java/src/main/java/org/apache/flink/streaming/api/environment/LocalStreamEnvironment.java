@@ -115,7 +115,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
-
+		miniCluster.setJobListeners(jobListeners);
 		try {
 			miniCluster.start();
 			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());

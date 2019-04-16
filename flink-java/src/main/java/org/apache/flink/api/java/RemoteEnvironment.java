@@ -209,6 +209,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 			executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration,
 				jarFiles, globalClasspaths);
 			executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+			executor.setJobListeners(this.getJobListeners());
 		}
 
 		// if we are using sessions, we keep the executor running

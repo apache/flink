@@ -51,6 +51,12 @@ public abstract class PlanExecutor {
 	/** If true, all execution progress updates are not only logged, but also printed to System.out */
 	private boolean printUpdatesToSysout = true;
 
+	protected List<JobListener> jobListeners;
+
+	public void setJobListeners(List<JobListener> jobListeners) {
+		this.jobListeners = jobListeners;
+	}
+
 	/**
 	 * Sets whether the executor should print progress results to "standard out" ({@link System#out}).
 	 * All progress messages are logged using the configured logging framework independent of the value

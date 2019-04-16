@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -128,6 +129,8 @@ public abstract class ExecutionEnvironment {
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
+	private List<JobListener> jobListeners = new ArrayList<>();
+
 	/**
 	 * Creates a new Execution Environment.
 	 */
@@ -146,6 +149,14 @@ public abstract class ExecutionEnvironment {
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
+	}
+
+	public void addJobListener(JobListener jobListener) {
+		this.jobListeners.add(jobListener);
+	}
+
+	public List<JobListener> getJobListeners() {
+		return this.jobListeners;
 	}
 
 	/**

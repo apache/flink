@@ -18,6 +18,9 @@
 
 package org.apache.flink.test.operators;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
@@ -64,6 +67,42 @@ public class ExecutionEnvironmentITCase extends TestLogger {
 				});
 		List<Integer> resultCollection = result.collect();
 		assertEquals(PARALLELISM, resultCollection.size());
+	}
+
+	@Test
+	public void testLocalEnvironmentWithJobListener() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+		TestJobListener testJobListener = new TestJobListener();
+		env.addJobListener(testJobListener);
+		DataSet<Integer> dataSet = env.fromElements(1, 2, 3);
+		List<Integer> resultCollection = dataSet.collect();
+		assertEquals(3, resultCollection.size());
+
+		assertEquals(1, testJobListener.jobSubmissionCount);
+		assertEquals(1, testJobListener.jobExecutedCount);
+		assertEquals(0, testJobListener.jobCanceledCount);
+	}
+
+	private static class TestJobListener implements JobListener {
+
+		int jobSubmissionCount = 0;
+		int jobExecutedCount = 0;
+		int jobCanceledCount = 0;
+
+		@Override
+		public void onJobSubmitted(JobID jobId) {
+			jobSubmissionCount++;
+		}
+
+		@Override
+		public void onJobExecuted(JobExecutionResult jobResult) {
+			jobExecutedCount++;
+		}
+
+		@Override
+		public void onJobCanceled(JobID jobId, String savepointPath) {
+
+		}
 	}
 
 	private static class ParallelismDependentInputFormat extends GenericInputFormat<Integer> {

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
@@ -181,6 +182,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	/** Flag marking the mini cluster as started/running. */
 	private volatile boolean running;
 
+	private List<JobListener> jobListeners = new ArrayList<>();
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -198,6 +201,14 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		running = false;
 
 		this.taskManagers = new ArrayList<>(miniClusterConfiguration.getNumTaskManagers());
+	}
+
+	public void setJobListeners(List<JobListener> jobListeners) {
+		this.jobListeners = jobListeners;
+	}
+
+	public void addJobListener(JobListener jobListener) {
+		this.jobListeners.add(jobListener);
 	}
 
 	public CompletableFuture<URI> getRestAddress() {
@@ -612,10 +623,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		final CompletableFuture<JobSubmissionResult> submissionFuture = submitJob(job);
 
 		final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
-			(JobSubmissionResult ignored) -> requestJobResult(job.getJobID()));
+			(JobSubmissionResult jobSubmissionResult) -> {
+				if (this.jobListeners != null){
+					for (JobListener jobListener : this.jobListeners) {
+						jobListener.onJobSubmitted(jobSubmissionResult.getJobID());
+					}
+				}
+				return requestJobResult(job.getJobID());
+			});
 
 		final JobResult jobResult;
-
 		try {
 			jobResult = jobResultFuture.get();
 		} catch (ExecutionException e) {
@@ -623,7 +640,14 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 
 		try {
-			return jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
+			JobExecutionResult jobExecutionResult =
+				jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
+			if (this.jobListeners != null) {
+				for (JobListener jobListener : this.jobListeners) {
+					jobListener.onJobExecuted(jobExecutionResult);
+				}
+			}
+			return jobExecutionResult;
 		} catch (IOException | ClassNotFoundException e) {
 			throw new JobExecutionException(job.getJobID(), e);
 		}

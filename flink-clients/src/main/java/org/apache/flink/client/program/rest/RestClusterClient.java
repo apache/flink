@@ -20,6 +20,7 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobListener;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -237,33 +238,40 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		log.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
 
 		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
+		final JobSubmissionResult submissionResult;
+		try {
+			submissionResult = jobSubmissionFuture.get();
+			if (this.jobListeners != null){
+				for (JobListener jobListener : this.jobListeners) {
+					jobListener.onJobSubmitted(submissionResult.getJobID());
+				}
+			}
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Could not submit job",
+				jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
+		}
 
 		if (isDetached()) {
-			try {
-				return jobSubmissionFuture.get();
-			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not submit job",
-					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
-			}
+			return submissionResult;
 		} else {
-			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
-				ignored -> requestJobResult(jobGraph.getJobID()));
-
+			final CompletableFuture<JobResult> jobResultFuture = requestJobResult(jobGraph.getJobID());
 			final JobResult jobResult;
 			try {
 				jobResult = jobResultFuture.get();
-			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not retrieve the execution result.",
-					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
-			}
-
-			try {
 				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
+				if (this.jobListeners != null) {
+					for (JobListener jobListener : this.jobListeners) {
+						jobListener.onJobExecuted(lastJobExecutionResult);
+					}
+				}
 				return lastJobExecutionResult;
 			} catch (JobExecutionException e) {
 				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			} catch (IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not retrieve the execution result.",
+					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
 			}
 		}
 	}

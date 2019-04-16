@@ -116,6 +116,9 @@ public class LocalExecutor extends PlanExecutor {
 
 				// start it up
 				jobExecutorService = createJobExecutorService(jobExecutorServiceConfiguration);
+				if (jobExecutorService instanceof MiniCluster) {
+					((MiniCluster) jobExecutorService).setJobListeners(this.jobListeners);
+				}
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}
