@@ -139,19 +139,19 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	// --------------------------------------------------------------------------------------------
 
 	private Object convert(JsonNode node, TypeInformation<?> info) {
-		if (info == Types.VOID || node.isNull()) {
+		if (Types.VOID.equals(info) || node.isNull()) {
 			return null;
-		} else if (info == Types.BOOLEAN) {
+		} else if (Types.BOOLEAN.equals(info)) {
 			return node.asBoolean();
-		} else if (info == Types.STRING) {
+		} else if (Types.STRING.equals(info)) {
 			return node.asText();
-		} else if (info == Types.BIG_DEC) {
+		} else if (Types.BIG_DEC.equals(info)) {
 			return node.decimalValue();
-		} else if (info == Types.BIG_INT) {
+		} else if (Types.BIG_INT.equals(info)) {
 			return node.bigIntegerValue();
-		} else if (info == Types.SQL_DATE) {
+		} else if (Types.SQL_DATE.equals(info)) {
 			return Date.valueOf(node.asText());
-		} else if (info == Types.SQL_TIME) {
+		} else if (Types.SQL_TIME.equals(info)) {
 			// according to RFC 3339 every full-time must have a timezone;
 			// until we have full timezone support, we only support UTC;
 			// users can parse their time as string as a workaround
@@ -162,7 +162,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 						"Format: HH:mm:ss'Z'");
 			}
 			return Time.valueOf(time.substring(0, time.length() - 1));
-		} else if (info == Types.SQL_TIMESTAMP) {
+		} else if (Types.SQL_TIMESTAMP.equals(info)) {
 			// according to RFC 3339 every date-time must have a timezone;
 			// until we have full timezone support, we only support UTC;
 			// users can parse their time as string as a workaround

@@ -151,34 +151,34 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	}
 
 	private JsonNode convert(ContainerNode<?> container, JsonNode reuse, TypeInformation<?> info, Object object) {
-		if (info == Types.VOID || object == null) {
+		if (Types.VOID.equals(info) || object == null) {
 			return container.nullNode();
-		} else if (info == Types.BOOLEAN) {
+		} else if (Types.BOOLEAN.equals(info)) {
 			return container.booleanNode((Boolean) object);
-		} else if (info == Types.STRING) {
+		} else if (Types.STRING.equals(info)) {
 			return container.textNode((String) object);
-		} else if (info == Types.BIG_DEC) {
+		} else if (Types.BIG_DEC.equals(info)) {
 			// convert decimal if necessary
 			if (object instanceof BigDecimal) {
 				return container.numberNode((BigDecimal) object);
 			}
 			return container.numberNode(BigDecimal.valueOf(((Number) object).doubleValue()));
-		} else if (info == Types.BIG_INT) {
+		} else if (Types.BIG_INT.equals(info)) {
 			// convert integer if necessary
 			if (object instanceof BigInteger) {
 				return container.numberNode((BigInteger) object);
 			}
 			return container.numberNode(BigInteger.valueOf(((Number) object).longValue()));
-		} else if (info == Types.SQL_DATE) {
+		} else if (Types.SQL_DATE.equals(info)) {
 			return container.textNode(object.toString());
-		} else if (info == Types.SQL_TIME) {
+		} else if (Types.SQL_TIME.equals(info)) {
 			final Time time = (Time) object;
 			// strip milliseconds if possible
 			if (time.getTime() % 1000 > 0) {
 				return container.textNode(timeFormatWithMillis.format(time));
 			}
 			return container.textNode(timeFormat.format(time));
-		} else if (info == Types.SQL_TIMESTAMP) {
+		} else if (Types.SQL_TIMESTAMP.equals(info)) {
 			return container.textNode(timestampFormat.format((Timestamp) object));
 		} else if (info instanceof RowTypeInfo) {
 			if (reuse != null && reuse instanceof ObjectNode) {
