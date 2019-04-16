@@ -398,9 +398,7 @@ public abstract class AbstractPagedInputView implements DataInputView {
 		try {
 			int b;
 			while ((b = readUnsignedByte()) != '\n') {
-				if (b != '\r') {
-					bld.append((char) b);
-				}
+				bld.append((char) b);
 			}
 		}
 		catch (EOFException eofex) {}
