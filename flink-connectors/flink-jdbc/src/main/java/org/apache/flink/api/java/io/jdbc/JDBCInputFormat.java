@@ -116,6 +116,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
 	private int fetchSize;
+	private Boolean autoCommit;
 
 	private boolean hasNext;
 	private Object[][] parameterValues;
@@ -143,6 +144,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			} else {
 				dbConn = DriverManager.getConnection(dbURL, username, password);
 			}
+
+			if (autoCommit != null) {
+				dbConn.setAutoCommit(autoCommit);
+			}
+
 			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
 			if (fetchSize == Integer.MIN_VALUE || fetchSize > 0) {
 				statement.setFetchSize(fetchSize);
@@ -323,6 +329,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		return statement;
 	}
 
+	@VisibleForTesting
+	Connection getDbConn() {
+		return dbConn;
+	}
+
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.
 	 * @return builder
@@ -393,6 +404,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			Preconditions.checkArgument(fetchSize == Integer.MIN_VALUE || fetchSize > 0,
 				"Illegal value %s for fetchSize, has to be positive or Integer.MIN_VALUE.", fetchSize);
 			format.fetchSize = fetchSize;
+			return this;
+		}
+
+		public JDBCInputFormatBuilder setAutoCommit(Boolean autoCommit) {
+			format.autoCommit = autoCommit;
 			return this;
 		}
 
