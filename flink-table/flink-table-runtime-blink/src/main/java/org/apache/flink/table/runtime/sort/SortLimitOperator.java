@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 /**
- * Operator for sort limit.
+ * Operator for batch sort limit.
  */
 public class SortLimitOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow> {

@@ -31,8 +31,6 @@ import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.type.InternalType;
@@ -46,13 +44,14 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
- * Base class for Rank Function.
+ * Base class for TopN Function.
  */
-public abstract class AbstractRankFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
+public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractTopNFunction.class);
 
 	private static final String RANK_UNSUPPORTED_MSG = "RANK() on streaming table is not supported currently";
 
@@ -63,16 +62,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	// we set default topN size to 100
 	private static final long DEFAULT_TOPN_SIZE = 100;
 
-	/**
-	 * The util to compare two BaseRow equals to each other.
-	 * As different BaseRow can't be equals directly, we use a code generated util to handle this.
-	 */
-	private GeneratedRecordEqualiser generatedEqualiser;
-	protected RecordEqualiser equaliser;
-
-	/**
-	 * The util to compare two sortKey equals to each other.
-	 */
+	// The util to compare two sortKey equals to each other.
 	private GeneratedRecordComparator generatedSortKeyComparator;
 	protected Comparator<BaseRow> sortKeyComparator;
 
@@ -84,8 +74,10 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected KeyContext keyContext;
 	private final boolean isConstantRankEnd;
 	private final long rankStart;
-	protected long rankEnd;
 	private final int rankEndIndex;
+	protected long rankEnd;
+	private transient Function<BaseRow, Long> rankEndFetcher;
+
 	private ValueState<Long> rankEndState;
 	private Counter invalidCounter;
 	private JoinedRow outputRow;
@@ -94,7 +86,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected long hitCount = 0L;
 	protected long requestCount = 0L;
 
-	AbstractRankFunction(
+	AbstractTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,
@@ -102,7 +94,6 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser,
 			boolean generateRetraction,
 			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
@@ -129,16 +120,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			rankEndIndex = -1;
 		} else if (rankRange instanceof VariableRankRange) {
 			VariableRankRange variableRankRange = (VariableRankRange) rankRange;
-			int rankEndIdx = variableRankRange.getRankEndIndex();
-			InternalType rankEndIdxType = inputRowType.getInternalTypes()[rankEndIdx];
-			if (!rankEndIdxType.equals(InternalTypes.LONG)) {
-				LOG.error("variable rank index column must be long type, while input type is {}",
-						rankEndIdxType.getClass().getName());
-				throw new UnsupportedOperationException(
-						"variable rank index column must be long type, while input type is " +
-								rankEndIdxType.getClass().getName());
-			}
-			rankEndIndex = rankEndIdx;
+			rankEndIndex = variableRankRange.getRankEndIndex();
 			isConstantRankEnd = false;
 			rankStart = -1;
 			rankEnd = -1;
@@ -147,7 +129,6 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			LOG.error(WITHOUT_RANK_END_UNSUPPORTED_MSG);
 			throw new UnsupportedOperationException(WITHOUT_RANK_END_UNSUPPORTED_MSG);
 		}
-		this.generatedEqualiser = generatedEqualiser;
 		this.generatedSortKeyComparator = generatedSortKeyComparator;
 		this.generateRetraction = generateRetraction;
 		this.inputRowType = inputRowType;
@@ -165,13 +146,28 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			ValueStateDescriptor<Long> rankStateDesc = new ValueStateDescriptor<>("rankEnd", Types.LONG);
 			rankEndState = getRuntimeContext().getState(rankStateDesc);
 		}
-		// compile equaliser
-		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		generatedEqualiser = null;
 		// compile comparator
 		sortKeyComparator = generatedSortKeyComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		generatedSortKeyComparator = null;
 		invalidCounter = getRuntimeContext().getMetricGroup().counter("topn.invalidTopSize");
+
+		// initialize rankEndFetcher
+		if (!isConstantRankEnd) {
+			InternalType rankEndIdxType = inputRowType.getInternalTypes()[rankEndIndex];
+			if (rankEndIdxType.equals(InternalTypes.LONG)) {
+				rankEndFetcher = (BaseRow row) -> row.getLong(rankEndIndex);
+			} else if (rankEndIdxType.equals(InternalTypes.INT)) {
+				rankEndFetcher = (BaseRow row) -> (long) row.getInt(rankEndIndex);
+			} else if (rankEndIdxType.equals(InternalTypes.SHORT)) {
+				rankEndFetcher = (BaseRow row) -> (long) row.getShort(rankEndIndex);
+			} else {
+				LOG.error("variable rank index column must be long, short or int type, while input type is {}",
+						rankEndIdxType.getClass().getName());
+				throw new UnsupportedOperationException(
+						"variable rank index column must be long type, while input type is " +
+								rankEndIdxType.getClass().getName());
+			}
+		}
 	}
 
 	/**
@@ -195,7 +191,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 			return rankEnd;
 		} else {
 			Long rankEndValue = rankEndState.value();
-			long curRankEnd = row.getLong(rankEndIndex);
+			long curRankEnd = rankEndFetcher.apply(row);
 			if (rankEndValue == null) {
 				rankEnd = curRankEnd;
 				rankEndState.update(rankEnd);

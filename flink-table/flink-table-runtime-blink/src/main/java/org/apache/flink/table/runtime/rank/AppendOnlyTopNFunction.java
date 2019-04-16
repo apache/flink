@@ -26,7 +26,6 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
@@ -42,13 +41,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * AppendRankFunction's input stream only contains append record.
+ * The function could and only could handle append input stream.
  */
-public class AppendRankFunction extends AbstractRankFunction {
+public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 
 	private static final long serialVersionUID = -4708453213104128010L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AppendRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AppendOnlyTopNFunction.class);
 
 	private final BaseRowTypeInfo sortKeyType;
 	private final TypeSerializer<BaseRow> inputRowSer;
@@ -63,7 +62,7 @@ public class AppendRankFunction extends AbstractRankFunction {
 	// the kvSortedMap stores mapping from partition key to it's buffer
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
-	public AppendRankFunction(
+	public AppendOnlyTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,
@@ -71,12 +70,11 @@ public class AppendRankFunction extends AbstractRankFunction {
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser,
 			boolean generateRetraction,
 			boolean outputRankNumber,
 			long cacheSize) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, sortKeyGeneratedRecordComparator,
-			sortKeySelector, rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
+		super(minRetentionTime, maxRetentionTime, inputRowType, sortKeyGeneratedRecordComparator, sortKeySelector,
+				rankType, rankRange, generateRetraction, outputRankNumber);
 		this.sortKeyType = sortKeySelector.getProducedType();
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
 		this.cacheSize = cacheSize;

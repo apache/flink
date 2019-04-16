@@ -26,11 +26,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
-import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,19 +38,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 /**
  * Tests for {@link MiniBatchDeduplicateKeepFirstRowFunction}.
  */
-public class MiniBatchDeduplicateKeepFirstRowFunctionTest {
-
-	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.LONG,
-			InternalTypes.INT);
-
-	private int rowKeyIdx = 1;
-	private BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
-			inputRowType.getInternalTypes());
-
-
-	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
-			inputRowType.getFieldTypes(),
-			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getInternalTypes()[rowKeyIdx]));
+public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTestBase {
 
 	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 

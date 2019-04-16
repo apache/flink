@@ -37,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Operator for sort.
+ * Operator for batch sort.
  */
 public class SortOperator extends TableStreamOperator<BinaryRow>
 		implements OneInputStreamOperator<BaseRow, BinaryRow> {

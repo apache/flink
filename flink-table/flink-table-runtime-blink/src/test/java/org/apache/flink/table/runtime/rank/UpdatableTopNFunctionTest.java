@@ -31,21 +31,21 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 
 /**
- * Tests for {@link UpdateRankFunction}.
+ * Tests for {@link UpdatableTopNFunction}.
  */
-public class UpdateRankFunctionTest extends BaseRankFunctionTest {
+public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
-	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		return new UpdateRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
-				inputRowType, rowKeySelector, sortKeyComparator, sortKeySelector, rankType, rankRange,
-				generatedEqualiser, generateRetraction, outputRankNumber, cacheSize);
+		return new UpdatableTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType, rowKeySelector,
+				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
+				cacheSize);
 	}
 
 	@Test
 	public void testVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new VariableRankRange(1), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -72,7 +72,7 @@ public class UpdateRankFunctionTest extends BaseRankFunctionTest {
 	@Override
 	@Test
 	public void testOutputRankNumberWithVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new VariableRankRange(1), true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -101,7 +101,7 @@ public class UpdateRankFunctionTest extends BaseRankFunctionTest {
 
 	@Test
 	public void testSortKeyChangesWhenOutputRankNumber() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -139,7 +139,7 @@ public class UpdateRankFunctionTest extends BaseRankFunctionTest {
 
 	@Test
 	public void testSortKeyChangesWhenOutputRankNumberAndNotGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -169,7 +169,7 @@ public class UpdateRankFunctionTest extends BaseRankFunctionTest {
 
 	@Test
 	public void testSortKeyChangesWhenNotOutputRankNumber() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -199,7 +199,7 @@ public class UpdateRankFunctionTest extends BaseRankFunctionTest {
 
 	@Test
 	public void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();

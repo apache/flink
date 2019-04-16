@@ -17,7 +17,19 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.util.{RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil}
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.EqualiserCodeGenerator
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
+import org.apache.flink.table.plan.util.{AppendFastStrategy, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UnaryUpdateStrategy, UpdateFastStrategy}
+import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
+import org.apache.flink.table.runtime.rank.{AppendOnlyTopNFunction, ConstantRankRange, UpdatableTopNFunction, RankType, RetractableTopNFunction}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -25,6 +37,10 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util.ImmutableBitSet
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for [[Sort]].
@@ -39,7 +55,8 @@ class StreamExecSortLimit(
     offset: RexNode,
     fetch: RexNode)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   private val limitStart: Long = SortUtil.getLimitStart(offset)
   private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -97,5 +114,114 @@ class StreamExecSortLimit(
     }
   }
 
-  // TODO check `fetch` is not null in translateToPlan
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    if (fetch == null) {
+      throw new TableException(
+        "FETCH is missed, which on streaming table is not supported currently")
+    }
+
+    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+      .asInstanceOf[StreamTransformation[BaseRow]]
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+    val fieldCollations = sortCollation.getFieldCollations
+    val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
+    val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
+    val sortKeyType = sortKeySelector.getProducedType
+    val tableConfig = tableEnv.getConfig
+    val sortKeyComparator = ComparatorCodeGenerator.gen(
+      tableConfig,
+      "StreamExecSortComparator",
+      sortFields.indices.toArray,
+      sortKeyType.getInternalTypes,
+      sortDirections,
+      nullsIsLast)
+    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
+    val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
+    val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
+
+    // rankStart begin with 1
+    val rankRange = new ConstantRankRange(limitStart + 1, limitEnd)
+    val rankType = RankType.ROW_NUMBER
+    val outputRankNumber = false
+
+    // Use RankFunction underlying StreamExecSortLimit
+    val processFunction = getStrategy(true) match {
+      case AppendFastStrategy =>
+        new AppendOnlyTopNFunction(
+          minIdleStateRetentionTime,
+          maxIdleStateRetentionTime,
+          inputRowTypeInfo,
+          sortKeyComparator,
+          sortKeySelector,
+          rankType,
+          rankRange,
+          generateRetraction,
+          outputRankNumber,
+          cacheSize)
+
+      case UpdateFastStrategy(primaryKeys) =>
+        val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
+        new UpdatableTopNFunction(
+          minIdleStateRetentionTime,
+          maxIdleStateRetentionTime,
+          inputRowTypeInfo,
+          rowKeySelector,
+          sortKeyComparator,
+          sortKeySelector,
+          rankType,
+          rankRange,
+          generateRetraction,
+          outputRankNumber,
+          cacheSize)
+
+      // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
+      case RetractStrategy | UnaryUpdateStrategy(_) =>
+        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
+        val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
+        new RetractableTopNFunction(
+          minIdleStateRetentionTime,
+          maxIdleStateRetentionTime,
+          inputRowTypeInfo,
+          sortKeyComparator,
+          sortKeySelector,
+          rankType,
+          rankRange,
+          generatedEqualiser,
+          generateRetraction,
+          outputRankNumber)
+    }
+    val operator = new KeyedProcessOperator(processFunction)
+    processFunction.setKeyContext(operator)
+
+    val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+
+    // sets parallelism to 1 since StreamExecSortLimit could only work in global mode.
+    val ret = new OneInputTransformation(
+      inputTransform,
+      getOperatorName,
+      operator,
+      outputRowTypeInfo,
+      1)
+    ret.setMaxParallelism(1)
+
+    val selector = NullBinaryRowKeySelector.INSTANCE
+    ret.setStateKeySelector(selector)
+    ret.setStateKeyType(selector.getProducedType)
+    ret
+  }
+
+  private def getOperatorName = {
+    s"SortLimit(" +
+      s"orderBy: [${RelExplainUtil.collationToString(sortCollation, getRowType)}], " +
+      s"offset: $limitStart, " +
+      s"fetch: ${RelExplainUtil.fetchToString(fetch)})"
+  }
 }

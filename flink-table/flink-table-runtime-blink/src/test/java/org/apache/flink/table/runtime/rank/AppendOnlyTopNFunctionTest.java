@@ -30,21 +30,21 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 
 /**
- * Tests for {@link AppendRankFunction}.
+ * Tests for {@link AppendOnlyTopNFunction}.
  */
-public class AppendRankFunctionTest extends BaseRankFunctionTest {
+public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
-	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		return new AppendRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
-				inputRowType, sortKeyComparator, sortKeySelector, rankType, rankRange, generatedEqualiser,
-				generateRetraction, outputRankNumber, cacheSize);
+		return new AppendOnlyTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
+				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
+				cacheSize);
 	}
 
 	@Test
 	public void testVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 2L, 12));

@@ -32,7 +32,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
@@ -51,18 +50,19 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A fast version of rank process function which only hold top n data in state, and keep sorted map in heap.
- * This only works in some special scenarios:
+ * The function could handle update input stream. It is a fast version of {@link RetractableTopNFunction} which only hold
+ * top n data in state, and keep sorted map in heap.
+ * However, the function only works in some special scenarios:
  * 1. sort field collation is ascending and its mono is decreasing, or sort field collation is descending and its mono
  * is increasing
  * 2. input data has unique keys
  * 3. input stream could not contain delete record or retract record
  */
-public class UpdateRankFunction extends AbstractRankFunction implements CheckpointedFunction {
+public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
 
 	private static final long serialVersionUID = 6786508184355952780L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(UpdateRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(UpdatableTopNFunction.class);
 
 	private final BaseRowTypeInfo rowKeyType;
 	private final long cacheSize;
@@ -87,7 +87,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	private final TypeSerializer<BaseRow> inputRowSer;
 	private final KeySelector<BaseRow, BaseRow> rowKeySelector;
 
-	public UpdateRankFunction(
+	public UpdatableTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,
@@ -96,12 +96,11 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser,
 			boolean generateRetraction,
 			boolean outputRankNumber,
 			long cacheSize) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator,
-			sortKeySelector, rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
+		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
+				rankRange, generateRetraction, outputRankNumber);
 		this.rowKeyType = rowKeySelector.getProducedType();
 		this.cacheSize = cacheSize;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
