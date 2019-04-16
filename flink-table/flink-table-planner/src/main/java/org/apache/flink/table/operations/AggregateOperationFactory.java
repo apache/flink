@@ -39,15 +39,9 @@ import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.expressions.ResolvedGroupWindow;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.expressions.WindowReference;
-import org.apache.flink.table.plan.logical.LogicalWindow;
-import org.apache.flink.table.plan.logical.SessionGroupWindow;
-import org.apache.flink.table.plan.logical.SlidingGroupWindow;
-import org.apache.flink.table.plan.logical.TumblingGroupWindow;
-import org.apache.flink.table.plan.logical.WindowAggregate;
+import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
@@ -56,21 +50,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import scala.Some;
-
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
-import static org.apache.flink.table.expressions.ResolvedGroupWindow.WindowType.SLIDE;
-import static org.apache.flink.table.expressions.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
+import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
+import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.table.typeutils.RowIntervalTypeInfo.INTERVAL_ROWS;
 import static org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS;
 
 /**
- * Utility class for creating a valid {@link AggregateTableOperation} or {@link WindowAggregate}.
+ * Utility class for creating a valid {@link AggregateTableOperation} or {@link WindowAggregateTableOperation}.
  */
 @Internal
 public class AggregateOperationFactory {
@@ -123,7 +115,7 @@ public class AggregateOperationFactory {
 	}
 
 	/**
-	 * Creates a valid {@link WindowAggregate} operation.
+	 * Creates a valid {@link WindowAggregateTableOperation} operation.
 	 *
 	 * @param groupings expressions describing grouping key of aggregates
 	 * @param aggregates expressions describing aggregation functions
@@ -132,7 +124,7 @@ public class AggregateOperationFactory {
 	 * @param child relational operation on top of which to apply the aggregation
 	 * @return valid window aggregate operation
 	 */
-	public WindowAggregate createWindowAggregate(
+	public TableOperation createWindowAggregate(
 			List<Expression> groupings,
 			List<Expression> aggregates,
 			List<Expression> windowProperties,
@@ -140,19 +132,35 @@ public class AggregateOperationFactory {
 			TableOperation child) {
 		validateGroupings(groupings);
 		validateAggregates(aggregates);
+		validateWindowProperties(windowProperties, window);
 
 		List<PlannerExpression> convertedGroupings = bridge(groupings);
 		List<PlannerExpression> convertedAggregates = bridge(aggregates);
 		List<PlannerExpression> convertedWindowProperties = bridge(windowProperties);
 
-		validateWindowProperties(windowProperties, window);
+		TypeInformation[] fieldTypes = concat(
+			convertedGroupings.stream(),
+			convertedAggregates.stream(),
+			convertedWindowProperties.stream()
+		).map(PlannerExpression::resultType)
+			.toArray(TypeInformation[]::new);
 
-		return new WindowAggregate(
-			convertedGroupings,
-			toLogicalWindow(window),
-			convertedWindowProperties,
-			convertedAggregates,
-			child);
+		String[] fieldNames = concat(
+			groupings.stream(),
+			aggregates.stream(),
+			windowProperties.stream()
+		).map(expr -> extractName(expr).orElseGet(expr::toString))
+			.toArray(String[]::new);
+
+		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
+
+		return new WindowAggregateTableOperation(
+			groupings,
+			aggregates,
+			windowProperties,
+			window,
+			child,
+			tableSchema);
 	}
 
 	/**
@@ -331,34 +339,6 @@ public class AggregateOperationFactory {
 			((TimeIndicatorTypeInfo) field.getResultType()).isEventTime();
 	}
 
-	private LogicalWindow toLogicalWindow(ResolvedGroupWindow window) {
-		TypeInformation<?> windowType = window.getTimeAttribute().getResultType();
-		WindowReference windowReference = new WindowReference(window.getAlias(), new Some<>(windowType));
-		switch (window.getType()) {
-			case SLIDE:
-				return new SlidingGroupWindow(
-					windowReference,
-					expressionBridge.bridge(window.getTimeAttribute()),
-					window.getSize().map(expressionBridge::bridge).get(),
-					window.getSlide().map(expressionBridge::bridge).get()
-				);
-			case SESSION:
-				return new SessionGroupWindow(
-					windowReference,
-					expressionBridge.bridge(window.getTimeAttribute()),
-					window.getGap().map(expressionBridge::bridge).get()
-				);
-			case TUMBLE:
-				return new TumblingGroupWindow(
-					windowReference,
-					expressionBridge.bridge(window.getTimeAttribute()),
-					window.getSize().map(expressionBridge::bridge).get()
-				);
-			default:
-				throw new TableException("Unknown window type");
-		}
-	}
-
 	private void validateWindowProperties(List<Expression> windowProperties, ResolvedGroupWindow window) {
 		if (!windowProperties.isEmpty()) {
 			if (window.getType() == TUMBLE || window.getType() == SLIDE) {
@@ -369,6 +349,11 @@ public class AggregateOperationFactory {
 				}
 			}
 		}
+	}
+
+	private static <T> Stream<T> concat(Stream<T> first, Stream<T> second, Stream<T> third) {
+		Stream<T> firstConcat = Stream.concat(first, second);
+		return Stream.concat(firstConcat, third);
 	}
 
 	private List<PlannerExpression> bridge(List<Expression> aggregates) {

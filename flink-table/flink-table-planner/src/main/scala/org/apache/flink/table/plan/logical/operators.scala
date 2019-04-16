@@ -133,38 +133,3 @@ case class Join(
 
   override def getChildren: JList[TableOperation] = (left +: right +: Nil).asJava
 }
-
-case class WindowAggregate(
-  groupingExpressions: JList[PlannerExpression],
-    window: LogicalWindow,
-    propertyExpressions: JList[PlannerExpression],
-    aggregateExpressions: JList[PlannerExpression],
-    child: TableOperation)
-  extends LogicalNode {
-
-  override def output: Seq[Attribute] = {
-    val expressions = groupingExpressions.asScala ++ aggregateExpressions.asScala ++
-      propertyExpressions.asScala
-    expressions map {
-      case ne: NamedExpression => ne.toAttribute
-      case e => Alias(e, e.toString).toAttribute
-    }
-  }
-
-  override def toRelNode(relBuilder: RelBuilder): RelNode = {
-    val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
-    flinkRelBuilder.aggregate(
-      window,
-      relBuilder.groupKey(groupingExpressions.asScala.map(_.toRexNode(relBuilder)).asJava),
-      propertyExpressions.asScala.map {
-        case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)
-        case _ => throw new RuntimeException("This should never happen.")
-      },
-      aggregateExpressions.asScala.map {
-        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
-        case _ => throw new RuntimeException("This should never happen.")
-      }.asJava).build()
-  }
-
-  override def getChildren: JList[TableOperation] = (child +: Nil).asJava
-}

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.expressions.Aggregation;
 import org.apache.flink.table.expressions.CallExpression;
@@ -29,6 +30,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateTableOperation;
@@ -43,7 +45,13 @@ import org.apache.flink.table.operations.SortTableOperation;
 import org.apache.flink.table.operations.TableOperation;
 import org.apache.flink.table.operations.TableOperationDefaultVisitor;
 import org.apache.flink.table.operations.TableOperationVisitor;
+import org.apache.flink.table.operations.WindowAggregateTableOperation;
+import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
 import org.apache.flink.table.plan.logical.LogicalNode;
+import org.apache.flink.table.plan.logical.LogicalWindow;
+import org.apache.flink.table.plan.logical.SessionGroupWindow;
+import org.apache.flink.table.plan.logical.SlidingGroupWindow;
+import org.apache.flink.table.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl;
 
 import org.apache.calcite.rel.RelNode;
@@ -56,6 +64,8 @@ import org.apache.calcite.tools.RelBuilder.GroupKey;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
+
+import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
@@ -111,11 +121,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		public RelNode visitProject(ProjectTableOperation projection) {
 			List<RexNode> rexNodes = convertToRexNodes(projection.getProjectList());
 
-			return relBuilder.project(
-				rexNodes,
-				asList(projection.getTableSchema().getFieldNames()),
-				true)
-				.build();
+			return relBuilder.project(rexNodes, asList(projection.getTableSchema().getFieldNames()), true).build();
 		}
 
 		@Override
@@ -129,6 +135,24 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 			GroupKey groupKey = relBuilder.groupKey(groupings);
 
 			return relBuilder.aggregate(groupKey, aggregations).build();
+		}
+
+		@Override
+		public RelNode visitWindowAggregate(WindowAggregateTableOperation windowAggregate) {
+			FlinkRelBuilder flinkRelBuilder = (FlinkRelBuilder) relBuilder;
+			List<AggCall> aggregations = windowAggregate.getAggregateExpressions()
+				.stream()
+				.map(expr -> expr.accept(aggregateVisitor))
+				.collect(toList());
+
+			List<RexNode> groupings = convertToRexNodes(windowAggregate.getGroupingExpressions());
+			List<PlannerExpression> windowProperties = windowAggregate.getWindowPropertiesExpressions()
+				.stream()
+				.map(expressionBridge::bridge)
+				.collect(toList());
+			GroupKey groupKey = relBuilder.groupKey(groupings);
+			LogicalWindow logicalWindow = toLogicalWindow(windowAggregate.getGroupWindow());
+			return flinkRelBuilder.aggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
 		}
 
 		@Override
@@ -224,6 +248,34 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 				.map(expr -> expr.toRexNode(relBuilder))
 				.collect(toList());
 		}
+
+		private LogicalWindow toLogicalWindow(ResolvedGroupWindow window) {
+			TypeInformation<?> windowType = window.getTimeAttribute().getResultType();
+			WindowReference windowReference = new WindowReference(window.getAlias(), new Some<>(windowType));
+			switch (window.getType()) {
+				case SLIDE:
+					return new SlidingGroupWindow(
+						windowReference,
+						expressionBridge.bridge(window.getTimeAttribute()),
+						window.getSize().map(expressionBridge::bridge).get(),
+						window.getSlide().map(expressionBridge::bridge).get()
+					);
+				case SESSION:
+					return new SessionGroupWindow(
+						windowReference,
+						expressionBridge.bridge(window.getTimeAttribute()),
+						window.getGap().map(expressionBridge::bridge).get()
+					);
+				case TUMBLE:
+					return new TumblingGroupWindow(
+						windowReference,
+						expressionBridge.bridge(window.getTimeAttribute()),
+						window.getSize().map(expressionBridge::bridge).get()
+					);
+				default:
+					throw new TableException("Unknown window type");
+			}
+		}
 	}
 
 	private class AggregateVisitor extends ExpressionDefaultVisitor<AggCall> {
@@ -231,9 +283,8 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		@Override
 		public AggCall visitCall(CallExpression call) {
 			if (call.getFunctionDefinition() == AS) {
-				String aggregateName = extractValue(call.getChildren().get(1),
-					Types.STRING).orElseThrow(() -> new TableException(
-					"Unexpected name"));
+				String aggregateName = extractValue(call.getChildren().get(1), Types.STRING)
+					.orElseThrow(() -> new TableException("Unexpected name"));
 
 				Expression aggregate = call.getChildren().get(0);
 				if (isFunctionOfType(aggregate, AGGREGATE_FUNCTION)) {
