@@ -31,6 +31,8 @@ public interface TableOperationVisitor<T> {
 
 	T visitAggregate(AggregateTableOperation aggregation);
 
+	T visitWindowAggregate(WindowAggregateTableOperation windowAggregate);
+
 	T visitSetOperation(SetTableOperation setOperation);
 
 	T visitFilter(FilterTableOperation filter);

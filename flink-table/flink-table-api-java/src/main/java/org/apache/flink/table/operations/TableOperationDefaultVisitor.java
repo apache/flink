@@ -39,6 +39,11 @@ public abstract class TableOperationDefaultVisitor<T> implements TableOperationV
 	}
 
 	@Override
+	public T visitWindowAggregate(WindowAggregateTableOperation windowAggregate) {
+		return defaultMethod(windowAggregate);
+	}
+
+	@Override
 	public T visitSetOperation(SetTableOperation setOperation) {
 		return defaultMethod(setOperation);
 	}
