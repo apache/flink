@@ -74,6 +74,7 @@ object ModelServingKeyedJob {
     config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism)
 
     // In a non MiniCluster setup queryable state is enabled by default.
+    config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true)
     config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069")
     config.setInteger(QueryableStateOptions.PROXY_NETWORK_THREADS, 2)
     config.setInteger(QueryableStateOptions.PROXY_ASYNC_QUERY_THREADS, 2)

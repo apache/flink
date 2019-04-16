@@ -62,6 +62,7 @@ object ModelStateQuery {
         try {
           // Get statistics
           val future = client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
+
           val stats = future.join().value()
 
           println(s" ${stats.name} | ${stats.description} | ${new DateTime(stats.since).
