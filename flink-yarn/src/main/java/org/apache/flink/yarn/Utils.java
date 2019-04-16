@@ -161,14 +161,9 @@ public final class Utils {
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
-		// Note: If we used registerLocalResource(FileSystem, Path) here, we would access the remote
-		//       file once again which has problems with eventually consistent read-after-write file
-		//       systems. Instead, we decide to preserve the modification time at the remote
-		//       location because this and the size of the resource will be checked by YARN based on
-		//       the values we provide to #registerLocalResource() below.
-		fs.setTimes(dst, localFile.lastModified(), -1);
+		long lastModified = fs.getFileStatus(dst).getModificationTime();
 		// now create the resource instance
-		LocalResource resource = registerLocalResource(dst, localFile.length(), localFile.lastModified());
+		LocalResource resource = registerLocalResource(dst, localFile.length(), lastModified);
 
 		return Tuple2.of(dst, resource);
 	}
