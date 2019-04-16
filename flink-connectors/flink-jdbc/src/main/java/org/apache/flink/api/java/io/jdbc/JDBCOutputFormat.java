@@ -198,8 +198,12 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 									// case java.sql.Types.STRUC
 							}
 						} catch (ClassCastException e) {
-							throw new RuntimeException(
-								"Field index: " + index + ", field value: " + row.getField(index) + " " + e.getMessage(), e);
+							// enrich the exception with detailed information.
+							String errorMessage = String.format(
+								"%s, field index: %s, field value: %s.", e.getMessage(), index, row.getField(index));
+							ClassCastException enrichedException = new ClassCastException(errorMessage);
+							enrichedException.setStackTrace(e.getStackTrace());
+							throw enrichedException;
 						}
 					}
 				}

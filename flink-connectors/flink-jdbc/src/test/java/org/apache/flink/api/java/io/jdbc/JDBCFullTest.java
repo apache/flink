@@ -54,7 +54,7 @@ public class JDBCFullTest extends JDBCTestBase {
 	public void testEnrichedClassCastException() throws Exception {
 		exception.expect(ClassCastException.class);
 		exception.expectMessage(
-			"java.lang.String cannot be cast to java.lang.Double at index 3 of the output row.");
+			"java.lang.String cannot be cast to java.lang.Double, field index: 3, field value: 11.11.");
 
 		JDBCOutputFormat jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 			.setDrivername(JDBCTestBase.DRIVER_CLASS)
