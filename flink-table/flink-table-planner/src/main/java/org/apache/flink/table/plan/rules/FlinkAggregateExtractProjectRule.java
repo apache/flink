@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.logical;
+package org.apache.flink.table.plan.rules;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
@@ -43,6 +42,7 @@ import org.apache.calcite.util.mapping.Mappings;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Rule to extract a {@link org.apache.calcite.rel.core.Project}
@@ -58,12 +58,6 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 		super(operand, builderFactory);
 	}
 
-	private int getWindowTimeFieldIndex(LogicalWindowAggregate aggregate, RelNode input) {
-		LogicalWindow logicalWindow = aggregate.getWindow();
-		ResolvedFieldReference timeAttribute = (ResolvedFieldReference) logicalWindow.timeAttribute();
-		return input.getRowType().getFieldNames().indexOf(timeAttribute.name());
-	}
-
 	@Override
 	public boolean matches(RelOptRuleCall call) {
 		final Aggregate aggregate = call.rel(0);
@@ -74,6 +68,29 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 	public void onMatch(RelOptRuleCall call) {
 		final Aggregate aggregate = call.rel(0);
 		final RelNode input = call.rel(1);
+		final RelBuilder relBuilder = call.builder().push(input);
+
+		Tuple2<List<RexNode>, Mapping> projectsAndMapping =
+			extractProjectsAndMapping(aggregate, input, relBuilder);
+		final List<RexNode> projects = projectsAndMapping.f0;
+
+		if (input instanceof Project && input.getRowType().getFieldCount() == projects.size()) {
+			// Avoid extracting a trivial Project which simply projects all fields of the input Project.
+			return;
+		}
+		relBuilder.project(projects, new LinkedList<>(), true);
+
+		RelNode newAggregate = getNewAggregate(aggregate, relBuilder, projectsAndMapping.f1);
+		call.transformTo(newAggregate);
+	}
+
+	/**
+	 * Extract projects from the Aggregate and return the index mapping between the new projects
+	 * and it's input.
+	 */
+	private Tuple2<List<RexNode>, Mapping> extractProjectsAndMapping(
+		Aggregate aggregate, RelNode input, RelBuilder relBuilder) {
+
 		// Compute which input fields are used.
 		// 1. group fields are always used
 		final ImmutableBitSet.Builder inputFieldsUsed =
@@ -92,7 +109,6 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 			inputFieldsUsed.set(getWindowTimeFieldIndex((LogicalWindowAggregate) aggregate, input));
 		}
 
-		final RelBuilder relBuilder = call.builder().push(input);
 		final List<RexNode> projects = new ArrayList<>();
 		final Mapping mapping =
 			Mappings.create(MappingType.INVERSE_SURJECTION,
@@ -103,51 +119,64 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 			projects.add(relBuilder.field(i));
 			mapping.set(i, j++);
 		}
+		return Tuple2.of(projects, mapping);
+	}
 
-		if (input instanceof Project && input.getRowType().getFieldCount() == projects.size()) {
-			// Avoid extracting a project same with the input project.
-			return;
-		}
-		relBuilder.project(projects, new LinkedList<>(), true);
+	private RelNode getNewAggregate(Aggregate oldAggregate, RelBuilder relBuilder, Mapping mapping) {
 
 		final ImmutableBitSet newGroupSet =
-			Mappings.apply(mapping, aggregate.getGroupSet());
+			Mappings.apply(mapping, oldAggregate.getGroupSet());
 
 		final Iterable<ImmutableBitSet> newGroupSets =
-			Iterables.transform(aggregate.getGroupSets(),
-				bitSet -> Mappings.apply(mapping, bitSet));
+			oldAggregate.getGroupSets().stream()
+				.map(bitSet -> Mappings.apply(mapping, bitSet))
+				.collect(Collectors.toList());
+
+		final List<RelBuilder.AggCall> newAggCallList =
+			getNewAggCallList(oldAggregate, relBuilder, mapping);
+
+		final RelBuilder.GroupKey groupKey =
+			relBuilder.groupKey(newGroupSet, newGroupSets);
+
+		if (oldAggregate instanceof LogicalWindowAggregate) {
+			relBuilder.aggregate(groupKey, newAggCallList);
+			Aggregate newAggregate = (Aggregate) relBuilder.build();
+			LogicalWindowAggregate oldLogicalWindowAggregate = (LogicalWindowAggregate) oldAggregate;
+			return LogicalWindowAggregate.create(
+					oldLogicalWindowAggregate.getWindow(),
+					oldLogicalWindowAggregate.getNamedProperties(),
+					newAggregate);
+		} else {
+			relBuilder.aggregate(groupKey, newAggCallList);
+			return relBuilder.build();
+		}
+	}
+
+	private int getWindowTimeFieldIndex(LogicalWindowAggregate aggregate, RelNode input) {
+		LogicalWindow logicalWindow = aggregate.getWindow();
+		ResolvedFieldReference timeAttribute = (ResolvedFieldReference) logicalWindow.timeAttribute();
+		return input.getRowType().getFieldNames().indexOf(timeAttribute.name());
+	}
+
+	private List<RelBuilder.AggCall> getNewAggCallList(
+		Aggregate oldAggregate, RelBuilder relBuilder, Mapping mapping) {
+
 		final List<RelBuilder.AggCall> newAggCallList = new ArrayList<>();
-		for (AggregateCall aggCall : aggregate.getAggCallList()) {
-			final ImmutableList<RexNode> args =
-				relBuilder.fields(
-					Mappings.apply2(mapping, aggCall.getArgList()));
+
+		for (AggregateCall aggCall : oldAggregate.getAggCallList()) {
 			final RexNode filterArg = aggCall.filterArg < 0 ? null
 				: relBuilder.field(Mappings.apply(mapping, aggCall.filterArg));
 			newAggCallList.add(
-				relBuilder.aggregateCall(aggCall.getAggregation(), args)
+				relBuilder
+					.aggregateCall(
+						aggCall.getAggregation(),
+						relBuilder.fields(Mappings.apply2(mapping, aggCall.getArgList())))
 					.distinct(aggCall.isDistinct())
 					.filter(filterArg)
 					.approximate(aggCall.isApproximate())
 					.sort(relBuilder.fields(aggCall.collation))
 					.as(aggCall.name));
 		}
-
-		final RelBuilder.GroupKey groupKey =
-			relBuilder.groupKey(newGroupSet, newGroupSets);
-
-		if (aggregate instanceof LogicalWindowAggregate) {
-			relBuilder.aggregate(groupKey, newAggCallList);
-			Aggregate newAggregate = (Aggregate) relBuilder.build();
-			LogicalWindowAggregate oldLogicalWindowAggregate = (LogicalWindowAggregate) aggregate;
-			LogicalWindowAggregate newLogicalWindowAggegate =
-				LogicalWindowAggregate.create(
-					oldLogicalWindowAggregate.getWindow(),
-					oldLogicalWindowAggregate.getNamedProperties(),
-					newAggregate);
-			call.transformTo(newLogicalWindowAggegate);
-		} else {
-			relBuilder.aggregate(groupKey, newAggCallList);
-			call.transformTo(relBuilder.build());
-		}
+		return newAggCallList;
 	}
 }
