@@ -18,7 +18,9 @@
 
 package org.apache.flink.modelserving.scala.query
 
-import org.apache.flink.api.common.state.{ValueStateDescriptor}
+import java.util.function.BiFunction
+
+import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.api.scala.createTypeInformation
@@ -62,6 +64,7 @@ object ModelStateQuery {
         try {
           // Get statistics
           val future = client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
+          client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
 
           val stats = future.join().value()
 
