@@ -16,28 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils
+package org.apache.flink.table.expressions;
 
-import org.apache.flink.api.common.typeinfo.{TypeInfoFactory, TypeInformation}
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.api.dataview.ListView
+import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
 
-import java.lang.reflect.Type
-import java.util
+/**
+ * Dictionary of function definitions for all internal used functions.
+ */
+public class InternalFunctionDefinitions {
 
-class ListViewTypeInfoFactory[T] extends TypeInfoFactory[ListView[T]] {
+	public static final FunctionDefinition THROW_EXCEPTION =
+		new FunctionDefinition("throwException", SCALAR_FUNCTION);
 
-  override def createTypeInfo(
-      t: Type,
-      genericParameters: util.Map[String, TypeInformation[_]]): TypeInformation[ListView[T]] = {
-
-    var elementType = genericParameters.get("T")
-
-    if (elementType == null) {
-      // we might can get the elementType later from the ListView constructor
-      elementType = new GenericTypeInfo(classOf[Any])
-    }
-
-    new ListViewTypeInfo[T](elementType.asInstanceOf[TypeInformation[T]])
-  }
 }

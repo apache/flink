@@ -21,28 +21,24 @@ package org.apache.flink.table.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{ListTypeInfo, PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
 import org.apache.flink.table.dataformat.DataFormatConverters.{DateConverter, TimestampConverter}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
+import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.runtime.utils.TestData._
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.runtime.utils.TestData._
+import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
+import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
 
 import java.sql.{Date, Timestamp}
 import java.util
 
-import scala.collection.JavaConversions._
 import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
@@ -986,7 +982,7 @@ class CalcITCase extends BatchTestBase {
     * yyyy
     * yyyy-[m]m
     * yyyy-[m]m-[d]d
-    * yyyy-[m]m-[d]d 
+    * yyyy-[m]m-[d]d
     * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
     * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
     * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
@@ -1217,117 +1213,3 @@ class CalcITCase extends BatchTestBase {
     )
   }
 }
-
-object MyHashCode extends ScalarFunction {
-  def eval(s: String): Int = s.hashCode()
-}
-
-object OldHashCode extends ScalarFunction {
-  def eval(s: String): Int = -1
-}
-
-object StringFunction extends ScalarFunction {
-  def eval(s: String): String = s
-}
-
-object BinaryStringFunction extends ScalarFunction {
-  def eval(s: BinaryString): BinaryString = s
-}
-
-object DateFunction extends ScalarFunction {
-  def eval(d: Integer): Integer = d
-
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
-    SqlTimeTypeInfo.DATE
-}
-
-// Understand type: Row wrapped as TypeInfoWrappedDataType.
-object RowFunc extends ScalarFunction {
-  def eval(s: String): Row = Row.of(s)
-
-  override def getResultType(signature: Array[Class[_]]) =
-    new RowTypeInfo(Types.STRING)
-}
-
-object RowToStrFunc extends ScalarFunction {
-  def eval(s: BaseRow): String = s.getString(0).toString
-}
-
-// generic.
-object ListFunc extends ScalarFunction {
-  def eval(s: String): java.util.List[String] = util.Arrays.asList(s)
-
-  override def getResultType(signature: Array[Class[_]]) =
-    new ListTypeInfo(Types.STRING)
-}
-
-// internal but wrapped as TypeInfoWrappedDataType.
-object StringFunc extends ScalarFunction {
-  def eval(s: String): String = s
-
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[String] =
-    Types.STRING
-}
-
-class MyPojo() {
-  var f1: Int = 0
-  var f2: Int = 0
-
-  def this(f1: Int, f2: Int) {
-    this()
-    this.f1 = f1
-    this.f2 = f2
-  }
-
-  override def equals(other: Any): Boolean = other match {
-    case that: MyPojo =>
-      (that canEqual this) &&
-          f1 == that.f1 &&
-          f2 == that.f2
-    case _ => false
-  }
-
-  def canEqual(other: Any): Boolean = other.isInstanceOf[MyPojo]
-
-  override def toString = s"MyPojo($f1, $f2)"
-}
-
-object MyPojoFunc extends ScalarFunction {
-  def eval(s: MyPojo): Int = s.f2
-
-  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
-    Array(MyToPojoFunc.getResultType(signature))
-}
-
-object MyToPojoFunc extends ScalarFunction {
-  def eval(s: Int): MyPojo = new MyPojo(s, s)
-
-  override def getResultType(signature: Array[Class[_]]): PojoTypeInfo[MyPojo] = {
-    val cls = classOf[MyPojo]
-    new PojoTypeInfo[MyPojo](classOf[MyPojo], Seq(
-      new PojoField(cls.getDeclaredField("f1"), Types.INT),
-      new PojoField(cls.getDeclaredField("f2"), Types.INT)))
-  }
-}
-
-object MyStringFunc extends ScalarFunction {
-  def eval(s: String): String = s + "haha"
-}
-
-// TODO support getResultType from literal args.
-//object LiteralHashCode extends ScalarFunction {
-//  def eval(s: String, t: String): Any = {
-//    val code = s.hashCode()
-//    if (t == "string") "str" + code else if (t == "int") code else throw new RuntimeException
-//  }
-//
-//  override def getResultType(arguments: Array[AnyRef], signature: Array[Class[_]]) = {
-//    if (arguments(1) == "string") {
-//      Types.STRING
-//    } else if (arguments(1) == "int") {
-//      Types.INT
-//    } else {
-//      throw new RuntimeException
-//    }
-//  }
-//}

@@ -61,7 +61,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
   }
 
   override val aggInfoList = AggregateInfoList(
-    Array(aggInfo1, aggInfo2, aggInfo3), None, count1AggInserted = false, Array())
+    Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
 
   @Test
   def testLocal(): Unit = {

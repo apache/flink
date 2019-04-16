@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.over.frame;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
@@ -71,7 +72,7 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
 
 		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
 		processor = aggsHandleFunction.newInstance(cl);
-		processor.open(ctx);
+		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 		buffer = new ArrayDeque<>();
 		this.aggsHandleFunction = null;
 	}

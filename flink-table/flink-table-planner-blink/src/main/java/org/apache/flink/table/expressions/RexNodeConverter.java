@@ -133,6 +133,12 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return relBuilder.call(FlinkSqlOperatorTable.LESS_THAN, child);
 		} else if (BuiltInFunctionDefinitions.GREATER_THAN.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN, child);
+		} else if (BuiltInFunctionDefinitions.OR.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.OR, child);
+		} else if (BuiltInFunctionDefinitions.CONCAT.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.CONCAT, child);
+		} else if (InternalFunctionDefinitions.THROW_EXCEPTION.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.THROW_EXCEPTION, child);
 		} else if (BuiltInFunctionDefinitions.AND.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.AND, child);
 		} else if (BuiltInFunctionDefinitions.NOT.equals(def)) {

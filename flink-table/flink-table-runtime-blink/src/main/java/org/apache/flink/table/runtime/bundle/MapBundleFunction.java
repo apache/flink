@@ -51,7 +51,7 @@ public abstract class MapBundleFunction<K, V, IN, OUT> implements Function {
 	 * @param value the existing bundle value, maybe null
 	 * @param input the given input, not null
 	 */
-	public abstract V addInput(@Nullable V value, IN input);
+	public abstract V addInput(@Nullable V value, IN input) throws Exception;
 
 	/**
 	 * Called when a bundle is finished. Transform a bundle to zero, one, or more output elements.

@@ -22,32 +22,30 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.table.`type`.RowType
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter, BinaryString}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.RowType
+import org.junit.runners.Parameterized
+import org.junit.{After, Assert, Before}
+
+import java.io.File
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-import java.io.File
-import java.util
-
-import org.junit.runners.Parameterized
-import org.junit.{After, Assert, Before}
-
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-
 class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestBase {
 
   enableObjectReuse = state match {
-    case HEAP_BACKEND => false // TODO gemini not support obj reuse now.
+    case HEAP_BACKEND => false // TODO heap statebackend not support obj reuse now.
     case ROCKSDB_BACKEND => true
   }
 
@@ -97,7 +95,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
             case Types.INT => writer.writeInt(i, p.productElement(i).asInstanceOf[Int])
             case Types.LONG => writer.writeLong(i, p.productElement(i).asInstanceOf[Long])
             case Types.STRING => writer.writeString(i,
-              p.productElement(i).asInstanceOf[BinaryString])
+              BinaryString.fromString(p.productElement(i).asInstanceOf[String]))
             case Types.BOOLEAN => writer.writeBoolean(i, p.productElement(i).asInstanceOf[Boolean])
           }
         }
@@ -115,7 +113,6 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   def failingDataSource[T: TypeInformation](data: Seq[T]): DataStream[T] = {
     env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
-    env.setParallelism(1)
     // reset failedBefore flag to false
     FailingCollectionSource.reset()
 
@@ -129,8 +126,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     val function = new FailingCollectionSource[T](
       typeInfo.createSerializer(env.getConfig),
       collection,
-      data.length / 2, // fail after half elements
-      false)
+      data.length / 2) // fail after half elements
 
     env.addSource(function)(typeInfo).setMaxParallelism(1)
   }
@@ -201,7 +197,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
 
     def appendStrToMap(ss: CharSequence, m: Map[String, String]): Unit = {
       val equalsIdxs = findEquals(ss)
-      equalsIdxs.foreach(idx => m + splitKV(ss, idx))
+      equalsIdxs.foreach (idx => m + splitKV(ss, idx))
     }
 
     while (idx < l) {

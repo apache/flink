@@ -21,6 +21,9 @@ package org.apache.flink.table.functions.aggfunctions;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.PojoField;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
@@ -31,7 +34,8 @@ import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,6 +43,8 @@ import java.util.Map;
  */
 public abstract class MaxWithRetractAggFunction<T extends Comparable>
 		extends AggregateFunction<T, MaxWithRetractAggFunction.MaxWithRetractAccumulator<T>> {
+
+	private static final long serialVersionUID = -5860934997657147836L;
 
 	/** The initial accumulator for Max with retraction aggregate function. */
 	public static class MaxWithRetractAccumulator<T> {
@@ -67,11 +73,19 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 
 			Long count = acc.map.get(v);
 			if (count == null) {
-				acc.map.put(v, 1L);
-				acc.mapSize += 1;
+				count = 0L;
+			}
+			count += 1L;
+			if (count == 0) {
+				// remove it when count is increased from -1 to 0
+				acc.map.remove(v);
 			} else {
-				count += 1L;
+				// store it when count is NOT zero
 				acc.map.put(v, count);
+			}
+			if (count == 1L) {
+				// previous count is zero, this is the first time to see the key
+				acc.mapSize += 1;
 			}
 		}
 	}
@@ -81,66 +95,95 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 			T v = (T) value;
 
 			Long count = acc.map.get(v);
-			if (count == null || count == 1L) {
-				//remove the key v from the map if the number of appearance of the value v is 0
-				if (count != null) {
-					acc.map.remove(v);
-				}
-				//if the total count is 0, we could just simply set the f0(max) to the initial value
+			if (count == null) {
+				count = 0L;
+			}
+			count -= 1;
+			if (count == 0) {
+				// remove it when count is decreased from 1 to 0
+				acc.map.remove(v);
 				acc.mapSize -= 1L;
-				if (acc.mapSize <= 0L) {
+
+				//if the total count is 0, we could just simply set the f0(max) to the initial value
+				if (acc.mapSize == 0) {
 					acc.max = null;
 					return;
 				}
 				//if v is the current max value, we have to iterate the map to find the 2nd biggest
 				// value to replace v as the max value
-				if (v == acc.max) {
-					Iterator<T> iterator = acc.map.keys().iterator();
-					boolean hasMax = false;
-					while (iterator.hasNext()) {
-						T key = iterator.next();
-						if (!hasMax || acc.max.compareTo(key) < 0) {
-							acc.max = key;
-							hasMax = true;
-						}
-					}
-					// The behavior of deleting expired data in the state backend is uncertain.
-					// so `mapSize` data may exist, while `map` data may have been deleted
-					// when both of them are expired.
-					if (!hasMax) {
-						acc.mapSize = 0L;
-					}
+				if (v.equals(acc.max)) {
+					updateMax(acc);
 				}
 			} else {
-				acc.map.put(v, count - 1);
+				// store it when count is NOT zero
+				acc.map.put(v, count);
+				// we do not take negative number account into mapSize
 			}
 		}
 	}
 
+	private void updateMax(MaxWithRetractAccumulator<T> acc) throws Exception {
+		boolean hasMax = false;
+		for (T key : acc.map.keys()) {
+			if (!hasMax || acc.max.compareTo(key) < 0) {
+				acc.max = key;
+				hasMax = true;
+			}
+		}
+		// The behavior of deleting expired data in the state backend is uncertain.
+		// so `mapSize` data may exist, while `map` data may have been deleted
+		// when both of them are expired.
+		if (!hasMax) {
+			acc.mapSize = 0L;
+		}
+	}
+
 	public void merge(MaxWithRetractAccumulator<T> acc, Iterable<MaxWithRetractAccumulator<T>> its) throws Exception {
-		Iterator<MaxWithRetractAccumulator<T>> iter = its.iterator();
-		while (iter.hasNext()) {
-			MaxWithRetractAccumulator<T> a = iter.next();
-			if (a.mapSize != 0) {
-				// set max element
-				if (acc.mapSize == 0 || acc.max.compareTo(a.max) < 0) {
-					acc.max = a.max;
+		boolean needUpdateMax = false;
+		for (MaxWithRetractAccumulator<T> a : its) {
+			// set max element
+			if (acc.mapSize == 0 || (a.max != null && acc.max.compareTo(a.max) < 0)) {
+				acc.max = a.max;
+			}
+			// merge the count for each key
+			for (Map.Entry entry : a.map.entries()) {
+				T key = (T) entry.getKey();
+				Long otherCount = (Long) entry.getValue(); // non-null
+				Long thisCount = acc.map.get(key);
+				if (thisCount == null) {
+					thisCount = 0L;
 				}
-				// merge the count for each key
-				Iterator<Map.Entry<T, Long>> iterator = a.map.entries().iterator();
-				while (iterator.hasNext()) {
-					Map.Entry entry = iterator.next();
-					T key = (T) entry.getKey();
-					Long value = (Long) entry.getValue();
-					Long count = acc.map.get(key);
-					if (count != null) {
-						acc.map.put(key, count + value);
-					} else {
-						acc.map.put(key, value);
+				long mergedCount = otherCount + thisCount;
+				if (mergedCount == 0) {
+					// remove it when count is increased from -1 to 0
+					acc.map.remove(key);
+					if (thisCount > 0) {
+						// origin is > 0, and retract to 0
+						acc.mapSize -= 1;
+						if (key.equals(acc.max)) {
+							needUpdateMax = true;
+						}
+					}
+				} else if (mergedCount < 0) {
+					acc.map.put(key, mergedCount);
+					if (thisCount > 0) {
+						// origin is > 0, and retract to < 0
+						acc.mapSize -= 1;
+						if (key.equals(acc.max)) {
+							needUpdateMax = true;
+						}
+					}
+				} else { // mergedCount > 0
+					acc.map.put(key, mergedCount);
+					if (thisCount <= 0) {
+						// origin is <= 0, and accumulate to > 0
 						acc.mapSize += 1;
 					}
 				}
 			}
+		}
+		if (needUpdateMax) {
+			updateMax(acc);
 		}
 	}
 
@@ -159,15 +202,38 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 		}
 	}
 
-	protected abstract TypeInformation<?> getValueTypeInfo();
+	@Override
+	public TypeInformation<MaxWithRetractAccumulator<T>> getAccumulatorType() {
+		PojoTypeInfo pojoType = (PojoTypeInfo) TypeExtractor.createTypeInfo(MaxWithRetractAccumulator.class);
+		List<PojoField> pojoFields = new ArrayList<>();
+		for (int i = 0; i < pojoType.getTotalFields(); i++) {
+			PojoField field = pojoType.getPojoFieldAt(i);
+			if (field.getField().getName().equals("max")) {
+				pojoFields.add(new PojoField(field.getField(), getValueTypeInfo()));
+			} else {
+				pojoFields.add(field);
+			}
+		}
+		//noinspection unchecked
+		return new PojoTypeInfo(pojoType.getTypeClass(), pojoFields);
+	}
+
+	@Override
+	public TypeInformation<T> getResultType() {
+		return getValueTypeInfo();
+	}
+
+	protected abstract TypeInformation<T> getValueTypeInfo();
 
 	/**
 	 * Built-in Byte Max with retraction aggregate function.
 	 */
 	public static class ByteMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Byte> {
 
+		private static final long serialVersionUID = 7383980948808353819L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Byte> getValueTypeInfo() {
 			return BasicTypeInfo.BYTE_TYPE_INFO;
 		}
 	}
@@ -177,8 +243,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class ShortMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Short> {
 
+		private static final long serialVersionUID = 7579072678911328694L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Short> getValueTypeInfo() {
 			return BasicTypeInfo.SHORT_TYPE_INFO;
 		}
 	}
@@ -188,8 +256,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class IntMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Integer> {
 
+		private static final long serialVersionUID = 3833976566544263072L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Integer> getValueTypeInfo() {
 			return BasicTypeInfo.INT_TYPE_INFO;
 		}
 	}
@@ -199,8 +269,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class LongMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Long> {
 
+		private static final long serialVersionUID = 8585384188523017375L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Long> getValueTypeInfo() {
 			return BasicTypeInfo.LONG_TYPE_INFO;
 		}
 	}
@@ -210,8 +282,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class FloatMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Float> {
 
+		private static final long serialVersionUID = -1433882434794024584L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Float> getValueTypeInfo() {
 			return BasicTypeInfo.FLOAT_TYPE_INFO;
 		}
 	}
@@ -221,8 +295,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class DoubleMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Double> {
 
+		private static final long serialVersionUID = -1525221057708740308L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Double> getValueTypeInfo() {
 			return BasicTypeInfo.DOUBLE_TYPE_INFO;
 		}
 	}
@@ -232,8 +308,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Boolean> {
 
+		private static final long serialVersionUID = -8408715018822625309L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Boolean> getValueTypeInfo() {
 			return BasicTypeInfo.BOOLEAN_TYPE_INFO;
 		}
 	}
@@ -242,14 +320,23 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 * Built-in Big Decimal Max with retraction aggregate function.
 	 */
 	public static class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Decimal> {
+		private static final long serialVersionUID = 5301860581297042635L;
 		private DecimalTypeInfo decimalType;
 
 		public DecimalMaxWithRetractAggFunction(DecimalTypeInfo decimalType) {
 			this.decimalType = decimalType;
 		}
 
+		public void accumulate(MaxWithRetractAccumulator<Decimal> acc, Decimal value) throws Exception {
+			super.accumulate(acc, value);
+		}
+
+		public void retract(MaxWithRetractAccumulator<Decimal> acc, Decimal value) throws Exception {
+			super.retract(acc, value);
+		}
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Decimal> getValueTypeInfo() {
 			return decimalType;
 		}
 	}
@@ -259,8 +346,18 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction<BinaryString> {
 
+		private static final long serialVersionUID = 787528574867514796L;
+
+		public void accumulate(MaxWithRetractAccumulator<BinaryString> acc, BinaryString value) throws Exception {
+			super.accumulate(acc, value);
+		}
+
+		public void retract(MaxWithRetractAccumulator<BinaryString> acc, BinaryString value) throws Exception {
+			super.retract(acc, value);
+		}
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<BinaryString> getValueTypeInfo() {
 			return BinaryStringTypeInfo.INSTANCE;
 		}
 	}
@@ -270,8 +367,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Timestamp> {
 
+		private static final long serialVersionUID = -7096481949093142944L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Timestamp> getValueTypeInfo() {
 			return Types.SQL_TIMESTAMP;
 		}
 	}
@@ -281,8 +380,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class DateMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Date> {
 
+		private static final long serialVersionUID = 7452698503075473023L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Date> getValueTypeInfo() {
 			return Types.SQL_DATE;
 		}
 	}
@@ -292,8 +393,10 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 	 */
 	public static class TimeMaxWithRetractAggFunction extends MaxWithRetractAggFunction<Time> {
 
+		private static final long serialVersionUID = 3578216747876121493L;
+
 		@Override
-		protected TypeInformation<?> getValueTypeInfo() {
+		protected TypeInformation<Time> getValueTypeInfo() {
 			return Types.SQL_TIME;
 		}
 	}

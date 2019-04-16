@@ -37,6 +37,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MINU
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS;
+import static org.apache.flink.table.expressions.InternalFunctionDefinitions.THROW_EXCEPTION;
 
 /**
  * Builder for {@link Expression}s.
@@ -117,5 +118,9 @@ public class ExpressionBuilder {
 
 	public static Expression concat(Expression input1, Expression input2) {
 		return call(CONCAT, input1, input2);
+	}
+
+	public static Expression throwException(String msg, TypeInformation<?> type) {
+		return call(THROW_EXCEPTION, typeLiteral(type));
 	}
 }

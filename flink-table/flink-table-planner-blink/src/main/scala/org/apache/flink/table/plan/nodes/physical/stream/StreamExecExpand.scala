@@ -83,7 +83,8 @@ class StreamExecExpand(
       outputType,
       config,
       projects,
-      opName = "StreamExpand")
+      opName = "StreamExpand",
+      retainHeader = true)
 
     val operatorName = s"StreamExecExpand: ${getRowType.getFieldList.map(_.getName).mkString(", ")}"
     new OneInputTransformation(
@@ -91,7 +92,7 @@ class StreamExecExpand(
       operatorName,
       operator,
       outputType.toTypeInfo,
-      config.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
+      inputTransform.getParallelism)
   }
 
 }

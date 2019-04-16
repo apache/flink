@@ -20,8 +20,8 @@ package org.apache.flink.table.codegen.agg
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.generated.AggsHandleFunction
-
 import org.junit.{Assert, Test}
 
 import java.lang
@@ -88,7 +88,7 @@ class AggsHandlerCodeGeneratorTest extends AggTestBase {
         Types.DOUBLE, Types.LONG, imperativeAggFunc.getAccumulatorType))
     }
     val handler = generator.generateAggsHandler("Test", aggInfoList).newInstance(classLoader)
-    handler.open(context)
+    handler.open(new PerKeyStateDataViewStore(context.getRuntimeContext))
     handler
   }
 }

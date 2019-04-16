@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.api.{Table, TableConfig, TableException, Types}
-import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, genToExternal}
+import org.apache.flink.table.codegen.CodeGenUtils.genToExternal
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.dataformat.util.BaseRowUtil
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}

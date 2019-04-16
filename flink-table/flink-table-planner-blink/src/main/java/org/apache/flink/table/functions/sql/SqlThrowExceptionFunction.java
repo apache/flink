@@ -18,49 +18,24 @@
 
 package org.apache.flink.table.functions.sql;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlSplittableAggFunction;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
-
-import java.util.List;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 
 /**
- * <code>MAX2ND</code> aggregate function returns the second largest of the values which go into it.
+ * Function used to throw an exception, only used internally.
  */
-public class SqlMax2ndAggFunction  extends SqlAggFunction {
-
-	public SqlMax2ndAggFunction() {
+public class SqlThrowExceptionFunction extends SqlFunction {
+	public SqlThrowExceptionFunction() {
 		super(
-				"MAX2ND",
-				null,
-				SqlKind.OTHER_FUNCTION,
-				ReturnTypes.ARG0_NULLABLE_IF_EMPTY,
-				null,
-				OperandTypes.COMPARABLE_ORDERED,
-				SqlFunctionCategory.SYSTEM,
-				false,
-				false
-		);
-	}
-
-	@Override
-	public List<RelDataType> getParameterTypes(RelDataTypeFactory typeFactory) {
-		return ImmutableList.of();
-	}
-
-	@Override
-	public <T> T unwrap(Class<T> clazz) {
-		if (clazz == SqlSplittableAggFunction.class) {
-			return clazz.cast(SqlSplittableAggFunction.SelfSplitter.INSTANCE);
-		} else {
-			return super.unwrap(clazz);
-		}
+			"THROW_EXCEPTION",
+			SqlKind.OTHER_FUNCTION,
+			ReturnTypes.ARG0_NULLABLE,
+			null,
+			OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY),
+			SqlFunctionCategory.USER_DEFINED_FUNCTION);
 	}
 }
