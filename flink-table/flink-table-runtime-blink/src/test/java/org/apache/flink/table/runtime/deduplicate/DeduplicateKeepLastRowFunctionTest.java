@@ -18,16 +18,10 @@
 
 package org.apache.flink.table.runtime.deduplicate;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
-import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Test;
 
@@ -40,21 +34,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
 /**
  * Tests for {@link DeduplicateKeepLastRowFunction}.
  */
-public class DeduplicateKeepLastRowFunctionTest {
-
-	private Time minTime = Time.milliseconds(10);
-	private Time maxTime = Time.milliseconds(20);
-
-	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.LONG,
-			InternalTypes.INT);
-
-	private int rowKeyIdx = 1;
-	private BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
-			inputRowType.getInternalTypes());
-
-	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
-			inputRowType.getFieldTypes(),
-			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getInternalTypes()[rowKeyIdx]));
+public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
 
 	private DeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
 		return new DeduplicateKeepLastRowFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,

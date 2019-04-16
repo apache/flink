@@ -46,9 +46,9 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 
 /**
- * Base Tests for all subclass of {@link AbstractRankFunction}.
+ * Base Tests for all subclass of {@link AbstractTopNFunction}.
  */
-abstract class BaseRankFunctionTest {
+abstract class TopNFunctionTestBase {
 
 	Time minTime = Time.milliseconds(10);
 	Time maxTime = Time.milliseconds(20);
@@ -59,7 +59,7 @@ abstract class BaseRankFunctionTest {
 			InternalTypes.LONG,
 			InternalTypes.INT);
 
-	GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
+	static GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
 
 		private static final long serialVersionUID = 1434685115916728955L;
 
@@ -75,7 +75,7 @@ abstract class BaseRankFunctionTest {
 	BinaryRowKeySelector sortKeySelector = new BinaryRowKeySelector(new int[] { sortKeyIdx },
 			inputRowType.getInternalTypes());
 
-	GeneratedRecordEqualiser generatedEqualiser = new GeneratedRecordEqualiser("", "", new Object[0]) {
+	static GeneratedRecordEqualiser generatedEqualiser = new GeneratedRecordEqualiser("", "", new Object[0]) {
 
 		private static final long serialVersionUID = 8932460173848746733L;
 
@@ -111,29 +111,32 @@ abstract class BaseRankFunctionTest {
 	BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
 			inputRowType.getInternalTypes());
 
+	/** RankEnd column must be long, int or short type, but could not be string type yet. */
 	@Test(expected = UnsupportedOperationException.class)
 	public void testInvalidVariableRankRangeWithIntType() throws Exception {
-		createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(2), true, false);
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(0), true, false);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.open();
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testNotSupportRank() throws Exception {
-		createRankFunction(RankType.RANK, new ConstantRankRange(1, 10), true, true);
+		createFunction(RankType.RANK, new ConstantRankRange(1, 10), true, true);
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testNotSupportDenseRank() throws Exception {
-		createRankFunction(RankType.DENSE_RANK, new ConstantRankRange(1, 10), true, true);
+		createFunction(RankType.DENSE_RANK, new ConstantRankRange(1, 10), true, true);
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testNotSupportWithoutRankEnd() throws Exception {
-		createRankFunction(RankType.ROW_NUMBER, new ConstantRankRangeWithoutEnd(1), true, true);
+		createFunction(RankType.ROW_NUMBER, new ConstantRankRangeWithoutEnd(1), true, true);
 	}
 
 	@Test
 	public void testDisableGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -165,7 +168,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testDisableGenerateRetractionAndOutputRankNumber() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -195,7 +198,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testOutputRankNumberWithConstantRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -229,7 +232,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testConstantRankRangeWithOffset() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -254,7 +257,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testOutputRankNumberWithVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 2L, 12));
@@ -281,7 +284,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testConstantRankRangeWithoutOffset() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -309,7 +312,7 @@ abstract class BaseRankFunctionTest {
 		testHarness.close();
 		expectedOutputOutput.clear();
 
-		func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
+		func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
 		testHarness = createTestHarness(func);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
@@ -324,14 +327,14 @@ abstract class BaseRankFunctionTest {
 	}
 
 	OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
-			AbstractRankFunction rankFunction)
+			AbstractTopNFunction rankFunction)
 			throws Exception {
 		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(rankFunction);
 		rankFunction.setKeyContext(operator);
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
 	}
 
-	protected abstract AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	abstract AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber);
 
 }

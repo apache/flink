@@ -64,7 +64,7 @@ public class KeySelectorUtil {
 			TypeCheckUtils.validateEqualsHashCode("grouping", keyRowType);
 			return new BinaryRowKeySelector(keyRowType, generatedProjection);
 		} else {
-			return new NullBinaryRowKeySelector();
+			return NullBinaryRowKeySelector.INSTANCE;
 		}
 	}
 

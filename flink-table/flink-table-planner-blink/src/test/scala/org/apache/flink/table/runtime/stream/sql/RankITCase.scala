@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
+import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.{TestingRetractTableSink, TestingUpsertTableSink, _}
 import org.apache.flink.types.Row
@@ -140,9 +140,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode and SortedMapState is supported")
-  @Test(expected = classOf[TableException])
+  @Test
   def testTopNWithUnary(): Unit = {
     val data = List(
       ("book", 11, 100),
@@ -203,8 +201,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode and SortedMapState is supported")
   @Test
   def testUnarySortTopNOnString(): Unit = {
     val data = List(
@@ -266,8 +262,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNWithGroupBy(): Unit = {
     val data = List(
@@ -312,8 +306,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNWithSumAndCondition(): Unit = {
     val data = List(
@@ -365,8 +357,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNthWithGroupBy(): Unit = {
     val data = List(
@@ -410,8 +400,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNWithGroupByAndRetract(): Unit = {
     val data = List(
@@ -453,8 +441,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNthWithGroupByAndRetract(): Unit = {
     val data = List(
@@ -494,8 +480,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNWithGroupByCount(): Unit = {
     val data = List(
@@ -553,8 +537,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNthWithGroupByCount(): Unit = {
     val data = List(
@@ -607,8 +589,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
+  @Ignore("Enable after FLINK-11822 is merged")
   @Test
   def testNestedTopN(): Unit = {
     val data = List(
@@ -675,14 +656,13 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,3,book,d,4,2)",
       "(true,4,book,b,3,2)",
       "(true,4,book,b,3,2)")
-    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
+    assertEquals(expected.mkString("\n"), sink.getUpsertResults.mkString("\n"))
 
     val expected2 = List("1,fruit,b,6,1", "2,book,e,5,1", "3,book,d,4,2", "4,book,b,3,2")
     assertEquals(expected2, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
+  @Ignore("Enable after FLINK-11822 is merged")
   @Test
   def testTopNWithoutDeduplicate(): Unit = {
     val data = List(
@@ -748,8 +728,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected, sink.getRawResults)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testTopNWithVariableTopSize(): Unit = {
     val data = List(
@@ -806,8 +784,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
+  @Ignore("Enable after UnaryUpdatableTopN is supported")
   @Test
   def testTopNUnaryComplexScenario(): Unit = {
     val data = List(
@@ -897,8 +874,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
+  @Ignore("Enable after UnaryUpdatableTopN is supported")
   @Test
   def testTopNWithGroupByAvgWithoutRowNumber(): Unit = {
     val data = List(
@@ -962,8 +938,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
+  @Ignore("Enable after FLINK-11822 is merged")
   @Test
   def testTopNWithGroupByCountWithoutRowNumber(): Unit = {
     val data = List(
@@ -1095,34 +1070,35 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testMultipleRetractTopNAfterAgg(): Unit = {
-    val data = List(
-      ("book", 1, 12),
-      ("book", 1, 13),
-      ("book", 2, 19),
-      ("book", 4, 11),
-      ("fruit", 4, 33),
-      ("fruit", 3, 44),
-      ("fruit", 5, 22))
+    def registerView(): Unit = {
+      val data = List(
+        ("book", 1, 12),
+        ("book", 1, 13),
+        ("book", 2, 19),
+        ("book", 4, 11),
+        ("fruit", 4, 33),
+        ("fruit", 3, 44),
+        ("fruit", 5, 22))
 
-    env.setParallelism(1)
-    val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+      env.setParallelism(1)
+      val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
+      tEnv.registerTable("T", ds)
 
-    val subquery =
-      s"""
-         |SELECT category, shopId, SUM(num) as sum_num, MAX(num) as max_num,
-         | AVG(num) as avg_num, COUNT(num) as cnt
-         |FROM T
-         |GROUP BY category, shopId
-         |""".stripMargin
+      val subquery =
+        s"""
+           |SELECT category, shopId, SUM(num) as sum_num, MAX(num) as max_num,
+           | AVG(num) as avg_num, COUNT(num) as cnt
+           |FROM T
+           |GROUP BY category, shopId
+           |""".stripMargin
 
-    val t1 = tEnv.sqlQuery(subquery)
-    tEnv.registerTable("MyView", t1)
+      val t1 = tEnv.sqlQuery(subquery)
+      tEnv.registerTable("MyView", t1)
+    }
 
+    registerView()
     val sink1 = new TestingRetractSink
     tEnv.sqlQuery(
       s"""
@@ -1134,14 +1110,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin).toRetractStream[Row].addSink(sink1).setParallelism(1)
-    env.execute()
-
-    val expected1 = List(
-      "book,1,25,12.5,1",
-      "book,2,19,19.0,2",
-      "fruit,3,44,44.0,1",
-      "fruit,4,33,33.0,2")
-    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
 
     val sink2 = new TestingRetractSink
     tEnv.sqlQuery(
@@ -1155,6 +1123,13 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin).toRetractStream[Row].addSink(sink2).setParallelism(1)
     env.execute()
 
+    val expected1 = List(
+      "book,1,25,12.5,1",
+      "book,2,19,19.0,2",
+      "fruit,3,44,44.0,1",
+      "fruit,4,33,33.0,2")
+    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
+
     val expected2 = List(
       "book,2,19,1,1",
       "book,1,13,2,2",
@@ -1163,8 +1138,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testMultipleUnaryTopNAfterAgg(): Unit = {
     val data = List(
@@ -1236,8 +1209,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected2.sorted, sink2.getUpsertResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testMultipleUpdateTopNAfterAgg(): Unit = {
     val data = List(

@@ -72,6 +72,13 @@ public class TableConfigOptions {
 					.withDescription("Sets the number of per-requested buffers when the operator " +
 							"allocates much more segments from the floating memory pool.");
 
+	public static final ConfigOption<Boolean> SQL_EXEC_SORT_NON_TEMPORAL_ENABLED =
+			key("sql.exec.sort.non-temporal.enabled")
+					.defaultValue(false)
+					.withDescription("Switch on/off stream sort without temporal or limit." +
+							"Set whether to enable universal sort for stream. When it is false, " +
+							"universal sort can't use for stream, default false. Just for testing.");
+
 	// ------------------------------------------------------------------------
 	//  Spill Options
 	// ------------------------------------------------------------------------

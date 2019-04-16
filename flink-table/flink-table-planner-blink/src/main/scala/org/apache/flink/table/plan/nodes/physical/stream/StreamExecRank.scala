@@ -21,8 +21,8 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
-import org.apache.flink.table.codegen.sort.SortCodeGenerator
+import org.apache.flink.table.codegen.EqualiserCodeGenerator
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Rank
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -135,19 +135,16 @@ class StreamExecRank(
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
     val sortKeyType = sortKeySelector.getProducedType
-    val sortCodeGen = new SortCodeGenerator(
-      tableConfig, sortFields.indices.toArray, sortKeyType.getInternalTypes,
-      sortDirections, nullsIsLast)
-    val sortKeyComparator = sortCodeGen.generateRecordComparator("StreamExecSortComparator")
+    val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
+      sortFields.indices.toArray, sortKeyType.getInternalTypes, sortDirections, nullsIsLast)
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
-    val equaliserCodeGenerator = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
-    val generatedEqualiser = equaliserCodeGenerator.generateRecordEqualiser("RankValueEqualiser")
+
     val processFunction = getStrategy(true) match {
       case AppendFastStrategy =>
-        new AppendRankFunction(
+        new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -155,14 +152,13 @@ class StreamExecRank(
           sortKeySelector,
           rankType,
           rankRange,
-          generatedEqualiser,
           generateRetraction,
           outputRankNumber,
           cacheSize)
 
       case UpdateFastStrategy(primaryKeys) =>
         val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
-        new UpdateRankFunction(
+        new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -171,14 +167,16 @@ class StreamExecRank(
           sortKeySelector,
           rankType,
           rankRange,
-          generatedEqualiser,
           generateRetraction,
           outputRankNumber,
           cacheSize)
 
-      // TODO UnaryUpdateRank after SortedMapState is merged
+      // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
       case RetractStrategy | UnaryUpdateStrategy(_) =>
-        new RetractRankFunction(
+        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
+        val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
+
+        new RetractableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
