@@ -23,8 +23,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, RelFactories}
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
+import org.apache.flink.table.plan.nodes.logical
 import org.apache.flink.table.plan.rules.common._
-import org.apache.flink.table.plan.rules.logical.{_}
+import org.apache.flink.table.plan.rules.logical.{FlinkAggregateExtractProjectRule, _}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 import org.apache.flink.table.plan.nodes.logical._

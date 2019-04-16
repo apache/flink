@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules;
+package org.apache.flink.table.plan.rules.logical;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate;
@@ -40,7 +39,7 @@ import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,6 +50,8 @@ import java.util.stream.Collectors;
  *
  * <p>Note: Most of the logic in this rule is same with {@link AggregateExtractProjectRule}. The
  * difference is this rule has also taken the {@link LogicalWindowAggregate} into consideration.
+ * Furthermore, this rule also creates trivial {@link Project}s unless the input node is already
+ * a {@link Project}.
  */
 public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRule {
 
@@ -70,17 +71,8 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 		final RelNode input = call.rel(1);
 		final RelBuilder relBuilder = call.builder().push(input);
 
-		Tuple2<List<RexNode>, Mapping> projectsAndMapping =
-			extractProjectsAndMapping(aggregate, input, relBuilder);
-		final List<RexNode> projects = projectsAndMapping.f0;
-
-		if (input instanceof Project && input.getRowType().getFieldCount() == projects.size()) {
-			// Avoid extracting a trivial Project which simply projects all fields of the input Project.
-			return;
-		}
-		relBuilder.project(projects, new LinkedList<>(), true);
-
-		RelNode newAggregate = getNewAggregate(aggregate, relBuilder, projectsAndMapping.f1);
+		Mapping mapping = extractProjectsAndMapping(aggregate, input, relBuilder);
+		RelNode newAggregate = getNewAggregate(aggregate, relBuilder, mapping);
 		call.transformTo(newAggregate);
 	}
 
@@ -88,10 +80,39 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 	 * Extract projects from the Aggregate and return the index mapping between the new projects
 	 * and it's input.
 	 */
-	private Tuple2<List<RexNode>, Mapping> extractProjectsAndMapping(
-		Aggregate aggregate, RelNode input, RelBuilder relBuilder) {
+	private Mapping extractProjectsAndMapping(
+		Aggregate aggregate,
+		RelNode input,
+		RelBuilder relBuilder) {
 
 		// Compute which input fields are used.
+		final ImmutableBitSet.Builder inputFieldsUsed = getInputFieldUsed(aggregate, input);
+
+		final List<RexNode> projects = new ArrayList<>();
+		final Mapping mapping =
+			Mappings.create(MappingType.INVERSE_SURJECTION,
+				aggregate.getInput().getRowType().getFieldCount(),
+				inputFieldsUsed.cardinality());
+		int j = 0;
+		for (int i : inputFieldsUsed.build()) {
+			projects.add(relBuilder.field(i));
+			mapping.set(i, j++);
+		}
+
+		if (input instanceof Project) {
+			// this will not create trivial projects
+			relBuilder.project(projects);
+		} else {
+			relBuilder.project(projects, Collections.emptyList(), true);
+		}
+
+		return mapping;
+	}
+
+	/**
+	 * Compute which input fields are used by the aggregate.
+	 */
+	private ImmutableBitSet.Builder getInputFieldUsed(Aggregate aggregate, RelNode input) {
 		// 1. group fields are always used
 		final ImmutableBitSet.Builder inputFieldsUsed =
 			aggregate.getGroupSet().rebuild();
@@ -108,18 +129,7 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 		if (aggregate instanceof LogicalWindowAggregate) {
 			inputFieldsUsed.set(getWindowTimeFieldIndex((LogicalWindowAggregate) aggregate, input));
 		}
-
-		final List<RexNode> projects = new ArrayList<>();
-		final Mapping mapping =
-			Mappings.create(MappingType.INVERSE_SURJECTION,
-				aggregate.getInput().getRowType().getFieldCount(),
-				inputFieldsUsed.cardinality());
-		int j = 0;
-		for (int i : inputFieldsUsed.build()) {
-			projects.add(relBuilder.field(i));
-			mapping.set(i, j++);
-		}
-		return Tuple2.of(projects, mapping);
+		return inputFieldsUsed;
 	}
 
 	private RelNode getNewAggregate(Aggregate oldAggregate, RelBuilder relBuilder, Mapping mapping) {
@@ -139,13 +149,20 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 			relBuilder.groupKey(newGroupSet, newGroupSets);
 
 		if (oldAggregate instanceof LogicalWindowAggregate) {
-			relBuilder.aggregate(groupKey, newAggCallList);
-			Aggregate newAggregate = (Aggregate) relBuilder.build();
-			LogicalWindowAggregate oldLogicalWindowAggregate = (LogicalWindowAggregate) oldAggregate;
-			return LogicalWindowAggregate.create(
+			if (newGroupSet.size() == 0 && newAggCallList.size() == 0) {
+				// Return the old LogicalWindowAggregate directly, as we can't get an empty Aggregate
+				// from the relBuilder.
+				return oldAggregate;
+			} else {
+				relBuilder.aggregate(groupKey, newAggCallList);
+				Aggregate newAggregate = (Aggregate) relBuilder.build();
+				LogicalWindowAggregate oldLogicalWindowAggregate = (LogicalWindowAggregate) oldAggregate;
+
+				return LogicalWindowAggregate.create(
 					oldLogicalWindowAggregate.getWindow(),
 					oldLogicalWindowAggregate.getNamedProperties(),
 					newAggregate);
+			}
 		} else {
 			relBuilder.aggregate(groupKey, newAggCallList);
 			return relBuilder.build();
@@ -159,7 +176,9 @@ public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRul
 	}
 
 	private List<RelBuilder.AggCall> getNewAggCallList(
-		Aggregate oldAggregate, RelBuilder relBuilder, Mapping mapping) {
+		Aggregate oldAggregate,
+		RelBuilder relBuilder,
+		Mapping mapping) {
 
 		final List<RelBuilder.AggCall> newAggCallList = new ArrayList<>();
 
