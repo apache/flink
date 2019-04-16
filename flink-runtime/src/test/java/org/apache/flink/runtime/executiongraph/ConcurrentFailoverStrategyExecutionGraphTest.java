@@ -41,6 +41,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -521,7 +522,8 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 
 		@Override
 		protected FailoverRegion createFailoverRegion(ExecutionGraph eg, List<ExecutionVertex> connectedExecutions) {
-			return new FailoverRegion(eg, connectedExecutions) {
+			Map<JobVertexID, ExecutionJobVertex> tasks = initTasks(connectedExecutions);
+			return new FailoverRegion(eg, connectedExecutions, tasks) {
 				@Override
 				protected CompletableFuture<Void> createTerminationFutureOverAllConnectedVertexes() {
 					ArrayList<CompletableFuture<?>> terminationAndBlocker = new ArrayList<>(2);

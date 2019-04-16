@@ -38,8 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -76,23 +74,14 @@ public class FailoverRegion {
 
 	public FailoverRegion(
 		ExecutionGraph executionGraph,
-		List<ExecutionVertex> connectedExecutions) {
+		List<ExecutionVertex> connectedExecutions,
+		Map<JobVertexID, ExecutionJobVertex> tasks) {
 
 		this.executionGraph = checkNotNull(executionGraph);
 		this.connectedExecutionVertexes = checkNotNull(connectedExecutions);
-		this.tasks = initTasks(connectedExecutionVertexes);
+		this.tasks = checkNotNull(tasks);
 
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
-	}
-
-	private Map<JobVertexID, ExecutionJobVertex> initTasks(List<ExecutionVertex> connectedExecutionVertexes) {
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>(connectedExecutionVertexes.size());
-		for (ExecutionVertex executionVertex : connectedExecutionVertexes) {
-			JobVertexID jobvertexId = executionVertex.getJobvertexId();
-			ExecutionJobVertex jobVertex = executionVertex.getJobVertex();
-			tasks.putIfAbsent(jobvertexId, jobVertex);
-		}
-		return Collections.unmodifiableMap(tasks);
 	}
 
 	public void onExecutionFail(Execution taskExecution, Throwable cause) {

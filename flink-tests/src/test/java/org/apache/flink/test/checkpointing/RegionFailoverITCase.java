@@ -141,11 +141,14 @@ public class RegionFailoverITCase extends TestLogger {
 	private void verifyAfterJobExecuted() {
 		Assert.assertTrue("The test multi-region job has never ever restored state.", restoredState);
 
+		int keyCount = 0;
 		for (Map<Integer, Integer> map : ValidatingSink.maps) {
 			for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
-				assertEquals(Math.min(2 * entry.getKey() + 1, NUM_ELEMENTS), (int) entry.getValue());
+				assertEquals(4 * entry.getKey() + 1, (int) entry.getValue());
+				keyCount += 1;
 			}
 		}
+		assertEquals(NUM_ELEMENTS / 2, keyCount);
 	}
 
 	private JobGraph createJobGraph() {
@@ -214,7 +217,6 @@ public class RegionFailoverITCase extends TestLogger {
 			while (isRunning && index < numElements) {
 
 				synchronized (ctx.getCheckpointLock()) {
-					index += 1;
 					int key = index / 2;
 					int forwardTaskIndex = KeyGroupRangeAssignment.assignKeyToParallelOperator(key, MAX_PARALLELISM, NUM_OF_REGIONS);
 					// pre-partition output keys
@@ -222,6 +224,7 @@ public class RegionFailoverITCase extends TestLogger {
 						// we would send data with the same key twice.
 						ctx.collect(Tuple2.of(key, index));
 					}
+					index += 1;
 				}
 
 				if (numCompletedCheckpoints.get() < 3) {
@@ -342,14 +345,13 @@ public class RegionFailoverITCase extends TestLogger {
 				}
 			}
 
+			// take input (1, 2) and (1, 3) for example, we would finally emit (1, 5) out with the usage of keyed state.
 			Integer value = valueState.value();
 			if (value == null) {
 				valueState.update(input.f1);
 				return input;
 			} else {
-				int newValue = Math.max(value, input.f1);
-				valueState.update(newValue);
-				return Tuple2.of(input.f0, newValue);
+				return Tuple2.of(input.f0, value + input.f1);
 			}
 		}
 	}
