@@ -286,10 +286,10 @@ public class PrometheusReporterTest extends TestLogger {
 		String portRange = portRangeProvider.next();
 		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(createReporterSetup("test1", portRangeProvider.next())));
+			Collections.singletonList(createReporterSetup("test1", portRange)));
 		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(createReporterSetup("test2", portRangeProvider.next())));
+			Collections.singletonList(createReporterSetup("test2", portRange)));
 
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));
