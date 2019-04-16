@@ -19,7 +19,7 @@
 package org.apache.flink.table.calcite
 
 import java.lang.Iterable
-import java.util.Collections
+import java.util.{Collections, List => JList}
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -29,12 +29,14 @@ import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, WindowProperty}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.expressions.{Alias, ExpressionBridge, PlannerExpression, WindowProperty}
 import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+
+import scala.collection.JavaConverters._
 
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
@@ -65,11 +67,17 @@ class FlinkRelBuilder(
   def aggregate(
       window: LogicalWindow,
       groupKey: GroupKey,
-      namedProperties: Seq[NamedWindowProperty],
+      windowProperties: JList[PlannerExpression],
       aggCalls: Iterable[AggCall])
     : RelBuilder = {
     // build logical aggregate
     val aggregate = super.aggregate(groupKey, aggCalls).build().asInstanceOf[LogicalAggregate]
+
+    val namedProperties = windowProperties.asScala.map {
+      case Alias(p: WindowProperty, name, _) =>
+        p.toNamedWindowProperty(name)
+      case _ => throw new TableException("This should never happen.")
+    }
 
     // build logical window aggregate from it
     push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
