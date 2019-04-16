@@ -508,7 +508,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select",  "long", "int")
+        term("select", "long", "int")
       ),
       term("window", "SlidingGroupWindow('w, 'long, 8.millis, 10.millis)"),
       term("select", "COUNT(int) AS TMP_0")

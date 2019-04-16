@@ -53,6 +53,23 @@ class CalcITCase extends AbstractTestBase {
   }
 
   @Test
+  def testSimpleSelectEmpty(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+      .select()
+      .select("count(1)")
+
+    val results = ds.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("3")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
   def testSelectStar(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment

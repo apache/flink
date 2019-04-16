@@ -28,6 +28,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.rules.AggregateExtractProjectRule;
 import org.apache.calcite.rex.RexNode;
@@ -53,9 +54,17 @@ import java.util.stream.Collectors;
  * Furthermore, this rule also creates trivial {@link Project}s unless the input node is already
  * a {@link Project}.
  */
-public class FlinkAggregateExtractProjectRule extends AggregateExtractProjectRule {
+public class ExtendedAggregateExtractProjectRule extends AggregateExtractProjectRule {
 
-	public FlinkAggregateExtractProjectRule(RelOptRuleOperand operand, RelBuilderFactory builderFactory) {
+	public static final ExtendedAggregateExtractProjectRule INSTANCE =
+		new ExtendedAggregateExtractProjectRule(
+			operand(Aggregate.class,
+				operand(RelNode.class, any())), RelFactories.LOGICAL_BUILDER);
+
+	public ExtendedAggregateExtractProjectRule(
+		RelOptRuleOperand operand,
+		RelBuilderFactory builderFactory) {
+
 		super(operand, builderFactory);
 	}
 

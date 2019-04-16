@@ -293,25 +293,13 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
   }
 
-  private def preOptimizeLogicalPlan(relNode: RelNode): RelNode = {
-    runHepPlannerSequentially(
-      HepMatchOrder.TOP_DOWN,
-      FlinkRuleSets.PRE_LOGICAL_OPT_RULES,
-      relNode,
-      relNode.getTraitSet)
-  }
-
   protected def optimizeLogicalPlan(relNode: RelNode): RelNode = {
-    // Using Hep Planner to do pre-optimization. This can reduce time in the volcano phase.
-    val hepResult = preOptimizeLogicalPlan(relNode)
-
-    // Do volcano optimization
     val logicalOptRuleSet = getLogicalOptRuleSet
-    val logicalOutputProps = hepResult.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
     if (logicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(logicalOptRuleSet, hepResult, logicalOutputProps)
+      runVolcanoPlanner(logicalOptRuleSet, relNode, logicalOutputProps)
     } else {
-      hepResult
+      relNode
     }
   }
 

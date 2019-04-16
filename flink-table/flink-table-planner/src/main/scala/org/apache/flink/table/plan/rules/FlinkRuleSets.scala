@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.plan.rules
 
-import org.apache.calcite.plan.RelOptRule.{none, operand}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Aggregate, RelFactories}
+import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.nodes.logical
 import org.apache.flink.table.plan.rules.common._
-import org.apache.flink.table.plan.rules.logical.{FlinkAggregateExtractProjectRule, _}
+import org.apache.flink.table.plan.rules.logical.{ExtendedAggregateExtractProjectRule, _}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 import org.apache.flink.table.plan.nodes.logical._
@@ -50,15 +48,6 @@ object FlinkRuleSets {
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
     EnumerableToLogicalTableScan.INSTANCE)
-
-  /**
-    * Pre-processing for logical optimization.
-    */
-  val PRE_LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
-    new FlinkAggregateExtractProjectRule(
-      operand(classOf[Aggregate],
-        operand(classOf[RelNode], none)), RelFactories.LOGICAL_BUILDER),
-    ReduceExpressionsRule.PROJECT_INSTANCE)
 
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
 
@@ -158,11 +147,6 @@ object FlinkRuleSets {
     * RuleSet to normalize plans for batch / DataSet execution
     */
   val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
-    // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE,
     ProjectToWindowRule.PROJECT,
 
     // Transform grouping sets
@@ -174,6 +158,13 @@ object FlinkRuleSets {
 
     // expand distinct aggregate to normal aggregate with groupby
     AggregateExpandDistinctAggregatesRule.JOIN,
+
+    ExtendedAggregateExtractProjectRule.INSTANCE,
+    // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ReduceExpressionsRule.JOIN_INSTANCE,
 
     // merge a cascade of predicates to IN or NOT_IN
     ConvertToNotInOrInRule.IN_INSTANCE,
@@ -210,6 +201,7 @@ object FlinkRuleSets {
     WindowPropertiesRule.INSTANCE,
     WindowPropertiesHavingRule.INSTANCE,
 
+    ExtendedAggregateExtractProjectRule.INSTANCE,
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
