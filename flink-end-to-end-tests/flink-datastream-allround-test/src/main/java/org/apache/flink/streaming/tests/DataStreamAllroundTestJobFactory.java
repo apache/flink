@@ -303,7 +303,7 @@ public class DataStreamAllroundTestJobFactory {
 					restartStrategy = RestartStrategies.noRestart();
 					break;
 				default:
-					throw new IllegalArgumentException("Unkown restart strategy: " + restartStrategyConfig);
+					throw new IllegalArgumentException("Unknown restart strategy: " + restartStrategyConfig);
 			}
 			env.setRestartStrategy(restartStrategy);
 		}
