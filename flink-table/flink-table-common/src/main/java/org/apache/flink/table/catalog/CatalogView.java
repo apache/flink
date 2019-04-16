@@ -21,10 +21,10 @@ package org.apache.flink.table.catalog;
 /**
  * Represents a view in a catalog.
  */
-public interface CatalogView extends CommonTable {
+public interface CatalogView extends CatalogBaseTable {
 
 	/**
-	 * Original text of the view definition.
+	 * Original text of the view definition that also perserves the original formatting.
 	 *
 	 * @return the original string literal provided by the user.
 	 */

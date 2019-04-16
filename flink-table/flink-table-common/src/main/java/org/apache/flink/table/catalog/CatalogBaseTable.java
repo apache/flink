@@ -18,36 +18,45 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableSchema;
+
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Represents a database object in a catalog.
+ * CatalogBaseTable is the common parent of table and view. It has a map of
+ * key-value pairs defining the properties of the table.
  */
-public interface CatalogDatabase {
+public interface CatalogBaseTable {
 	/**
-	 * Get a map of properties associated with the database.
+	 * Get the properties of the table.
+	 * @return table property map
 	 */
 	Map<String, String> getProperties();
 
 	/**
-	 * Get a deep copy of the CatalogDatabase instance.
-	 *
-	 * @return a copy of CatalogDatabase instance
+	 * Get the schema of the table.
+	 * @return schema of the table
 	 */
-	CatalogDatabase copy();
+	TableSchema getSchema();
 
 	/**
-	 * Get a brief description of the database.
+	 * Get a deep copy of the CatalogBaseTable instance.
+	 * @return a copy of the CatalogBaseTable instance
+	 */
+	CatalogBaseTable copy();
+
+	/**
+	 * Get a brief description of the table or view.
 	 *
-	 * @return an optional short description of the database
+	 * @return an optional short description of the table/view
 	 */
 	Optional<String> getDescription();
 
 	/**
-	 * Get a detailed description of the database.
+	 * Get a detailed description of the table or view.
 	 *
-	 * @return an optional long description of the database
+	 * @return an optional long description of the table/view
 	 */
 	Optional<String> getDetailedDescription();
 }

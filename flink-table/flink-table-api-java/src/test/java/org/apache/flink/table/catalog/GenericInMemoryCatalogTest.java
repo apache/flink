@@ -65,6 +65,7 @@ public class GenericInMemoryCatalogTest {
 	private final ObjectPath nonExistObjectPath = ObjectPath.fromString("db1.nonexist");
 
 	private static final String TEST_COMMENT = "test comment";
+	private static final String TABLE_COMMENT = "This is my batch table";
 
 	private static ReadableWritableCatalog catalog;
 
@@ -78,7 +79,7 @@ public class GenericInMemoryCatalogTest {
 	public ExpectedException exception = ExpectedException.none();
 
 	@After
-	public void close() {
+	public void close() throws Exception {
 		if (catalog.tableExists(path1)) {
 			catalog.dropTable(path1, true);
 		}
@@ -100,7 +101,7 @@ public class GenericInMemoryCatalogTest {
 	// ------ tables ------
 
 	@Test
-	public void testCreateTable_Streaming() {
+	public void testCreateTable_Streaming() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		GenericCatalogTable table = createStreamingTable();
 		catalog.createTable(path1, table, false);
@@ -109,13 +110,17 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateTable_Batch() {
+	public void testCreateTable_Batch() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
+		CatalogDatabase database = catalog.getDatabase(db1);
+		assertTrue(TEST_COMMENT.equals(database.getDescription().get()));
 
 		GenericCatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogBaseTable tableCreated = catalog.getTable(path1);
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) tableCreated);
+		assertEquals(TABLE_COMMENT, tableCreated.getDescription().get());
 
 		List<String> tables = catalog.listTables(db1);
 
@@ -126,7 +131,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateTable_DatabaseNotExistException() {
+	public void testCreateTable_DatabaseNotExistException() throws Exception {
 		assertFalse(catalog.databaseExists(db1));
 
 		exception.expect(DatabaseNotExistException.class);
@@ -135,9 +140,9 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateTable_TableAlreadyExistException() {
+	public void testCreateTable_TableAlreadyExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1,  CatalogTestUtil.createTable(), false);
+		catalog.createTable(path1,  CatalogTestUtil.createTable(TABLE_COMMENT), false);
 
 		exception.expect(TableAlreadyExistException.class);
 		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
@@ -145,10 +150,10 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateTable_TableAlreadyExist_ignored() {
+	public void testCreateTable_TableAlreadyExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
-		GenericCatalogTable table =  CatalogTestUtil.createTable();
+		GenericCatalogTable table =  CatalogTestUtil.createTable(TABLE_COMMENT);
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
@@ -159,7 +164,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testGetTable_TableNotExistException() {
+	public void testGetTable_TableNotExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		exception.expect(TableNotExistException.class);
@@ -168,14 +173,14 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testGetTable_TableNotExistException_NoDb() {
+	public void testGetTable_TableNotExistException_NoDb() throws Exception {
 		exception.expect(TableNotExistException.class);
 		exception.expectMessage("Table (or view) db1.nonexist does not exist in Catalog");
 		catalog.getTable(nonExistObjectPath);
 	}
 
 	@Test
-	public void testDropTable() {
+	public void testDropTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		// Non-partitioned table
@@ -189,7 +194,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testListTables() {
+	public void testListTables() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		catalog.createTable(path1, createTable(), false);
@@ -206,24 +211,24 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testDropTable_TableNotExistException() {
+	public void testDropTable_TableNotExistException() throws Exception {
 		exception.expect(TableNotExistException.class);
 		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
 		catalog.dropTable(nonExistDbPath, false);
 	}
 
 	@Test
-	public void testDropTable_TableNotExist_ignored() {
+	public void testDropTable_TableNotExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.dropTable(nonExistObjectPath, true);
 	}
 
 	@Test
-	public void testAlterTable() {
+	public void testAlterTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		// Non-partitioned table
-		GenericCatalogTable table = CatalogTestUtil.createTable();
+		GenericCatalogTable table = CatalogTestUtil.createTable(TABLE_COMMENT);
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
@@ -238,14 +243,14 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testAlterTable_TableNotExistException() {
+	public void testAlterTable_TableNotExistException() throws Exception {
 		exception.expect(TableNotExistException.class);
 		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
 		catalog.alterTable(nonExistDbPath, createTable(), false);
 	}
 
 	@Test
-	public void testAlterTable_TableNotExist_ignored() {
+	public void testAlterTable_TableNotExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.alterTable(nonExistObjectPath, createTable(), true);
 
@@ -253,7 +258,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testRenameTable() {
+	public void testRenameTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		GenericCatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
@@ -267,7 +272,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testRenameTable_TableNotExistException() {
+	public void testRenameTable_TableNotExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		exception.expect(TableNotExistException.class);
@@ -276,13 +281,13 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testRenameTable_TableNotExistException_ignored() {
+	public void testRenameTable_TableNotExistException_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.renameTable(path1, t2, true);
 	}
 
 	@Test
-	public void testRenameTable_TableAlreadyExistException() {
+	public void testRenameTable_TableAlreadyExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
@@ -294,7 +299,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testTableExists() {
+	public void testTableExists() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		assertFalse(catalog.tableExists(path1));
@@ -307,7 +312,7 @@ public class GenericInMemoryCatalogTest {
 	// ------ views ------
 
 	@Test
-	public void testCreateView() {
+	public void testCreateView() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		assertFalse(catalog.tableExists(path1));
@@ -320,7 +325,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateView_DatabaseNotExistException() {
+	public void testCreateView_DatabaseNotExistException() throws Exception {
 		assertFalse(catalog.databaseExists(db1));
 
 		exception.expect(DatabaseNotExistException.class);
@@ -329,7 +334,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateView_TableAlreadyExistException() {
+	public void testCreateView_TableAlreadyExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, createView(), false);
 
@@ -339,7 +344,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateView_TableAlreadyExist_ignored() {
+	public void testCreateView_TableAlreadyExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		CatalogView view = createView();
@@ -355,7 +360,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testDropView() {
+	public void testDropView() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, createView(), false);
 
@@ -367,7 +372,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testAlterView() {
+	public void testAlterView() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		CatalogView view = createView();
@@ -383,14 +388,14 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testAlterView_TableNotExistException() {
+	public void testAlterView_TableNotExistException() throws Exception {
 		exception.expect(TableNotExistException.class);
 		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
 		catalog.alterTable(nonExistDbPath, createTable(), false);
 	}
 
 	@Test
-	public void testAlterView_TableNotExist_ignored() {
+	public void testAlterView_TableNotExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.alterTable(nonExistObjectPath, createView(), true);
 
@@ -398,7 +403,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testListView() {
+	public void testListView() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		assertTrue(catalog.listTables(db1).isEmpty());
@@ -415,14 +420,14 @@ public class GenericInMemoryCatalogTest {
 	// ------ databases ------
 
 	@Test
-	public void testCreateDb() {
+	public void testCreateDb() throws Exception {
 		catalog.createDatabase(db2, createDb(), false);
 
 		assertEquals(2, catalog.listDatabases().size());
 	}
 
 	@Test
-	public void testSetCurrentDatabase() {
+	public void testSetCurrentDatabase() throws Exception {
 		assertEquals(GenericInMemoryCatalog.DEFAULT_DB, catalog.getCurrentDatabase());
 		catalog.createDatabase(db2, createDb(), true);
 		catalog.setCurrentDatabase(db2);
@@ -433,14 +438,14 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testSetCurrentDatabaseNegative() {
+	public void testSetCurrentDatabaseNegative() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database " + this.nonExistantDatabase + " does not exist in Catalog");
 		catalog.setCurrentDatabase(this.nonExistantDatabase);
 	}
 
 	@Test
-	public void testCreateDb_DatabaseAlreadyExistException() {
+	public void testCreateDb_DatabaseAlreadyExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		exception.expect(DatabaseAlreadyExistException.class);
@@ -449,7 +454,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testCreateDb_DatabaseAlreadyExist_ignored() {
+	public void testCreateDb_DatabaseAlreadyExist_ignored() throws Exception {
 		CatalogDatabase cd1 = createDb();
 		catalog.createDatabase(db1, cd1, false);
 		List<String> dbs = catalog.listDatabases();
@@ -466,14 +471,14 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testGetDb_DatabaseNotExistException() {
+	public void testGetDb_DatabaseNotExistException() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database nonexistent does not exist in Catalog");
 		catalog.getDatabase("nonexistent");
 	}
 
 	@Test
-	public void testDropDb() {
+	public void testDropDb() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
 		assertTrue(catalog.listDatabases().contains(db1));
@@ -484,19 +489,19 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testDropDb_DatabaseNotExistException() {
+	public void testDropDb_DatabaseNotExistException() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database db1 does not exist in Catalog");
 		catalog.dropDatabase(db1, false);
 	}
 
 	@Test
-	public void testDropDb_DatabaseNotExist_Ignore() {
+	public void testDropDb_DatabaseNotExist_Ignore() throws Exception {
 		catalog.dropDatabase(db1, true);
 	}
 
 	@Test
-	public void testDropDb_databaseIsNotEmpty() {
+	public void testDropDb_databaseIsNotEmpty() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, createTable(), false);
 
@@ -506,7 +511,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testAlterDb() {
+	public void testAlterDb() throws Exception {
 		CatalogDatabase db = createDb();
 		catalog.createDatabase(db1, db, false);
 
@@ -520,21 +525,21 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testAlterDb_DatabaseNotExistException() {
+	public void testAlterDb_DatabaseNotExistException() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database nonexistent does not exist in Catalog");
 		catalog.alterDatabase("nonexistent", createDb(), false);
 	}
 
 	@Test
-	public void testAlterDb_DatabaseNotExist_ignored() {
+	public void testAlterDb_DatabaseNotExist_ignored() throws Exception {
 		catalog.alterDatabase("nonexistent", createDb(), true);
 
 		assertFalse(catalog.databaseExists("nonexistent"));
 	}
 
 	@Test
-	public void testDbExists() {
+	public void testDbExists() throws Exception {
 		assertFalse(catalog.databaseExists("nonexistent"));
 
 		catalog.createDatabase(db1, createDb(), false);
@@ -543,7 +548,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	@Test
-	public void testRenameView() {
+	public void testRenameView() throws Exception {
 		catalog.createDatabase("db1", new GenericCatalogDatabase(new HashMap<>()), false);
 		GenericCatalogView view = new GenericCatalogView("select * from t1",
 			"select * from db1.t1", createTableSchema(), new HashMap<>());
@@ -562,19 +567,19 @@ public class GenericInMemoryCatalogTest {
 	private GenericCatalogTable createStreamingTable() {
 		return CatalogTestUtil.createTable(
 			createTableSchema(),
-			getStreamingTableProperties());
+			getStreamingTableProperties(), TABLE_COMMENT);
 	}
 
 	private GenericCatalogTable createTable() {
 		return CatalogTestUtil.createTable(
 			createTableSchema(),
-			getBatchTableProperties());
+			getBatchTableProperties(), TABLE_COMMENT);
 	}
 
 	private GenericCatalogTable createAnotherTable() {
 		return CatalogTestUtil.createTable(
 			createAnotherTableSchema(),
-			getBatchTableProperties());
+			getBatchTableProperties(), TABLE_COMMENT);
 	}
 
 	private CatalogDatabase createDb() {

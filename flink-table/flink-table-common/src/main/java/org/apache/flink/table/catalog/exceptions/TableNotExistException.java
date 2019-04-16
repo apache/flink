@@ -23,7 +23,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 /**
  * Exception for trying to operate on a table (or view) that doesn't exist.
  */
-public class TableNotExistException extends RuntimeException {
+public class TableNotExistException extends Exception {
 
 	private static final String MSG = "Table (or view) %s does not exist in Catalog %s.";
 

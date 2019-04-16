@@ -23,7 +23,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 /**
  * Exception for trying to create a table (or view) that already exists.
  */
-public class TableAlreadyExistException extends RuntimeException {
+public class TableAlreadyExistException extends Exception {
 
 	private static final String MSG = "Table (or view) %s already exists in Catalog %s.";
 

@@ -22,7 +22,7 @@ package org.apache.flink.table.catalog.exceptions;
  * Exception for trying to operate on a database that doesn't exist.
  *
  */
-public class DatabaseNotExistException extends RuntimeException {
+public class DatabaseNotExistException extends Exception {
 	private static final String MSG = "Database %s does not exist in Catalog %s.";
 
 	public DatabaseNotExistException(String catalog, String database, Throwable cause) {

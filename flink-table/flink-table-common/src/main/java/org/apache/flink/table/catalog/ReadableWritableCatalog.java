@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -39,9 +41,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                       if set to false, throw a DatabaseAlreadyExistException,
 	 *                       if set to true, do nothing.
 	 * @throws DatabaseAlreadyExistException if the given database already exists and ignoreIfExists is false
+	 * @throws CatalogException in case of any runtime exception
 	 */
 	void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
-		throws DatabaseAlreadyExistException;
+		throws DatabaseAlreadyExistException, CatalogException;
 
 	/**
 	 * Drop a database.
@@ -51,8 +54,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws DatabaseNotExistException if the given database does not exist
+	 * @throws CatalogException in case of any runtime exception
 	 */
-	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException;
+	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+		DatabaseNotEmptyException, CatalogException;
 
 	/**
 	 * Modify an existing database.
@@ -63,9 +68,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws DatabaseNotExistException if the given database does not exist
+	 * @throws CatalogException in case of any runtime exception
 	 */
 	void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
-		throws DatabaseNotExistException;
+		throws DatabaseNotExistException, CatalogException;
 
 	// ------ tables and views ------
 
@@ -77,8 +83,9 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table or view does not exist
+	 * @throws CatalogException in case of any runtime exception
 	 */
-	void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException;
+	void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException;
 
 	/**
 	 * Rename an existing table or view.
@@ -90,9 +97,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
 	 * @throws DatabaseNotExistException if the database in tablePath to doesn't exist
+	 * @throws CatalogException in case of any runtime exception
 	 */
 	void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
-		throws TableNotExistException, DatabaseNotExistException;
+		throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException, CatalogException;
 
 	/**
 	 * Create a new table or view.
@@ -104,9 +112,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                       if set to true, do nothing.
 	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
 	 * @throws DatabaseNotExistException if the database in tablePath doesn't exist
+	 * @throws CatalogException in case of any runtime exception
 	 */
-	void createTable(ObjectPath tablePath, CommonTable table, boolean ignoreIfExists)
-		throws TableAlreadyExistException, DatabaseNotExistException;
+	void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
+		throws TableAlreadyExistException, DatabaseNotExistException, CatalogException;
 
 	/**
 	 * Modify an existing table or view.
@@ -117,8 +126,9 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
+	 * @throws CatalogException in case of any runtime exception
 	 */
-	void alterTable(ObjectPath tableName, CommonTable newTable, boolean ignoreIfNotExists)
-		throws TableNotExistException;
+	void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists)
+		throws TableNotExistException, CatalogException;
 
 }

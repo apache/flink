@@ -21,7 +21,7 @@ package org.apache.flink.table.catalog.exceptions;
 /**
  * Exception for trying to create a database that already exists.
  */
-public class DatabaseAlreadyExistException extends RuntimeException {
+public class DatabaseAlreadyExistException extends Exception {
 	private static final String MSG = "Database %s already exists in Catalog %s.";
 
 	public DatabaseAlreadyExistException(String catalog, String database, Throwable cause) {

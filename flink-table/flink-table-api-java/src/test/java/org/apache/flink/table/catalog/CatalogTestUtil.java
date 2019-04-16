@@ -34,9 +34,9 @@ import static org.junit.Assert.assertEquals;
  */
 public class CatalogTestUtil {
 
-	public static GenericCatalogTable createTable() {
+	public static GenericCatalogTable createTable(String comment) {
 		TableSchema tableSchema = TableSchema.fromTypeInfo(getRowTypeInfo());
-		return createTable(tableSchema, createTableStats(), new HashMap<String, String>());
+		return createTable(tableSchema, createTableStats(), new HashMap<String, String>(), comment);
 	}
 
 	public static RowTypeInfo getRowTypeInfo() {
@@ -49,13 +49,14 @@ public class CatalogTestUtil {
 		return new TableStats(2);
 	}
 
-	public static GenericCatalogTable createTable(TableSchema schema, Map<String, String> tableProperties) {
-		return createTable(schema, new TableStats(0), tableProperties);
+	public static GenericCatalogTable createTable(TableSchema schema, Map<String, String> tableProperties,
+		String comment) {
+		return createTable(schema, new TableStats(0), tableProperties, comment);
 	}
 
 	public static GenericCatalogTable createTable(TableSchema schema, TableStats stats,
-		Map<String, String> tableProperties) {
-		return new GenericCatalogTable(schema, stats, tableProperties);
+		Map<String, String> tableProperties, String comment) {
+		return new GenericCatalogTable(schema, stats, tableProperties, comment);
 	}
 
 	public static void checkEquals(GenericCatalogTable t1, GenericCatalogTable t2) {

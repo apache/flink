@@ -23,6 +23,7 @@ import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -70,6 +71,16 @@ public class GenericCatalogTable implements CatalogTable {
 	public GenericCatalogTable copy() {
 		return new GenericCatalogTable(this.tableSchema.copy(), this.tableStats.copy(),
 			new HashMap<>(this.properties), comment);
+	}
+
+	@Override
+	public Optional<String> getDescription() {
+		return Optional.of(comment);
+	}
+
+	@Override
+	public Optional<String> getDetailedDescription() {
+		return Optional.of("This is a catalog table in an im-memory catalog");
 	}
 
 	public String getComment() {

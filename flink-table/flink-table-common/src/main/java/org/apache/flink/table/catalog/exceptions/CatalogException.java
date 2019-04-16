@@ -16,32 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
-
-import org.apache.flink.table.api.TableSchema;
-
-import java.util.Map;
+package org.apache.flink.table.catalog.exceptions;
 
 /**
- * CommonTable is the common parent of table and view. It has a map of
- * key-value pairs defining the properties of the table.
+ * A catalog-related, runtime exception.
  */
-public interface CommonTable {
+public class CatalogException extends RuntimeException {
 	/**
-	 * Get the properties of the table.
-	 * @return table property map
+	 * @param   message   the detail message.
 	 */
-	Map<String, String> getProperties();
+	public CatalogException(String message) {
+		super(message);
+	}
 
 	/**
-	 * Get the schema of the table.
-	 * @return schema of the table
+	 * @param  cause the cause.
 	 */
-	TableSchema getSchema();
+	public CatalogException(Throwable cause) {
+		super(cause);
+	}
 
 	/**
-	 * Get a deep copy of the CommonTable instance.
-	 * @return a copy of the CommonTable instance
+	 * @param  message the detail message.
+	 * @param  cause the cause.
 	 */
-	CommonTable copy();
+	public CatalogException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

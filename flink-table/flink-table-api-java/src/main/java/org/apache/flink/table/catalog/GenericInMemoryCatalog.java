@@ -45,7 +45,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	private final String catalogName;
 	private final Map<String, CatalogDatabase> databases;
-	private final Map<ObjectPath, CommonTable> tables;
+	private final Map<ObjectPath, CatalogBaseTable> tables;
 
 	public GenericInMemoryCatalog(String name) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
@@ -100,7 +100,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void dropDatabase(String databaseName, boolean ignoreIfNotExists) throws DatabaseNotExistException {
+	public void dropDatabase(String databaseName, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+		DatabaseNotEmptyException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
 
 		if (databases.containsKey(databaseName)) {
@@ -162,7 +163,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	// ------ tables ------
 
 	@Override
-	public void createTable(ObjectPath tablePath, CommonTable table, boolean ignoreIfExists)
+	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException {
 		checkArgument(tablePath != null);
 		checkArgument(table != null);
@@ -181,7 +182,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void alterTable(ObjectPath tablePath, CommonTable newTable, boolean ignoreIfNotExists)
+	public void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException {
 		checkArgument(tablePath != null);
 		checkArgument(newTable != null);
@@ -253,7 +254,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public CommonTable getTable(ObjectPath tablePath) throws TableNotExistException {
+	public CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException {
 		checkArgument(tablePath != null);
 
 		if (!tableExists(tablePath)) {

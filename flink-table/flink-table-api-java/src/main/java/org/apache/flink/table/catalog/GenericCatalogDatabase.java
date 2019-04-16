@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -47,6 +48,16 @@ public class GenericCatalogDatabase implements CatalogDatabase {
 	@Override
 	public GenericCatalogDatabase copy() {
 		return new GenericCatalogDatabase(new HashMap<>(properties), comment);
+	}
+
+	@Override
+	public Optional<String> getDescription() {
+		return Optional.of(comment);
+	}
+
+	@Override
+	public Optional<String> getDetailedDescription() {
+		return Optional.of("This is a generic catalog database stored in memory only");
 	}
 
 	public String getComment() {

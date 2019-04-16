@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableSchema;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * A generic catalog view implementation.
@@ -78,6 +79,16 @@ public class GenericCatalogView implements CatalogView {
 	public GenericCatalogView copy() {
 		return new GenericCatalogView(this.originalQuery, this.expandedQuery, schema.copy(),
 			new HashMap<>(this.properties), comment);
+	}
+
+	@Override
+	public Optional<String> getDescription() {
+		return Optional.of(comment);
+	}
+
+	@Override
+	public Optional<String> getDetailedDescription() {
+		return Optional.of("This is a catalog view in an im-memory catalog");
 	}
 
 	public String getComment() {
