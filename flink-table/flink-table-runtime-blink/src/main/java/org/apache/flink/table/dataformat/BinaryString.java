@@ -17,9 +17,11 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.util.StringUtf8Utils;
+import org.apache.flink.table.typeutils.BinaryStringTypeInfoFactory;
 import org.apache.flink.table.util.SegmentsUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -43,6 +45,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>{@code BinaryString} are influenced by Apache Spark UTF8String.
  */
+@TypeInfo(BinaryStringTypeInfoFactory.class)
 public final class BinaryString extends LazyBinaryFormat<String> implements Comparable<BinaryString> {
 
 	public static final BinaryString EMPTY_UTF8 = BinaryString.fromBytes(StringUtf8Utils.encodeUTF8(""));

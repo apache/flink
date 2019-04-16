@@ -18,158 +18,131 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.dataview.ListView;
-import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.type.GenericType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryStringSerializer;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.typeutils.ListViewSerializer;
-import org.apache.flink.table.typeutils.ListViewTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * built-in concatWs with retraction aggregate function.
  */
-public class ConcatWsWithRetractAggFunction extends AggregateFunction<BinaryString, GenericRow> {
+public final class ConcatWsWithRetractAggFunction
+	extends AggregateFunction<BinaryString, ConcatWsWithRetractAggFunction.ConcatWsWithRetractAccumulator> {
 
-	private ListViewSerializer<BinaryString> listViewSerializer =
-			new ListViewSerializer<>(new ListSerializer<>(BinaryStringSerializer.INSTANCE));
+	private static final long serialVersionUID = -8627988150350160473L;
 
-	@Override
-	public GenericRow createAccumulator() {
-		// The accumulator schema:
-		// list: BinaryGeneric<ListView<BinaryString>>
-		// retractList: BinaryGeneric<ListView<BinaryString>>
-		// delimiter: BinaryString
-		GenericRow acc = new GenericRow(3);
-		// list
-		acc.setField(0, new BinaryGeneric<>(new ListView<>(BinaryStringTypeInfo.INSTANCE), listViewSerializer));
-		// retract list
-		acc.setField(1, new BinaryGeneric<>(new ListView<>(BinaryStringTypeInfo.INSTANCE), listViewSerializer));
-		// delimiter
-		acc.setField(2, BinaryString.fromString("\n"));
-		return acc;
+	/**
+	 * The initial accumulator for concat with retraction aggregate function.
+	 */
+	public static class ConcatWsWithRetractAccumulator {
+		public ListView<BinaryString> list = new ListView<>(BinaryStringTypeInfo.INSTANCE);
+		public ListView<BinaryString> retractList = new ListView<>(BinaryStringTypeInfo.INSTANCE);
+		public BinaryString delimiter = BinaryString.fromString("\n");
+
+		@VisibleForTesting
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			ConcatWsWithRetractAccumulator that = (ConcatWsWithRetractAccumulator) o;
+			return Objects.equals(list, that.list) &&
+				Objects.equals(retractList, that.retractList) &&
+				Objects.equals(delimiter, that.delimiter);
+		}
 	}
 
-	public void accumulate(GenericRow acc, BinaryString lineDelimiter, BinaryString value) throws Exception {
+	@Override
+	public ConcatWsWithRetractAccumulator createAccumulator() {
+		return new ConcatWsWithRetractAccumulator();
+	}
+
+	public void accumulate(ConcatWsWithRetractAccumulator acc, BinaryString lineDelimiter, BinaryString value) throws Exception {
 		// ignore null value
 		if (value != null) {
-			acc.setField(2, lineDelimiter);
-			ListView<BinaryString> list = getListViewFromAcc(acc, 0);
-			list.add(value);
+			acc.delimiter = lineDelimiter;
+			acc.list.add(value);
 		}
 	}
 
-	public void merge(GenericRow acc, Iterable<GenericRow> its) throws Exception {
-		Iterator<GenericRow> iter = its.iterator();
-		while (iter.hasNext()) {
-			GenericRow otherAcc = iter.next();
-			ListView<BinaryString> thisList = getListViewFromAcc(acc, 0);
-			ListView<BinaryString> otherList = getListViewFromAcc(otherAcc, 0);
-			Iterable<BinaryString> accList = otherList.get();
-			if (accList != null) {
-				Iterator<BinaryString> listIter = accList.iterator();
-				acc.setField(2, otherAcc.getField(2));  // acc.delimiter = otherAcc.delimiter
-				while (listIter.hasNext()) {
-					thisList.add(listIter.next());
-				}
-			}
-
-			ListView<BinaryString> otherRetractList = getListViewFromAcc(otherAcc, 1);
-			ListView<BinaryString> thisRetractList = getListViewFromAcc(acc, 1);
-			Iterable<BinaryString> retractList = otherRetractList.get();
-			if (retractList != null) {
-				Iterator<BinaryString> retractListIter = retractList.iterator();
-				List<BinaryString> buffer = null;
-				if (retractListIter.hasNext()) {
-					buffer = (List<BinaryString>) thisList.get();
-				}
-				boolean listChanged = false;
-				while (retractListIter.hasNext()) {
-					BinaryString element = retractListIter.next();
-					if (buffer != null && buffer.remove(element)) {
-						listChanged = true;
-					} else {
-						thisRetractList.add(element);
-					}
-				}
-				if (listChanged) {
-					thisList.clear();
-					thisList.addAll(buffer);
-				}
-			}
-		}
-	}
-
-	public void retract(GenericRow acc, BinaryString lineDelimiter, BinaryString value) throws Exception {
+	public void retract(ConcatWsWithRetractAccumulator acc, BinaryString lineDelimiter, BinaryString value) throws Exception {
 		if (value != null) {
-			acc.setField(2, lineDelimiter);
-			ListView<BinaryString> list = getListViewFromAcc(acc, 0);
-			if (!list.remove(value)) {
-				ListView<BinaryString> retractList = getListViewFromAcc(acc, 1);
-				retractList.add(value);
+			acc.delimiter = lineDelimiter;
+			if (!acc.list.remove(value)) {
+				acc.retractList.add(value);
 			}
+		}
+	}
+
+	public void merge(ConcatWsWithRetractAccumulator acc, Iterable<ConcatWsWithRetractAccumulator> its) throws Exception {
+		for (ConcatWsWithRetractAccumulator otherAcc : its) {
+			if (!otherAcc.list.get().iterator().hasNext()
+				&& !otherAcc.retractList.get().iterator().hasNext()) {
+				// otherAcc is empty, skip it
+				continue;
+			}
+
+			acc.delimiter = otherAcc.delimiter;
+			// merge list of acc and other
+			List<BinaryString> buffer = new ArrayList<>();
+			for (BinaryString binaryString : acc.list.get()) {
+				buffer.add(binaryString);
+			}
+			for (BinaryString binaryString : otherAcc.list.get()) {
+				buffer.add(binaryString);
+			}
+			// merge retract list of acc and other
+			List<BinaryString> retractBuffer = new ArrayList<>();
+			for (BinaryString binaryString : acc.retractList.get()) {
+				retractBuffer.add(binaryString);
+			}
+			for (BinaryString binaryString : otherAcc.retractList.get()) {
+				retractBuffer.add(binaryString);
+			}
+
+			// merge list & retract list
+			List<BinaryString> newRetractBuffer = new ArrayList<>();
+			for (BinaryString binaryString : retractBuffer) {
+				if (!buffer.remove(binaryString)) {
+					newRetractBuffer.add(binaryString);
+				}
+			}
+
+			// update to acc
+			acc.list.clear();
+			acc.list.addAll(buffer);
+			acc.retractList.clear();
+			acc.retractList.addAll(newRetractBuffer);
 		}
 	}
 
 	@Override
-	public BinaryString getValue(GenericRow acc) {
-		ListView<BinaryString> list = getListViewFromAcc(acc, 0);
+	public BinaryString getValue(ConcatWsWithRetractAccumulator acc) {
 		try {
-			Iterable<BinaryString> accList = list.get();
+			Iterable<BinaryString> accList = acc.list.get();
 			if (accList == null || !accList.iterator().hasNext()) {
 				// return null when the list is empty
 				return null;
 			} else {
-				BinaryString lineDelimiter = (BinaryString) acc.getField(2);
-				return BinaryString.concatWs(lineDelimiter, accList);
+				return BinaryString.concatWs(acc.delimiter, accList);
 			}
 		} catch (Exception e) {
 			throw new FlinkRuntimeException(e);
 		}
 	}
 
-	public void resetAccumulator(GenericRow acc) {
-		acc.setField(2, BinaryString.fromString("\n"));
-		ListView<BinaryString> list = getListViewFromAcc(acc, 0);
-		ListView<BinaryString> retractList = getListViewFromAcc(acc, 1);
-		list.clear();
-		retractList.clear();
-	}
-
-	@Override
-	public TypeInformation<GenericRow> getAccumulatorType() {
-		InternalType[] fieldTypes = new InternalType[] {
-				// it will be replaced to ListViewType
-				new GenericType<>(new ListViewTypeInfo<>(BinaryStringTypeInfo.INSTANCE, false)),
-				// it will be replaced to ListViewType
-				new GenericType<>(new ListViewTypeInfo<>(BinaryStringTypeInfo.INSTANCE, false)),
-				InternalTypes.STRING
-		};
-
-		String[] fieldNames = new String[] {
-				"list",
-				"retractList",
-				"delimiter"
-		};
-
-		return (TypeInformation) new BaseRowTypeInfo(fieldTypes, fieldNames);
-	}
-
-	private ListView<BinaryString> getListViewFromAcc(GenericRow acc, int ordinal) {
-		BinaryGeneric<ListView<BinaryString>> binaryGeneric =
-				(BinaryGeneric<ListView<BinaryString>>) acc.getField(ordinal);
-		return BinaryGeneric.getJavaObjectFromBinaryGeneric(binaryGeneric, listViewSerializer);
+	public void resetAccumulator(ConcatWsWithRetractAccumulator acc) {
+		acc.delimiter = BinaryString.fromString("\n");
+		acc.list.clear();
+		acc.retractList.clear();
 	}
 }

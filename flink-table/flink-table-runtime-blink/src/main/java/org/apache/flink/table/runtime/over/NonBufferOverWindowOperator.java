@@ -22,12 +22,12 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.TableStreamOperator;
-import org.apache.flink.table.runtime.context.ExecutionContextImpl;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.table.typeutils.AbstractRowSerializer;
 
@@ -77,7 +77,7 @@ public class NonBufferOverWindowOperator extends TableStreamOperator<BaseRow>
 		joinedRows = new JoinedRow[aggsHandlers.length];
 		for (int i = 0; i < aggsHandlers.length; i++) {
 			AggsHandleFunction func = aggsHandlers[i].newInstance(cl);
-			func.open(new ExecutionContextImpl(this, getRuntimeContext()));
+			func.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 			processors[i] = func;
 			joinedRows[i] = new JoinedRow();
 		}

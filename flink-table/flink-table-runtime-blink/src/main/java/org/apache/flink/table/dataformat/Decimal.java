@@ -17,7 +17,9 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.typeutils.DecimalTypeInfoFactory;
 import org.apache.flink.table.util.SegmentsUtil;
 
 import java.math.BigDecimal;
@@ -36,6 +38,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * - If decimalVal is set, it represents the whole decimal value
  * - Otherwise, the decimal value is longVal / (10 ** scale).
  */
+@TypeInfo(DecimalTypeInfoFactory.class)
 public final class Decimal implements Comparable<Decimal> {
 
 	private static final MathContext MC_DIVIDE = new MathContext(38, RoundingMode.HALF_UP);

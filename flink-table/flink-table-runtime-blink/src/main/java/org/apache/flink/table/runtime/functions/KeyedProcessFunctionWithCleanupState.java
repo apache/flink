@@ -32,12 +32,12 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
  * @param <OUT> Type of the output elements.
  */
 public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT>
-		extends KeyedProcessFunction<K, IN, OUT> implements CleanupState {
+	extends KeyedProcessFunction<K, IN, OUT> implements CleanupState {
 
 	private static final long serialVersionUID = 2084560869233898457L;
 
-	protected final long minRetentionTime;
-	protected final long maxRetentionTime;
+	private final long minRetentionTime;
+	private final long maxRetentionTime;
 	protected final boolean stateCleaningEnabled;
 
 	// holds the latest registered cleanup timer
@@ -59,11 +59,11 @@ public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT>
 	protected void registerProcessingCleanupTimer(Context ctx, long currentTime) throws Exception {
 		if (stateCleaningEnabled) {
 			registerProcessingCleanupTimer(
-					cleanupTimeState,
-					currentTime,
-					minRetentionTime,
-					maxRetentionTime,
-					ctx.timerService()
+				cleanupTimeState,
+				currentTime,
+				minRetentionTime,
+				maxRetentionTime,
+				ctx.timerService()
 			);
 		}
 	}

@@ -69,9 +69,11 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		acc.setField(0, null);
 		acc.setField(1, null);
 		acc.setField(2, new BinaryGeneric<>(
-				new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG)), getValueToOrderMapViewSerializer()));
+			new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG)),
+			getValueToOrderMapViewSerializer()));
 		acc.setField(3, new BinaryGeneric<>(
-				new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType())), getOrderToValueMapViewSerializer()));
+			new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType())),
+			getOrderToValueMapViewSerializer()));
 		return acc;
 	}
 
@@ -202,12 +204,14 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		return (TypeInformation) new BaseRowTypeInfo(fieldTypes, fieldNames);
 	}
 
+	@SuppressWarnings("unchecked")
 	private MapView<T, List<Long>> getValueToOrderMapViewFromAcc(GenericRow acc) {
 		BinaryGeneric<MapView<T, List<Long>>> binaryGeneric =
 				(BinaryGeneric<MapView<T, List<Long>>>) acc.getField(2);
 		return BinaryGeneric.getJavaObjectFromBinaryGeneric(binaryGeneric, getValueToOrderMapViewSerializer());
 	}
 
+	@SuppressWarnings("unchecked")
 	private MapView<Long, List<T>> getOrderToValueMapViewFromAcc(GenericRow acc) {
 		BinaryGeneric<MapView<Long, List<T>>> binaryGeneric =
 				(BinaryGeneric<MapView<Long, List<T>>>) acc.getField(3);
@@ -353,6 +357,14 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 			this.decimalTypeInfo = decimalTypeInfo;
 		}
 
+		public void accumulate(GenericRow acc, Decimal value) throws Exception {
+			super.accumulate(acc, value);
+		}
+
+		public void accumulate(GenericRow acc, Decimal value, Long order) throws Exception {
+			super.accumulate(acc, value, order);
+		}
+
 		@Override
 		public TypeInformation<Decimal> getResultType() {
 			return decimalTypeInfo;
@@ -374,18 +386,16 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 			return BinaryStringTypeInfo.INSTANCE;
 		}
 
-		@Override
-		public void accumulate(GenericRow acc, Object value) throws Exception {
+		public void accumulate(GenericRow acc, BinaryString value) throws Exception {
 			if (value != null) {
-				super.accumulate(acc, ((BinaryString) value).copy());
+				super.accumulate(acc, value.copy());
 			}
 		}
 
-		@Override
-		public void accumulate(GenericRow acc, Object value, Long order) throws Exception {
+		public void accumulate(GenericRow acc, BinaryString value, Long order) throws Exception {
 			// just ignore nulls values and orders
 			if (value != null) {
-				super.accumulate(acc, ((BinaryString) value).copy(), order);
+				super.accumulate(acc, value.copy(), order);
 			}
 		}
 

@@ -19,9 +19,10 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.`type`.InternalTypes._
-import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.`type`._
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
@@ -29,6 +30,7 @@ import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAgg
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
 
 import org.apache.calcite.rel.`type`._
@@ -182,7 +184,7 @@ object AggregateUtil extends Enumeration {
       aggregateCalls,
       inputRowType,
       orderKeyIdx = null,
-      needRetraction ++ Array(needInputCount), // for additional count1
+      needRetraction ++ Array(needInputCount), // for additional count(*)
       needInputCount,
       isStateBackendDataViews,
       needDistinctInfo)
@@ -213,7 +215,7 @@ object AggregateUtil extends Enumeration {
     // Step-1:
     // if need inputCount, find count1 in the existed aggregate calls first,
     // if not exist, insert a new count1 and remember the index
-    val (count1AggIndex, count1AggInserted, aggCalls) = insertInputCountAggregate(
+    val (indexOfCountStar, countStarInserted, aggCalls) = insertCountStarAggCall(
       needInputCount,
       aggregateCalls)
 
@@ -271,28 +273,29 @@ object AggregateUtil extends Enumeration {
 
     }.toArray
 
-    AggregateInfoList(aggInfos, count1AggIndex, count1AggInserted, distinctInfos)
+    AggregateInfoList(aggInfos, indexOfCountStar, countStarInserted, distinctInfos)
   }
 
 
   /**
-    * Inserts an InputCount aggregate which is count1 actually if needed.
+    * Inserts an COUNT(*) aggregate call if needed. The COUNT(*) aggregate call is used
+    * to count the number of added and retracted input records.
     * @param needInputCount whether to insert an InputCount aggregate
     * @param aggregateCalls original aggregate calls
-    * @return (count1AggIndex, count1AggInserted, newaggCalls)
+    * @return (indexOfCountStar, countStarInserted, newAggCalls)
     */
-  private def insertInputCountAggregate(
+  private def insertCountStarAggCall(
       needInputCount: Boolean,
       aggregateCalls: Seq[AggregateCall]): (Option[Int], Boolean, Seq[AggregateCall]) = {
 
-    var count1AggIndex: Option[Int] = None
-    var count1AggInserted: Boolean = false
+    var indexOfCountStar: Option[Int] = None
+    var countStarInserted: Boolean = false
     if (!needInputCount) {
-      return (count1AggIndex, count1AggInserted, aggregateCalls)
+      return (indexOfCountStar, countStarInserted, aggregateCalls)
     }
 
-    // if need inputCount, find count1 in the existed aggregate calls first,
-    // if not exist, insert a new count1 and remember the index
+    // if need inputCount, find count(*) in the existed aggregate calls first,
+    // if not exist, insert a new count(*) and remember the index
     var newAggCalls = aggregateCalls
     aggregateCalls.zipWithIndex.foreach { case (call, index) =>
       if (call.getAggregation.isInstanceOf[SqlCountAggFunction] &&
@@ -300,13 +303,13 @@ object AggregateUtil extends Enumeration {
         call.getArgList.isEmpty &&
         !call.isApproximate &&
         !call.isDistinct) {
-        count1AggIndex = Some(index)
+        indexOfCountStar = Some(index)
       }
     }
 
-    // count1 not exist in aggregateCalls, insert a count1 in it.
+    // count(*) not exist in aggregateCalls, insert a count(*) in it.
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
-    if (count1AggIndex.isEmpty) {
+    if (indexOfCountStar.isEmpty) {
 
       val count1 = AggregateCall.create(
         SqlStdOperatorTable.COUNT,
@@ -317,12 +320,12 @@ object AggregateUtil extends Enumeration {
         typeFactory.createTypeFromInternalType(InternalTypes.LONG, isNullable = false),
         "_$count1$_")
 
-      count1AggIndex = Some(aggregateCalls.length)
-      count1AggInserted = true
+      indexOfCountStar = Some(aggregateCalls.length)
+      countStarInserted = true
       newAggCalls = aggregateCalls ++ Seq(count1)
     }
 
-    (count1AggIndex, count1AggInserted, newAggCalls)
+    (indexOfCountStar, countStarInserted, newAggCalls)
   }
 
   /**
@@ -410,7 +413,7 @@ object AggregateUtil extends Enumeration {
         valueType,
         isStateBackedDataViews,
         // the mapview serializer should handle null keys
-        nullAware = true)
+        true)
 
       val distinctMapViewSpec = if (isStateBackedDataViews) {
         Some(MapViewSpec(
@@ -590,5 +593,13 @@ object AggregateUtil extends Enumeration {
       s"distinct$$$i"
     }
     (aggBufferNames ++ distinctBufferNames).toArray
+  }
+
+  /**
+    * Creates a MiniBatch trigger depends on the config.
+    */
+  def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
+    new CountBundleTrigger[BaseRow](
+      tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
   }
 }

@@ -133,55 +133,55 @@ public final class UpdatableRow implements BaseRow {
 
 	@Override
 	public void setNullAt(int ordinal) {
-		update(ordinal, null);
+		setField(ordinal, null);
 	}
 
 	@Override
 	public void setBoolean(int ordinal, boolean value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setByte(int ordinal, byte value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setShort(int ordinal, short value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setInt(int ordinal, int value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setLong(int ordinal, long value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setFloat(int ordinal, float value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setDouble(int ordinal, double value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setChar(int ordinal, char value) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
 	@Override
 	public void setDecimal(int ordinal, Decimal value, int precision) {
-		update(ordinal, value);
+		setField(ordinal, value);
 	}
 
-	public void update(int ordinal, Object value) {
+	public void setField(int ordinal, Object value) {
 		updated[ordinal] = true;
 		fields[ordinal] = value;
 	}

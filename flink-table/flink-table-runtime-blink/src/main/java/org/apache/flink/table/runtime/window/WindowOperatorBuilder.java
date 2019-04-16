@@ -61,7 +61,7 @@ public class WindowOperatorBuilder {
 	private WindowAssigner<?> windowAssigner;
 	private Trigger<?> trigger;
 	private NamespaceAggsHandleFunction<?> aggregateFunction;
-	private GeneratedNamespaceAggsHandleFunction generatedAggregateFunction;
+	private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
 	private RecordEqualiser equaliser;
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private InternalType[] accumulatorTypes;
@@ -178,7 +178,7 @@ public class WindowOperatorBuilder {
 	}
 
 	public WindowOperatorBuilder aggregate(
-			GeneratedNamespaceAggsHandleFunction generatedAggregateFunction,
+			GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
 			GeneratedRecordEqualiser generatedEqualiser,
 			InternalType[] accumulatorTypes,
 			InternalType[] aggResultTypes,

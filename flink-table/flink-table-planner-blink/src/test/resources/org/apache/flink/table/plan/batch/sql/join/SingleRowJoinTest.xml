@@ -247,4 +247,42 @@ HashJoin(joinType=[InnerJoin], where=[AND(<(a1, b1), =(a2, b2))], select=[a1, a2
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSingleRowJoinInnerJoin">
+	<Resource name="sql">
+		<![CDATA[SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)]]>
+	</Resource>
+	<Resource name="planBefore">
+		<![CDATA[
+LogicalFilter(condition=[>($1, $SCALAR_QUERY({
+LogicalProject(EXPR$0=[*($0, 0.1)])
+  LogicalAggregate(group=[{}], agg#0=[SUM($0)])
+    LogicalProject(a1=[$0])
+      LogicalTableScan(table=[[A, source: [TestTableSource(a1, a2)]]])
+}))])
++- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+   +- LogicalProject(a2=[$1], a1=[$0])
+      +- LogicalTableScan(table=[[A, source: [TestTableSource(a1, a2)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+		<![CDATA[
+Calc(select=[a2, EXPR$1])
++- NestedLoopJoin(joinType=[InnerJoin], where=[>(EXPR$1, $f0)], select=[a2, EXPR$1, $f0], build=[right], singleRowJoin=[true])
+   :- HashAggregate(isMerge=[true], groupBy=[a2], select=[a2, Final_SUM(sum$0) AS EXPR$1])
+   :  +- Exchange(distribution=[hash[a2]])
+   :     +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
+   :        +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], select=[Final_SINGLE_VALUE(value$0, count$1) AS $f0])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_SINGLE_VALUE(EXPR$0) AS (value$0, count$1)])
+               +- Calc(select=[*($f0, 0.1) AS EXPR$0])
+                  +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
+                     +- Exchange(distribution=[single])
+                        +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0])
+                           +- Calc(select=[a1])
+                              +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+]]>
+	</Resource>
+  </TestCase>
 </Root>

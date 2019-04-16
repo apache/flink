@@ -24,10 +24,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableConfigOptions, Types}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
-import org.apache.flink.table.runtime.batch.sql.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.util.{CountAccumulator, CountAggFunction, IntSumAggFunction}
-
 import org.junit.{Ignore, Test}
 
 import java.lang.{Iterable => JIterable}

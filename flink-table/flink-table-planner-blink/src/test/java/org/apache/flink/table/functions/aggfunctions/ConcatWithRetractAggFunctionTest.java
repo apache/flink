@@ -19,8 +19,8 @@
 package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.aggfunctions.ConcatWithRetractAggFunction.ConcatWithRetractAccumulator;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -29,7 +29,9 @@ import java.util.List;
 /**
  * Test case for built-in concat with retraction aggregate function.
  */
-public class ConcatWithRetractAggFunctionTest extends AggFunctionTestBase<BinaryString, GenericRow> {
+public class ConcatWithRetractAggFunctionTest
+	extends AggFunctionTestBase<BinaryString, ConcatWithRetractAccumulator> {
+
 	@Override
 	protected List<List<BinaryString>> getInputValueSets() {
 		return Arrays.asList(
@@ -57,7 +59,7 @@ public class ConcatWithRetractAggFunctionTest extends AggFunctionTestBase<Binary
 	}
 
 	@Override
-	protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
+	protected AggregateFunction<BinaryString, ConcatWithRetractAccumulator> getAggregator() {
 		return new ConcatWithRetractAggFunction();
 	}
 
@@ -73,6 +75,6 @@ public class ConcatWithRetractAggFunctionTest extends AggFunctionTestBase<Binary
 
 	@Override
 	protected Class<?> getAccClass() {
-		return GenericRow.class;
+		return ConcatWithRetractAccumulator.class;
 	}
 }

@@ -44,11 +44,11 @@ import org.apache.flink.table.api.window.Window;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.context.ExecutionContextImpl;
 import org.apache.flink.table.runtime.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.PanedWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.WindowAssigner;
@@ -141,7 +141,7 @@ public class WindowOperator<K, W extends Window>
 	// --------------------------------------------------------------------------------
 
 	private NamespaceAggsHandleFunction<W> windowAggregator;
-	private GeneratedNamespaceAggsHandleFunction generatedWindowAggregator;
+	private GeneratedNamespaceAggsHandleFunction<W> generatedWindowAggregator;
 
 	/**
 	 * The util to compare two BaseRow equals to each other.
@@ -212,7 +212,7 @@ public class WindowOperator<K, W extends Window>
 	}
 
 	WindowOperator(
-			GeneratedNamespaceAggsHandleFunction generatedWindowAggregator,
+			GeneratedNamespaceAggsHandleFunction<W> generatedWindowAggregator,
 			GeneratedRecordEqualiser generatedEqualiser,
 			WindowAssigner<W> windowAssigner,
 			Trigger<W> trigger,
@@ -280,7 +280,10 @@ public class WindowOperator<K, W extends Window>
 		}
 
 		WindowContext windowContext = new WindowContext();
-		windowAggregator.open(new ExecutionContextImpl(this, getRuntimeContext()));
+		windowAggregator.open(new PerWindowStateDataViewStore(
+			getKeyedStateBackend(),
+			windowSerializer,
+			getRuntimeContext()));
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			this.windowFunction = new MergingWindowProcessFunction<>(

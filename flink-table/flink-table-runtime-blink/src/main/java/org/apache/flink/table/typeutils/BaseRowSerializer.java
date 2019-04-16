@@ -167,6 +167,7 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 		}
 		BinaryRow binaryRow = new BinaryRow(types.length);
 		BinaryRowWriter writer = new BinaryRowWriter(binaryRow);
+		writer.writeHeader(row.getHeader());
 		for (int i = 0; i < types.length; i++) {
 			if (row.isNullAt(i)) {
 				writer.setNullAt(i);

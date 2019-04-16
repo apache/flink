@@ -16,22 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.dataview
+package org.apache.flink.table.dataview;
 
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.api.dataview.DataView;
 
 /**
-  * A [[DataView]] is a collection type that can be used in the accumulator of an
-  * [[AggregateFunction]].
-  *
-  * Depending on the context in which the [[AggregateFunction]] is
-  * used, a [[DataView]] can be backed by a Java heap collection or a state backend.
-  */
-trait DataView extends Serializable {
+ * A {@link DataView} which is implemented using state backend.
+ */
+public interface StateDataView<N> extends DataView {
 
-  /**
-    * Clears the [[DataView]] and removes all data.
-    */
-  def clear(): Unit
+	/**
+	 * Sets current namespace for state.
+	 */
+	void setCurrentNamespace(N namespace);
 
 }

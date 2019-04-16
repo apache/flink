@@ -27,7 +27,6 @@ import org.apache.flink.table.runtime.keyselector.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.RowType;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.typeutils.TypeCheckUtils;
 
@@ -56,8 +55,10 @@ public class KeySelectorUtil {
 			RowType returnType = new RowType(keyFieldTypes, keyFieldNames);
 			RowType inputType = new RowType(inputFieldTypes, rowType.getFieldNames());
 			GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
-					CodeGeneratorContext.apply(new TableConfig()),
-					BaseRowSerializer.class.getSimpleName(), inputType, returnType, keyFields);
+				CodeGeneratorContext.apply(new TableConfig()),
+				"KeyProjection",
+				inputType,
+				returnType, keyFields);
 			BaseRowTypeInfo keyRowType = returnType.toTypeInfo();
 			// check if type implements proper equals/hashCode
 			TypeCheckUtils.validateEqualsHashCode("grouping", keyRowType);

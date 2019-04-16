@@ -21,7 +21,6 @@ package org.apache.flink.table.calcite
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._
@@ -30,6 +29,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
+import org.apache.flink.api.java.typeutils.MultisetTypeInfo
 
 import java.nio.charset.Charset
 import java.util
@@ -97,6 +97,11 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
             mapType,
             createTypeFromInternalType(mapType.getKeyType, isNullable = true),
             createTypeFromInternalType(mapType.getValueType, isNullable = true),
+            isNullable)
+
+          case multisetType: MultisetType => new MultisetRelDataType(
+            multisetType,
+            createTypeFromInternalType(multisetType.getElementType, isNullable = true),
             isNullable)
 
           case generic: GenericType[_] =>
@@ -265,6 +270,15 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     canonize(relType)
   }
 
+  override def createMultisetType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
+    val internalElementType = FlinkTypeFactory.toInternalType(elementType)
+    val relType = new MultisetRelDataType(
+      InternalTypes.createMultisetType(internalElementType),
+      elementType,
+      isNullable = false)
+    canonize(relType)
+  }
+
   override def createSqlType(typeName: SqlTypeName): RelDataType = {
     if (typeName == DECIMAL) {
       // if we got here, the precision and scale are not specified, here we
@@ -293,6 +307,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
       case map: MapRelDataType =>
         new MapRelDataType(map.mapType, map.keyType, map.valueType, isNullable)
+
+      case multiSet: MultisetRelDataType =>
+        new MultisetRelDataType(multiSet.multisetType, multiSet.getComponentType, isNullable)
 
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
@@ -439,6 +456,10 @@ object FlinkTypeFactory {
     case ROW if relDataType.isInstanceOf[RelRecordType] =>
       val relRecordType = relDataType.asInstanceOf[RelRecordType]
       new RowSchema(relRecordType).internalType
+
+    case MULTISET if relDataType.isInstanceOf[MultisetRelDataType] =>
+      val multisetRelDataType = relDataType.asInstanceOf[MultisetRelDataType]
+      multisetRelDataType.multisetType
 
     case ARRAY if relDataType.isInstanceOf[ArrayRelDataType] =>
       val arrayRelDataType = relDataType.asInstanceOf[ArrayRelDataType]

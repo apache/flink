@@ -19,15 +19,34 @@
 package org.apache.flink.table.plan.cost
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.rel.metadata.{ChainedRelMetadataProvider, DefaultRelMetadataProvider, RelMetadataProvider}
+import org.apache.calcite.rel.metadata._
 
 
 object FlinkDefaultRelMetadataProvider {
 
   val INSTANCE: RelMetadataProvider = ChainedRelMetadataProvider.of(
     ImmutableList.of(
+      RelMdPercentageOriginalRows.SOURCE,
+      RelMdColumnOrigins.SOURCE,
+      RelMdExpressionLineage.SOURCE,
+      RelMdTableReferences.SOURCE,
+      RelMdNodeTypes.SOURCE,
+      RelMdRowCount.SOURCE,
+      RelMdMaxRowCount.SOURCE,
+      RelMdMinRowCount.SOURCE,
+      RelMdUniqueKeys.SOURCE,
+      RelMdColumnUniqueness.SOURCE,
+      RelMdPopulationSize.SOURCE,
       FlinkRelMdSize.SOURCE,
-      DefaultRelMetadataProvider.INSTANCE
+      RelMdParallelism.SOURCE,
+      RelMdDistribution.SOURCE,
+      RelMdMemory.SOURCE,
+      RelMdDistinctRowCount.SOURCE,
+      RelMdSelectivity.SOURCE,
+      RelMdExplainVisibility.SOURCE,
+      RelMdPredicates.SOURCE,
+      RelMdAllPredicates.SOURCE,
+      RelMdCollation.SOURCE
     )
   )
 }

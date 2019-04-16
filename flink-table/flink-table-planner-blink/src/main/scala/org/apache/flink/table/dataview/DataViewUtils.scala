@@ -147,22 +147,20 @@ object DataViewUtils {
             instance.asInstanceOf[MapView[_, _]]
         }
 
-        val newTypeInfo = if (mapView != null && mapView.keyType != null &&
-          mapView.valueType != null) {
-
-          // use external type for DataView of udaf.
-          // todo support analysis the DataView generic class of udaf.
-          new MapViewTypeInfo(mapView.keyType, mapView.valueType)
-        } else {
-          map
-        }
+        val newTypeInfo =
+          if (mapView != null && mapView.keyType != null && mapView.valueType != null) {
+            // use explicit key value type if user has defined
+            new MapViewTypeInfo(mapView.keyType, mapView.valueType)
+          } else {
+            map
+          }
 
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
-          newTypeInfo.nullSerializer = false
+          newTypeInfo.setNullSerializer(false)
         } else {
-          newTypeInfo.nullSerializer = true
+          newTypeInfo.setNullSerializer(true)
 
           // create map view specs with unique id (used as state name)
           spec = Some(MapViewSpec(
@@ -172,8 +170,6 @@ object DataViewUtils {
         }
         newTypeInfo
 
-      // TODO supports SortedMapViewTypeInfo
-
       case list: ListViewTypeInfo[_] =>
         val listView = instance match {
           case b: BinaryGeneric[_] =>
@@ -182,7 +178,7 @@ object DataViewUtils {
             instance.asInstanceOf[ListView[_]]
         }
         val newTypeInfo = if (listView != null && listView.elementType != null) {
-          // todo support analysis the DataView generic class of udaf.
+          // use explicit element type if user has defined
           new ListViewTypeInfo(listView.elementType)
         } else {
           list
@@ -190,9 +186,9 @@ object DataViewUtils {
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
-          newTypeInfo.nullSerializer = false
+          newTypeInfo.setNullSerializer(false)
         } else {
-          newTypeInfo.nullSerializer = true
+          newTypeInfo.setNullSerializer(true)
 
           // create list view specs with unique is (used as state name)
           spec = Some(ListViewSpec(

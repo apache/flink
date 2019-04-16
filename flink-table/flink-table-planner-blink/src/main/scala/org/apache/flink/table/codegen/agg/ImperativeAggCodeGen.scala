@@ -22,7 +22,7 @@ import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeIn
 import org.apache.flink.table.`type`.{InternalType, InternalTypeUtils, RowType}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateFieldAccess
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.{CONTEXT_TERM, CURRENT_KEY, DISTINCT_KEY_TERM, NAMESPACE_TERM, addReusableStateDataViews, createDataViewBackupTerm, createDataViewTerm}
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.dataformat.{GenericRow, UpdatableRow}
 import org.apache.flink.table.dataview.DataViewSpec
@@ -80,7 +80,7 @@ class ImperativeAggCodeGen(
   val function: AggregateFunction[_, _] = aggInfo.function.asInstanceOf[AggregateFunction[_, _]]
   val functionTerm: String = ctx.addReusableFunction(
     function,
-    contextTerm = s"$CONTEXT_TERM.getRuntimeContext()")
+    contextTerm = s"$STORE_TERM.getRuntimeContext()")
   val aggIndex: Int = aggInfo.aggIndex
 
   val externalAccType = aggInfo.externalAccTypes(0)
@@ -126,7 +126,7 @@ class ImperativeAggCodeGen(
       genToInternal(ctx, externalAccType, s"$functionTerm.createAccumulator()")
     }
     val accInternal = newName("acc_internal")
-    val code = s"$accTypeInternalTerm $accInternal = $accField;"
+    val code = s"$accTypeInternalTerm $accInternal = ($accTypeInternalTerm) $accField;"
     Seq(GeneratedExpression(accInternal, "false", code, internalAccType))
   }
 
@@ -159,7 +159,7 @@ class ImperativeAggCodeGen(
       s"$accInternalTerm = ($accTypeInternalTerm) $functionTerm.createAccumulator();"
     } else {
       s"""
-         |$accExternalTerm = $functionTerm.createAccumulator();
+         |$accExternalTerm = ($accTypeExternalTerm) $functionTerm.createAccumulator();
          |$accInternalTerm = ${genToInternal(ctx, externalAccType, accExternalTerm)};
        """.stripMargin
     }
@@ -266,7 +266,7 @@ class ImperativeAggCodeGen(
   }
 
   private def aggParametersCode(generator: ExprCodeGenerator): (String, String) = {
-    val externalUDITypes = getAggUserDefinedInputTypes(
+    val externalInputTypes = getAggUserDefinedInputTypes(
       function,
       externalAccType,
       argTypes)
@@ -276,7 +276,7 @@ class ImperativeAggCodeGen(
         // index to constant
         val expr = constantExprs(f - inputTypes.length)
         s"${expr.nullTerm} ? null : ${
-          genToExternal(ctx, externalUDITypes(index), expr.resultTerm)}"
+          genToExternal(ctx, externalInputTypes(index), expr.resultTerm)}"
       } else {
         // index to input field
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
@@ -294,7 +294,7 @@ class ImperativeAggCodeGen(
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
         codes += inputExpr.code
-        var term = s"${genToExternal(ctx, externalUDITypes(index), inputExpr.resultTerm)}"
+        val term = s"${genToExternal(ctx, externalInputTypes(index), inputExpr.resultTerm)}"
         s"${inputExpr.nullTerm} ? null : $term"
       }
     }
@@ -403,7 +403,6 @@ class ImperativeAggCodeGen(
       accTerm: String,
       viewSpecs: Array[DataViewSpec],
       useBackupDataView: Boolean): String = {
-    ctx.addReusableMember(s"$BASE_ROW $CURRENT_KEY = ctx.currentKey();")
     val setters = for (spec <- viewSpecs) yield {
       if (hasNamespace) {
         val dataViewTerm = if (useBackupDataView) {
@@ -412,20 +411,27 @@ class ImperativeAggCodeGen(
           createDataViewTerm(spec)
         }
 
+        val dataViewInternalTerm = if (useBackupDataView) {
+          createDataViewBackupBinaryGenericTerm(spec)
+        } else {
+          createDataViewBinaryGenericTerm(spec)
+        }
+
         s"""
            |// when namespace is null, the dataview is used in heap, no key and namespace set
            |if ($NAMESPACE_TERM != null) {
-           |  $dataViewTerm.setCurrentKey($CURRENT_KEY);
            |  $dataViewTerm.setCurrentNamespace($NAMESPACE_TERM);
-           |  $accTerm.update(${spec.fieldIndex}, $dataViewTerm);
+           |  $dataViewInternalTerm.setJavaObject($dataViewTerm);
+           |  $accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
            |}
          """.stripMargin
       } else {
         val dataViewTerm = createDataViewTerm(spec)
+        val dataViewInternalTerm = createDataViewBinaryGenericTerm(spec)
 
         s"""
-           |$dataViewTerm.setCurrentKey($CURRENT_KEY);
-           |$accTerm.update(${spec.fieldIndex}, $dataViewTerm);
+           |$dataViewInternalTerm.setJavaObject($dataViewTerm);
+           |$accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
         """.stripMargin
       }
     }

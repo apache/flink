@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
@@ -102,13 +103,20 @@ public abstract class ObjectArrayRow implements BaseRow {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(getHeader()).append("|");
+		sb.append("(");
+		if (BaseRowUtil.isAccumulateMsg(this)) {
+			sb.append("+");
+		} else {
+			sb.append("-");
+		}
+		sb.append("|");
 		for (int i = 0; i < fields.length; i++) {
 			if (i != 0) {
 				sb.append(",");
 			}
 			sb.append(StringUtils.arrayAwareToString(fields[i]));
 		}
+		sb.append(")");
 		return sb.toString();
 	}
 

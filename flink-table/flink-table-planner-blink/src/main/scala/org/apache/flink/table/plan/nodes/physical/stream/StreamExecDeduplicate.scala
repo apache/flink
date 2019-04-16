@@ -130,7 +130,16 @@ class StreamExecDeduplicate(
       new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
     }
     val ret = new OneInputTransformation(
-      inputTransform, getOperatorName, operator, rowTypeInfo, inputTransform.getParallelism)
+      inputTransform,
+      getOperatorName,
+      operator,
+      rowTypeInfo,
+      tableEnv.execEnv.getParallelism)
+
+    if (uniqueKeys.isEmpty) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
+    }
     val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)

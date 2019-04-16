@@ -30,9 +30,9 @@ import org.apache.flink.table.api.window.Window;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.dataview.StateDataViewStore;
 import org.apache.flink.table.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
@@ -1184,7 +1184,7 @@ public class WindowOperatorTest {
 		boolean countIsNull;
 
 		@Override
-		public void open(ExecutionContext ctx) throws Exception {
+		public void open(StateDataViewStore store) throws Exception {
 			openCalled = true;
 		}
 

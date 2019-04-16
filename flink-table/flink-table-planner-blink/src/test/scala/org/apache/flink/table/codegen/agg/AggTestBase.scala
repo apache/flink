@@ -93,7 +93,7 @@ abstract class AggTestBase {
   }
 
   val aggInfoList = AggregateInfoList(
-    Array(aggInfo1, aggInfo2, aggInfo3), None, count1AggInserted = false, Array())
+    Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
   val ctx = new CodeGeneratorContext(conf)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])

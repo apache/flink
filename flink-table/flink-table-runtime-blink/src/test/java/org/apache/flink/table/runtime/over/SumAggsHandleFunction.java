@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.dataview.StateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
-import org.apache.flink.table.runtime.context.ExecutionContext;
 
 /**
  * Test {@link AggsHandleFunction}.
@@ -36,7 +36,7 @@ public class SumAggsHandleFunction implements AggsHandleFunction {
 	}
 
 	@Override
-	public void open(ExecutionContext ctx) throws Exception {
+	public void open(StateDataViewStore store) throws Exception {
 	}
 
 	@Override

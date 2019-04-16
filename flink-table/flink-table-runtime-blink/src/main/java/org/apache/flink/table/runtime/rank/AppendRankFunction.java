@@ -63,12 +63,20 @@ public class AppendRankFunction extends AbstractRankFunction {
 	// the kvSortedMap stores mapping from partition key to it's buffer
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
-	public AppendRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			GeneratedRecordComparator sortKeyGeneratedRecordComparator, BaseRowKeySelector sortKeySelector,
-			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction, boolean outputRankNumber, long cacheSize) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, sortKeyGeneratedRecordComparator, sortKeySelector,
-				rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
+	public AppendRankFunction(
+			long minRetentionTime,
+			long maxRetentionTime,
+			BaseRowTypeInfo inputRowType,
+			GeneratedRecordComparator sortKeyGeneratedRecordComparator,
+			BaseRowKeySelector sortKeySelector,
+			RankType rankType,
+			RankRange rankRange,
+			GeneratedRecordEqualiser generatedEqualiser,
+			boolean generateRetraction,
+			boolean outputRankNumber,
+			long cacheSize) {
+		super(minRetentionTime, maxRetentionTime, inputRowType, sortKeyGeneratedRecordComparator,
+			sortKeySelector, rankType, rankRange, generatedEqualiser, generateRetraction, outputRankNumber);
 		this.sortKeyType = sortKeySelector.getProducedType();
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
 		this.cacheSize = cacheSize;

@@ -884,9 +884,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlIncrSumAggFunction INCR_SUM = new SqlIncrSumAggFunction();
 
 	/**
-	 * <code>MAX2ND</code> aggregate function.
+	 * <code>THROW_EXCEPTION</code> scalar function. Only internal used.
 	 */
-	public static final SqlMax2ndAggFunction MAX2ND = new SqlMax2ndAggFunction();
+	public static final SqlFunction THROW_EXCEPTION = new SqlThrowExceptionFunction();
 
 	// -----------------------------------------------------------------------------
 	// Window SQL functions
@@ -965,6 +965,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlAggFunction VARIANCE = SqlStdOperatorTable.VARIANCE;
 	public static final SqlAggFunction VAR_POP = SqlStdOperatorTable.VAR_POP;
 	public static final SqlAggFunction VAR_SAMP = SqlStdOperatorTable.VAR_SAMP;
+	public static final SqlAggFunction SINGLE_VALUE = SqlStdOperatorTable.SINGLE_VALUE;
 
 	// ARRAY OPERATORS
 	public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR = SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR;

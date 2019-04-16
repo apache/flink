@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.`type`.InternalTypes._
-import org.apache.flink.table.`type`.{DecimalType, InternalType}
+import org.apache.flink.table.`type`.{DecimalType, GenericType, InternalType, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction._
 import org.apache.flink.table.functions.aggfunctions.LastValueWithRetractAggFunction._
 import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction._
 import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction._
+import org.apache.flink.table.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
@@ -102,8 +103,8 @@ class AggFunctionFactory(
       case _: SqlLeadLagAggFunction =>
         createLeadLagAggFunction(argTypes, index)
 
-      // TODO supports SqlMax2ndAggFunction
-      // TODO supports SqlSingleValueAggFunction
+      case _: SqlSingleValueAggFunction =>
+        createSingleValueAggFunction(argTypes)
 
       case a: SqlFirstLastValueAggFunction if a.getKind == SqlKind.FIRST_VALUE =>
         createFirstValueAggFunction(argTypes, index)
@@ -118,7 +119,9 @@ class AggFunctionFactory(
         createConcatWsAggFunction(argTypes, index)
 
       // TODO supports SqlCardinalityCountAggFunction
-      // TODO supports COLLECT SqlAggFunction
+
+      case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
+        createCollectAggFunction(argTypes)
 
       case udagg: AggSqlFunction => udagg.getFunction
 
@@ -437,6 +440,37 @@ class AggFunctionFactory(
     new CountAggFunction
   }
 
+  private def createSingleValueAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
+    argTypes(0) match {
+      case BYTE =>
+        new ByteSingleValueAggFunction
+      case SHORT =>
+        new ShortSingleValueAggFunction
+      case INT =>
+        new IntSingleValueAggFunction
+      case LONG =>
+        new LongSingleValueAggFunction
+      case FLOAT =>
+        new FloatSingleValueAggFunction
+      case DOUBLE =>
+        new DoubleSingleValueAggFunction
+      case BOOLEAN =>
+        new BooleanSingleValueAggFunction
+      case STRING =>
+        new StringSingleValueAggFunction
+      case DATE =>
+        new DateSingleValueAggFunction
+      case TIME =>
+        new TimeSingleValueAggFunction
+      case TIMESTAMP | ROWTIME_INDICATOR | PROCTIME_INDICATOR =>
+        new TimestampSingleValueAggFunction
+      case d: DecimalType =>
+        new DecimalSingleValueAggFunction(d.toTypeInfo)
+      case t =>
+        throw new TableException(s"SINGLE_VALUE aggregate function doesn't support type '$t'.")
+    }
+  }
+
   private def createRowNumberAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
     new RowNumberAggFunction
   }
@@ -581,10 +615,17 @@ class AggFunctionFactory(
       argTypes: Array[InternalType],
       index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      null
       new ConcatWsWithRetractAggFunction
     } else {
       new ConcatAggFunction(2)
     }
+  }
+
+  private def createCollectAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
+    val elementTypeInfo = argTypes(0) match {
+      case gt: GenericType[_] => gt.getTypeInfo
+      case t => TypeConverters.createInternalTypeInfoFromInternalType(t)
+    }
+    new CollectAggFunction(elementTypeInfo)
   }
 }

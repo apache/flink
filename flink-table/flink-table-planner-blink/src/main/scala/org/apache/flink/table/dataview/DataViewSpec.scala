@@ -30,10 +30,6 @@ trait DataViewSpec {
   def fieldIndex: Int
 
   def dataViewTypeInfo: TypeInformation[_]
-
-  def getStateDataViewClass(hasNamespace: Boolean): Class[_]
-
-  def getCreateStateViewCall: String
 }
 
 case class ListViewSpec[T](
@@ -41,11 +37,6 @@ case class ListViewSpec[T](
     fieldIndex: Int,
     dataViewTypeInfo: ListViewTypeInfo[T])
   extends DataViewSpec {
-
-  // TODO implement it
-  override def getStateDataViewClass(hasNamespace: Boolean): Class[_] = ???
-
-  override def getCreateStateViewCall: String = "getStateListView"
 }
 
 
@@ -54,9 +45,4 @@ case class MapViewSpec[K, V](
     fieldIndex: Int,
     dataViewTypeInfo: MapViewTypeInfo[K, V])
   extends DataViewSpec {
-
-  // TODO implement it
-  override def getStateDataViewClass(hasNamespace: Boolean): Class[_] = ???
-
-  override def getCreateStateViewCall: String = "getStateMapView"
 }

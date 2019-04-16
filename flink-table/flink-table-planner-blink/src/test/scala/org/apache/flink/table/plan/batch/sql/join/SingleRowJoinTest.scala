@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -104,9 +103,6 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Int, Int)]("A", 'a1, 'a2)
     val sql = "SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)"
-    // TODO remove this after SINGLE_VALUE supported
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Unsupported Function: 'SINGLE_VALUE'")
     util.verifyPlan(sql)
   }
 }
