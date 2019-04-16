@@ -40,6 +40,7 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,7 +54,6 @@ import java.util.NoSuchElementException;
 import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
@@ -265,37 +265,29 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void cannotStartTwoReportersOnSamePort() throws Exception {
-		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(
-			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(createReporterSetup("test1", portRangeProvider.next())));
-		assertThat(fixedPort1.getReporters(), hasSize(1));
+		ReporterSetup setup1 = createReporterSetup("test1", portRangeProvider.next());
 
-		PrometheusReporter firstReporter = (PrometheusReporter) fixedPort1.getReporters().get(0);
+		int usedPort = ((PrometheusReporter) setup1.getReporter()).getPort();
 
-		final MetricRegistryImpl fixedPort2 = new MetricRegistryImpl(
-			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(createReporterSetup("test2", String.valueOf(firstReporter.getPort()))));
-		assertThat(fixedPort2.getReporters(), hasSize(0));
-
-		fixedPort1.shutdown().get();
-		fixedPort2.shutdown().get();
+		try {
+			createReporterSetup("test2", String.valueOf(usedPort));
+			Assert.fail("Should've failed since port is unavailable.");
+		} catch (Exception e)  {
+			// expected
+		} finally {
+			setup1.getReporter().close();
+		}
 	}
 
 	@Test
 	public void canStartTwoReportersWhenUsingPortRange() throws Exception {
 		String portRange = portRangeProvider.next();
-		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(
-			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(createReporterSetup("test1", portRange)));
-		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(
-			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(createReporterSetup("test2", portRange)));
 
-		assertThat(portRange1.getReporters(), hasSize(1));
-		assertThat(portRange2.getReporters(), hasSize(1));
+		ReporterSetup setup1 = createReporterSetup("test1", portRange);
+		ReporterSetup setup2 = createReporterSetup("test2", portRange);
 
-		portRange1.shutdown().get();
-		portRange2.shutdown().get();
+		setup1.getReporter().close();
+		setup2.getReporter().close();
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
