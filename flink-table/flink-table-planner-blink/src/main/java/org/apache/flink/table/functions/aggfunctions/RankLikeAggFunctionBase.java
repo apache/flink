@@ -81,6 +81,12 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 	protected Expression orderKeyEqualsExpression() {
 		Expression[] orderKeyEquals = new Expression[orderKeyTypes.length];
 		for (int i = 0; i < orderKeyTypes.length; ++i) {
+			// pseudo code:
+			// if (lastValue_i is null) {
+			//   if (operand(i) is null) true else false
+			// } else {
+			//   lastValue_i equalTo orderKey(i)
+			// }
 			Expression lasValue = lastValues[i];
 			orderKeyEquals[i] = ifThenElse(isNull(lasValue),
 					ifThenElse(isNull(operand(i)), literal(true), literal(false)),
