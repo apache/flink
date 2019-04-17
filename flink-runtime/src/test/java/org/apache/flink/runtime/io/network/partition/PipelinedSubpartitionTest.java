@@ -73,7 +73,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 	@Override
 	PipelinedSubpartition createSubpartition() {
-		final ResultPartition parent = mock(ResultPartition.class);
+		final ResultPartition parent = PartitionTestUtils.createMockPartition();
 
 		return new PipelinedSubpartition(0, parent);
 	}
