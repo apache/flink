@@ -85,7 +85,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, d], where=[AND(=(b, 1984-07-12), =(c, 14:34:24), =(d, 1984-07-12 14:34:24))])
+Calc(select=[a, CAST(1984-07-12) AS b, CAST(14:34:24) AS c, CAST(1984-07-12 14:34:24) AS d], where=[AND(=(b, 1984-07-12), =(c, 14:34:24), =(d, 1984-07-12 14:34:24))])
 +- TableSourceScan(table=[[MyTable3, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -103,7 +103,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c], where=[AND(OR(=(b, 1), =(b, 3), =(b, 4), =(b, 5), =(b, 6)), =(c, _UTF-16LE'xx'))])
+Calc(select=[a, b, CAST(_UTF-16LE'xx') AS c], where=[AND(OR(=(b, 1), =(b, 3), =(b, 4), =(b, 5), =(b, 6)), =(c, _UTF-16LE'xx'))])
 +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
