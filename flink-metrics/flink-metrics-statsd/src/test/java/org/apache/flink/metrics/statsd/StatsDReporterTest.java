@@ -32,6 +32,7 @@ import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -45,6 +46,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -81,14 +83,12 @@ public class StatsDReporterTest extends TestLogger {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(
-				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-				"org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
-
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
-		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration),
+			Collections.singletonList(ReporterSetup.forReporter("test", new TestingStatsDReporter())));
 
 		char delimiter = metricRegistry.getDelimiter();
 
@@ -149,13 +149,14 @@ public class StatsDReporterTest extends TestLogger {
 
 			int port = receiver.getPort();
 
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+			MetricConfig config = new MetricConfig();
+			config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setProperty("host", "localhost");
+			config.setProperty("port", String.valueOf(port));
 
-			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+				Collections.singletonList(ReporterSetup.forReporter("test", config, new StatsDReporter())));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -222,13 +223,14 @@ public class StatsDReporterTest extends TestLogger {
 
 			int port = receiver.getPort();
 
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+			MetricConfig config = new MetricConfig();
+			config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setProperty("host", "localhost");
+			config.setProperty("port", String.valueOf(port));
 
-			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+				Collections.singletonList(ReporterSetup.forReporter("test", config, new StatsDReporter())));
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 			TestMeter meter = new TestMeter();
 			metricGroup.meter(meterName, meter);
