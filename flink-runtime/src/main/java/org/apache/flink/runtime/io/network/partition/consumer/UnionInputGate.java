@@ -183,12 +183,13 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		// Make sure to request the partitions, if they have not been requested before.
 		requestPartitions();
 
-		InputGateWithData inputGateWithData = waitAndGetNextInputGate(blocking);
-		if (inputGateWithData == null) {
-			// In the case that `blocking` is false, `inputGateWithData` may be null
+		Optional<InputGateWithData> next = waitAndGetNextInputGate(blocking);
+		if (!next.isPresent()) {
+			// In the case that `blocking` is false, `next` may be no value present.
 			return Optional.empty();
 		}
 
+		InputGateWithData inputGateWithData = next.get();
 		InputGate inputGate = inputGateWithData.inputGate;
 		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
 
@@ -219,7 +220,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		return Optional.of(bufferOrEvent);
 	}
 
-	private InputGateWithData waitAndGetNextInputGate(boolean blocking) throws IOException, InterruptedException {
+	private Optional<InputGateWithData> waitAndGetNextInputGate(boolean blocking) throws IOException, InterruptedException {
 		while (true) {
 			InputGate inputGate;
 			boolean moreInputGatesAvailable;
@@ -228,7 +229,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 					if (blocking) {
 						inputGatesWithData.wait();
 					} else {
-						return null;
+						return Optional.empty();
 					}
 				}
 				inputGate = inputGatesWithData.remove();
@@ -241,7 +242,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
 			Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
 			if (bufferOrEvent.isPresent()) {
-				return new InputGateWithData(inputGate, bufferOrEvent.get(), moreInputGatesAvailable);
+				return Optional.of(new InputGateWithData(inputGate, bufferOrEvent.get(), moreInputGatesAvailable));
 			}
 		}
 	}
