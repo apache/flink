@@ -199,8 +199,7 @@ class GroupingSetsTest extends TableTestBase {
     util.verifyPlan("SELECT DISTINCT COUNT(*) FROM emp GROUP BY CUBE(deptno, gender)")
   }
 
-  // TODO remove expected exception after FLINK-12185 is merged
-  @Test(expected = classOf[TableException])
+  @Test
   def testCubeAndJoin(): Unit = {
     val sqlQuery =
       """
