@@ -155,28 +155,6 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
-	public void testAutoCommitFalse() {
-		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-			.setDrivername(DRIVER_CLASS)
-			.setDBUrl(DB_URL)
-			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
-			.setAutoCommit(false)
-			.finish();
-	}
-
-	@Test
-	public void testAutoCommitTrue() {
-		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-			.setDrivername(DRIVER_CLASS)
-			.setDBUrl(DB_URL)
-			.setQuery(SELECT_ALL_BOOKS)
-			.setRowTypeInfo(ROW_TYPE_INFO)
-			.setAutoCommit(true)
-			.finish();
-	}
-
-	@Test
 	public void testDefaultAutoCommitIsUsedIfNotConfiguredOtherwise() throws SQLException, ClassNotFoundException {
 
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
