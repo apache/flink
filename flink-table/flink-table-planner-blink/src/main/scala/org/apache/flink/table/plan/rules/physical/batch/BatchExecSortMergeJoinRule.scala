@@ -105,7 +105,7 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
 
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val candidates = if (tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLE)) {
+      PlannerConfigOptions.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
     } else {
