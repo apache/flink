@@ -296,6 +296,9 @@ public final class HybridMemorySegment extends MemorySegment {
 		if ((offset | numBytes | (offset + numBytes)) < 0) {
 			throw new IndexOutOfBoundsException();
 		}
+		if (target.isReadOnly()) {
+			throw new ReadOnlyBufferException();
+		}
 
 		final int targetOffset = target.position();
 		final int remaining = target.remaining();
@@ -305,10 +308,6 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 
 		if (target.isDirect()) {
-			if (target.isReadOnly()) {
-				throw new ReadOnlyBufferException();
-			}
-
 			// copy to the target memory directly
 			final long targetPointer = getAddress(target) + targetOffset;
 			final long sourcePointer = address + offset;
@@ -333,10 +332,8 @@ public final class HybridMemorySegment extends MemorySegment {
 			target.position(targetOffset + numBytes);
 		}
 		else {
-			// neither heap buffer nor direct buffer
-			while (target.hasRemaining()) {
-				target.put(get(offset++));
-			}
+			// other types of byte buffers
+			throw new IllegalArgumentException("The target buffer is not direct, and has no array.");
 		}
 	}
 
@@ -379,8 +376,8 @@ public final class HybridMemorySegment extends MemorySegment {
 			source.position(sourceOffset + numBytes);
 		}
 		else {
-			// neither heap buffer nor direct buffer
-			while (source.hasRemaining()) {
+			// other types of byte buffers
+			for (int i = 0; i < numBytes; i++) {
 				put(offset++, source.get());
 			}
 		}
