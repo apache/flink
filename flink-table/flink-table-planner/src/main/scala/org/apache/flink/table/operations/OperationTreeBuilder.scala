@@ -348,12 +348,15 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   def map(mapFunction: Expression, child: TableOperation): TableOperation = {
 
-    if (!isScalarFunction(mapFunction)) {
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedMapFunction = resolveSingleExpression(mapFunction, resolver)
+
+    if (!isScalarFunction(resolvedMapFunction)) {
       throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
     val expandedFields = new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
-      List(mapFunction).asJava)
+      List(resolvedMapFunction).asJava)
     project(Collections.singletonList(expandedFields), child)
   }
 
