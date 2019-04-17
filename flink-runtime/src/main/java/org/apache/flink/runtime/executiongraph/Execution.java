@@ -89,7 +89,6 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times
@@ -365,7 +364,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param taskRestore information to restore the state
 	 */
 	public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
-		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
 		this.taskRestore = taskRestore;
 	}
 

@@ -1202,12 +1202,23 @@ public class CheckpointCoordinator {
 				currentPeriodicTrigger = null;
 			}
 
+			abortPendingCheckpoints(new Exception("Checkpoint Coordinator is suspending."));
+
+			numUnsuccessfulCheckpointsTriggers.set(0);
+		}
+	}
+
+	/**
+	 * Aborts all the pending checkpoints due to en exception.
+	 * @param exception The exception.
+	 */
+	public void abortPendingCheckpoints(Exception exception) {
+		synchronized (lock) {
 			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				p.abortError(new Exception("Checkpoint Coordinator is suspending."));
+				p.abortError(exception);
 			}
 
 			pendingCheckpoints.clear();
-			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
 	}
 
