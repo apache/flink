@@ -30,7 +30,7 @@ import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
-import org.apache.flink.table.operations.JoinOperationFactory.JoinType
+import org.apache.flink.table.operations.JoinTableOperation.JoinType
 import org.apache.flink.table.operations.SetTableOperation.SetTableOperationType._
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala

@@ -29,7 +29,9 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.RexPlannerExpression;
 import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
@@ -38,6 +40,8 @@ import org.apache.flink.table.operations.CalculatedTableOperation;
 import org.apache.flink.table.operations.CatalogTableOperation;
 import org.apache.flink.table.operations.DistinctTableOperation;
 import org.apache.flink.table.operations.FilterTableOperation;
+import org.apache.flink.table.operations.JoinTableOperation;
+import org.apache.flink.table.operations.JoinTableOperation.JoinType;
 import org.apache.flink.table.operations.PlannerTableOperation;
 import org.apache.flink.table.operations.ProjectTableOperation;
 import org.apache.flink.table.operations.SetTableOperation;
@@ -47,7 +51,6 @@ import org.apache.flink.table.operations.TableOperationDefaultVisitor;
 import org.apache.flink.table.operations.TableOperationVisitor;
 import org.apache.flink.table.operations.WindowAggregateTableOperation;
 import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
-import org.apache.flink.table.plan.logical.LogicalNode;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.plan.logical.SlidingGroupWindow;
@@ -55,6 +58,8 @@ import org.apache.flink.table.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
@@ -63,6 +68,7 @@ import org.apache.calcite.tools.RelBuilder.GroupKey;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import scala.Some;
@@ -101,6 +107,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 	private final SingleRelVisitor singleRelVisitor = new SingleRelVisitor();
 	private final ExpressionBridge<PlannerExpression> expressionBridge;
 	private final AggregateVisitor aggregateVisitor = new AggregateVisitor();
+	private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
 
 	public TableOperationConverter(
 			RelBuilder relBuilder,
@@ -153,6 +160,22 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 			GroupKey groupKey = relBuilder.groupKey(groupings);
 			LogicalWindow logicalWindow = toLogicalWindow(windowAggregate.getGroupWindow());
 			return flinkRelBuilder.aggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
+		}
+
+		@Override
+		public RelNode visitJoin(JoinTableOperation join) {
+			final Set<CorrelationId> corSet;
+			if (join.isCorrelated()) {
+				corSet = Collections.singleton(relBuilder.peek().getCluster().createCorrel());
+			} else {
+				corSet = Collections.emptySet();
+			}
+
+			return relBuilder.join(
+				convertJoinType(join.getJoinType()),
+				join.getCondition().accept(joinExpressionVisitor),
+				corSet)
+				.build();
 		}
 
 		@Override
@@ -228,9 +251,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visitOther(TableOperation other) {
-			if (other instanceof LogicalNode) {
-				return ((LogicalNode) other).toRelNode(relBuilder);
-			} else if (other instanceof PlannerTableOperation) {
+			if (other instanceof PlannerTableOperation) {
 				return ((PlannerTableOperation) other).getCalciteTree();
 			}
 
@@ -275,6 +296,47 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 				default:
 					throw new TableException("Unknown window type");
 			}
+		}
+
+		private JoinRelType convertJoinType(JoinType joinType) {
+			switch (joinType) {
+				case INNER:
+					return JoinRelType.INNER;
+				case LEFT_OUTER:
+					return JoinRelType.LEFT;
+				case RIGHT_OUTER:
+					return JoinRelType.RIGHT;
+				case FULL_OUTER:
+					return JoinRelType.FULL;
+				default:
+					throw new TableException("Unknown join type: " + joinType);
+			}
+		}
+	}
+
+	private class JoinExpressionVisitor extends ExpressionDefaultVisitor<RexNode> {
+
+		private static final int numberOfJoinInputs = 2;
+
+		@Override
+		public RexNode visitCall(CallExpression call) {
+			List<Expression> newChildren = call.getChildren().stream().map(expr -> {
+				RexNode convertedNode = expr.accept(this);
+				return (Expression) new RexPlannerExpression(convertedNode);
+			}).collect(toList());
+
+			CallExpression newCall = new CallExpression(call.getFunctionDefinition(), newChildren);
+			return expressionBridge.bridge(newCall).toRexNode(relBuilder);
+		}
+
+		@Override
+		public RexNode visitFieldReference(FieldReferenceExpression fieldReference) {
+			return relBuilder.field(numberOfJoinInputs, fieldReference.getInputIndex(), fieldReference.getFieldIndex());
+		}
+
+		@Override
+		protected RexNode defaultMethod(Expression expression) {
+			return expressionBridge.bridge(expression).toRexNode(relBuilder);
 		}
 	}
 

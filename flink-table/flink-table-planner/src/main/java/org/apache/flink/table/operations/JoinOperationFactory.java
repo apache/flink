@@ -30,16 +30,15 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.plan.logical.Join;
+import org.apache.flink.table.operations.JoinTableOperation.JoinType;
 
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 import static java.util.Arrays.asList;
 
 /**
- * Utility class for creating a valid {@link Join} operation.
+ * Utility class for creating a valid {@link JoinTableOperation} operation.
  */
 @Internal
 public class JoinOperationFactory {
@@ -52,17 +51,7 @@ public class JoinOperationFactory {
 	}
 
 	/**
-	 * Specifies how the two Tables should be joined.
-	 */
-	public enum JoinType {
-		INNER,
-		LEFT_OUTER,
-		RIGHT_OUTER,
-		FULL_OUTER
-	}
-
-	/**
-	 * Creates a valid {@link Join} operation.
+	 * Creates a valid {@link JoinTableOperation} operation.
 	 *
 	 * <p>It performs validations such as:
 	 * <ul>
@@ -88,9 +77,7 @@ public class JoinOperationFactory {
 		verifyConditionType(condition);
 		validateNamesAmbiguity(left, right);
 		validateCondition(right, joinType, condition, correlated);
-
-		PlannerExpression plannerExpression = expressionBridge.bridge(condition);
-		return new Join(left, right, joinType, Optional.of(plannerExpression), correlated);
+		return new JoinTableOperation(left, right, joinType, condition, correlated);
 	}
 
 	private void validateCondition(TableOperation right, JoinType joinType, Expression condition, boolean correlated) {

@@ -23,7 +23,7 @@ import _root_.java.util.function.Supplier
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.JoinOperationFactory.JoinType
+import org.apache.flink.table.operations.JoinTableOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
