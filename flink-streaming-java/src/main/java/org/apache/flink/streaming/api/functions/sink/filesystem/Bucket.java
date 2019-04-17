@@ -219,7 +219,7 @@ public class Bucket<IN, BucketID> {
 
 		final Path partFilePath = assembleNewPartPath();
 		final RecoverableFsDataOutputStream stream = fsWriter.open(partFilePath);
-		inProgressPart = partFileFactory.openNew(bucketId, stream, partFilePath, currentTime);
+		inProgressPart = partFileFactory.openNew(bucketId, stream, currentTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",

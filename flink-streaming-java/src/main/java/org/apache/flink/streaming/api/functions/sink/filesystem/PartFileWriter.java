@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.IOUtils;
@@ -127,7 +126,6 @@ abstract class PartFileWriter<IN, BucketID> implements PartFileInfo<BucketID> {
 		 * Used to create a new {@link PartFileWriter writer}.
 		 * @param bucketId the id of the bucket this writer is writing to.
 		 * @param stream the filesystem-specific output stream to use when writing to the filesystem.
-		 * @param path the part this writer will write to.
 		 * @param creationTime the creation time of the stream.
 		 * @return the new {@link PartFileWriter writer}.
 		 * @throws IOException
@@ -135,7 +133,6 @@ abstract class PartFileWriter<IN, BucketID> implements PartFileInfo<BucketID> {
 		PartFileWriter<IN, BucketID> openNew(
 			final BucketID bucketId,
 			final RecoverableFsDataOutputStream stream,
-			final Path path,
 			final long creationTime) throws IOException;
 	}
 }

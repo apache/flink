@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
@@ -94,11 +93,9 @@ final class BulkPartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 		public PartFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
-				final Path path,
 				final long creationTime) throws IOException {
 
 			Preconditions.checkNotNull(stream);
-			Preconditions.checkNotNull(path);
 
 			final BulkWriter<IN> writer = writerFactory.create(stream);
 			return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
