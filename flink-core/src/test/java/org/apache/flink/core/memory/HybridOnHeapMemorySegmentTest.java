@@ -90,7 +90,12 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
 		int offset = 10;
 		int numBytes = 5;
-		seg.put(offset, bb.asReadOnlyBuffer(), numBytes);
+
+		ByteBuffer readOnlyBuf = bb.asReadOnlyBuffer();
+		assertFalse(readOnlyBuf.isDirect());
+		assertFalse(readOnlyBuf.hasArray());
+		
+		seg.put(offset, readOnlyBuf, numBytes);
 
 		// verify the area before the written region.
 		for (int i = 0; i < offset; i++) {
