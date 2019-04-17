@@ -84,12 +84,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			bytesInRemote,
 			bytesOut,
 			recordsIn,
-			recordsOut,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0);
+			recordsOut);
 
 		final ArchivedExecutionJobVertex archivedExecutionJobVertex = new ArchivedExecutionJobVertex(
 			new ArchivedExecutionVertex[]{

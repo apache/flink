@@ -81,12 +81,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			bytesInRemote,
 			bytesOut,
 			recordsIn,
-			recordsOut,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0);
+			recordsOut);
 
 		final long[] timestamps = new long[ExecutionState.values().length];
 		timestamps[ExecutionState.DEPLOYING.ordinal()] = deployingTs;

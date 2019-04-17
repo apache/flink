@@ -119,18 +119,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		return numBuffersInRemote;
 	}
 
-	public Meter getNumBytesInLocalRateMeter() {
-		return numBytesInRateLocal;
-	}
-
-	public Meter getNumBytesInRemoteRateMeter() {
-		return numBytesInRateRemote;
-	}
-
-	public Meter getNumBytesOutRateMeter() {
-		return numBytesOutRate;
-	}
-
 	// ============================================================================================
 	// Buffer metrics
 	// ============================================================================================
