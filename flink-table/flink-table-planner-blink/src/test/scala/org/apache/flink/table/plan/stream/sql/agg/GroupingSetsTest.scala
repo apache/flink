@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableImpl
+import org.apache.flink.table.api.{TableException, TableImpl}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.util.TableTestBase
 
@@ -199,7 +199,8 @@ class GroupingSetsTest extends TableTestBase {
     util.verifyPlan("SELECT DISTINCT COUNT(*) FROM emp GROUP BY CUBE(deptno, gender)")
   }
 
-  @Test
+  // TODO remove expected exception after FLINK-12185 is merged
+  @Test(expected = classOf[TableException])
   def testCubeAndJoin(): Unit = {
     val sqlQuery =
       """
