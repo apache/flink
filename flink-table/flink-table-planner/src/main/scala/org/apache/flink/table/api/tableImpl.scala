@@ -496,7 +496,6 @@ class GroupedTableImpl(
 
   private def selectInternal(fields: Seq[Expression]): Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
-    val resolvedGroupKeys = groupKeys.map(_.accept(tableImpl.callResolver))
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls,
       tableImpl.getUniqueAttributeSupplier)
 
@@ -507,7 +506,7 @@ class GroupedTableImpl(
     new TableImpl(tableImpl.tableEnv,
       tableImpl.operationTreeBuilder.project(extracted.getProjections,
         tableImpl.operationTreeBuilder.aggregate(
-          resolvedGroupKeys.asJava,
+          groupKeys.asJava,
           extracted.getAggregations,
           tableImpl.operationTree
         )

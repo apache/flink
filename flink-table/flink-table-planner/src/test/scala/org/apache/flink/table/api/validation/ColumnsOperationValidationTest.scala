@@ -18,8 +18,9 @@
 package org.apache.flink.table.api.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Slide, TableException}
+import org.apache.flink.table.api.{Slide, TableException, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
@@ -30,15 +31,17 @@ import org.junit.Test
 class ColumnsOperationValidationTest extends TableTestBase {
 
   val util = new StreamTableTestUtil()
+  val withCol = BuiltInFunctionDefinitions.WITH_COLUMNS.getName
+  val withoutCol = BuiltInFunctionDefinitions.WITHOUT_COLUMNS.getName
 
   @Test
   def testIndexRangeInvalid(): Unit = {
     expectedException.expect(classOf[IllegalArgumentException])
     expectedException.expectMessage(
-      "The start:2 of columns() should not bigger than end:1")
+      s"The start:2 of $withCol() or $withoutCol() should not bigger than end:1")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
-    val tab = t.select(columns(2 to 1))
+    val tab = t.select(withColumns(2 to 1))
     util.verifyTable(tab, "")
   }
 
@@ -46,10 +49,10 @@ class ColumnsOperationValidationTest extends TableTestBase {
   def testNameRangeInvalid(): Unit = {
     expectedException.expect(classOf[IllegalArgumentException])
     expectedException.expectMessage(
-      "The start name:b of columns() should not behind the end:a.")
+      s"The start name:b of $withCol() or $withoutCol() should not behind the end:a.")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
-    val tab = t.select(columns('b to 'a))
+    val tab = t.select(withColumns('b to 'a))
     util.verifyTable(tab, "")
   }
 
@@ -57,36 +60,37 @@ class ColumnsOperationValidationTest extends TableTestBase {
   def testInvalidParameters(): Unit = {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
-      "The parameters of columns() only accept column name or column index.")
+      s"The parameters of $withCol() or $withoutCol() only accept column name or " +
+        "column index, but receive CallExpression.")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
-    val tab = t.select(columns(concat('f)))
+    val tab = t.select(withColumns(concat('f)))
     util.verifyTable(tab, "")
   }
 
   @Test
   def testInvalidRenameColumns(): Unit = {
-    expectedException.expect(classOf[TableException])
+    expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Invalid AS, parameters are: ['a, 'b, a].")
+      "Invalid AS, parameters are: [a, b, 'a'].")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
-    val tab = t.renameColumns(columns(1 to 2) as 'a) // failed, invalid as
+    val tab = t.renameColumns(withColumns(1 to 2) as 'a) // failed, invalid as
     util.verifyTable(tab, "")
   }
 
   @Test
   def testInvalidWindowTimeField(): Unit = {
-    expectedException.expect(classOf[AssertionError])
+    expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Group Window only supports a single time field column.")
 
     val t = util.addTable[(Int, Long, String, Int)]('a, 'b.rowtime, 'c, 'd)
     val tab = t
       // failed, time field only support one column
-      .window(Slide over 3.milli every 10.milli on columns('b, 'a) as 'w)
-      .groupBy(columns('a, 'b), 'w)
-      .select(columns(1 to 2), columns('c).count as 'c)
+      .window(Slide over 3.milli every 10.milli on withColumns('b, 'a) as 'w)
+      .groupBy(withColumns('a, 'b), 'w)
+      .select(withColumns(1 to 2), withColumns('c).count as 'c)
 
     util.verifyTable(tab, "")
   }

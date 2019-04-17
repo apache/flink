@@ -24,7 +24,7 @@ import java.sql.{Date, Time, Timestamp}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{COLUMNS, RANGE_TO, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{WITH_COLUMNS, RANGE_TO, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -119,8 +119,7 @@ trait ImplicitExpressionOperations {
   def unary_! : Expression = call(NOT, expr)
 
   /**
-    * Returns a negative numeric if the `expr` is a numeric or returns an inverse selection of
-    * columns if the `expr` is a columns function call.
+    * Returns negative numeric.
     */
   def unary_- : Expression = call(MINUS_PREFIX, expr)
 
@@ -1606,13 +1605,24 @@ object ifThenElse {
 }
 
 /**
-  * Creates a columns expressions.
+  * Creates a withColumns expression.
   */
-object columns {
+object withColumns {
 
   def apply(head: Expression, tail: Expression*): Expression = {
-    call(COLUMNS, head +: tail: _*)
+    call(WITH_COLUMNS, head +: tail: _*)
   }
 }
+
+/**
+  * Creates a withoutColumns expression.
+  */
+object withoutColumns {
+
+  def apply(head: Expression, tail: Expression*): Expression = {
+    call(WITHOUT_COLUMNS, head +: tail: _*)
+  }
+}
+
 
 // scalastyle:on object.name

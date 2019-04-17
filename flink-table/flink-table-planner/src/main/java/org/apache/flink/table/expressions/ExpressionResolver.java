@@ -54,8 +54,6 @@ import java.util.stream.Collectors;
 
 import scala.Some;
 
-import static java.util.stream.Collectors.toList;
-
 /**
  * Tries to resolve all unresolved expressions such as {@link UnresolvedReferenceExpression}
  * or calls such as {@link BuiltInFunctionDefinitions#OVER}.
@@ -161,8 +159,12 @@ public class ExpressionResolver {
 		}
 
 		final String windowName = ((UnresolvedReferenceExpression) alias).getName();
-		PlannerExpression timeField =
-			resolveFieldsInSingleExpression(resolveColumnsOperation(window.getTimeField()).get(0)).accept(bridgeConverter);
+		List<Expression> resolvedTimeFieldExpression =
+			prepareExpressions(Collections.singletonList(window.getTimeField()));
+		if (resolvedTimeFieldExpression.size() != 1) {
+			throw new ValidationException("Group Window only supports a single time field column.");
+		}
+		PlannerExpression timeField = resolvedTimeFieldExpression.get(0).accept(bridgeConverter);
 
 		//TODO replace with LocalReferenceExpression
 		WindowReference resolvedAlias = new WindowReference(windowName, new Some<>(timeField.resultType()));
@@ -205,9 +207,9 @@ public class ExpressionResolver {
 		if (groupWindow != null) {
 			String windowName = ((UnresolvedReferenceExpression) groupWindow.getAlias()).getName();
 			TypeInformation<?> windowType =
-				resolveFieldsInSingleExpression(resolveColumnsOperation(groupWindow.getTimeField()).get(0))
-				.accept(bridgeConverter)
-				.resultType();
+				prepareExpressions(Collections.singletonList(groupWindow.getTimeField())).get(0)
+					.accept(bridgeConverter)
+					.resultType();
 
 			localReferences.put(windowName, new LocalReferenceExpression(windowName, windowType));
 		}
@@ -220,6 +222,14 @@ public class ExpressionResolver {
 				LogicalOverWindow::alias,
 				Function.identity()
 			));
+	}
+
+	private List<Expression> prepareExpressions(List<Expression> expressions) {
+		return expressions.stream()
+			.flatMap(e -> lookupCall(e).stream())
+			.flatMap(e -> resolveColumnsOperation(e).stream())
+			.map(this::resolveFieldsInSingleExpression)
+			.collect(Collectors.toList());
 	}
 
 	private Expression resolveFieldsInSingleExpression(Expression expression) {
@@ -235,6 +245,12 @@ public class ExpressionResolver {
 
 	private List<Expression> resolveColumnsOperation(Expression expression) {
 		List<Expression> expressions = ResolverRules.EXPAND_COLUMN_OPERATIONS.apply(Collections.singletonList(expression),
+			new ExpressionResolverContext());
+		return expressions;
+	}
+
+	private List<Expression> lookupCall(Expression expression) {
+		List<Expression> expressions = ResolverRules.LOOKUP_CALL_BY_NAME.apply(Collections.singletonList(expression),
 			new ExpressionResolverContext());
 		return expressions;
 	}
@@ -275,10 +291,7 @@ public class ExpressionResolver {
 	private LogicalOverWindow resolveOverWindow(OverWindow overWindow) {
 		return new LogicalOverWindow(
 			overWindow.getAlias(),
-			overWindow.getPartitioning().stream()
-				.flatMap(e -> this.resolveColumnsOperation(e).stream())
-				.map(this::resolveFieldsInSingleExpression)
-				.collect(toList()),
+			prepareExpressions(overWindow.getPartitioning()),
 			resolveFieldsInSingleExpression(overWindow.getOrder()),
 			resolveFieldsInSingleExpression(overWindow.getPreceding()),
 			overWindow.getFollowing().map(this::resolveFieldsInSingleExpression)

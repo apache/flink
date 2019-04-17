@@ -5801,10 +5801,10 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 
 {% top %}
 
-Column Operations
+Column Functions
 ---------------------------------------
 
-The column operations are used to select or deselect table columns.
+The column functions are used to select or deselect table columns.
 
 | SYNTAX              | DESC                         |
 | :--------------------- | :-------------------------- |
@@ -5814,7 +5814,7 @@ The column operations are used to select or deselect table columns.
 The detailed syntax is as follows:
 
 {% highlight text %}
-columnOperation:
+columnFunction:
     [-]columns(columnExprs)
 
 columnExprs:
@@ -5827,7 +5827,7 @@ columnRef:
     columnName(The field name that exists in the table) | columnIndex(a positive integer starting from 1)
 {% endhighlight %}
 
-The usage of the column operation is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
+The usage of the column function is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
 
 
 <div class="codetabs" markdown="1">
@@ -6057,7 +6057,7 @@ select(-columns(1, 3 to 5)) = select('b)
 </div>
 </div>
 
-The column operations can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDX etc.` e.g.:
+The column functions can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDFs etc.` e.g.:
 
 
 <div class="codetabs" markdown="1">
@@ -6078,6 +6078,6 @@ table
 </div>
 </div>
 
-<span class="label label-info">Note</span> Column operations are only used in TableApi.
+<span class="label label-info">Note</span> Column functions are only used in Table API.
 
 {% top %}

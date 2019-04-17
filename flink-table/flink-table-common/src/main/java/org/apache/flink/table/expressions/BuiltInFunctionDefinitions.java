@@ -320,8 +320,10 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("currentRow", OTHER_FUNCTION);
 
 	// columns
-	public static final FunctionDefinition COLUMNS =
-		new FunctionDefinition("columns", OTHER_FUNCTION);
+	public static final FunctionDefinition WITH_COLUMNS =
+		new FunctionDefinition("withColumns", OTHER_FUNCTION);
+	public static final FunctionDefinition WITHOUT_COLUMNS =
+		new FunctionDefinition("withoutColumns", OTHER_FUNCTION);
 
 	// etc
 	public static final FunctionDefinition IN =

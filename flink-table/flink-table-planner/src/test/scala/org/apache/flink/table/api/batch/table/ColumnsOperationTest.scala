@@ -43,10 +43,10 @@ class ColumnsOperationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
 
     val tab1 = t
-      .orderBy(columns(1, 2 to 3))
+      .orderBy(withColumns(1, 2 to 3))
 
     val tab2 = t
-      .orderBy("columns(1, 2 to 3)")
+      .orderBy("withColumns(1, 2 to 3)")
 
     val expected =
       unaryNode(

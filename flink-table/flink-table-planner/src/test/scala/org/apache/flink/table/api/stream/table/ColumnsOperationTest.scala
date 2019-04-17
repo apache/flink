@@ -46,8 +46,8 @@ class ColumnsOperationTest extends TableTestBase {
     val t = util.addTable[(Double, Long)]('double, 'long)
 
     util.tableEnv.registerFunction("TestFunc", TestFunc)
-    val tab1 = t.select(TestFunc(columns('*)))
-    val tab2 = t.select("TestFunc(columns(*))")
+    val tab1 = t.select(TestFunc(withColumns('*)))
+    val tab2 = t.select("TestFunc(withColumns(*))")
 
     val expected =
       unaryNode(
@@ -63,8 +63,8 @@ class ColumnsOperationTest extends TableTestBase {
   def testColumnRange(): Unit = {
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
 
-    val tab1 = t.select(columns('b to 'c), 'a, columns(5 to 6, 'd))
-    val tab2 = t.select("columns(b to c), a, columns(5 to 6, d)")
+    val tab1 = t.select(withColumns('b to 'c), 'a, withColumns(5 to 6, 'd))
+    val tab2 = t.select("withColumns(b to c), a, withColumns(5 to 6, d)")
 
     val expected =
       unaryNode(
@@ -80,8 +80,8 @@ class ColumnsOperationTest extends TableTestBase {
   def testColumnWithoutRange(): Unit = {
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
 
-    val tab1 = t.select(columns(1, 'b, 'c), 'f)
-    val tab2 = t.select("columns(1, b, c), f")
+    val tab1 = t.select(withColumns(1, 'b, 'c), 'f)
+    val tab2 = t.select("withColumns(1, b, c), f")
 
     val expected =
       unaryNode(
@@ -98,12 +98,12 @@ class ColumnsOperationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
 
     val tab1 = t
-      .select(-columns(1, 'b))
-      .select(-columns(1 to 2))
+      .select(withoutColumns(1, 'b))
+      .select(withoutColumns(1 to 2))
 
     val tab2 = t
-      .select("-columns(1, b)")
-      .select("-columns(1 to 2)")
+      .select("withoutColumns(1, b)")
+      .select("withoutColumns(1 to 2)")
 
     val expected =
       unaryNode(
@@ -119,8 +119,8 @@ class ColumnsOperationTest extends TableTestBase {
   def testColumnsOperationInUDF(): Unit = {
     val t = util.addTable[(Int, Long, String, String)]('int, 'long, 'string1, 'string2)
 
-    val tab1 = t.select(concat(columns('string1 to 'string2)))
-    val tab2 = t.select("concat(columns(string1 to string2))")
+    val tab1 = t.select(concat(withColumns('string1 to 'string2)))
+    val tab2 = t.select("concat(withColumns(string1 to string2))")
 
     val expected =
       unaryNode(
@@ -137,8 +137,8 @@ class ColumnsOperationTest extends TableTestBase {
     val t1 = util.addTable[(Int, Long, String)]('int1, 'long1, 'string1)
     val t2 = util.addTable[(Int, Long, String)]('int2, 'long2, 'string2)
 
-    val tab1 = t1.join(t2, columns(1) === columns(4))
-    val tab2 = t1.join(t2, "columns(1) === columns(4)")
+    val tab1 = t1.join(t2, withColumns(1) === withColumns(4))
+    val tab2 = t1.join(t2, "withColumns(1) === withColumns(4)")
 
     val expected =
       binaryNode(
@@ -159,8 +159,8 @@ class ColumnsOperationTest extends TableTestBase {
     val func0 = new TableFunc0
     util.tableEnv.registerFunction("func0", func0)
 
-    val tab1 = t.joinLateral(func0(columns('string)))
-    val tab2 = t.joinLateral("func0(columns(string))")
+    val tab1 = t.joinLateral(func0(withColumns('string)))
+    val tab2 = t.joinLateral("func0(withColumns(string))")
 
     val expected =
       unaryNode(
@@ -184,8 +184,8 @@ class ColumnsOperationTest extends TableTestBase {
   def testFilter(): Unit = {
     val t = util.addTable[(Int, Long, String, String)]('int, 'long, 'string1, 'string2)
 
-    val tab1 = t.where(concat(columns('string1 to 'string2)) === "a")
-    val tab2 = t.where("concat(columns(string1 to string2)) = 'a'")
+    val tab1 = t.where(concat(withColumns('string1 to 'string2)) === "a")
+    val tab2 = t.where("concat(withColumns(string1 to string2)) = 'a'")
 
     val expected =
       unaryNode(
@@ -203,12 +203,12 @@ class ColumnsOperationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
 
     val tab1 = t
-      .groupBy(columns(1), 'b)
-      .select('a, 'b, columns('c).count)
+      .groupBy(withColumns(1), 'b)
+      .select('a, 'b, withColumns('c).count)
 
     val tab2 = t
-      .groupBy("columns(1), b")
-      .select("a, b, columns(c).count")
+      .groupBy("withColumns(1), b")
+      .select("a, b, withColumns(c).count")
 
     val expected =
       unaryNode(
@@ -230,14 +230,14 @@ class ColumnsOperationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String, Int)]('a, 'b.rowtime, 'c, 'd)
 
     val tab1 = t
-      .window(Slide over 3.milli every 10.milli on columns('b) as 'w)
-      .groupBy(columns('a, 'b), 'w)
-      .select(columns(1 to 2), columns('c).count as 'c)
+      .window(Slide over 3.milli every 10.milli on withColumns('b) as 'w)
+      .groupBy(withColumns('a, 'b), 'w)
+      .select(withColumns(1 to 2), withColumns('c).count as 'c)
 
     val tab2 = t
-      .window(Slide.over("3.milli").every("10.milli").on("columns(b)").as("w"))
-      .groupBy("columns(a, b), w")
-      .select("columns(1 to 2), columns(c).count as c")
+      .window(Slide.over("3.milli").every("10.milli").on("withColumns(b)").as("w"))
+      .groupBy("withColumns(a, b), w")
+      .select("withColumns(1 to 2), withColumns(c).count as c")
 
     val expected =
       unaryNode(
@@ -267,22 +267,27 @@ class ColumnsOperationTest extends TableTestBase {
     val weightAvgFun = new WeightedAvg
     val countDist = new CountDistinct
 
+    util.tableEnv.registerFunction("countFun", countFun)
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
+    util.tableEnv.registerFunction("countDist", countDist)
+
     val tab1 = table
       .window(
-        Over partitionBy columns('c) orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
+        Over partitionBy withColumns('c) orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c,
-        countFun(columns('b)) over 'w as 'mycount,
-        weightAvgFun(columns('a to 'b)) over 'w as 'wAvg,
+        countFun(withColumns('b)) over 'w as 'mycount,
+        weightAvgFun(withColumns('a to 'b)) over 'w as 'wAvg,
         countDist('a) over 'w as 'countDist)
       .select('c, 'mycount, 'wAvg, 'countDist)
 
     val tab2 = table
       .window(
-        Over partitionBy columns('c) orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
-      .select('c,
-        countFun(columns('b)) over 'w as 'mycount,
-        weightAvgFun(columns('a to 'b)) over 'w as 'wAvg,
-        countDist('a) over 'w as 'countDist)
+        Over.partitionBy("withColumns(c)")
+          .orderBy("proctime")
+          .preceding("UNBOUNDED_ROW")
+          .as("w"))
+      .select("c, countFun(withColumns(b)) over w as mycount, " +
+        "weightAvgFun(withColumns(a to b)) over w as wAvg, countDist(a) over w as countDist")
       .select('c, 'mycount, 'wAvg, 'countDist)
 
     val expected =
@@ -307,8 +312,8 @@ class ColumnsOperationTest extends TableTestBase {
     val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
 
     util.tableEnv.registerFunction("TestFunc", TestFunc)
-    val tab1 = t.addColumns(TestFunc(columns('a, 'b)) as 'd)
-    val tab2 = t.addColumns("TestFunc(columns(a, b)) as d")
+    val tab1 = t.addColumns(TestFunc(withColumns('a, 'b)) as 'd)
+    val tab2 = t.addColumns("TestFunc(withColumns(a, b)) as d")
 
     val expected =
       unaryNode(
@@ -324,8 +329,8 @@ class ColumnsOperationTest extends TableTestBase {
   def testRenameColumns(): Unit = {
     val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
 
-    val tab1 = t.renameColumns(columns('a) as 'd).select("d, b")
-    val tab2 = t.renameColumns("columns(a) as d").select('d, 'b)
+    val tab1 = t.renameColumns(withColumns('a) as 'd).select("d, b")
+    val tab2 = t.renameColumns("withColumns(a) as d").select('d, 'b)
 
     val expected =
       unaryNode(
@@ -341,8 +346,8 @@ class ColumnsOperationTest extends TableTestBase {
   def testDropColumns(): Unit = {
     val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
 
-    val tab1 = t.dropColumns(columns('a to 'b))
-    val tab2 = t.dropColumns("columns(a to b)")
+    val tab1 = t.dropColumns(withColumns('a to 'b))
+    val tab2 = t.dropColumns("withColumns(a to b)")
 
     val expected =
       unaryNode(
