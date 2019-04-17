@@ -229,6 +229,7 @@ object FlinkBatchRuleSets {
     BatchExecNestedLoopJoinRule.INSTANCE,
     BatchExecSingleRowJoinRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
+    BatchExecOverWindowAggRule.INSTANCE,
     BatchExecSinkRule.INSTANCE
   )
 }

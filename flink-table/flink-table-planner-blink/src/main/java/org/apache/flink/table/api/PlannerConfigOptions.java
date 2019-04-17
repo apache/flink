@@ -60,8 +60,8 @@ public class PlannerConfigOptions {
 							"3. L and R shuffle by c1 and c2\n" +
 							"It can reduce some shuffle cost someTimes.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLE =
-			key("sql.optimizer.smj.remove-sort.enable")
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED =
+			key("sql.optimizer.smj.remove-sort.enabled")
 					.defaultValue(false)
 					.withDescription("When true, the optimizer will try to remove redundant sort for SortMergeJoin. " +
 							"However that will increase optimization time. Default value is false.");

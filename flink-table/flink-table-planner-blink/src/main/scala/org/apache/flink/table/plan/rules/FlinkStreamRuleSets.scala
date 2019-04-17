@@ -236,6 +236,7 @@ object FlinkStreamRuleSets {
     StreamExecTemporalSortRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
     StreamExecGroupAggregateRule.INSTANCE,
+    StreamExecOverAggregateRule.INSTANCE,
     StreamExecExpandRule.INSTANCE,
     StreamExecJoinRule.INSTANCE,
     StreamExecWindowJoinRule.INSTANCE,

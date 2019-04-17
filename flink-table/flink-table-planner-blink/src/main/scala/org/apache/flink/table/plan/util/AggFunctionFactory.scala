@@ -21,6 +21,7 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.aggfunctions.FirstValueAggFunction._
 import org.apache.flink.table.functions.aggfunctions.FirstValueWithRetractAggFunction._
 import org.apache.flink.table.functions.aggfunctions.IncrSumAggFunction._
@@ -33,13 +34,12 @@ import org.apache.flink.table.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
-import org.apache.flink.table.functions.{LeadLagAggFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 
 import scala.collection.JavaConversions._
 
@@ -90,7 +90,14 @@ class AggFunctionFactory(
 
       case _: SqlCountAggFunction => createCountAggFunction(argTypes)
 
-      // TODO supports SqlRankFunction (ROW_NUMBER, RANK and DENSE_RANK)
+      case a: SqlRankFunction if a.getKind == SqlKind.ROW_NUMBER =>
+        createRowNumberAggFunction(argTypes)
+
+      case a: SqlRankFunction if a.getKind == SqlKind.RANK =>
+        createRankAggFunction(argTypes)
+
+      case a: SqlRankFunction if a.getKind == SqlKind.DENSE_RANK =>
+        createDenseRankAggFunction(argTypes)
 
       case _: SqlLeadLagAggFunction =>
         createLeadLagAggFunction(argTypes, index)
@@ -310,7 +317,7 @@ class AggFunctionFactory(
           new MinAggFunction.DateMinAggFunction
         case TIME =>
           new MinAggFunction.TimeMinAggFunction
-        case TIMESTAMP |  PROCTIME_INDICATOR | ROWTIME_INDICATOR =>
+        case TIMESTAMP | PROCTIME_INDICATOR | ROWTIME_INDICATOR =>
           new MinAggFunction.TimestampMinAggFunction
         case d: DecimalType =>
           val decimalTypeInfo = DecimalTypeInfo.of(d.precision(), d.scale())
@@ -428,6 +435,24 @@ class AggFunctionFactory(
 
   private def createCountAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
     new CountAggFunction
+  }
+
+  private def createRowNumberAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
+    new RowNumberAggFunction
+  }
+
+  private def createRankAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
+    val argTypes = orderKeyIdx
+      .map(inputType.getFieldList.get(_).getType)
+      .map(FlinkTypeFactory.toInternalType)
+    new RankAggFunction(argTypes)
+  }
+
+  private def createDenseRankAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
+    val argTypes = orderKeyIdx
+      .map(inputType.getFieldList.get(_).getType)
+      .map(FlinkTypeFactory.toInternalType)
+    new DenseRankAggFunction(argTypes)
   }
 
   private def createFirstValueAggFunction(
