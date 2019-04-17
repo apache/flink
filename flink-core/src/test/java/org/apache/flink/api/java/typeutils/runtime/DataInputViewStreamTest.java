@@ -36,12 +36,15 @@ public class DataInputViewStreamTest extends TestLogger {
 
 	@Test
 	public void testSkip() throws IOException {
-		try (TestDataInputView dataInputView = new TestDataInputView(new TestInputStream())) {
+		final TestInputStream inputStream = new TestInputStream();
+		try (TestDataInputView dataInputView = new TestDataInputView(inputStream)) {
 			try (DataInputViewStream dataInputViewStream = new DataInputViewStream(dataInputView)) {
 				assertEquals(1, dataInputViewStream.skip(1));
+				assertEquals(1, inputStream.skipped);
 
 				final long bigNumberToSkip = 1024L + 2L * Integer.MAX_VALUE;
 				assertEquals(bigNumberToSkip, dataInputViewStream.skip(bigNumberToSkip));
+				assertEquals(1 + bigNumberToSkip, inputStream.skipped);
 			}
 		}
 
@@ -66,6 +69,8 @@ public class DataInputViewStreamTest extends TestLogger {
 	 */
 	private static class TestInputStream extends InputStream {
 
+		long skipped = 0;
+
 		@Override
 		public int read() throws IOException {
 			return 0;
@@ -73,6 +78,7 @@ public class DataInputViewStreamTest extends TestLogger {
 
 		@Override
 		public long skip(long n) {
+			skipped += n;
 			return n;
 		}
 	}
