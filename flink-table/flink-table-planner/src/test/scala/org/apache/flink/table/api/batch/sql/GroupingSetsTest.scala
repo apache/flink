@@ -40,7 +40,11 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetAggregate",
-          batchTableNode(0),
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "b", "a")
+          ),
           term("groupBy", "b"),
           term("select", "b", "AVG(a) AS a")
         ),
@@ -50,7 +54,11 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetAggregate",
-          batchTableNode(0),
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "c", "a")
+          ),
           term("groupBy", "c"),
           term("select", "c", "AVG(a) AS a")
         ),
@@ -91,7 +99,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "b", "a")
+        ),
         term("groupBy", "b"),
         term("select", "b", "AVG(a) AS a")
       ),
@@ -103,7 +115,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "c", "a")
+        ),
         term("groupBy", "c"),
         term("select", "c", "AVG(a) AS a")
       ),
@@ -115,7 +131,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a")
+        ),
         term("select", "AVG(a) AS a")
       ),
       term(
@@ -173,7 +193,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "b", "a")
+        ),
         term("groupBy", "b"),
         term("select", "b", "AVG(a) AS a")
       ),
@@ -185,7 +209,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a")
+        ),
         term("select", "AVG(a) AS a")
       ),
       term(

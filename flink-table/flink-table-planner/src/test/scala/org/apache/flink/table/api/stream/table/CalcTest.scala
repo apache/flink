@@ -49,10 +49,10 @@ class CalcTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "c", "a", "rowtime", "UPPER(c) AS $f3")
+          term("select", "a", "rowtime", "UPPER(c) AS $f5")
         ),
         term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
-        term("select", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
+        term("select", "COUNT($f5) AS TMP_0", "SUM(a) AS TMP_1")
       )
 
     util.verifyTable(resultTable, expected)
@@ -75,11 +75,11 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "c", "a", "b", "rowtime", "UPPER(c) AS $f4")
+            term("select", "a", "b", "rowtime", "UPPER(c) AS $f5")
           ),
           term("groupBy", "b"),
           term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
-          term("select", "b", "COUNT($f4) AS TMP_0", "SUM(a) AS TMP_1")
+          term("select", "b", "COUNT($f5) AS TMP_0", "SUM(a) AS TMP_1")
         ),
         term("select", "TMP_0", "TMP_1", "b")
     )

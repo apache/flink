@@ -250,10 +250,10 @@ class CalcTest extends TableTestBase {
             batchTableNode(0),
             // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
             // Calcite planner doesn't promise to retain field names.
-            term("select", "a", "c", "UPPER(c) AS $f2")
+            term("select", "a", "UPPER(c) AS k")
           ),
-          term("groupBy", "$f2"),
-          term("select", "$f2", "SUM(a) AS TMP_0")
+          term("groupBy", "k"),
+          term("select", "k", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )
@@ -277,10 +277,10 @@ class CalcTest extends TableTestBase {
             batchTableNode(0),
             // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
             // Calcite planner doesn't promise to retain field names.
-            term("select", "a", "c", "MyHashCode$(c) AS $f2")
+            term("select", "a", "MyHashCode$(c) AS k")
           ),
-          term("groupBy", "$f2"),
-          term("select", "$f2", "SUM(a) AS TMP_0")
+          term("groupBy", "k"),
+          term("select", "k", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )

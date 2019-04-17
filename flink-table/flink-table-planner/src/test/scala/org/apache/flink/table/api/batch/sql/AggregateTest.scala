@@ -57,7 +57,7 @@ class AggregateTest extends TableTestBase {
     val calcNode = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select", "a", "b", "c"),
+      term("select", "CAST(1) AS a", "b", "c"),
       term("where", "=(a, 1)")
     )
 
@@ -137,7 +137,7 @@ class AggregateTest extends TableTestBase {
     val calcNode = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select","a", "b", "c") ,
+      term("select","CAST(1) AS a", "b", "c") ,
       term("where","=(a, 1)")
     )
 

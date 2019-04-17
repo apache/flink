@@ -28,9 +28,7 @@ import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +51,6 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGA
 public class OperationExpressionsUtils {
 
 	private static final ExtractNameVisitor extractNameVisitor = new ExtractNameVisitor();
-	private static final FieldReferenceExtractor referenceExtractor = new FieldReferenceExtractor();
 
 	/**
 	 * Container for extracted expressions of the same family.
@@ -143,19 +140,6 @@ public class OperationExpressionsUtils {
 		return expression.accept(extractNameVisitor);
 	}
 
-	/**
-	 * Extract all field references from the given expressions.
-	 *
-	 * @param expressions a list of expressions to extract
-	 * @return a list of field references extracted from the given expressions
-	 */
-	public static List<Expression> extractFieldReferences(List<Expression> expressions) {
-		return expressions.stream()
-			.flatMap(expr -> expr.accept(referenceExtractor).stream())
-			.distinct()
-			.collect(Collectors.toList());
-	}
-
 	private static List<Expression> nameExpressions(Map<Expression, String> expressions) {
 		return expressions.entrySet()
 			.stream()
@@ -232,43 +216,6 @@ public class OperationExpressionsUtils {
 		@Override
 		protected Expression defaultMethod(Expression expression) {
 			return expression;
-		}
-	}
-
-	private static class FieldReferenceExtractor extends ApiExpressionDefaultVisitor<List<Expression>> {
-
-		@Override
-		public List<Expression> visitCall(CallExpression call) {
-			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (WINDOW_PROPERTIES.contains(functionDefinition)) {
-				return Collections.emptyList();
-			} else {
-				return call.getChildren()
-					.stream()
-					.flatMap(c -> c.accept(this).stream())
-					.distinct()
-					.collect(Collectors.toList());
-			}
-		}
-
-		@Override
-		public List<Expression> visitLookupCall(LookupCallExpression unresolvedCall) {
-			throw new IllegalStateException("All calls should be resolved by now. Got: " + unresolvedCall);
-		}
-
-		@Override
-		public List<Expression> visitFieldReference(FieldReferenceExpression fieldReference) {
-			return Collections.singletonList(fieldReference);
-		}
-
-		@Override
-		public List<Expression> visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
-			return Collections.singletonList(unresolvedReference);
-		}
-
-		@Override
-		protected List<Expression> defaultMethod(Expression expression) {
-			return Collections.emptyList();
 		}
 	}
 
