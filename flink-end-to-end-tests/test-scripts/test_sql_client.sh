@@ -19,7 +19,6 @@
 
 set -Eeuo pipefail
 
-KAFKA_CONNECTOR_VERSION="2.0"
 KAFKA_VERSION="2.2.0"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
@@ -27,7 +26,6 @@ KAFKA_SQL_VERSION="universal"
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
-  $KAFKA_CONNECTOR_VERSION \
   $KAFKA_VERSION \
   $CONFLUENT_VERSION \
   $CONFLUENT_MAJOR_VERSION \
