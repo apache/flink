@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
 import org.apache.flink.table.dataformat.DataFormatConverters.{DateConverter, TimestampConverter}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
@@ -1144,6 +1144,53 @@ class CalcITCase extends BatchTestBase {
         " TO_TIMESTAMP('2016-12-31 00:12:00')," +
         " TO_TIMESTAMP('2016-12-31', 'yyyy-MM-dd')",
       Seq(row(null, UTCTimestamp("2016-12-31 00:12:00"), UTCTimestamp("2016-12-31 00:00:00"))))
+  }
+
+  @Test
+  def testCalcBinary(): Unit = {
+    registerCollection(
+      "BinaryT",
+      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
+      "a, b, c",
+      nullablesOfNullData3)
+    checkResult(
+      "select a, b, c from BinaryT where b < 1000",
+      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes))
+    )
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testOrderByBinary(): Unit = {
+    registerCollection(
+      "BinaryT",
+      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
+      "a, b, c",
+      nullablesOfNullData3)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    conf.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    checkResult(
+      "select * from BinaryT order by c",
+      nullData3.sortBy((x : Row) =>
+        x.getField(2).asInstanceOf[String]).map((r) =>
+        row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      isSorted = true
+    )
+  }
+
+  @Test
+  def testGroupByBinary(): Unit = {
+    registerCollection(
+      "BinaryT2",
+      nullData3.map((r) => row(r.getField(0), r.getField(1).toString.getBytes, r.getField(2))),
+      new RowTypeInfo(INT_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO, STRING_TYPE_INFO),
+      "a, b, c",
+      nullablesOfNullData3)
+    checkResult(
+      "select sum(sumA) from (select sum(a) as sumA, b, c from BinaryT2 group by c, b) group by b",
+      Seq(row(1), row(111), row(15), row(34), row(5), row(65), row(null))
+    )
   }
 }
 
