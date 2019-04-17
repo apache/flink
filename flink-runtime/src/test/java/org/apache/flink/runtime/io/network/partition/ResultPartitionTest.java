@@ -19,19 +19,18 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.disk.iomanager.NoOpIOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -249,25 +248,5 @@ public class ResultPartitionTest {
 			resultPartition.release();
 			network.shutdown();
 		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static ResultPartition createPartition(
-			ResultPartitionConsumableNotifier notifier,
-			ResultPartitionType type,
-			boolean sendScheduleOrUpdateConsumersMessage) {
-		return new ResultPartition(
-			"TestTask",
-			new NoOpTaskActions(),
-			new JobID(),
-			new ResultPartitionID(),
-			type,
-			1,
-			1,
-			mock(ResultPartitionManager.class),
-			notifier,
-			new NoOpIOManager(),
-			sendScheduleOrUpdateConsumersMessage);
 	}
 }
