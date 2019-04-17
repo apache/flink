@@ -31,7 +31,10 @@ import org.apache.calcite.rex.RexNode
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for [[Join]].
+  * Stream physical RelNode for regular [[Join]].
+  *
+  * Regular joins are the most generic type of join in which any new records or changes to
+  * either side of the join input are visible and are affecting the whole join result.
   */
 trait StreamExecJoinBase extends CommonPhysicalJoin with StreamPhysicalRel {
 

@@ -19,13 +19,15 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.plan.nodes.calcite.Rank
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.SqlKind
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -276,16 +278,15 @@ object RankUtil {
       return None
     }
 
-    // TODO reduce expression after ExpressionReducer introduced
     // reduce expression to literal
-    // val exprReducer = new ExpressionReducer(config)
-    // val originList = new util.ArrayList[RexNode]()
-    // originList.add(expression)
-    // val reduceList = new util.ArrayList[RexNode]()
-    // exprReducer.reduce(rexBuilder, originList, reduceList)
+     val exprReducer = new ExpressionReducer(config)
+     val originList = new util.ArrayList[RexNode]()
+     originList.add(expression)
+     val reduceList = new util.ArrayList[RexNode]()
+     exprReducer.reduce(rexBuilder, originList, reduceList)
 
     // extract bounds from reduced literal
-    val literals = Array(expression).map {
+    val literals = reduceList.map {
       case literal: RexLiteral => Some(literal.getValue2.asInstanceOf[Long])
       case _ => None
     }

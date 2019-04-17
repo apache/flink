@@ -237,6 +237,8 @@ object FlinkStreamRuleSets {
     StreamExecDeduplicateRule.RANK_INSTANCE,
     StreamExecGroupAggregateRule.INSTANCE,
     StreamExecExpandRule.INSTANCE,
+    StreamExecJoinRule.INSTANCE,
+    StreamExecWindowJoinRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE
   )

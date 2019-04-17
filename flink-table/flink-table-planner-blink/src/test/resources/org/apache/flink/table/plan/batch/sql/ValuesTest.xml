@@ -35,7 +35,7 @@ LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)
 Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
 :- Calc(select=[1 AS EXPR$0, 2.0 AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
 :  +- Values(tuples=[[{ 0 }]], values=[ZERO]), rowType=[RecordType(INTEGER ZERO)]
-+- Calc(select=[3 AS EXPR$0, 4 AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
++- Calc(select=[3 AS EXPR$0, 4.0 AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
    +- Values(tuples=[[{ 0 }]], values=[ZERO]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
     </Resource>

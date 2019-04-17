@@ -592,10 +592,14 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
+    * @param functionContextClass class of [[FunctionContext]]
     * @param contextTerm [[RuntimeContext]] term to access the [[RuntimeContext]]
     * @return member variable term
     */
-  def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
+  def addReusableFunction(
+      function: UserDefinedFunction,
+      functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
+      contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
     val fieldTerm = s"function_${function.functionIdentifier}"
 

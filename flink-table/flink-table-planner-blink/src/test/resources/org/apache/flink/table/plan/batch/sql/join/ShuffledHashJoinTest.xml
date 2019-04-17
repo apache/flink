@@ -344,6 +344,30 @@ Calc(select=[c, g])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRightOuterJoinWithEquiAndNonEquiPred">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
++- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[right])
+   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
+   :  +- LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+   +- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, d), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[left])
+:- Exchange(distribution=[hash[d]])
+:  +- Calc(select=[d, e, f, g, h], where=[<(d, 2)])
+:     +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRightOuterJoinWithEquiAndLocalPred">
     <Resource name="sql">
       <![CDATA[SELECT c, g FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2]]>
@@ -367,62 +391,6 @@ Calc(select=[c, g])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c])
          +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSelfJoinPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM
-  (SELECT * FROM src WHERE k = 0) src1
-LEFT OUTER JOIN
-  (SELECT * from src WHERE k = 0) src2
-ON (src1.k = src2.k AND src2.k > 10)
-         ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
-+- LogicalJoin(condition=[AND(=($0, $2), $4)], joinType=[left])
-   :- LogicalProject(k=[$0], v=[$1])
-   :  +- LogicalFilter(condition=[=($0, 0)])
-   :     +- LogicalTableScan(table=[[src, source: [TestTableSource(k, v)]]])
-   +- LogicalProject(k=[$0], v=[$1], $f2=[>($0, 10)])
-      +- LogicalFilter(condition=[=($0, 0)])
-         +- LogicalTableScan(table=[[src, source: [TestTableSource(k, v)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-HashJoin(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, v0], build=[right])
-:- Exchange(distribution=[hash[k]])
-:  +- Calc(select=[k, v], where=[=(k, 0)])
-:     +- TableSourceScan(table=[[src, source: [TestTableSource(k, v)]]], fields=[k, v])
-+- Exchange(distribution=[hash[k]])
-   +- Values(tuples=[[]], values=[k, v])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRightOuterJoinWithEquiAndNonEquiPred">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
-+- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[right])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
-   +- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, d), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[left])
-:- Exchange(distribution=[hash[d]])
-:  +- Calc(select=[d, e, f, g, h], where=[<(d, 2)])
-:     +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
-+- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

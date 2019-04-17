@@ -39,8 +39,6 @@ class StreamExecWindowJoin(
     rightRel: RelNode,
     val joinCondition: RexNode,
     val joinType: JoinRelType,
-    leftInputRowType: RelDataType,
-    rightInputRowType: RelDataType,
     outputRowType: RelDataType,
     val isRowTime: Boolean,
     leftLowerBound: Long,
@@ -71,8 +69,6 @@ class StreamExecWindowJoin(
       inputs.get(1),
       joinCondition,
       joinType,
-      leftInputRowType,
-      rightInputRowType,
       outputRowType,
       isRowTime,
       leftLowerBound,
@@ -87,12 +83,12 @@ class StreamExecWindowJoin(
       s"leftUpperBound=$leftUpperBound, leftTimeIndex=$leftTimeIndex, " +
       s"rightTimeIndex=$rightTimeIndex"
     super.explainTerms(pw)
-      .item("where",
-        RelExplainUtil.expressionToString(joinCondition, outputRowType, getExpressionString))
-      .item("join", getRowType.getFieldNames.mkString(", "))
       .item("joinType",
         RelExplainUtil.joinTypeToString(FlinkJoinRelType.toFlinkJoinRelType(joinType)))
       .item("windowBounds", windowBounds)
+      .item("where",
+        RelExplainUtil.expressionToString(joinCondition, outputRowType, getExpressionString))
+      .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
 }
