@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -36,11 +37,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A failover strategy that restarts regions of the ExecutionGraph. A region is defined
+ * A failover strategy that restarts regions of the ExecutionGraph with state. A region is defined
  * by this strategy as the weakly connected component of tasks that communicate via pipelined
  * data exchange.
  */
@@ -222,7 +224,19 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 
 	@VisibleForTesting
 	protected FailoverRegion createFailoverRegion(ExecutionGraph eg, List<ExecutionVertex> connectedExecutions) {
-		return new FailoverRegion(eg, connectedExecutions);
+		Map<JobVertexID, ExecutionJobVertex> tasks = initTasks(connectedExecutions);
+		return new FailoverRegion(eg, connectedExecutions, tasks);
+	}
+
+	@VisibleForTesting
+	protected Map<JobVertexID, ExecutionJobVertex> initTasks(List<ExecutionVertex> connectedExecutions) {
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>(connectedExecutions.size());
+		for (ExecutionVertex executionVertex : connectedExecutions) {
+			JobVertexID jobvertexId = executionVertex.getJobvertexId();
+			ExecutionJobVertex jobVertex = executionVertex.getJobVertex();
+			tasks.putIfAbsent(jobvertexId, jobVertex);
+		}
+		return tasks;
 	}
 
 	// ------------------------------------------------------------------------
