@@ -62,7 +62,7 @@ public class DataInputViewStream extends InputStream {
 
 			counter -= skippedBytes;
 		}
-		return n - counter - inputView.skipBytes((int) counter);
+		return n - counter + inputView.skipBytes((int) counter);
 	}
 
 	@Override
