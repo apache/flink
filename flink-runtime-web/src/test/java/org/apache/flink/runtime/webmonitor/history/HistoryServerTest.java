@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -53,8 +54,6 @@ import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils.JACKSON_FACTORY;
-
 /**
  * Tests for the HistoryServer.
  */
@@ -62,6 +61,10 @@ public class HistoryServerTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
+
+	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()
+		.enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
+		.disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
 
 	private MiniClusterWithClientResource cluster;
 	private File jmDirectory;
