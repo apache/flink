@@ -70,7 +70,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint im
 		try {
 			restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		} catch (ConfigurationException e) {
-			throw new RuntimeException("Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.");
+			throw new RuntimeException("Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.", e);
 		}
 		handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
 
