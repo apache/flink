@@ -469,7 +469,7 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // todo: spark allows 123L="123"
+  @Ignore // TODO: allows 123L="123"
   @Test
   def testCompareLongAndString(): Unit = {
     checkQuery(

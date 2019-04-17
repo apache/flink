@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.util.DateTimeTestUtil._
 
-import org.junit.{Assert, Before, Ignore, Test}
+import org.junit.{Assert, Before, Test}
 
 import java.sql.Date
 
@@ -100,10 +100,8 @@ class DateFunctionsITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore
   @Test
   def testDateEqualsWithDateString(): Unit = {
-    // TODO: May be a bug
     checkResult("SELECT h FROM testTable WHERE h = '2017-12-12'",
       Seq(
         row(UTCDate("2017-12-12")),
