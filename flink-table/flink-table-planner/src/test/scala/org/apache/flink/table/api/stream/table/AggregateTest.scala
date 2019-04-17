@@ -125,10 +125,10 @@ class AggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "4 AS four", "b", "a")
+            term("select", "a", "4 AS four", "b")
           ),
-          term("groupBy", "four", "a"),
-          term("select", "four", "a", "SUM(b) AS TMP_0")
+          term("groupBy", "a", "four"),
+          term("select", "a", "four", "SUM(b) AS TMP_0")
         ),
         term("select", "4 AS four", "TMP_0")
       )
@@ -153,10 +153,10 @@ class AggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "4 AS four", "a", "b")
+            term("select", "b", "4 AS four", "a")
           ),
-          term("groupBy", "four", "b"),
-          term("select", "four", "b", "SUM(a) AS TMP_0")
+          term("groupBy", "b", "four"),
+          term("select", "b", "four", "SUM(a) AS TMP_0")
         ),
         term("select", "4 AS four", "TMP_0")
       )
@@ -207,7 +207,7 @@ class AggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "b", "a"),
+          term("select", "a", "b"),
           term("where", "=(b, 2)")
         ),
         term("groupBy", "b"),
@@ -231,7 +231,7 @@ class AggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "b", "a", "CAST(a) AS a0")
+          term("select", "b", "CAST(a) AS a0")
         ),
         term("groupBy", "b"),
         term("select", "b", "AVG(a0) AS TMP_0")

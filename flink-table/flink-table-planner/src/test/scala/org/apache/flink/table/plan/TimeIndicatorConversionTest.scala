@@ -107,7 +107,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "long", "CAST(rowtime) AS rowtime")
+          term("select", "CAST(rowtime) AS rowtime", "long")
         ),
         term("groupBy", "rowtime"),
         term("select", "rowtime", "COUNT(long) AS TMP_0")

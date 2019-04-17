@@ -178,7 +178,11 @@ class DistinctAggregateTest extends TableTestBase {
           "DataSetSingleRowJoin",
           unaryNode(
             "DataSetAggregate",
-            batchTableNode(0),
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "c")
+            ),
             term("select", "COUNT(c) AS EXPR$2")
           ),
           unaryNode(
@@ -289,7 +293,7 @@ class DistinctAggregateTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "b")
+            term("select", "a")
           ),
           term("groupBy", "a"),
           term("select", "a", "COUNT(*) AS EXPR$1")
@@ -335,7 +339,11 @@ class DistinctAggregateTest extends TableTestBase {
             "DataSetJoin",
             unaryNode(
               "DataSetAggregate",
-              batchTableNode(0),
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(0),
+                term("select", "a")
+              ),
               term("groupBy", "a"),
               term("select", "a, COUNT(*) AS EXPR$1")
             ),
