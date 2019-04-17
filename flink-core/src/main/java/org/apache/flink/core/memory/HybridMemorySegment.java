@@ -333,8 +333,8 @@ public final class HybridMemorySegment extends MemorySegment {
 			target.position(targetOffset + numBytes);
 		}
 		else {
-			// neither heap buffer nor direct buffer
-			while (target.hasRemaining()) {
+			// other types of byte buffers
+			for (int i = 0; i < numBytes; i++) {
 				target.put(get(offset++));
 			}
 		}
@@ -379,8 +379,8 @@ public final class HybridMemorySegment extends MemorySegment {
 			source.position(sourceOffset + numBytes);
 		}
 		else {
-			// neither heap buffer nor direct buffer
-			while (source.hasRemaining()) {
+			// other types of byte buffers
+			for (int i = 0; i < numBytes; i++) {
 				put(offset++, source.get());
 			}
 		}

@@ -77,4 +77,32 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 		assertEquals(3, buf2.position());
 		assertEquals(7, buf2.limit());
 	}
+
+	@Test
+	public void testReadOnlyByteBufferPut() {
+		final byte[] buffer = new byte[100];
+		HybridMemorySegment seg = new HybridMemorySegment(buffer);
+
+		String content = "hello world";
+		ByteBuffer bb = ByteBuffer.allocate(20);
+		bb.put(content.getBytes());
+		bb.rewind();
+
+		int offset = 10;
+		int numBytes = 5;
+		seg.put(offset, bb.asReadOnlyBuffer(), numBytes);
+
+		// verify the area before the written region.
+		for (int i = 0; i < offset; i++) {
+			assertEquals(0, buffer[i]);
+		}
+
+		// verify the region that is written.
+		assertEquals("hello", new String(buffer, offset, numBytes));
+
+		// verify the area after the written region.
+		for (int i = offset + numBytes; i < buffer.length; i++) {
+			assertEquals(0, buffer[i]);
+		}
+	}
 }
