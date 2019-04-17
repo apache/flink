@@ -25,9 +25,11 @@ import org.apache.flink.table.api.{TableConfigOptions, TableException}
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.SortMergeJoin
 import org.apache.flink.table.runtime.utils.BatchTestBase
+import org.apache.flink.table.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.runtime.utils.TestData.{buildInData, buildInType}
 import org.apache.flink.types.Row
 
-import org.junit.{Ignore, Test}
+import org.junit.{Before, Ignore, Test}
 
 import scala.collection.Seq
 
@@ -39,6 +41,11 @@ class MiscITCase extends BatchTestBase {
   // helper methods
 
   private var newTableId = 0
+
+  @Before
+  def before(): Unit = {
+    registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
+  }
 
   private val toRow = (p: Product) =>
     Row.of(p.productIterator.map(_.asInstanceOf[AnyRef]).toArray: _*)
@@ -500,5 +507,106 @@ class MiscITCase extends BatchTestBase {
       s"select case $w1 end, case $w2 end from Table1",
       Seq((5, 15))
     )
+  }
+
+  @Test(expected = classOf[ClassCastException])
+  def testCompareFunctionWithSubquery(): Unit = {
+    checkResult("SELECT " +
+        "b IN (3, 4, 5)," +
+        "b NOT IN (3, 4, 5)," +
+        "EXISTS (SELECT c FROM testTable WHERE c > 2)," +
+        "NOT EXISTS (SELECT c FROM testTable WHERE c = 2)" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(row(true, false, false, false)))
+
+    checkResult("SELECT a, b FROM testTable WHERE CAST(b AS INTEGER) IN " +
+        "(SELECT ABS(c) FROM testTable)",
+      Seq(row(null, 2), row(true, 3)))
+
+    checkResult("SELECT a, b FROM testTable WHERE CAST(b AS INTEGER) NOT IN " +
+        "(SELECT ABS(c) FROM testTable)",
+      Seq(row(false, 1)))
+
+    checkResult("SELECT a, b FROM testTable WHERE EXISTS (SELECT c FROM testTable WHERE c > b) " +
+        "AND b = 2",
+      Seq(row(null, 2)))
+
+    checkResult("SELECT a, b FROM testTable WHERE  NOT EXISTS " +
+        "(SELECT c FROM testTable WHERE c > b) OR b <> 2",
+      Seq(row(false, 1), row(true, 3)))
+  }
+
+  @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
+  def testTableGenerateFunction(): Unit = {
+    checkResult("SELECT f, g, v FROM testTable," +
+        "LATERAL TABLE(STRING_SPLIT(f, ' ')) AS T(v)",
+      Seq(
+        row("abcd", "f%g", "abcd"),
+        row("e fg", null, "e"),
+        row("e fg", null, "fg")))
+
+    // BuildInFunctions in SQL is case insensitive
+    checkResult("SELECT f, g, v FROM testTable," +
+        "LATERAL TABLE(sTRING_sPLIT(f, ' ')) AS T(v)",
+      Seq(
+        row("abcd", "f%g", "abcd"),
+        row("e fg", null, "e"),
+        row("e fg", null, "fg")))
+
+    checkResult("SELECT f, g, v FROM testTable," +
+        "LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v)",
+      Seq(
+        row("abcd", "f%g", 0),
+        row(null, "hij_k", 0),
+        row(null, "hij_k", 1),
+        row("e fg", null, 0),
+        row("e fg", null, 1),
+        row("e fg", null, 2)))
+
+    checkResult("SELECT f, g, v FROM testTable," +
+        "LATERAL TABLE(JSON_TUPLE('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}'," +
+        "'a1', f)) AS T(v)",
+      Seq(
+        row("abcd", "f%g", "b1"),
+        row("abcd", "f%g", null),
+        row(null, "hij_k", "b1"),
+        row(null, "hij_k", null),
+        row("e fg", null, "b1"),
+        row("e fg", null, "b3")))
+
+    checkResult("SELECT f, g, v FROM " +
+        "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
+        "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
+        "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
+      Seq(
+        row("abcd", "f%g", "b1"),
+        row(null, "hij_k", "b1"),
+        row("e fg", null, "b1"),
+        row("e fg", null, "b3")))
+
+    checkResult("SELECT f, g, v FROM " +
+        "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
+        "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
+        "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
+      Seq(
+        row("abcd", "f%g", "b1"),
+        row(null, "hij_k", "b1"),
+        row("e fg", null, "b1"),
+        row("e fg", null, "b3")))
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicate can only be empty or literal true (the restriction should be removed in
+    * FLINK-7865).
+    */
+  @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
+  def testTableGenerateFunctionLeftJoin(): Unit = {
+    checkResult("SELECT f, g, v FROM " +
+        "testTable LEFT OUTER JOIN LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v) " +
+        "ON LENGTH(f) = v + 2 OR LENGTH(g) = v + 4",
+      Seq(
+        row(null, "hij_k", 1),
+        row("e fg", null, 2)))
   }
 }

@@ -21,7 +21,8 @@ package org.apache.flink.table.expressions
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
-import org.junit.{Ignore, Test}
+
+import org.junit.Test
 
 /**
   * Tests all SQL expressions that are currently supported according to the documentation.
@@ -55,9 +56,9 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("12 NOT BETWEEN ASYMMETRIC 13 AND 11", "true")
     testSqlApi("12 NOT BETWEEN SYMMETRIC 13 AND 11", "false")
     testSqlApi("'TEST' LIKE '%EST'", "true")
-    //testSqlApi("'%EST' LIKE '.%EST' ESCAPE '.'", "true") // TODO
+    testSqlApi("'%EST' LIKE '.%EST' ESCAPE '.'", "true")
     testSqlApi("'TEST' NOT LIKE '%EST'", "false")
-    //testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "false") // TODO
+    testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "false")
     testSqlApi("'TEST' SIMILAR TO '.EST'", "true")
     //testSqlApi("'TEST' SIMILAR TO ':.EST' ESCAPE ':'", "true") // TODO
     testSqlApi("'TEST' NOT SIMILAR TO '.EST'", "false")
