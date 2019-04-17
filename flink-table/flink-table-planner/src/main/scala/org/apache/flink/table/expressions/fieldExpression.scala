@@ -22,6 +22,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
 import org.apache.flink.table.operations.TableOperation
@@ -37,6 +38,21 @@ abstract class Attribute extends LeafExpression with NamedExpression {
   override private[flink] def toAttribute: Attribute = this
 
   private[flink] def withName(newName: String): Attribute
+}
+
+/**
+  * Dummy wrapper for expressions that were converted to RexNode in a different way.
+  */
+case class RexPlannerExpression(
+    private[flink] val rexNode: RexNode)
+  extends LeafExpression {
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    rexNode
+  }
+
+  override private[flink] def resultType: TypeInformation[_] =
+    FlinkTypeFactory.toTypeInfo(rexNode.getType)
 }
 
 case class UnresolvedFieldReference(name: String) extends Attribute {
