@@ -44,6 +44,11 @@ public abstract class TableOperationDefaultVisitor<T> implements TableOperationV
 	}
 
 	@Override
+	public T visitJoin(JoinTableOperation join) {
+		return defaultMethod(join);
+	}
+
+	@Override
 	public T visitSetOperation(SetTableOperation setOperation) {
 		return defaultMethod(setOperation);
 	}

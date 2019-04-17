@@ -33,6 +33,8 @@ public interface TableOperationVisitor<T> {
 
 	T visitWindowAggregate(WindowAggregateTableOperation windowAggregate);
 
+	T visitJoin(JoinTableOperation join);
+
 	T visitSetOperation(SetTableOperation setOperation);
 
 	T visitFilter(FilterTableOperation filter);
