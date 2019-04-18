@@ -17,7 +17,7 @@
 
 package org.apache.flink.hadoopcompatibility.mapreduce;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,7 +30,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 
 import java.io.IOException;
@@ -42,35 +41,34 @@ import java.io.Serializable;
  * This wrapper maps a Hadoop Mapper (mapreduce API) to a Flink FlatMapFunction.
  */
 @SuppressWarnings("rawtypes")
-@Public
+@PublicEvolving
 public class HadoopMapFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 	extends RichFlatMapFunction<Tuple2<KEYIN, VALUEIN>, Tuple2<KEYOUT, VALUEOUT>>
 	implements ResultTypeQueryable<Tuple2<KEYOUT, VALUEOUT>>, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private transient HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopProxyMapper;
+	private HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopProxyMapper;
+	private HadoopProxyMapper.HadoopDummyMapperContext mapperContext;
+
 	private transient Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper;
-	private transient Job jobConf;
-	private transient HadoopProxyMapper.HadoopDummyMapperContext mapperContext;
+	private transient org.apache.hadoop.conf.Configuration jobConf;
 
 	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper) throws IOException {
-		this(hadoopMapper, Job.getInstance());
+		this(hadoopMapper, new org.apache.hadoop.conf.Configuration());
 	}
 
-	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper, Job conf) {
+	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper, org.apache.hadoop.conf.Configuration conf) {
 		this.hadoopMapper = Preconditions.checkNotNull(hadoopMapper);
-		this.hadoopProxyMapper = new HadoopProxyMapper<>();
-		this.hadoopProxyMapper.setDelegatedMapper(hadoopMapper);
 		this.jobConf = Preconditions.checkNotNull(conf);
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		this.hadoopProxyMapper.init();
+		this.hadoopProxyMapper = new HadoopProxyMapper<>(hadoopMapper);
 		this.mapperContext = this.hadoopProxyMapper.new HadoopDummyMapperContext<KEYIN, VALUEIN, KEYOUT, VALUEOUT>();
-		this.mapperContext.setHadoopConf(jobConf.getConfiguration());
+		this.mapperContext.setHadoopConf(jobConf);
 		this.hadoopProxyMapper.setup(this.mapperContext);
 	}
 
@@ -89,37 +87,30 @@ public class HadoopMapFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 	@SuppressWarnings("unchecked")
 	@Override
 	public TypeInformation<Tuple2<KEYOUT, VALUEOUT>> getProducedType() {
-		Class<KEYOUT> outKeyClass = (Class<KEYOUT>) TypeExtractor.getParameterType(org.apache.hadoop.mapreduce.Mapper.class, hadoopProxyMapper.getDelegatedMapper().getClass(), 2);
-		Class<VALUEOUT> outValClass = (Class<VALUEOUT>) TypeExtractor.getParameterType(org.apache.hadoop.mapreduce.Mapper.class, hadoopProxyMapper.getDelegatedMapper().getClass(), 3);
+		Class<KEYOUT> outKeyClass = (Class<KEYOUT>) TypeExtractor.getParameterType(org.apache.hadoop.mapreduce.Mapper.class, this.hadoopMapper.getClass(), 2);
+		Class<VALUEOUT> outValClass = (Class<VALUEOUT>) TypeExtractor.getParameterType(org.apache.hadoop.mapreduce.Mapper.class, this.hadoopMapper.getClass(), 3);
 
-		final TypeInformation<KEYOUT> keyTypeInfo = TypeExtractor.getForClass((Class<KEYOUT>) outKeyClass);
-		final TypeInformation<VALUEOUT> valueTypleInfo = TypeExtractor.getForClass((Class<VALUEOUT>) outValClass);
-		return new TupleTypeInfo<Tuple2<KEYOUT, VALUEOUT>>(keyTypeInfo, valueTypleInfo);
+		final TypeInformation<KEYOUT> keyTypeInfo = TypeExtractor.getForClass(outKeyClass);
+		final TypeInformation<VALUEOUT> valueTypleInfo = TypeExtractor.getForClass(outValClass);
+		return new TupleTypeInfo<>(keyTypeInfo, valueTypleInfo);
 	}
 
 	/**
 	 * Custom serialization methods.
-	 * @see <a href="http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html">http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html</a>
+	 * @see <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html">https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html</a>
 	 */
 	private void writeObject(final ObjectOutputStream out) throws IOException {
-		out.writeObject(hadoopProxyMapper.getClass());
 		out.writeObject(hadoopMapper.getClass());
-		jobConf.getConfiguration().write(out);
+		jobConf.write(out);
 	}
 
 	@SuppressWarnings("unchecked")
 	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
-		Class<HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>> dummyMapperClass =
-			(Class<HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>>) in.readObject();
 		Class<Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>> mapperClass =
 			(Class<Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>>) in.readObject();
-		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
-		configuration.readFields(in);
+		jobConf = new org.apache.hadoop.conf.Configuration();
+		jobConf.readFields(in);
 
-		hadoopProxyMapper = InstantiationUtil.instantiate(dummyMapperClass);
 		hadoopMapper = InstantiationUtil.instantiate(mapperClass);
-		hadoopProxyMapper.setDelegatedMapper(hadoopMapper);
-
-		jobConf = Job.getInstance(configuration);
 	}
 }

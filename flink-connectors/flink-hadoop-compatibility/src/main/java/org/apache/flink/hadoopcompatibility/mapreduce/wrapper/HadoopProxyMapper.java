@@ -19,6 +19,7 @@ package org.apache.flink.hadoopcompatibility.mapreduce.wrapper;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -44,44 +45,32 @@ import java.net.URI;
  */
 public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
 
-	private Mapper delegatedMapper;
-	private transient Method mapMethod;
-	private transient Method setupMethod;
-	private transient Method cleanupMethod;
+	private final Mapper delegatedMapper;
+	private Method mapMethod;
+	private Method setupMethod;
+	private Method cleanupMethod;
 
-	public HadoopProxyMapper() {
-	}
+	public HadoopProxyMapper(Mapper delegatedMapper) {
+		this.delegatedMapper = Preconditions.checkNotNull(delegatedMapper);
+		try {
+			mapMethod = delegatedMapper.getClass().getDeclaredMethod("map", Object.class, Object.class, Mapper.Context.class);
+			mapMethod.setAccessible(true);
+		} catch (NoSuchMethodException e) {
+			mapMethod = null;
+		}
 
-	public void setDelegatedMapper(Mapper delegatedMapper) {
-		this.delegatedMapper = delegatedMapper;
-	}
+		try {
+			setupMethod = delegatedMapper.getClass().getDeclaredMethod("setup", Context.class);
+			setupMethod.setAccessible(true);
+		} catch (NoSuchMethodException e) {
+			setupMethod = null;
+		}
 
-	public Mapper getDelegatedMapper() {
-		return delegatedMapper;
-	}
-
-	public void init() {
-		if (getDelegatedMapper() != null) {
-			try {
-				mapMethod = getDelegatedMapper().getClass().getDeclaredMethod("map", Object.class, Object.class, Mapper.Context.class);
-				mapMethod.setAccessible(true);
-			} catch (NoSuchMethodException e) {
-				mapMethod = null;
-			}
-
-			try {
-				setupMethod = getDelegatedMapper().getClass().getDeclaredMethod("setup", Context.class);
-				setupMethod.setAccessible(true);
-			} catch (NoSuchMethodException e) {
-				setupMethod = null;
-			}
-
-			try {
-				cleanupMethod = getDelegatedMapper().getClass().getDeclaredMethod("cleanup", Context.class);
-				cleanupMethod.setAccessible(true);
-			} catch (NoSuchMethodException e) {
-				cleanupMethod = null;
-			}
+		try {
+			cleanupMethod = delegatedMapper.getClass().getDeclaredMethod("cleanup", Context.class);
+			cleanupMethod.setAccessible(true);
+		} catch (NoSuchMethodException e) {
+			cleanupMethod = null;
 		}
 	}
 
@@ -90,7 +79,7 @@ public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<
 		super.setup(context);
 		if (setupMethod != null) {
 			try {
-				setupMethod.invoke(getDelegatedMapper(), context);
+				setupMethod.invoke(delegatedMapper, context);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -101,7 +90,7 @@ public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<
 	public void map(KEYIN key, VALUEIN value, Context context) throws IOException, InterruptedException {
 		if (mapMethod != null) {
 			try {
-				mapMethod.invoke(getDelegatedMapper(), key, value, context);
+				mapMethod.invoke(delegatedMapper, key, value, context);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -113,7 +102,7 @@ public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<
 		super.cleanup(context);
 		if (cleanupMethod != null) {
 			try {
-				cleanupMethod.invoke(getDelegatedMapper(), context);
+				cleanupMethod.invoke(delegatedMapper, context);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}

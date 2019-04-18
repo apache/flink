@@ -25,9 +25,9 @@ import org.apache.flink.hadoopcompatibility.mapreduce.HadoopMapFunction;
 import org.apache.flink.test.hadoopcompatibility.HadoopTestData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,7 +56,7 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
 		DataSet<Tuple2<IntWritable, Text>> nonPassingFlatMapDs = ds.
-			flatMap(new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(new NonPassingMapper()));
+			flatMap(new HadoopMapFunction<>(new NonPassingMapper()));
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 
@@ -72,7 +72,7 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
 		DataSet<Tuple2<IntWritable, Text>> duplicatingFlatMapDs = ds.
-			flatMap(new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(new DuplicatingMapper()));
+			flatMap(new HadoopMapFunction<>(new DuplicatingMapper()));
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 
@@ -108,12 +108,12 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 	public void testConfigurableMapper() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Job conf = Job.getInstance();
-		conf.getConfiguration().set("my.filterPrefix", "Hello");
+		Configuration conf = new Configuration();
+		conf.set("my.filterPrefix", "Hello");
 
 		DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
 		DataSet<Tuple2<IntWritable, Text>> hellos = ds.
-			flatMap(new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(new ConfigurableMapper(), conf));
+			flatMap(new HadoopMapFunction<>(new ConfigurableMapper(), conf));
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 
