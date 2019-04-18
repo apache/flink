@@ -190,7 +190,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 * @param inetAddress the network address that the TaskManager binds its sockets to
 	 * @return hostname of the TaskManager
 	 */
-	private static String getHostName(InetAddress inetAddress) {
+	public static String getHostName(InetAddress inetAddress) {
 		String hostName;
 		String fqdnHostName = getFqdnHostName(inetAddress);
 

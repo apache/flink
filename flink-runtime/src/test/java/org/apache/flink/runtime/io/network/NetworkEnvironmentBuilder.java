@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 
 /**
@@ -43,6 +45,8 @@ public class NetworkEnvironmentBuilder {
 	private NettyConfig nettyConfig;
 
 	private TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
+
+	private MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
 	public NetworkEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
 		this.numNetworkBuffers = numNetworkBuffers;
@@ -89,6 +93,11 @@ public class NetworkEnvironmentBuilder {
 		return this;
 	}
 
+	public NetworkEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
+		this.metricGroup = metricGroup;
+		return this;
+	}
+
 	public NetworkEnvironment build() {
 		return new NetworkEnvironment(
 			new NetworkEnvironmentConfiguration(
@@ -100,6 +109,7 @@ public class NetworkEnvironmentBuilder {
 				floatingNetworkBuffersPerGate,
 				isCreditBased,
 				nettyConfig),
-			taskEventDispatcher);
+			taskEventDispatcher,
+			metricGroup);
 	}
 }
