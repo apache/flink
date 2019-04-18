@@ -209,28 +209,30 @@ public class Bucket<IN, BucketID> {
 						subtaskIndex, bucketId, element);
 			}
 
-			rollPartFile(currentTime);
+			inProgressPart = rollPartFile(currentTime);
 		}
 		inProgressPart.write(element, currentTime);
 	}
 
-	private void rollPartFile(final long currentTime) throws IOException {
+	private PartFileWriter<IN, BucketID> rollPartFile(final long currentTime) throws IOException {
 		closePartFile();
 
 		final Path partFilePath = assembleNewPartPath();
 		final RecoverableFsDataOutputStream stream = fsWriter.open(partFilePath);
-		inProgressPart = partFileFactory.openNew(bucketId, stream, partFilePath, currentTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",
 					subtaskIndex, partFilePath.getName(), bucketId);
 		}
 
-		partCounter++;
+		return partFileFactory.openNew(bucketId, stream, partFilePath, currentTime);
 	}
 
+	/**
+	 * Constructor a new PartPath and increment the partCounter.
+	 */
 	private Path assembleNewPartPath() {
-		return new Path(bucketPath, PART_PREFIX + '-' + subtaskIndex + '-' + partCounter);
+		return new Path(bucketPath, PART_PREFIX + '-' + subtaskIndex + '-' + partCounter++);
 	}
 
 	private CommitRecoverable closePartFile() throws IOException {
