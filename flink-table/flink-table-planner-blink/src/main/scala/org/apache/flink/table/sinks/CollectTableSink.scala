@@ -42,7 +42,8 @@ class CollectTableSink[T](produceOutputType: (Array[TypeInformation[_]] => TypeI
       tableConfig: TableConfig,
       executionConfig: ExecutionConfig): DataStreamSink[T] = {
     boundedStream.writeUsingOutputFormat(collectOutputFormat)
-    .name("collect")
+        .setParallelism(1)
+        .name("collect")
   }
 
   override protected def copy: TableSinkBase[T] = {

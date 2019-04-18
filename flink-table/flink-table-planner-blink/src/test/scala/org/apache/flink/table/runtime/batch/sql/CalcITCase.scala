@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
+import org.apache.flink.table.dataformat.DataFormatConverters.{DateConverter, TimestampConverter}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.functions.ScalarFunction
@@ -38,7 +39,7 @@ import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit._
 
-import java.sql.Timestamp
+import java.sql.{Date, Timestamp}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -49,7 +50,9 @@ class CalcITCase extends BatchTestBase {
   @Before
   def before(): Unit = {
     registerCollection("Table3", data3, type3, nullablesOfData3, "a, b, c")
+    registerCollection("NullTable3", nullData3, type3, nullablesOfData3, "a, b, c")
     registerCollection("SmallTable3", smallData3, type3, nullablesOfData3, "a, b, c")
+    registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
   }
 
   @Test
@@ -779,6 +782,440 @@ class CalcITCase extends BatchTestBase {
         row("x", "x", "z", "z", "z", "z"))
     )
   }
+
+  @Test
+  def testCast(): Unit = {
+    checkResult(
+      "SELECT CAST(a AS VARCHAR(10)) FROM Table3 WHERE CAST(a AS VARCHAR(10)) = '1'",
+      Seq(row(1)))
+  }
+
+  @Test
+  def testLike(): Unit = {
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE '%llo%'",
+      Seq(row(2), row(3), row(4)))
+
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE CAST(a as VARCHAR(10)) LIKE CAST(b as VARCHAR(10))",
+      Seq(row(1), row(2)))
+
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c NOT LIKE '%Comment%' AND c NOT LIKE '%Hello%'",
+      Seq(row(1), row(5), row(6), row(null), row(null)))
+
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE 'Comment#%' and c LIKE '%2'",
+      Seq(row(8), row(18)))
+
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE 'Comment#12'",
+      Seq(row(18)))
+
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE '%omm%nt#12'",
+      Seq(row(18)))
+  }
+
+  @Test
+  def testLikeWithEscape(): Unit = {
+
+    val rows = Seq(
+      (1, "ha_ha"),
+      (2, "ffhaha_hahaff"),
+      (3, "aaffhaha_hahaffaa"),
+      (4, "aaffhaaa_aahaffaa"),
+      (5, "a%_ha")
+    )
+
+    BatchScalaTableEnvUtil.registerCollection(tEnv, "MyT", rows, "a, b")
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE '%ha?_ha%' ESCAPE '?'",
+      Seq(row(1), row(2), row(3)))
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE '%ha?_ha' ESCAPE '?'",
+      Seq(row(1)))
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE 'ha?_ha%' ESCAPE '?'",
+      Seq(row(1)))
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE 'ha?_ha' ESCAPE '?'",
+      Seq(row(1)))
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE '%affh%ha?_ha%' ESCAPE '?'",
+      Seq(row(3)))
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE 'a?%?_ha' ESCAPE '?'",
+      Seq(row(5)))
+
+    checkResult(
+      "SELECT a FROM MyT WHERE b LIKE 'h_?_ha' ESCAPE '?'",
+      Seq(row(1)))
+  }
+
+  @Test
+  def testChainLike(): Unit = {
+    // special case to test CHAIN_PATTERN.
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE '% /sys/kvengine/KVServerRole/kvengine/kv_server%'",
+      Seq())
+
+    // special case to test CHAIN_PATTERN.
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE '%Tuple%%'",
+      Seq(row(null), row(null)))
+
+    // special case to test CHAIN_PATTERN.
+    checkResult(
+      "SELECT a FROM NullTable3 WHERE c LIKE '%/order/inter/touch/backwayprice.do%%'",
+      Seq())
+  }
+
+  @Test
+  def testEqual(): Unit = {
+    checkResult(
+      "SELECT a FROM Table3 WHERE c = 'Hi'",
+      Seq(row(1)))
+
+    checkResult(
+      "SELECT c FROM Table3 WHERE c <> 'Hello' AND b = 2",
+      Seq(row("Hello world")))
+  }
+
+  @Test
+  def testSubString(): Unit = {
+    checkResult(
+      "SELECT SUBSTRING(c, 6, 13) FROM Table3 WHERE a = 6",
+      Seq(row("Skywalker")))
+  }
+
+  @Test
+  def testConcat(): Unit = {
+    checkResult(
+      "SELECT CONCAT(c, '-haha') FROM Table3 WHERE a = 1",
+      Seq(row("Hi-haha")))
+
+    checkResult(
+      "SELECT CONCAT_WS('-x-', c, 'haha') FROM Table3 WHERE a = 1",
+      Seq(row("Hi-x-haha")))
+  }
+
+  @Test
+  def testStringAgg(): Unit = {
+    checkResult(
+      "SELECT MIN(c) FROM NullTable3",
+      Seq(row("Comment#1")))
+
+    checkResult(
+      "SELECT SUM(b) FROM NullTable3 WHERE c = 'NullTuple' OR c LIKE '%Hello world%' GROUP BY c",
+      Seq(row(1998), row(2), row(3)))
+  }
+
+  @Test
+  def testStringUdf(): Unit = {
+    tEnv.registerFunction("myFunc", MyStringFunc)
+    checkResult(
+      "SELECT myFunc(c) FROM Table3 WHERE a = 1",
+      Seq(row("Hihaha")))
+  }
+
+  @Test
+  def testNestUdf(): Unit = {
+    tEnv.registerFunction("func", MyStringFunc)
+    checkResult(
+      "SELECT func(func(func(c))) FROM SmallTable3",
+      Seq(row("Hello worldhahahahahaha"), row("Hellohahahahahaha"), row("Hihahahahahaha")))
+  }
+
+
+  @Test
+  def testCurrentDate(): Unit = {
+    // Execution in on Query should return the same value
+    checkResult("SELECT CURRENT_DATE = CURRENT_DATE FROM testTable WHERE a = TRUE",
+      Seq(row(true)))
+
+    val d0 = DateConverter.INSTANCE.toInternal(new Date(System.currentTimeMillis()))
+
+    val table = parseQuery("SELECT CURRENT_DATE FROM testTable WHERE a = TRUE")
+    val result = executeQuery(table)
+    val d1 = DateConverter.INSTANCE.toInternal(
+      result.toList.head.getField(0).asInstanceOf[java.sql.Date])
+
+    Assert.assertTrue(d0 <= d1 && d1 - d0 <= 1)
+  }
+
+  @Test
+  def testCurrentTimestamp(): Unit = {
+    // Execution in on Query should return the same value
+    checkResult("SELECT CURRENT_TIMESTAMP = CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE",
+      Seq(row(true)))
+
+    // CURRENT_TIMESTAMP should return the current timestamp
+    val ts0 = System.currentTimeMillis()
+
+    val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
+    val result = executeQuery(table)
+    val ts1 = TimestampConverter.INSTANCE.toInternal(
+      result.toList.head.getField(0).asInstanceOf[java.sql.Timestamp])
+
+    val ts2 = System.currentTimeMillis()
+
+    Assert.assertTrue(ts0 <= ts1 && ts1 <= ts2)
+  }
+
+  @Test
+  def testCurrentTime(): Unit = {
+    // Execution in on Query should return the same value
+    checkResult("SELECT CURRENT_TIME = CURRENT_TIME FROM testTable WHERE a = TRUE",
+      Seq(row(true)))
+  }
+
+  def testTimestampCompareWithDate(): Unit = {
+    checkResult("SELECT j FROM testTable WHERE j < DATE '2017-11-11'",
+      Seq(row(true)))
+  }
+
+  /**
+    * TODO Support below string timestamp format to cast to timestamp:
+    * yyyy
+    * yyyy-[m]m
+    * yyyy-[m]m-[d]d
+    * yyyy-[m]m-[d]d 
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    */
+  @Ignore
+  @Test
+  def testTimestampCompareWithDateString(): Unit = {
+    //j 2015-05-20 10:00:00.887
+    checkResult("SELECT j FROM testTable WHERE j < '2017-11-11'",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"))))
+  }
+
+  @Test
+  def testDateCompareWithDateString(): Unit = {
+    checkResult("SELECT h FROM testTable WHERE h <= '2017-12-12'",
+      Seq(
+        row(UTCDate("2017-12-12")),
+        row(UTCDate("2017-12-12"))
+      ))
+  }
+
+  @Test
+  def testDateEqualsWithDateString(): Unit = {
+    checkResult("SELECT h FROM testTable WHERE h = '2017-12-12'",
+      Seq(
+        row(UTCDate("2017-12-12")),
+        row(UTCDate("2017-12-12"))
+      ))
+  }
+
+  @Test
+  def testDateFormat(): Unit = {
+    //j 2015-05-20 10:00:00.887
+    checkResult("SELECT j, " +
+        " DATE_FORMAT(j, 'yyyy/MM/dd HH:mm:ss')," +
+        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy/MM/dd HH:mm:ss')," +
+        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy-MM-dd HH:mm:ss', 'yyyy/MM/dd HH:mm:ss')" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(
+        row(UTCTimestamp("2015-05-20 10:00:00.887"),
+          "2015/05/20 10:00:00",
+          "2015/05/20 10:00:00",
+          "2015/05/20 10:00:00")
+      ))
+  }
+
+  @Test
+  def testYear(): Unit = {
+    checkResult("SELECT j, YEAR(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "2015")))
+  }
+
+  @Test
+  def testQuarter(): Unit = {
+    checkResult("SELECT j, QUARTER(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "2")))
+  }
+
+  @Test
+  def testMonth(): Unit = {
+    checkResult("SELECT j, MONTH(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "5")))
+  }
+
+  @Test
+  def testWeek(): Unit = {
+    checkResult("SELECT j, WEEK(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "21")))
+  }
+
+  @Test
+  def testDayOfYear(): Unit = {
+    checkResult("SELECT j, DAYOFYEAR(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "140")))
+  }
+
+  @Test
+  def testDayOfMonth(): Unit = {
+    checkResult("SELECT j, DAYOFMONTH(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "20")))
+  }
+
+  @Test
+  def testDayOfWeek(): Unit = {
+    checkResult("SELECT j, DAYOFWEEK(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "4")))
+  }
+
+  @Test
+  def testHour(): Unit = {
+    checkResult("SELECT j, HOUR(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "10")))
+  }
+
+  @Test
+  def testMinute(): Unit = {
+    checkResult("SELECT j, MINUTE(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "0")))
+  }
+
+  @Test
+  def testSecond(): Unit = {
+    checkResult("SELECT j, SECOND(j) FROM testTable WHERE a = TRUE",
+      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "0")))
+  }
+
+  @Test
+  def testUnixTimestamp(): Unit = {
+    checkResult("SELECT" +
+        " UNIX_TIMESTAMP('2017-12-13 19:25:30')," +
+        " UNIX_TIMESTAMP('2017-12-13 19:25:30', 'yyyy-MM-dd HH:mm:ss')" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(row(1513193130, 1513193130)))
+  }
+
+  @Test
+  def testFromUnixTime(): Unit = {
+    checkResult("SELECT" +
+        " FROM_UNIXTIME(1513193130), FROM_UNIXTIME(1513193130, 'MM/dd/yyyy HH:mm:ss')" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(row("2017-12-13 19:25:30", "12/13/2017 19:25:30")))
+  }
+
+  @Test
+  def testDateDiff(): Unit = {
+    checkResult("SELECT" +
+        " DATEDIFF('2017-12-14 01:00:34', '2016-12-14 12:00:00')," +
+        " DATEDIFF(TIMESTAMP '2017-12-14 01:00:23', '2016-08-14 12:00:00')," +
+        " DATEDIFF('2017-12-14 09:00:23', TIMESTAMP '2013-08-19 11:00:00')," +
+        " DATEDIFF(TIMESTAMP '2017-12-14 09:00:23', TIMESTAMP '2018-08-19 11:00:00')" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(row(365, 487, 1578, -248)))
+  }
+
+  @Test
+  def testDateSub(): Unit = {
+    checkResult("SELECT" +
+        " DATE_SUB(TIMESTAMP '2017-12-14 09:00:23', 3)," +
+        " DATE_SUB('2017-12-14 09:00:23', -3)" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(row("2017-12-11", "2017-12-17")))
+  }
+
+  @Test
+  def testDateAdd(): Unit = {
+    checkResult("SELECT" +
+        " DATE_ADD('2017-12-14', 4)," +
+        " DATE_ADD(TIMESTAMP '2017-12-14 09:10:20',-4)" +
+        " FROM testTable WHERE a = TRUE",
+      Seq(row("2017-12-18", "2017-12-10")))
+  }
+
+  @Test
+  def testToDate(): Unit = {
+    checkResult("SELECT" +
+        " TO_DATE(CAST(null AS VARCHAR))," +
+        " TO_DATE('2016-12-31')," +
+        " TO_DATE('2016-12-31', 'yyyy-MM-dd')",
+      Seq(row(null, UTCDate("2016-12-31"), UTCDate("2016-12-31"))))
+  }
+
+  @Test
+  def testToTimestamp(): Unit = {
+    checkResult("SELECT" +
+        " TO_TIMESTAMP(CAST(null AS VARCHAR))," +
+        " TO_TIMESTAMP('2016-12-31 00:12:00')," +
+        " TO_TIMESTAMP('2016-12-31', 'yyyy-MM-dd')",
+      Seq(row(null, UTCTimestamp("2016-12-31 00:12:00"), UTCTimestamp("2016-12-31 00:00:00"))))
+  }
+
+  @Test
+  def testCalcBinary(): Unit = {
+    registerCollection(
+      "BinaryT",
+      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
+      "a, b, c",
+      nullablesOfNullData3)
+    checkResult(
+      "select a, b, c from BinaryT where b < 1000",
+      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes))
+    )
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testOrderByBinary(): Unit = {
+    registerCollection(
+      "BinaryT",
+      nullData3.map((r) => row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
+      "a, b, c",
+      nullablesOfNullData3)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    conf.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    checkResult(
+      "select * from BinaryT order by c",
+      nullData3.sortBy((x : Row) =>
+        x.getField(2).asInstanceOf[String]).map((r) =>
+        row(r.getField(0), r.getField(1), r.getField(2).toString.getBytes)),
+      isSorted = true
+    )
+  }
+
+  @Test
+  def testGroupByBinary(): Unit = {
+    registerCollection(
+      "BinaryT2",
+      nullData3.map((r) => row(r.getField(0), r.getField(1).toString.getBytes, r.getField(2))),
+      new RowTypeInfo(INT_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO, STRING_TYPE_INFO),
+      "a, b, c",
+      nullablesOfNullData3)
+    checkResult(
+      "select sum(sumA) from (select sum(a) as sumA, b, c from BinaryT2 group by c, b) group by b",
+      Seq(row(1), row(111), row(15), row(34), row(5), row(65), row(null))
+    )
+  }
 }
 
 object MyHashCode extends ScalarFunction {
@@ -871,6 +1308,10 @@ object MyToPojoFunc extends ScalarFunction {
       new PojoField(cls.getDeclaredField("f1"), Types.INT),
       new PojoField(cls.getDeclaredField("f2"), Types.INT)))
   }
+}
+
+object MyStringFunc extends ScalarFunction {
+  def eval(s: String): String = s + "haha"
 }
 
 // TODO support getResultType from literal args.

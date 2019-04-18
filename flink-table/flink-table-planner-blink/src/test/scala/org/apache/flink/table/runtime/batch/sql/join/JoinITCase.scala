@@ -38,7 +38,7 @@ import scala.collection.JavaConversions._
 import scala.collection.Seq
 
 // @RunWith(classOf[Parameterized]) TODO
-class JoinITCase() extends BatchTestBase with JoinITCaseBase {
+class JoinITCase() extends BatchTestBase {
 
   val expectedJoinType: JoinType = SortMergeJoin
 
@@ -52,7 +52,7 @@ class JoinITCase() extends BatchTestBase with JoinITCaseBase {
     registerCollection("l", data2_1, INT_DOUBLE, "a, b")
     registerCollection("r", data2_2, INT_DOUBLE, "c, d")
     registerCollection("t", data2_3, INT_DOUBLE, nullablesOfData2_3, "c, d")
-    disableOtherJoinOpForJoin(tEnv, expectedJoinType)
+    JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
   @Test
