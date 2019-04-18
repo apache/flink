@@ -503,7 +503,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yjm", "768m",
 				// test if the cutoff is passed correctly (only useful when larger than the value
 				// of containerized.heap-cutoff-min (default: 600MB)
-				"-yD", "yarn.heap-cutoff-ratio=0.7",
+				"-yD", "containerized.heap-cutoff-ratio=0.7",
 				"-yD", "yarn.tags=test-tag",
 				"-ytm", "1024m",
 				"-ys", "2", // test requesting slots from YARN.
