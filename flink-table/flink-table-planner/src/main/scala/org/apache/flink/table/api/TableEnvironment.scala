@@ -117,6 +117,10 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
+  protected val calciteConfig: CalciteConfig = config.getPlannerConfig
+    .unwrap(classOf[CalciteConfig])
+    .orElse(CalciteConfig.DEFAULT)
+
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
 
@@ -131,8 +135,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the SqlToRelConverter config.
     */
   protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getSqlToRelConverterConfig match {
+    calciteConfig.sqlToRelConverterConfig match {
 
       case None =>
         SqlToRelConverter.configBuilder()
@@ -150,8 +153,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the operator table for this environment including a custom Calcite configuration.
     */
   protected def getSqlOperatorTable: SqlOperatorTable = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getSqlOperatorTable match {
+    calciteConfig.sqlOperatorTable match {
 
       case None =>
         functionCatalog.getSqlOperatorTable
@@ -170,8 +172,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * including a custom RuleSet configuration.
     */
   protected def getNormRuleSet: RuleSet = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getNormRuleSet match {
+    calciteConfig.normRuleSet match {
 
       case None =>
         getBuiltInNormRuleSet
@@ -190,8 +191,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * including a custom RuleSet configuration.
     */
   protected def getLogicalOptRuleSet: RuleSet = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getLogicalOptRuleSet match {
+    calciteConfig.logicalOptRuleSet match {
 
       case None =>
         getBuiltInLogicalOptRuleSet
@@ -210,8 +210,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * including a custom RuleSet configuration.
     */
   protected def getPhysicalOptRuleSet: RuleSet = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getPhysicalOptRuleSet match {
+    calciteConfig.physicalOptRuleSet match {
 
       case None =>
         getBuiltInPhysicalOptRuleSet
@@ -229,8 +228,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the SQL parser config for this environment including a custom Calcite configuration.
     */
   protected def getSqlParserConfig: SqlParser.Config = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getSqlParserConfig match {
+    calciteConfig.sqlParserConfig match {
 
       case None =>
         // we use Java lex because back ticks are easier than double quotes in programming

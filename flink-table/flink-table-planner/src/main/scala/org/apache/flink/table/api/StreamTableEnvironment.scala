@@ -769,8 +769,7 @@ abstract class StreamTableEnvironment(
     * including a custom RuleSet configuration.
     */
   protected def getDecoRuleSet: RuleSet = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getDecoRuleSet match {
+    calciteConfig.decoRuleSet match {
 
       case None =>
         getBuiltInDecoRuleSet
