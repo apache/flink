@@ -281,20 +281,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final long heartbeatInterval = 1000L;
-		final long heartbeatTimeout = 1000L;
-		final HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
-
-		final TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -349,16 +336,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TestingTaskExecutor taskManager = new TestingTaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices, heartbeatServices);
 
 		try {
 			taskManager.start();
@@ -439,16 +417,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices, heartbeatServices);
 
 		try {
 			taskManager.start();
@@ -527,16 +496,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -636,16 +596,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -761,16 +712,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -848,16 +790,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -958,16 +891,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -1049,16 +973,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TestingTaskExecutor taskManager = new TestingTaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
@@ -1137,7 +1052,6 @@ public class TaskExecutorTest extends TestLogger {
 	public void testFilterOutDuplicateJobMasterRegistrations() throws Exception {
 		final long verificationTimeout = 500L;
 		final JobLeaderService jobLeaderService = mock(JobLeaderService.class);
-		final HeartbeatServices heartbeatServicesMock = mock(HeartbeatServices.class, Mockito.RETURNS_MOCKS);
 
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 		when(jobMasterGateway.getHostname()).thenReturn("localhost");
@@ -1153,16 +1067,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TestingTaskExecutor taskExecutor = new TestingTaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			heartbeatServicesMock,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
 
 		try {
 			taskExecutor.start();
@@ -1223,16 +1128,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskExecutor = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, heartbeatServices);
 
 		try {
 			taskExecutor.start();
@@ -1277,16 +1173,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TestingTaskExecutor taskExecutor = new TestingTaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
 
 		try {
 			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -1369,18 +1256,8 @@ public class TaskExecutorTest extends TestLogger {
 		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "100 ms");
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
 
-		final long heartbeatInterval = 10L;
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
-		final TaskExecutor taskExecutor = new TaskExecutor(
-			rpc,
-			TaskManagerConfiguration.fromConfiguration(configuration),
-			haServices,
-			taskManagerServices,
-			new HeartbeatServices(heartbeatInterval, 10L),
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, new HeartbeatServices(10L, 10L));
 
 		taskExecutor.start();
 
@@ -1472,22 +1349,12 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Test
 	public void testReconnectionAttemptIfExplicitlyDisconnected() throws Exception {
-		final long heartbeatInterval = 1000L;
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-		final TaskExecutor taskExecutor = new TaskExecutor(
-			rpc,
-			TaskManagerConfiguration.fromConfiguration(configuration),
-			haServices,
-			new TaskManagerServicesBuilder()
-				.setTaskSlotTable(taskSlotTable)
-				.setTaskManagerLocation(taskManagerLocation)
-				.build(),
-			new HeartbeatServices(heartbeatInterval, 1000L),
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskExecutor = createTaskExecutor(new TaskManagerServicesBuilder()
+			.setTaskSlotTable(taskSlotTable)
+			.setTaskManagerLocation(taskManagerLocation)
+			.build());
 
 		taskExecutor.start();
 
@@ -1803,12 +1670,33 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Nonnull
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
+		return createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
+	}
+
+	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
 		return new TaskExecutor(
 			rpc,
 			TaskManagerConfiguration.fromConfiguration(configuration),
 			haServices,
 			taskManagerServices,
-			HEARTBEAT_SERVICES,
+			heartbeatServices,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			null,
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+	}
+
+	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
+		return createTestingTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
+	}
+
+	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+		return new TestingTaskExecutor(
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(configuration),
+			haServices,
+			taskManagerServices,
+			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
