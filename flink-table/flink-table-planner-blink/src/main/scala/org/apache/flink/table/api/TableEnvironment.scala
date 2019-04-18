@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.catalog.{CatalogManager, FlinkCatalogManager, ReadableCatalog}
 import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
@@ -41,7 +42,6 @@ import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sinks.CollectTableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
@@ -73,6 +73,9 @@ import _root_.scala.collection.JavaConverters._
   * @param config The configuration of the TableEnvironment
   */
 abstract class TableEnvironment(val config: TableConfig) {
+
+  // Note: The CatalogManager isn't hooked up to planner yet.
+  private val catalogManager: CatalogManager = new FlinkCatalogManager()
 
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
@@ -213,6 +216,64 @@ abstract class TableEnvironment(val config: TableConfig) {
     require(rels.nonEmpty && rels.forall(_.isInstanceOf[FlinkPhysicalRel]))
     // convert FlinkPhysicalRel DAG to ExecNode DAG
     rels.map(_.asInstanceOf[ExecNode[_, _]])
+  }
+
+  /**
+    * Registers an [[ReadableCatalog]] under a unique name in the TableEnvironment's schema.
+    * All tables registered in the [[ReadableCatalog]] can be accessed.
+    *
+    * @param name            The name under which the catalog will be registered
+    * @param catalog         The catalog to register
+    */
+  @throws[CatalogAlreadyExistException]
+  def registerCatalog(name: String, catalog: ReadableCatalog): Unit = {
+    catalogManager.registerCatalog(name, catalog)
+  }
+
+  /**
+    * Get a registered catalog.
+    *
+    * @param catalogName
+    * @return ReadableCatalog
+    */
+  @throws[CatalogNotExistException]
+  def getCatalog(catalogName: String): ReadableCatalog = {
+    catalogManager.getCatalog(catalogName)
+  }
+
+  /**
+    * Get the current catalog.
+    *
+    * @return ReadableCatalog
+    */
+  @throws[CatalogNotExistException]
+  def getCurrentCatalog(): ReadableCatalog = {
+    catalogManager.getCurrentCatalog
+  }
+
+  /**
+    * Get the current database name.
+    */
+  def getCurrentDatabaseName(): String = {
+    catalogManager.getCurrentDatabaseName
+  }
+
+  /**
+    * Set the current catalog.
+    *
+    * @param name Name of the catalog
+    */
+  def setCurrentCatalog(name: String): Unit = {
+    catalogManager.setCurrentCatalog(name)
+  }
+
+  /**
+    * Set the current catalog and database.
+    * @param catalogName  Name of the catalog.
+    * @param databaseName Name of the database.
+    */
+  def setCurrentCatalogAndDatabase(catalogName: String, databaseName: String): Unit = {
+    catalogManager.setCurrentCatalogAndDatabase(catalogName, databaseName)
   }
 
   /**
