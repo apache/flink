@@ -82,10 +82,7 @@ public class RankAggFunction extends RankLikeAggFunctionBase {
 		accExpressions[1] = ifThenElse(and(orderKeyEqualsExpression(), not(equalTo(sequence, literal(0L)))),
 				sequence, currNumber);
 		Expression[] operands = operands();
-		for (int i = 0; i < operands.length; ++i) {
-			// lastValue_i = orderKey[i]
-			accExpressions[i + 2] = operands[i];
-		}
+		System.arraycopy(operands, 0, accExpressions, 2, operands.length);
 		return accExpressions;
 	}
 

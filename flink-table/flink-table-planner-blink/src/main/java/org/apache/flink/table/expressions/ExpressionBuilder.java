@@ -63,12 +63,12 @@ public class ExpressionBuilder {
 		return new CallExpression(functionDefinition, args);
 	}
 
-	public static Expression and(Expression... args) {
-		return new CallExpression(AND, Arrays.asList(args));
+	public static Expression and(Expression arg1, Expression arg2) {
+		return new CallExpression(AND, Arrays.asList(arg1, arg2));
 	}
 
-	public static Expression or(Expression... args) {
-		return new CallExpression(OR, Arrays.asList(args));
+	public static Expression or(Expression arg1, Expression arg2) {
+		return new CallExpression(OR, Arrays.asList(arg1, arg2));
 	}
 
 	public static Expression not(Expression arg) {

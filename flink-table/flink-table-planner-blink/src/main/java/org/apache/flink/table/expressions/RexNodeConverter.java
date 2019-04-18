@@ -67,6 +67,16 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitCall(CallExpression call) {
+		if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.CAST)) {
+			RexNode child = call.getChildren().get(0).accept(this);
+			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
+			return relBuilder.getRexBuilder().makeAbstractCast(
+					typeFactory.createTypeFromInternalType(
+							createInternalTypeFromTypeInfo(type.getType()),
+							child.getType().isNullable()),
+					child);
+		}
+
 		List<RexNode> child = call.getChildren().stream()
 				.map(expression -> expression.accept(RexNodeConverter.this))
 				.collect(Collectors.toList());
@@ -117,6 +127,10 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return relBuilder.call(FlinkSqlOperatorTable.LESS_THAN, child);
 		} else if (BuiltInFunctionDefinitions.GREATER_THAN.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN, child);
+		} else if (BuiltInFunctionDefinitions.AND.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.AND, child);
+		} else if (BuiltInFunctionDefinitions.NOT.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.NOT, child);
 		} else {
 			throw new UnsupportedOperationException(def.getName());
 		}
