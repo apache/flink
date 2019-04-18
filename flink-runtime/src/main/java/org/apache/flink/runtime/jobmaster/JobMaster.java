@@ -1742,9 +1742,4 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	RestartStrategy getRestartStrategy() {
 		return restartStrategy;
 	}
-
-	@VisibleForTesting
-	ExecutionGraph getExecutionGraph() {
-		return executionGraph;
-	}
 }
