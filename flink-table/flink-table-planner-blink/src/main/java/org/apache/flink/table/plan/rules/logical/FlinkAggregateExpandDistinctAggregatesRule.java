@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.plan.util.FlinkRelOptUtil;
+import org.apache.flink.table.plan.util.AggregateUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.linq4j.Ord;
@@ -130,12 +130,12 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 
 	public void onMatch(RelOptRuleCall call) {
 		final Aggregate aggregate = call.rel(0);
-		if (!FlinkRelOptUtil.containsAccurateDistinctCall(aggregate.getAggCallList())) {
+		if (!AggregateUtil.containsAccurateDistinctCall(aggregate.getAggCallList())) {
 			return;
 		}
 		// Check unsupported aggregate which contains both approximate distinct call and
 		// accurate distinct call.
-		if (FlinkRelOptUtil.containsApproximateDistinctCall(aggregate.getAggCallList())) {
+		if (AggregateUtil.containsApproximateDistinctCall(aggregate.getAggCallList())) {
 			throw new TableException(
 					"There are both Distinct AggCall and Approximate Distinct AggCall in one sql statement, " +
 							"it is not supported yet.\nPlease choose one of them.");

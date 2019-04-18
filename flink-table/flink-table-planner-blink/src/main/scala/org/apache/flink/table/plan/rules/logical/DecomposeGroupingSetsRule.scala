@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkRelFactories}
-import org.apache.flink.table.plan.util.{ExpandUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.util.{AggregateUtil, ExpandUtil}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -209,7 +209,7 @@ class DecomposeGroupingSetsRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalAggregate = call.rel(0)
-    val groupIdExprs = FlinkRelOptUtil.getGroupIdExprIndexes(agg.getAggCallList)
+    val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(agg.getAggCallList)
     agg.getGroupSets.size() > 1 || groupIdExprs.nonEmpty
   }
 
@@ -223,7 +223,7 @@ class DecomposeGroupingSetsRule extends RelOptRule(
     }
 
     val aggInput = agg.getInput
-    val groupIdExprs = FlinkRelOptUtil.getGroupIdExprIndexes(agg.getAggCallList)
+    val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(agg.getAggCallList)
     val aggCallsWithIndexes = agg.getAggCallList.zipWithIndex
 
     val cluster = agg.getCluster

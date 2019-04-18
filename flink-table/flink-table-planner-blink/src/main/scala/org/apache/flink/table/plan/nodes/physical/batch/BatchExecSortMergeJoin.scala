@@ -22,15 +22,15 @@ import org.apache.flink.streaming.api.transformations.{StreamTransformation, Two
 import org.apache.flink.table.`type`.{RowType, TypeConverters}
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
 import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, SortUtil}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.join.SortMergeJoinOperator
 
 import org.apache.calcite.plan._
@@ -54,7 +54,7 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase with BatchExecNode[Ba
   val rightSorted: Boolean
 
   protected lazy val (leftAllKey, rightAllKey) =
-    FlinkRelOptUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
+    JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
 
   protected def isMergeJoinSupportedType(joinRelType: FlinkJoinRelType): Boolean = {
     joinRelType == FlinkJoinRelType.INNER ||

@@ -26,7 +26,6 @@ import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -59,7 +58,7 @@ object ExpandUtil {
     // e.g. SELECT count(a) as a, count(b) as b, count(c) as c FROM MyTable
     //      GROUP BY GROUPING SETS ((a, b), (a, c))
     // only field 'b' and 'c' need be outputted as duplicate fields.
-    val groupIdExprs = FlinkRelOptUtil.getGroupIdExprIndexes(aggCalls)
+    val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(aggCalls)
     val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
     val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
       case (aggCall, idx) =>
@@ -140,18 +139,35 @@ object ExpandUtil {
     // 2. add expand_id('$e') field
     typeList += typeFactory.createTypeWithNullability(
       typeFactory.createSqlType(SqlTypeName.BIGINT), false)
-    var expandIdFieldName = FlinkRelOptUtil.buildUniqueFieldName(allFieldNames, "$e")
+    var expandIdFieldName = buildUniqueFieldName(allFieldNames, "$e")
     fieldNameList += expandIdFieldName
 
     // 3. add duplicate fields
     duplicateFieldIndexes.foreach {
       duplicateFieldIdx =>
         typeList += inputType.getFieldList.get(duplicateFieldIdx).getType
-        fieldNameList += FlinkRelOptUtil.buildUniqueFieldName(
+        fieldNameList += buildUniqueFieldName(
           allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
     }
 
     typeFactory.createStructType(typeList, fieldNameList)
+  }
+
+  /**
+    * Get unique field name based on existed `allFieldNames` collection.
+    * NOTES: the new unique field name will be added to existed `allFieldNames` collection.
+    */
+  private def buildUniqueFieldName(
+      allFieldNames: util.Set[String],
+      toAddFieldName: String): String = {
+    var name: String = toAddFieldName
+    var i: Int = 0
+    while (allFieldNames.contains(name)) {
+      name = toAddFieldName + "_" + i
+      i += 1
+    }
+    allFieldNames.add(name)
+    name
   }
 
   /**
