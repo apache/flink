@@ -50,6 +50,7 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
@@ -357,18 +358,19 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				remoteAddress,
 				localCommunicationOnly);
 
+		TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+			metricRegistry,
+			TaskManagerLocation.getHostName(remoteAddress),
+			resourceID,
+			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
+
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
+			taskManagerMetricGroup,
 			resourceID,
 			rpcService.getExecutor(), // TODO replace this later with some dedicated executor for io.
 			EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
 			EnvironmentInformation.getMaxJvmHeapMemory());
-
-		TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
-			metricRegistry,
-			taskManagerServices.getTaskManagerLocation(),
-			taskManagerServices.getNetworkEnvironment(),
-			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 

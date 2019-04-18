@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.util.FileUtils;
@@ -211,6 +212,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 			TaskManagerServicesConfiguration config) throws Exception {
 		return TaskManagerServices.fromConfiguration(
 			config,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			ResourceID.generate(),
 			Executors.directExecutor(),
 			MEM_SIZE_PARAM,
