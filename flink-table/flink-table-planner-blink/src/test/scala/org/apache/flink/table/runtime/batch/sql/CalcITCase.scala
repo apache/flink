@@ -160,7 +160,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectWithNaming(): Unit = {
     checkResult(
-      "SELECT `1-_./Ü`, b, c FROM (SELECT a as `1-_./Ü`, b, c FROM Table3)",
+      "SELECT 1-_./Ü, b, c FROM (SELECT a as 1-_./Ü, b, c FROM Table3)",
       data3)
   }
 
@@ -981,7 +981,30 @@ class CalcITCase extends BatchTestBase {
       Seq(row(true)))
   }
 
-  @Ignore // TODO need Fix bug in https://github.com/apache/flink/pull/8165
+  /**
+    * TODO Support below timestamp format:
+    * yyyy
+    * yyyy-[m]m
+    * yyyy-[m]m-[d]d
+    * yyyy-[m]m-[d]d 
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+    */
+  @Ignore
   @Test
   def testTimestampCompareWithDateString(): Unit = {
     //j 2015-05-20 10:00:00.887
