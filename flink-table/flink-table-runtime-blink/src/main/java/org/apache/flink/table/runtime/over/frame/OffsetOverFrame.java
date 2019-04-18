@@ -25,7 +25,6 @@ import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 
 import java.io.Serializable;
-import java.util.function.Function;
 
 /**
  * The offset window frame calculates frames containing LEAD/LAG statements.
