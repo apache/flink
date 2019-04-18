@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.api
 
+import _root_.java.util.HashMap
+
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.junit.{Rule, Test}
+import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException
+import org.apache.flink.table.catalog.{FlinkCatalogManager, GenericCatalogDatabase, GenericInMemoryCatalog}
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
+import org.junit.{Rule, Test}
 
 class TableEnvironmentTest {
 
@@ -70,5 +73,22 @@ class TableEnvironmentTest {
     val expected = "LogicalProject(a=[$0], c=[$2], d=[$3])\n" +
       "  LogicalTableScan(table=[[MyTable]])\n"
     assertEquals(expected, actual)
+  }
+
+  @Test
+  def testSetCurrentDatabase(): Unit = {
+    assertEquals(GenericInMemoryCatalog.DEFAULT_DB, tableEnv.getCurrentDatabaseName)
+    val testDb = "test"
+    tableEnv.getCurrentCatalog
+      .createDatabase(testDb, new GenericCatalogDatabase(new HashMap[String, String]), false)
+    tableEnv.setCurrentDatabase(FlinkCatalogManager.BUILTIN_CATALOG_NAME, testDb)
+    assertEquals(testDb, tableEnv.getCurrentDatabaseName)
+  }
+
+  @Test
+  def testSetNonExistentCurrentDatabase(): Unit = {
+    thrown.expect(classOf[DatabaseNotExistException])
+    thrown.expectMessage("Database nonexist does not exist in Catalog builtin")
+    tableEnv.setCurrentDatabase(FlinkCatalogManager.BUILTIN_CATALOG_NAME, "nonexist")
   }
 }
