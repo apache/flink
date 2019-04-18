@@ -93,8 +93,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -113,7 +111,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * with the JobManager.
  *
  * <p>The Flink operators (implemented as subclasses of
- * {@link AbstractInvokable} have only data readers, -writers, and certain event callbacks.
+ * {@link AbstractInvokable} have only data readers, writers, and certain event callbacks.
  * The task connects those to the network stack and actor messages, and tracks the state
  * of the execution and handles exceptions.
  *
@@ -130,7 +128,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-	/** The tread group that contains all task threads. */
+	/** The thread group that contains all task threads. */
 	private static final ThreadGroup TASK_THREADS_GROUP = new ThreadGroup("Flink Task Threads");
 
 	/** For atomic state updates. */
@@ -262,8 +260,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The observed exception, in case the task execution failed. */
 	private volatile Throwable failureCause;
 
-	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized. */
-	private volatile ExecutorService asyncCallDispatcher;
+	/** Executor for asynchronous calls (checkpoints, etc), lazily initialized. */
+	private volatile BlockingCallMonitoringThreadPool asyncCallDispatcher;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
@@ -404,7 +402,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			SingleInputGate gate = SingleInputGate.create(
 				taskNameWithSubtaskAndId,
 				jobId,
-				executionId,
 				inputGateDeploymentDescriptor,
 				networkEnvironment,
 				taskEventDispatcher,
@@ -832,7 +829,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 				// stop the async dispatcher.
 				// copy dispatcher reference to stack, against concurrent release
-				ExecutorService dispatcher = this.asyncCallDispatcher;
+				final BlockingCallMonitoringThreadPool dispatcher = this.asyncCallDispatcher;
 				if (dispatcher != null && !dispatcher.isShutdown()) {
 					dispatcher.shutdownNow();
 				}
@@ -967,7 +964,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 						taskManagerActions.failTask(executionId, t);
 					}
 				};
-				executeAsyncCallRunnable(runnable, String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId));
+				executeAsyncCallRunnable(
+						runnable,
+						String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId),
+						false);
 			} else {
 				throw new UnsupportedOperationException(String.format("Stopping not supported by task %s (%s).", taskNameWithSubtask, executionId));
 			}
@@ -1164,11 +1164,14 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
 	 * @param checkpointOptions Options for performing this checkpoint.
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                           to fire any registered event-time timers.
 	 */
 	public void triggerCheckpointBarrier(
 			final long checkpointID,
-			long checkpointTimestamp,
-			final CheckpointOptions checkpointOptions) {
+			final long checkpointTimestamp,
+			final CheckpointOptions checkpointOptions,
+			final boolean advanceToEndOfEventTime) {
 
 		final AbstractInvokable invokable = this.invokable;
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
@@ -1188,7 +1191,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
 					try {
-						boolean success = invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+						boolean success = invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 						if (!success) {
 							checkpointResponder.declineCheckpoint(
 									getJobID(), getExecutionId(), checkpointID,
@@ -1210,7 +1213,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					}
 				}
 			};
-			executeAsyncCallRunnable(runnable, String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId));
+			executeAsyncCallRunnable(
+					runnable,
+					String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId),
+					checkpointOptions.getCheckpointType().isSynchronous());
 		}
 		else {
 			LOG.debug("Declining checkpoint request for non-running task {} ({}).", taskNameWithSubtask, executionId);
@@ -1243,8 +1249,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					}
 				}
 			};
-			executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " +
-				taskNameWithSubtask);
+			executeAsyncCallRunnable(
+					runnable,
+					"Checkpoint Confirmation for " + taskNameWithSubtask,
+					false);
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
@@ -1317,7 +1325,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * @param runnable The async call runnable.
 	 * @param callName The name of the call, for logging purposes.
 	 */
-	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
+	private void executeAsyncCallRunnable(Runnable runnable, String callName, boolean blocking) {
 		// make sure the executor is initialized. lock against concurrent calls to this function
 		synchronized (this) {
 			if (executionState != ExecutionState.RUNNING) {
@@ -1325,11 +1333,20 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			}
 
 			// get ourselves a reference on the stack that cannot be concurrently modified
-			ExecutorService executor = this.asyncCallDispatcher;
+			BlockingCallMonitoringThreadPool executor = this.asyncCallDispatcher;
 			if (executor == null) {
 				// first time use, initialize
 				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
-				executor = Executors.newSingleThreadExecutor(
+
+				// Under normal execution, we expect that one thread will suffice, this is why we
+				// keep the core threads to 1. In the case of a synchronous savepoint, we will block
+				// the checkpointing thread, so we need an additional thread to execute the
+				// notifyCheckpointComplete() callback. Finally, we aggressively purge (potentially)
+				// idle thread so that we do not risk to have many idle thread on machines with multiple
+				// tasks on them. Either way, only one of them can execute at a time due to the
+				// checkpoint lock.
+
+				executor = new BlockingCallMonitoringThreadPool(
 						new DispatcherThreadFactory(
 							TASK_THREADS_GROUP,
 							"Async calls on " + taskNameWithSubtask,
@@ -1348,13 +1365,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			LOG.debug("Invoking async call {} on task {}", callName, taskNameWithSubtask);
 
 			try {
-				executor.submit(runnable);
+				executor.submit(runnable, blocking);
 			}
 			catch (RejectedExecutionException e) {
 				// may be that we are concurrently finished or canceled.
 				// if not, report that something is fishy
 				if (executionState == ExecutionState.RUNNING) {
-					throw new RuntimeException("Async call was rejected, even though the task is running.", e);
+					throw new RuntimeException("Async call with a " + (blocking ? "" : "non-") + "blocking call was rejected, even though the task is running.", e);
 				}
 			}
 		}

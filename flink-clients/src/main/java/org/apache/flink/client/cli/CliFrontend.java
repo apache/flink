@@ -39,6 +39,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -67,7 +68,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -81,6 +81,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -124,16 +125,12 @@ public class CliFrontend {
 
 	public CliFrontend(
 			Configuration configuration,
-			List<CustomCommandLine<?>> customCommandLines) throws Exception {
+			List<CustomCommandLine<?>> customCommandLines) {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
 
-		try {
-			FileSystem.initialize(this.configuration);
-		} catch (IOException e) {
-			throw new Exception("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
+		//TODO provide plugin path.
+		FileSystem.initialize(this.configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 
 		this.customCommandLineOptions = new Options();
 
@@ -507,48 +504,45 @@ public class CliFrontend {
 	 * @param args Command line arguments for the stop action.
 	 */
 	protected void stop(String[] args) throws Exception {
-		LOG.info("Running 'stop' command.");
+		LOG.info("Running 'stop-with-savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-
 		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
 		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
-		StopOptions stopOptions = new StopOptions(commandLine);
-
-		// evaluate help flag
+		final StopOptions stopOptions = new StopOptions(commandLine);
 		if (stopOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForStop(customCommandLines);
 			return;
 		}
 
-		String[] stopArgs = stopOptions.getArgs();
-		JobID jobId;
+		final String[] cleanedArgs = stopOptions.getArgs();
 
-		if (stopArgs.length > 0) {
-			String jobIdString = stopArgs[0];
-			jobId = parseJobId(jobIdString);
-		} else {
-			throw new CliArgsException("Missing JobID");
-		}
+		final String targetDirectory = stopOptions.hasSavepointFlag() && cleanedArgs.length > 0
+				? stopOptions.getTargetDirectory()
+				: null; // the default savepoint location is going to be used in this case.
+
+		final JobID jobId = cleanedArgs.length != 0
+				? parseJobId(cleanedArgs[0])
+				: parseJobId(stopOptions.getTargetDirectory());
+
+		final boolean advanceToEndOfEventTime = stopOptions.shouldAdvanceToEndOfEventTime();
+
+		logAndSysout((advanceToEndOfEventTime ? "Draining job " : "Suspending job ") + "\"" + jobId + "\" with a savepoint.");
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-
-		logAndSysout("Stopping job " + jobId + '.');
-
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
 			clusterClient -> {
 				try {
-					clusterClient.stop(jobId);
+					clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
 				} catch (Exception e) {
-					throw new FlinkException("Could not stop the job " + jobId + '.', e);
+					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
 				}
 			});
 
-		logAndSysout("Stopped job " + jobId + '.');
+		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a savepoint.");
 	}
 
 	/**
@@ -943,7 +937,11 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	private JobID parseJobId(String jobIdString) throws CliArgsException {
-		JobID jobId;
+		if (jobIdString == null) {
+			throw new CliArgsException("Missing JobId");
+		}
+
+		final JobID jobId;
 		try {
 			jobId = JobID.fromHexString(jobIdString);
 		} catch (IllegalArgumentException e) {

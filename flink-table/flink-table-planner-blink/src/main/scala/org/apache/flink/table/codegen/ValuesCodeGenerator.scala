@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.runtime.values.ValuesInputFormat
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexLiteral
@@ -56,8 +55,7 @@ object ValuesCodeGenerator {
       generatedRecords.map(_.code),
       outputType)
 
-    val baseRowTypeInfo = new BaseRowTypeInfo(outputType.getFieldTypes, outputType.getFieldNames)
-    new ValuesInputFormat(generatedFunction, baseRowTypeInfo)
+    new ValuesInputFormat(generatedFunction, outputType.toTypeInfo)
   }
 
 }

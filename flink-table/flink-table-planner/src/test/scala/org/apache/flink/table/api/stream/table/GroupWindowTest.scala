@@ -50,13 +50,13 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "string", "int", "proctime")
+            term("select", "int", "string", "proctime")
           ),
           term("groupBy", "string"),
           term("window", "TumblingGroupWindow('w1, 'proctime, 50.millis)"),
           term("select", "string", "COUNT(int) AS TMP_1", "proctime('w1) AS TMP_0")
         ),
-        term("select", "string", "TMP_0 AS proctime")
+        term("select", "TMP_0 AS proctime", "string")
       ),
       term("window", "SlidingGroupWindow('w2, 'proctime, 20.millis, 10.millis)"),
       term("select", "COUNT(string) AS TMP_2")
@@ -79,7 +79,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "proctime")
+        term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'proctime, 50.millis)"),
@@ -104,7 +104,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "proctime")
+        term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'proctime, 2.rows)"),
@@ -173,7 +173,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "proctime")
+        term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'proctime, 50.millis, 50.millis)"),
@@ -198,7 +198,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "proctime")
+        term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)"),
@@ -223,7 +223,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "rowtime")
+        term("select", "int", "string", "rowtime")
       ),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'rowtime, 8.millis, 10.millis)"),
@@ -337,7 +337,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "proctime")
+        term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'proctime, 50.millis)"),
@@ -508,7 +508,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "int", "long")
+        term("select", "long", "int")
       ),
       term("window", "SlidingGroupWindow('w, 'long, 8.millis, 10.millis)"),
       term("select", "COUNT(int) AS TMP_0")
@@ -532,7 +532,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "int", "long")
+        term("select", "long", "int")
       ),
       term("window", "SessionGroupWindow('w, 'long, 7.millis)"),
       term("select", "COUNT(int) AS TMP_0")
@@ -556,7 +556,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "rowtime")
+        term("select", "int", "string", "rowtime")
       ),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
@@ -624,7 +624,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
-        term("select", "string", "int", "rowtime")
+        term("select", "int", "string", "rowtime")
       ),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'rowtime, 10.millis, 5.millis)"),
@@ -722,7 +722,7 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "c", "rowtime", "*(c, c) AS $f2")
+            term("select", "rowtime", "c", "*(c, c) AS $f2")
           ),
           term("window", "TumblingGroupWindow('w, 'rowtime, 900000.millis)"),
           term("select",

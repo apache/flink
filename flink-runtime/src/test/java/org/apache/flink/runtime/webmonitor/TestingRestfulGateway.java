@@ -56,6 +56,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 	static final Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER = () -> CompletableFuture.completedFuture(Collections.emptyList());
 	static final BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER = (jobId, jobVertexId) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final BiFunction<JobID, String, CompletableFuture<String>> DEFAULT_TRIGGER_SAVEPOINT_FUNCTION = (JobID jobId, String targetDirectory) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	static final BiFunction<JobID, String, CompletableFuture<String>> DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION = (JobID jobId, String targetDirectory) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final String LOCALHOST = "localhost";
 
 	protected String address;
@@ -86,6 +87,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 	protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
 
+	protected BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction;
+
 	public TestingRestfulGateway() {
 		this(
 			LOCALHOST,
@@ -100,7 +103,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER,
 			DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER,
 			DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER,
-			DEFAULT_TRIGGER_SAVEPOINT_FUNCTION);
+			DEFAULT_TRIGGER_SAVEPOINT_FUNCTION,
+			DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION);
 	}
 
 	public TestingRestfulGateway(
@@ -116,7 +120,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServiceAddressesSupplier,
 			Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceAddressesSupplier,
 			BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
-			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction) {
+			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction,
+			BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction) {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelJobFunction = cancelJobFunction;
@@ -130,6 +135,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.requestTaskManagerMetricQueryServiceAddressesSupplier = requestTaskManagerMetricQueryServiceAddressesSupplier;
 		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
 		this.triggerSavepointFunction = triggerSavepointFunction;
+		this.stopWithSavepointFunction = stopWithSavepointFunction;
 	}
 
 	@Override
@@ -188,6 +194,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 	}
 
 	@Override
+	public CompletableFuture<String> stopWithSavepoint(JobID jobId, String targetDirectory, boolean advanceToEndOfTime, Time timeout) {
+		return stopWithSavepointFunction.apply(jobId, targetDirectory);
+	}
+
+	@Override
 	public String getAddress() {
 		return address;
 	}
@@ -219,6 +230,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceGatewaysSupplier;
 		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
 		protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
+		protected BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction;
 
 		public Builder() {
 			cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;
@@ -232,6 +244,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			requestTaskManagerMetricQueryServiceGatewaysSupplier = DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
 			requestOperatorBackPressureStatsFunction = DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER;
 			triggerSavepointFunction = DEFAULT_TRIGGER_SAVEPOINT_FUNCTION;
+			stopWithSavepointFunction = DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION;
 		}
 
 		public Builder setAddress(String address) {
@@ -299,6 +312,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return this;
 		}
 
+		public Builder setStopWithSavepointFunction(BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction) {
+			this.stopWithSavepointFunction = stopWithSavepointFunction;
+			return this;
+		}
+
 		public TestingRestfulGateway build() {
 			return new TestingRestfulGateway(
 				address,
@@ -313,7 +331,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 				requestMetricQueryServiceGatewaysSupplier,
 				requestTaskManagerMetricQueryServiceGatewaysSupplier,
 				requestOperatorBackPressureStatsFunction,
-				triggerSavepointFunction);
+				triggerSavepointFunction,
+				stopWithSavepointFunction);
 		}
 	}
 }

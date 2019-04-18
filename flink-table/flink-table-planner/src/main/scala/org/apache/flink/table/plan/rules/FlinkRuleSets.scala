@@ -23,7 +23,7 @@ import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.nodes.logical
 import org.apache.flink.table.plan.rules.common._
-import org.apache.flink.table.plan.rules.logical._
+import org.apache.flink.table.plan.rules.logical.{ExtendedAggregateExtractProjectRule, _}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 import org.apache.flink.table.plan.nodes.logical._
@@ -147,11 +147,6 @@ object FlinkRuleSets {
     * RuleSet to normalize plans for batch / DataSet execution
     */
   val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
-    // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE,
     ProjectToWindowRule.PROJECT,
 
     // Transform grouping sets
@@ -163,6 +158,13 @@ object FlinkRuleSets {
 
     // expand distinct aggregate to normal aggregate with groupby
     AggregateExpandDistinctAggregatesRule.JOIN,
+
+    ExtendedAggregateExtractProjectRule.INSTANCE,
+    // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ReduceExpressionsRule.JOIN_INSTANCE,
 
     // merge a cascade of predicates to IN or NOT_IN
     ConvertToNotInOrInRule.IN_INSTANCE,
@@ -199,6 +201,7 @@ object FlinkRuleSets {
     WindowPropertiesRule.INSTANCE,
     WindowPropertiesHavingRule.INSTANCE,
 
+    ExtendedAggregateExtractProjectRule.INSTANCE,
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,

@@ -2590,7 +2590,7 @@ REPLACE(string1, string2, string3)
       </td>
       <td>
         <p>Returns a new string which replaces all the occurrences of <i>string2</i> with <i>string3</i> (non-overlapping) from <i>string1</i></p>
-        <p>E.g., <code>REPLACE("hello world", "world", "flink")</code> returns "hello flink"; <code>REPLACE("ababab", "abab", "z")</code> returns "zab".</p>
+        <p>E.g., <code>REPLACE('hello world', 'world', 'flink')</code> returns "hello flink"; <code>REPLACE('ababab', 'abab', 'z')</code> returns "zab".</p>
       </td>
     </tr>
 
@@ -2868,7 +2868,7 @@ STRING1.regexpExtract(STRING2[, INTEGER1])
       <td>
         <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
         <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
-        <p>E.g. <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)"</code> returns "bar".</p>
+        <p>E.g., <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)</code> returns "bar".</p>
       </td>
     </tr>
 

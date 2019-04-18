@@ -18,10 +18,6 @@
 
 package org.apache.flink.testutils;
 
-import java.io.IOException;
-import java.net.URI;
-
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -29,6 +25,9 @@ import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileStatus;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+
+import java.io.IOException;
+import java.net.URI;
 
 /**
  * A test file system. This also has a service entry in the test
@@ -89,9 +88,6 @@ public class TestFileSystem extends LocalFileSystem {
 		public String getScheme() {
 			return SCHEME;
 		}
-
-		@Override
-		public void configure(Configuration config) {}
 
 		@Override
 		public FileSystem create(URI fsUri) throws IOException {

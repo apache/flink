@@ -50,6 +50,25 @@ public class JDBCFullTest extends JDBCTestBase {
 		runTest(true);
 	}
 
+	@Test
+	public void testEnrichedClassCastException() throws Exception {
+		exception.expect(ClassCastException.class);
+		exception.expectMessage(
+			"java.lang.String cannot be cast to java.lang.Double, field index: 3, field value: 11.11.");
+
+		JDBCOutputFormat jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(JDBCTestBase.DRIVER_CLASS)
+			.setDBUrl(JDBCTestBase.DB_URL)
+			.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
+			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
+			.finish();
+
+		jdbcOutputFormat.open(1, 1);
+		Row inputRow = Row.of(1001, "Java public for dummies", "Tan Ah Teck", "11.11", 11);
+		jdbcOutputFormat.writeRecord(inputRow);
+		jdbcOutputFormat.close();
+	}
+
 	private void runTest(boolean exploitParallelism) throws Exception {
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
 		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()

@@ -24,12 +24,12 @@ import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
 //@RunWith(classOf[Parameterized]) TODO
-class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
+class OuterJoinITCase extends BatchTestBase {
 
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
@@ -65,7 +65,7 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
     registerCollection("allnulls", allNulls, INT_ONLY, nullablesOfAllNulls, "a")
     registerCollection("leftT", leftT, INT_DOUBLE, "a, b")
     registerCollection("rightT", rightT, INT_DOUBLE, "c, d")
-    disableOtherJoinOpForJoin(tEnv, expectedJoinType)
+    JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
   @Test
@@ -198,7 +198,6 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
           row(6, "F", null, null) :: Nil)
   }
 
-  @Ignore
   @Test
   def testLeftUpperAndLowerWithAgg(): Unit = {
     checkResult(
@@ -262,7 +261,6 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
 
   }
 
-  @Ignore
   @Test
   def testRightUpperAndLowerWithAgg(): Unit = {
     checkResult(
@@ -330,7 +328,6 @@ class OuterJoinITCase extends BatchTestBase with JoinITCaseBase {
     }
   }
 
-  @Ignore
   @Test
   def testFullUpperAndLowerWithAgg(): Unit = {
     if (expectedJoinType != NestedLoopJoin && expectedJoinType != BroadcastHashJoin) {

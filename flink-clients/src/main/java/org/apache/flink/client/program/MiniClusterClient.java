@@ -117,8 +117,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public void stop(JobID jobId) throws Exception {
-		miniCluster.stopJob(jobId).get();
+	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirector) throws Exception {
+		return miniCluster.stopWithSavepoint(jobId, savepointDirector, advanceToEndOfEventTime).get();
 	}
 
 	@Override

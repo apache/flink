@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -29,10 +28,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.junit.Test;
 
@@ -43,6 +40,7 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
@@ -64,14 +62,7 @@ public class InputGateConcurrentTest {
 
 		final ResultPartitionManager resultPartitionManager = createResultPartitionManager(partitions);
 
-		final SingleInputGate gate = new SingleInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-				0, numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createSingleInputGate(numberOfChannels);
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -100,15 +91,7 @@ public class InputGateConcurrentTest {
 		final ConnectionManager connManager = createDummyConnectionManager();
 		final Source[] sources = new Source[numberOfChannels];
 
-		final SingleInputGate gate = new SingleInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-				0,
-				numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createSingleInputGate(numberOfChannels);
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
@@ -150,15 +133,7 @@ public class InputGateConcurrentTest {
 
 		final Source[] sources = new Source[numberOfChannels];
 
-		final SingleInputGate gate = new SingleInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-				0,
-				numberOfChannels,
-				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createSingleInputGate(numberOfChannels);
 
 		for (int i = 0, local = 0; i < numberOfChannels; i++) {
 			if (localOrRemote.get(i)) {

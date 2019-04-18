@@ -190,7 +190,7 @@ public class MyClass implements MapFunction {
 ### Use Logback when running Flink out of the IDE / from a Java application
 
 
-In all cases were classes are executed with a classpath created by a dependency manager such as Maven, Flink will pull log4j into the classpath.
+In all cases where classes are executed with a classpath created by a dependency manager such as Maven, Flink will pull log4j into the classpath.
 
 Therefore, you will need to exclude log4j from Flink's dependencies. The following description will assume a Maven project created from a [Flink quickstart](./projectsetup/java_api_quickstart.html).
 

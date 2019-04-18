@@ -44,7 +44,7 @@ public class CliFrontendParser {
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
 	static final Option CLASS_OPTION = new Option("c", "class", true,
-			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
+			"Class with the program entry point (\"main()\" method or \"getPlan()\" method). Only needed if the " +
 			"JAR file does not specify the class in its manifest.");
 
 	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
@@ -111,6 +111,13 @@ public class CliFrontendParser {
 			"directory is optional. If no directory is specified, the configured default " +
 			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
+	public static final Option STOP_WITH_SAVEPOINT = new Option("s", "withSavepoint", true,
+			"Path to the savepoint (for example hdfs:///flink/savepoint-1537). " +
+					"If no directory is specified, the configured default will be used (\"" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "\").");
+
+	public static final Option STOP_AND_DRAIN = new Option("d", "drain", false,
+			"Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
+
 	static final Option MODIFY_PARALLELISM_OPTION = new Option("p", "parallelism", true, "New parallelism for the specified job.");
 
 	static {
@@ -157,6 +164,12 @@ public class CliFrontendParser {
 
 		MODIFY_PARALLELISM_OPTION.setRequired(false);
 		MODIFY_PARALLELISM_OPTION.setArgName("newParallelism");
+
+		STOP_WITH_SAVEPOINT.setRequired(false);
+		STOP_WITH_SAVEPOINT.setArgName("withSavepoint");
+		STOP_WITH_SAVEPOINT.setOptionalArg(true);
+
+		STOP_AND_DRAIN.setRequired(false);
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -216,7 +229,9 @@ public class CliFrontendParser {
 	}
 
 	static Options getStopCommandOptions() {
-		return buildGeneralOptions(new Options());
+		return buildGeneralOptions(new Options())
+				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_AND_DRAIN);
 	}
 
 	static Options getSavepointCommandOptions() {
@@ -257,7 +272,9 @@ public class CliFrontendParser {
 	}
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
-		return options;
+		return options
+				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_AND_DRAIN);
 	}
 
 	private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
@@ -333,7 +350,7 @@ public class CliFrontendParser {
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
 
-		System.out.println("\nAction \"stop\" stops a running program (streaming jobs only).");
+		System.out.println("\nAction \"stop\" stops a running program with a savepoint (streaming jobs only).");
 		System.out.println("\n  Syntax: stop [OPTIONS] <Job ID>");
 		formatter.setSyntaxPrefix("  \"stop\" action options:");
 		formatter.printHelp(" ", getStopOptionsWithoutDeprecatedOptions(new Options()));

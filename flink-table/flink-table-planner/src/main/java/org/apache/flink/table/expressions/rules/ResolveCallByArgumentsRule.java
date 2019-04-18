@@ -27,6 +27,8 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.InputTypeSpec;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.typeutils.TypeCoercion;
+import org.apache.flink.table.validate.ValidationFailure;
+import org.apache.flink.table.validate.ValidationResult;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -84,9 +86,16 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		private Expression validateArguments(CallExpression call, PlannerExpression plannerCall) {
 			if (!plannerCall.valid()) {
-				throw new ValidationException(String.format("Invalid arguments [%s] for call: %s",
-					call.getChildren(),
-					call));
+				final String errorMessage;
+				ValidationResult validationResult = plannerCall.validateInput();
+				if (validationResult instanceof ValidationFailure) {
+					errorMessage = ((ValidationFailure) validationResult).message();
+				} else {
+					errorMessage = String.format("Invalid arguments %s for function: %s",
+						call.getChildren(),
+						call.getFunctionDefinition().getName());
+				}
+				throw new ValidationException(errorMessage);
 			}
 
 			return call;

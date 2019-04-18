@@ -219,7 +219,7 @@ public class SqlFunctionUtils {
 	 * If str is longer than len, the return value is shortened to len characters.
 	 */
 	public static String lpad(String base, int len, String pad) {
-		if (len < 0) {
+		if (len < 0 || "".equals(pad)) {
 			return null;
 		} else if (len == 0) {
 			return "";
@@ -254,7 +254,7 @@ public class SqlFunctionUtils {
 	 * If str is longer than len, the return value is shortened to len characters.
 	 */
 	public static String rpad(String base, int len, String pad) {
-		if (len < 0) {
+		if (len < 0 || "".equals(pad)) {
 			return null;
 		} else if (len == 0) {
 			return "";

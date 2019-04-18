@@ -19,11 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -163,19 +159,6 @@ public class LeaderRetrievalUtils {
 				connectionInfo.failure(exception);
 			}
 		}
-	}
-
-	/**
-	 * Gets the recovery mode as configured, based on {@link HighAvailabilityOptions#HA_MODE}.
-	 * 
-	 * @param config The configuration to read the recovery mode from.
-	 * @return The recovery mode.
-	 * 
-	 * @throws IllegalConfigurationException Thrown, if the recovery mode does not correspond
-	 *                                       to a known value.
-	 */
-	public static HighAvailabilityMode getRecoveryMode(Configuration config) {
-		return HighAvailabilityMode.fromConfig(config);
 	}
 	
 	// ------------------------------------------------------------------------

@@ -368,16 +368,49 @@ public class CheckpointCoordinator {
 	 *                               configured
 	 */
 	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
-			long timestamp,
-			@Nullable String targetLocation) {
+			final long timestamp,
+			@Nullable final String targetLocation) {
 
-		CheckpointProperties props = CheckpointProperties.forSavepoint();
+		final CheckpointProperties properties = CheckpointProperties.forSavepoint();
+		return triggerSavepointInternal(timestamp, properties, false, targetLocation);
+	}
+
+	/**
+	 * Triggers a synchronous savepoint with the given savepoint directory as a target.
+	 *
+	 * @param timestamp The timestamp for the savepoint.
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers.
+	 * @param targetLocation Target location for the savepoint, optional. If null, the
+	 *                       state backend's configured default will be used.
+	 * @return A future to the completed checkpoint
+	 * @throws IllegalStateException If no savepoint directory has been
+	 *                               specified and no default savepoint directory has been
+	 *                               configured
+	 */
+	public CompletableFuture<CompletedCheckpoint> triggerSynchronousSavepoint(
+			final long timestamp,
+			final boolean advanceToEndOfEventTime,
+			@Nullable final String targetLocation) {
+
+		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint();
+		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation);
+	}
+
+	private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
+			final long timestamp,
+			final CheckpointProperties checkpointProperties,
+			final boolean advanceToEndOfEventTime,
+			@Nullable final String targetLocation) {
+
+		checkNotNull(checkpointProperties);
 
 		CheckpointTriggerResult triggerResult = triggerCheckpoint(
-			timestamp,
-			props,
-			targetLocation,
-			false);
+				timestamp,
+				checkpointProperties,
+				targetLocation,
+				false,
+				advanceToEndOfEventTime);
 
 		if (triggerResult.isSuccess()) {
 			return triggerResult.getPendingCheckpoint().getCompletionFuture();
@@ -398,7 +431,7 @@ public class CheckpointCoordinator {
 	 * @return <code>true</code> if triggering the checkpoint succeeded.
 	 */
 	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) {
-		return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic).isSuccess();
+		return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false).isSuccess();
 	}
 
 	@VisibleForTesting
@@ -406,7 +439,12 @@ public class CheckpointCoordinator {
 			long timestamp,
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
-			boolean isPeriodic) {
+			boolean isPeriodic,
+			boolean advanceToEndOfTime) {
+
+		if (advanceToEndOfTime && !(props.isSynchronous() && props.isSavepoint())) {
+			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+		}
 
 		// make some eager pre-checks
 		synchronized (lock) {
@@ -631,7 +669,11 @@ public class CheckpointCoordinator {
 
 				// send the messages to the tasks that trigger their checkpoint
 				for (Execution execution: executions) {
-					execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
+					if (props.isSynchronous()) {
+						execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
+					} else {
+						execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
+					}
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
@@ -1202,12 +1244,23 @@ public class CheckpointCoordinator {
 				currentPeriodicTrigger = null;
 			}
 
+			abortPendingCheckpoints(new Exception("Checkpoint Coordinator is suspending."));
+
+			numUnsuccessfulCheckpointsTriggers.set(0);
+		}
+	}
+
+	/**
+	 * Aborts all the pending checkpoints due to en exception.
+	 * @param exception The exception.
+	 */
+	public void abortPendingCheckpoints(Exception exception) {
+		synchronized (lock) {
 			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				p.abortError(new Exception("Checkpoint Coordinator is suspending."));
+				p.abortError(exception);
 			}
 
 			pendingCheckpoints.clear();
-			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
 	}
 

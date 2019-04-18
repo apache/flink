@@ -62,6 +62,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -91,7 +92,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	private static OneShotLatch awaitLatch;
 
 	/**
-	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)}
+	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)}
 	 * was called {@link #numCalls} times.
 	 */
 	private static OneShotLatch triggerLatch;
@@ -125,7 +126,12 @@ public class TaskAsyncCallTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
+	@Ignore
 	public void testCheckpointCallsInOrder() throws Exception {
+
+		// test ignored because with the changes introduced by [FLINK-11667],
+		// there is not guarantee about the order in which checkpoints are executed.
+
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
 			task.startTaskThread();
@@ -133,7 +139,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 			}
 
 			triggerLatch.await();
@@ -146,7 +152,12 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	@Test
+	@Ignore
 	public void testMixedAsyncCallsInOrder() throws Exception {
+
+		// test ignored because with the changes introduced by [FLINK-11667],
+		// there is not guarantee about the order in which checkpoints are executed.
+
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
 			task.startTaskThread();
@@ -154,7 +165,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 				task.notifyCheckpointComplete(i);
 			}
 
@@ -184,7 +195,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	/**
-	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)},
+	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)},
 	 * {@link AbstractInvokable#notifyCheckpointComplete(long)}, and {@link StoppableTask#stop()} are
 	 * invoked by a thread whose context class loader is set to the user code class loader.
 	 */
@@ -198,11 +209,12 @@ public class TaskAsyncCallTest extends TestLogger {
 
 			awaitLatch.await();
 
-			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation());
+			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+			triggerLatch.await();
+
 			task.notifyCheckpointComplete(1);
 			task.stopExecution();
 
-			triggerLatch.await();
 			notifyCheckpointCompleteLatch.await();
 			stopLatch.await();
 
@@ -307,7 +319,7 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			lastCheckpointId++;
 			if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {
 				if (lastCheckpointId == numCalls) {
@@ -359,10 +371,10 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			classLoaders.add(Thread.currentThread().getContextClassLoader());
 
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 
 		@Override

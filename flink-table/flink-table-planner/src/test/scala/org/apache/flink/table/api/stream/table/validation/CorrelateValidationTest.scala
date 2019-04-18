@@ -72,8 +72,7 @@ class CorrelateValidationTest extends TableTestBase {
     // Java Table API call
     expectExceptionThrown(
       t.joinLateral("func0(a)"),
-      "only accepts a string expression which defines a table function call",
-      classOf[TableException])
+      "only accepts a string expression which defines a table function call")
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(

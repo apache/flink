@@ -73,6 +73,11 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
+	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) throws Exception {
+		throw new UnsupportedOperationException("Not needed in test.");
+	}
+
 	public void stop(final JobID jobId) {
 		// no op
 	}

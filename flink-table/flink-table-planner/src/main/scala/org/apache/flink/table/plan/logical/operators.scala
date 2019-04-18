@@ -29,7 +29,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types, UnresolvedException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions.PlannerExpressionUtils.isRowCountLiteral
 import org.apache.flink.table.expressions._
@@ -72,34 +72,6 @@ case class Project(
   }
 }
 
-case class AliasNode(aliasList: Seq[PlannerExpression], child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] =
-    throw UnresolvedException("Invalid call to output on AliasNode")
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder =
-    throw UnresolvedException("Invalid call to toRelNode on AliasNode")
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (aliasList.length > child.output.length) {
-      failValidation("Aliasing more fields than we actually have")
-    } else if (!aliasList.forall(_.isInstanceOf[UnresolvedFieldReference])) {
-      failValidation("Alias only accept name expressions as arguments")
-    } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
-      failValidation("Alias can not accept '*' as name")
-    } else {
-      val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
-      val input = child.output
-      val expressions = names.zip(input).map { case (name, attr) =>
-        Alias(attr, name)
-      } ++ input.drop(names.length)
-      Project(
-        expressions.toList.map(_.asInstanceOf[PlannerExpression]).asJava,
-        child,
-        explicitAlias = true)
-    }
-  }
-}
-
 case class Distinct(child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
@@ -109,19 +81,12 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
   }
 }
 
-case class Sort(order: Seq[PlannerExpression], child: LogicalNode) extends UnaryNode {
+case class Sort(order: JList[PlannerExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
-    relBuilder.sort(order.map(_.toRexNode(relBuilder)).asJava)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Sort on stream tables is currently not supported.")
-    }
-    this
+    relBuilder.sort(order.asScala.map(_.toRexNode(relBuilder)).asJava)
   }
 }
 
@@ -133,18 +98,6 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
     relBuilder.limit(offset, fetch)
   }
 
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Limit on stream tables is currently not supported.")
-    }
-    if (!child.isInstanceOf[Sort]) {
-      failValidation(s"Limit operator must be preceded by an OrderBy operator.")
-    }
-    if (offset < 0) {
-      failValidation(s"Offset should be greater than or equal to zero.")
-    }
-    super.validate(tableEnv)
-  }
 }
 
 case class Filter(condition: PlannerExpression, child: LogicalNode) extends UnaryNode {
@@ -464,7 +417,7 @@ case class Join(
 
     // Due to a bug in Apache Calcite (see CALCITE-2004 and FLINK-7865) we cannot accept join
     // predicates except literal true for TableFunction left outer join.
-    if (correlated && right.isInstanceOf[LogicalTableFunctionCall] && joinType != JoinType.INNER ) {
+    if (correlated && right.isInstanceOf[CalculatedTable] && joinType != JoinType.INNER ) {
       if (!alwaysTrue) failValidation("TableFunction left outer join predicate can only be " +
         "empty or literal true.")
     } else {
@@ -610,23 +563,20 @@ case class WindowAggregate(
 /**
   * LogicalNode for calling a user-defined table functions.
   *
-  * @param functionName function name
   * @param tableFunction table function to be called (might be overloaded)
   * @param parameters actual parameters
   * @param fieldNames output field names
   * @param child child logical node
   */
-case class LogicalTableFunctionCall(
-    functionName: String,
+case class CalculatedTable(
     tableFunction: TableFunction[_],
-    parameters: Seq[PlannerExpression],
+    parameters: JList[PlannerExpression],
     resultType: TypeInformation[_],
     fieldNames: Array[String],
     child: LogicalNode)
   extends UnaryNode {
 
-  private val (generatedNames, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
-  private var evalMethod: Method = _
+  private val (generatedNames, _, fieldTypes) = getFieldInfo(resultType)
 
   override def output: Seq[Attribute] = {
     if (fieldNames.isEmpty) {
@@ -638,25 +588,6 @@ case class LogicalTableFunctionCall(
         case (n, t) => ResolvedFieldReference(n, t)
       }
     }
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    // check if not Scala object
-    checkNotSingleton(tableFunction.getClass)
-    // check if class could be instantiated
-    checkForInstantiation(tableFunction.getClass)
-    // look for a signature that matches the input types
-    val signature = parameters.map(_.resultType)
-    val foundMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
-    if (foundMethod.isEmpty) {
-      failValidation(
-        s"Given parameters of function '$functionName' do not match any signature. \n" +
-          s"Actual: ${signatureToString(signature)} \n" +
-          s"Expected: ${signaturesToString(tableFunction, "eval")}")
-    } else {
-      evalMethod = foundMethod.get
-    }
-    this
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -678,7 +609,7 @@ case class LogicalTableFunctionCall(
     val scan = LogicalTableFunctionScan.create(
       relBuilder.peek().getCluster,
       Collections.emptyList(),
-      relBuilder.call(sqlFunction, parameters.map(_.toRexNode(relBuilder)).asJava),
+      relBuilder.call(sqlFunction, parameters.asScala.map(_.toRexNode(relBuilder)).asJava),
       function.getElementType(null),
       function.getRowType(relBuilder.getTypeFactory, null),
       null)

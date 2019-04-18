@@ -244,7 +244,7 @@ class GroupWindowTest extends TableTestBase {
                 "rowtime('w$) AS w$rowtime",
                 "proctime('w$) AS w$proctime")
             ),
-            term("select", "a", "w$rowtime AS zzzzz")
+            term("select", "w$rowtime AS zzzzz")
           ),
           term("window", "TumblingGroupWindow('w$, 'zzzzz, 4.millis)"),
           term("select",

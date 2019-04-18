@@ -57,7 +57,7 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT>
 	private static final long serialVersionUID = 5081841938324118594L;
 
 	/** The map in heap to store elements. */
-	private final transient Map<K, V> bundle;
+	private transient Map<K, V> bundle;
 
 	/** The trigger that determines how many elements should be put into a bundle. */
 	private final BundleTrigger<IN> bundleTrigger;
@@ -74,7 +74,6 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT>
 			MapBundleFunction<K, V, IN, OUT> function,
 			BundleTrigger<IN> bundleTrigger) {
 		chainingStrategy = ChainingStrategy.ALWAYS;
-		this.bundle = new HashMap<>();
 		this.function = checkNotNull(function, "function is null");
 		this.bundleTrigger = checkNotNull(bundleTrigger, "bundleTrigger is null");
 	}
@@ -86,6 +85,7 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT>
 
 		this.numOfElements = 0;
 		this.collector = new StreamRecordCollector<>(output);
+		this.bundle = new HashMap<>();
 
 		bundleTrigger.registerCallback(this);
 		// reset trigger

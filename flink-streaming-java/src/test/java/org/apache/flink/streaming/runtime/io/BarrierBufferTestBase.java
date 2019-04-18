@@ -1373,7 +1373,8 @@ public abstract class BarrierBufferTestBase {
 		@Override
 		public boolean triggerCheckpoint(
 				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions) throws Exception {
+				CheckpointOptions checkpointOptions,
+				boolean advanceToEndOfEventTime) throws Exception {
 			throw new UnsupportedOperationException("should never be called");
 		}
 

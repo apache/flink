@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo
@@ -546,7 +547,6 @@ class DecimalITCase extends BatchTestBase {
       s1r(toDegrees(0.12), toRadians(0.12)))
   }
 
-  @Ignore
   @Test
   def testAggSum(): Unit = {
 
@@ -566,7 +566,6 @@ class DecimalITCase extends BatchTestBase {
       s1r(null))
   }
 
-  @Ignore
   @Test
   def testAggAvg(): Unit = {
 
@@ -766,11 +765,10 @@ class DecimalITCase extends BatchTestBase {
       s1r(true, true, true, true, true, true))
   }
 
-  @Ignore
   @Test
-  def testJoin(): Unit = {
-
-    // join on equality of two numeric types
+  def testJoin1(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -778,6 +776,12 @@ class DecimalITCase extends BatchTestBase {
       "select count(*) from Table1 A, Table1 B where A.f0=B.f0",
       Seq(LONG),
       s1r(1L))
+  }
+
+  @Test
+  def testJoin2(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -785,6 +789,13 @@ class DecimalITCase extends BatchTestBase {
       "select count(*) from Table1 A, Table1 B where A.f0=B.f1",
       Seq(LONG),
       s1r(1L))
+  }
+
+  @Test
+  def testJoin3(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
@@ -792,18 +803,38 @@ class DecimalITCase extends BatchTestBase {
       Seq(LONG),
       s1r(1L))
 
+  }
+
+  @Test
+  def testJoin4(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       "select count(*) from Table1 A, Table1 B where A.f0=B.f2",
       Seq(LONG),
       s1r(1L))
+  }
+
+  @Test
+  def testJoin5(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       "select count(*) from Table1 A, Table1 B where A.f2=B.f0",
       Seq(LONG),
       s1r(1L))
+  }
+
+  @Test
+  def testJoin6(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -811,6 +842,12 @@ class DecimalITCase extends BatchTestBase {
       "select count(*) from Table1 A, Table1 B where A.f0=B.f3",
       Seq(LONG),
       s1r(1L))
+  }
+
+  @Test
+  def testJoin7(): Unit = {
+    tEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
@@ -830,9 +867,9 @@ class DecimalITCase extends BatchTestBase {
       Seq(row(2L), row(1L), row(1L)))
   }
 
-  @Ignore
   @Test
   def testOrderBy(): Unit = {
+    env.setParallelism(1) // set sink parallelism to 1
     checkQuery1(
       Seq(DECIMAL(8, 2)),
       Seq(row(d"1"), row(d"3"), row(d"1.0"), row(d"2")),
@@ -842,7 +879,6 @@ class DecimalITCase extends BatchTestBase {
       isSorted = true)
   }
 
-  @Ignore
   @Test
   def testSimpleNull(): Unit = {
     checkQuery1(
@@ -874,7 +910,6 @@ class DecimalITCase extends BatchTestBase {
       s1r(d"100.000", d"100.000000", d"1${10}"))
   }
 
-  @Ignore
   @Test
   def testAggMinGroupBy(): Unit = {
 
