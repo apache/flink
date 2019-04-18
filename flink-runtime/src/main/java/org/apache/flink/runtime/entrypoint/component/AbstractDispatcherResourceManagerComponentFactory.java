@@ -26,12 +26,12 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -72,15 +72,15 @@ import java.util.concurrent.ExecutorService;
 /**
  * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
  *
- * @param <T> type of the {@link Dispatcher}
+ * @param <T> type of the {@link DispatcherRunner}
  * @param <U> type of the {@link RestfulGateway} given to the {@link WebMonitorEndpoint}
  */
-public abstract class AbstractDispatcherResourceManagerComponentFactory<T extends Dispatcher, U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory {
+public abstract class AbstractDispatcherResourceManagerComponentFactory<T extends DispatcherRunner, U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory {
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@Nonnull
-	private final DispatcherFactory<T> dispatcherFactory;
+	private final DispatcherRunnerFactory<? extends T> dispatcherRunnerFactory;
 
 	@Nonnull
 	private final ResourceManagerFactory<?> resourceManagerFactory;
@@ -89,10 +89,10 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 	private final RestEndpointFactory<U> restEndpointFactory;
 
 	public AbstractDispatcherResourceManagerComponentFactory(
-			@Nonnull DispatcherFactory<T> dispatcherFactory,
+			@Nonnull DispatcherRunnerFactory<? extends T> dispatcherRunnerFactory,
 			@Nonnull ResourceManagerFactory<?> resourceManagerFactory,
 			@Nonnull RestEndpointFactory<U> restEndpointFactory) {
-		this.dispatcherFactory = dispatcherFactory;
+		this.dispatcherRunnerFactory = dispatcherRunnerFactory;
 		this.resourceManagerFactory = resourceManagerFactory;
 		this.restEndpointFactory = restEndpointFactory;
 	}
@@ -115,7 +115,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 		ResourceManager<?> resourceManager = null;
 		JobManagerMetricGroup jobManagerMetricGroup = null;
 		ResourceManagerMetricGroup resourceManagerMetricGroup = null;
-		T dispatcher = null;
+		T dispatcherRunner = null;
 
 		try {
 			dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
@@ -195,20 +195,19 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				historyServerArchivist,
 				metricRegistry.getMetricQueryServiceGatewayRpcAddress());
 
-			dispatcher = dispatcherFactory.createDispatcher(
+			log.debug("Starting Dispatcher.");
+			dispatcherRunner = dispatcherRunnerFactory.createDispatcherRunner(
 				rpcService,
 				partialDispatcherServices);
 
 			log.debug("Starting ResourceManager.");
 			resourceManager.start();
-			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
 
-			log.debug("Starting Dispatcher.");
-			dispatcher.start();
+			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
 			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 
 			return createDispatcherResourceManagerComponent(
-				dispatcher,
+				dispatcherRunner,
 				resourceManager,
 				dispatcherLeaderRetrievalService,
 				resourceManagerRetrievalService,
@@ -242,8 +241,8 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				terminationFutures.add(resourceManager.closeAsync());
 			}
 
-			if (dispatcher != null) {
-				terminationFutures.add(dispatcher.closeAsync());
+			if (dispatcherRunner != null) {
+				terminationFutures.add(dispatcherRunner.closeAsync());
 			}
 
 			final FutureUtils.ConjunctFuture<Void> terminationFuture = FutureUtils.completeAll(terminationFutures);
@@ -267,7 +266,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 	}
 
 	protected abstract DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
-		T dispatcher,
+		T dispatcherRunner,
 		ResourceManager<?> resourceManager,
 		LeaderRetrievalService dispatcherLeaderRetrievalService,
 		LeaderRetrievalService resourceManagerRetrievalService,

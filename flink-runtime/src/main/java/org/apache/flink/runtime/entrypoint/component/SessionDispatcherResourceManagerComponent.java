@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
@@ -28,11 +28,11 @@ import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
  */
 class SessionDispatcherResourceManagerComponent extends DispatcherResourceManagerComponent {
 	SessionDispatcherResourceManagerComponent(
-			Dispatcher dispatcher,
+			DispatcherRunner dispatcherRunner,
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,
 			LeaderRetrievalService resourceManagerRetrievalService,
 			WebMonitorEndpoint<?> webMonitorEndpoint) {
-		super(dispatcher, resourceManager, dispatcherLeaderRetrievalService, resourceManagerRetrievalService, webMonitorEndpoint);
+		super(dispatcherRunner, resourceManager, dispatcherLeaderRetrievalService, resourceManagerRetrievalService, webMonitorEndpoint);
 	}
 }

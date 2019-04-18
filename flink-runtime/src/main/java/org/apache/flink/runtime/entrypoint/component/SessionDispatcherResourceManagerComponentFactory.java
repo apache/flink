@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
+import org.apache.flink.runtime.dispatcher.runner.StandaloneDispatcherRunnerFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
@@ -34,28 +35,28 @@ import javax.annotation.Nonnull;
 /**
  * {@link DispatcherResourceManagerComponentFactory} for a {@link SessionDispatcherResourceManagerComponent}.
  */
-public class SessionDispatcherResourceManagerComponentFactory extends AbstractDispatcherResourceManagerComponentFactory<Dispatcher, DispatcherGateway> {
+public class SessionDispatcherResourceManagerComponentFactory extends AbstractDispatcherResourceManagerComponentFactory<DispatcherRunner, DispatcherGateway> {
 
 	public SessionDispatcherResourceManagerComponentFactory(@Nonnull ResourceManagerFactory<?> resourceManagerFactory) {
-		this(SessionDispatcherFactory.INSTANCE, resourceManagerFactory);
+		this(new StandaloneDispatcherRunnerFactory(SessionDispatcherFactory.INSTANCE), resourceManagerFactory);
 	}
 
 	@VisibleForTesting
 	public SessionDispatcherResourceManagerComponentFactory(
-			@Nonnull DispatcherFactory<Dispatcher> dispatcherFactory,
+			@Nonnull DispatcherRunnerFactory<? extends DispatcherRunner> dispatcherFactory,
 			@Nonnull ResourceManagerFactory<?> resourceManagerFactory) {
 		super(dispatcherFactory, resourceManagerFactory, SessionRestEndpointFactory.INSTANCE);
 	}
 
 	@Override
 	protected DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
-			Dispatcher dispatcher,
+			DispatcherRunner dispatcherRunner,
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,
 			LeaderRetrievalService resourceManagerRetrievalService,
 			WebMonitorEndpoint<?> webMonitorEndpoint) {
 		return new SessionDispatcherResourceManagerComponent(
-			dispatcher,
+			dispatcherRunner,
 			resourceManager,
 			dispatcherLeaderRetrievalService,
 			resourceManagerRetrievalService,
