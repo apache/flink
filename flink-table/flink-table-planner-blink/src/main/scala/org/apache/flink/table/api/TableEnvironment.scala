@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.catalog.{CatalogManager, FlinkCatalogManager, Catalog}
 import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
@@ -47,7 +48,6 @@ import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
-
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
@@ -59,10 +59,11 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable}
 import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
-
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
 import _root_.java.util.{Arrays => JArrays}
+
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
@@ -74,6 +75,9 @@ import _root_.scala.collection.JavaConverters._
   * @param config The configuration of the TableEnvironment
   */
 abstract class TableEnvironment(val config: TableConfig) {
+
+  // Note: The CatalogManager isn't hooked up to planner yet.
+  private val catalogManager: CatalogManager = new FlinkCatalogManager()
 
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
@@ -220,6 +224,74 @@ abstract class TableEnvironment(val config: TableConfig) {
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
     reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
+  }
+
+  /**
+    * Register an [[Catalog]] under a unique name.
+    *
+    * @param name the name under which the catalog will be registered
+    * @param catalog the catalog to register
+    * @throws CatalogAlreadyExistsException thrown if the catalog already exists
+    */
+  @throws[CatalogAlreadyExistsException]
+  def registerCatalog(name: String, catalog: Catalog): Unit = {
+    catalogManager.registerCatalog(name, catalog)
+  }
+
+  /**
+    * Get a registered [[Catalog]].
+    *
+    * @param catalogName name of the catalog to get
+    * @return the requested catalog
+    * @throws CatalogNotExistException thrown if the catalog doesn't exist
+    */
+  @throws[CatalogNotExistException]
+  def getCatalog(catalogName: String): Catalog = {
+    catalogManager.getCatalog(catalogName)
+  }
+
+  /**
+    * Get the current catalog.
+    *
+    * @return the current catalog in CatalogManager
+    */
+  def getCurrentCatalog(): Catalog = {
+    catalogManager.getCurrentCatalog
+  }
+
+  /**
+    * Get the current database name.
+    *
+    * @return the current database of the current catalog
+    */
+  def getCurrentDatabaseName(): String = {
+    catalogManager.getCurrentCatalog.getCurrentDatabase
+  }
+
+  /**
+    * Set the current catalog.
+    *
+    * @param name name of the catalog to set as current catalog
+    * @throws CatalogNotExistException thrown if the catalog doesn't exist
+    */
+  @throws[CatalogNotExistException]
+  def setCurrentCatalog(name: String): Unit = {
+    catalogManager.setCurrentCatalog(name)
+  }
+
+  /**
+    * Set the current catalog and current database.
+    *
+    * @param catalogName name of the catalog to set as current catalog
+    * @param databaseName name of the database to set as current database
+    * @throws CatalogNotExistException  thrown if the catalog doesn't exist
+    * @throws DatabaseNotExistException thrown if the database doesn't exist
+    */
+  @throws[CatalogNotExistException]
+  @throws[DatabaseNotExistException]
+  def setCurrentDatabase(catalogName: String, databaseName: String): Unit = {
+    catalogManager.setCurrentCatalog(catalogName)
+    catalogManager.getCurrentCatalog.setCurrentDatabase(databaseName)
   }
 
   /**
