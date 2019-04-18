@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -220,9 +221,10 @@ public class TaskManagerServices {
 	/**
 	 * Creates and returns the task manager services.
 	 *
-	 * @param resourceID resource ID of the task manager
 	 * @param taskManagerServicesConfiguration task manager configuration
-	 * @param taskIOExecutor executor for async IO operations.
+	 * @param taskManagerMetricGroup metric group of the task manager
+	 * @param resourceID resource ID of the task manager
+	 * @param taskIOExecutor executor for async IO operations
 	 * @param freeHeapMemoryWithDefrag an estimate of the size of the free heap memory
 	 * @param maxJvmHeapMemory the maximum JVM heap size
 	 * @return task manager components
@@ -230,6 +232,7 @@ public class TaskManagerServices {
 	 */
 	public static TaskManagerServices fromConfiguration(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
+			TaskManagerMetricGroup taskManagerMetricGroup,
 			ResourceID resourceID,
 			Executor taskIOExecutor,
 			long freeHeapMemoryWithDefrag,
@@ -241,7 +244,7 @@ public class TaskManagerServices {
 		final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
 		final NetworkEnvironment network = new NetworkEnvironment(
-			taskManagerServicesConfiguration.getNetworkConfig(), taskEventDispatcher);
+			taskManagerServicesConfiguration.getNetworkConfig(), taskEventDispatcher, taskManagerMetricGroup);
 		network.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
