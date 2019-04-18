@@ -16,29 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.exceptions;
+package org.apache.flink.table.api;
 
 /**
- * Exception for trying to operate on a database that doesn't exist.
- *
+ * Exception for adding an already existent catalog.
  */
-public class DatabaseNotExistException extends Exception {
-	private static final String MSG = "Database %s does not exist in Catalog %s.";
+public class CatalogAlreadyExistsException extends Exception {
 
-	/**
-	 * @param catalog	Catalog name
-	 * @param database	Database name
-	 * @param cause	The cause
-	 */
-	public DatabaseNotExistException(String catalog, String database, Throwable cause) {
-		super(String.format(MSG, database, catalog), cause);
+	public CatalogAlreadyExistsException(String catalogName) {
+		this(catalogName, null);
 	}
 
-	/**
-	 * @param catalog	Catalog name
-	 * @param database	Database name
-	 */
-	public DatabaseNotExistException(String catalog, String database) {
-		this(catalog, database, null);
+	public CatalogAlreadyExistsException(String catalogName, Throwable cause) {
+		super(String.format("Catalog %s already exists.", catalogName), cause);
 	}
 }
