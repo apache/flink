@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
@@ -45,7 +46,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfigurationBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -198,12 +198,10 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			// please note that the number of slots directly influences the number of netty threads!
 			ConfigurationParserUtils.getSlot(config),
 			config);
-		final NetworkEnvironmentConfiguration configuration = new NetworkEnvironmentConfigurationBuilder()
+		return new NetworkEnvironmentBuilder()
 			.setNumNetworkBuffers(bufferPoolSize)
 			.setNettyConfig(nettyConfig)
 			.build();
-
-		return new NetworkEnvironment(configuration, new TaskEventDispatcher());
 	}
 
 	protected ResultPartitionWriter createResultPartition(

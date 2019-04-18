@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfigurationBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.junit.Test;
@@ -343,12 +343,11 @@ public class SingleInputGateTest {
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
 
-		final NetworkEnvironment netEnv = new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+		final NetworkEnvironment netEnv = new NetworkEnvironmentBuilder()
 			.setPartitionRequestInitialBackoff(initialBackoff)
 			.setPartitionRequestMaxBackoff(maxBackoff)
 			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build(),
-			new TaskEventDispatcher());
+			.build();
 
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
@@ -596,10 +595,9 @@ public class SingleInputGateTest {
 	}
 
 	private NetworkEnvironment createNetworkEnvironment() {
-		return new NetworkEnvironment(new NetworkEnvironmentConfigurationBuilder()
+		return new NetworkEnvironmentBuilder()
 			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build(),
-			new TaskEventDispatcher());
+			.build();
 	}
 
 	static void verifyBufferOrEvent(

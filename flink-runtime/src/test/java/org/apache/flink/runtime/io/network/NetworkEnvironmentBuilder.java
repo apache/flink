@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 
 /**
- * Builder for the {@link NetworkEnvironmentConfiguration}.
+ * Builder for the {@link NetworkEnvironment}.
  */
-public class NetworkEnvironmentConfigurationBuilder {
+public class NetworkEnvironmentBuilder {
 
 	private int numNetworkBuffers = 1024;
 
@@ -41,55 +42,64 @@ public class NetworkEnvironmentConfigurationBuilder {
 
 	private NettyConfig nettyConfig;
 
-	public NetworkEnvironmentConfigurationBuilder setNumNetworkBuffers(int numNetworkBuffers) {
+	private TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
+
+	public NetworkEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
 		this.numNetworkBuffers = numNetworkBuffers;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setNetworkBufferSize(int networkBufferSize) {
+	public NetworkEnvironmentBuilder setNetworkBufferSize(int networkBufferSize) {
 		this.networkBufferSize = networkBufferSize;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setPartitionRequestInitialBackoff(int partitionRequestInitialBackoff) {
+	public NetworkEnvironmentBuilder setPartitionRequestInitialBackoff(int partitionRequestInitialBackoff) {
 		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setPartitionRequestMaxBackoff(int partitionRequestMaxBackoff) {
+	public NetworkEnvironmentBuilder setPartitionRequestMaxBackoff(int partitionRequestMaxBackoff) {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
+	public NetworkEnvironmentBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
+	public NetworkEnvironmentBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setIsCreditBased(boolean isCreditBased) {
+	public NetworkEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
 		this.isCreditBased = isCreditBased;
 		return this;
 	}
 
-	public NetworkEnvironmentConfigurationBuilder setNettyConfig(NettyConfig nettyConfig) {
+	public NetworkEnvironmentBuilder setNettyConfig(NettyConfig nettyConfig) {
 		this.nettyConfig = nettyConfig;
 		return this;
 	}
 
-	public NetworkEnvironmentConfiguration build() {
-		return new NetworkEnvironmentConfiguration(
-			numNetworkBuffers,
-			networkBufferSize,
-			partitionRequestInitialBackoff,
-			partitionRequestMaxBackoff,
-			networkBuffersPerChannel,
-			floatingNetworkBuffersPerGate,
-			isCreditBased,
-			nettyConfig);
+	public NetworkEnvironmentBuilder setTaskEventDispatcher(TaskEventDispatcher taskEventDispatcher) {
+		this.taskEventDispatcher = taskEventDispatcher;
+		return this;
+	}
+
+	public NetworkEnvironment build() {
+		return new NetworkEnvironment(
+			new NetworkEnvironmentConfiguration(
+				numNetworkBuffers,
+				networkBufferSize,
+				partitionRequestInitialBackoff,
+				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
+				floatingNetworkBuffersPerGate,
+				isCreditBased,
+				nettyConfig),
+			taskEventDispatcher);
 	}
 }
