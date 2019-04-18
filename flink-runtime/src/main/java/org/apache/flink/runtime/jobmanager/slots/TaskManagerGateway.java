@@ -25,10 +25,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -98,11 +100,11 @@ public interface TaskManagerGateway {
 		Time timeout);
 
 	/**
-	 * Fail all intermediate result partitions of the given task.
+	 * Batch release intermediate result partitions.
 	 *
-	 * @param executionAttemptID identifying the task
+	 * @param partitionIds partition ids to release
 	 */
-	void failPartition(ExecutionAttemptID executionAttemptID);
+	void releasePartitions(Collection<ResultPartitionID> partitionIds);
 
 	/**
 	 * Notify the given task about a completed checkpoint.

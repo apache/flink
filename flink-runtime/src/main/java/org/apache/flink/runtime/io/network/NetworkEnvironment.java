@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
@@ -38,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -204,6 +206,17 @@ public class NetworkEnvironment {
 			}
 
 			ExceptionUtils.rethrowIOException(t);
+		}
+	}
+
+	/**
+	 * Batch release intermediate result partitions.
+	 *
+	 * @param partitionIds partition ids to release
+	 */
+	public void releasePartitions(Collection<ResultPartitionID> partitionIds) {
+		for (ResultPartitionID partitionId : partitionIds) {
+			resultPartitionManager.releasePartition(partitionId, null);
 		}
 	}
 
