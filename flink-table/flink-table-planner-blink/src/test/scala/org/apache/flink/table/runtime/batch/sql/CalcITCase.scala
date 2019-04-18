@@ -160,7 +160,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectWithNaming(): Unit = {
     checkResult(
-      "SELECT 1-_./Ü, b, c FROM (SELECT a as 1-_./Ü, b, c FROM Table3)",
+      "SELECT `1-_./Ü`, b, c FROM (SELECT a as `1-_./Ü`, b, c FROM Table3)",
       data3)
   }
 
@@ -982,7 +982,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   /**
-    * TODO Support below timestamp format:
+    * TODO Support below string timestamp format to cast to timestamp:
     * yyyy
     * yyyy-[m]m
     * yyyy-[m]m-[d]d
