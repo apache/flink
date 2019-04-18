@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin
 /**
   * providing join it case utility functions.
   */
-trait JoinITCaseBase {
+object JoinITCaseHelper {
 
   def disableBroadcastHashJoin(tEnv: TableEnvironment): Unit = {
     tEnv.getConfig.getConf.setLong(
@@ -43,6 +43,7 @@ trait JoinITCaseBase {
     tEnv.getConfig.getConf.setString(
       TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, disabledOperators)
   }
+
 }
 
 object JoinType extends Enumeration {

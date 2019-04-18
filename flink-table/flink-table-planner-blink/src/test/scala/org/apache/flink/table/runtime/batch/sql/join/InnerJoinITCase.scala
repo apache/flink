@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.batch.sql.join
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -35,7 +36,7 @@ import scala.collection.Seq
 import scala.util.Random
 
 // @RunWith(classOf[Parameterized]) TODO
-class InnerJoinITCase extends BatchTestBase with JoinITCaseBase {
+class InnerJoinITCase extends BatchTestBase {
 
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
