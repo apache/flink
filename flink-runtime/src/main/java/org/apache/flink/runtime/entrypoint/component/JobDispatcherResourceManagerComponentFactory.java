@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.runtime.dispatcher.JobDispatcherFactory;
-import org.apache.flink.runtime.dispatcher.MiniDispatcher;
+import org.apache.flink.runtime.dispatcher.runner.MiniDispatcherRunner;
+import org.apache.flink.runtime.dispatcher.runner.MiniDispatcherRunnerFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
@@ -32,21 +32,21 @@ import javax.annotation.Nonnull;
 /**
  * {@link DispatcherResourceManagerComponentFactory} for a {@link JobDispatcherResourceManagerComponent}.
  */
-public class JobDispatcherResourceManagerComponentFactory extends AbstractDispatcherResourceManagerComponentFactory<MiniDispatcher, RestfulGateway> {
+public class JobDispatcherResourceManagerComponentFactory extends AbstractDispatcherResourceManagerComponentFactory<MiniDispatcherRunner, RestfulGateway> {
 
 	public JobDispatcherResourceManagerComponentFactory(@Nonnull ResourceManagerFactory<?> resourceManagerFactory, @Nonnull JobGraphRetriever jobGraphRetriever) {
-		super(new JobDispatcherFactory(jobGraphRetriever), resourceManagerFactory, JobRestEndpointFactory.INSTANCE);
+		super(new MiniDispatcherRunnerFactory(jobGraphRetriever), resourceManagerFactory, JobRestEndpointFactory.INSTANCE);
 	}
 
 	@Override
 	protected DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
-			MiniDispatcher dispatcher,
+			MiniDispatcherRunner dispatcherRunner,
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,
 			LeaderRetrievalService resourceManagerRetrievalService,
 			WebMonitorEndpoint<?> webMonitorEndpoint) {
 		return new JobDispatcherResourceManagerComponent(
-			dispatcher,
+			dispatcherRunner,
 			resourceManager,
 			dispatcherLeaderRetrievalService,
 			resourceManagerRetrievalService,

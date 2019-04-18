@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,32 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
-import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import javax.annotation.Nonnull;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher} which has an
- * endpoint id with a random UUID suffix.
+ * Runner responsible for executing a {@link Dispatcher} or a subclass thereof.
  */
-public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory<StandaloneDispatcher> {
-	INSTANCE;
+public class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
+
+	private final T dispatcher;
+
+	DispatcherRunnerImpl(
+			DispatcherFactory<T> dispatcherFactory,
+			RpcService rpcService,
+			PartialDispatcherServices partialDispatcherServices) throws Exception {
+		this.dispatcher = dispatcherFactory.createDispatcher(
+			rpcService,
+			partialDispatcherServices);
+		dispatcher.start();
+	}
 
 	@Override
-	public StandaloneDispatcher createDispatcher(
-			@Nonnull RpcService rpcService,
-			@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception {
-		// create the default dispatcher
-		return new StandaloneDispatcher(
-			rpcService,
-			generateEndpointIdWithUUID(),
-			DispatcherServices.from(partialDispatcherServices, DefaultJobManagerRunnerFactory.INSTANCE));
+	public T getDispatcher() {
+		return dispatcher;
+	}
+
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		return dispatcher.closeAsync();
+	}
+
+	@Override
+	public CompletableFuture<Void> getTerminationFuture() {
+		return dispatcher.getTerminationFuture();
 	}
 }

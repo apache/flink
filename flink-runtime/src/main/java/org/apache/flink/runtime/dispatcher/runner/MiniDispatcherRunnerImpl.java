@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,24 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.DispatcherFactory;
+import org.apache.flink.runtime.dispatcher.MiniDispatcher;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.rpc.RpcService;
 
-/**
- * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}.
- */
-public enum SessionDispatcherFactory implements DispatcherFactory<StandaloneDispatcher> {
-	INSTANCE;
+import java.util.concurrent.CompletableFuture;
 
-	@Override
-	public StandaloneDispatcher createDispatcher(
+/**
+ * Runner which runs a {@link MiniDispatcher} implementation.
+ */
+public class MiniDispatcherRunnerImpl extends DispatcherRunnerImpl<MiniDispatcher> implements MiniDispatcherRunner {
+
+	MiniDispatcherRunnerImpl(
+			DispatcherFactory<MiniDispatcher> dispatcherFactory,
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices) throws Exception {
-		// create the default dispatcher
-		return new StandaloneDispatcher(
-			rpcService,
-			getEndpointId(),
-			DispatcherServices.from(partialDispatcherServices, DefaultJobManagerRunnerFactory.INSTANCE));
+		super(dispatcherFactory, rpcService, partialDispatcherServices);
+	}
+
+	@Override
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return getDispatcher().getJobTerminationFuture();
 	}
 }

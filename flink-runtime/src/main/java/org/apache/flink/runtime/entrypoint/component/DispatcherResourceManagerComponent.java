@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -43,7 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
 	@Nonnull
-	private final Dispatcher dispatcher;
+	private final DispatcherRunner dispatcherRunner;
 
 	@Nonnull
 	private final ResourceManager<?> resourceManager;
@@ -64,13 +65,13 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
 	DispatcherResourceManagerComponent(
-			@Nonnull Dispatcher dispatcher,
+			@Nonnull DispatcherRunner dispatcherRunner,
 			@Nonnull ResourceManager<?> resourceManager,
 			@Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
 			@Nonnull LeaderRetrievalService resourceManagerRetrievalService,
 			@Nonnull WebMonitorEndpoint<?> webMonitorEndpoint) {
+		this.dispatcherRunner = dispatcherRunner;
 		this.resourceManager = resourceManager;
-		this.dispatcher = dispatcher;
 		this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
 		this.resourceManagerRetrievalService = resourceManagerRetrievalService;
 		this.webMonitorEndpoint = webMonitorEndpoint;
@@ -90,7 +91,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 				}
 			});
 
-		dispatcher
+		dispatcherRunner
 			.getTerminationFuture()
 			.whenComplete(
 				(aVoid, throwable) -> {
@@ -107,8 +108,8 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	}
 
 	@Nonnull
-	public Dispatcher getDispatcher() {
-		return dispatcher;
+	public DispatcherRunner getDispatcherRunner() {
+		return dispatcherRunner;
 	}
 
 	@Nonnull
@@ -163,7 +164,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		terminationFutures.add(dispatcher.closeAsync());
+		terminationFutures.add(dispatcherRunner.closeAsync());
 
 		terminationFutures.add(resourceManager.closeAsync());
 
