@@ -177,8 +177,8 @@ object TableFactoryService extends Logging {
       throw new NoMatchingTableFactoryException(
         s"No factory implements '${factoryClass.getCanonicalName}'.",
         factoryClass,
-        foundFactories,
-        properties)
+        foundFactories.asJava,
+        properties.asJava)
     }
     classFactories
   }
@@ -216,8 +216,8 @@ object TableFactoryService extends Logging {
       throw new NoMatchingTableFactoryException(
         "No context matches.",
         factoryClass,
-        foundFactories,
-        properties)
+        foundFactories.asJava,
+        properties.asJava)
     }
 
     matchingFactories
@@ -283,20 +283,20 @@ object TableFactoryService extends Logging {
           |Supported properties of this factory are:
           |${supportedKeys.sorted.mkString("\n")}""".stripMargin,
         factoryClass,
-        foundFactories,
-        properties)
+        foundFactories.asJava,
+        properties.asJava)
     } else if (supportedFactories.isEmpty) {
       throw new NoMatchingTableFactoryException(
         s"No factory supports all properties.",
         factoryClass,
-        foundFactories,
-        properties)
+        foundFactories.asJava,
+        properties.asJava)
     } else if (supportedFactories.length > 1) {
       throw new AmbiguousTableFactoryException(
-        supportedFactories,
+        supportedFactories.asJava,
         factoryClass,
-        foundFactories,
-        properties)
+        foundFactories.asJava,
+        properties.asJava)
     }
 
     supportedFactories.head.asInstanceOf[T]
