@@ -52,15 +52,18 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
@@ -79,6 +82,12 @@ public final class Utils {
 
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
+
+   /** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
+   public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
+
+	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
+	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
 
 	/**
 	 * See documentation.
@@ -142,7 +151,8 @@ public final class Utils {
 		Path homedir,
 		String relativeTargetPath) throws IOException {
 
-		if (new File(localSrcPath.toUri().getPath()).isDirectory()) {
+		File localFile = new File(localSrcPath.toUri().getPath());
+		if (localFile.isDirectory()) {
 			throw new IllegalArgumentException("File to copy must not be a directory: " +
 				localSrcPath);
 		}
@@ -160,8 +170,37 @@ public final class Utils {
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
+		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
+		//       file once again which has problems with eventually consistent read-after-write file
+		//       systems. Instead, we decide to wait until the remote file be available.
+
+		FileStatus[] fss = null;
+		int iter = 1;
+		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY) {
+			try {
+				fss = fs.listStatus(dst);
+				break;
+			} catch (FileNotFoundException e) {
+				LOG.debug("Got FileNotFoundException while fetching uploaded remote resources at retry num {}", iter);
+				try {
+					LOG.debug("Sleeping for {}ms", REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
+					TimeUnit.MILLISECONDS.sleep(REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
+				} catch (InterruptedException ie) {
+					LOG.warn("Failed to sleep for {}ms at retry num {} while fetching uploaded remote resources",
+						REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI, iter, ie);
+				}
+				iter++;
+			}
+		}
+		long dstModificationTime = -1;
+		if (fss != null && fss.length >  0) {
+			dstModificationTime = fss[0].getModificationTime();
+		}
+		LOG.debug("Got modification time {} from remote path {} at time {}", dstModificationTime, dst, Instant.now().toEpochMilli());
+
 		// now create the resource instance
-		LocalResource resource = registerLocalResource(fs, dst);
+		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime > 0 ? dstModificationTime
+			: localFile.lastModified());
 		return Tuple2.of(dst, resource);
 	}
 
@@ -186,6 +225,27 @@ public final class Utils {
 		} else {
 			LOG.debug("No yarn application files directory set. Therefore, cannot clean up the data.");
 		}
+	}
+	/**
+	 * Creates a YARN resource for the remote object at the given location.
+	 *
+	 * @param remoteRsrcPath	remote location of the resource
+	 * @param resourceSize		size of the resource
+	 * @param resourceModificationTime last modification time of the resource
+	 *
+	 * @return YARN resource
+	 */
+	private static LocalResource registerLocalResource(
+		Path remoteRsrcPath,
+		long resourceSize,
+		long resourceModificationTime) {
+		LocalResource localResource = Records.newRecord(LocalResource.class);
+		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
+		localResource.setSize(resourceSize);
+		localResource.setTimestamp(resourceModificationTime);
+		localResource.setType(LocalResourceType.FILE);
+		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		return localResource;
 	}
 
 	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
