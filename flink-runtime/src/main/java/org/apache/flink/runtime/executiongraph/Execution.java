@@ -37,6 +37,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -688,7 +689,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
-				sendFailIntermediateResultPartitionsRpcCall();
+				sendReleaseIntermediateResultPartitionsRpcCall();
 
 				return;
 			}
@@ -721,7 +722,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				break;
 			case FINISHED:
 			case FAILED:
-				sendFailIntermediateResultPartitionsRpcCall();
+				sendReleaseIntermediateResultPartitionsRpcCall();
 				break;
 			case CANCELED:
 				break;
@@ -1202,14 +1203,23 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void sendFailIntermediateResultPartitionsRpcCall() {
+	private void sendReleaseIntermediateResultPartitionsRpcCall() {
+		LOG.info("Discarding the results produced by task execution {}.", attemptId);
 		final LogicalSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			// TODO For some tests this could be a problem when querying too early if all resources were released
-			taskManagerGateway.failPartition(attemptId);
+			Collection<IntermediateResultPartition> partitions = vertex.getProducedPartitions().values();
+			Collection<ResultPartitionID> partitionIds = new ArrayList<>(partitions.size());
+			for (IntermediateResultPartition partition : partitions) {
+				partitionIds.add(new ResultPartitionID(partition.getPartitionId(), attemptId));
+			}
+
+			if (!partitionIds.isEmpty()) {
+				// TODO For some tests this could be a problem when querying too early if all resources were released
+				taskManagerGateway.releasePartitions(partitionIds);
+			}
 		}
 	}
 
