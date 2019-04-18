@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.codegen
+package org.apache.flink.table.codegen.over
 
 import org.apache.flink.table.`type`.{DateType, InternalType, InternalTypes, RowType, TimeType, TimestampType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.generated.{GeneratedRecordComparator, RecordComparator}
@@ -54,7 +55,6 @@ class RangeBoundComparatorCodeGenerator(
     isLowerBound: Boolean = true) {
 
   def generateBoundComparator(name: String): GeneratedRecordComparator = {
-
     val className = newName(name)
     val input = CodeGenUtils.DEFAULT_INPUT1_TERM
     val current = CodeGenUtils.DEFAULT_INPUT2_TERM
@@ -173,63 +173,5 @@ class RangeBoundComparatorCodeGenerator(
          return -1;
        }
      """.stripMargin
-  }
-}
-
-/**
-  * RANGE allow the compound ORDER BY and the random type when the bound is current row.
-  */
-class MultiFieldRangeBoundComparatorCodeGenerator(
-    conf: TableConfig,
-    inType: RowType,
-    keys: Array[Int],
-    keyTypes: Array[InternalType],
-    keyOrders: Array[Boolean],
-    nullsIsLasts: Array[Boolean],
-    isLowerBound: Boolean = true) {
-
-  def generateBoundComparator(name: String): GeneratedRecordComparator = {
-
-    val className = newName(name)
-    val input = CodeGenUtils.DEFAULT_INPUT1_TERM
-    val current = CodeGenUtils.DEFAULT_INPUT2_TERM
-
-    // In order to avoid the loss of precision in long cast to int.
-    def generateReturnCode(comp: String): String = {
-      if (isLowerBound) s"return $comp >= 0 ? 1 : -1;" else s"return $comp > 0 ? 1 : -1;"
-    }
-
-    val ctx = CodeGeneratorContext(conf)
-
-    val compareCode = GenerateUtils.generateRowCompare(
-      ctx, keys, keyTypes, keyOrders, nullsIsLasts, input, current)
-
-    val code =
-      j"""
-      public class $className implements ${classOf[RecordComparator].getCanonicalName} {
-
-        private final Object[] references;
-        ${ctx.reuseMemberCode()}
-
-        public $className(Object[] references) {
-          this.references = references;
-          ${ctx.reuseInitCode()}
-          ${ctx.reuseOpenCode()}
-        }
-
-        @Override
-        public int compare($BASE_ROW $input, $BASE_ROW $current) {
-          int ret = compareInternal($input, $current);
-          ${generateReturnCode("ret")}
-        }
-
-        private int compareInternal($BASE_ROW $input, $BASE_ROW $current) {
-          $compareCode
-          return 0;
-        }
-
-      }
-      """.stripMargin
-    new GeneratedRecordComparator(className, code, ctx.references.toArray)
   }
 }

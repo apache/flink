@@ -26,7 +26,8 @@ import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConf
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
-import org.apache.flink.table.codegen.{CodeGeneratorContext, MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.generated.GeneratedRecordComparator

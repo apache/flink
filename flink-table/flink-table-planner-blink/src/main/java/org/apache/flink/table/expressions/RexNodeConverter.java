@@ -67,6 +67,22 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitCall(CallExpression call) {
+		switch (call.getFunctionDefinition().getType()) {
+			case SCALAR_FUNCTION:
+				return visitScalarFunc(call);
+			default: throw new UnsupportedOperationException();
+		}
+	}
+
+	private List<RexNode> convertCallChildren(CallExpression call) {
+		return call.getChildren().stream()
+				.map(expression -> expression.accept(RexNodeConverter.this))
+				.collect(Collectors.toList());
+	}
+
+	private RexNode visitScalarFunc(CallExpression call) {
+		FunctionDefinition def = call.getFunctionDefinition();
+
 		if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.CAST)) {
 			RexNode child = call.getChildren().get(0).accept(this);
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
@@ -77,17 +93,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 					child);
 		}
 
-		List<RexNode> child = call.getChildren().stream()
-				.map(expression -> expression.accept(RexNodeConverter.this))
-				.collect(Collectors.toList());
-		switch (call.getFunctionDefinition().getType()) {
-			case SCALAR_FUNCTION:
-				return visitScalarFunc(call.getFunctionDefinition(), child);
-			default: throw new UnsupportedOperationException();
-		}
-	}
-
-	private RexNode visitScalarFunc(FunctionDefinition def, List<RexNode> child) {
+		List<RexNode> child = convertCallChildren(call);
 		if (BuiltInFunctionDefinitions.IF.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.CASE, child);
 		} else if (BuiltInFunctionDefinitions.IS_NULL.equals(def)) {
