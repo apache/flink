@@ -131,20 +131,18 @@ public final class ReporterSetup {
 			}
 		}
 
-		List<Tuple2<String, Configuration>> reporterConfigurations;
-
 		if (namedReporters.isEmpty()) {
-			reporterConfigurations = Collections.emptyList();
-		} else {
-			reporterConfigurations = new ArrayList<>(namedReporters.size());
+			return Collections.emptyList();
+		}
 
-			for (String namedReporter: namedReporters) {
-				DelegatingConfiguration delegatingConfiguration = new DelegatingConfiguration(
-					configuration,
-					ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + '.');
+		List<Tuple2<String, Configuration>> reporterConfigurations = new ArrayList<>(namedReporters.size());
 
-				reporterConfigurations.add(Tuple2.of(namedReporter, (Configuration) delegatingConfiguration));
-			}
+		for (String namedReporter: namedReporters) {
+			DelegatingConfiguration delegatingConfiguration = new DelegatingConfiguration(
+				configuration,
+				ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + '.');
+
+			reporterConfigurations.add(Tuple2.of(namedReporter, (Configuration) delegatingConfiguration));
 		}
 
 		List<ReporterSetup> reporterArguments = new ArrayList<>(reporterConfigurations.size());
