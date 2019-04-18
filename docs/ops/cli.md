@@ -122,9 +122,9 @@ available.
 
         ./bin/flink cancel -s [targetDirectory] <jobID>
 
--   Stop a job (streaming jobs only):
+-   Stop a job with a savepoint (streaming jobs only):
 
-        ./bin/flink stop <jobID>
+        ./bin/flink stop -s [targetDirectory] -d <jobID>
         
 -   Modify a running job (streaming jobs only):
 
@@ -138,10 +138,13 @@ soon as possible.
 If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
 until it stops.
 
-A "stop" call is a more graceful way of stopping a running streaming job. Stop is only available for jobs
-which use sources that implement the `StoppableFunction` interface. When the user requests to stop a job,
-all sources will receive a `stop()` method call. The job will keep running until all sources properly shut down.
-This allows the job to finish processing all inflight data.
+A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from 
+source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
+that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
+`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
+barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for 
+a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
+ job to finish processing all in-flight data. 
 
 ### Savepoints
 
@@ -320,8 +323,8 @@ Action "info" shows the optimized execution plan of the program (JSON).
 
   Syntax: info [OPTIONS] <jar-file> <arguments>
   "info" action options:
-     -c,--class <classname>           Class with the program entry point ("main"
-                                      method or "getPlan()" method. Only needed
+     -c,--class <classname>           Class with the program entry point ("main()"
+                                      method or "getPlan()" method). Only needed
                                       if the JAR file does not specify the class
                                       in its manifest.
      -p,--parallelism <parallelism>   The parallelism with which to run the
@@ -355,20 +358,17 @@ Action "list" lists running and scheduled programs.
 
 
 
-Action "stop" stops a running program (streaming jobs only).
+Action "stop" stops a running program with a savepoint (streaming jobs only).
 
   Syntax: stop [OPTIONS] <Job ID>
   "stop" action options:
-
-  Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
-                                      which to connect. Use this flag to connect
-                                      to a different JobManager than the one
-                                      specified in the configuration.
-     -yid,--yarnapplicationId <arg>   Attach to running YARN session
-     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
-                                      sub-paths for high availability mode
-
+     -d,--drain                           Send MAX_WATERMARK before taking the
+                                          savepoint and stopping the pipelne.
+     -s,--withSavepoint <withSavepoint>   Path to the savepoint (for example
+                                          hdfs:///flink/savepoint-1537). If no
+                                          directory is specified, the configured
+                                          default will be used
+                                          ("state.savepoints.dir").
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
@@ -440,15 +440,6 @@ Action "modify" modifies a running job (e.g. change of parallelism).
                                          Frontend or the action.
      -p,--parallelism <newParallelism>   New parallelism for the specified job.
      -v,--verbose                        This option is deprecated.
-  Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager (master) to
-                                      which to connect. Use this flag to connect
-                                      to a different JobManager than the one
-                                      specified in the configuration.
-     -yid,--yarnapplicationId <arg>   Attach to running YARN session
-     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
-                                      sub-paths for high availability mode
-
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
