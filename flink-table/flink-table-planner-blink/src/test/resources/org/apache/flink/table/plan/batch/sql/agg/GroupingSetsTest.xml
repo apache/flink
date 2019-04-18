@@ -348,12 +348,12 @@ LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(=($e, 0), 0, =($e, 2), 5, 7) AS EXPR$2, c])
-+- HashAggregate(isMerge=[true], groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Final_COUNT(count1$0) AS c])
-   +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
-         +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[null], gender=[$1], $e=[2]}, {deptno=[null], gender=[null], $e=[3]}], projects=[{deptno, gender, 0 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
-            +- Calc(select=[deptno, gender], where=[=(deptno, 10)])
+Calc(select=[deptno, gender, CASE(=($e, 0), 0, =($e, 1), 5, 7) AS EXPR$2, c])
++- HashAggregate(isMerge=[true], groupBy=[gender, deptno, $e], select=[gender, deptno, $e, Final_COUNT(count1$0) AS c])
+   +- Exchange(distribution=[hash[gender, deptno, $e]])
+      +- LocalHashAggregate(groupBy=[gender, deptno, $e], select=[gender, deptno, $e, Partial_COUNT(*) AS count1$0])
+         +- Expand(projects=[{gender=[$0], deptno=[$1], $e=[0]}, {gender=[$0], deptno=[null], $e=[1]}, {gender=[null], deptno=[null], $e=[3]}], projects=[{gender, deptno, 0 AS $e}, {gender, null AS deptno, 1 AS $e}, {null AS gender, null AS deptno, 3 AS $e}])
+            +- Calc(select=[gender, CAST(10) AS deptno], where=[=(deptno, 10)])
                +- TableSourceScan(table=[[emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
