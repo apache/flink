@@ -47,12 +47,3 @@ $MVN clean deploy $COMMON_OPTIONS -Dscala-2.11
 
 echo "Deploying Scala 2.12 version"
 $MVN clean deploy $COMMON_OPTIONS -Dscala-2.12
-
-COMMON_HADOOP_OPTIONS="-pl flink-shaded-hadoop/flink-shaded-hadoop2,flink-shaded-hadoop/flink-shaded-hadoop2-uber"
-
-HADOOP_VERSIONS=("2.4.1" "2.6.5" "2.7.5" "2.8.3")
-
-for i in "${!HADOOP_VERSIONS[@]}"; do
-echo "Deploying flink-shaded-hadoop $HADOOP_VERSIONS[$i] version"
-    $MVN clean deploy $COMMON_OPTIONS $COMMON_HADOOP_OPTIONS "-Dhadoop.version=${HADOOP_VERSIONS[$i]}"
-done
