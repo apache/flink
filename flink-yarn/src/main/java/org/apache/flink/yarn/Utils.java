@@ -51,8 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -83,8 +83,8 @@ public final class Utils {
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
-   /** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
-   public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
+	/** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
+	public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
 
 	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
 	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
@@ -226,6 +226,7 @@ public final class Utils {
 			LOG.debug("No yarn application files directory set. Therefore, cannot clean up the data.");
 		}
 	}
+
 	/**
 	 * Creates a YARN resource for the remote object at the given location.
 	 *
