@@ -86,8 +86,8 @@ public class BufferDataOverWindowOperatorTest {
 	@Test
 	public void testOffsetWindowFrame() throws Exception {
 		test(new OverWindowFrame[] {
-				new OffsetOverFrame(function, 2, null),
-						new OffsetOverFrame(function, 1, r -> (long) r.getInt(0))},
+				new OffsetOverFrame(function, 2L, null),
+						new OffsetOverFrame(function, 2L, r -> (long) r.getInt(0))},
 				new GenericRow[] {
 				GenericRow.of(0, 1L, 4L, 1L, 1L),
 				GenericRow.of(0, 1L, 1L, 2L, 2L),
@@ -140,7 +140,7 @@ public class BufferDataOverWindowOperatorTest {
 	@Test
 	public void testFollowing() throws Exception {
 		test(new OverWindowFrame[] {
-						new RowUnboundedFollowingOverFrame(valueType, function, 1),
+						new RowUnboundedFollowingOverFrame(valueType, function, -1),
 						new RangeUnboundedFollowingOverFrame(valueType, function, boundComparator)},
 				new GenericRow[] {
 						GenericRow.of(0, 1L, 4L, 4L, 4L),
@@ -158,7 +158,7 @@ public class BufferDataOverWindowOperatorTest {
 	@Test
 	public void testSliding() throws Exception {
 		test(new OverWindowFrame[] {
-						new RowSlidingOverFrame(inputType, valueType, function, 1, 1),
+						new RowSlidingOverFrame(inputType, valueType, function, -1, 1),
 						new RangeSlidingOverFrame(inputType, valueType, function, boundComparator, boundComparator)},
 				new GenericRow[] {
 						GenericRow.of(0, 1L, 4L, 2L, 4L),

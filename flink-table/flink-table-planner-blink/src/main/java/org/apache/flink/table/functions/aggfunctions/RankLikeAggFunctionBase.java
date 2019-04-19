@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionBuilder;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
@@ -30,8 +31,9 @@ import org.apache.flink.table.type.InternalTypes;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.Optional;
 
-import static org.apache.flink.table.expressions.ExpressionBuilder.and;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
@@ -92,11 +94,8 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 					ifThenElse(isNull(operand(i)), literal(true), literal(false)),
 					equalTo(lasValue, operand(i)));
 		}
-		if (orderKeyEquals.length == 0) {
-			return literal(true);
-		} else {
-			return and(orderKeyEquals);
-		}
+		Optional<Expression> ret = Arrays.stream(orderKeyEquals).reduce(ExpressionBuilder::and);
+		return ret.orElseGet(() -> literal(true));
 	}
 
 	protected Expression generateInitLiteral(InternalType orderType) {
@@ -116,6 +115,8 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 			return literal(0.0d);
 		} else if (orderType instanceof DecimalType) {
 			return literal(java.math.BigDecimal.ZERO);
+		} else if (orderType.equals(InternalTypes.STRING)) {
+			return literal("");
 		} else if (orderType.equals(InternalTypes.DATE)) {
 			return literal(new Date(0));
 		} else if (orderType.equals(InternalTypes.TIME)) {

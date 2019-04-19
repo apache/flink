@@ -70,10 +70,7 @@ public class DenseRankAggFunction extends RankLikeAggFunctionBase {
 		// sequence = if (lastValues equalTo orderKeys) sequence else sequence + 1
 		accExpressions[0] = ifThenElse(orderKeyEqualsExpression(), sequence, plus(sequence, literal(1L)));
 		Expression[] operands = operands();
-		for (int i = 0; i < operands.length; ++i) {
-			// lastValue_i = orderKey[i]
-			accExpressions[i + 1] = operands[i];
-		}
+		System.arraycopy(operands, 0, accExpressions, 1, operands.length);
 		return accExpressions;
 	}
 

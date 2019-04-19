@@ -121,7 +121,7 @@ class ImperativeAggCodeGen(
     // do not set dataview into the acc in createAccumulator
     val accField = if (isAccTypeInternal) {
       // do not need convert to internal type
-      s"$functionTerm.createAccumulator()"
+      s"($accTypeInternalTerm) $functionTerm.createAccumulator()"
     } else {
       genToInternal(ctx, externalAccType, s"$functionTerm.createAccumulator()")
     }
@@ -156,7 +156,7 @@ class ImperativeAggCodeGen(
 
   override def resetAccumulator(generator: ExprCodeGenerator): String = {
     if (isAccTypeInternal) {
-      s"$accInternalTerm = $functionTerm.createAccumulator();"
+      s"$accInternalTerm = ($accTypeInternalTerm) $functionTerm.createAccumulator();"
     } else {
       s"""
          |$accExternalTerm = $functionTerm.createAccumulator();

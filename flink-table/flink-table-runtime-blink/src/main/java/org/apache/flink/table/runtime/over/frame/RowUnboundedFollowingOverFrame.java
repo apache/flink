@@ -33,12 +33,12 @@ import org.apache.flink.table.type.RowType;
  */
 public class RowUnboundedFollowingOverFrame extends UnboundedFollowingOverFrame {
 
-	private int leftBound;
+	private long leftBound;
 
 	public RowUnboundedFollowingOverFrame(
 			RowType valueType,
 			GeneratedAggsHandleFunction aggsHandleFunction,
-			int leftBound) {
+			long leftBound) {
 		super(valueType, aggsHandleFunction);
 		this.leftBound = leftBound;
 	}
@@ -51,7 +51,7 @@ public class RowUnboundedFollowingOverFrame extends UnboundedFollowingOverFrame 
 		ResettableExternalBuffer.BufferIterator iterator = input.newIterator(inputIndex);
 
 		BinaryRow nextRow = OverWindowFrame.getNextOrNull(iterator);
-		while (nextRow != null && inputIndex < index - leftBound) {
+		while (nextRow != null && inputIndex < index + leftBound) {
 			inputIndex += 1;
 			bufferUpdated = true;
 			nextRow = OverWindowFrame.getNextOrNull(iterator);

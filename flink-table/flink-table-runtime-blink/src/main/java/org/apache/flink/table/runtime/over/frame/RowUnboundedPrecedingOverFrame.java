@@ -31,15 +31,15 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
  */
 public class RowUnboundedPrecedingOverFrame extends UnboundedPrecedingOverFrame {
 
-	private int rightBound;
+	private long rightBound;
 
 	/**
 	 * Index of the right bound input row.
 	 */
-	private int inputRightIndex = 0;
+	private long inputRightIndex = 0;
 
 	public RowUnboundedPrecedingOverFrame(
-			GeneratedAggsHandleFunction aggsHandleFunction, int rightBound) {
+			GeneratedAggsHandleFunction aggsHandleFunction, long rightBound) {
 		super(aggsHandleFunction);
 		this.rightBound = rightBound;
 	}

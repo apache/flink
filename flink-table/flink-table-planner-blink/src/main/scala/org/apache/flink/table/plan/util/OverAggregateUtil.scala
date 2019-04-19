@@ -23,7 +23,7 @@ import org.apache.flink.table.JArrayList
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
-import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation, RelNode}
+import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
 import org.apache.calcite.rex.{RexInputRef, RexWindowBound}
 import org.apache.calcite.sql.`type`.SqlTypeName
 
@@ -36,9 +36,17 @@ object OverAggregateUtil {
   }
 
   /**
+    * Calculate the bound value and cast to long value.
+    */
+  def getLongBoundary(logicWindow: Window, windowBound: RexWindowBound): Long = {
+    getBoundary(logicWindow, windowBound).asInstanceOf[Long].longValue()
+  }
+
+  /**
     * Calculate the bound value.
     * The return type only is Long for the ROWS OVER WINDOW.
     * The return type can be Long or BigDecimal for the RANGE OVER WINDOW.
+    * NOTE: returns a signed value, considering whether it is preceding.
     */
   def getBoundary(logicWindow: Window, windowBound: RexWindowBound): Any = {
     if (windowBound.isCurrentRow) {
@@ -103,5 +111,4 @@ object OverAggregateUtil {
       }
     }
   }
-
 }

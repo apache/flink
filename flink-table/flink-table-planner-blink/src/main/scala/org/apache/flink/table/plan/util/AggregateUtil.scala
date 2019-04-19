@@ -210,7 +210,7 @@ object AggregateUtil extends Enumeration {
         case a: DeclarativeAggregateFunction =>
           val bufferTypes: Array[InternalType] = a.getAggBufferTypes
           val bufferTypeInfos = bufferTypes.map(
-            TypeConverters.createInternalTypeInfoFromInternalType)
+            TypeConverters.createExternalTypeInfoFromInternalType)
           (bufferTypeInfos, Array.empty[DataViewSpec], a.getResultType)
         case a: AggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {

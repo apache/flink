@@ -19,8 +19,8 @@ package org.apache.flink.table.dataview
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo}
-import org.apache.flink.table.`type`.{RowType, TypeConverters}
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
+import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
@@ -80,14 +80,10 @@ object DataViewUtils {
         val pojoTypeInfo = new PojoTypeInfo(externalAccType.getTypeClass, newPojoFields)
         (pojoTypeInfo, accumulatorSpecs.toArray)
 
-      // RowType's ExternalTypeInfo is RowTypeInfo or BaseRowTypeInfo
       // so we add another check => acc.isInstanceOf[GenericRow]
-      case r@(_: RowTypeInfo | _: BaseRowTypeInfo) if acc.isInstanceOf[GenericRow] =>
+      case t: BaseRowTypeInfo if acc.isInstanceOf[GenericRow] =>
         val accInstance = acc.asInstanceOf[GenericRow]
-        val (arity, fieldNames, fieldTypes) = r match {
-          case t: RowTypeInfo => (r.getArity, t.getFieldNames, t.getFieldTypes)
-          case t: BaseRowTypeInfo => (r.getArity, t.getFieldNames, t.getFieldTypes)
-        }
+        val (arity, fieldNames, fieldTypes) = (t.getArity, t.getFieldNames, t.getFieldTypes)
         val newFieldTypes = for (i <- 0 until arity) yield {
           val fieldName = fieldNames(i)
           val fieldInstance = accInstance.getField(i)
@@ -105,8 +101,8 @@ object DataViewUtils {
           TypeConverters.createInternalTypeFromTypeInfo(newTypeInfo)
         }
 
-        val newType = new RowType(newFieldTypes.toArray, fieldNames)
-        (TypeConverters.createExternalTypeInfoFromInternalType(newType), accumulatorSpecs.toArray)
+        val newType = new BaseRowTypeInfo(newFieldTypes.toArray, fieldNames)
+        (newType, accumulatorSpecs.toArray)
 
       case ct: CompositeType[_] if includesDataView(ct) =>
         throw new TableException(
