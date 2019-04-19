@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.commons.io.output.TeeOutputStream;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -48,12 +49,12 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.net.URL;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -222,6 +223,41 @@ public class ClientTest extends TestLogger {
 		String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
 		assertEquals(-1, htmlEscaped.indexOf('\\'));
+	}
+
+	@Test
+	public void testGetExecutionPlanDebugOutput() throws ProgramInvocationException {
+		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/tmp");
+		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+
+		// capture stdout/stderr
+		PrintStream originalOut = System.out;
+		PrintStream originalErr = System.err;
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		System.setOut(new PrintStream(baos));
+
+		ByteArrayOutputStream baes = new ByteArrayOutputStream();
+		System.setErr(new PrintStream(baes));
+
+		try {
+			ClusterClient.getOptimizedPlan(optimizer, prg, 1);
+		} catch (ProgramInvocationException e) {
+			// verify that the stdout/stderr logs are both printed to the console and encoded in the exception
+			String stdout = baos.toString();
+			String stderr = baes.toString();
+
+			String errorMsg = "The program plan could not be fetched - the program aborted pre-maturely."
+				+ "\n\nSystem.err: " + (stdout.length() == 0 ? "(none)" : stdout)
+				+ "\n\nSystem.out: " + (stderr.length() == 0 ? "(none)" : stderr);
+
+			assertFalse(stderr.isEmpty());
+			assertEquals(e.getMessage(), errorMsg);
+		} finally {
+			// restore stdout/stderr
+			System.setOut(originalOut);
+			System.setErr(originalErr);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
