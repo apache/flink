@@ -22,8 +22,11 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 
 /**
  * An interface responsible for manipulating catalog metadata.
@@ -130,5 +133,58 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException, CatalogException;
+
+	// ------ partitions ------
+
+	/**
+	 * Creates a partition.
+	 *
+	 * @param tablePath		Path of the table.
+	 * @param partition		The partition to add.
+	 * @param ignoreIfExists Flag to specify behavior if a table with the given name already exists:
+	 *                       if set to false, it throws a TableAlreadyExistException,
+	 *                       if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException	thrown if the target table does not exist
+	 * @throws TableNotPartitionedException	thrown if the target table is not partitioend
+	 * @throws PartitionAlreadyExistException	thrown if the target partition already exists
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void createPartition(ObjectPath tablePath, CatalogPartition partition, boolean ignoreIfExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionAlreadyExistException;
+
+	/**
+	 * Drops a partition.
+	 *
+	 * @param tablePath			Path of the table.
+	 * @param partitionSpec		Partition spec of the partition to drop
+	 * @param ignoreIfNotExists Flag to specify behavior if the database does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException	thrown if the target table does not exist
+	 * @throws TableNotPartitionedException	thrown if the target table is not partitioend
+	 * @throws PartitionNotExistException	thrown if the target partition does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropPartition(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException;
+
+	/**
+	 * Alters a partition.
+	 *
+	 * @param tablePath			Path of the table
+	 * @param newPartition		New partition to replace the old one
+	 * @param ignoreIfNotExists Flag to specify behavior if the database does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException	thrown if the target table does not exist
+	 * @throws TableNotPartitionedException	thrown if the target table is not partitioend
+	 * @throws PartitionNotExistException	thrown if the target partition does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void alterPartition(ObjectPath tablePath, CatalogPartition newPartition, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException;
 
 }

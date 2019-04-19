@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -46,6 +50,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	private final String catalogName;
 	private final Map<String, CatalogDatabase> databases;
 	private final Map<ObjectPath, CatalogBaseTable> tables;
+	private final Map<ObjectPath, Map<CatalogPartition.PartitionSpec, CatalogPartition>> partitions;
 
 	public GenericInMemoryCatalog(String name) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
@@ -54,6 +59,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		this.databases = new LinkedHashMap<>();
 		this.databases.put(DEFAULT_DB, new GenericCatalogDatabase(new HashMap<>()));
 		this.tables = new LinkedHashMap<>();
+		this.partitions = new LinkedHashMap<>();
 	}
 
 	@Override
@@ -178,6 +184,10 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 			}
 		} else {
 			tables.put(tablePath, table.copy());
+
+			if ((table instanceof CatalogTable) && ((CatalogTable) table).isPartitioned()) {
+				partitions.put(tablePath, new LinkedHashMap<>());
+			}
 		}
 	}
 
@@ -202,6 +212,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		if (tableExists(tablePath)) {
 			tables.remove(tablePath);
+
+			partitions.remove(tablePath);
 		} else if (!ignoreIfNotExists) {
 			throw new TableNotExistException(catalogName, tablePath);
 		}
@@ -269,4 +281,113 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		return tablePath != null && databaseExists(tablePath.getDatabaseName()) && tables.containsKey(tablePath);
 	}
 
+	// ------ partitions ------
+
+	@Override
+	public void createPartition(ObjectPath tablePath, CatalogPartition partition, boolean ignoreIfExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionAlreadyExistException, CatalogException {
+
+		if (!tableExists(tablePath)) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+
+		validatePartitionedTable(tablePath);
+
+		if (partitionExists(tablePath, partition.getPartitionSpec())) {
+			if (!ignoreIfExists) {
+				throw new PartitionAlreadyExistException(catalogName, tablePath, partition.getPartitionSpec());
+			}
+		} else {
+			partitions.get(tablePath).put(partition.getPartitionSpec(), partition.copy());
+		}
+	}
+
+	@Override
+	public void dropPartition(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException, CatalogException {
+
+		if (!tableExists(tablePath)) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+
+		validatePartitionedTable(tablePath);
+
+		if (partitionExists(tablePath, partitionSpec)) {
+			partitions.get(tablePath).remove(partitionSpec);
+		} else if (!ignoreIfNotExists) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
+	}
+
+	@Override
+	public void alterPartition(ObjectPath tablePath, CatalogPartition newPartition, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException {
+		if (!tableExists(tablePath)) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+
+		validatePartitionedTable(tablePath);
+
+		CatalogPartition.PartitionSpec partitionSpec = newPartition.getPartitionSpec();
+
+		if (partitionExists(tablePath, partitionSpec)) {
+			partitions.get(tablePath).put(partitionSpec, newPartition.copy());
+		} else if (!ignoreIfNotExists) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
+	}
+
+	@Override
+	public List<CatalogPartition.PartitionSpec> listPartitions(ObjectPath tablePath)
+		throws TableNotExistException, TableNotPartitionedException, CatalogException {
+
+		validatePartitionedTable(tablePath);
+
+		return new ArrayList<>(partitions.get(tablePath).keySet());
+	}
+
+	@Override
+	public List<CatalogPartition.PartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpecs)
+		throws TableNotExistException, TableNotPartitionedException, CatalogException {
+
+		validatePartitionedTable(tablePath);
+
+		return partitions.get(tablePath).keySet().stream()
+			.filter(ps -> ps.contains(partitionSpecs))
+			.collect(Collectors.toList());
+	}
+
+	@Override
+	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException, CatalogException {
+
+		validatePartitionedTable(tablePath);
+
+		if (partitions.get(new ObjectPath(tablePath.getDatabaseName(), tablePath.getObjectName())).get(partitionSpec) != null) {
+			return partitions.get(tablePath).get(partitionSpec).copy();
+		} else {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
+	}
+
+	@Override
+	public boolean partitionExists(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec)
+		throws CatalogException {
+		return tableExists(tablePath) && partitions.get(tablePath).containsKey(partitionSpec);
+	}
+
+	private void validatePartitionedTable(ObjectPath tablePath) throws TableNotExistException, TableNotPartitionedException {
+		CatalogBaseTable baseTable = getTable(tablePath);
+
+		if (!(baseTable instanceof CatalogTable)) {
+			throw new CatalogException(
+				String.format("%s in Catalog %s is not a CatalogTable", tablePath.getFullName(), catalogName));
+		}
+
+		CatalogTable table = (CatalogTable) baseTable;
+
+		if (!table.isPartitioned()) {
+			throw new TableNotPartitionedException(catalogName, tablePath);
+		}
+	}
 }
