@@ -31,9 +31,6 @@ public class HiveTestUtils {
 	private static final String HIVE_WAREHOUSE_URI_FORMAT = "jdbc:derby:;databaseName=%s;create=true";
 	private static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private static String warehouseDir;
-	private static String warehouseUri;
-
 	/**
 	 * Create a GenericHiveMetastoreCatalog with an embedded Hive Metastore.
 	 */
@@ -46,8 +43,8 @@ public class HiveTestUtils {
 		HiveConf.setHiveSiteLocation(classLoader.getResource(HIVE_SITE_XML));
 
 		TEMPORARY_FOLDER.create();
-		warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
-		warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
+		String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
+		String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 		HiveConf hiveConf = new HiveConf();
 		hiveConf.setBoolVar(HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
 		hiveConf.setBoolean("datanucleus.schema.autoCreateTables", true);

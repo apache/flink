@@ -38,7 +38,7 @@ public class GenericCatalogDatabase implements CatalogDatabase {
 
 	public GenericCatalogDatabase(Map<String, String> properties, String comment) {
 		this(properties);
-		this.comment = comment;
+		this.comment = checkNotNull(comment, "comment cannot be null");
 	}
 
 	public Map<String, String> getProperties() {

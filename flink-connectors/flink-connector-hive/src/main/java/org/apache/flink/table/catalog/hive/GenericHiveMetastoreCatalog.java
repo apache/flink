@@ -192,7 +192,7 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 				throw new DatabaseNotExistException(catalogName, name);
 			}
 		} catch (InvalidOperationException e) {
-			if (e.getMessage().startsWith(String.format("Database %s is not empty."))) {
+			if (e.getMessage().startsWith(String.format("Database %s is not empty", name))) {
 				throw new DatabaseNotEmptyException(catalogName, name);
 			} else {
 				throw new CatalogException(String.format("Failed to drop database %s", name), e);
