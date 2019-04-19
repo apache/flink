@@ -626,7 +626,8 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
           new PlannerTableOperation(planner.rel(validatedQuery).rel))
 
         // get name of sink table
-        val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.asScala.mkString(".")
+        val sqlIdentifier = insert.getTargetTable.asInstanceOf[SqlIdentifier]
+        val targetTableName = sqlIdentifier.names.asScala.mkString(".")
 
         // insert query result into sink table
         insertInto(queryResult, targetTableName, config)
