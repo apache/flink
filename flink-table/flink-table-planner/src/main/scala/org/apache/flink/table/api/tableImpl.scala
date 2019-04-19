@@ -69,16 +69,6 @@ class TableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    selectInternal(fields)
-  }
-
-  private[flink] def getUniqueAttributeSupplier: Supplier[String] = {
-    new Supplier[String] {
-      override def get(): String = tableEnv.createUniqueAttributeName()
-    }
-  }
-
-  private def selectInternal(fields: Seq[Expression]): Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(callResolver)).asJava
     val extracted = extractAggregationsAndProperties(
       expressionsWithResolvedCalls,
@@ -98,6 +88,12 @@ class TableImpl(
       )
     } else {
       wrap(operationTreeBuilder.project(expressionsWithResolvedCalls, operationTree))
+    }
+  }
+
+  private[flink] def getUniqueAttributeSupplier: Supplier[String] = {
+    new Supplier[String] {
+      override def get(): String = tableEnv.createUniqueAttributeName()
     }
   }
 
@@ -128,10 +124,6 @@ class TableImpl(
   }
 
   override def as(fields: Expression*): Table = {
-    asInternal(fields)
-  }
-
-  private def asInternal(fields: Seq[Expression]): Table = {
     new TableImpl(tableEnv, operationTreeBuilder.alias(fields.asJava, operationTree))
   }
 
@@ -140,11 +132,8 @@ class TableImpl(
   }
 
   override def filter(predicate: Expression): Table = {
-    filterInternal(predicate)
-  }
-
-  private def filterInternal(predicate: Expression): Table = {
-    new TableImpl(tableEnv, operationTreeBuilder.filter(predicate, operationTree))
+    val resolvedCallPredicate = predicate.accept(callResolver)
+    new TableImpl(tableEnv, operationTreeBuilder.filter(resolvedCallPredicate, operationTree))
   }
 
   override def where(predicate: String): Table = {
@@ -160,10 +149,6 @@ class TableImpl(
   }
 
   override def groupBy(fields: Expression*): GroupedTable = {
-    groupByInternal(fields)
-  }
-
-  private def groupByInternal(fields: Seq[Expression]): GroupedTable = {
     new GroupedTableImpl(this, fields)
   }
 
@@ -245,10 +230,7 @@ class TableImpl(
   }
 
   override def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
-    joinLateralInternal(
-      tableFunctionCall,
-      Some(joinPredicate),
-      JoinType.INNER)
+    joinLateralInternal(tableFunctionCall, Some(joinPredicate), JoinType.INNER)
   }
 
   override def leftOuterJoinLateral(tableFunctionCall: String): Table = {
@@ -267,10 +249,7 @@ class TableImpl(
 
   override def leftOuterJoinLateral(
     tableFunctionCall: Expression, joinPredicate: Expression): Table = {
-    joinLateralInternal(
-      tableFunctionCall,
-      Some(joinPredicate),
-      JoinType.LEFT_OUTER)
+    joinLateralInternal(tableFunctionCall, Some(joinPredicate), JoinType.LEFT_OUTER)
   }
 
   private def joinLateralInternal(
@@ -359,11 +338,7 @@ class TableImpl(
   }
 
   override def orderBy(fields: Expression*): Table = {
-    orderByInternal(fields)
-  }
-
-  private def orderByInternal(fields: Seq[Expression]): Table = {
-    wrap(operationTreeBuilder.sort(fields.asJava, operationTree))
+    wrap(operationTreeBuilder.sort(fields.map(_.accept(callResolver)).asJava, operationTree))
   }
 
   override def offset(offset: Int): Table = {
@@ -491,10 +466,6 @@ class GroupedTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    selectInternal(fields)
-  }
-
-  private def selectInternal(fields: Seq[Expression]): Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls,
       tableImpl.getUniqueAttributeSupplier)
@@ -553,17 +524,6 @@ class WindowGroupedTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    selectInternal(
-      groupKeys,
-      window,
-      fields)
-  }
-
-  private def selectInternal(
-      groupKeys: Seq[Expression],
-      window: GroupWindow,
-      fields: Seq[Expression])
-    : Table = {
     val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
     val extracted = extractAggregationsAndProperties(
       expressionsWithResolvedCalls,
@@ -600,22 +560,12 @@ class OverWindowedTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    selectInternal(
-      fields,
-      overWindows)
-  }
-
-  private def selectInternal(
-    fields: Seq[Expression],
-    logicalOverWindows: Seq[OverWindow])
-  : Table = {
-
     new TableImpl(
       tableImpl.tableEnv,
       tableImpl.operationTreeBuilder
         .project(fields.asJava,
           tableImpl.operationTree,
-          logicalOverWindows.asJava)
+          overWindows.asJava)
     )
   }
 }
