@@ -112,6 +112,7 @@ KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
+KEY_TASKM_MAX_OFFHEAP_SIZE="taskmanager.max.off-heap.size"
 
 KEY_TASKM_NET_BUF_FRACTION="taskmanager.network.memory.fraction"
 KEY_TASKM_NET_BUF_MIN="taskmanager.network.memory.min"
@@ -427,6 +428,12 @@ if [ -z "${FLINK_TM_NET_BUF_MAX}" -o "${FLINK_TM_NET_BUF_MAX}" = "-1" ]; then
     # default: 1GB = 1073741824 bytes
     FLINK_TM_NET_BUF_MAX=$(readFromConfig ${KEY_TASKM_NET_BUF_MAX} 1073741824 "${YAML_CONF}")
     FLINK_TM_NET_BUF_MAX=$(parseBytes ${FLINK_TM_NET_BUF_MAX})
+fi
+
+# Define FLINK_TM_MAX_OFFHEAP_SIZE if it is not already set
+if [ -z "${FLINK_TM_MAX_OFFHEAP_SIZE}" ]; then
+    # default: Long.MAX_VALUE in TB
+    FLINK_TM_MAX_OFFHEAP_SIZE=$(readFromConfig ${KEY_TASKM_MAX_OFFHEAP_SIZE} "8388607T" "${YAML_CONF}")
 fi
 
 
