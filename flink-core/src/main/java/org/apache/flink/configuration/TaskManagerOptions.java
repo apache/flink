@@ -74,14 +74,6 @@ public class TaskManagerOptions {
 			.withDescription("Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.");
 
 	/**
-	 * Maximum direct memory size of TaskManager, default is 8388607T (Long.MAX_VALUE in TB).
-	 */
-	public static final ConfigOption<String> TM_MAX_OFFHEAP_SIZE =
-		key("taskmanager.max.off-heap.size")
-		.defaultValue("8388607T")
-		.withDescription("Maximum direct memory size of TaskManager, default is 8388607T");
-
-	/**
 	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
 	 * shuts down the actor system if it detects that it has quarantined another actor system
 	 * or if it has been quarantined by another actor system.
