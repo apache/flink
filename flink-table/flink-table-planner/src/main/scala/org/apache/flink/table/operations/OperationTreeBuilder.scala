@@ -403,10 +403,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       BuiltInFunctionDefinitions.AS,
       resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
     val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())
-    val dropNode = dropColumns(
+    val rightNode = dropColumns(
       child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
       joinNode)
-    alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), dropNode)
+    alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
   }
 
   private def isTableFunction(tableFunction: Expression) = {

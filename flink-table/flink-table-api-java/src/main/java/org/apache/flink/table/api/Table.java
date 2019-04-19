@@ -1029,7 +1029,8 @@ public interface Table {
 	Table map(Expression mapFunction);
 
 	/**
-	 * Performs a flatMap operation with a table function.
+	 * Performs a flatMap operation with an user-defined table function or built-in table function.
+	 * The output will be flattened if the output type is a composite type.
 	 *
 	 * <p>Example:
 	 *
@@ -1044,7 +1045,8 @@ public interface Table {
 	Table flatMap(String tableFunction);
 
 	/**
-	 * Performs a flatMap operation with a table function.
+	 * Performs a flatMap operation with an user-defined table function or built-in table function.
+	 * The output will be flattened if the output type is a composite type.
 	 *
 	 * <p>Scala Example:
 	 *

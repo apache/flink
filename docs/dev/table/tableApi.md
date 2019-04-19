@@ -1839,6 +1839,17 @@ The row-based operations generate outputs with multiple columns.
       <td>
         <p>Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
 {% highlight java %}
+public class MyMapFunction extends ScalarFunction {
+    public Row eval(String a) {
+        return Row.of(a, "pre-" + a);
+    }
+
+    @Override
+    public TypeInformation<?> getResultType(Class<?>[] signature) {
+        return Types.ROW(Types.STRING(), Types.STRING());
+    }
+}
+
 ScalarFunction func = new MyMapFunction();
 tableEnv.registerFunction("func", func);
 
@@ -1856,6 +1867,23 @@ Table table = input
       <td>
         <p>Performs a flatMap operation with a table function.</p>
 {% highlight java %}
+public class MyFlatMapFunction extends TableFunction<Row> {
+
+    public void eval(String str) {
+        if (str.contains("#")) {
+            String[] array = str.split("#");
+            for (int i = 0; i < array.length; ++i) {
+                collect(Row.of(array[i], array[i].length()));
+            }
+        }
+    }
+
+    @Override
+    public TypeInformation<Row> getResultType() {
+        return Types.ROW(Types.STRING(), Types.INT());
+    }
+}
+
 TableFunction func = new MyFlatMapFunction();
 tableEnv.registerFunction("func", func);
 
@@ -1885,7 +1913,16 @@ Table table = input
       <td>
         <p>Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.</p>
 {% highlight scala %}
-val func: ScalarFunction = new MyMapFunction()
+class MyMapFunction extends ScalarFunction {
+  def eval(a: String): Row = {
+    Row.of(a, "pre-" + a)
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.STRING, Types.STRING)
+}
+
+val func = new MyMapFunction()
 val table = input
   .map(func('c)).as('a, 'b)
 {% endhighlight %}
@@ -1900,7 +1937,24 @@ val table = input
       <td>
         <p>Performs a flatMap operation with a table function.</p>
 {% highlight scala %}
-val func: TableFunction = new MyFlatMapFunction
+class MyFlatMapFunction extends TableFunction[Row] {
+  def eval(str: String): Unit = {
+    if (str.contains("#")) {
+      str.split("#").foreach({ s =>
+        val row = new Row(2)
+        row.setField(0, s)
+        row.setField(1, s.length)
+        collect(row)
+      })
+    }
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    Types.ROW(Types.STRING, Types.INT)
+  }
+}
+
+val func = new MyFlatMapFunction
 val table = input
   .flatMap(func('c)).as('a, 'b)
 {% endhighlight %}

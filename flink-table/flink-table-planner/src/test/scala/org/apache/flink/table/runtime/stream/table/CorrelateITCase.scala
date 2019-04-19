@@ -316,7 +316,7 @@ class CorrelateITCase extends AbstractTestBase {
       // test non alias
       .flatMap(func2('c))
       .select('f0, 'f1)
-      // test the output field name of flatMap is the same as the field name of input table
+      // test the output field name of flatMap is the same as the field name of the input table
       .flatMap(func2(concat('f0, "#")))
       .as ('f0, 'f1)
       .select('f0, 'f1)
