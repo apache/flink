@@ -39,10 +39,7 @@ flink-streaming-java,\
 flink-streaming-scala"
 
 MODULES_CORE_JDK9_EXCLUSIONS="\
-!flink-state-backends/flink-statebackend-rocksdb,\
-!flink-clients,\
-!flink-runtime,\
-!flink-scala-shell"
+!flink-runtime"
 
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
@@ -97,20 +94,10 @@ flink-connectors/flink-connector-twitter"
 MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-filesystems/flink-s3-fs-hadoop,\
 !flink-filesystems/flink-s3-fs-presto,\
-!flink-formats/flink-avro,\
-!flink-connectors/flink-hbase,\
-!flink-connectors/flink-connector-kafka-0.9,\
-!flink-connectors/flink-connector-kafka-0.10,\
-!flink-connectors/flink-connector-kafka-0.11"
+!flink-connectors/flink-hbase"
 
 MODULES_TESTS="\
 flink-tests"
-
-MODULES_TESTS_JDK9_EXCLUSIONS="\
-!flink-tests"
-
-MODULES_MISC_JDK9_EXCLUSIONS="\
-!flink-yarn-tests"
 
 if [[ ${PROFILE} == *"include-kinesis"* ]]; then
     MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
@@ -119,7 +106,6 @@ fi
 # we can only build the Kafka 0.8 connector when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then
     MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.8"
-    MODULES_CONNECTORS_JDK9_EXCLUSIONS="${MODULES_CONNECTORS_JDK9_EXCLUSIONS},!flink-connectors/flink-connector-kafka-0.8"
 fi
 
 # we can only build the Scala Shell when building for Scala 2.11
@@ -167,9 +153,6 @@ function get_test_modules_for_stage() {
     if [[ ${PROFILE} == *"jdk9"* ]]; then
         modules_core="$modules_core,$MODULES_CORE_JDK9_EXCLUSIONS"
         modules_connectors="$modules_connectors,$MODULES_CONNECTORS_JDK9_EXCLUSIONS"
-        # add flink-annotations so that at least one module is tested, otherwise maven fails
-        modules_tests="$modules_tests,$MODULES_TESTS_JDK9_EXCLUSIONS,flink-annotations"
-        modules_misc="$modules_misc,$MODULES_MISC_JDK9_EXCLUSIONS"
     fi
 
     case ${stage} in
