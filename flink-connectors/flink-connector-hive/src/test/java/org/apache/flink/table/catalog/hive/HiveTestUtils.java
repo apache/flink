@@ -46,8 +46,6 @@ public class HiveTestUtils {
 		String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
 		String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 		HiveConf hiveConf = new HiveConf();
-		hiveConf.setBoolVar(HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
-		hiveConf.setBoolean("datanucleus.schema.autoCreateTables", true);
 		hiveConf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
 		hiveConf.setVar(HiveConf.ConfVars.METASTORECONNECTURLKEY, warehouseUri);
 

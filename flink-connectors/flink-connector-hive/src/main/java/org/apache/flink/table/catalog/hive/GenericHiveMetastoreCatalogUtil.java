@@ -42,7 +42,7 @@ public class GenericHiveMetastoreCatalogUtil {
 		Map<String, String> props = db.getProperties();
 		return new Database(
 			dbName,
-			db.getDescription().get(),
+			db.getDescription().isPresent() ? db.getDescription().get() : null,
 			null,
 			props);
 	}
