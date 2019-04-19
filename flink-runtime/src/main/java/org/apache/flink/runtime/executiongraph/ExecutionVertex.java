@@ -27,18 +27,10 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -47,20 +39,15 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -250,6 +237,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, inputEdges.length));
 		}
 		return inputEdges[input];
+	}
+
+	public ExecutionEdge[][] getAllInputEdges() {
+		return inputEdges;
 	}
 
 	public CoLocationConstraint getLocationConstraint() {
@@ -808,108 +799,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		if (currentExecution == execution) {
 			getExecutionGraph().notifyExecutionChange(execution, newState, error);
 		}
-	}
-
-	/**
-	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
-	 * TODO: This should actually be in the EXECUTION
-	 */
-	TaskDeploymentDescriptor createDeploymentDescriptor(
-			ExecutionAttemptID executionId,
-			LogicalSlot targetSlot,
-			@Nullable JobManagerTaskRestore taskRestore,
-			int attemptNumber) throws ExecutionGraphException {
-
-		// Produced intermediate results
-		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<>(resultPartitions.size());
-
-		// Consumed intermediate results
-		List<InputGateDeploymentDescriptor> consumedPartitions = new ArrayList<>(inputEdges.length);
-
-		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
-
-		for (IntermediateResultPartition partition : resultPartitions.values()) {
-
-			List<List<ExecutionEdge>> consumers = partition.getConsumers();
-
-			if (consumers.isEmpty()) {
-				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
-						partition,
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-						lazyScheduling));
-			} else {
-				Preconditions.checkState(1 == consumers.size(),
-						"Only one consumer supported in the current implementation! Found: " + consumers.size());
-
-				List<ExecutionEdge> consumer = consumers.get(0);
-				ExecutionJobVertex vertex = consumer.get(0).getTarget().getJobVertex();
-				int maxParallelism = vertex.getMaxParallelism();
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism, lazyScheduling));
-			}
-		}
-
-		final InputChannelDeploymentDescriptor[] icddArray = new InputChannelDeploymentDescriptor[0];
-
-		for (ExecutionEdge[] edges : inputEdges) {
-			List<InputChannelDeploymentDescriptor> partitions = InputChannelDeploymentDescriptor.fromEdges(
-				Arrays.asList(edges),
-				lazyScheduling);
-
-			// If the produced partition has multiple consumers registered, we
-			// need to request the one matching our sub task index.
-			// TODO Refactor after removing the consumers from the intermediate result partitions
-			int numConsumerEdges = edges[0].getSource().getConsumers().get(0).size();
-
-			int queueToRequest = subTaskIndex % numConsumerEdges;
-
-			IntermediateResult consumedIntermediateResult = edges[0].getSource().getIntermediateResult();
-			final IntermediateDataSetID resultId = consumedIntermediateResult.getId();
-			final ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
-
-			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, partitionType, queueToRequest, partitions.toArray(icddArray)));
-		}
-
-		final Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey = getExecutionGraph().getJobInformationOrBlobKey();
-
-		final TaskDeploymentDescriptor.MaybeOffloaded<JobInformation> serializedJobInformation;
-
-		if (jobInformationOrBlobKey.isLeft()) {
-			serializedJobInformation = new TaskDeploymentDescriptor.NonOffloaded<>(jobInformationOrBlobKey.left());
-		} else {
-			serializedJobInformation = new TaskDeploymentDescriptor.Offloaded<>(jobInformationOrBlobKey.right());
-		}
-
-		final Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey;
-
-		try {
-			taskInformationOrBlobKey = jobVertex.getTaskInformationOrBlobKey();
-		} catch (IOException e) {
-			throw new ExecutionGraphException(
-				"Could not create a serialized JobVertexInformation for " +
-					jobVertex.getJobVertexId(), e);
-		}
-
-		final TaskDeploymentDescriptor.MaybeOffloaded<TaskInformation> serializedTaskInformation;
-
-		if (taskInformationOrBlobKey.isLeft()) {
-			serializedTaskInformation = new TaskDeploymentDescriptor.NonOffloaded<>(taskInformationOrBlobKey.left());
-		} else {
-			serializedTaskInformation = new TaskDeploymentDescriptor.Offloaded<>(taskInformationOrBlobKey.right());
-		}
-
-		return new TaskDeploymentDescriptor(
-			getJobId(),
-			serializedJobInformation,
-			serializedTaskInformation,
-			executionId,
-			targetSlot.getAllocationId(),
-			subTaskIndex,
-			attemptNumber,
-			targetSlot.getPhysicalSlotNumber(),
-			taskRestore,
-			producedPartitions,
-			consumedPartitions);
 	}
 
 	// --------------------------------------------------------------------------------------------

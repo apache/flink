@@ -23,12 +23,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -47,12 +44,14 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -77,6 +76,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		}
 	}
 
+	private final ResourceID location = ResourceID.generate();
 	protected final JobID jobId = new JobID();
 	protected final IntermediateDataSetID dataSetID = new IntermediateDataSetID();
 
@@ -156,6 +156,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		}
 
 		gateFactory = new SingleInputGateFactory(
+			location,
 			receiverEnv.getConfiguration(),
 			receiverEnv.getConnectionManager(),
 			receiverEnv.getResultPartitionManager(),
@@ -243,7 +244,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		for (int channel = 0; channel < channels; ++channel) {
 			final InputGateDeploymentDescriptor gateDescriptor = createInputGateDeploymentDescriptor(
 				senderLocation,
-				channel);
+				channel,
+				location);
 
 			final InputGate gate = createInputGateWithMetrics(gateFactory, gateDescriptor, channel);
 
@@ -260,14 +262,13 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	private InputGateDeploymentDescriptor createInputGateDeploymentDescriptor(
 			TaskManagerLocation senderLocation,
-			int consumedSubpartitionIndex) {
+			int consumedSubpartitionIndex,
+			ResourceID localLocation) {
 
-		final InputChannelDeploymentDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
-			.map(partitionId -> new InputChannelDeploymentDescriptor(
-				partitionId,
-				localMode ? ResultPartitionLocation.createLocal() : ResultPartitionLocation.createRemote(
-					new ConnectionID(senderLocation, consumedSubpartitionIndex))))
-			.toArray(InputChannelDeploymentDescriptor[]::new);
+		final ShuffleDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
+			.map(partitionId ->
+				createShuffleDescriptor(localMode, partitionId, localLocation, senderLocation, consumedSubpartitionIndex))
+			.toArray(ShuffleDescriptor[]::new);
 
 		return new InputGateDeploymentDescriptor(
 			dataSetID,
@@ -288,5 +289,18 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
 
 		return new InputGateWithMetrics(singleGate, new SimpleCounter());
+	}
+
+	private static ShuffleDescriptor createShuffleDescriptor(
+			boolean localMode,
+			ResultPartitionID resultPartitionID,
+			ResourceID location,
+			TaskManagerLocation senderLocation,
+			int channel) {
+		final NettyShuffleDescriptorBuilder builder = NettyShuffleDescriptorBuilder.newBuilder()
+			.setId(resultPartitionID)
+			.setProducerInfoFromTaskManagerLocation(senderLocation)
+			.setConnectionIndex(channel);
+		return localMode ? builder.setProducerLocation(location).buildLocal() : builder.buildRemote();
 	}
 }

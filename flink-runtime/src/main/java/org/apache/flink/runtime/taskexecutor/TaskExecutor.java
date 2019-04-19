@@ -619,7 +619,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 									log.debug(
 										"Discard update for input gate partition {} of result {} in task {}. " +
 											"The partition is no longer available.",
-										partitionInfo.getInputChannelDeploymentDescriptor().getConsumedPartitionId(),
+										partitionInfo.getShuffleDescriptor().getResultPartitionID(),
 										partitionInfo.getIntermediateDataSetID(),
 										executionAttemptID);
 								}
