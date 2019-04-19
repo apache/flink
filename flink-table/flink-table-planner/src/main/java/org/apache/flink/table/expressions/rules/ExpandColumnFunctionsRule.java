@@ -40,33 +40,33 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WITH
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WITH_COLUMNS;
 
 /**
- * Replaces columns functions with all available {@link org.apache.flink.table.expressions.UnresolvedReferenceExpression}s
+ * Replaces column functions with all available {@link org.apache.flink.table.expressions.UnresolvedReferenceExpression}s
  * from underlying inputs.
  */
 @Internal
-final class ExpandColumnsFunctionRule implements ResolverRule {
+final class ExpandColumnFunctionsRule implements ResolverRule {
 	@Override
 	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-		ColumnsFunctionExpander columnsFunctionExpander =
-			new ColumnsFunctionExpander(
+		ColumnFunctionsExpander columnFunctionsExpander =
+			new ColumnFunctionsExpander(
 				context.referenceLookup().getAllInputFields().stream()
 					.map(p -> new UnresolvedReferenceExpression(p.getName()))
 					.collect(Collectors.toList())
 			);
 		return expression.stream()
-			.flatMap(expr -> expr.accept(columnsFunctionExpander).stream())
+			.flatMap(expr -> expr.accept(columnFunctionsExpander).stream())
 			.collect(Collectors.toList());
 	}
 
 	/**
 	 * Expands column functions to it's real parent's input references.
 	 */
-	class ColumnsFunctionExpander extends ApiExpressionDefaultVisitor<List<Expression>> {
+	class ColumnFunctionsExpander extends ApiExpressionDefaultVisitor<List<Expression>> {
 
 		private final List<UnresolvedReferenceExpression> inputFieldReferences;
 		private final ColumnsExpressionExpander columnsExpressionExpander;
 
-		public ColumnsFunctionExpander(List<UnresolvedReferenceExpression> inputFieldReferences) {
+		public ColumnFunctionsExpander(List<UnresolvedReferenceExpression> inputFieldReferences) {
 			this.inputFieldReferences = inputFieldReferences;
 			this.columnsExpressionExpander = new ColumnsExpressionExpander(inputFieldReferences);
 		}
@@ -202,7 +202,7 @@ final class ExpandColumnsFunctionRule implements ResolverRule {
 		}
 
 		/**
-		 * Whether the expression is a column index range expression, e.g. columns(1 ~ 2).
+		 * Whether the expression is a column index range expression, e.g. withColumns(1 ~ 2).
 		 */
 		private boolean isIndexRangeCall(CallExpression expression) {
 			return expression.getFunctionDefinition().getName().equals(RANGE_TO.getName()) &&
@@ -211,7 +211,7 @@ final class ExpandColumnsFunctionRule implements ResolverRule {
 		}
 
 		/**
-		 * Whether the expression is a column name range expression, e.g. columns(a ~ b).
+		 * Whether the expression is a column name range expression, e.g. withColumns(a ~ b).
 		 */
 		private boolean isNameRangeCall(CallExpression expression) {
 			return expression.getFunctionDefinition().getName().equals(RANGE_TO.getName()) &&

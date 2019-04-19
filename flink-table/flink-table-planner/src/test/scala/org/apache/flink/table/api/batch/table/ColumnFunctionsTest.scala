@@ -27,9 +27,9 @@ import org.apache.flink.table.utils.{BatchTableTestUtil, TableTestBase}
 import org.junit.Test
 
 /**
-  * Tests for column operations.
+  * Tests for column functions.
   */
-class ColumnsOperationTest extends TableTestBase {
+class ColumnFunctionsTest extends TableTestBase {
 
   val util = new BatchTableTestUtil()
 

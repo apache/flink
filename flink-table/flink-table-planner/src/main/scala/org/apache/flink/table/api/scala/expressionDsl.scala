@@ -186,7 +186,7 @@ trait ImplicitExpressionOperations {
 
   /**
     * Indicates the range from left to right, i.e. [left, right], which can be used in columns
-    * selection, e.g.: columns(1 to 3).
+    * selection, e.g.: withColumns(1 to 3).
     */
   def to (other: Expression): Expression = call(RANGE_TO, expr, other)
 

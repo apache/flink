@@ -5808,14 +5808,15 @@ The column functions are used to select or deselect table columns.
 
 | SYNTAX              | DESC                         |
 | :--------------------- | :-------------------------- |
-| columns(...)         | select the specified columns                  |
-| -columns(...)        | deselect the columns specified                  |
+| withColumns(...)         | select the specified columns                  |
+| withoutColumns(...)        | deselect the columns specified                  |
 
 The detailed syntax is as follows:
 
 {% highlight text %}
 columnFunction:
-    [-]columns(columnExprs)
+    withColumns(columnExprs)
+    withoutColumns(columnExprs)
 
 columnExprs:
     columnExpr [, columnExpr]*
@@ -5844,11 +5845,11 @@ The usage of the column function is illustrated in the following table. (Suppose
   <tbody>
     <tr>
       <td>
-        columns(*)|*
+        withColumns(*)|*
       </td>
       <td>
 {% highlight java %}
-select("columns(*)") | select("*") = select("a, b, c, d, e")
+select("withColumns(*)") | select("*") = select("a, b, c, d, e")
 {% endhighlight %}
       </td>
       <td>
@@ -5858,11 +5859,11 @@ select("columns(*)") | select("*") = select("a, b, c, d, e")
     
     <tr>
       <td>
-        columns(m to n)
+        withColumns(m to n)
       </td>
       <td>
 {% highlight java %}
-select("columns(2 to 4)") = select("b, c, d")
+select("withColumns(2 to 4)") = select("b, c, d")
 {% endhighlight %}
       </td>
       <td>
@@ -5872,11 +5873,11 @@ select("columns(2 to 4)") = select("b, c, d")
     
     <tr>
       <td>
-        columns(m, n, k)
+        withColumns(m, n, k)
       </td>
       <td>
 {% highlight java %}
-select("columns(1, 3, e)") = select("a, c, e")
+select("withColumns(1, 3, e)") = select("a, c, e")
 {% endhighlight %}
       </td>
       <td>
@@ -5886,11 +5887,11 @@ select("columns(1, 3, e)") = select("a, c, e")
     
     <tr>
       <td>
-        columns(m, n to k)
+        withColumns(m, n to k)
       </td>
       <td>
 {% highlight java %}
-select("columns(1, 3 to 5)") = select("a, c, d ,e")
+select("withColumns(1, 3 to 5)") = select("a, c, d ,e")
 {% endhighlight %}
       </td>
       <td>
@@ -5900,11 +5901,11 @@ select("columns(1, 3 to 5)") = select("a, c, d ,e")
     
     <tr>
       <td>
-        -columns(m to n)
+        withoutColumns(m to n)
       </td>
       <td>
 {% highlight java %}
-select("-columns(2 to 4)") = select("a, e")
+select("withoutColumns(2 to 4)") = select("a, e")
 {% endhighlight %}
       </td>
       <td>
@@ -5914,11 +5915,11 @@ select("-columns(2 to 4)") = select("a, e")
 
     <tr>
       <td>
-        -columns(m, n, k)
+        withoutColumns(m, n, k)
       </td>
       <td>
 {% highlight java %}
-select("-columns(1, 3, 5)") = select("b, d")
+select("withoutColumns(1, 3, 5)") = select("b, d")
 {% endhighlight %}
       </td>
       <td>
@@ -5928,11 +5929,11 @@ select("-columns(1, 3, 5)") = select("b, d")
     
     <tr>
       <td>
-        -columns(m, n to k)
+        withoutColumns(m, n to k)
       </td>
       <td>
 {% highlight java %}
-select("-columns(1, 3 to 5)") = select("b")
+select("withoutColumns(1, 3 to 5)") = select("b")
 {% endhighlight %}
       </td>
       <td>
@@ -5956,11 +5957,11 @@ select("-columns(1, 3 to 5)") = select("b")
   <tbody>
     <tr>
       <td>
-        columns(*)|*
+        withColumns(*)|*
       </td>
       <td>
 {% highlight scala %}
-select(columns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
+select(withColumns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
 {% endhighlight %}
       </td>
       <td>
@@ -5970,11 +5971,11 @@ select(columns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
     
     <tr>
       <td>
-        columns(m to n)
+        withColumns(m to n)
       </td>
       <td>
 {% highlight scala %}
-select(columns(2 to 4)) = select('b, 'c, 'd)
+select(withColumns(2 to 4)) = select('b, 'c, 'd)
 {% endhighlight %}
       </td>
       <td>
@@ -5984,11 +5985,11 @@ select(columns(2 to 4)) = select('b, 'c, 'd)
 
     <tr>
       <td>
-        columns(m, n, k)
+        withColumns(m, n, k)
       </td>
       <td>
 {% highlight scala %}
-select(columns(1, 3, 'e)) = select('a, 'c, 'e)
+select(withColumns(1, 3, 'e)) = select('a, 'c, 'e)
 {% endhighlight %}
       </td>
       <td>
@@ -5998,11 +5999,11 @@ select(columns(1, 3, 'e)) = select('a, 'c, 'e)
 
     <tr>
       <td>
-        columns(m, n to k)
+        withColumns(m, n to k)
       </td>
       <td>
 {% highlight scala %}
-select(columns(1, 3 to 5)) = select('a, 'c, 'd, 'e)
+select(withColumns(1, 3 to 5)) = select('a, 'c, 'd, 'e)
 {% endhighlight %}
       </td>
       <td>
@@ -6012,11 +6013,11 @@ select(columns(1, 3 to 5)) = select('a, 'c, 'd, 'e)
 
     <tr>
       <td>
-        -columns(m to n)
+        withoutColumns(m to n)
       </td>
       <td>
 {% highlight scala %}
-select(-columns(2 to 4)) = select('a, 'e)
+select(withoutColumns(2 to 4)) = select('a, 'e)
 {% endhighlight %}
       </td>
       <td>
@@ -6026,11 +6027,11 @@ select(-columns(2 to 4)) = select('a, 'e)
      
     <tr>
       <td>
-        -columns(m, n, k)
+        withoutColumns(m, n, k)
       </td>
       <td>
 {% highlight scala %}
-select(-columns(1, 3, 5)) = select('b, 'd)
+select(withoutColumns(1, 3, 5)) = select('b, 'd)
 {% endhighlight %}
       </td>
       <td>
@@ -6040,11 +6041,11 @@ select(-columns(1, 3, 5)) = select('b, 'd)
    
     <tr>
       <td>
-        -columns(m, n to k)
+        withoutColumns(m, n to k)
       </td>
       <td>
 {% highlight scala %}
-select(-columns(1, 3 to 5)) = select('b)
+select(withoutColumns(1, 3 to 5)) = select('b)
 {% endhighlight %}
       </td>
       <td>
@@ -6064,16 +6065,16 @@ The column functions can be used in all places where column fields are expected,
 <div data-lang="java" markdown="1">
 {% highlight java %}
 table
-   .groupBy("columns(1 to 3)")
-   .select("columns(a to b), myUDAgg(myUDF(columns(5 to 20)))")
+   .groupBy("withColumns(1 to 3)")
+   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 table
-   .groupBy(columns(1 to 3))
-   .select(columns('a to 'b), myUDAgg(myUDF(columns(5 to 20))))
+   .groupBy(withColumns(1 to 3))
+   .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
 {% endhighlight %}
 </div>
 </div>

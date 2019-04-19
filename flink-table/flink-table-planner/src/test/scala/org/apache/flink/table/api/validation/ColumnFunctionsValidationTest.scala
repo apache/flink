@@ -25,10 +25,10 @@ import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
 /**
-  * Tests to validate exceptions for column operations. This test can also cover the batch
+  * Tests to validate exceptions for column functions. This test can also cover the batch
   * scenarios.
   */
-class ColumnsOperationValidationTest extends TableTestBase {
+class ColumnFunctionsValidationTest extends TableTestBase {
 
   val util = new StreamTableTestUtil()
   val withCol = BuiltInFunctionDefinitions.WITH_COLUMNS.getName

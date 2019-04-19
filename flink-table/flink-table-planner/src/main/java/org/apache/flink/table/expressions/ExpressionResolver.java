@@ -60,7 +60,7 @@ import scala.Some;
  *
  * <p>The default set of rules ({@link ExpressionResolver#getResolverRules()}) will resolve following references:
  * <ul>
- *     <li>flatten '*' and columns operations to all fields of underlying inputs</li>
+ *     <li>flatten '*' and column functions to all fields of underlying inputs</li>
  *     <li>join over aggregates with corresponding over windows into a single resolved call</li>
  *     <li>resolve remaining unresolved references to fields, tables or local references</li>
  *     <li>replace call to {@link BuiltInFunctionDefinitions#FLATTEN}</li>
@@ -77,7 +77,7 @@ public class ExpressionResolver {
 		return Arrays.asList(
 			ResolverRules.LOOKUP_CALL_BY_NAME,
 			ResolverRules.FLATTEN_STAR_REFERENCE,
-			ResolverRules.EXPAND_COLUMN_OPERATIONS,
+			ResolverRules.EXPAND_COLUMN_FUNCTIONS,
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
 			ResolverRules.FLATTEN_CALL,
@@ -227,7 +227,7 @@ public class ExpressionResolver {
 	private List<Expression> prepareExpressions(List<Expression> expressions) {
 		return expressions.stream()
 			.flatMap(e -> lookupCall(e).stream())
-			.flatMap(e -> resolveColumnsOperation(e).stream())
+			.flatMap(e -> resolveColumnFunctions(e).stream())
 			.map(this::resolveFieldsInSingleExpression)
 			.collect(Collectors.toList());
 	}
@@ -243,8 +243,8 @@ public class ExpressionResolver {
 		return expressions.get(0);
 	}
 
-	private List<Expression> resolveColumnsOperation(Expression expression) {
-		List<Expression> expressions = ResolverRules.EXPAND_COLUMN_OPERATIONS.apply(Collections.singletonList(expression),
+	private List<Expression> resolveColumnFunctions(Expression expression) {
+		List<Expression> expressions = ResolverRules.EXPAND_COLUMN_FUNCTIONS.apply(Collections.singletonList(expression),
 			new ExpressionResolverContext());
 		return expressions;
 	}

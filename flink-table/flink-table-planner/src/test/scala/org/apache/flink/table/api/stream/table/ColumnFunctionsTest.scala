@@ -29,9 +29,9 @@ import org.apache.flink.table.utils.{StreamTableTestUtil, TableFunc0, TableTestB
 import org.junit.Test
 
 /**
-  * Tests for column operations which includes tests for different column operations.
+  * Tests for column functions which includes tests for different column functions.
   */
-class ColumnsOperationTest extends TableTestBase {
+class ColumnFunctionsTest extends TableTestBase {
 
   val util = new StreamTableTestUtil()
 
@@ -116,7 +116,7 @@ class ColumnsOperationTest extends TableTestBase {
   }
 
   @Test
-  def testColumnsOperationInUDF(): Unit = {
+  def testColumnFunctionsInUDF(): Unit = {
     val t = util.addTable[(Int, Long, String, String)]('int, 'long, 'string1, 'string2)
 
     val tab1 = t.select(concat(withColumns('string1 to 'string2)))
