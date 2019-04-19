@@ -126,7 +126,7 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testBasicSelect2(): Unit = {
     val testData2 = Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2))
     checkQuery(
