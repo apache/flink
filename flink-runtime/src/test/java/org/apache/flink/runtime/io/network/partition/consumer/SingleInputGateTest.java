@@ -20,9 +20,8 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -43,6 +42,9 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 
 import org.junit.Test;
 
@@ -55,6 +57,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -225,7 +228,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 		verify(taskEventDispatcher, times(1)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
 
 		// After the update, the pending event should be send to local channel
-		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(new ResultPartitionID(unknownPartitionId.getPartitionId(), unknownPartitionId.getProducerId()), ResultPartitionLocation.createLocal()));
+
+		ResourceID location = ResourceID.generate();
+		inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(unknownPartitionId.getPartitionId(), location));
 
 		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
@@ -248,9 +253,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.buildUnknownAndSetToGate(inputGate);
 
 		// Update to a local channel and verify that no request is triggered
-		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
-			unknown.partitionId,
-			ResultPartitionLocation.createLocal()));
+		ResultPartitionID resultPartitionID = unknown.getPartitionId();
+		ResourceID location = ResourceID.generate();
+		inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(resultPartitionID.getPartitionId(), location));
 
 		verify(partitionManager, never()).createSubpartitionView(
 			any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
@@ -317,29 +322,26 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testRequestBackoffConfiguration() throws Exception {
-		ResultPartitionID[] partitionIds = new ResultPartitionID[] {
-			new ResultPartitionID(),
-			new ResultPartitionID(),
-			new ResultPartitionID()
+		IntermediateResultPartitionID[] partitionIds = new IntermediateResultPartitionID[] {
+			new IntermediateResultPartitionID(),
+			new IntermediateResultPartitionID(),
+			new IntermediateResultPartitionID()
 		};
 
-		InputChannelDeploymentDescriptor[] channelDescs = new InputChannelDeploymentDescriptor[]{
+		ResourceID localLocation = ResourceID.generate();
+		ShuffleDescriptor[] channelDescs = new ShuffleDescriptor[]{
 			// Local
-			new InputChannelDeploymentDescriptor(
-				partitionIds[0],
-				ResultPartitionLocation.createLocal()),
+			createRemoteWithIdAndLocation(partitionIds[0], localLocation),
 			// Remote
-			new InputChannelDeploymentDescriptor(
-				partitionIds[1],
-				ResultPartitionLocation.createRemote(InputChannelBuilder.STUB_CONNECTION_ID)),
+			createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()),
 			// Unknown
-			new InputChannelDeploymentDescriptor(
-				partitionIds[2],
-				ResultPartitionLocation.createUnknown())};
+			new UnknownShuffleDescriptor(new ResultPartitionID(partitionIds[2], new ExecutionAttemptID()))};
 
-		InputGateDeploymentDescriptor gateDesc =
-			new InputGateDeploymentDescriptor(new IntermediateDataSetID(),
-				ResultPartitionType.PIPELINED, 0, channelDescs);
+		InputGateDeploymentDescriptor gateDesc = new InputGateDeploymentDescriptor(
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
+			0,
+			channelDescs);
 
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
@@ -351,6 +353,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.build();
 
 		SingleInputGate gate = new SingleInputGateFactory(
+			localLocation,
 			netEnv.getConfiguration(),
 			netEnv.getConnectionManager(),
 			netEnv.getResultPartitionManager(),
@@ -368,13 +371,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 			Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
 
 			assertEquals(3, channelMap.size());
-			InputChannel localChannel = channelMap.get(partitionIds[0].getPartitionId());
+			InputChannel localChannel = channelMap.get(partitionIds[0]);
 			assertEquals(LocalInputChannel.class, localChannel.getClass());
 
-			InputChannel remoteChannel = channelMap.get(partitionIds[1].getPartitionId());
+			InputChannel remoteChannel = channelMap.get(partitionIds[1]);
 			assertEquals(RemoteInputChannel.class, remoteChannel.getClass());
 
-			InputChannel unknownChannel = channelMap.get(partitionIds[2].getPartitionId());
+			InputChannel unknownChannel = channelMap.get(partitionIds[2]);
 			assertEquals(UnknownInputChannel.class, unknownChannel.getClass());
 
 			InputChannel[] channels =
@@ -465,9 +468,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 			}
 
 			// Trigger updates to remote input channel from unknown input channel
-			inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
-				resultPartitionId,
-				ResultPartitionLocation.createRemote(InputChannelBuilder.STUB_CONNECTION_ID)));
+			inputGate.updateInputChannel(
+				ResourceID.generate(),
+				createRemoteWithIdAndLocation(resultPartitionId.getPartitionId(), ResourceID.generate()));
 
 			if (enableCreditBasedFlowControl) {
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
@@ -511,10 +514,12 @@ public class SingleInputGateTest extends InputGateTestBase {
 			assertThat(inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
 				is(instanceOf((UnknownInputChannel.class))));
 
+			ResourceID localLocation = ResourceID.generate();
+
 			// Trigger updates to remote input channel from unknown input channel
-			inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
-				remoteResultPartitionId,
-				ResultPartitionLocation.createRemote(InputChannelBuilder.STUB_CONNECTION_ID)));
+			inputGate.updateInputChannel(
+				localLocation,
+				createRemoteWithIdAndLocation(remoteResultPartitionId.getPartitionId(), ResourceID.generate()));
 
 			assertThat(inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
 				is(instanceOf((RemoteInputChannel.class))));
@@ -522,9 +527,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 				is(instanceOf((UnknownInputChannel.class))));
 
 			// Trigger updates to local input channel from unknown input channel
-			inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
-				localResultPartitionId,
-				ResultPartitionLocation.createLocal()));
+			inputGate.updateInputChannel(
+				localLocation,
+				createRemoteWithIdAndLocation(localResultPartitionId.getPartitionId(), localLocation));
 
 			assertThat(inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
 				is(instanceOf((RemoteInputChannel.class))));
@@ -585,11 +590,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 			NetworkEnvironment network,
 			int numberOfGates,
 			@SuppressWarnings("SameParameterValue") int numberOfLocalChannels) {
-		InputChannelDeploymentDescriptor[] channelDescs = new InputChannelDeploymentDescriptor[numberOfLocalChannels];
+		ShuffleDescriptor[] channelDescs = new NettyShuffleDescriptor[numberOfLocalChannels];
 		for (int i = 0; i < numberOfLocalChannels; i++) {
-			channelDescs[i] = new InputChannelDeploymentDescriptor(
-				new ResultPartitionID(),
-				ResultPartitionLocation.createLocal());
+			channelDescs[i] = createRemoteWithIdAndLocation(new IntermediateResultPartitionID(), ResourceID.generate());
 		}
 
 		InputGateDeploymentDescriptor[] gateDescs = new InputGateDeploymentDescriptor[numberOfGates];

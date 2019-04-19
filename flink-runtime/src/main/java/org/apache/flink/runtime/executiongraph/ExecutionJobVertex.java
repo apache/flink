@@ -529,7 +529,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		for (int i = 0; i < vertices.length; i++) {
 			// allocate the next slot (future)
 			final Execution exec = vertices[i].getCurrentExecutionAttempt();
-			final CompletableFuture<Execution> allocationFuture = exec.allocateAndAssignSlotForExecution(
+			final CompletableFuture<Execution> allocationFuture = exec.allocateResourcesForExecution(
 				resourceProvider,
 				queued,
 				locationPreferenceConstraint,

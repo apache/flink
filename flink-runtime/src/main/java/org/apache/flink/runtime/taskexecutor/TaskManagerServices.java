@@ -247,7 +247,11 @@ public class TaskManagerServices {
 		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
 		final NetworkEnvironment network = NetworkEnvironment.create(
-			taskManagerServicesConfiguration.getNetworkConfig(), taskEventDispatcher, taskManagerMetricGroup, ioManager);
+			resourceID,
+			taskManagerServicesConfiguration.getNetworkConfig(),
+			taskEventDispatcher,
+			taskManagerMetricGroup,
+			ioManager);
 		int dataPort = network.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);

@@ -231,6 +231,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	private static NetworkEnvironment createNetworkEnvironment(
+			ResourceID taskManagerLocation,
 			boolean localCommunication,
 			Configuration configuration,
 			RpcService testingRpcService,
@@ -246,6 +247,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 				NetworkEnvironmentConfiguration.getPageSize(configuration), ConfigurationParserUtils.getSlot(configuration), configuration);
 
 			networkEnvironment =  new NetworkEnvironmentBuilder()
+				.setTaskManagerLocation(taskManagerLocation)
 				.setPartitionRequestInitialBackoff(configuration.getInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL))
 				.setPartitionRequestMaxBackoff(configuration.getInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX))
 				.setNettyConfig(localCommunication ? null : nettyConfig)
@@ -281,6 +283,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		private Configuration configuration = new Configuration();
 		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 		private Optional<NetworkEnvironment> optionalNetworkEnvironment = Optional.empty();
+		private ResourceID resourceID = ResourceID.generate();
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
 
@@ -330,11 +333,21 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			return this;
 		}
 
+		public Builder setResourceID(ResourceID resourceID) {
+			this.resourceID = resourceID;
+			return this;
+		}
+
 		public TaskSubmissionTestEnvironment build() throws Exception {
 			final TestingRpcService testingRpcService = new TestingRpcService();
 			final NetworkEnvironment network = optionalNetworkEnvironment.orElseGet(() -> {
 				try {
-					return createNetworkEnvironment(localCommunication, configuration, testingRpcService, mockNetworkEnvironment);
+					return createNetworkEnvironment(
+						resourceID,
+						localCommunication,
+						configuration,
+						testingRpcService,
+						mockNetworkEnvironment);
 				} catch (Exception e) {
 					throw new FlinkRuntimeException("Failed to build TaskSubmissionTestEnvironment", e);
 				}

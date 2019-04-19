@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -46,6 +47,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGateID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.Preconditions;
@@ -59,6 +62,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -80,6 +84,8 @@ public class NetworkEnvironment {
 
 	private final Object lock = new Object();
 
+	private final ResourceID taskExecutorLocation;
+
 	private final NetworkEnvironmentConfiguration config;
 
 	private final NetworkBufferPool networkBufferPool;
@@ -97,12 +103,14 @@ public class NetworkEnvironment {
 	private boolean isShutdown;
 
 	private NetworkEnvironment(
+			ResourceID taskExecutorLocation,
 			NetworkEnvironmentConfiguration config,
 			NetworkBufferPool networkBufferPool,
 			ConnectionManager connectionManager,
 			ResultPartitionManager resultPartitionManager,
 			ResultPartitionFactory resultPartitionFactory,
 			SingleInputGateFactory singleInputGateFactory) {
+		this.taskExecutorLocation = taskExecutorLocation;
 		this.config = config;
 		this.networkBufferPool = networkBufferPool;
 		this.connectionManager = connectionManager;
@@ -114,10 +122,12 @@ public class NetworkEnvironment {
 	}
 
 	public static NetworkEnvironment create(
+			ResourceID taskExecutorLocation,
 			NetworkEnvironmentConfiguration config,
 			TaskEventPublisher taskEventPublisher,
 			MetricGroup metricGroup,
 			IOManager ioManager) {
+		checkNotNull(taskExecutorLocation);
 		checkNotNull(ioManager);
 		checkNotNull(taskEventPublisher);
 		checkNotNull(config);
@@ -145,6 +155,7 @@ public class NetworkEnvironment {
 			config.floatingNetworkBuffersPerGate());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
+			taskExecutorLocation,
 			config,
 			connectionManager,
 			resultPartitionManager,
@@ -152,6 +163,7 @@ public class NetworkEnvironment {
 			networkBufferPool);
 
 		return new NetworkEnvironment(
+			taskExecutorLocation,
 			config,
 			networkBufferPool,
 			connectionManager,
@@ -299,7 +311,11 @@ public class NetworkEnvironment {
 		if (inputGate == null) {
 			return false;
 		}
-		inputGate.updateInputChannel(partitionInfo.getInputChannelDeploymentDescriptor());
+		ShuffleDescriptor shuffleDescriptor = partitionInfo.getShuffleDescriptor();
+		checkArgument(shuffleDescriptor instanceof NettyShuffleDescriptor,
+			"Tried to update unknown channel with unknown ShuffleDescriptor %s.",
+			shuffleDescriptor.getClass().getName());
+		inputGate.updateInputChannel(taskExecutorLocation, (NettyShuffleDescriptor) shuffleDescriptor);
 		return true;
 	}
 

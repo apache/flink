@@ -36,7 +36,7 @@ import java.net.InetSocketAddress;
  * Builder for various {@link InputChannel} types.
  */
 public class InputChannelBuilder {
-	static final ConnectionID STUB_CONNECTION_ID =
+	public static final ConnectionID STUB_CONNECTION_ID =
 		new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
 
 	private int channelIndex = 0;

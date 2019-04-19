@@ -32,11 +32,10 @@ import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -67,11 +66,14 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -271,26 +273,35 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testExecutionFailsInNetworkRegistrationForPartitions() throws Exception {
-		ResultPartitionDeploymentDescriptor dummyPartition = new ResultPartitionDeploymentDescriptor(
-			new IntermediateDataSetID(), new IntermediateResultPartitionID(),
-			ResultPartitionType.PIPELINED, 1, 1, true);
+		final PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
+			new IntermediateDataSetID(),
+			new IntermediateResultPartitionID(),
+			ResultPartitionType.PIPELINED,
+			1,
+			1);
+		final ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+		final ResultPartitionDeploymentDescriptor dummyPartition = new ResultPartitionDeploymentDescriptor(
+			partitionDescriptor,
+			shuffleDescriptor,
+			1,
+			false);
 		testExecutionFailsInNetworkRegistration(Collections.singleton(dummyPartition), Collections.emptyList());
 	}
 
 	@Test
 	public void testExecutionFailsInNetworkRegistrationForGates() throws Exception {
-		InputChannelDeploymentDescriptor dummyChannel =
-			new InputChannelDeploymentDescriptor(new ResultPartitionID(), ResultPartitionLocation.createLocal());
-		InputGateDeploymentDescriptor dummyGate = new InputGateDeploymentDescriptor(
-			new IntermediateDataSetID(), ResultPartitionType.PIPELINED, 0,
-			new InputChannelDeploymentDescriptor[] { dummyChannel });
+		final ShuffleDescriptor dummyChannel = NettyShuffleDescriptorBuilder.newBuilder().buildRemote();
+		final InputGateDeploymentDescriptor dummyGate = new InputGateDeploymentDescriptor(
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
+			0,
+			new ShuffleDescriptor[] { dummyChannel });
 		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singleton(dummyGate));
 	}
 
 	private void testExecutionFailsInNetworkRegistration(
-		Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
-		Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
-
+			Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
+			Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
 		final String errorMessage = "Network buffer pool has already been destroyed.";
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
@@ -316,8 +327,7 @@ public class TaskTest extends TestLogger {
 		assertTrue(task.isCanceledOrFailed());
 		assertTrue(task.getFailureCause().getMessage().contains(errorMessage));
 
-		taskManagerActions.validateListenerMessage(
-			ExecutionState.FAILED, task, new IllegalStateException(errorMessage));
+		taskManagerActions.validateListenerMessage(ExecutionState.FAILED, task, new IllegalStateException(errorMessage));
 	}
 
 	@Test
