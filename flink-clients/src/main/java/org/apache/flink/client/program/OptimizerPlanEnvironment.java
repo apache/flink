@@ -18,13 +18,14 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.commons.io.output.TeeOutputStream;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.FlinkPlan;
+
+import org.apache.commons.io.output.TeeOutputStream;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
