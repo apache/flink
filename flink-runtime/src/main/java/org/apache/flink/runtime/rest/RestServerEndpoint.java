@@ -450,7 +450,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	@VisibleForTesting
 	static void createUploadDir(final Path uploadDir, final Logger log) throws IOException {
 		if (!Files.exists(uploadDir)) {
-			log.warn("Upload directory {} does not exist, or has been deleted externally. " +
+			log.info("Upload directory {} does not exist, or has been deleted externally. " +
 				"Previously uploaded files are no longer available.", uploadDir);
 			checkAndCreateUploadDir(uploadDir, log);
 		}
