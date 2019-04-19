@@ -29,11 +29,13 @@ import org.apache.calcite.plan.hep.HepMatchOrder
   */
 object FlinkBatchProgram {
   val SUBQUERY_REWRITE = "subquery_rewrite"
+  val CORRELATE_REWRITE = "correlate_rewrite"
   val DECORRELATE = "decorrelate"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val WINDOW = "window"
   val LOGICAL = "logical"
+  val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
 
   def buildProgram(config: Configuration): FlinkChainedProgram[BatchOptimizeContext] = {
@@ -67,6 +69,24 @@ object FlinkBatchProgram {
           .build(), "convert table references after sub-queries removed")
         .build()
     )
+
+    // rewrite special temporal join plan
+    chainedProgram.addLast(
+      CORRELATE_REWRITE,
+      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.EXPAND_PLAN_RULES)
+            .build(), "convert correlate to temporal table join")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.POST_EXPAND_CLEAN_UP_RULES)
+            .build(), "convert enumerable table scan")
+        .build())
 
     // query decorrelation
     chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
@@ -122,6 +142,15 @@ object FlinkBatchProgram {
       FlinkVolcanoProgramBuilder.newBuilder
         .add(FlinkBatchRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
+        .build())
+
+    // logical rewrite
+    chainedProgram.addLast(
+      LOGICAL_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkBatchRuleSets.LOGICAL_REWRITE)
         .build())
 
     // optimize the physical plan

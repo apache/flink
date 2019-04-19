@@ -23,7 +23,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[DataStreamTable]])
 
 == Optimized Logical Plan ==
-DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c])
 
 ]]>
     </Resource>
@@ -32,10 +32,10 @@ DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[MyTable]])
 
 == Optimized Logical Plan ==
-TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
 
 ]]>
     </Resource>

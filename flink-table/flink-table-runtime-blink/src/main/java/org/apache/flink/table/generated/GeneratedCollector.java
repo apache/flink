@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector;
  *
  * @param <C> type of collector
  */
-public final class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C> {
+public class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C> {
 
 	private static final long serialVersionUID = -7355875544905245676L;
 

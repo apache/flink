@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.codegen
 
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
@@ -37,10 +41,6 @@ import org.apache.flink.table.plan.util.RelExplainUtil
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
 import org.apache.flink.table.runtime.util.StreamRecordCollector
-
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.SemiJoinType
 
 import scala.collection.JavaConversions._
 
@@ -172,6 +172,8 @@ object CorrelateCodeGenerator {
     val openUDTFCollector =
       s"""
          |$udtfCollectorTerm = new ${udtfCollector.getClassName}();
+         |$udtfCollectorTerm.setRuntimeContext(getRuntimeContext());
+         |$udtfCollectorTerm.open(new ${className[Configuration]}());
          |$udtfCollectorTerm.setCollector(
          | new ${classOf[StreamRecordCollector[_]].getCanonicalName}(
          |     ${CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM }));
@@ -414,7 +416,6 @@ object CorrelateCodeGenerator {
       collectorCode,
       inputType,
       udtfType,
-      config,
       inputTerm = inputTerm,
       collectedTerm = udtfInputTerm,
       converter = CodeGenUtils.genToInternal(ctx, udtfExternalType))
