@@ -154,14 +154,16 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- Exchange(distribution=[single])
-:  +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
-:     +- Exchange(distribution=[hash[c]])
-:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[single])
-   +- Calc(select=[c, a, b], where=[>(a, 1)])
-      +- Reused(reference_id=[1])
+Calc(select=[c, a, b, c0, a1, b0])
++- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0])
+   :- Exchange(distribution=[hash[a0]])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[c, a, b], where=[>(a, 1)])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -372,14 +374,16 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- Exchange(distribution=[single])
-:  +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
-:     +- Exchange(distribution=[hash[c]])
-:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[single])
-   +- Calc(select=[c, a, b], where=[>(a, 1)])
-      +- Reused(reference_id=[1])
+Calc(select=[c, a, b, c0, a1, b0])
++- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0])
+   :- Exchange(distribution=[hash[a0]])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[c, a, b], where=[>(a, 1)])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

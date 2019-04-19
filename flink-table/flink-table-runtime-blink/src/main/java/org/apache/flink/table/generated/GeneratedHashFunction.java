@@ -21,7 +21,7 @@ package org.apache.flink.table.generated;
 /**
  * Describes a generated {@link HashFunction}.
  */
-public final class GeneratedHashFunction extends GeneratedClass<HashFunction> {
+public class GeneratedHashFunction extends GeneratedClass<HashFunction> {
 
 	private static final long serialVersionUID = 1L;
 

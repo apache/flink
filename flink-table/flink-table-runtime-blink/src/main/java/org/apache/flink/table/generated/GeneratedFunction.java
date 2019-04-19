@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.Function;
  *
  * @param <F> type of Function
  */
-public final class GeneratedFunction<F extends Function> extends GeneratedClass<F> {
+public class GeneratedFunction<F extends Function> extends GeneratedClass<F> {
 
 	private static final long serialVersionUID = -7355875544905245676L;
 

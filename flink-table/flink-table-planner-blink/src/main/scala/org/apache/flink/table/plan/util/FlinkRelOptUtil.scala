@@ -18,9 +18,8 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
-import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl}
+import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
-
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil.InputFinder
@@ -516,18 +515,22 @@ object FlinkRelOptUtil {
         }
       case OR | INPUT_REF | LITERAL | NOT => node
       case _ =>
-        val bits = RelOptUtil.InputFinder.bits(node)
-        val mid = leftCount + extraLeftExprs.size
-        Side.of(bits, mid) match {
-          case Side.LEFT =>
-            fix(extraRightExprs, mid, mid + 1)
-            extraLeftExprs.add(node)
-            new RexInputRef(mid, node.getType)
-          case Side.RIGHT =>
-            val index2 = mid + rightCount + extraRightExprs.size
-            extraRightExprs.add(node)
-            new RexInputRef(index2, node.getType)
-          case _ => node
+        if (node.accept(new TimeIndicatorExprFinder)) {
+          node
+        } else {
+          val bits = RelOptUtil.InputFinder.bits(node)
+          val mid = leftCount + extraLeftExprs.size
+          Side.of(bits, mid) match {
+            case Side.LEFT =>
+              fix(extraRightExprs, mid, mid + 1)
+              extraLeftExprs.add(node)
+              new RexInputRef(mid, node.getType)
+            case Side.RIGHT =>
+              val index2 = mid + rightCount + extraRightExprs.size
+              extraRightExprs.add(node)
+              new RexInputRef(index2, node.getType)
+            case _ => node
+          }
         }
     }
 
@@ -706,6 +709,15 @@ object FlinkRelOptUtil {
         val isRelated = operand.accept(this)
         isRelated != null && isRelated
       })
+    }
+  }
+
+  /**
+    * An RexVisitor to find whether this is a call on a time indicator field.
+    */
+  class TimeIndicatorExprFinder extends RexVisitorImpl[Boolean](true) {
+    override def visitInputRef(inputRef: RexInputRef): Boolean = {
+      FlinkTypeFactory.isTimeIndicatorType(inputRef.getType)
     }
   }
 

@@ -48,13 +48,6 @@ class BroadcastHashJoinTest extends JoinTestBase {
   }
 
   @Test
-  override def testInnerJoinWithNonEquiPred(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInnerJoinWithNonEquiPred()
-  }
-
-  @Test
   override def testLeftOuterJoinNoEquiPred(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")

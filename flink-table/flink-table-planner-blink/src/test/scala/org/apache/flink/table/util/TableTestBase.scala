@@ -36,10 +36,10 @@ import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStr
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
+import org.apache.flink.table.runtime.utils.BatchTableEnvUtil
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
@@ -457,10 +457,16 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
 
   override def getTableEnv: TableEnvironment = tableEnv
 
-  // TODO implements this method when a DataStream could be converted into a Table
   override def addDataStream[T: TypeInformation](
       name: String, fields: Symbol*): Table = {
-    throw new TableException("Implements this")
+    val typeInfo = implicitly[TypeInformation[T]]
+    BatchTableEnvUtil.registerCollection(
+      tableEnv,
+      name,
+      Seq(),
+      typeInfo,
+      fields.map(_.name).mkString(", "))
+    tableEnv.scan(name)
   }
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {

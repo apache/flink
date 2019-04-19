@@ -588,6 +588,20 @@ object RelExplainUtil {
     s"Calc($name)"
   }
 
+  def conditionToString(
+      calcProgram: RexProgram,
+      f: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    val cond = calcProgram.getCondition
+    val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
+    val localExprs = calcProgram.getExprList.toList
+
+    if (cond != null) {
+      f(cond, inputFieldNames, Some(localExprs))
+    } else {
+      ""
+    }
+  }
+
   def selectionToString(
       calcProgram: RexProgram,
       expression: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String,

@@ -46,7 +46,7 @@ public class ProctimeSqlFunction extends SqlFunction {
 	private static class ProctimeRelProtoDataType implements RelProtoDataType {
 		@Override
 		public RelDataType apply(RelDataTypeFactory factory) {
-			return ((FlinkTypeFactory) factory).createRowtimeIndicatorType();
+			return ((FlinkTypeFactory) factory).createProctimeIndicatorType();
 		}
 	}
 }

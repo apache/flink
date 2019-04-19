@@ -69,7 +69,10 @@ public abstract class GeneratedClass<T> implements Serializable {
 		}
 	}
 
-	private Class<?> compile(ClassLoader classLoader) {
+	/**
+	 * Compiles the generated code, the compiled class will be cached in the {@link GeneratedClass}.
+	 */
+	public Class<?> compile(ClassLoader classLoader) {
 		if (compiledClass == null) {
 			// cache the compiled class
 			compiledClass = CompileUtils.compile(classLoader, className, code);

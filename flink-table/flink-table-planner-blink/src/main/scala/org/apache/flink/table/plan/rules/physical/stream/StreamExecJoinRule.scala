@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecJoin
 import org.apache.flink.table.plan.util.WindowJoinUtil
 
@@ -51,11 +51,21 @@ class StreamExecJoinRule
       // SEMI/ANTI join always converts to StreamExecJoin now
       return true
     }
-
-    // TODO check LHS or RHS are FlinkLogicalSnapshot
-
-    val joinRowType = join.getRowType
+    val left: FlinkLogicalRel = call.rel(1).asInstanceOf[FlinkLogicalRel]
+    val right: FlinkLogicalRel = call.rel(2).asInstanceOf[FlinkLogicalRel]
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val joinRowType = join.getRowType
+
+    if (left.isInstanceOf[FlinkLogicalSnapshot]) {
+      throw new TableException(
+        "Temporal table join only support apply FOR SYSTEM_TIME AS OF on the right table.")
+    }
+
+    // this rule shouldn't match temporal table join
+    if (right.isInstanceOf[FlinkLogicalSnapshot]) {
+      return false
+    }
+
     val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,

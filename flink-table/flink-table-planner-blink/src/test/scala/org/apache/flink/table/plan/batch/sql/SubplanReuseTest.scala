@@ -110,8 +110,7 @@ class SubplanReuseTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-
-  @Test(expected = classOf[TableException])
+  @Test
   def testSubplanReuseOnDataStreamTable(): Unit = {
     util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
     val sqlQuery =

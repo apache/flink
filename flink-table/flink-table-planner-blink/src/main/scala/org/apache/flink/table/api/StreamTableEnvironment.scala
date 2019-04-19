@@ -215,6 +215,10 @@ abstract class StreamTableEnvironment(
   def explain(table: Table, extended: Boolean): String = {
     val ast = table.asInstanceOf[TableImpl].getRelNode
     val optimizedNode = optimize(ast)
+    // translate plan to physical operators
+    val optimizedNodes = translateNodeDag(Seq(optimizedNode))
+    require(optimizedNodes.size() == 1)
+    translateToPlan(optimizedNodes.head)
 
     val explainLevel = if (extended) {
       SqlExplainLevel.ALL_ATTRIBUTES

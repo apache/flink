@@ -26,7 +26,7 @@ import org.junit.Test
 class ExplainTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
   @Test
   def testExplainTableSourceScan(): Unit = {

@@ -20,10 +20,10 @@ limitations under the License.
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[MyTable]])
 
 == Optimized Logical Plan ==
-TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+BoundedStreamScan(table=[[MyTable]], fields=[a, b, c])
 
 ]]>
     </Resource>
