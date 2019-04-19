@@ -536,9 +536,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 			final List<SlotOffer> slotOffers = new ArrayList<>(NUM_TASKS);
 			for (int i = 0; i < NUM_TASKS; i++) {
-				final AllocationID expiredAllocationId = new AllocationID();
-				final SlotOffer slotToExpire = new SlotOffer(expiredAllocationId, 0, ResourceProfile.UNKNOWN);
-				slotOffers.add(slotToExpire);
+				final AllocationID allocationId = new AllocationID();
+				final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+				slotOffers.add(slotOffer);
 			}
 
 			slotPool.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers);
@@ -860,9 +860,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		final List<SlotOffer> slotOffers = new ArrayList<>(NUM_TASKS);
 		for (int i = 0; i < NUM_TASKS; i++) {
-			final AllocationID expiredAllocationId = new AllocationID();
-			final SlotOffer slotToExpire = new SlotOffer(expiredAllocationId, 0, ResourceProfile.UNKNOWN);
-			slotOffers.add(slotToExpire);
+			final AllocationID allocationId = new AllocationID();
+			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+			slotOffers.add(slotOffer);
 		}
 
 		slotPool.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers);
