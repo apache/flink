@@ -22,7 +22,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSort
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecLimit
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.SortUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -72,7 +72,7 @@ class BatchExecLimitRule
     // if fetch is null, there is no need to create local BatchExecLimit
     val inputOfExchange = if (sort.fetch != null) {
       val providedLocalTraitSet = traitSet
-      val limit = FlinkRelOptUtil.getLimitEnd(sort.offset, sort.fetch)
+      val limit = SortUtil.getLimitEnd(sort.offset, sort.fetch)
       val rexBuilder = sort.getCluster.getRexBuilder
       val intType = rexBuilder.getTypeFactory.createSqlType(SqlTypeName.INTEGER)
       // for local BatchExecLimit, offset is always 0, and fetch is `limit`

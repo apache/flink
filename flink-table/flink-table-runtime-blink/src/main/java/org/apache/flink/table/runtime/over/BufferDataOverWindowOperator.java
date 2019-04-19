@@ -39,7 +39,7 @@ import org.apache.flink.table.typeutils.AbstractRowSerializer;
 public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow> {
 
-	private final int memorySize;
+	private final long memorySize;
 	private final OverWindowFrame[] overWindowFrames;
 	private GeneratedRecordComparator genComparator;
 	private final boolean isRowAllInFixedPart;
@@ -57,7 +57,7 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 	 * @param genComparator       the generated sort which is used for generating the comparator among
 	 */
 	public BufferDataOverWindowOperator(
-			int memorySize,
+			long memorySize,
 			OverWindowFrame[] overWindowFrames,
 			GeneratedRecordComparator genComparator,
 			boolean isRowAllInFixedPart) {
@@ -80,7 +80,7 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		this.currentData = new ResettableExternalBuffer(
 				getContainingTask().getEnvironment().getMemoryManager(),
 				getContainingTask().getEnvironment().getIOManager(),
-				memManager.allocatePages(this, memorySize / memManager.getPageSize()),
+				memManager.allocatePages(this, (int) (memorySize / memManager.getPageSize())),
 				serializer, isRowAllInFixedPart);
 
 		collector = new StreamRecordCollector<>(output);
@@ -132,6 +132,7 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 
 	@Override
 	public void close() throws Exception {
+		endInput(); // TODO remove it.
 		super.close();
 		this.currentData.close();
 	}

@@ -26,7 +26,6 @@ import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -37,15 +36,6 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 object ExpandUtil {
-
-  def getGroupIdExprIndexes(aggCalls: Seq[AggregateCall]): Seq[Int] = {
-    aggCalls.zipWithIndex.filter { case (call, _) =>
-      call.getAggregation.getKind match {
-        case SqlKind.GROUP_ID | SqlKind.GROUPING | SqlKind.GROUPING_ID => true
-        case _ => false
-      }
-    }.map { case (_, idx) => idx }
-  }
 
   /**
     * Build the [[Expand]] node.
@@ -68,7 +58,7 @@ object ExpandUtil {
     // e.g. SELECT count(a) as a, count(b) as b, count(c) as c FROM MyTable
     //      GROUP BY GROUPING SETS ((a, b), (a, c))
     // only field 'b' and 'c' need be outputted as duplicate fields.
-    val groupIdExprs = getGroupIdExprIndexes(aggCalls)
+    val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(aggCalls)
     val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
     val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
       case (aggCall, idx) =>
@@ -149,18 +139,35 @@ object ExpandUtil {
     // 2. add expand_id('$e') field
     typeList += typeFactory.createTypeWithNullability(
       typeFactory.createSqlType(SqlTypeName.BIGINT), false)
-    var expandIdFieldName = FlinkRelOptUtil.buildUniqueFieldName(allFieldNames, "$e")
+    var expandIdFieldName = buildUniqueFieldName(allFieldNames, "$e")
     fieldNameList += expandIdFieldName
 
     // 3. add duplicate fields
     duplicateFieldIndexes.foreach {
       duplicateFieldIdx =>
         typeList += inputType.getFieldList.get(duplicateFieldIdx).getType
-        fieldNameList += FlinkRelOptUtil.buildUniqueFieldName(
+        fieldNameList += buildUniqueFieldName(
           allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
     }
 
     typeFactory.createStructType(typeList, fieldNameList)
+  }
+
+  /**
+    * Get unique field name based on existed `allFieldNames` collection.
+    * NOTES: the new unique field name will be added to existed `allFieldNames` collection.
+    */
+  private def buildUniqueFieldName(
+      allFieldNames: util.Set[String],
+      toAddFieldName: String): String = {
+    var name: String = toAddFieldName
+    var i: Int = 0
+    while (allFieldNames.contains(name)) {
+      name = toAddFieldName + "_" + i
+      i += 1
+    }
+    allFieldNames.add(name)
+    name
   }
 
   /**

@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 import org.apache.flink.util.StringUtils;
 
 /**
- * Termination mode for the {@link JobTerminationHandler}.
+ * Termination mode.
+ * @deprecated Only kept to detect legacy usages of the cancel/stop command. Please use the "stop-with-savepoint" command instead.
  */
 public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
@@ -49,7 +49,7 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 	}
 
 	/**
-	 * Supported termination modes.
+	 * @deprecated Please use the "stop-with-savepoint" command instead.
 	 */
 	public enum TerminationMode {
 		CANCEL,

@@ -36,7 +36,6 @@ limitations under the License.
       </div>
     </div>
   </div>
-  <div ng-if="job.isStoppable && job.state=='RUNNING'" class="navbar-info last first pull-right"><span ng-click="stopJob($event)" class="navbar-info-button btn btn-default">Stop</span></div>
   <div ng-if="job.state=='RUNNING' || job.state=='CREATED' || job.state=='RESTARTING'" class="navbar-info last first pull-right"><span ng-click="cancelJob($event)" class="navbar-info-button btn btn-default">Cancel</span></div>
   <div class="navbar-info first last hidden-xs hidden-sm">{{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}<span ng-if="job['end-time'] &gt; -1">
       - 

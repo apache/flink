@@ -33,8 +33,8 @@ import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, 
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.sql.SqlRankFunction
 import org.apache.calcite.sql.fun._
+import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 
 import java.util
 
@@ -43,6 +43,36 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil extends Enumeration {
+
+  /**
+    * Returns whether any of the aggregates are accurate DISTINCT.
+    *
+    * @return Whether any of the aggregates are accurate DISTINCT
+    */
+  def containsAccurateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
+    aggCalls.exists(call => call.isDistinct && !call.isApproximate)
+  }
+
+  /**
+    * Returns whether any of the aggregates are approximate DISTINCT.
+    *
+    * @return Whether any of the aggregates are approximate DISTINCT
+    */
+  def containsApproximateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
+    aggCalls.exists(call => call.isDistinct && call.isApproximate)
+  }
+
+  /**
+    * Returns indices of group functions.
+    */
+  def getGroupIdExprIndexes(aggCalls: Seq[AggregateCall]): Seq[Int] = {
+    aggCalls.zipWithIndex.filter { case (call, _) =>
+      call.getAggregation.getKind match {
+        case SqlKind.GROUP_ID | SqlKind.GROUPING | SqlKind.GROUPING_ID => true
+        case _ => false
+      }
+    }.map { case (_, idx) => idx }
+  }
 
   /**
     * Check whether AUXILIARY_GROUP aggCalls is in the front of the given agg's aggCallList,
@@ -210,7 +240,7 @@ object AggregateUtil extends Enumeration {
         case a: DeclarativeAggregateFunction =>
           val bufferTypes: Array[InternalType] = a.getAggBufferTypes
           val bufferTypeInfos = bufferTypes.map(
-            TypeConverters.createInternalTypeInfoFromInternalType)
+            TypeConverters.createExternalTypeInfoFromInternalType)
           (bufferTypeInfos, Array.empty[DataViewSpec], a.getResultType)
         case a: AggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {

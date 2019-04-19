@@ -145,7 +145,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 							ActorSystem as = AkkaUtils.createActorSystem(
 									new Configuration(),
 									new Some<scala.Tuple2<String, Object>>(new scala.Tuple2<String, Object>(addr.getHostAddress(), port)));
-							as.shutdown();
+							as.terminate();
 
 							log.info("Using address " + addr);
 							return (Inet6Address) addr;

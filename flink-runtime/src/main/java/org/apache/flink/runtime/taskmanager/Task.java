@@ -62,7 +62,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -834,12 +833,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					dispatcher.shutdownNow();
 				}
 
-				for (ResultPartition partition : producedPartitions) {
-					taskEventDispatcher.unregisterPartition(partition.getPartitionId());
-				}
-
 				// free the network resources
-				network.unregisterTask(this);
+				releaseNetworkResources();
 
 				// free memory resources
 				if (invokable != null) {
@@ -872,6 +867,47 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			}
 			catch (Throwable t) {
 				LOG.error("Error during metrics de-registration of task {} ({}).", taskNameWithSubtask, executionId, t);
+			}
+		}
+	}
+
+	/**
+	 * Releases network resources before task exits. We should also fail the partition to release if the task
+	 * has failed, is canceled, or is being canceled at the moment.
+	 */
+	private void releaseNetworkResources() {
+		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
+
+		for (ResultPartition partition : producedPartitions) {
+			taskEventDispatcher.unregisterPartition(partition.getPartitionId());
+			if (isCanceledOrFailed()) {
+				partition.fail(getFailureCause());
+			}
+		}
+
+		closeNetworkResources();
+	}
+
+	/**
+	 * There are two scenarios to close the network resources. One is from {@link TaskCanceler} to early
+	 * release partitions and gates. Another is from task thread during task exiting.
+	 */
+	private void closeNetworkResources() {
+		for (ResultPartition partition : producedPartitions) {
+			try {
+				partition.close();
+			} catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalError(t);
+				LOG.error("Failed to release result partition for task {}.", taskNameWithSubtask, t);
+			}
+		}
+
+		for (InputGate inputGate : inputGates) {
+			try {
+				inputGate.close();
+			} catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalError(t);
+				LOG.error("Failed to release input gate for task {}.", taskNameWithSubtask, t);
 			}
 		}
 	}
@@ -935,50 +971,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
-	//  Stopping / Canceling / Failing the task from the outside
+	//  Canceling / Failing the task from the outside
 	// ----------------------------------------------------------------------------------------------------------------
-
-	/**
-	 * Stops the executing task by calling {@link StoppableTask#stop()}.
-	 * <p>
-	 * This method never blocks.
-	 * </p>
-	 *
-	 * @throws UnsupportedOperationException if the {@link AbstractInvokable} does not implement {@link StoppableTask}
-	 * @throws IllegalStateException if the {@link Task} is not yet running
-	 */
-	public void stopExecution() {
-		// copy reference to stack, to guard against concurrent setting to null
-		final AbstractInvokable invokable = this.invokable;
-
-		if (invokable != null) {
-			if (invokable instanceof StoppableTask) {
-				LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
-				final StoppableTask stoppable = (StoppableTask) invokable;
-
-				Runnable runnable = () -> {
-					try {
-						stoppable.stop();
-					} catch (Throwable t) {
-						LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, t);
-						taskManagerActions.failTask(executionId, t);
-					}
-				};
-				executeAsyncCallRunnable(
-						runnable,
-						String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId),
-						false);
-			} else {
-				throw new UnsupportedOperationException(String.format("Stopping not supported by task %s (%s).", taskNameWithSubtask, executionId));
-			}
-		} else {
-			throw new IllegalStateException(
-				String.format(
-					"Cannot stop task %s (%s) because it is not running.",
-					taskNameWithSubtask,
-					executionId));
-		}
-	}
 
 	/**
 	 * Cancels the task execution. If the task is already in a terminal state
@@ -1045,13 +1039,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 						// case the canceling could not continue
 
 						// The canceller calls cancel and interrupts the executing thread once
-						Runnable canceler = new TaskCanceler(
-								LOG,
-								invokable,
-								executingThread,
-								taskNameWithSubtask,
-								producedPartitions,
-								inputGates);
+						Runnable canceler = new TaskCanceler(LOG, this :: closeNetworkResources, invokable, executingThread, taskNameWithSubtask);
 
 						Thread cancelThread = new Thread(
 								executingThread.getThreadGroup(),
@@ -1476,26 +1464,17 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	private static class TaskCanceler implements Runnable {
 
 		private final Logger logger;
+		private final Runnable networkResourcesCloser;
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
-		private final ResultPartition[] producedPartitions;
-		private final InputGate[] inputGates;
 
-		public TaskCanceler(
-				Logger logger,
-				AbstractInvokable invokable,
-				Thread executer,
-				String taskName,
-				ResultPartition[] producedPartitions,
-				InputGate[] inputGates) {
-
+		TaskCanceler(Logger logger, Runnable networkResourcesCloser, AbstractInvokable invokable, Thread executer, String taskName) {
 			this.logger = logger;
+			this.networkResourcesCloser = networkResourcesCloser;
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
-			this.producedPartitions = producedPartitions;
-			this.inputGates = inputGates;
 		}
 
 		@Override
@@ -1517,23 +1496,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				//
 				// Don't do this before cancelling the invokable. Otherwise we
 				// will get misleading errors in the logs.
-				for (ResultPartition partition : producedPartitions) {
-					try {
-						partition.close();
-					} catch (Throwable t) {
-						ExceptionUtils.rethrowIfFatalError(t);
-						LOG.error("Failed to release result partition buffer pool for task {}.", taskName, t);
-					}
-				}
-
-				for (InputGate inputGate : inputGates) {
-					try {
-						inputGate.close();
-					} catch (Throwable t) {
-						ExceptionUtils.rethrowIfFatalError(t);
-						LOG.error("Failed to release input gate for task {}.", taskName, t);
-					}
-				}
+				networkResourcesCloser.run();
 
 				// send the initial interruption signal, if requested
 				if (invokable.shouldInterruptOnCancel()) {

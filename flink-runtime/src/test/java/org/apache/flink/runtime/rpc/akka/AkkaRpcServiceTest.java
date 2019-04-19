@@ -324,7 +324,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 			}
 
 			terminationFuture.get();
-			assertThat(akkaRpcService.getActorSystem().isTerminated(), is(true));
+			assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
 		} finally {
 			RpcUtils.terminateRpcService(akkaRpcService, TIMEOUT);
 		}
@@ -363,7 +363,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 			assertThat(ExceptionUtils.findThrowable(e, OnStopException.class).isPresent(), is(true));
 		}
 
-		assertThat(akkaRpcService.getActorSystem().isTerminated(), is(true));
+		assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
 	}
 
 	private Collection<CompletableFuture<Void>> startStopNCountingAsynchronousOnStopEndpoints(AkkaRpcService akkaRpcService, int numberActors) throws Exception {
@@ -381,7 +381,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 		CompletableFuture<Void> terminationFuture = akkaRpcService.stopService();
 
 		assertThat(terminationFuture.isDone(), is(false));
-		assertThat(akkaRpcService.getActorSystem().isTerminated(), is(false));
+		assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(false));
 
 		countDownLatch.await();
 

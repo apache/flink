@@ -667,29 +667,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	/**
-	 * Sends stop RPC call.
-	 */
-	public void stop() {
-		assertRunningInJobMasterMainThread();
-		final LogicalSlot slot = assignedResource;
-
-		if (slot != null) {
-			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
-
-			CompletableFuture<Acknowledge> stopResultFuture = FutureUtils.retry(
-				() -> taskManagerGateway.stopTask(attemptId, rpcTimeout),
-				NUM_STOP_CALL_TRIES,
-				vertex.getExecutionGraph().getJobMasterMainThreadExecutor());
-
-			stopResultFuture.exceptionally(
-				failure -> {
-					LOG.info("Stopping task was not successful.", failure);
-					return null;
-				});
-		}
-	}
-
 	public void cancel() {
 		// depending on the previous state, we go directly to cancelled (no cancel call necessary)
 		// -- or to canceling (cancel call needs to be sent to the task manager)
