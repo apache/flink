@@ -42,7 +42,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -870,7 +869,7 @@ public class GenericInMemoryCatalogTest {
 			TABLE_COMMENT);
 	}
 
-	private Set<String> createPartitionKeys() {
+	private LinkedHashSet<String> createPartitionKeys() {
 		return new LinkedHashSet<String>() {{
 			add("second");
 			add("third");

@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -38,7 +38,7 @@ public class GenericCatalogTable implements CatalogTable {
 	// Statistics of the table
 	private final TableStats tableStats;
 	// Partition keys if this is a partitioned table. It's an empty set if the table is not partitioned
-	private final Set<String> partitionKeys;
+	private final LinkedHashSet<String> partitionKeys;
 	// Properties of the table
 	private final Map<String, String> properties;
 	// Comment of the table
@@ -47,7 +47,7 @@ public class GenericCatalogTable implements CatalogTable {
 	public GenericCatalogTable(
 		TableSchema tableSchema,
 		TableStats tableStats,
-		Set<String> partitionKeys,
+		LinkedHashSet<String> partitionKeys,
 		Map<String, String> properties,
 		String comment) {
 
@@ -64,7 +64,7 @@ public class GenericCatalogTable implements CatalogTable {
 		Map<String, String> properties,
 		String comment) {
 
-		this(tableSchema, tableStats, new HashSet<>(), properties, comment);
+		this(tableSchema, tableStats, new LinkedHashSet<>(), properties, comment);
 	}
 
 	@Override
@@ -95,7 +95,7 @@ public class GenericCatalogTable implements CatalogTable {
 	@Override
 	public GenericCatalogTable copy() {
 		return new GenericCatalogTable(
-			this.tableSchema.copy(), this.tableStats.copy(), new HashSet<>(partitionKeys), new HashMap<>(this.properties), comment);
+			this.tableSchema.copy(), this.tableStats.copy(), new LinkedHashSet<>(partitionKeys), new HashMap<>(this.properties), comment);
 	}
 
 	@Override

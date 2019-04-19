@@ -25,8 +25,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
@@ -60,7 +60,7 @@ public class CatalogTestUtil {
 
 	public static GenericCatalogTable createPartitionedTable(
 		TableSchema schema,
-		Set<String> partitionKeys,
+		LinkedHashSet<String> partitionKeys,
 		Map<String, String> tableProperties,
 		String comment) {
 
