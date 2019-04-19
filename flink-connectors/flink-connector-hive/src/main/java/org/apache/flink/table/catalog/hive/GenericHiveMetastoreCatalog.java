@@ -83,7 +83,7 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 		return hiveConf;
 	}
 
-	private static IMetaStoreClient getmetastoreClient(HiveConf hiveConf) {
+	private static IMetaStoreClient getMetastoreClient(HiveConf hiveConf) {
 		try {
 			return RetryingMetaStoreClient.getProxy(
 				hiveConf,
@@ -99,7 +99,7 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 	@Override
 	public void open() throws CatalogException {
 		if (client == null) {
-			client = getmetastoreClient(hiveConf);
+			client = getMetastoreClient(hiveConf);
 			LOG.info("Connected to Hive metastore");
 		}
 	}
