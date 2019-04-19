@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -78,7 +77,7 @@ public class GenericCatalogTable implements CatalogTable {
 	}
 
 	@Override
-	public Set<String> getPartitionKeys() {
+	public LinkedHashSet<String> getPartitionKeys() {
 		return partitionKeys;
 	}
 

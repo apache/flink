@@ -21,7 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.plan.stats.TableStats;
 
-import java.util.Set;
+import java.util.LinkedHashSet;
 
 /**
  * Represents a table in a catalog.
@@ -39,8 +39,8 @@ public interface CatalogTable extends CatalogBaseTable {
 	boolean isPartitioned();
 
 	/**
-	 *
-	 * @return
+	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
+	 * @return partition keys of the table.
 	 */
-	Set<String> getPartitionKeys() throws TableNotPartitionedException;
+	LinkedHashSet<String> getPartitionKeys() throws TableNotPartitionedException;
 }

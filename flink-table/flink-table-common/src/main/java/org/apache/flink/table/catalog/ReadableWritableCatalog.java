@@ -122,6 +122,8 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 
 	/**
 	 * Modify an existing table or view.
+	 * Note that the new and old CatalogBaseTable must be of the same type. For example, this doesn't
+	 * allow alter a regular table to partitioned table, or alter a view to a table, and vice versa.
 	 *
 	 * @param tableName         Path of the table or view to be modified
 	 * @param newTable          The new table definition

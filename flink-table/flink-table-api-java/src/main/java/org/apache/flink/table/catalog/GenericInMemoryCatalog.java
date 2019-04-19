@@ -197,6 +197,10 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		checkArgument(tablePath != null);
 		checkArgument(newTable != null);
 
+		// TODO: validate the new and old CatalogBaseTable must be of the same type. For example, this doesn't
+		//		allow alter a regular table to partitioned table, or alter a view to a table, and vice versa.
+		//		And also add unit tests.
+
 		if (tableExists(tablePath)) {
 			tables.put(tablePath, newTable.copy());
 		} else if (!ignoreIfNotExists) {
@@ -232,6 +236,10 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 				throw new TableAlreadyExistException(catalogName, newPath);
 			} else {
 				tables.put(newPath, tables.remove(tablePath));
+
+				if (partitions.containsKey(tablePath)) {
+					partitions.put(newPath, partitions.remove(tablePath));
+				}
 			}
 		} else if (!ignoreIfNotExists) {
 			throw new TableNotExistException(catalogName, tablePath);
@@ -373,7 +381,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	@Override
 	public boolean partitionExists(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec)
 		throws CatalogException {
-		return tableExists(tablePath) && partitions.get(tablePath).containsKey(partitionSpec);
+		return partitions.containsKey(tablePath) && partitions.get(tablePath).containsKey(partitionSpec);
 	}
 
 	private void validatePartitionedTable(ObjectPath tablePath) throws TableNotExistException, TableNotPartitionedException {

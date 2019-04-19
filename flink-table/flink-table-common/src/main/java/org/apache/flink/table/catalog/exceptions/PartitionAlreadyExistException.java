@@ -32,7 +32,7 @@ public class PartitionAlreadyExistException extends RuntimeException {
 		ObjectPath tablePath,
 		CatalogPartition.PartitionSpec partitionSpec) {
 
-		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), null);
+		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName));
 	}
 
 	public PartitionAlreadyExistException(

@@ -212,13 +212,15 @@ public class GenericInMemoryCatalogTest {
 
 		// Partitioned table
 		catalog.createTable(path1, createPartitionedTable(), false);
-		catalog.createPartition(path1, createPartition(), false);
+		CatalogPartition catalogPartition = createPartition();
+		catalog.createPartition(path1, catalogPartition, false);
 
 		assertTrue(catalog.tableExists(path1));
 
 		catalog.dropTable(path1, false);
 
 		assertFalse(catalog.tableExists(path1));
+		assertFalse(catalog.partitionExists(path1, catalogPartition.getPartitionSpec()));
 	}
 
 	@Test
@@ -299,6 +301,8 @@ public class GenericInMemoryCatalogTest {
 	@Test
 	public void testRenameTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
+
+		// Non-partitioned table
 		GenericCatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
@@ -308,6 +312,24 @@ public class GenericInMemoryCatalogTest {
 
 		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path3));
 		assertFalse(catalog.tableExists(path1));
+
+		catalog.dropTable(path3, false);
+
+		// Partitioned table
+		table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+		CatalogPartition catalogPartition = createPartition();
+		catalog.createPartition(path1, catalogPartition, false);
+
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		assertTrue(catalog.partitionExists(path1, catalogPartition.getPartitionSpec()));
+
+		catalog.renameTable(path1, t2, false);
+
+		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path3));
+		assertTrue(catalog.partitionExists(path3, catalogPartition.getPartitionSpec()));
+		assertFalse(catalog.tableExists(path1));
+		assertFalse(catalog.partitionExists(path1, catalogPartition.getPartitionSpec()));
 	}
 
 	@Test
