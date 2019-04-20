@@ -41,13 +41,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * AppendRankFunction's input stream only contains append record.
+ * The function could only handle append input stream.
  */
-public class AppendRankFunction extends AbstractRankFunction {
+public class AppendTopNFunction extends AbstractTopNFunction {
 
 	private static final long serialVersionUID = -4708453213104128010L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AppendRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AppendTopNFunction.class);
 
 	private final BaseRowTypeInfo sortKeyType;
 	private final TypeSerializer<BaseRow> inputRowSer;
@@ -62,7 +62,7 @@ public class AppendRankFunction extends AbstractRankFunction {
 	// the kvSortedMap stores mapping from partition key to it's buffer
 	private transient Map<BaseRow, TopNBuffer> kvSortedMap;
 
-	public AppendRankFunction(
+	public AppendTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,

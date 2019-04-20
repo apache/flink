@@ -46,11 +46,11 @@ import java.util.Comparator;
 import java.util.Map;
 
 /**
- * Base class for Rank Function.
+ * Base class for TopN Function.
  */
-public abstract class AbstractRankFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
+public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractTopNFunction.class);
 
 	private static final String RANK_UNSUPPORTED_MSG = "RANK() on streaming table is not supported currently";
 
@@ -83,7 +83,7 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected long hitCount = 0L;
 	protected long requestCount = 0L;
 
-	AbstractRankFunction(
+	AbstractTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,

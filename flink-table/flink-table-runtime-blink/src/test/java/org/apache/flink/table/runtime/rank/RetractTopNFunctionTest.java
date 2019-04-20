@@ -28,21 +28,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tests for {@link RetractRankFunction}.
+ * Tests for {@link RetractTopNFunction}.
  */
-public class RetractRankFunctionTest extends BaseRankFunctionTest {
+public class RetractTopNFunctionTest extends BaseTopNFunctionTest {
 
 	@Override
-	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	protected AbstractTopNFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		return new RetractRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
+		return new RetractTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(),
 				inputRowType, sortKeyComparator, sortKeySelector, rankType, rankRange, generatedEqualiser,
 				generateRetraction, outputRankNumber);
 	}
 
 	@Test
 	public void testProcessRetractMessageWithNotGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -73,7 +73,7 @@ public class RetractRankFunctionTest extends BaseRankFunctionTest {
 
 	@Test
 	public void testProcessRetractMessageWithGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -111,7 +111,7 @@ public class RetractRankFunctionTest extends BaseRankFunctionTest {
 	@Override
 	@Test
 	public void testConstantRankRangeWithoutOffset() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -162,7 +162,7 @@ public class RetractRankFunctionTest extends BaseRankFunctionTest {
 	// TODO RetractRankFunction could be sent less retraction message when does not need to retract row_number
 	@Test
 	public void testVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 2L, 12));
@@ -190,7 +190,7 @@ public class RetractRankFunctionTest extends BaseRankFunctionTest {
 	// TODO
 	@Test
 	public void testDisableGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();

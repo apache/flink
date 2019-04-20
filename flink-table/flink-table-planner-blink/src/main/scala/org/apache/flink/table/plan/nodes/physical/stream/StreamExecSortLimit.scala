@@ -29,7 +29,7 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.{AppendFastStrategy, FlinkRelOptUtil, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UnaryUpdateStrategy, UpdateFastStrategy}
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
-import org.apache.flink.table.runtime.rank.{AppendRankFunction, ConstantRankRange, RankType, RetractRankFunction, UpdateRankFunction}
+import org.apache.flink.table.runtime.rank.{AppendTopNFunction, ConstantRankRange, RankType, RetractTopNFunction, FastTopNFunction}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -147,7 +147,7 @@ class StreamExecSortLimit(
     // Use RankFunction underlying StreamExecSortLimit
     val processFunction = getStrategy(true) match {
       case AppendFastStrategy =>
-        new AppendRankFunction(
+        new AppendTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -161,7 +161,7 @@ class StreamExecSortLimit(
 
       case UpdateFastStrategy(primaryKeys) =>
         val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
-        new UpdateRankFunction(
+        new FastTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -174,11 +174,11 @@ class StreamExecSortLimit(
           outputRankNumber,
           cacheSize)
 
-      // TODO UnaryUpdateRank after SortedMapState is merged
+      // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
       case RetractStrategy | UnaryUpdateStrategy(_) =>
         val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
-        new RetractRankFunction(
+        new RetractTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,

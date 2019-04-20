@@ -49,13 +49,13 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- * RetractRankFunction's input stream could contain append record, update record, delete record.
+ * The function could handle update input stream.
  */
-public class RetractRankFunction extends AbstractRankFunction {
+public class RetractTopNFunction extends AbstractTopNFunction {
 
 	private static final long serialVersionUID = 1365312180599454479L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(RetractRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RetractTopNFunction.class);
 
 	// Message to indicate the state is cleared because of ttl restriction. The message could be used to output to log.
 	private static final String STATE_CLEARED_WARN_MSG = "The state is cleared because of state ttl. " +
@@ -78,7 +78,7 @@ public class RetractRankFunction extends AbstractRankFunction {
 
 	private Comparator<BaseRow> serializableComparator;
 
-	public RetractRankFunction(
+	public RetractTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,

@@ -27,21 +27,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tests for {@link AppendRankFunction}.
+ * Tests for {@link AppendTopNFunction}.
  */
-public class AppendRankFunctionTest extends BaseRankFunctionTest {
+public class AppendTopNFunctionTest extends BaseTopNFunctionTest {
 
 	@Override
-	protected AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	protected AbstractTopNFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		return new AppendRankFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
+		return new AppendTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
 				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
 				cacheSize);
 	}
 
 	@Test
 	public void testVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 2L, 12));

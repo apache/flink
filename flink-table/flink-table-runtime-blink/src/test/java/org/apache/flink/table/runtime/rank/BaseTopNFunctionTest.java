@@ -45,9 +45,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base Tests for all subclass of {@link AbstractRankFunction}.
+ * Base Tests for all subclass of {@link AbstractTopNFunction}.
  */
-abstract class BaseRankFunctionTest {
+abstract class BaseTopNFunctionTest {
 
 	Time minTime = Time.milliseconds(10);
 	Time maxTime = Time.milliseconds(20);
@@ -138,7 +138,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testDisableGenerateRetraction() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -170,7 +170,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testDisableGenerateRetractionAndOutputRankNumber() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -200,7 +200,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testOutputRankNumberWithConstantRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -234,7 +234,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testConstantRankRangeWithOffset() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -259,7 +259,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testOutputRankNumberWithVariableRankRange() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 2L, 12));
@@ -286,7 +286,7 @@ abstract class BaseRankFunctionTest {
 
 	@Test
 	public void testConstantRankRangeWithoutOffset() throws Exception {
-		AbstractRankFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
 				false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
@@ -329,14 +329,14 @@ abstract class BaseRankFunctionTest {
 	}
 
 	OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
-			AbstractRankFunction rankFunction)
+			AbstractTopNFunction rankFunction)
 			throws Exception {
 		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(rankFunction);
 		rankFunction.setKeyContext(operator);
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
 	}
 
-	abstract AbstractRankFunction createRankFunction(RankType rankType, RankRange rankRange,
+	abstract AbstractTopNFunction createRankFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber);
 
 	StreamRecord<BaseRow> record(Object... fields) {

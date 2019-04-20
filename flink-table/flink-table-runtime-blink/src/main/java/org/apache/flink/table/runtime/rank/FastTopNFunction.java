@@ -50,18 +50,19 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A fast version of rank process function which only hold top n data in state, and keep sorted map in heap.
- * This only works in some special scenarios:
+ * The function could handle update input stream. It is a fast version of {@link RetractTopNFunction} which only hold
+ * top n data in state, and keep sorted map in heap.
+ * However, the function only works in some special scenarios:
  * 1. sort field collation is ascending and its mono is decreasing, or sort field collation is descending and its mono
  * is increasing
  * 2. input data has unique keys
  * 3. input stream could not contain delete record or retract record
  */
-public class UpdateRankFunction extends AbstractRankFunction implements CheckpointedFunction {
+public class FastTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
 
 	private static final long serialVersionUID = 6786508184355952780L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(UpdateRankFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FastTopNFunction.class);
 
 	private final BaseRowTypeInfo rowKeyType;
 	private final long cacheSize;
@@ -86,7 +87,7 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	private final TypeSerializer<BaseRow> inputRowSer;
 	private final KeySelector<BaseRow, BaseRow> rowKeySelector;
 
-	public UpdateRankFunction(
+	public FastTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,

@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRul
 import org.apache.flink.table.plan.util.RelExplainUtil._
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
-import org.apache.flink.table.runtime.rank.{AppendRankFunction, ConstantRankRange, RankType, RetractRankFunction}
+import org.apache.flink.table.runtime.rank.{AppendTopNFunction, ConstantRankRange, RankType, RetractTopNFunction}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -112,14 +112,14 @@ class StreamExecLimit(
     val rankRange = new ConstantRankRange(limitStart + 1, limitEnd)
     val rankType = RankType.ROW_NUMBER
     val outputRankNumber = false
-    // TODO Use RankFunction underlying StreamExecLimit currently
+    // Use TopNFunction underlying StreamExecLimit currently
     val sortKeySelector = NullBinaryRowKeySelector.INSTANCE
     val sortKeyComparator = ComparatorCodeGenerator.gen(
       tableConfig, "AlwaysEqualsComparator", Array(), Array(), Array(), Array())
 
     val processFunction = if (generateRetraction) {
       val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
-      new AppendRankFunction(
+      new AppendTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,
         inputRowTypeInfo,
@@ -133,7 +133,7 @@ class StreamExecLimit(
     } else {
       val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
       val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("LimitValueEqualiser")
-      new RetractRankFunction(
+      new RetractTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,
         inputRowTypeInfo,
