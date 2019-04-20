@@ -627,7 +627,7 @@ public class StreamingJobGraphGenerator {
 					CheckpointRetentionPolicy.RETAIN_ON_FAILURE :
 					CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
 		} else {
-			retentionAfterTermination = CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
+			retentionAfterTermination = CheckpointRetentionPolicy.RETAIN_ON_FAILURE;
 		}
 
 		CheckpointingMode mode = cfg.getCheckpointingMode();
