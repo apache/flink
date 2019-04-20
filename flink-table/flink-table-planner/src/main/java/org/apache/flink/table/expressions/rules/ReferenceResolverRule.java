@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
 import java.util.List;
@@ -74,7 +75,14 @@ final class ReferenceResolverRule implements ResolverRule {
 		}
 
 		private ValidationException failForField(UnresolvedReferenceExpression fieldReference) {
-			return new ValidationException(format("Cannot resolve field [%s]", fieldReference.getName()));
+			return new ValidationException(format("Cannot resolve field [%s], input field list:[%s].",
+				fieldReference.getName(),
+				String.join(
+					", ",
+					resolutionContext.referenceLookup().getAllInputFields()
+						.stream().map(FieldReferenceExpression::getName)
+						.collect(Collectors.toList())))
+			);
 		}
 
 		@Override
