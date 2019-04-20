@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.sort.SortCodeGenerator
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
@@ -45,9 +45,9 @@ import scala.collection.JavaConversions._
   *
   * @see [[StreamExecTemporalSort]] which must be time-ascending-order sort without `limit`.
   *
-  * e.g.
-  * ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
-  * ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
+  *      e.g.
+  *      ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
+  *      ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
   */
 @Experimental
 class StreamExecSort(
@@ -56,8 +56,8 @@ class StreamExecSort(
     inputRel: RelNode,
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
-  with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+    with StreamPhysicalRel
+    with StreamExecNode[BaseRow] {
 
   /**
     * this node will not produce or consume retraction message
@@ -106,31 +106,18 @@ class StreamExecSort(
     */
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
-
     val conf = tableEnv.getConfig
-
-    if (!conf.getConf.getBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
+    if (!conf.getConf.getBoolean(TableConfigOptions.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
       throw new TableException("Sort on a non-time-attribute field is not supported.")
     }
 
     val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-    val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(
-      sortCollation.getFieldCollations)
-
+    val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(sortCollation.getFieldCollations)
     // sort code gen
     val keyTypes = keys.map(inputType.getTypeAt)
-    val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
-
-    val reservedMemorySize = conf.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB
-
-    val sortOperator = new StreamSortOperator(
-      inputType.toTypeInfo,
-      reservedMemorySize,
-      codeGen.generateNormalizedKeyComputer("StreamExecSortComputer"),
-      codeGen.generateRecordComparator("StreamExecSortComparator"))
-
+    val rowComparator = ComparatorCodeGenerator.gen(conf, "StreamExecSortComparator",
+      keys, keyTypes, orders, nullsIsLast)
+    val sortOperator = new StreamSortOperator(inputType.toTypeInfo, rowComparator)
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
     val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo

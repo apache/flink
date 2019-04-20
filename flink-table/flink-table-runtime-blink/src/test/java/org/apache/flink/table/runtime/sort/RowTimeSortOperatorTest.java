@@ -20,22 +20,17 @@ package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 
 import org.junit.Test;
 
@@ -47,73 +42,59 @@ import java.util.List;
  */
 public class RowTimeSortOperatorTest {
 
-	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
-			InternalTypes.INT,
-			InternalTypes.LONG,
-			InternalTypes.STRING,
-			InternalTypes.INT);
-
-	// Note: RowTimeIdx must be 0 in product environment, the value is 1 here just for simplify the testing
-	private int rowTimeIdx = 1;
-
-	private long memorySize = MemoryManager.DEFAULT_PAGE_SIZE * 10;
-
-	private GeneratedRecordComparator gComparator = new GeneratedRecordComparator("", "", new Object[0]) {
-
-		private static final long serialVersionUID = -6067266199060901331L;
-
-		@Override
-		public RecordComparator newInstance(ClassLoader classLoader) {
-
-			return IntRecordComparator.INSTANCE;
-		}
-	};
-
-	private GeneratedNormalizedKeyComputer gComputer = new GeneratedNormalizedKeyComputer("", "") {
-
-		private static final long serialVersionUID = -6175483758521252747L;
-
-		@Override
-		public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-			return IntNormalizedKeyComputer.INSTANCE;
-		}
-	};
-
-	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
-
-	private StreamRecordHelper wrapper = new StreamRecordHelper(new RowTypeInfo(inputRowType.getFieldTypes()));
-
 	@Test
-	public void test() throws Exception {
-		RowTimeSortOperator operator = createSortOperator();
+	public void testSortOnTwoFields() throws Exception {
+		BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+				InternalTypes.INT,
+				InternalTypes.LONG,
+				InternalTypes.STRING,
+				InternalTypes.INT);
+
+		// Note: RowTimeIdx must be 0 in product environment, the value is 1 here just for simplify the testing
+		int rowTimeIdx = 1;
+		GeneratedRecordComparator gComparator = new GeneratedRecordComparator("", "", new Object[0]) {
+
+			private static final long serialVersionUID = -6067266199060901331L;
+
+			@Override
+			public RecordComparator newInstance(ClassLoader classLoader) {
+
+				return IntRecordComparator.INSTANCE;
+			}
+		};
+
+		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
+		StreamRecordHelper wrapper = new StreamRecordHelper(new RowTypeInfo(inputRowType.getFieldTypes()));
+
+		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, gComparator);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 		testHarness.open();
-		testHarness.processElement(record(3, 3L, "Hello world", 3));
-		testHarness.processElement(record(2, 2L, "Hello", 2));
-		testHarness.processElement(record(6, 2L, "Luke Skywalker", 6));
-		testHarness.processElement(record(5, 3L, "I am fine.", 5));
-		testHarness.processElement(record(7, 1L, "Comment#1", 7));
-		testHarness.processElement(record(9, 4L, "Comment#3", 9));
-		testHarness.processElement(record(10, 4L, "Comment#4", 10));
-		testHarness.processElement(record(8, 4L, "Comment#2", 8));
-		testHarness.processElement(record(1, 1L, "Hi", 2));
-		testHarness.processElement(record(1, 1L, "Hi", 1));
-		testHarness.processElement(record(4, 3L, "Helloworld, how are you?", 4));
-		testHarness.processElement(record(4, 5L, "Hello, how are you?", 4));
+		testHarness.processElement(wrapper.record(3, 3L, "Hello world", 3));
+		testHarness.processElement(wrapper.record(2, 2L, "Hello", 2));
+		testHarness.processElement(wrapper.record(6, 2L, "Luke Skywalker", 6));
+		testHarness.processElement(wrapper.record(5, 3L, "I am fine.", 5));
+		testHarness.processElement(wrapper.record(7, 1L, "Comment#1", 7));
+		testHarness.processElement(wrapper.record(9, 4L, "Comment#3", 9));
+		testHarness.processElement(wrapper.record(10, 4L, "Comment#4", 10));
+		testHarness.processElement(wrapper.record(8, 4L, "Comment#2", 8));
+		testHarness.processElement(wrapper.record(1, 1L, "Hi", 2));
+		testHarness.processElement(wrapper.record(1, 1L, "Hi", 1));
+		testHarness.processElement(wrapper.record(4, 3L, "Helloworld, how are you?", 4));
+		testHarness.processElement(wrapper.record(4, 5L, "Hello, how are you?", 4));
 		testHarness.processWatermark(new Watermark(4L));
 
 		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record(1, 1L, "Hi", 2));
-		expectedOutputOutput.add(record(1, 1L, "Hi", 1));
-		expectedOutputOutput.add(record(7, 1L, "Comment#1", 7));
-		expectedOutputOutput.add(record(2, 2L, "Hello", 2));
-		expectedOutputOutput.add(record(6, 2L, "Luke Skywalker", 6));
-		expectedOutputOutput.add(record(3, 3L, "Hello world", 3));
-		expectedOutputOutput.add(record(4, 3L, "Helloworld, how are you?", 4));
-		expectedOutputOutput.add(record(5, 3L, "I am fine.", 5));
-		expectedOutputOutput.add(record(8, 4L, "Comment#2", 8));
-		expectedOutputOutput.add(record(9, 4L, "Comment#3", 9));
-		expectedOutputOutput.add(record(10, 4L, "Comment#4", 10));
+		expectedOutputOutput.add(wrapper.record(1, 1L, "Hi", 2));
+		expectedOutputOutput.add(wrapper.record(1, 1L, "Hi", 1));
+		expectedOutputOutput.add(wrapper.record(7, 1L, "Comment#1", 7));
+		expectedOutputOutput.add(wrapper.record(2, 2L, "Hello", 2));
+		expectedOutputOutput.add(wrapper.record(6, 2L, "Luke Skywalker", 6));
+		expectedOutputOutput.add(wrapper.record(3, 3L, "Hello world", 3));
+		expectedOutputOutput.add(wrapper.record(4, 3L, "Helloworld, how are you?", 4));
+		expectedOutputOutput.add(wrapper.record(5, 3L, "I am fine.", 5));
+		expectedOutputOutput.add(wrapper.record(8, 4L, "Comment#2", 8));
+		expectedOutputOutput.add(wrapper.record(9, 4L, "Comment#3", 9));
+		expectedOutputOutput.add(wrapper.record(10, 4L, "Comment#4", 10));
 		expectedOutputOutput.add(new Watermark(4L));
 
 		// do a snapshot, data could be recovered from state
@@ -123,15 +104,15 @@ public class RowTimeSortOperatorTest {
 
 		expectedOutputOutput.clear();
 
-		operator = createSortOperator();
+		operator = createSortOperator(inputRowType, rowTimeIdx, gComparator);
 		testHarness = createTestHarness(operator);
 		testHarness.initializeState(snapshot);
 		testHarness.open();
 		// late data will be dropped
-		testHarness.processElement(record(5, 3L, "I am fine.", 6));
+		testHarness.processElement(wrapper.record(5, 3L, "I am fine.", 6));
 		testHarness.processWatermark(new Watermark(5L));
 
-		expectedOutputOutput.add(record(4, 5L, "Hello, how are you?", 4));
+		expectedOutputOutput.add(wrapper.record(4, 5L, "Hello, how are you?", 4));
 		expectedOutputOutput.add(new Watermark(5L));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
@@ -145,19 +126,84 @@ public class RowTimeSortOperatorTest {
 		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
 	}
 
-	private RowTimeSortOperator createSortOperator() {
-		return new RowTimeSortOperator(inputRowType, memorySize, rowTimeIdx, gComputer, gComparator);
+	@Test
+	public void testOnlySortOnRowTime() throws Exception {
+		BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+				InternalTypes.LONG,
+				InternalTypes.LONG,
+				InternalTypes.STRING,
+				InternalTypes.INT);
+		int rowTimeIdx = 0;
+		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
+		StreamRecordHelper wrapper = new StreamRecordHelper(new RowTypeInfo(inputRowType.getFieldTypes()));
+		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, null);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		testHarness.open();
+		testHarness.processElement(wrapper.record(3L, 2L, "Hello world", 3));
+		testHarness.processElement(wrapper.record(2L, 2L, "Hello", 2));
+		testHarness.processElement(wrapper.record(6L, 3L, "Luke Skywalker", 6));
+		testHarness.processElement(wrapper.record(5L, 3L, "I am fine.", 5));
+		testHarness.processElement(wrapper.record(7L, 4L, "Comment#1", 7));
+		testHarness.processElement(wrapper.record(9L, 4L, "Comment#3", 9));
+		testHarness.processElement(wrapper.record(10L, 4L, "Comment#4", 10));
+		testHarness.processElement(wrapper.record(8L, 4L, "Comment#2", 8));
+		testHarness.processElement(wrapper.record(1L, 1L, "Hi", 2));
+		testHarness.processElement(wrapper.record(1L, 1L, "Hi", 1));
+		testHarness.processElement(wrapper.record(4L, 3L, "Helloworld, how are you?", 4));
+		testHarness.processWatermark(new Watermark(9L));
+
+		List<Object> expectedOutputOutput = new ArrayList<>();
+		expectedOutputOutput.add(wrapper.record(1L, 1L, "Hi", 2));
+		expectedOutputOutput.add(wrapper.record(1L, 1L, "Hi", 1));
+		expectedOutputOutput.add(wrapper.record(2L, 2L, "Hello", 2));
+		expectedOutputOutput.add(wrapper.record(3L, 2L, "Hello world", 3));
+		expectedOutputOutput.add(wrapper.record(4L, 3L, "Helloworld, how are you?", 4));
+		expectedOutputOutput.add(wrapper.record(5L, 3L, "I am fine.", 5));
+		expectedOutputOutput.add(wrapper.record(6L, 3L, "Luke Skywalker", 6));
+		expectedOutputOutput.add(wrapper.record(7L, 4L, "Comment#1", 7));
+		expectedOutputOutput.add(wrapper.record(8L, 4L, "Comment#2", 8));
+		expectedOutputOutput.add(wrapper.record(9L, 4L, "Comment#3", 9));
+		expectedOutputOutput.add(new Watermark(9L));
+
+		// do a snapshot, data could be recovered from state
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		testHarness.close();
+
+		expectedOutputOutput.clear();
+
+		operator = createSortOperator(inputRowType, rowTimeIdx, null);
+		testHarness = createTestHarness(operator);
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+		// late data will be dropped
+		testHarness.processElement(wrapper.record(5L, 3L, "I am fine.", 6));
+		testHarness.processWatermark(new Watermark(10L));
+
+		expectedOutputOutput.add(wrapper.record(10L, 4L, "Comment#4", 10));
+		expectedOutputOutput.add(new Watermark(10L));
+
+		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+
+		// those watermark has no effect
+		testHarness.processWatermark(new Watermark(11L));
+		testHarness.processWatermark(new Watermark(12L));
+		expectedOutputOutput.add(new Watermark(11L));
+		expectedOutputOutput.add(new Watermark(12L));
+
+		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+	}
+
+	private RowTimeSortOperator createSortOperator(BaseRowTypeInfo inputRowType, int rowTimeIdx,
+			GeneratedRecordComparator gComparator) {
+		return new RowTimeSortOperator(inputRowType, rowTimeIdx, gComparator);
 	}
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(BaseTemporalSortOperator operator)
 			throws Exception {
 		OneInputStreamOperatorTestHarness testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
 				operator, NullBinaryRowKeySelector.INSTANCE, NullBinaryRowKeySelector.INSTANCE.getProducedType());
-		testHarness.setup(new BinaryRowSerializer(inputRowType.getArity()));
 		return testHarness;
 	}
 
-	private StreamRecord<BaseRow> record(Object... fields) {
-		return wrapper.record(fields);
-	}
 }

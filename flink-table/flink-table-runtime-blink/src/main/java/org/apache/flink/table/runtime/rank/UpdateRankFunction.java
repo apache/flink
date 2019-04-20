@@ -86,10 +86,18 @@ public class UpdateRankFunction extends AbstractRankFunction implements Checkpoi
 	private final TypeSerializer<BaseRow> inputRowSer;
 	private final KeySelector<BaseRow, BaseRow> rowKeySelector;
 
-	public UpdateRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			BaseRowKeySelector rowKeySelector, GeneratedRecordComparator generatedRecordComparator,
-			BaseRowKeySelector sortKeySelector, RankType rankType,
-			RankRange rankRange, boolean generateRetraction, boolean outputRankNumber, long cacheSize) {
+	public UpdateRankFunction(
+			long minRetentionTime,
+			long maxRetentionTime,
+			BaseRowTypeInfo inputRowType,
+			BaseRowKeySelector rowKeySelector,
+			GeneratedRecordComparator generatedRecordComparator,
+			BaseRowKeySelector sortKeySelector,
+			RankType rankType,
+			RankRange rankRange,
+			boolean generateRetraction,
+			boolean outputRankNumber,
+			long cacheSize) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
 				rankRange, generateRetraction, outputRankNumber);
 		this.rowKeyType = rowKeySelector.getProducedType();

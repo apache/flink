@@ -20,19 +20,15 @@ package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 
 import org.junit.Test;
 
@@ -43,8 +39,6 @@ import java.util.List;
  * Tests for {@link StreamSortOperator}.
  */
 public class StreamSortOperatorTest {
-
-	private long memorySize = MemoryManager.DEFAULT_PAGE_SIZE * 10;
 
 	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
 			InternalTypes.STRING,
@@ -58,16 +52,6 @@ public class StreamSortOperatorTest {
 		public RecordComparator newInstance(ClassLoader classLoader) {
 
 			return new StringRecordComparator();
-		}
-	};
-
-	private GeneratedNormalizedKeyComputer sortKeyComputer = new GeneratedNormalizedKeyComputer("", "") {
-
-		private static final long serialVersionUID = -6175483758521252747L;
-
-		@Override
-		public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-			return new StringNormalizedKeyComputer();
 		}
 	};
 
@@ -115,12 +99,11 @@ public class StreamSortOperatorTest {
 	}
 
 	private StreamSortOperator createSortOperator() {
-		return new StreamSortOperator(inputRowType, memorySize, sortKeyComputer, sortKeyComparator);
+		return new StreamSortOperator(inputRowType, sortKeyComparator);
 	}
 
-	OneInputStreamOperatorTestHarness createTestHarness(StreamSortOperator operator) throws Exception {
+	private OneInputStreamOperatorTestHarness createTestHarness(StreamSortOperator operator) throws Exception {
 		OneInputStreamOperatorTestHarness testHarness = new OneInputStreamOperatorTestHarness(operator);
-		testHarness.setup(new BinaryRowSerializer(inputRowType.getArity()));
 		return testHarness;
 	}
 }

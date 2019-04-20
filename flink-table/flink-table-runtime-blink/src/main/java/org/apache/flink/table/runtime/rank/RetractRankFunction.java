@@ -78,10 +78,17 @@ public class RetractRankFunction extends AbstractRankFunction {
 
 	private Comparator<BaseRow> serializableComparator;
 
-	public RetractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			GeneratedRecordComparator generatedRecordComparator, BaseRowKeySelector sortKeySelector,
-			RankType rankType, RankRange rankRange, GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateRetraction, boolean outputRankNumber) {
+	public RetractRankFunction(
+			long minRetentionTime,
+			long maxRetentionTime,
+			BaseRowTypeInfo inputRowType,
+			GeneratedRecordComparator generatedRecordComparator,
+			BaseRowKeySelector sortKeySelector,
+			RankType rankType,
+			RankRange rankRange,
+			GeneratedRecordEqualiser generatedEqualiser,
+			boolean generateRetraction,
+			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
 				rankRange, generateRetraction, outputRankNumber);
 		this.sortKeyType = sortKeySelector.getProducedType();

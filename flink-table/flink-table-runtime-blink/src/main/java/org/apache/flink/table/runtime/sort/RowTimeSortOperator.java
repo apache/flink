@@ -18,36 +18,25 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.sort.IndexedSorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
-import org.apache.flink.util.MutableObjectIterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -60,36 +49,24 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	private static final Logger LOG = LoggerFactory.getLogger(RowTimeSortOperator.class);
 
 	private final BaseRowTypeInfo inputRowType;
-	private final long memorySize;
 	private final int rowTimeIdx;
-	private GeneratedNormalizedKeyComputer gComputer;
+
 	private GeneratedRecordComparator gComparator;
+	private transient RecordComparator comparator;
 
 	// State to collect rows between watermarks.
 	private transient MapState<Long, List<BaseRow>> dataState;
 	// State to keep the last triggering timestamp. Used to filter late events.
 	private transient ValueState<Long> lastTriggeringTsState;
-	private transient BinaryRowSerializer binarySerializer;
-
-	private transient BinaryInMemorySortBuffer sortBuffer;
-	private transient IndexedSorter sorter;
-
-	private transient MemoryManager memManager;
-	private transient List<MemorySegment> memorySegments;
 
 	/**
 	 * @param inputRowType The data type of the input data.
-	 * @param memorySize The size of in memory buffer.
 	 * @param rowTimeIdx The index of the rowTime field.
-	 * @param gComputer generated NormalizedKeyComputer.
-	 * @param gComparator generated comparator.
+	 * @param gComparator generated comparator, could be null if only sort on RowTime field
 	 */
-	public RowTimeSortOperator(BaseRowTypeInfo inputRowType, long memorySize, int rowTimeIdx,
-			GeneratedNormalizedKeyComputer gComputer, GeneratedRecordComparator gComparator) {
+	public RowTimeSortOperator(BaseRowTypeInfo inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
-		this.memorySize = memorySize;
 		this.rowTimeIdx = rowTimeIdx;
-		this.gComputer = gComputer;
 		this.gComparator = gComparator;
 	}
 
@@ -98,27 +75,15 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 		super.open();
 
 		LOG.info("Opening RowTimeSortOperator");
-		ExecutionConfig executionConfig = getExecutionConfig();
-		BaseRowSerializer inputSerializer = inputRowType.createSerializer(executionConfig);
-		binarySerializer = new BinaryRowSerializer(inputSerializer.getArity());
-		ClassLoader cl = getContainingTask().getUserCodeClassLoader();
-		NormalizedKeyComputer computer = gComputer.newInstance(cl);
-		RecordComparator comparator = gComparator.newInstance(cl);
-		gComputer = null;
-		gComparator = null;
-
-		memManager = getContainingTask().getEnvironment().getMemoryManager();
-		memorySegments = memManager
-				.allocatePages(getContainingTask(), (int) (memorySize / memManager.getPageSize()));
-		sortBuffer = BinaryInMemorySortBuffer.createBuffer(computer, inputSerializer, binarySerializer,
-				comparator, new ArrayList<>(memorySegments));
-		sorter = new QuickSort();
+		if (gComparator != null) {
+			comparator = gComparator.newInstance(getContainingTask().getUserCodeClassLoader());
+			gComparator = null;
+		}
 
 		BasicTypeInfo<Long> keyTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 		ListTypeInfo<BaseRow> valueTypeInfo = new ListTypeInfo<>(inputRowType);
 		MapStateDescriptor<Long, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<>(
 				"dataState", keyTypeInfo, valueTypeInfo);
-
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
 		ValueStateDescriptor<Long> lastTriggeringTsDescriptor = new ValueStateDescriptor<>("lastTriggeringTsState",
@@ -157,42 +122,22 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	@Override
 	public void onEventTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
 		long timestamp = timer.getTimestamp();
+
 		// gets all rows for the triggering timestamps
-		dataState.get(timestamp).forEach((BaseRow row) -> {
-			try {
-				if (!sortBuffer.write(row)) {
-					throw new RuntimeException(
-							new IOException("The record exceeds the maximum size of a sort buffer (current maximum: "
-									+ sortBuffer.getCapacity() + " bytes)."));
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+		List<BaseRow> inputs = dataState.get(timestamp);
+		if (inputs != null) {
+			// sort rows on secondary fields if necessary
+			if (comparator != null) {
+				Collections.sort(inputs, comparator);
 			}
-		});
-		sorter.sort(sortBuffer);
 
-		// emit the sorted inputs
-		BinaryRow row = binarySerializer.createInstance();
-		MutableObjectIterator<BinaryRow> iterator = sortBuffer.getIterator();
-		while ((row = iterator.next(row)) != null) {
-			collector.collect(row);
+			// emit rows in order
+			inputs.forEach((BaseRow row) -> collector.collect(row));
+
+			// remove emitted rows from state
+			dataState.remove(timestamp);
+			lastTriggeringTsState.update(timestamp);
 		}
-
-		// remove all buffered rows
-		sortBuffer.reset();
-
-		// remove emitted rows from state
-		dataState.remove(timestamp);
-		lastTriggeringTsState.update(timestamp);
 	}
 
-	@Override
-	public void close() throws Exception {
-		LOG.info("Closing RowTimeSortOperator");
-		super.close();
-		if (sortBuffer != null) {
-			sortBuffer.dispose();
-		}
-		memManager.release(memorySegments);
-	}
 }

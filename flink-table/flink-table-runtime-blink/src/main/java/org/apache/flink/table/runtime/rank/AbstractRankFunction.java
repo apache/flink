@@ -83,9 +83,16 @@ public abstract class AbstractRankFunction extends KeyedProcessFunctionWithClean
 	protected long hitCount = 0L;
 	protected long requestCount = 0L;
 
-	AbstractRankFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo inputRowType,
-			GeneratedRecordComparator generatedSortKeyComparator, BaseRowKeySelector sortKeySelector,
-			RankType rankType, RankRange rankRange, boolean generateRetraction, boolean outputRankNumber) {
+	AbstractRankFunction(
+			long minRetentionTime,
+			long maxRetentionTime,
+			BaseRowTypeInfo inputRowType,
+			GeneratedRecordComparator generatedSortKeyComparator,
+			BaseRowKeySelector sortKeySelector,
+			RankType rankType,
+			RankRange rankRange,
+			boolean generateRetraction,
+			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
 		// TODO support RANK and DENSE_RANK
 		switch (rankType) {

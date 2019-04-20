@@ -18,31 +18,21 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.sort.IndexedSorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
-import org.apache.flink.util.MutableObjectIterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -55,32 +45,19 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeSortOperator.class);
 
 	private final BaseRowTypeInfo inputRowType;
-	private final long memorySize;
 
-	private GeneratedNormalizedKeyComputer gComputer;
 	private GeneratedRecordComparator gComparator;
+	private transient RecordComparator comparator;
+	private transient List<BaseRow> sortBuffer;
 
 	private transient ListState<BaseRow> dataState;
 
-	private transient BinaryRowSerializer binarySerializer;
-
-	private transient BinaryInMemorySortBuffer sortBuffer;
-	private transient IndexedSorter sorter;
-
-	private transient MemoryManager memManager;
-	private transient List<MemorySegment> memorySegments;
-
 	/**
 	 * @param inputRowType The data type of the input data.
-	 * @param memorySize The size of in memory buffer.
-	 * @param gComputer generated NormalizedKeyComputer.
 	 * @param gComparator generated comparator.
 	 */
-	public ProcTimeSortOperator(BaseRowTypeInfo inputRowType, long memorySize, GeneratedNormalizedKeyComputer gComputer,
-			GeneratedRecordComparator gComparator) {
+	public ProcTimeSortOperator(BaseRowTypeInfo inputRowType, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
-		this.memorySize = memorySize;
-		this.gComputer = gComputer;
 		this.gComparator = gComparator;
 	}
 
@@ -89,24 +66,12 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 		super.open();
 
 		LOG.info("Opening ProcTimeSortOperator");
-		ExecutionConfig executionConfig = getExecutionConfig();
-		BaseRowSerializer inputSerializer = inputRowType.createSerializer(executionConfig);
-		binarySerializer = new BinaryRowSerializer(inputSerializer.getArity());
-		ClassLoader cl = getContainingTask().getUserCodeClassLoader();
-		NormalizedKeyComputer computer = gComputer.newInstance(cl);
-		RecordComparator comparator = gComparator.newInstance(cl);
-		gComputer = null;
+
+		comparator = gComparator.newInstance(getContainingTask().getUserCodeClassLoader());
 		gComparator = null;
+		sortBuffer = new ArrayList<>();
 
-		memManager = getContainingTask().getEnvironment().getMemoryManager();
-		memorySegments = memManager.allocatePages(getContainingTask(), (int) (memorySize / memManager.getPageSize()));
-		sortBuffer = BinaryInMemorySortBuffer.createBuffer(computer, inputSerializer, binarySerializer,
-				comparator, memorySegments);
-		sorter = new QuickSort();
-
-		ListStateDescriptor<BaseRow> sortDescriptor = new ListStateDescriptor<>(
-				"sortState", inputRowType);
-
+		ListStateDescriptor<BaseRow> sortDescriptor = new ListStateDescriptor<>("sortState", inputRowType);
 		dataState = getRuntimeContext().getListState(sortDescriptor);
 	}
 
@@ -126,40 +91,20 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 	public void onProcessingTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
 
 		// gets all rows for the triggering timestamps
-		dataState.get().forEach((BaseRow row) -> {
-			try {
-				if (!sortBuffer.write(row)) {
-					throw new RuntimeException(
-							new IOException("The record exceeds the maximum size of a sort buffer (current maximum: "
-									+ sortBuffer.getCapacity() + " bytes)."));
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		});
-		sorter.sort(sortBuffer);
+		Iterable<BaseRow> inputs = dataState.get();
 
-		// emit the sorted inputs
-		BinaryRow row = binarySerializer.createInstance();
-		MutableObjectIterator<BinaryRow> iterator = sortBuffer.getIterator();
-		while ((row = iterator.next(row)) != null) {
-			collector.collect(row);
-		}
+		// insert all rows into the sort buffer
+		sortBuffer.clear();
+		inputs.forEach(sortBuffer::add);
+
+		// sort the rows
+		Collections.sort(sortBuffer, comparator);
+
+		// Emit the rows in order
+		sortBuffer.forEach((BaseRow row) -> collector.collect(row));
 
 		// remove all buffered rows
-		sortBuffer.reset();
-
-		// remove emitted rows from state
 		dataState.clear();
 	}
 
-	@Override
-	public void close() throws Exception {
-		LOG.info("Closing ProcTimeSortOperator");
-		super.close();
-		if (sortBuffer != null) {
-			sortBuffer.dispose();
-		}
-		memManager.release(memorySegments);
-	}
 }
