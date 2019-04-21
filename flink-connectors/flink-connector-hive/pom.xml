@@ -239,11 +239,24 @@ under the License.
                                         <include>org.apache.hive:*</include>
                                         <include>org.apache.hadoop.hive:*</include>
                                         <include>org.apache.thrift:*</include>
+										<include>org.apache.hadoop:hadoop-common</include>
                                     </includes>
                                 </artifactSet>
+								<filters>
+									<filter>
+										<artifact>org.apache.hadoop:hadoop-common</artifact>
+										<includes>
+											<include>org/apache/hadoop/crypto/**</include>
+										</includes>
+									</filter>
+								</filters>
 								<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
 								<relocations combine.children="append">
+									<relocation>
+										<pattern>org.apache.hadoop.crypto</pattern>
+										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.hadoop.crypto</shadedPattern>
+									</relocation>
 									<relocation>
 										<pattern>org.apache.thrift</pattern>
 										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.thrift</shadedPattern>
