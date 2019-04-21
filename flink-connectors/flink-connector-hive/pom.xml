@@ -174,86 +174,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.hive</groupId>
-			<artifactId>hive-exec</artifactId>
-			<version>${hive.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-druid</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-codec</groupId>
-					<artifactId>commons-codec</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-httpclient</groupId>
-					<artifactId>commons-httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-io</groupId>
-					<artifactId>commons-io</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-1.2-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-slf4j-impl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.spark</groupId>
-					<artifactId>spark-core_2.11</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-runtime-library</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-runtime-internals</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-mapreduce</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.zookeeper</groupId>
-					<artifactId>zookeeper</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-framework</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>apache-curator</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.code.gson</groupId>
-					<artifactId>gson</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>
@@ -261,6 +181,13 @@ under the License.
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-exec</artifactId>
+			<version>${hive.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -311,28 +238,12 @@ under the License.
                                     <includes>
                                         <include>org.apache.hive:*</include>
                                         <include>org.apache.hadoop.hive:*</include>
-                                        <include>org.apache.hive.shims:*</include>
                                         <include>org.apache.thrift:*</include>
-										<include>org.apache.hadoop.crypto:*</include>
                                     </includes>
                                 </artifactSet>
-                                <filters>
-                                    <filter>
-                                        <artifact>*:*</artifact>
-                                        <excludes>
-                                            <exclude>META-INF/*.SF</exclude>
-                                            <exclude>META-INF/*.DSA</exclude>
-                                            <exclude>META-INF/*.RSA</exclude>
-                                        </excludes>
-                                    </filter>
-                                </filters>
 								<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-								<!-- Shaded non-hive classes that users may use in their applications -->
+								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
 								<relocations combine.children="append">
-									<relocation>
-										<pattern>org.apache.hadoop.crypto</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.hadoop.crypto</shadedPattern>
-									</relocation>
 									<relocation>
 										<pattern>org.apache.thrift</pattern>
 										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.thrift</shadedPattern>
