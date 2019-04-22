@@ -52,7 +52,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
-import org.apache.parquet.filter2.predicate.Operators;
 import org.apache.parquet.filter2.predicate.Operators.BinaryColumn;
 import org.apache.parquet.filter2.predicate.Operators.BooleanColumn;
 import org.apache.parquet.filter2.predicate.Operators.Column;
@@ -73,6 +72,18 @@ import java.util.List;
  * <p>The {@link ParquetTableSource} supports projection and filter push-down.</p>
  *
  * <p>An {@link ParquetTableSource} is used as shown in the example below.
+ *
+ * <pre>
+ * {@code
+ * ParquetTableSource orcSrc = ParquetTableSource.builder()
+ *   .path("file:///my/data/file.parquet")
+ *   .schema(messageType)
+ *   .build();
+ *
+ * tEnv.registerTableSource("parquetTable", orcSrc);
+ * Table res = tableEnv.sqlQuery("SELECT * FROM parquetTable");
+ * }
+ * </pre>
  */
 public class ParquetTableSource
 	implements BatchTableSource<Row>, FilterableTableSource<Row>, ProjectableTableSource<Row> {
@@ -87,12 +98,11 @@ public class ParquetTableSource
 	private final TableSchema tableSchema;
 	// the configuration to read the file
 	private final Configuration parquetConfig;
-
-    // type information of the data returned by the InputFormat
+	// type information of the data returned by the InputFormat
 	private final RowTypeInfo typeInfo;
 	// list of selected Parquet fields to return
 	private final int[] selectedFields;
-	// list of predicates to apply
+	// predicate expression to apply
 	private final FilterPredicate predicate;
 	// flag whether a path is recursively enumerated
 	private final boolean recursiveEnumeration;
@@ -214,14 +224,15 @@ public class ParquetTableSource
 				return  null;
 			}
 
+			boolean onRight = literalOnRight(binComp);
 			Tuple2<Column, Comparable> columnPair = getParquetColumn(binComp);
 
 			if (columnPair != null) {
 				if (exp instanceof EqualTo) {
 					if (columnPair.f0 instanceof IntColumn) {
 						return FilterApi.eq((IntColumn) columnPair.f0, (Integer) columnPair.f1);
-					} else if (columnPair.f0 instanceof Operators.LongColumn) {
-						return FilterApi.eq((Operators.LongColumn) columnPair.f0, (Long) columnPair.f1);
+					} else if (columnPair.f0 instanceof LongColumn) {
+						return FilterApi.eq((LongColumn) columnPair.f0, (Long) columnPair.f1);
 					} else if (columnPair.f0 instanceof DoubleColumn) {
 						return FilterApi.eq((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
 					} else if (columnPair.f0 instanceof FloatColumn) {
@@ -235,7 +246,7 @@ public class ParquetTableSource
 					if (columnPair.f0 instanceof IntColumn) {
 						return FilterApi.notEq((IntColumn) columnPair.f0, (Integer) columnPair.f1);
 					} else if (columnPair.f0 instanceof LongColumn) {
-						return FilterApi.notEq((Operators.LongColumn) columnPair.f0, (Long) columnPair.f1);
+						return FilterApi.notEq((LongColumn) columnPair.f0, (Long) columnPair.f1);
 					} else if (columnPair.f0 instanceof DoubleColumn) {
 						return FilterApi.notEq((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
 					} else if (columnPair.f0 instanceof FloatColumn) {
@@ -246,44 +257,28 @@ public class ParquetTableSource
 						return FilterApi.notEq((BinaryColumn) columnPair.f0, (Binary) columnPair.f1);
 					}
 				} else if (exp instanceof GreaterThan) {
-					if (columnPair.f0 instanceof IntColumn) {
-						return FilterApi.gt((IntColumn) columnPair.f0, (Integer) columnPair.f1);
-					} else if (columnPair.f0 instanceof LongColumn) {
-						return FilterApi.gt((Operators.LongColumn) columnPair.f0, (Long) columnPair.f1);
-					} else if (columnPair.f0 instanceof DoubleColumn) {
-						return FilterApi.gt((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
-					} else if (columnPair.f0 instanceof FloatColumn) {
-						return FilterApi.gt((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+					if (onRight) {
+						return greatThan(exp, columnPair);
+					} else {
+						lessThan(exp, columnPair);
 					}
 				} else if (exp instanceof GreaterThanOrEqual) {
-					if (columnPair.f0 instanceof IntColumn) {
-						return FilterApi.gtEq((IntColumn) columnPair.f0, (Integer) columnPair.f1);
-					} else if (columnPair.f0 instanceof LongColumn) {
-						return FilterApi.gtEq((Operators.LongColumn) columnPair.f0, (Long) columnPair.f1);
-					} else if (columnPair.f0 instanceof DoubleColumn) {
-						return FilterApi.gtEq((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
-					} else if (columnPair.f0 instanceof FloatColumn) {
-						return FilterApi.gtEq((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+					if (onRight) {
+						return greaterThanOrEqual(exp, columnPair);
+					} else {
+						return lessThanOrEqual(exp, columnPair);
 					}
 				} else if (exp instanceof LessThan) {
-					if (columnPair.f0 instanceof IntColumn) {
-						return FilterApi.lt((IntColumn) columnPair.f0, (Integer) columnPair.f1);
-					} else if (columnPair.f0 instanceof LongColumn) {
-						return FilterApi.lt((Operators.LongColumn) columnPair.f0, (Long) columnPair.f1);
-					} else if (columnPair.f0 instanceof DoubleColumn) {
-						return FilterApi.lt((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
-					} else if (columnPair.f0 instanceof FloatColumn) {
-						return FilterApi.lt((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+					if (onRight) {
+						return lessThan(exp, columnPair);
+					} else {
+						return greatThan(exp, columnPair);
 					}
 				} else if (exp instanceof LessThanOrEqual) {
-					if (columnPair.f0 instanceof IntColumn) {
-						return FilterApi.ltEq((IntColumn) columnPair.f0, (Integer) columnPair.f1);
-					} else if (columnPair.f0 instanceof LongColumn) {
-						return FilterApi.ltEq((Operators.LongColumn) columnPair.f0, (Long) columnPair.f1);
-					}  else if (columnPair.f0 instanceof DoubleColumn) {
-						return FilterApi.ltEq((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
-					} else if (columnPair.f0 instanceof FloatColumn) {
-						return FilterApi.ltEq((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+					if (onRight) {
+						return lessThanOrEqual(exp, columnPair);
+					} else {
+						return greaterThanOrEqual(exp, columnPair);
 					}
 				} else {
 					// Unsupported Predicate
@@ -292,22 +287,85 @@ public class ParquetTableSource
 				}
 			}
 		} else if (exp instanceof BinaryExpression) {
-			FilterPredicate c1 = toParquetPredicate(((Or) exp).left());
-			FilterPredicate c2 = toParquetPredicate(((Or) exp).right());
+			if (exp instanceof And) {
+				LOG.debug("All of the predicates should be in CNF. Found an AND expression.", exp);
+			} else if (exp instanceof Or){
+				FilterPredicate c1 = toParquetPredicate(((Or) exp).left());
+				FilterPredicate c2 = toParquetPredicate(((Or) exp).right());
 
-			if (c1 == null || c2 == null) {
-				return null;
-			} else {
-				if (exp instanceof Or) {
-					return FilterApi.or(c1, c2);
-				} else if (exp instanceof And) {
-					return FilterApi.and(c1, c2);
-				} else {
-					// Unsupported Predicate
-					LOG.debug("Unsupported predicate [{}] cannot be pushed into ParquetTableSource.", exp);
+				if (c1 == null || c2 == null) {
 					return null;
+				} else {
+					if (exp instanceof Or) {
+						return FilterApi.or(c1, c2);
+					} else {
+						// Unsupported Predicate
+						LOG.debug("Unsupported predicate [{}] cannot be pushed into ParquetTableSource.", exp);
+						return null;
+					}
 				}
 			}
+		}
+
+		return null;
+	}
+
+	private FilterPredicate greatThan(Expression exp, Tuple2<Column, Comparable> columnPair) {
+		Preconditions.checkArgument(exp instanceof GreaterThan, "exp has to be GreaterThan");
+		if (columnPair.f0 instanceof IntColumn) {
+			return FilterApi.gt((IntColumn) columnPair.f0, (Integer) columnPair.f1);
+		} else if (columnPair.f0 instanceof LongColumn) {
+			return FilterApi.gt((LongColumn) columnPair.f0, (Long) columnPair.f1);
+		} else if (columnPair.f0 instanceof DoubleColumn) {
+			return FilterApi.gt((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
+		} else if (columnPair.f0 instanceof FloatColumn) {
+			return FilterApi.gt((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+		}
+
+		return null;
+	}
+
+	private FilterPredicate lessThan(Expression exp, Tuple2<Column, Comparable> columnPair) {
+		Preconditions.checkArgument(exp instanceof LessThan, "exp has to be LessThan");
+
+		if (columnPair.f0 instanceof IntColumn) {
+			return FilterApi.lt((IntColumn) columnPair.f0, (Integer) columnPair.f1);
+		} else if (columnPair.f0 instanceof LongColumn) {
+			return FilterApi.lt((LongColumn) columnPair.f0, (Long) columnPair.f1);
+		} else if (columnPair.f0 instanceof DoubleColumn) {
+			return FilterApi.lt((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
+		} else if (columnPair.f0 instanceof FloatColumn) {
+			return FilterApi.lt((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+		}
+
+		return null;
+	}
+
+	private FilterPredicate greaterThanOrEqual(Expression exp, Tuple2<Column, Comparable> columnPair) {
+		Preconditions.checkArgument(exp instanceof GreaterThanOrEqual, "exp has to be GreaterThanOrEqual");
+		if (columnPair.f0 instanceof IntColumn) {
+			return FilterApi.gtEq((IntColumn) columnPair.f0, (Integer) columnPair.f1);
+		} else if (columnPair.f0 instanceof LongColumn) {
+			return FilterApi.gtEq((LongColumn) columnPair.f0, (Long) columnPair.f1);
+		} else if (columnPair.f0 instanceof DoubleColumn) {
+			return FilterApi.gtEq((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
+		} else if (columnPair.f0 instanceof FloatColumn) {
+			return FilterApi.gtEq((FloatColumn) columnPair.f0, (Float) columnPair.f1);
+		}
+
+		return null;
+	}
+
+	private FilterPredicate lessThanOrEqual(Expression exp, Tuple2<Column, Comparable> columnPair) {
+		Preconditions.checkArgument(exp instanceof LessThanOrEqual, "exp has to be LessThanOrEqual");
+		if (columnPair.f0 instanceof IntColumn) {
+			return FilterApi.ltEq((IntColumn) columnPair.f0, (Integer) columnPair.f1);
+		} else if (columnPair.f0 instanceof LongColumn) {
+			return FilterApi.ltEq((LongColumn) columnPair.f0, (Long) columnPair.f1);
+		}  else if (columnPair.f0 instanceof DoubleColumn) {
+			return FilterApi.ltEq((DoubleColumn) columnPair.f0, (Double) columnPair.f1);
+		} else if (columnPair.f0 instanceof FloatColumn) {
+			return FilterApi.ltEq((FloatColumn) columnPair.f0, (Float) columnPair.f1);
 		}
 
 		return null;
@@ -356,9 +414,9 @@ public class ParquetTableSource
 		TypeInformation<?> typeInfo = getLiteralType(comp);
 		String columnName = getColumnName(comp);
 
-		// fetch literal and ensure it is serializable
+		// fetch literal and ensure it is comparable
 		Object value = getLiteral(comp);
-		// validate that literal is serializable
+		// validate that literal is comparable
 		if (!(value instanceof Comparable)) {
 			LOG.warn("Encountered a non-comparable literal of type {}." +
 				"Cannot push predicate [{}] into ParquetTablesource." +
@@ -408,7 +466,6 @@ public class ParquetTableSource
 		private Configuration config;
 
 		private boolean recursive = true;
-
 
 		/**
 		 * Sets the path of Parquet files.

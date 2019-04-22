@@ -35,7 +35,7 @@ import org.apache.flink.table.expressions.GetCompositeField;
 import org.apache.flink.table.expressions.GreaterThan;
 import org.apache.flink.table.expressions.ItemAt;
 import org.apache.flink.table.expressions.Literal;
-import org.apache.flink.table.expressions.ResolvedFieldReference;
+import org.apache.flink.table.expressions.PlannerResolvedFieldReference;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.specific.SpecificRecord;
@@ -153,16 +153,16 @@ public class ParquetTableSourceTest extends TestUtil {
 
 		// expressions for supported predicates
 		Expression exp1 = new GreaterThan(
-			new ResolvedFieldReference("foo", Types.LONG),
+			new PlannerResolvedFieldReference("foo", Types.LONG),
 			new Literal(100L, Types.LONG));
 		Expression exp2 = new EqualTo(
-			new ResolvedFieldReference("bar.spam", Types.LONG),
+			new PlannerResolvedFieldReference("bar.spam", Types.LONG),
 			new Literal(100L, Types.LONG));
 		// unsupported predicate
 		Expression unsupported = new EqualTo(
 			new GetCompositeField(
 				new ItemAt(
-					new ResolvedFieldReference(
+					new PlannerResolvedFieldReference(
 						"nestedArray",
 						ObjectArrayTypeInfo.getInfoFor(
 							Types.ROW_NAMED(new String[] {"type", "name"}, Types.STRING, Types.STRING))),
@@ -171,7 +171,7 @@ public class ParquetTableSourceTest extends TestUtil {
 			new Literal("test", Types.STRING));
 		// invalid predicate
 		Expression invalidPred = new EqualTo(
-			new ResolvedFieldReference("nonField", Types.LONG),
+			new PlannerResolvedFieldReference("nonField", Types.LONG),
 			// some invalid, non-serializable, literal (here an object of this test class)
 			new Literal(new ParquetTableSourceTest(), Types.LONG)
 		);

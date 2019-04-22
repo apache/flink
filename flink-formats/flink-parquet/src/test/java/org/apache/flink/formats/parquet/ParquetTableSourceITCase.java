@@ -64,7 +64,6 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
 		ParquetTableSource tableSource = createParquetTableSource(1000);
-		System.out.print(tableSource.getReturnType().toString());
 		batchTableEnvironment.registerTableSource("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
