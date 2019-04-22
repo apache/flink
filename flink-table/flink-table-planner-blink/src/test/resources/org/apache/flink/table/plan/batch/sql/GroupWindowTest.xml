@@ -22,8 +22,8 @@ limitations under the License.
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$0])
-+- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), $0), 1))])
+LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
++- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
       +- LogicalProject($f0=[HOP($3, 900000, 60000)], a=[$0])
          +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
@@ -31,8 +31,8 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[EXPR$0, CAST(1970-01-01 00:00:00) AS EXPR$1], where=[>($f1, 0)])
-+- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000.millis, 900000.millis)], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), w$start), 1))])
++- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000.millis, 900000.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a])
          +- TableSourceScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]], fields=[a, b, c, ts])
@@ -89,7 +89,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000.millis, 900000.m
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 240000)])
+LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
    +- LogicalProject($f0=[TUMBLE($3, 240000)], c=[$2])
       +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
@@ -97,8 +97,8 @@ LogicalProject(EXPR$0=[+($0, 240000)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[+(CAST(1970-01-01 00:00:00), 240000) AS EXPR$0])
-+- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow], select=[c])
+Calc(select=[w$end AS EXPR$0])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[c])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[ts, c])
          +- TableSourceScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]], fields=[a, b, c, ts])
