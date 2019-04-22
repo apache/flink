@@ -51,10 +51,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SharedSlot extends Slot implements LogicalSlot {
 
-	/** The assignment group os shared slots that manages the availability and release of the slots */
+	/** The assignment group of shared slots that manages the availability and release of the slots */
 	private final SlotSharingGroupAssignment assignmentGroup;
 
-	/** The set os sub-slots allocated from this shared slot */
+	/** The set of sub-slots allocated from this shared slot */
 	private final Set<Slot> subSlots;
 
 	// ------------------------------------------------------------------------
@@ -133,7 +133,7 @@ public class SharedSlot extends Slot implements LogicalSlot {
 		super(slotInformation, owner, slotNumber, parent, groupId);
 
 		this.assignmentGroup = checkNotNull(assignmentGroup);
-		this.subSlots = new HashSet<Slot>();
+		this.subSlots = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -195,7 +195,7 @@ public class SharedSlot extends Slot implements LogicalSlot {
 		assignmentGroup.releaseSharedSlot(this);
 
 		if (!(isReleased() && subSlots.isEmpty())) {
-			throw new IllegalStateException("Bug: SharedSlot is not empty and released after call to releaseSlot()");
+			throw new IllegalStateException("Bug: SharedSlot is not released and empty after call to releaseSlot()");
 		}
 
 		return CompletableFuture.completedFuture(null);
