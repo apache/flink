@@ -64,3 +64,15 @@ under the License.
 {% endif %}
 
 {{ content }}
+
+
+<div class="footer">
+  <a href="https://cwiki.apache.org/confluence/display/FLINK/Flink+Translation+Specifications" target="_blank">
+    {% if page.language == "zh" %}
+      想参与贡献翻译？
+    {% else if page.language == "en" %}
+      Want to contribute translation?
+    {% endif %}
+  </a>
+</div>
+
