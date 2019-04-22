@@ -89,8 +89,6 @@ class SortWindowCodeGenerator(
     isFinal) {
 
   def genWithoutKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val config = ctx.tableConfig
-
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     aggCallToAggFunction
@@ -106,13 +104,31 @@ class SortWindowCodeGenerator(
     val windowElementType = getWindowsGroupingElementInfo(enablePreAcc)
 
     val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
-      enablePreAcc, ctx, config, windowSize, slideSize, windowsGrouping, buffLimitSize,
-      windowElementType, inputTimeFieldIndex, currentWindow, None, outputType)
+      enablePreAcc,
+      ctx,
+      windowSize,
+      slideSize,
+      windowsGrouping,
+      buffLimitSize,
+      windowElementType,
+      inputTimeFieldIndex,
+      currentWindow,
+      None,
+      outputType)
 
     val (processInput, endProcessInput) =
       if (enablePreAcc) {
-        genPreAccumulate(ctx, config, windowStart, slideSize, windowSize, inputTerm,
-          inputType, outputType, windowsGrouping, windowElementType, None, triggerWindowAgg,
+        genPreAccumulate(ctx,
+          windowStart,
+          slideSize,
+          windowSize,
+          inputTerm,
+          inputType,
+          outputType,
+          windowsGrouping,
+          windowElementType,
+          None,
+          triggerWindowAgg,
           endWindowAgg)
       } else {
         (s"""
@@ -138,11 +154,10 @@ class SortWindowCodeGenerator(
     val className = if (isFinal) "SortWinAggWithoutKeys" else "LocalSortWinAggWithoutKeys"
     val baseClass = classOf[TableStreamOperator[_]].getName
     AggCodeGenHelper.generateOperator(
-      ctx, className, baseClass, processCode, endInputCode, inputType, config)
+      ctx, className, baseClass, processCode, endInputCode, inputType)
   }
 
   def genWithKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val config = ctx.tableConfig
     aggCallToAggFunction
         .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
         .map(a => ctx.addReusableFunction(a))
@@ -175,14 +190,32 @@ class SortWindowCodeGenerator(
     val windowElementType = getWindowsGroupingElementInfo(enablePreAcc)
 
     val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
-      enablePreAcc, ctx, config, windowSize, slideSize, windowsGrouping, buffLimitSize,
-      windowElementType, inputTimeFieldIndex, currentWindow, Some(lastKey), outputType)
+      enablePreAcc,
+      ctx,
+      windowSize,
+      slideSize,
+      windowsGrouping,
+      buffLimitSize,
+      windowElementType,
+      inputTimeFieldIndex,
+      currentWindow,
+      Some(lastKey),
+      outputType)
 
     val (processCurrentKeyInput, endProcessCurrentKeyInput) =
       if (enablePreAcc) {
-        genPreAccumulate(ctx, config, windowStart, slideSize, windowSize, inputTerm,
-          inputType, outputType, windowsGrouping, windowElementType, Some(lastKey),
-          triggerWindowAgg, endWindowAgg)
+        genPreAccumulate(ctx,
+          windowStart,
+          slideSize,
+          windowSize,
+          inputTerm,
+          inputType,
+          outputType,
+          windowsGrouping,
+          windowElementType,
+          Some(lastKey),
+          triggerWindowAgg,
+          endWindowAgg)
       } else {
         (s"""
             |hasInput = true;
@@ -223,7 +256,7 @@ class SortWindowCodeGenerator(
     val className = if (isFinal) "SortWinAggWithKeys" else "LocalSortWinAggWithKeys"
     val baseClass = classOf[TableStreamOperator[_]].getName
     AggCodeGenHelper.generateOperator(
-      ctx, className, baseClass, processCode, endInputCode, inputType, config)
+      ctx, className, baseClass, processCode, endInputCode, inputType)
   }
 
   private def choosePreAcc: Boolean = {

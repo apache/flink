@@ -20,8 +20,8 @@ package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.window.TimeWindow
-import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_ROW, boxedTypeTermForType, newName}
@@ -40,7 +40,7 @@ import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil}
 import org.apache.flink.table.runtime.util.RowIterator
-import org.apache.flink.table.runtime.window.grouping.{WindowsGrouping, HeapWindowsGrouping}
+import org.apache.flink.table.runtime.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
@@ -136,10 +136,11 @@ abstract class WindowCodeGenerator(
       bufferLimitSize: Int): Unit = {
     val windowsGrouping = classOf[HeapWindowsGrouping].getName
     ctx.addReusableMember(
-      s"transient $windowsGrouping $groupingTerm " +
-          s"= new $windowsGrouping(" +
-          s"$bufferLimitSize, ${windowSize}L, ${slideSize}L," +
-          s" $inputTimeFieldIndex, $inputTimeIsDate);")
+      s"""
+         |transient $windowsGrouping $groupingTerm = new $windowsGrouping(
+         |  $bufferLimitSize, ${windowSize}L, ${slideSize}L,
+         |  $inputTimeFieldIndex, $inputTimeIsDate);
+       """.stripMargin)
     ctx.addReusableCloseStatement(s"$groupingTerm.close();")
   }
 
@@ -202,7 +203,6 @@ abstract class WindowCodeGenerator(
   private[flink] def genSortWindowAggCodes(
       enablePreAcc: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       inputTerm: String,
       inputType: RowType,
       outputType: RowType,
@@ -212,14 +212,39 @@ abstract class WindowCodeGenerator(
     val offset = if (enablePreAcc) grouping.length + 1 else grouping.length
     val argsMapping = buildAggregateArgsMapping(
       enablePreAcc, offset, inputType, auxGrouping, aggArgs, aggBufferTypes)
-    val aggBufferExprs = genFlatAggBufferExprs(enablePreAcc, ctx, config, builder, auxGrouping,
-      aggregates, argsMapping, aggBufferNames, aggBufferTypes)
+    val aggBufferExprs = genFlatAggBufferExprs(
+      enablePreAcc,
+      ctx,
+      builder,
+      auxGrouping,
+      aggregates,
+      argsMapping,
+      aggBufferNames,
+      aggBufferTypes)
     val initAggBufferCode = genInitFlatAggregateBuffer(
-      ctx, config, builder, inputType, inputTerm,
-      grouping, auxGrouping, aggregates, udaggs, aggBufferExprs)
+      ctx,
+      builder,
+      inputType,
+      inputTerm,
+      grouping,
+      auxGrouping,
+      aggregates,
+      udaggs,
+      aggBufferExprs)
     val doAggregateCode = genAggregateByFlatAggregateBuffer(
-      enablePreAcc, ctx, config, builder, inputType, inputTerm, auxGrouping, aggCallToAggFunction,
-      aggregates, udaggs, argsMapping, aggBufferNames, aggBufferTypes, aggBufferExprs)
+      enablePreAcc,
+      ctx,
+      builder,
+      inputType,
+      inputTerm,
+      auxGrouping,
+      aggCallToAggFunction,
+      aggregates,
+      udaggs,
+      argsMapping,
+      aggBufferNames,
+      aggBufferTypes,
+      aggBufferExprs)
 
     // --------------------------------------------------------------------------------------------
     // gen code to set group window aggregate output
@@ -227,9 +252,20 @@ abstract class WindowCodeGenerator(
     val resultCodegen = new ExprCodeGenerator(ctx, false)
     val setValueResult = if (isFinal) {
       AggCodeGenHelper.genSortAggOutputExpr(
-        enablePreAcc, isFinal = true, ctx, config, builder, grouping, auxGrouping, aggregates,
-        aggInfoList.aggInfos.map(_.externalResultType), udaggs,
-        argsMapping, aggBufferNames, aggBufferTypes, aggBufferExprs, outputType)
+        enablePreAcc,
+        isFinal = true,
+        ctx,
+        builder,
+        grouping,
+        auxGrouping,
+        aggregates,
+        aggInfoList.aggInfos.map(_.externalResultType),
+        udaggs,
+        argsMapping,
+        aggBufferNames,
+        aggBufferTypes,
+        aggBufferExprs,
+        outputType)
     } else {
       // output assigned window and agg buffer
       val valueRowType = new RowType(
@@ -239,9 +275,9 @@ abstract class WindowCodeGenerator(
       } else {
         s"$currentWindow.getStart()"
       }
-      resultCodegen.generateResultExpression(GeneratedExpression(
-        s"$wStartCode", NEVER_NULL, NO_CODE, timestampInternalType) +:
-          aggBufferExprs,
+      resultCodegen.generateResultExpression(
+        GeneratedExpression(s"$wStartCode", NEVER_NULL, NO_CODE, timestampInternalType) +:
+            aggBufferExprs,
         valueRowType,
         classOf[GenericRow],
         outRow = valueRow)
@@ -277,7 +313,6 @@ abstract class WindowCodeGenerator(
   private[flink] def genWindowAggCodes(
       enablePreAcc: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       windowSize: Long,
       slideSize: Long,
       windowsGrouping: String,
@@ -290,8 +325,13 @@ abstract class WindowCodeGenerator(
     // gen code to do aggregate by window or pane
     val windowElemTerm = CodeGenUtils.newName("winElement")
     val (initAggBuffCode, doAggCode, outputWinAggResExpr) = genSortWindowAggCodes(
-      enablePreAcc = enablePreAcc, ctx, config,
-      windowElemTerm, windowElementType, outputType, groupKey, currentWindow)
+      enablePreAcc = enablePreAcc,
+      ctx,
+      windowElemTerm,
+      windowElementType,
+      outputType,
+      groupKey,
+      currentWindow)
 
     // gen code to create windows grouping buffer
     genCreateWindowsGroupingCode(
@@ -299,8 +339,13 @@ abstract class WindowCodeGenerator(
 
     // merge pre-accumulate result and output
     val processCode = genTriggerWindowAggByWindowsGroupingCode(
-      ctx, windowsGrouping, currentWindow, windowElemTerm,
-      initAggBuffCode, doAggCode, outputWinAggResExpr)
+      ctx,
+      windowsGrouping,
+      currentWindow,
+      windowElemTerm,
+      initAggBuffCode,
+      doAggCode,
+      outputWinAggResExpr)
     val endCode = genTriggerLeftoverWindowAggCode(windowsGrouping, processCode)
 
     (processCode, endCode)
@@ -308,7 +353,6 @@ abstract class WindowCodeGenerator(
 
   private[flink] def genPreAccumulate(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       windowStart: Long,
       slideSize: Long,
       windowSize: Long,
@@ -323,7 +367,6 @@ abstract class WindowCodeGenerator(
     // gen code to assign timestamp
     def genAssignTimestampExpr(
         ctx: CodeGeneratorContext,
-        config: TableConfig,
         inputTerm: String,
         inputType: RowType): GeneratedExpression = {
       if (isFinal && isMerge) {
@@ -352,21 +395,21 @@ abstract class WindowCodeGenerator(
             if (enableAssignPane) {
               val paneSize = ArithmeticUtils.gcd(windowSize, slideSize)
               genAlignedWindowStartExpr(
-                ctx, config, inputTerm, inputType, timeField, windowStart, paneSize)
+                ctx, inputTerm, inputType, timeField, windowStart, paneSize)
             } else {
               assert(slideSize >= windowSize)
               genAlignedWindowStartExpr(
-                ctx, config, inputTerm, inputType, timeField, windowStart, slideSize)
+                ctx, inputTerm, inputType, timeField, windowStart, slideSize)
             }
           case TumblingGroupWindow(_, timeField, size) =>
             genAlignedWindowStartExpr(
-              ctx, config, inputTerm, inputType, timeField, windowStart, asLong(size))
+              ctx, inputTerm, inputType, timeField, windowStart, asLong(size))
           case _ =>
             throw new RuntimeException(s"Bug. Assign pane for $window is not supported.")
         }
       }
     }
-    val assignedTsExpr = genAssignTimestampExpr(ctx, config, inputTerm, inputType)
+    val assignedTsExpr = genAssignTimestampExpr(ctx, inputTerm, inputType)
 
     // gen code to do aggregate by assigned ts
     val lastTimestampTerm = CodeGenUtils.newName("lastTimestamp")
@@ -385,26 +428,55 @@ abstract class WindowCodeGenerator(
       if (isFinal && enableAssignPane) {
         // case: global/complete window agg: Sliding window with with pane optimization
         val offset = if (isMerge) grouping.length + 1 else grouping.length
-        val argsMapping = buildAggregateArgsMapping(isMerge, offset, inputType, auxGrouping,
-          aggArgs, aggBufferTypes)
-        val aggBufferExprs = genFlatAggBufferExprs(isMerge, ctx, config, builder, auxGrouping,
-          aggregates, argsMapping, aggBufferNames, aggBufferTypes)
-        val initAggBufferCode = genInitFlatAggregateBuffer(ctx, config, builder, inputType,
-          inputTerm, grouping, auxGrouping, aggregates, udaggs, aggBufferExprs)
+        val argsMapping = buildAggregateArgsMapping(
+          isMerge, offset, inputType, auxGrouping, aggArgs, aggBufferTypes)
+        val aggBufferExprs = genFlatAggBufferExprs(
+          isMerge,
+          ctx,
+          builder,
+          auxGrouping,
+          aggregates,
+          argsMapping,
+          aggBufferNames,
+          aggBufferTypes)
+        val initAggBufferCode = genInitFlatAggregateBuffer(
+          ctx,
+          builder,
+          inputType,
+          inputTerm,
+          grouping,
+          auxGrouping,
+          aggregates,
+          udaggs,
+          aggBufferExprs)
         val doAggregateCode = genAggregateByFlatAggregateBuffer(
-          isMerge, ctx, config, builder, inputType, inputTerm, auxGrouping, aggCallToAggFunction,
-          aggregates, udaggs, argsMapping, aggBufferNames, aggBufferTypes, aggBufferExprs)
+          isMerge,
+          ctx,
+          builder,
+          inputType,
+          inputTerm,
+          auxGrouping,
+          aggCallToAggFunction,
+          aggregates,
+          udaggs,
+          argsMapping,
+          aggBufferNames,
+          aggBufferTypes,
+          aggBufferExprs)
 
         // project pre accumulated results into a binary row to fit to WindowsGrouping
         val exprCodegen = new ExprCodeGenerator(ctx, false)
         val setResultExprs = grouping.indices.map(
           generateFieldAccess(
-            ctx, groupKeyRowType, lastKey.get, _, config.getNullCheck)) ++
+            ctx, groupKeyRowType, lastKey.get, _)) ++
             (GeneratedExpression(lastTimestampTerm, NEVER_NULL, NO_CODE, InternalTypes.LONG)
                 +: aggBufferExprs)
         val setPanedAggResultExpr = exprCodegen.generateResultExpression(
-          setResultExprs, windowElementType, classOf[BinaryRow],
-          preAccResult, Some(preAccResultWriter))
+          setResultExprs,
+          windowElementType,
+          classOf[BinaryRow],
+          preAccResult,
+          Some(preAccResultWriter))
 
         // using windows grouping buffer to merge paned agg results
         val merge =
@@ -431,8 +503,13 @@ abstract class WindowCodeGenerator(
         // or without pane optimization
         // case3: complete window agg: Tumbling window, Sliding window with windowSize == slideSize
         val (initAggBuffCode, doAggCode, outputWinAggResExpr) = genSortWindowAggCodes(
-          isMerge, ctx, config,
-          inputTerm, inputType, outputType, lastKey, currentWindow)
+          isMerge,
+          ctx,
+          inputTerm,
+          inputType,
+          outputType,
+          lastKey,
+          currentWindow)
 
         val output =
           s"""
@@ -592,7 +669,6 @@ abstract class WindowCodeGenerator(
 
   private[flink] def genAlignedWindowStartExpr(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       inputTerm: String,
       inputType: RowType,
       timeField: Expression,

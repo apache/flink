@@ -24,8 +24,8 @@ import org.apache.flink.runtime.operators.sort.QuickSort
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`.{InternalType, RowType}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.window.TimeWindow
-import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_ROW, newName}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
@@ -94,8 +94,6 @@ class HashWindowCodeGenerator(
     groupKeyRowType.getFieldTypes :+ timestampInternalType,
     groupKeyRowType.getFieldNames :+ "assignedTs")
 
-  private val config = ctx.tableConfig
-
   def gen(
       inputType: RowType,
       outputType: RowType,
@@ -116,10 +114,17 @@ class HashWindowCodeGenerator(
     // gen code to do aggregate using aggregate map
     val aggMapKey = newName("aggMapKey")
     val aggMapKeyWriter = newName("aggMapKeyWriter")
-    val (processElementPerWindow, outputResultFromMap) = genHashWindowAggCodes(config,
-      reservedAggMapMemory, maxManagedMemory, buffLimitSize, windowSize,
-      slideSize, inputTerm, inputType,
-      outputType, aggMapKey, logTerm)
+    val (processElementPerWindow, outputResultFromMap) = genHashWindowAggCodes(
+      reservedAggMapMemory,
+      maxManagedMemory,
+      buffLimitSize,
+      windowSize,
+      slideSize,
+      inputTerm,
+      inputType,
+      outputType,
+      aggMapKey,
+      logTerm)
 
     val (processCode, outputWhenEndInputCode) = if (isFinal && isMerge) {
       // prepare for aggregate map key's projection
@@ -149,7 +154,7 @@ class HashWindowCodeGenerator(
     } else {
       // gen code to assign windows/pane to current input
       val assignTimestampExprs = genTimestampAssignExprs(
-        enableAssignPane, config, windowStart, windowSize, slideSize, window, inputTerm, inputType)
+        enableAssignPane, windowStart, windowSize, slideSize, window, inputTerm, inputType)
 
       val processCode =
         if (!isSlidingWindowWithOverlapping(enableAssignPane, window, slideSize, windowSize)) {
@@ -273,12 +278,11 @@ class HashWindowCodeGenerator(
       outputWhenEndInputCode
     }
     AggCodeGenHelper.generateOperator(
-      ctx, className + suffix, baseClass, processCode, endInputCode, inputType, config)
+      ctx, className + suffix, baseClass, processCode, endInputCode, inputType)
   }
 
   private def genTimestampAssignExprs(
       assignPane: Boolean,
-      config: TableConfig,
       windowStart: Long,
       windowSize: Long,
       slideSize: Long,
@@ -290,27 +294,26 @@ class HashWindowCodeGenerator(
         if (assignPane) {
           val paneSize = ArithmeticUtils.gcd(windowSize, slideSize)
           Seq(genAlignedWindowStartExpr(
-            ctx, config, inputTerm, inputType, timeField, windowStart, paneSize))
+            ctx, inputTerm, inputType, timeField, windowStart, paneSize))
         } else if (slideSize >= windowSize) {
           Seq(genAlignedWindowStartExpr(
-            ctx, config, inputTerm, inputType, timeField, windowStart, slideSize))
+            ctx, inputTerm, inputType, timeField, windowStart, slideSize))
         } else {
           val maxNumOverlapping = math.ceil(windowSize * 1.0 / slideSize).toInt
           val exprs = for (index <- 0 until maxNumOverlapping) yield {
             genAlignedWindowStartExpr(
-              ctx, config, inputTerm, inputType, timeField, windowStart, slideSize, index)
+              ctx, inputTerm, inputType, timeField, windowStart, slideSize, index)
           }
           exprs
         }
       case TumblingGroupWindow(_, timeField, _) =>
         Seq(genAlignedWindowStartExpr(
-          ctx, config, inputTerm, inputType, timeField, windowStart, windowSize))
+          ctx, inputTerm, inputType, timeField, windowStart, windowSize))
       case _ =>
         throw new RuntimeException(s"Bug. Assign pane for $window is not supported.")
     }
   }
 
-  // -------------------------------------------------------------------------------------------
   private def prepareAggMapKeyExpr(
       inputTerm: String,
       inputType: InternalType,
@@ -352,7 +355,6 @@ class HashWindowCodeGenerator(
   }
 
   private def genGroupWindowHashAggCodes(
-      config: TableConfig,
       isMerge: Boolean,
       isFinal: Boolean,
       windowSize: Long,
@@ -372,33 +374,56 @@ class HashWindowCodeGenerator(
     val aggBuffMapping = HashAggCodeGenHelper.buildAggregateAggBuffMapping(aggBufferTypes)
     // gen code to create empty agg buffer
     val initedAggBuffer = HashAggCodeGenHelper.genReusableEmptyAggBuffer(
-      ctx, config, builder, inputTerm, inputType, auxGrouping, aggregates, aggBufferRowType)
+      ctx, builder, inputTerm, inputType, auxGrouping, aggregates, aggBufferRowType)
     if (auxGrouping.isEmpty) {
       // init aggBuffer in open function when there is no auxGrouping
       ctx.addReusableOpenStatement(initedAggBuffer.code)
     }
     // gen code to update agg buffer from the aggregate map
-    val doAggregateExpr = HashAggCodeGenHelper.genAggregate(isMerge, ctx, config, builder,
-      inputType, inputTerm, auxGrouping, aggregates, aggCallToAggFunction,
-      argsMapping, aggBuffMapping, currentAggBufferTerm, aggBufferRowType)
+    val doAggregateExpr = HashAggCodeGenHelper.genAggregate(
+      isMerge,
+      ctx,
+      builder,
+      inputType,
+      inputTerm,
+      auxGrouping,
+      aggregates,
+      aggCallToAggFunction,
+      argsMapping,
+      aggBuffMapping,
+      currentAggBufferTerm,
+      aggBufferRowType)
 
     // gen code to set hash agg result
     val aggOutputCode = if (isFinal && enableAssignPane) {
       // gen output by sort and merge pre accumulate results
-      genOutputByMerging(config,
-        windowSize, slideSize, bufferLimitSize,
-        outputType, aggregateMapTerm, argsMapping, aggBuffMapping,
-        aggMapKeyTypesTerm, aggBufferTypesTerm, aggMapKeyRowType, aggBufferRowType)
+      genOutputByMerging(
+        windowSize,
+        slideSize,
+        bufferLimitSize,
+        outputType,
+        aggregateMapTerm,
+        argsMapping,
+        aggBuffMapping,
+        aggMapKeyTypesTerm,
+        aggBufferTypesTerm,
+        aggMapKeyRowType,
+        aggBufferRowType)
     } else {
-      genOutputDirectly(config, windowSize, inputTerm, inputType, outputType,
-        aggregateMapTerm, argsMapping, aggBuffMapping)
+      genOutputDirectly(
+        windowSize,
+        inputTerm,
+        inputType,
+        outputType,
+        aggregateMapTerm,
+        argsMapping,
+        aggBuffMapping)
     }
 
     (initedAggBuffer, doAggregateExpr, aggOutputCode)
   }
 
   private def genOutputByMerging(
-      config: TableConfig,
       windowSize: Long,
       slideSize: Long,
       bufferLimitSize: Int,
@@ -461,11 +486,12 @@ class HashWindowCodeGenerator(
       GenerateUtils.generateFieldAccess(
         ctx, aggMapKeyType, reuseAggMapKeyTerm, idx)
     val accessTimestampExpr = GenerateUtils.generateFieldAccess(
-      ctx, aggMapKeyType,
-      reuseAggMapKeyTerm, aggMapKeyType.getArity - 1)
+      ctx,
+      aggMapKeyType,
+      reuseAggMapKeyTerm,
+      aggMapKeyType.getArity - 1)
     val accessValExprs = for (idx <- 0 until aggBufferType.getArity) yield
-      GenerateUtils.generateFieldAccess(
-        ctx, aggBufferType, reuseAggBufferTerm, idx)
+      GenerateUtils.generateFieldAccess(ctx, aggBufferType, reuseAggBufferTerm, idx)
     val accessExprs = (accessKeyExprs :+ GeneratedExpression(
       accessTimestampExpr.resultTerm,
       "false",
@@ -488,8 +514,17 @@ class HashWindowCodeGenerator(
     val windowsGrouping = CodeGenUtils.newName("windowsGrouping")
     val (processCode, endCode) = if (grouping.isEmpty) {
       val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
-        enablePreAcc = true, ctx, config, windowSize, slideSize, windowsGrouping, bufferLimitSize,
-        windowElementType, inputTimeFieldIndex, currentWindow, None, outputType)
+        enablePreAcc = true,
+        ctx,
+        windowSize,
+        slideSize,
+        windowsGrouping,
+        bufferLimitSize,
+        windowElementType,
+        inputTimeFieldIndex,
+        currentWindow,
+        None,
+        outputType)
       val process =
         s"""
            |// prepare windows grouping input
@@ -522,8 +557,17 @@ class HashWindowCodeGenerator(
       val keyNotEqualsCode = genGroupKeyChangedCheckCode(groupKeyTerm, lastKeyTerm)
 
       val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
-        enablePreAcc = true, ctx, config, windowSize, slideSize, windowsGrouping, bufferLimitSize,
-        windowElementType, inputTimeFieldIndex, currentWindow, Some(lastKeyTerm), outputType)
+        enablePreAcc = true,
+        ctx,
+        windowSize,
+        slideSize,
+        windowsGrouping,
+        bufferLimitSize,
+        windowElementType,
+        inputTimeFieldIndex,
+        currentWindow,
+        Some(lastKeyTerm),
+        outputType)
 
       val process =
         s"""
@@ -570,7 +614,6 @@ class HashWindowCodeGenerator(
   }
 
   private def genOutputDirectly(
-      config: TableConfig,
       windowSize: Long,
       inputTerm: String,
       inputType: RowType,
@@ -589,7 +632,10 @@ class HashWindowCodeGenerator(
       val (groupKey, projGroupKeyCode) = if (!grouping.isEmpty) {
         val groupKey = newName("groupKey")
         val keyProjectionCode = ProjectionCodeGenerator.generateProjectionExpression(
-          ctx, aggMapKeyRowType, groupKeyRowType, grouping.indices.toArray,
+          ctx,
+          aggMapKeyRowType,
+          groupKeyRowType,
+          grouping.indices.toArray,
           inputTerm = reuseAggMapKeyTerm,
           outRecordTerm = groupKey,
           outRecordWriterTerm = newName("groupKeyWriter")).code
@@ -600,9 +646,21 @@ class HashWindowCodeGenerator(
 
       // gen agg result
       val resultExpr = genHashAggOutputExpr(
-        isMerge, isFinal, ctx, config, builder, auxGrouping, aggregates,
-        argsMapping, aggBuffMapping, outputTerm, outputType, inputTerm, inputType, groupKey,
-        reuseAggBufferTerm, aggBufferRowType)
+        isMerge,
+        isFinal,
+        ctx,
+        builder,
+        auxGrouping,
+        aggregates,
+        argsMapping,
+        aggBuffMapping,
+        outputTerm,
+        outputType,
+        inputTerm,
+        inputType,
+        groupKey,
+        reuseAggBufferTerm,
+        aggBufferRowType)
 
       // update current window
       val timeWindowType = classOf[TimeWindow].getName
@@ -634,9 +692,22 @@ class HashWindowCodeGenerator(
       new GeneratedExpression(
         winResExpr.resultTerm, "false", output, outputType)
     } else {
-      genHashAggOutputExpr(isMerge, isFinal, ctx, config, builder, auxGrouping,
-        aggregates, argsMapping, aggBuffMapping, outputTerm, outputType, inputTerm, inputType,
-        Some(reuseAggMapKeyTerm), reuseAggBufferTerm, aggBufferRowType)
+      genHashAggOutputExpr(
+        isMerge,
+        isFinal,
+        ctx,
+        builder,
+        auxGrouping,
+        aggregates,
+        argsMapping,
+        aggBuffMapping,
+        outputTerm,
+        outputType,
+        inputTerm,
+        inputType,
+        Some(reuseAggMapKeyTerm),
+        reuseAggBufferTerm,
+        aggBufferRowType)
     }
 
     // -------------------------------------------------------------------------------------------
@@ -654,7 +725,6 @@ class HashWindowCodeGenerator(
   }
 
   private def genHashWindowAggCodes(
-      config: TableConfig,
       reservedAggMapMemory: Long,
       maxManagedMemory: Long,
       buffLimitSize: Int,
@@ -672,15 +742,25 @@ class HashWindowCodeGenerator(
       ctx, aggMapKeyTypesTerm, aggBufferTypesTerm, aggMapKeyRowType, aggBufferRowType)
     val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
     prepareHashAggMap(
-      ctx, config, reservedAggMapMemory, maxManagedMemory
+      ctx, reservedAggMapMemory, maxManagedMemory
       , aggMapKeyTypesTerm, aggBufferTypesTerm, aggregateMapTerm)
 
     // gen code to do aggregate by window using aggregate map
     val currentAggBufferTerm =
       ctx.addReusableLocalVariable(classOf[BinaryRow].getName, "currentAggBuffer")
     val (initedAggBufferExpr, doAggregateExpr, outputResultFromMap) = genGroupWindowHashAggCodes(
-      config, isMerge, isFinal, windowSize, slideSize, aggMapKeyTypesTerm, aggBufferTypesTerm,
-      buffLimitSize, aggregateMapTerm, inputTerm, inputType, outputType, currentAggBufferTerm)
+      isMerge,
+      isFinal,
+      windowSize,
+      slideSize,
+      aggMapKeyTypesTerm,
+      aggBufferTypesTerm,
+      buffLimitSize,
+      aggregateMapTerm,
+      inputTerm,
+      inputType,
+      outputType,
+      currentAggBufferTerm)
 
     // -------------------------------------------------------------------------------------------
     val lazyInitAggBufferCode = if (auxGrouping.nonEmpty) {
