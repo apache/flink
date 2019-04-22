@@ -38,8 +38,6 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
 
   @Before
   def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
-
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("SmallTable5", smallData5, type5, "a, b, c, d, e", nullablesOfSmallData5)
     registerCollection("EmptyTable3", Seq(), type3, "a, b, c")
