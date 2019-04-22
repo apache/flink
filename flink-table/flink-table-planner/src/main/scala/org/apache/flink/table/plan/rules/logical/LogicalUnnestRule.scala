@@ -99,12 +99,12 @@ class LogicalUnnestRule(
             case map: MapRelDataType =>
               val keyTypeInfo = FlinkTypeFactory.toTypeInfo(map.keyType)
               val valueTypeInfo = FlinkTypeFactory.toTypeInfo(map.valueType)
-              val componentTypeInfo = createTuple2TypeInformation(keyTypeInfo,valueTypeInfo)
+              val componentTypeInfo = createTuple2TypeInformation(keyTypeInfo, valueTypeInfo)
               val componentType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-                .createTypeFromTypeInfo(componentTypeInfo,true)
+                .createTypeFromTypeInfo(componentTypeInfo, true)
 
               val explodeFunction = ExplodeFunctionUtil.explodeTableFuncFromType(map.typeInfo)
-              (componentType , explodeFunction)
+              (componentType, explodeFunction)
 
             case mt: MultisetRelDataType =>
               (mt.getComponentType, ExplodeFunctionUtil.explodeTableFuncFromType(mt.typeInfo))

@@ -55,7 +55,7 @@ abstract class ExplodeTableFunction[T] extends TableFunction[T] {
   }
 }
 
-class MapExplodeTableFunc extends TableFunction[Object]{
+class MapExplodeTableFunc extends TableFunction[Object] {
 
   def eval(map: util.Map[Object, Object]): Unit = {
     map.asScala.foreach{ case (key,value) =>
