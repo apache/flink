@@ -18,23 +18,17 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatConverters;
+import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.types.Row;
+
+import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
 /**
  * Utilities to generate StreamRecord which encapsulates BaseRow.
  */
-public class StreamRecordHelper {
-
-	private final DataFormatConverters.RowConverter rowConverter;
-
-	public StreamRecordHelper(RowTypeInfo inputType) {
-		rowConverter = new DataFormatConverters.RowConverter(inputType);
-	}
+public class StreamRecordUtils {
 
 	/**
 	 * Receives a object array, generates an acc BaseRow based on the array, wraps the BaseRow in a StreamRecord.
@@ -42,7 +36,7 @@ public class StreamRecordHelper {
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public StreamRecord<BaseRow> record(Object... fields) {
+	public static StreamRecord<BaseRow> record(Object... fields) {
 		return new StreamRecord<>(baserow(fields));
 	}
 
@@ -52,7 +46,7 @@ public class StreamRecordHelper {
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public StreamRecord<BaseRow> retractRecord(Object... fields) {
+	public static StreamRecord<BaseRow> retractRecord(Object... fields) {
 		BaseRow row = baserow(fields);
 		BaseRowUtil.setRetract(row);
 		return new StreamRecord<>(row);
@@ -64,7 +58,7 @@ public class StreamRecordHelper {
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
-	public StreamRecord<BaseRow> deleteRecord(Object... fields) {
+	public static StreamRecord<BaseRow> deleteRecord(Object... fields) {
 		BaseRow row = baserow(fields);
 		BaseRowUtil.setRetract(row);
 		return new StreamRecord<>(row);
@@ -76,8 +70,20 @@ public class StreamRecordHelper {
 	 * @param fields input object array
 	 * @return generated BaseRow.
 	 */
-	public BaseRow baserow(Object... fields) {
-		Row row = Row.of(fields);
-		return rowConverter.toInternal(row);
+	public static BaseRow baserow(Object... fields) {
+		Object[] objects = new Object[fields.length];
+		for (int i = 0; i < fields.length; i++) {
+			Object field = fields[i];
+			if (field instanceof String) {
+				objects[i] = fromString((String) field);
+			} else {
+				objects[i] = field;
+			}
+		}
+		return GenericRow.of(objects);
+	}
+
+	private StreamRecordUtils() {
+		// deprecate default constructor
 	}
 }

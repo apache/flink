@@ -26,22 +26,25 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
+
 /**
- * Tests for {@link AppendTopNFunction}.
+ * Tests for {@link AppendOnlyTopNFunction}.
  */
-public class AppendTopNFunctionTest extends BaseTopNFunctionTest {
+public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
-	protected AbstractTopNFunction createRankFunction(RankType rankType, RankRange rankRange,
+	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
 			boolean generateRetraction, boolean outputRankNumber) {
-		return new AppendTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
+		return new AppendOnlyTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
 				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
 				cacheSize);
 	}
 
 	@Test
 	public void testVariableRankRange() throws Exception {
-		AbstractTopNFunction func = createRankFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(record("book", 2L, 12));

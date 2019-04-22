@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -98,13 +97,18 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 		inputs.forEach(sortBuffer::add);
 
 		// sort the rows
-		Collections.sort(sortBuffer, comparator);
+		sortBuffer.sort(comparator);
 
 		// Emit the rows in order
 		sortBuffer.forEach((BaseRow row) -> collector.collect(row));
 
 		// remove all buffered rows
 		dataState.clear();
+	}
+
+	@Override
+	public void onEventTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
+		throw new UnsupportedOperationException("Now Sort only is supported based processing time here!");
 	}
 
 }

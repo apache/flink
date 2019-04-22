@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.util.{RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil}
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
@@ -27,9 +26,10 @@ import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.plan.util.{AppendFastStrategy, FlinkRelOptUtil, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UnaryUpdateStrategy, UpdateFastStrategy}
+import org.apache.flink.table.plan.util.{AppendFastStrategy, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UnaryUpdateStrategy, UpdateFastStrategy}
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
-import org.apache.flink.table.runtime.rank.{AppendTopNFunction, ConstantRankRange, RankType, RetractTopNFunction, FastTopNFunction}
+import org.apache.flink.table.runtime.rank.{AppendOnlyTopNFunction, ConstantRankRange, UpdatableTopNFunction, RankType, RetractableTopNFunction}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -126,14 +126,22 @@ class StreamExecSortLimit(
       throw new TableException(
         "FETCH is missed, which on streaming table is not supported currently")
     }
-    val inputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getInput.getRowType).toTypeInfo
+
+    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+      .asInstanceOf[StreamTransformation[BaseRow]]
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val fieldCollations = sortCollation.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
     val sortKeyType = sortKeySelector.getProducedType
     val tableConfig = tableEnv.getConfig
-    val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
-      sortFields.indices.toArray, sortKeyType.getInternalTypes, sortDirections, nullsIsLast)
+    val sortKeyComparator = ComparatorCodeGenerator.gen(
+      tableConfig,
+      "StreamExecSortComparator",
+      sortFields.indices.toArray,
+      sortKeyType.getInternalTypes,
+      sortDirections,
+      nullsIsLast)
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
@@ -147,7 +155,7 @@ class StreamExecSortLimit(
     // Use RankFunction underlying StreamExecSortLimit
     val processFunction = getStrategy(true) match {
       case AppendFastStrategy =>
-        new AppendTopNFunction(
+        new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -161,7 +169,7 @@ class StreamExecSortLimit(
 
       case UpdateFastStrategy(primaryKeys) =>
         val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
-        new FastTopNFunction(
+        new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -178,7 +186,7 @@ class StreamExecSortLimit(
       case RetractStrategy | UnaryUpdateStrategy(_) =>
         val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
-        new RetractTopNFunction(
+        new RetractableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -193,15 +201,15 @@ class StreamExecSortLimit(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
 
-    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
     val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+
+    // sets parallelism to 1 since StreamExecSortLimit could only work in global mode.
     val ret = new OneInputTransformation(
       inputTransform,
       getOperatorName,
       operator,
       outputRowTypeInfo,
-      inputTransform.getParallelism)
+      1)
 
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)

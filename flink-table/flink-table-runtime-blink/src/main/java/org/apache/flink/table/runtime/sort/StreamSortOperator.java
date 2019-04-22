@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +116,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 			List<BaseRow> rowsSet = new ArrayList<>();
 			inputBuffer.keySet().forEach(rowsSet::add);
 			// sort the rows
-			Collections.sort(rowsSet, comparator);
+			rowsSet.sort(comparator);
 
 			// Emit the rows in order
 			rowsSet.forEach((BaseRow row) -> {
@@ -153,7 +152,8 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 
 	@Override
 	public void close() throws Exception {
-		endInput(); // TODO after introduce endInput
+		// TODO after introduce endInput
+		endInput();
 		LOG.info("Closing StreamSortOperator");
 		super.close();
 	}

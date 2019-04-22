@@ -50,7 +50,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * The function could handle update input stream. It is a fast version of {@link RetractTopNFunction} which only hold
+ * The function could handle update input stream. It is a fast version of {@link RetractableTopNFunction} which only hold
  * top n data in state, and keep sorted map in heap.
  * However, the function only works in some special scenarios:
  * 1. sort field collation is ascending and its mono is decreasing, or sort field collation is descending and its mono
@@ -58,11 +58,11 @@ import java.util.TreeMap;
  * 2. input data has unique keys
  * 3. input stream could not contain delete record or retract record
  */
-public class FastTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
+public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
 
 	private static final long serialVersionUID = 6786508184355952780L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(FastTopNFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(UpdatableTopNFunction.class);
 
 	private final BaseRowTypeInfo rowKeyType;
 	private final long cacheSize;
@@ -87,7 +87,7 @@ public class FastTopNFunction extends AbstractTopNFunction implements Checkpoint
 	private final TypeSerializer<BaseRow> inputRowSer;
 	private final KeySelector<BaseRow, BaseRow> rowKeySelector;
 
-	public FastTopNFunction(
+	public UpdatableTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			BaseRowTypeInfo inputRowType,

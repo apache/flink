@@ -144,7 +144,7 @@ class StreamExecRank(
 
     val processFunction = getStrategy(true) match {
       case AppendFastStrategy =>
-        new AppendTopNFunction(
+        new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -158,7 +158,7 @@ class StreamExecRank(
 
       case UpdateFastStrategy(primaryKeys) =>
         val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
-        new FastTopNFunction(
+        new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
@@ -176,7 +176,7 @@ class StreamExecRank(
         val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
 
-        new RetractTopNFunction(
+        new RetractableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,

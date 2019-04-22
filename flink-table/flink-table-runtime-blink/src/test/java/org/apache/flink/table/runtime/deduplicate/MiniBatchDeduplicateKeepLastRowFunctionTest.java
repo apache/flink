@@ -33,10 +33,13 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
+
 /**
  * Tests for {@link MiniBatchDeduplicateKeepLastRowFunction}.
  */
-public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTest {
+public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
 
 	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 

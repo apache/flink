@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -28,7 +26,6 @@ import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
@@ -36,6 +33,8 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 
 /**
  * Tests for {@link ProcTimeSortOperator}.
@@ -60,8 +59,6 @@ public class ProcTimeSortOperatorTest {
 	};
 
 	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
-
-	private StreamRecordHelper wrapper = new StreamRecordHelper(new RowTypeInfo(inputRowType.getFieldTypes()));
 
 	@Test
 	public void test() throws Exception {
@@ -127,7 +124,4 @@ public class ProcTimeSortOperatorTest {
 		return testHarness;
 	}
 
-	private StreamRecord<BaseRow> record(Object... fields) {
-		return wrapper.record(fields);
-	}
 }

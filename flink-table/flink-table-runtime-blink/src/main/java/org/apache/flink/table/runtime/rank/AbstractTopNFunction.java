@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Base class for TopN Function.
@@ -73,8 +74,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	protected KeyContext keyContext;
 	private final boolean isConstantRankEnd;
 	private final long rankStart;
-	protected long rankEnd;
 	private final int rankEndIndex;
+	protected long rankEnd;
+	private transient Function<BaseRow, Long> rankEndFetcher;
+
 	private ValueState<Long> rankEndState;
 	private Counter invalidCounter;
 	private JoinedRow outputRow;
@@ -117,16 +120,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			rankEndIndex = -1;
 		} else if (rankRange instanceof VariableRankRange) {
 			VariableRankRange variableRankRange = (VariableRankRange) rankRange;
-			int rankEndIdx = variableRankRange.getRankEndIndex();
-			InternalType rankEndIdxType = inputRowType.getInternalTypes()[rankEndIdx];
-			if (!rankEndIdxType.equals(InternalTypes.LONG)) {
-				LOG.error("variable rank index column must be long type, while input type is {}",
-						rankEndIdxType.getClass().getName());
-				throw new UnsupportedOperationException(
-						"variable rank index column must be long type, while input type is " +
-								rankEndIdxType.getClass().getName());
-			}
-			rankEndIndex = rankEndIdx;
+			rankEndIndex = variableRankRange.getRankEndIndex();
 			isConstantRankEnd = false;
 			rankStart = -1;
 			rankEnd = -1;
@@ -156,6 +150,24 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 		sortKeyComparator = generatedSortKeyComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		generatedSortKeyComparator = null;
 		invalidCounter = getRuntimeContext().getMetricGroup().counter("topn.invalidTopSize");
+
+		// initialize rankEndFetcher
+		if (!isConstantRankEnd) {
+			InternalType rankEndIdxType = inputRowType.getInternalTypes()[rankEndIndex];
+			if (rankEndIdxType.equals(InternalTypes.LONG)) {
+				rankEndFetcher = (BaseRow row) -> row.getLong(rankEndIndex);
+			} else if (rankEndIdxType.equals(InternalTypes.INT)) {
+				rankEndFetcher = (BaseRow row) -> (long) row.getInt(rankEndIndex);
+			} else if (rankEndIdxType.equals(InternalTypes.SHORT)) {
+				rankEndFetcher = (BaseRow row) -> (long) row.getShort(rankEndIndex);
+			} else {
+				LOG.error("variable rank index column must be long, short or int type, while input type is {}",
+						rankEndIdxType.getClass().getName());
+				throw new UnsupportedOperationException(
+						"variable rank index column must be long type, while input type is " +
+								rankEndIdxType.getClass().getName());
+			}
+		}
 	}
 
 	/**
@@ -179,7 +191,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			return rankEnd;
 		} else {
 			Long rankEndValue = rankEndState.value();
-			long curRankEnd = row.getLong(rankEndIndex);
+			long curRankEnd = rankEndFetcher.apply(row);
 			if (rankEndValue == null) {
 				rankEnd = curRankEnd;
 				rankEndState.update(rankEnd);

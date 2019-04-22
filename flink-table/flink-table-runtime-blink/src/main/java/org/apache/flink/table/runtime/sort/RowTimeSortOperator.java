@@ -31,12 +31,12 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -66,6 +66,8 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	 */
 	public RowTimeSortOperator(BaseRowTypeInfo inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
+		Preconditions.checkArgument(rowTimeIdx >= 0 && rowTimeIdx < inputRowType.getArity(),
+				"RowTimeIdx must be 0 or positive number and smaller than input row arity!");
 		this.rowTimeIdx = rowTimeIdx;
 		this.gComparator = gComparator;
 	}
@@ -128,7 +130,7 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 		if (inputs != null) {
 			// sort rows on secondary fields if necessary
 			if (comparator != null) {
-				Collections.sort(inputs, comparator);
+				inputs.sort(comparator);
 			}
 
 			// emit rows in order
@@ -138,6 +140,11 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 			dataState.remove(timestamp);
 			lastTriggeringTsState.update(timestamp);
 		}
+	}
+
+	@Override
+	public void onProcessingTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
+		throw new UnsupportedOperationException("Now Sort only is supported based event time here!");
 	}
 
 }

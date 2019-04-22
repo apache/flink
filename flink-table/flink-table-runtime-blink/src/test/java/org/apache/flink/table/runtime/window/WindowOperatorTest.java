@@ -19,8 +19,6 @@
 package org.apache.flink.table.runtime.window;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -38,7 +36,6 @@ import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.runtime.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.TumblingWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.WindowAssigner;
@@ -58,6 +55,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -75,9 +74,6 @@ public class WindowOperatorTest {
 			InternalTypes.INT,
 			InternalTypes.LONG};
 
-	private StreamRecordHelper inRecordWrapper = new StreamRecordHelper(
-			new RowTypeInfo(Types.STRING, Types.INT, Types.LONG));
-
 	private BaseRowTypeInfo outputType = new BaseRowTypeInfo(
 			InternalTypes.STRING,
 			InternalTypes.LONG,
@@ -85,9 +81,6 @@ public class WindowOperatorTest {
 			InternalTypes.LONG,
 			InternalTypes.LONG,
 			InternalTypes.LONG);
-
-	private StreamRecordHelper outRecordWrapper = new StreamRecordHelper(
-			new RowTypeInfo(Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG, Types.LONG));
 
 	private InternalType[] aggResultTypes = new InternalType[] { InternalTypes.LONG, InternalTypes.LONG };
 	private InternalType[] accTypes = new InternalType[] { InternalTypes.LONG, InternalTypes.LONG };
@@ -957,8 +950,6 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testTumblingCountWindow() throws Exception {
-		StreamRecordHelper outputRecordWrapper = new StreamRecordHelper(
-				new RowTypeInfo(Types.STRING, Types.LONG, Types.LONG, Types.LONG));
 		closeCalled.set(0);
 		final int windowSize = 3;
 		InternalType[] windowTypes = new InternalType[] { InternalTypes.LONG };
@@ -983,7 +974,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutputOutput.add(outputRecordWrapper.record("key2", 6L, 3L, 0L));
+		expectedOutputOutput.add(record("key2", 6L, 3L, 0L));
 		expectedOutputOutput.add(new Watermark(12000));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
@@ -998,7 +989,7 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key1", 5L, 3L, 0L));
+		expectedOutputOutput.add(record("key1", 5L, 3L, 0L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 4, 5501L));
@@ -1006,18 +997,18 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 5, 6000L));
 		testHarness.processElement(record("key2", 6, 6050L));
 
-		expectedOutputOutput.add(outputRecordWrapper.record("key2", 14L, 3L, 1L));
+		expectedOutputOutput.add(record("key2", 14L, 3L, 1L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 3, 4000L));
 		testHarness.processElement(record("key2", 10, 15000L));
 		testHarness.processElement(record("key2", 20, 15000L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key2", 36L, 3L, 2L));
+		expectedOutputOutput.add(record("key2", 36L, 3L, 2L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 2, 2500L));
 		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key1", 7L, 3L, 1L));
+		expectedOutputOutput.add(record("key1", 7L, 3L, 1L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -1028,8 +1019,6 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testSlidingCountWindow() throws Exception {
-		StreamRecordHelper outputRecordWrapper = new StreamRecordHelper(
-				new RowTypeInfo(Types.STRING, Types.LONG, Types.LONG, Types.LONG));
 		closeCalled.set(0);
 		final int windowSize = 5;
 		final int windowSlide = 3;
@@ -1057,7 +1046,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutputOutput.add(outputRecordWrapper.record("key2", 15L, 5L, 0L));
+		expectedOutputOutput.add(record("key2", 15L, 5L, 0L));
 		expectedOutputOutput.add(new Watermark(12000));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
@@ -1074,14 +1063,14 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key1", 3, 2500L));
 		testHarness.processElement(record("key1", 4, 2500L));
 		testHarness.processElement(record("key1", 5, 2500L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key1", 15L, 5L, 0L));
+		expectedOutputOutput.add(record("key1", 15L, 5L, 0L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 6, 6000L));
 		testHarness.processElement(record("key2", 7, 6000L));
 		testHarness.processElement(record("key2", 8, 6050L));
 		testHarness.processElement(record("key2", 9, 6050L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key2", 30L, 5L, 1L));
+		expectedOutputOutput.add(record("key2", 30L, 5L, 1L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 6, 4000L));
@@ -1089,8 +1078,8 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key1", 8, 4000L));
 		testHarness.processElement(record("key2", 10, 15000L));
 		testHarness.processElement(record("key2", 11, 15000L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key1", 30L, 5L, 1L));
-		expectedOutputOutput.add(outputRecordWrapper.record("key2", 45L, 5L, 2L));
+		expectedOutputOutput.add(record("key1", 30L, 5L, 1L));
+		expectedOutputOutput.add(record("key2", 45L, 5L, 2L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -1342,22 +1331,6 @@ public class WindowOperatorTest {
 			throws Exception {
 		return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
 				operator, keySelector, keyType);
-	}
-
-	private StreamRecord<BaseRow> record(Object... fields) {
-		if (fields.length == inputFieldTypes.length) {
-			return inRecordWrapper.record(fields);
-		} else {
-			return outRecordWrapper.record(fields);
-		}
-	}
-
-	private StreamRecord<BaseRow> retractRecord(Object... fields) {
-		if (fields.length == inputFieldTypes.length) {
-			return inRecordWrapper.retractRecord(fields);
-		} else {
-			return outRecordWrapper.retractRecord(fields);
-		}
 	}
 
 }

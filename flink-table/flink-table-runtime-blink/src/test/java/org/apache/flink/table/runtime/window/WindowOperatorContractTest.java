@@ -20,9 +20,6 @@ package org.apache.flink.table.runtime.window;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.window.TimeWindow;
@@ -32,7 +29,6 @@ import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
-import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.runtime.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.window.triggers.Trigger;
@@ -48,6 +44,8 @@ import org.mockito.Mockito;
 import java.util.Arrays;
 import java.util.Collections;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -67,8 +65,6 @@ public class WindowOperatorContractTest {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
-
-	private StreamRecordHelper recordWrapper = new StreamRecordHelper(new RowTypeInfo(Types.STRING, Types.INT, Types.LONG));
 
 	@Test
 	public void testAssignerIsInvokedOncePerElement() throws Exception {
@@ -250,13 +246,5 @@ public class WindowOperatorContractTest {
 	private static <T> void shouldFireOnElement(Trigger<TimeWindow> mockTrigger) throws Exception {
 		when(mockTrigger.onElement(Matchers.<T>anyObject(), anyLong(), anyTimeWindow()))
 				.thenReturn(true);
-	}
-
-	private StreamRecord<BaseRow> record(Object... fields) {
-		return recordWrapper.record(fields);
-	}
-
-	private BaseRow baserow(Object... fields) {
-		return recordWrapper.baserow(fields);
 	}
 }

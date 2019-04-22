@@ -56,8 +56,8 @@ class StreamExecSort(
     inputRel: RelNode,
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
-    with StreamPhysicalRel
-    with StreamExecNode[BaseRow] {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   /**
     * this node will not produce or consume retraction message
@@ -121,12 +121,13 @@ class StreamExecSort(
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
     val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+    // sets parallelism to 1 since StreamExecSort could only work in global mode.
     new OneInputTransformation(
       input,
       s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
       sortOperator,
       outputRowTypeInfo,
-      input.getParallelism)
+      1)
   }
 
 }

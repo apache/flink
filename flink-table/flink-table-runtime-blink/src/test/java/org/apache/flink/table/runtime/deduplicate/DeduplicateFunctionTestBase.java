@@ -19,20 +19,16 @@
 package org.apache.flink.table.runtime.deduplicate;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
  * Base class of tests for all kinds of DeduplicateFunction.
  */
-abstract class DeduplicateFunctionTest {
+abstract class DeduplicateFunctionTestBase {
 
 	Time minTime = Time.milliseconds(10);
 	Time maxTime = Time.milliseconds(20);
@@ -47,15 +43,5 @@ abstract class DeduplicateFunctionTest {
 	BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
 			inputRowType.getFieldTypes(),
 			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getInternalTypes()[rowKeyIdx]));
-
-	private StreamRecordHelper recordWrapper = new StreamRecordHelper(new RowTypeInfo(inputRowType.getFieldTypes()));
-
-	StreamRecord<BaseRow> record(Object... fields) {
-		return recordWrapper.record(fields);
-	}
-
-	StreamRecord<BaseRow> retractRecord(Object... fields) {
-		return recordWrapper.retractRecord(fields);
-	}
 
 }

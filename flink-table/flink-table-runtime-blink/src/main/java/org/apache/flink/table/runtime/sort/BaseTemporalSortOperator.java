@@ -23,7 +23,6 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -46,16 +45,6 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<BaseRow> 
 				this);
 		timerService = new SimpleTimerService(internalTimerService);
 		collector = new TimestampedCollector<>(output);
-	}
-
-	@Override
-	public void onEventTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
-		throw new UnsupportedOperationException("Now Sort only is supported based processing time here!");
-	}
-
-	@Override
-	public void onProcessingTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
-		throw new UnsupportedOperationException("Now Sort only is supported based event time here!");
 	}
 
 }

@@ -28,10 +28,12 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+
 /**
  * Tests for {@link DeduplicateKeepFirstRowFunction}.
  */
-public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTest {
+public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTestBase {
 
 	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
 			DeduplicateKeepFirstRowFunction func)

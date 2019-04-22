@@ -28,10 +28,13 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
+
 /**
  * Tests for {@link DeduplicateKeepLastRowFunction}.
  */
-public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTest {
+public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
 
 	private DeduplicateKeepLastRowFunction createFunction(boolean generateRetraction) {
 		return new DeduplicateKeepLastRowFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,

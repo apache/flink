@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -57,8 +57,6 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testRetractSortLimit(): Unit = {
     val data = List(
@@ -82,8 +80,6 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  // FIXME
-  @Ignore("Enable after agg implements ExecNode")
   @Test
   def testRetractSortLimitWithOffset(): Unit = {
     val data = List(

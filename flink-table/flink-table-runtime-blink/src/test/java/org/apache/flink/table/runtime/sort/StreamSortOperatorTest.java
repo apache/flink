@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.sort;
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -26,7 +25,6 @@ import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.StreamRecordHelper;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
@@ -34,6 +32,8 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 
 /**
  * Tests for {@link StreamSortOperator}.
@@ -56,23 +56,22 @@ public class StreamSortOperatorTest {
 	};
 
 	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
-	private StreamRecordHelper wrapper = new StreamRecordHelper(new RowTypeInfo(inputRowType.getFieldTypes()));
 
 	@Test
 	public void test() throws Exception {
 		StreamSortOperator operator = createSortOperator();
 		OneInputStreamOperatorTestHarness<BaseRow, BinaryRow> testHarness = createTestHarness(operator);
 		testHarness.open();
-		testHarness.processElement(wrapper.record("hi", 1));
-		testHarness.processElement(wrapper.record("hello", 2));
-		testHarness.processElement(wrapper.record("world", 3));
-		testHarness.processElement(wrapper.record("word", 4));
+		testHarness.processElement(record("hi", 1));
+		testHarness.processElement(record("hello", 2));
+		testHarness.processElement(record("world", 3));
+		testHarness.processElement(record("word", 4));
 
 		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(wrapper.record("hello", 2));
-		expectedOutputOutput.add(wrapper.record("hi", 1));
-		expectedOutputOutput.add(wrapper.record("word", 4));
-		expectedOutputOutput.add(wrapper.record("world", 3));
+		expectedOutputOutput.add(record("hello", 2));
+		expectedOutputOutput.add(record("hi", 1));
+		expectedOutputOutput.add(record("word", 4));
+		expectedOutputOutput.add(record("world", 3));
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
@@ -85,16 +84,16 @@ public class StreamSortOperatorTest {
 		testHarness = createTestHarness(operator);
 		testHarness.initializeState(snapshot);
 		testHarness.open();
-		testHarness.processElement(wrapper.record("abc", 1));
-		testHarness.processElement(wrapper.record("aa", 1));
+		testHarness.processElement(record("abc", 1));
+		testHarness.processElement(record("aa", 1));
 		testHarness.close();
 
-		expectedOutputOutput.add(wrapper.record("aa", 1));
-		expectedOutputOutput.add(wrapper.record("abc", 1));
-		expectedOutputOutput.add(wrapper.record("hello", 2));
-		expectedOutputOutput.add(wrapper.record("hi", 1));
-		expectedOutputOutput.add(wrapper.record("word", 4));
-		expectedOutputOutput.add(wrapper.record("world", 3));
+		expectedOutputOutput.add(record("aa", 1));
+		expectedOutputOutput.add(record("abc", 1));
+		expectedOutputOutput.add(record("hello", 2));
+		expectedOutputOutput.add(record("hi", 1));
+		expectedOutputOutput.add(record("word", 4));
+		expectedOutputOutput.add(record("world", 3));
 		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
 	}
 

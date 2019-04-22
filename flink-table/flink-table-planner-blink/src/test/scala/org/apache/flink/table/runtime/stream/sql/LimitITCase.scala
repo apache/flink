@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils._
@@ -33,7 +34,7 @@ import org.junit.runners.Parameterized
 class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @Test
-  def test(): Unit = {
+  def testLimit(): Unit = {
     val data = List(
       ("book", 1, 12),
       ("book", 2, 19),
@@ -59,4 +60,51 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+  @Test
+  def testOffsetAndFetch(): Unit = {
+    val data = List(
+      ("book", 1, 12),
+      ("book", 2, 19),
+      ("book", 4, 11),
+      ("fruit", 4, 33),
+      ("fruit", 3, 44),
+      ("fruit", 5, 22))
+
+    val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
+    tEnv.registerTable("T", ds)
+
+    val sql = "SELECT * FROM T LIMIT 4 OFFSET 2"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq(
+      "book,4,11",
+      "fruit,4,33",
+      "fruit,3,44",
+      "fruit,5,22")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  /** Limit could not handle order by without fetch or limit */
+  @Test(expected = classOf[TableException])
+  def testWithoutFetch(): Unit = {
+    val data = List(
+      ("book", 1, 12),
+      ("book", 2, 19),
+      ("book", 4, 11),
+      ("fruit", 4, 33),
+      ("fruit", 3, 44),
+      ("fruit", 5, 22))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'category, 'shopId, 'num)
+    tEnv.registerTable("T", t)
+
+    val sql = "SELECT * FROM T OFFSET 2"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+  }
 }
