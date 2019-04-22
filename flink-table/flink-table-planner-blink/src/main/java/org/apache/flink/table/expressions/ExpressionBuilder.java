@@ -34,9 +34,12 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MINUS;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MOD;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.expressions.InternalFunctionDefinitions.THROW_EXCEPTION;
 
 /**
@@ -80,7 +83,8 @@ public class ExpressionBuilder {
 		return call(IS_NULL, input);
 	}
 
-	public static Expression ifThenElse(Expression condition, Expression ifTrue, Expression ifFalse) {
+	public static Expression ifThenElse(Expression condition, Expression ifTrue,
+			Expression ifFalse) {
 		return call(IF, condition, ifTrue, ifFalse);
 	}
 
@@ -96,6 +100,14 @@ public class ExpressionBuilder {
 		return call(DIVIDE, input1, input2);
 	}
 
+	public static Expression times(Expression input1, Expression input2) {
+		return call(TIMES, input1, input2);
+	}
+
+	public static Expression mod(Expression input1, Expression input2) {
+		return call(MOD, input1, input2);
+	}
+
 	public static Expression equalTo(Expression input1, Expression input2) {
 		return call(EQUALS, input1, input2);
 	}
@@ -108,8 +120,13 @@ public class ExpressionBuilder {
 		return call(GREATER_THAN, input1, input2);
 	}
 
-	public static Expression cast(Expression input1, Expression input2) {
-		return call(CAST, input1, input2);
+	public static Expression cast(Expression child, Expression type) {
+		return call(CAST, child, type);
+	}
+
+	public static Expression reinterpretCast(Expression child, Expression type,
+			boolean checkOverflow) {
+		return call(REINTERPRET_CAST, child, type, literal(checkOverflow));
 	}
 
 	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
