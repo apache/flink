@@ -85,7 +85,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, CAST(1984-07-12) AS b, CAST(14:34:24) AS c, CAST(1984-07-12 14:34:24) AS d], where=[AND(=(b, 1984-07-12), =(c, 14:34:24), =(d, 1984-07-12 14:34:24))])
+Calc(select=[a, CAST(1984-07-12) AS b, CAST(14:34:24) AS c, CAST(1984-07-12 14:34:24:TIMESTAMP(3)) AS d], where=[AND(=(b, 1984-07-12), =(c, 14:34:24), =(d, 1984-07-12 14:34:24:TIMESTAMP(3)))])
 +- TableSourceScan(table=[[MyTable3, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -103,7 +103,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, CAST(_UTF-16LE'xx') AS c], where=[AND(OR(=(b, 1), =(b, 3), =(b, 4), =(b, 5), =(b, 6)), =(c, _UTF-16LE'xx'))])
+Calc(select=[a, b, CAST(_UTF-16LE'xx':VARCHAR(65536) CHARACTER SET "UTF-16LE") AS c], where=[AND(OR(=(b, 1), =(b, 3), =(b, 4), =(b, 5), =(b, 6)), =(c, _UTF-16LE'xx':VARCHAR(65536) CHARACTER SET "UTF-16LE"))])
 +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -115,7 +115,7 @@ Calc(select=[a, b, CAST(_UTF-16LE'xx') AS c], where=[AND(OR(=(b, 1), =(b, 3), =(
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[ROW($0, $1, $2)], EXPR$1=[ARRAY(12, $1)], EXPR$2=[MAP($0, $2)])
-+- LogicalFilter(condition=[=(ROW($0, $1, $2), CAST(ROW(_UTF-16LE'foo', 12, 1984-07-12 14:34:24)):RecordType(VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "ISO-8859-1$en_US$primary" EXPR$0, INTEGER EXPR$1, TIMESTAMP(3) EXPR$2) NOT NULL)])
++- LogicalFilter(condition=[=(ROW($0, $1, $2), CAST(ROW(_UTF-16LE'foo', 12, 1984-07-12 14:34:24)):RecordType(VARCHAR(65536) CHARACTER SET "UTF-16LE" EXPR$0, INTEGER EXPR$1, TIMESTAMP(3) EXPR$2) NOT NULL)])
    +- LogicalTableScan(table=[[MyTable5, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -210,7 +210,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c], where=[OR(AND(<>(b, 1), <>(b, 3), <>(b, 4), <>(b, 5), <>(b, 6)), =(c, _UTF-16LE'xx'))])
+Calc(select=[a, b, c], where=[OR(AND(<>(b, 1), <>(b, 3), <>(b, 4), <>(b, 5), <>(b, 6)), =(c, _UTF-16LE'xx':VARCHAR(65536) CHARACTER SET "UTF-16LE"))])
 +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
