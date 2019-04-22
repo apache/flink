@@ -148,7 +148,12 @@ level is determined by 'nav-pos'.
 
 <div class="sidenav-versions">
   <div class="dropdown">
-    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">Pick Docs Version
+    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
+      {% if page.is_default_language %}
+        Pick Docs Version
+      {% else %}
+        选择文档版本
+      {% endif %}
     <span class="caret"></span></button>
     <ul class="dropdown-menu">
       {% for d in site.previous_docs %}
@@ -156,4 +161,17 @@ level is determined by 'nav-pos'.
       {% endfor %}
     </ul>
   </div>
+</div>
+
+<div class="sidenav-languages">
+  {% if page.is_default_language %}
+    <!-- link to the Chinese home page when current is blog page -->
+    <a href="{{ site.baseurl }}/zh{{ page.url }}">
+      <button type="submit" class="btn btn-default">中文版</button>
+    </a>
+  {% else %}
+    <a href="{{ site.baseurl }}{{ page.url | remove_first: 'zh/' }}">
+      <button type="submit" class="btn btn-default">English</button>
+    </a>
+  {% endif %}
 </div>
