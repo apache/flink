@@ -229,7 +229,7 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Checks if the memory manager all memory available.
+	 * Checks if the memory manager's all memory is available.
 	 *
 	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
 	 */
@@ -257,7 +257,7 @@ public class MemoryManager {
 	 *                                   of memory pages any more.
 	 */
 	public List<MemorySegment> allocatePages(Object owner, int numPages) throws MemoryAllocationException {
-		final ArrayList<MemorySegment> segs = new ArrayList<MemorySegment>(numPages);
+		final ArrayList<MemorySegment> segs = new ArrayList<>(numPages);
 		allocatePages(owner, segs, numPages);
 		return segs;
 	}
@@ -387,11 +387,11 @@ public class MemoryManager {
 	 *
 	 * @param segments The segments to be released.
 	 * @throws NullPointerException Thrown, if the given collection is null.
-	 * @throws IllegalArgumentException Thrown, id the segments are of an incompatible type.
+	 * @throws IllegalArgumentException Thrown, if the segments are of an incompatible type.
 	 */
 	public void release(Collection<MemorySegment> segments) {
 		if (segments == null) {
-			return;
+			throw new NullPointerException();
 		}
 
 		// -------------------- BEGIN CRITICAL SECTION -------------------
