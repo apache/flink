@@ -51,10 +51,6 @@
   <div class="operate">
     <span *ngIf="statusTips">{{ statusTips }}</span>
     <ng-container *ngIf="!statusTips">
-      <ng-container *ngIf="jobDetail.isStoppable && jobDetail.state=='RUNNING'">
-        <a nz-popconfirm nzTitle="Stop Job?" (nzOnConfirm)="stopJob()">Stop Job</a>
-        <nz-divider [nzType]="'vertical'"></nz-divider>
-      </ng-container>
       <a nz-popconfirm nzTitle="Cancel Job?" (nzOnConfirm)="cancelJob()" *ngIf="jobDetail.state=='RUNNING' || jobDetail.state=='CREATED' || jobDetail.state=='RESTARTING'">Cancel Job</a>
     </ng-container>
   </div>

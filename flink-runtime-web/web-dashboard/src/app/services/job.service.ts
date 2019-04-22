@@ -81,15 +81,6 @@ export class JobService {
   }
 
   /**
-   * Uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
-   * proper BASE_URL + "jobs/" + jobid + "?mode=stop"
-   * @param jobId
-   */
-  stopJob(jobId: string) {
-    return this.httpClient.get(`${BASE_URL}/jobs/${jobId}/yarn-stop`);
-  }
-
-  /**
    * Get job list
    */
   loadJobs() {
