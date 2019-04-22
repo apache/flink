@@ -104,8 +104,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			System.setErr(originalErr);
 
 			try {
-				combinedStdOut.close();
-				combinedStdErr.close();
+				baos.close();
+				baes.close();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
