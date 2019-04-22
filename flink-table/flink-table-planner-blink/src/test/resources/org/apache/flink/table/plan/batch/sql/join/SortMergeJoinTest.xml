@@ -445,7 +445,7 @@ LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
       <![CDATA[
 SortMergeJoin(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, v0])
 :- Exchange(distribution=[hash[k]])
-:  +- Calc(select=[CAST(0) AS k, v], where=[=(k, 0)])
+:  +- Calc(select=[CAST(0:BIGINT) AS k, v], where=[=(k, 0:BIGINT)])
 :     +- TableSourceScan(table=[[src, source: [TestTableSource(k, v)]]], fields=[k, v])
 +- Exchange(distribution=[hash[k]])
    +- Values(tuples=[[]], values=[k, v])
