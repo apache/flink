@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
+import org.apache.flink.table.plan.rules.common.WindowPropertiesRules
 import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.batch._
@@ -65,6 +66,11 @@ object FlinkBatchRuleSets {
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     REDUCE_EXPRESSION_RULES.asScala ++
       List(
+        // Transform window to LogicalWindowAggregate
+        BatchExecLogicalWindowAggregateRule.INSTANCE,
+        WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
+        WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
+
         // slices a project into sections which contain window agg functions
         // and sections which do not.
         ProjectToWindowRule.PROJECT,
@@ -199,6 +205,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
     FlinkLogicalRank.CONVERTER,
+    FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSink.CONVERTER
   )
 
@@ -236,6 +243,7 @@ object FlinkBatchRuleSets {
     BatchExecSingleRowJoinRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
     BatchExecOverWindowAggRule.INSTANCE,
+    BatchExecWindowAggregateRule.INSTANCE,
     BatchExecSinkRule.INSTANCE
   )
 }

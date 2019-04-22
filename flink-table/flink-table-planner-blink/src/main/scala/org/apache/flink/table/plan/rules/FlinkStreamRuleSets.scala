@@ -197,6 +197,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
     FlinkLogicalWatermarkAssigner.CONVERTER,
+    FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSink.CONVERTER
   )
 

@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, TableImpl, ValidationException}
+import org.apache.flink.table.api.{TableException, TableImpl}
 import org.apache.flink.table.plan.util.WindowJoinUtil
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
@@ -170,8 +170,7 @@ class WindowJoinTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after TUMBLE added
+  @Test
   def testRowTimeInnerJoinAndWindowAggregationOnFirst(): Unit = {
     val sqlQuery =
       """
@@ -185,8 +184,7 @@ class WindowJoinTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after TUMBLE added
+  @Test
   def testRowTimeInnerJoinAndWindowAggregationOnSecond(): Unit = {
     val sqlQuery =
       """

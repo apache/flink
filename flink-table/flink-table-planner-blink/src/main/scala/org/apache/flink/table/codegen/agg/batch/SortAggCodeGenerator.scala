@@ -46,7 +46,6 @@ object SortAggCodeGenerator {
       auxGrouping: Array[Int],
       isMerge: Boolean,
       isFinal: Boolean): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val config = ctx.tableConfig
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
@@ -81,7 +80,6 @@ object SortAggCodeGenerator {
       isMerge,
       isFinal,
       ctx,
-      config,
       builder,
       grouping,
       auxGrouping,
@@ -146,7 +144,6 @@ object SortAggCodeGenerator {
       classOf[TableStreamOperator[BaseRow]].getCanonicalName,
       processCode,
       endInputCode,
-      inputType,
-      config)
+      inputType)
   }
 }

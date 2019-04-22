@@ -27,6 +27,7 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlGroupedWindowFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -39,6 +40,9 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.table.calcite.type.FlinkReturnTypes.ARG0_VARCHAR_FORCE_NULLABLE;
 import static org.apache.flink.table.calcite.type.FlinkReturnTypes.FLINK_DIV_NULLABLE;
@@ -892,7 +896,58 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	// Window SQL functions
 	// -----------------------------------------------------------------------------
 
-	// TODO: add window functions here
+	/**
+	 * We need custom group auxiliary functions in order to support nested windows.
+	 */
+	public static final SqlGroupedWindowFunction TUMBLE = new SqlGroupedWindowFunction(
+			SqlKind.TUMBLE, null,
+			OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
+		@Override
+		public List<SqlGroupedWindowFunction> getAuxiliaryFunctions() {
+			return Arrays.asList(TUMBLE_START, TUMBLE_END, TUMBLE_ROWTIME, TUMBLE_PROCTIME);
+		}
+	};
+
+	public static final SqlGroupedWindowFunction TUMBLE_START = TUMBLE.auxiliary(SqlKind.TUMBLE_START);
+	public static final SqlGroupedWindowFunction TUMBLE_END = TUMBLE.auxiliary(SqlKind.TUMBLE_END);
+	public static final SqlGroupedWindowFunction TUMBLE_ROWTIME =
+			TUMBLE.auxiliary("TUMBLE_ROWTIME", SqlKind.OTHER_FUNCTION);
+	public static final SqlGroupedWindowFunction TUMBLE_PROCTIME =
+			TUMBLE.auxiliary("TUMBLE_PROCTIME", SqlKind.OTHER_FUNCTION);
+
+	public static final SqlGroupedWindowFunction HOP = new SqlGroupedWindowFunction(
+			SqlKind.HOP,
+			null,
+			OperandTypes.or(
+			OperandTypes.DATETIME_INTERVAL_INTERVAL,
+			OperandTypes.DATETIME_INTERVAL_INTERVAL_TIME)) {
+		@Override
+		public List<SqlGroupedWindowFunction> getAuxiliaryFunctions() {
+			return Arrays.asList(HOP_START, HOP_END, HOP_ROWTIME, HOP_PROCTIME);
+		}
+	};
+
+	public static final SqlGroupedWindowFunction HOP_START = HOP.auxiliary(SqlKind.HOP_START);
+	public static final SqlGroupedWindowFunction HOP_END = HOP.auxiliary(SqlKind.HOP_END);
+	public static final SqlGroupedWindowFunction HOP_ROWTIME = HOP.auxiliary("HOP_ROWTIME", SqlKind.OTHER_FUNCTION);
+	public static final SqlGroupedWindowFunction HOP_PROCTIME = HOP.auxiliary("HOP_PROCTIME", SqlKind.OTHER_FUNCTION);
+
+	public static final SqlGroupedWindowFunction SESSION = new SqlGroupedWindowFunction(
+			SqlKind.SESSION,
+			null,
+			OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
+		@Override
+		public List<SqlGroupedWindowFunction> getAuxiliaryFunctions() {
+			return Arrays.asList(SESSION_START, SESSION_END, SESSION_ROWTIME, SESSION_PROCTIME);
+		}
+	};
+
+	public static final SqlGroupedWindowFunction SESSION_START = SESSION.auxiliary(SqlKind.SESSION_START);
+	public static final SqlGroupedWindowFunction SESSION_END = SESSION.auxiliary(SqlKind.SESSION_END);
+	public static final SqlGroupedWindowFunction SESSION_ROWTIME =
+			SESSION.auxiliary("SESSION_ROWTIME", SqlKind.OTHER_FUNCTION);
+	public static final SqlGroupedWindowFunction SESSION_PROCTIME =
+			SESSION.auxiliary("SESSION_PROCTIME", SqlKind.OTHER_FUNCTION);
 
 	// -----------------------------------------------------------------------------
 	// operators extend from Calcite

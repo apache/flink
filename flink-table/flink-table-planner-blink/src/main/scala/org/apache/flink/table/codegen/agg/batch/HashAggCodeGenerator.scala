@@ -50,7 +50,6 @@ class HashAggCodeGenerator(
   private lazy val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
   private lazy val aggCallToAggFunction =
     aggInfoList.aggInfos.map(info => (info.agg, info.function))
-  private lazy val aggregateCalls = aggCallToAggFunction.map(_._1)
   private lazy val aggregates: Seq[UserDefinedFunction] = aggInfoList.aggInfos.map(_.function)
   private lazy val aggArgs: Array[Array[Int]] = aggInfoList.aggInfos.map(_.argIndexes)
   // get udagg instance names
@@ -64,7 +63,6 @@ class HashAggCodeGenerator(
   def genWithKeys(
       reservedManagedMemory: Long, maxManagedMemory: Long)
     : GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val config = ctx.tableConfig
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val className = if (isFinal) "HashAggregateWithKeys" else "LocalHashAggregateWithKeys"
 
@@ -98,7 +96,6 @@ class HashAggCodeGenerator(
       "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
-      config,
       reservedManagedMemory,
       maxManagedMemory,
       groupKeyTypesTerm,
@@ -121,7 +118,6 @@ class HashAggCodeGenerator(
       isMerge,
       isFinal,
       ctx,
-      config,
       builder,
       (grouping, auxGrouping),
       inputTerm,
@@ -138,7 +134,7 @@ class HashAggCodeGenerator(
       reuseAggBufferTerm)
 
     val outputResultFromMap = HashAggCodeGenHelper.genAggMapIterationAndOutput(
-      ctx, config, isFinal, aggregateMapTerm, reuseAggMapEntryTerm, reuseAggBufferTerm, outputExpr)
+      ctx, isFinal, aggregateMapTerm, reuseAggMapEntryTerm, reuseAggBufferTerm, outputExpr)
 
     // gen code to deal with hash map oom, if enable fallback we will use sort agg strategy
     val sorterTerm = CodeGenUtils.newName("sorter")
@@ -148,7 +144,6 @@ class HashAggCodeGenerator(
     val (dealWithAggHashMapOOM, fallbackToSortAggCode) = HashAggCodeGenHelper.genAggMapOOMHandling(
       isFinal,
       ctx,
-      config,
       builder,
       (grouping, auxGrouping),
       aggCallToAggFunction,
@@ -232,7 +227,6 @@ class HashAggCodeGenerator(
       classOf[TableStreamOperator[BaseRow]].getCanonicalName,
       processCode,
       endInputCode,
-      inputType,
-      config)
+      inputType)
   }
 }

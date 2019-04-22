@@ -675,4 +675,104 @@ object RelExplainUtil {
     }),"
     s"$prefix($groupingStr$auxGroupingStr$selectString)"
   }
+
+  def windowAggregationToString(
+      inputType: RelDataType,
+      grouping: Array[Int],
+      auxGrouping: Array[Int],
+      rowType: RelDataType,
+      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+      enableAssignPane: Boolean,
+      isMerge: Boolean,
+      isGlobal: Boolean): String = {
+    val prefix = if (isMerge) {
+      "Final_"
+    } else if (!isGlobal) {
+      "Partial_"
+    } else {
+      ""
+    }
+
+    val inFields = inputType.getFieldNames
+    val outFields = rowType.getFieldNames
+
+    /**
+      *  - local window agg input type: grouping keys + aux-grouping keys + agg arg list
+      *  - global window agg input type: grouping keys + timestamp + aux-grouping keys + agg buffer
+      *  agg buffer as agg merge args list
+      */
+    var offset = if (isMerge) {
+      grouping.length + 1 + auxGrouping.length
+    } else {
+      grouping.length + auxGrouping.length
+    }
+    val aggStrings = aggCallToAggFunction.map { case (aggCall, udf) =>
+      var newArgList = aggCall.getArgList.map(_.toInt).toList
+      if (isMerge) {
+        newArgList = udf match {
+          case _: AggregateFunction[_, _] =>
+            val argList = List(offset)
+            offset = offset + 1
+            argList
+          case daf: DeclarativeAggregateFunction =>
+            val argList = daf.aggBufferAttributes().indices.map(offset + _).toList
+            offset = offset + daf.aggBufferAttributes.length
+            argList
+        }
+      }
+      val argListNames = if (newArgList.nonEmpty) {
+        newArgList.map(inFields(_)).mkString(", ")
+      } else {
+        "*"
+      }
+      if (aggCall.filterArg >= 0 && aggCall.filterArg < inFields.size) {
+        s"${aggCall.getAggregation}($argListNames) FILTER ${inFields(aggCall.filterArg)}"
+      } else {
+        s"${aggCall.getAggregation}($argListNames)"
+      }
+    }
+
+    /**
+      * - local window agg output type: grouping keys + timestamp + aux-grouping keys + agg buffer
+      * - global window agg output type:
+      * grouping keys + aux-grouping keys + agg result + window props
+      */
+    offset = if (!isGlobal) {
+      grouping.length + 1 + auxGrouping.length
+    } else {
+      grouping.length + auxGrouping.length
+    }
+    val outFieldNames = aggCallToAggFunction.map { case (_, udf) =>
+      val outFieldName = if (isGlobal) {
+        val name = outFields(offset)
+        offset = offset + 1
+        name
+      } else {
+        udf match {
+          case _: AggregateFunction[_, _] =>
+            val name = outFields(offset)
+            offset = offset + 1
+            name
+          case daf: DeclarativeAggregateFunction =>
+            val name = daf.aggBufferAttributes().zipWithIndex.map(offset + _._2).map(
+              outFields(_)).mkString(", ")
+            offset = offset + daf.aggBufferAttributes().length
+            if (daf.aggBufferAttributes.length > 1) s"($name)" else name
+        }
+      }
+      outFieldName
+    }
+
+    val inNames = grouping.map(inFields(_)) ++ auxGrouping.map(inFields(_)) ++ aggStrings
+    val outNames = grouping.indices.map(outFields(_)) ++
+        (grouping.length + 1 until grouping.length + 1 + auxGrouping.length).map(outFields(_)) ++
+        outFieldNames
+    inNames.zip(outNames).map {
+      case (f, o) => if (f == o) {
+        f
+      } else {
+        s"$prefix$f AS $o"
+      }
+    }.mkString(", ")
+  }
 }

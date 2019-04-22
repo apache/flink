@@ -330,6 +330,8 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("in", SCALAR_FUNCTION);
 	public static final FunctionDefinition CAST =
 		new FunctionDefinition("cast", SCALAR_FUNCTION);
+	public static final FunctionDefinition REINTERPRET_CAST =
+			new FunctionDefinition("reinterpretCast", SCALAR_FUNCTION);
 	public static final FunctionDefinition AS =
 		new FunctionDefinition("as", OTHER_FUNCTION);
 	public static final FunctionDefinition STREAM_RECORD_TIMESTAMP =

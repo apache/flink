@@ -18,9 +18,13 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._
@@ -29,7 +33,6 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
-import org.apache.flink.api.java.typeutils.MultisetTypeInfo
 
 import java.nio.charset.Charset
 import java.util
@@ -190,11 +193,13 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     buildRelDataType(
       tableSchema.getFieldNames.toSeq,
       tableSchema.getFieldTypes map {
-        case InternalTypes.PROCTIME_INDICATOR if isStreaming.isDefined && !isStreaming.get =>
+        case TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+          if isStreaming.isDefined && !isStreaming.get =>
           InternalTypes.TIMESTAMP
-        case InternalTypes.ROWTIME_INDICATOR if isStreaming.isDefined && !isStreaming.get =>
+        case TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+          if isStreaming.isDefined && !isStreaming.get =>
           InternalTypes.TIMESTAMP
-        case tpe: InternalType => tpe
+        case tpe: TypeInformation[_] => createInternalTypeFromTypeInfo(tpe)
       })
   }
 

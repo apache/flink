@@ -19,12 +19,14 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.`type`.InternalTypes._
-import org.apache.flink.table.`type`._
+import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RexNodeConverter, RowtimeAttribute, WindowEnd, WindowStart}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
@@ -35,8 +37,10 @@ import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, 
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
+import org.apache.calcite.tools.RelBuilder
 
 import java.util
 
@@ -601,5 +605,47 @@ object AggregateUtil extends Enumeration {
   def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
     new CountBundleTrigger[BaseRow](
       tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+  }
+
+  /**
+    * Compute field index of given timeField expression.
+    */
+  def timeFieldIndex(
+      inputType: RelDataType, relBuilder: RelBuilder, timeField: FieldReferenceExpression): Int = {
+    timeField.accept(new RexNodeConverter(relBuilder.values(inputType)))
+        .asInstanceOf[RexInputRef].getIndex
+  }
+
+  /**
+    * Computes the positions of (window start, window end, row time).
+    */
+  private[flink] def computeWindowPropertyPos(
+      properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
+    val propPos = properties.foldRight(
+      (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
+      case (p, (s, e, rt, i)) => p match {
+        case NamedWindowProperty(_, prop) =>
+          prop match {
+            case WindowStart(_) if s.isDefined =>
+              throw new TableException(
+                "Duplicate window start property encountered. This is a bug.")
+            case WindowStart(_) =>
+              (Some(i), e, rt, i - 1)
+            case WindowEnd(_) if e.isDefined =>
+              throw new TableException("Duplicate window end property encountered. This is a bug.")
+            case WindowEnd(_) =>
+              (s, Some(i), rt, i - 1)
+            case RowtimeAttribute(_) if rt.isDefined =>
+              throw new TableException(
+                "Duplicate window rowtime property encountered. This is a bug.")
+            case RowtimeAttribute(_) =>
+              (s, e, Some(i), i - 1)
+            case ProctimeAttribute(_) =>
+              // ignore this property, it will be null at the position later
+              (s, e, rt, i - 1)
+          }
+      }
+    }
+    (propPos._1, propPos._2, propPos._3)
   }
 }

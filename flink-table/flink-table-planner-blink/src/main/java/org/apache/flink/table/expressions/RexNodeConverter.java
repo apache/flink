@@ -91,6 +91,16 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 							createInternalTypeFromTypeInfo(type.getType()),
 							child.getType().isNullable()),
 					child);
+		} else if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
+			RexNode child = call.getChildren().get(0).accept(this);
+			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
+			RexNode checkOverflow = call.getChildren().get(2).accept(this);
+			return relBuilder.getRexBuilder().makeReinterpretCast(
+					typeFactory.createTypeFromInternalType(
+							createInternalTypeFromTypeInfo(type.getType()),
+							child.getType().isNullable()),
+					child,
+					checkOverflow);
 		}
 
 		List<RexNode> child = convertCallChildren(call);
@@ -143,6 +153,10 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return relBuilder.call(FlinkSqlOperatorTable.AND, child);
 		} else if (BuiltInFunctionDefinitions.NOT.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.NOT, child);
+		} else if (BuiltInFunctionDefinitions.TIMES.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.MULTIPLY, child);
+		} else if (BuiltInFunctionDefinitions.MOD.equals(def)) {
+			return relBuilder.call(FlinkSqlOperatorTable.MOD, child);
 		} else {
 			throw new UnsupportedOperationException(def.getName());
 		}
