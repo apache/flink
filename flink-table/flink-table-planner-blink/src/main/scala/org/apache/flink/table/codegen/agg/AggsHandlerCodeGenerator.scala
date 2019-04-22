@@ -644,13 +644,13 @@ class AggsHandlerCodeGenerator(
           // return a Timestamp(Internal is long)
           GeneratedExpression(
             s"$NAMESPACE_TERM.getEnd()", "false", "", w.resultType)
-//        case r: RowtimeAttribute =>
-//          // return a rowtime, use long as internal type
-//          GeneratedExpression(
-//            s"$NAMESPACE_TERM.getEnd() - 1", "false", "", r.resultType.toInternalType)
-//        case p: ProctimeAttribute =>
-//          // ignore this property, it will be null at the position later
-//          GeneratedExpression("-1L", "true", "", p.resultType.toInternalType)
+        case r: RowtimeAttribute =>
+          // return a rowtime, use long as internal type
+          GeneratedExpression(
+            s"$NAMESPACE_TERM.getEnd() - 1", "false", "", r.resultType)
+        case p: ProctimeAttribute =>
+          // ignore this property, it will be null at the position later
+          GeneratedExpression("-1L", "true", "", p.resultType)
       }
       valueExprs = valueExprs ++ windowExprs
     }

@@ -601,7 +601,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val fieldTerm = s"function_${function.functionIdentifier}"
+    val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)
 
