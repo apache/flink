@@ -142,11 +142,11 @@ LogicalProject(b=[$0], EXPR$1=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[CAST(2) AS b, EXPR$1])
+Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
 +- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
-         +- Calc(select=[CAST(2) AS b, a], where=[=(b, 2)])
+         +- Calc(select=[CAST(2:BIGINT) AS b, a], where=[=(b, 2:BIGINT)])
             +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

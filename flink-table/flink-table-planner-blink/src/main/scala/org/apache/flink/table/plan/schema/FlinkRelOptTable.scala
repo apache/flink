@@ -285,6 +285,10 @@ class FlinkRelOptTable protected(
   override def extend(extendedTable: Table) =
     throw new RuntimeException("Extending column not supported")
 
+  /**
+    * We recognize all tables in FLink are temporal as they are changeable.
+    */
+  override def isTemporal: Boolean = true
 }
 
 object FlinkRelOptTable {

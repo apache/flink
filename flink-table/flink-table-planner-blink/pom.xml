@@ -114,12 +114,18 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Used for code generation -->
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+		</dependency>
+
 		<!-- Used for translation of table programs -->
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>1.18.0</version>
+			<version>1.19.0</version>
 			<exclusions>
 				<!--
 

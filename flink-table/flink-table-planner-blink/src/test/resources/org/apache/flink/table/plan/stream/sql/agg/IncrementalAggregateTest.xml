@@ -31,7 +31,7 @@ GROUP BY a
     <Resource name="planBefore">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[SUM($1) FILTER $2])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS FALSE(=($1, 2))], $f3=[IS FALSE(=($1, 5))])
++- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -45,7 +45,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
             +- Calc(select=[a, b, $f2, $f3, $f4, AND(=($e, 0), $f2) AS $g_0, AND(=($e, 1), $f3) AS $g_1, AND(=($e, 1), $f2) AS $g_10])
                +- Expand(projects=[{a=[$0], b=[$1], $f2=[$2], $f3=[$3], $f4=[$4], $e=[0]}, {a=[$0], b=[$1], $f2=[$2], $f3=[$3], $f4=[null], $e=[1]}])
                   +- Calc(select=[a, b, $f2, $f3, MOD(HASH_CODE(b), 1024) AS $f4])
-                     +- Calc(select=[a, b, IS FALSE(=(b, 2)) AS $f2, IS FALSE(=(b, 5)) AS $f3])
+                     +- Calc(select=[a, b, IS TRUE(<>(b, 2:BIGINT)) AS $f2, IS TRUE(<>(b, 5:BIGINT)) AS $f3])
                         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -259,7 +259,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXP
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, EXPR$1, CASE(=($f3, 0), null, EXPR$2) AS EXPR$2, /(CAST(CASE(=($f3, 0), null, EXPR$2)), $f3) AS EXPR$3, EXPR$4, EXPR$5, $f3 AS EXPR$6, EXPR$7])
+Calc(select=[a, EXPR$1, CASE(=($f3, 0), null:BIGINT, EXPR$2) AS EXPR$2, /(CAST(CASE(=($f3, 0), null:BIGINT, EXPR$2)), $f3) AS EXPR$3, EXPR$4, EXPR$5, $f3 AS EXPR$6, EXPR$7])
 +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1, $SUM0(sum$1) AS $f2, $SUM0(count$2) AS $f3, MAX(max$3) AS $f4, MIN(min$4) AS $f5, $SUM0(count1$5) AS $f6])
    +- Exchange(distribution=[hash[a]])
       +- IncrementalGroupAggregate(partialAggGrouping=[a, $f3, $f4], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0, $SUM0(sum$1) AS sum$1, COUNT(count$2) AS count$2, MAX(max$3) AS max$3, MIN(min$4) AS min$4, COUNT(count1$5) AS count1$5])

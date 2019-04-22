@@ -120,7 +120,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, 2 AS rk])
+Calc(select=[a, b, 2:BIGINT AS rk])
 +- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
    +- Sort(orderBy=[b ASC, a ASC, c ASC])
       +- Exchange(distribution=[hash[b]])

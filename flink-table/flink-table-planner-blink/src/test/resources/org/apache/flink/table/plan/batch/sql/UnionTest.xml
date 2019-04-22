@@ -70,7 +70,7 @@ LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)
 +- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
    :- LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, BIGINT b)]
    :  +- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c)]
-   +- LogicalProject(a=[$0], EXPR$1=[0]), rowType=[RecordType(INTEGER a, DECIMAL(2, 1) EXPR$1)]
+   +- LogicalProject(a=[$0], EXPR$1=[0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER a, DECIMAL(2, 1) EXPR$1)]
       +- LogicalTableScan(table=[[MyTable2, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c)]
 ]]>
     </Resource>
@@ -79,7 +79,7 @@ LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)
 Union(all=[true], union=[a, b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
 :- Calc(select=[a, CAST(b) AS b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
 :  +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c)]
-+- Calc(select=[a, CAST(0.0) AS EXPR$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) EXPR$1)]
++- Calc(select=[a, CAST(0.0:DECIMAL(20, 1)) AS EXPR$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) EXPR$1)]
    +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c)]
 ]]>
     </Resource>
