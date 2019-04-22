@@ -50,4 +50,12 @@ public class SimpleStringSchemaTest {
 
 		assertEquals(schema.getCharset(), copy.getCharset());
 	}
+
+	@Test
+	public void testDeserializeWithNullValue() throws Exception {
+		final SimpleStringSchema schema = new SimpleStringSchema();
+		final String value = schema.deserialize(null);
+
+		assertEquals(value, null);
+	}
 }
