@@ -25,13 +25,13 @@ limitations under the License.
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
-      +- LogicalProject($f0=[HOP($3, 900000, 60000)], a=[$0])
+      +- LogicalProject($f0=[HOP($3, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
          +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), w$start), 1))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000.millis, 900000.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a])
@@ -47,7 +47,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QU
       <![CDATA[
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
-   +- LogicalProject($f0=[TUMBLE($3, 240000)], b=[$1], a=[$0])
+   +- LogicalProject($f0=[TUMBLE($3, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
       +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
 ]]>
     </Resource>
@@ -69,7 +69,7 @@ SortWindowAggregate(window=[TumblingGroupWindow], select=[weightedAvg(b, a) AS w
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[HOP($3, 900000, 5400000)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[HOP($3, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
 ]]>
     </Resource>
@@ -91,7 +91,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000.millis, 900000.m
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
-   +- LogicalProject($f0=[TUMBLE($3, 240000)], c=[$2])
+   +- LogicalProject($f0=[TUMBLE($3, 240000:INTERVAL MINUTE)], c=[$2])
       +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
 ]]>
     </Resource>
@@ -113,7 +113,7 @@ Calc(select=[w$end AS EXPR$0])
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[TUMBLE($3, 7200000)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[TUMBLE($3, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, ts)]]])
 ]]>
     </Resource>
