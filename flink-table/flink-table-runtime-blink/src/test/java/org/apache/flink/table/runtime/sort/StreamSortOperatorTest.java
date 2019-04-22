@@ -67,18 +67,18 @@ public class StreamSortOperatorTest {
 		testHarness.processElement(record("world", 3));
 		testHarness.processElement(record("word", 4));
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("hello", 2));
-		expectedOutputOutput.add(record("hi", 1));
-		expectedOutputOutput.add(record("word", 4));
-		expectedOutputOutput.add(record("world", 3));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("hello", 2));
+		expectedOutput.add(record("hi", 1));
+		expectedOutput.add(record("word", 4));
+		expectedOutput.add(record("world", 3));
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		operator = createSortOperator();
 		testHarness = createTestHarness(operator);
@@ -88,13 +88,13 @@ public class StreamSortOperatorTest {
 		testHarness.processElement(record("aa", 1));
 		testHarness.close();
 
-		expectedOutputOutput.add(record("aa", 1));
-		expectedOutputOutput.add(record("abc", 1));
-		expectedOutputOutput.add(record("hello", 2));
-		expectedOutputOutput.add(record("hi", 1));
-		expectedOutputOutput.add(record("word", 4));
-		expectedOutputOutput.add(record("world", 3));
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("aa", 1));
+		expectedOutput.add(record("abc", 1));
+		expectedOutput.add(record("hello", 2));
+		expectedOutput.add(record("hi", 1));
+		expectedOutput.add(record("word", 4));
+		expectedOutput.add(record("world", 3));
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	private StreamSortOperator createSortOperator() {
