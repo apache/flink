@@ -49,6 +49,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
 import java.util.Collections;
@@ -228,7 +229,7 @@ public class ClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testGetExecutionPlanDebugOutput() throws ProgramInvocationException {
+	public void testGetExecutionPlanDebugOutput() throws ProgramInvocationException, IOException {
 		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/tmp");
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 
@@ -259,6 +260,9 @@ public class ClientTest extends TestLogger {
 			// restore stdout/stderr
 			System.setOut(originalOut);
 			System.setErr(originalErr);
+
+			baos.close();
+			baes.close();
 		}
 	}
 

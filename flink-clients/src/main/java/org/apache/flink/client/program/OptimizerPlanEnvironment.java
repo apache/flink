@@ -28,6 +28,7 @@ import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.commons.io.output.TeeOutputStream;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 
 /**
@@ -101,6 +102,13 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			unsetAsContext();
 			System.setOut(originalOut);
 			System.setErr(originalErr);
+
+			try {
+				combinedStdOut.close();
+				combinedStdErr.close();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		String stdout = baos.toString();
