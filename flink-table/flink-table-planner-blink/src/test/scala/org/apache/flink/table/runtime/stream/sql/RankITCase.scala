@@ -1110,18 +1110,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |  FROM MyView)
          |WHERE rank_num <= 2
          |""".stripMargin).toRetractStream[Row].addSink(sink1).setParallelism(1)
-    env.execute()
 
-    val expected1 = List(
-      "book,1,25,12.5,1",
-      "book,2,19,19.0,2",
-      "fruit,3,44,44.0,1",
-      "fruit,4,33,33.0,2")
-    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
-
-    // TODO remove following two lines after multiple-sink optimization is supported
-    before()
-    registerView()
     val sink2 = new TestingRetractSink
     tEnv.sqlQuery(
       s"""
@@ -1133,6 +1122,13 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |WHERE rank_num <= 2
          |""".stripMargin).toRetractStream[Row].addSink(sink2).setParallelism(1)
     env.execute()
+
+    val expected1 = List(
+      "book,1,25,12.5,1",
+      "book,2,19,19.0,2",
+      "fruit,3,44,44.0,1",
+      "fruit,4,33,33.0,2")
+    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
 
     val expected2 = List(
       "book,2,19,1,1",

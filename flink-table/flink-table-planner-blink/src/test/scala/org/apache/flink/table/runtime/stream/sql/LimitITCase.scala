@@ -88,7 +88,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
   }
 
   /** Limit could not handle order by without fetch or limit */
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithoutFetch(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -102,9 +102,8 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     tEnv.registerTable("T", t)
 
     val sql = "SELECT * FROM T OFFSET 2"
-
-    val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("FETCH is missed, which on streaming table is not supported currently.")
+    tEnv.sqlQuery(sql).toRetractStream[Row]
   }
 }

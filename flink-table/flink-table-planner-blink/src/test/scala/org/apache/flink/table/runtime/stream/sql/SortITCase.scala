@@ -35,7 +35,7 @@ import scala.collection.mutable
 @RunWith(classOf[Parameterized])
 class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testDisableSortNonTemporalField(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a2"
     val data = new mutable.MutableList[(String, String)]
@@ -47,10 +47,9 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val da = env.fromCollection(data).toTable(tEnv, 'a1, 'a2)
     tEnv.registerTable("a", da)
 
-    val sink = new TestingRetractSink
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
-    results.addSink(sink).setParallelism(1)
-    env.execute()
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Sort on a non-time-attribute field is not supported.")
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
   }
 
   @Test

@@ -100,7 +100,7 @@ class StreamExecLimit(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
     if (fetch == null) {
       throw new TableException(
-        "FETCH is missed, which on streaming table is not supported currently")
+        "FETCH is missed, which on streaming table is not supported currently.")
     }
     val inputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getInput.getRowType).toTypeInfo
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
@@ -160,6 +160,7 @@ class StreamExecLimit(
       operator,
       outputRowTypeInfo,
       1)
+    ret.setMaxParallelism(1)
 
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)
