@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
@@ -28,7 +29,9 @@ import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -65,7 +68,6 @@ public class StreamConfig implements Serializable {
 	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
 	private static final String SERIALIZEDUDF = "serializedUDF";
-	private static final String USER_FUNCTION = "userFunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
@@ -206,20 +208,29 @@ public class StreamConfig implements Serializable {
 		return getBufferTimeout() == 0;
 	}
 
+	@VisibleForTesting
 	public void setStreamOperator(StreamOperator<?> operator) {
-		if (operator != null) {
-			config.setClass(USER_FUNCTION, operator.getClass());
+		setStreamOperatorFactory(SimpleOperatorFactory.of(operator));
+	}
 
+	public void setStreamOperatorFactory(StreamOperatorFactory<?> factory) {
+		if (factory != null) {
 			try {
-				InstantiationUtil.writeObjectToConfig(operator, this.config, SERIALIZEDUDF);
+				InstantiationUtil.writeObjectToConfig(factory, this.config, SERIALIZEDUDF);
 			} catch (IOException e) {
 				throw new StreamTaskException("Cannot serialize operator object "
-						+ operator.getClass() + ".", e);
+						+ factory.getClass() + ".", e);
 			}
 		}
 	}
 
+	@VisibleForTesting
 	public <T extends StreamOperator<?>> T getStreamOperator(ClassLoader cl) {
+		SimpleOperatorFactory<?> factory = getStreamOperatorFactory(cl);
+		return (T) factory.getOperator();
+	}
+
+	public <T extends StreamOperatorFactory<?>> T getStreamOperatorFactory(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
 		}
@@ -550,7 +561,7 @@ public class StreamConfig implements Serializable {
 		builder.append("\nChained subtasks: ").append(getChainedOutputs(cl));
 
 		try {
-			builder.append("\nOperator: ").append(getStreamOperator(cl).getClass().getSimpleName());
+			builder.append("\nOperator: ").append(getStreamOperatorFactory(cl).getClass().getSimpleName());
 		}
 		catch (Exception e) {
 			builder.append("\nOperator: Missing");

@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -38,7 +39,7 @@ import org.apache.flink.table.generated.GeneratedClass;
  * TODO Remove it after FLINK-11974.
  */
 public class TwoInputOperatorWrapper<IN1, IN2, OUT>
-		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+		implements TwoInputStreamOperator<IN1, IN2, OUT>, SetupableStreamOperator<OUT> {
 
 	private final GeneratedClass<TwoInputStreamOperator<IN1, IN2, OUT>> generatedClass;
 
@@ -52,7 +53,7 @@ public class TwoInputOperatorWrapper<IN1, IN2, OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config,
 			Output<StreamRecord<OUT>> output) {
 		operator = generatedClass.newInstance(containingTask.getUserCodeClassLoader());
-		operator.setup(containingTask, config, output);
+		((SetupableStreamOperator) operator).setup(containingTask, config, output);
 	}
 
 	@VisibleForTesting

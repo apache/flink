@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.StreamOperatorChainingTest;
@@ -93,7 +94,9 @@ public class OperatorChainTest {
 			// build the reverse operators array
 			for (int i = 0; i < ops.length; i++) {
 				OneInputStreamOperator<T, T> op = operators[ops.length - i - 1];
-				op.setup(containingTask, cfg, lastWriter);
+				if (op instanceof SetupableStreamOperator) {
+					((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
+				}
 				lastWriter = new ChainingOutput<>(op, statusProvider, null);
 				ops[i] = op;
 			}
