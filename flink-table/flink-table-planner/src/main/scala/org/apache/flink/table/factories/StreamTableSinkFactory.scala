@@ -20,15 +20,15 @@ package org.apache.flink.table.factories
 
 import java.util
 
-import org.apache.flink.table.sinks.StreamTableSink
+import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 
 /**
   * A factory to create configured table sink instances in a streaming environment based on
-  * string-based properties. See also [[TableFactory]] for more information.
+  * string-based properties. See also [[TableSinkFactory]] for more information.
   *
   * @tparam T type of records that the factory consumes
   */
-trait StreamTableSinkFactory[T] extends TableFactory {
+trait StreamTableSinkFactory[T] extends TableSinkFactory[T] {
 
   /**
     * Creates and configures a [[org.apache.flink.table.sinks.StreamTableSink]]
@@ -38,4 +38,11 @@ trait StreamTableSinkFactory[T] extends TableFactory {
     * @return the configured table sink.
     */
   def createStreamTableSink(properties: util.Map[String, String]): StreamTableSink[T]
+
+  /**
+    * Only create stream table sink.
+    */
+  override def createTableSink(properties: util.Map[String, String]): TableSink[T] = {
+    createStreamTableSink(properties)
+  }
 }

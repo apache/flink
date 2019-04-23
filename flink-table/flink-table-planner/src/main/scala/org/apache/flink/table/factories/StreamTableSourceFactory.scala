@@ -20,15 +20,15 @@ package org.apache.flink.table.factories
 
 import java.util
 
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 
 /**
   * A factory to create configured table source instances in a streaming environment based on
-  * string-based properties. See also [[TableFactory]] for more information.
+  * string-based properties. See also [[TableSourceFactory]] for more information.
   *
   * @tparam T type of records that the factory produces
   */
-trait StreamTableSourceFactory[T] extends TableFactory {
+trait StreamTableSourceFactory[T] extends TableSourceFactory[T] {
 
   /**
     * Creates and configures a [[org.apache.flink.table.sources.StreamTableSource]]
@@ -38,4 +38,11 @@ trait StreamTableSourceFactory[T] extends TableFactory {
     * @return the configured stream table source.
     */
   def createStreamTableSource(properties: util.Map[String, String]): StreamTableSource[T]
+
+  /**
+    * Only create a stream table source.
+    */
+  override def createTableSource(properties: util.Map[String, String]): TableSource[T] = {
+    createStreamTableSource(properties)
+  }
 }
