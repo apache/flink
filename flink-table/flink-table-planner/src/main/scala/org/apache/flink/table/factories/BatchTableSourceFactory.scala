@@ -20,15 +20,15 @@ package org.apache.flink.table.factories
 
 import java.util
 
-import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 
 /**
   * A factory to create configured table source instances in a batch environment based on
-  * string-based properties. See also [[TableFactory]] for more information.
+  * string-based properties. See also [[TableSourceFactory]] for more information.
   *
   * @tparam T type of records that the factory produces
   */
-trait BatchTableSourceFactory[T] extends TableFactory {
+trait BatchTableSourceFactory[T] extends TableSourceFactory[T] {
 
   /**
     * Creates and configures a [[org.apache.flink.table.sources.BatchTableSource]]
@@ -38,4 +38,11 @@ trait BatchTableSourceFactory[T] extends TableFactory {
     * @return the configured batch table source.
     */
   def createBatchTableSource(properties: util.Map[String, String]): BatchTableSource[T]
+
+  /**
+    * Only create batch table source.
+    */
+  override def createTableSource(properties: util.Map[String, String]): TableSource[T] = {
+    createBatchTableSource(properties)
+  }
 }
