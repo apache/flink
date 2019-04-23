@@ -46,7 +46,7 @@ public interface CatalogManager {
 	 *
 	 * @param catalogName catalog name
 	 * @return the requested catalog
-	 * @throws CatalogNotExistException	thrown if the catalog doesn't exist
+	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
 	 */
 	ReadableCatalog getCatalog(String catalogName) throws CatalogNotExistException;
 
@@ -84,7 +84,7 @@ public interface CatalogManager {
 	 *
 	 * @param catalogName catalog name to set as current catalog
 	 * @param databaseName database name to set as current database
-	 * @throws CatalogNotExistException	thrown if the catalog doesn't exist
+	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
 	 * @throws DatabaseNotExistException thrown if the database doesn't exist
 	 */
 	void setCurrentCatalogAndDatabase(String catalogName, String databaseName) throws CatalogNotExistException, DatabaseNotExistException;

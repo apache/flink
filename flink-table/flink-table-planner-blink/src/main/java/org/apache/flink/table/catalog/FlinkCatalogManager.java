@@ -140,8 +140,7 @@ public class FlinkCatalogManager implements CatalogManager {
 			currentCatalogName = catalogName;
 			catalogs.get(currentCatalogName).setCurrentDatabase(databaseName);
 
-			LOG.info("Set default catalog as '{}' and default database as '{}'",
-				currentCatalogName, catalogs.get(currentCatalogName).getCurrentDatabase());
+			LOG.info("Set default catalog as '{}' and default database as '{}'", currentCatalogName, databaseName);
 		}
 	}
 
