@@ -257,7 +257,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return the current database of the current catalog
     */
   def getCurrentDatabaseName(): String = {
-    catalogManager.getCurrentDatabaseName
+    catalogManager.getCurrentCatalog.getCurrentDatabase
   }
 
   /**
@@ -281,8 +281,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   @throws[CatalogNotExistException]
   @throws[DatabaseNotExistException]
-  def setCurrentCatalogAndDatabase(catalogName: String, databaseName: String): Unit = {
-    catalogManager.setCurrentCatalogAndDatabase(catalogName, databaseName)
+  def setCurrentDatabase(catalogName: String, databaseName: String): Unit = {
+    catalogManager.setCurrentCatalog(catalogName)
+    catalogManager.getCurrentCatalog.setCurrentDatabase(databaseName)
   }
 
   /**

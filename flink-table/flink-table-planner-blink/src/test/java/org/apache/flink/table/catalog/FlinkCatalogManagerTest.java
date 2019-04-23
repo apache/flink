@@ -19,13 +19,10 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.CatalogNotExistException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 
 import org.apache.calcite.schema.SchemaPlus;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -72,23 +69,7 @@ public class FlinkCatalogManagerTest {
 	}
 
 	@Test(expected = CatalogNotExistException.class)
-	public void testSetNonExistCurrentCatalog() {
+	public void testSetNonExistCurrentCatalog() throws Exception {
 		manager.setCurrentCatalog("nonexist");
-	}
-
-	@Test
-	public void testSetCurrentDatabase() throws Exception {
-		assertEquals(GenericInMemoryCatalog.DEFAULT_DB, manager.getCurrentDatabaseName());
-
-		String testDb = "test";
-		((ReadableWritableCatalog) manager.getCurrentCatalog()).createDatabase(testDb, new GenericCatalogDatabase(new HashMap<>()), false);
-		manager.setCurrentCatalogAndDatabase(FlinkCatalogManager.BUILTIN_CATALOG_NAME, testDb);
-
-		assertEquals(testDb, manager.getCurrentDatabaseName());
-	}
-
-	@Test(expected = DatabaseNotExistException.class)
-	public void testSetNonExistCurrentDatabase() throws Exception {
-		manager.setCurrentCatalogAndDatabase(FlinkCatalogManager.BUILTIN_CATALOG_NAME, "nonexist");
 	}
 }

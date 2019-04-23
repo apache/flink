@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.CatalogAlreadyExistsException;
 import org.apache.flink.table.api.CatalogNotExistException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -103,11 +102,6 @@ public class FlinkCatalogManager implements CatalogManager {
 	}
 
 	@Override
-	public String getCurrentDatabaseName() {
-		return getCurrentCatalog().getCurrentDatabase();
-	}
-
-	@Override
 	public void setCurrentCatalog(String catalogName) throws CatalogNotExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
 
@@ -120,27 +114,6 @@ public class FlinkCatalogManager implements CatalogManager {
 
 			LOG.info("Set default catalog as '{}' and default database as '{}'",
 				currentCatalogName, catalogs.get(currentCatalogName).getCurrentDatabase());
-		}
-	}
-
-	@Override
-	public void setCurrentCatalogAndDatabase(String catalogName, String databaseName) throws CatalogNotExistException, DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseNName cannot be null or empty");
-
-		if (!catalogs.containsKey(catalogName)) {
-			throw new CatalogNotExistException(catalogName);
-		}
-
-		if (!catalogs.get(catalogName).listDatabases().contains(databaseName)) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		}
-
-		if (!currentCatalogName.equals(catalogName) || !catalogs.get(currentCatalogName).getCurrentDatabase().equals(databaseName)) {
-			currentCatalogName = catalogName;
-			catalogs.get(currentCatalogName).setCurrentDatabase(databaseName);
-
-			LOG.info("Set default catalog as '{}' and default database as '{}'", currentCatalogName, databaseName);
 		}
 	}
 
