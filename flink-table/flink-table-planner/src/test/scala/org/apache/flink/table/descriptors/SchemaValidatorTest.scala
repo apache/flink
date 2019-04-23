@@ -78,7 +78,7 @@ class SchemaValidatorTest {
       .field("abcField", Types.STRING)
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
-        new Rowtime().timestampsFromSource().watermarksFromSource())
+      new Rowtime().timestampsFromSource().watermarksFromSource())
     val props = new DescriptorProperties()
     props.putProperties(desc1.toProperties)
 

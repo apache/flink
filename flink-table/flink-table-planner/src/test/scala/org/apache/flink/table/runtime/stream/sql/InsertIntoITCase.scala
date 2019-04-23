@@ -52,7 +52,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
 
-    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
+    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate(
       s"""INSERT INTO targetTable
@@ -85,9 +85,9 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text)
     tEnv.registerTableSink(
       "targetTable",
-      Array("len", "cntid", "sumnum"),
-      Array(Types.INT, Types.LONG, Types.LONG),
-      new TestRetractSink)
+      new TestRetractSink().configure(
+        Array("len", "cntid", "sumnum"),
+        Array(Types.INT, Types.LONG, Types.LONG)))
 
     tEnv.sqlUpdate(
       s"""INSERT INTO targetTable
@@ -125,9 +125,10 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
-      Array("wend", "cntid", "sumnum"),
-      Array(Types.SQL_TIMESTAMP, Types.LONG, Types.LONG),
-      new TestRetractSink
+      new TestRetractSink().configure(
+        Array("wend", "cntid", "sumnum"),
+        Array(Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)
+      )
     )
 
     tEnv.sqlUpdate(
@@ -172,9 +173,10 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text)
     tEnv.registerTableSink(
       "targetTable",
-      Array("cnt", "cntid", "cTrue"),
-      Array(Types.LONG, Types.LONG, Types.BOOLEAN),
-      new TestUpsertSink(Array("cnt", "cTrue"), false)
+      new TestUpsertSink(Array("cnt", "cTrue"), false).configure(
+        Array("cnt", "cntid", "cTrue"),
+        Array(Types.LONG, Types.LONG, Types.BOOLEAN)
+      )
     )
 
     tEnv.sqlUpdate(
@@ -218,9 +220,10 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
-      Array("num", "wend", "cntid"),
-      Array(Types.LONG, Types.SQL_TIMESTAMP, Types.LONG),
-      new TestUpsertSink(Array("wend", "num"), true)
+      new TestUpsertSink(Array("wend", "num"), true).configure(
+        Array("num", "wend", "cntid"),
+        Array(Types.LONG, Types.SQL_TIMESTAMP, Types.LONG)
+      )
     )
 
     tEnv.sqlUpdate(
@@ -268,9 +271,10 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
-      Array("wstart", "wend", "num", "cntid"),
-      Array(Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.LONG, Types.LONG),
-      new TestUpsertSink(Array("wstart", "wend", "num"), true)
+      new TestUpsertSink(Array("wstart", "wend", "num"), true).configure(
+        Array("wstart", "wend", "num", "cntid"),
+        Array(Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)
+      )
     )
 
     tEnv.sqlUpdate(
@@ -319,9 +323,10 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
-      Array("wend", "cntid"),
-      Array(Types.SQL_TIMESTAMP, Types.LONG),
-      new TestUpsertSink(null, true)
+      new TestUpsertSink(null, true).configure(
+        Array("wend", "cntid"),
+        Array(Types.SQL_TIMESTAMP, Types.LONG)
+      )
     )
 
     tEnv.sqlUpdate(
@@ -368,9 +373,10 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("sourceTable", t, 'id, 'num, 'text, 'rowtime.rowtime)
     tEnv.registerTableSink(
       "targetTable",
-      Array("num", "cntid"),
-      Array(Types.LONG, Types.LONG),
-      new TestUpsertSink(null, true)
+      new TestUpsertSink(null, true).configure(
+        Array("num", "cntid"),
+        Array(Types.LONG, Types.LONG)
+      )
     )
 
     tEnv.sqlUpdate(

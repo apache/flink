@@ -24,7 +24,7 @@ import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
 import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
@@ -83,7 +83,7 @@ class DataStreamTemporalTableJoin(
   }
 
   override protected def createTranslator(
-      tableEnv: StreamTableEnvironment): DataStreamJoinToCoProcessTranslator = {
+      tableEnv: StreamTableEnvImpl): DataStreamJoinToCoProcessTranslator = {
     DataStreamTemporalJoinToCoProcessTranslator.create(
       this.toString,
       tableEnv.getConfig,

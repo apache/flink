@@ -34,7 +34,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableEnvImpl, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataview._
 import org.apache.flink.table.expressions._
@@ -702,9 +702,9 @@ object UserDefinedFunctionUtils {
   def getFieldInfo(inputType: TypeInformation[_])
     : (Array[String], Array[Int], Array[TypeInformation[_]]) = {
 
-    (TableEnvironment.getFieldNames(inputType),
-    TableEnvironment.getFieldIndices(inputType),
-    TableEnvironment.getFieldTypes(inputType))
+    (TableEnvImpl.getFieldNames(inputType),
+    TableEnvImpl.getFieldIndices(inputType),
+    TableEnvImpl.getFieldTypes(inputType))
   }
 
   /**

@@ -49,7 +49,7 @@ class SchemaTest extends DescriptorTestBase {
       .field("otherField", "VARCHAR").from("csvField")
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
-        new Rowtime().timestampsFromSource().watermarksFromSource())
+      new Rowtime().timestampsFromSource().watermarksFromSource())
 
     val desc2 = new Schema()
       .field("myField", Types.BOOLEAN)

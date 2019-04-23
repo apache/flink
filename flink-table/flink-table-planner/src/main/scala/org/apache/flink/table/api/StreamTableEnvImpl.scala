@@ -55,24 +55,16 @@ import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import _root_.scala.collection.JavaConverters._
 
 /**
-  * The base class for stream TableEnvironments.
-  *
-  * A TableEnvironment can be used to:
-  * - convert [[DataStream]] to a [[Table]]
-  * - register a [[DataStream]] as a table in the catalog
-  * - register a [[Table]] in the catalog
-  * - scan a registered table to obtain a [[Table]]
-  * - specify a SQL query on registered tables to obtain a [[Table]]
-  * - convert a [[Table]] into a [[DataStream]]
+  * The abstract base class for the implementation of stream TableEnvironments.
   *
   * @param execEnv The [[StreamExecutionEnvironment]] which is wrapped in this
-  *                [[StreamTableEnvironment]].
-  * @param config The [[TableConfig]] of this [[StreamTableEnvironment]].
+  *                [[StreamTableEnvImpl]].
+  * @param config  The [[TableConfig]] of this [[StreamTableEnvImpl]].
   */
-abstract class StreamTableEnvironment(
+abstract class StreamTableEnvImpl(
     private[flink] val execEnv: StreamExecutionEnvironment,
     config: TableConfig)
-  extends TableEnvironment(config) {
+  extends TableEnvImpl(config) {
 
   // a counter for unique table names
   private val nameCntr: AtomicInteger = new AtomicInteger(0)
@@ -102,7 +94,7 @@ abstract class StreamTableEnvironment(
     "_DataStreamTable_" + nameCntr.getAndIncrement()
 
   /**
-    * Registers an internal [[StreamTableSource]] in this [[TableEnvironment]]'s catalog without
+    * Registers an internal [[StreamTableSource]] in this [[TableEnvImpl]]'s catalog without
     * name checking. Registered tables can be referenced in SQL queries.
     *
     * @param name        The name under which the [[TableSource]] is registered.
@@ -159,70 +151,10 @@ abstract class StreamTableEnvironment(
     }
   }
 
-  /**
-    * Creates a table source and/or table sink from a descriptor.
-    *
-    * Descriptors allow for declaring the communication to external systems in an
-    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-    * the desired configuration.
-    *
-    * The following example shows how to read from a Kafka connector using a JSON format and
-    * registering a table source "MyTable" in append mode:
-    *
-    * {{{
-    *
-    * tableEnv
-    *   .connect(
-    *     new Kafka()
-    *       .version("0.11")
-    *       .topic("clicks")
-    *       .property("zookeeper.connect", "localhost")
-    *       .property("group.id", "click-group")
-    *       .startFromEarliest())
-    *   .withFormat(
-    *     new Json()
-    *       .jsonSchema("{...}")
-    *       .failOnMissingField(false))
-    *   .withSchema(
-    *     new Schema()
-    *       .field("user-name", "VARCHAR").from("u_name")
-    *       .field("count", "DECIMAL")
-    *       .field("proc-time", "TIMESTAMP").proctime())
-    *   .inAppendMode()
-    *   .registerSource("MyTable")
-    * }}}
-    *
-    * @param connectorDescriptor connector descriptor describing the external system
-    */
   def connect(connectorDescriptor: ConnectorDescriptor): StreamTableDescriptor = {
     new StreamTableDescriptor(this, connectorDescriptor)
   }
 
-  /**
-    * Registers an external [[TableSink]] with given field names and types in this
-    * [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML statements.
-    *
-    * Example:
-    *
-    * {{{
-    *   // create a table sink and its field names and types
-    *   val fieldNames: Array[String] = Array("a", "b", "c")
-    *   val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
-    *   val tableSink: StreamTableSink = new YourTableSinkImpl(...)
-    *
-    *   // register the table sink in the catalog
-    *   tableEnv.registerTableSink("output_table", fieldNames, fieldsTypes, tableSink)
-    *
-    *   // use the registered sink
-    *   tableEnv.sqlUpdate("INSERT INTO output_table SELECT a, b, c FROM sourceTable")
-    * }}}
-    *
-    * @param name The name under which the [[TableSink]] is registered.
-    * @param fieldNames The field names to register with the [[TableSink]].
-    * @param fieldTypes The field types to register with the [[TableSink]].
-    * @param tableSink The [[TableSink]] to register.
-    */
   def registerTableSink(
       name: String,
       fieldNames: Array[String],
@@ -241,14 +173,6 @@ abstract class StreamTableEnvironment(
     registerTableSinkInternal(name, configuredSink)
   }
 
-  /**
-    * Registers an external [[TableSink]] with already configured field names and field types in
-    * this [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML statements.
-    *
-    * @param name The name under which the [[TableSink]] is registered.
-    * @param configuredSink The configured [[TableSink]] to register.
-    */
   def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
     registerTableSinkInternal(name, configuredSink)
   }
@@ -506,7 +430,7 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
+    * Registers a [[DataStream]] as a table under a given name in the [[TableEnvImpl]]'s
     * catalog.
     *
     * @param name The name under which the table is registered in the catalog.
@@ -528,7 +452,7 @@ abstract class StreamTableEnvironment(
 
   /**
     * Registers a [[DataStream]] as a table under a given name with field names as specified by
-    * field expressions in the [[TableEnvironment]]'s catalog.
+    * field expressions in the [[TableEnvImpl]]'s catalog.
     *
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
@@ -993,12 +917,6 @@ abstract class StreamTableEnvironment(
       fieldTypes.toList.asInstanceOf[List[RelDataTypeField]].asJava)
   }
 
-  /**
-    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-    * the result of the given [[Table]].
-    *
-    * @param table The table for which the AST and execution plan will be returned.
-    */
   def explain(table: Table): String = {
     val ast = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = optimize(ast, updatesAsRetraction = false)
