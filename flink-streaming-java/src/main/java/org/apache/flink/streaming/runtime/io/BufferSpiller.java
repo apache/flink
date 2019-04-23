@@ -287,7 +287,7 @@ public class BufferSpiller implements BufferBlocker {
 		private boolean opened = false;
 
 		/**
-		 * Create a reader that reads a sequence of spilled buffers or events.
+		 * Create a reader that reads a sequence of spilled buffers and events.
 		 *
 		 * @param file The file with the data.
 		 * @param fileChannel The file channel to read the data from.

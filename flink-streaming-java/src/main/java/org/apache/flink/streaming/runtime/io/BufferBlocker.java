@@ -42,7 +42,7 @@ public interface BufferBlocker {
 	 * Starts a new sequence of buffers and event without reusing the same resources and
 	 * returns the current sequence of buffers for reading.
 	 *
-	 * @return The readable sequence of buffers or events, or 'null', if nothing was added.
+	 * @return The readable sequence of buffers and events, or 'null', if nothing was added.
 	 */
 	BufferOrEventSequence rollOverWithoutReusingResources() throws IOException;
 
@@ -50,7 +50,7 @@ public interface BufferBlocker {
 	 * Starts a new sequence of buffers and event reusing the same resources and
 	 * returns the current sequence of buffers for reading.
 	 *
-	 * @return The readable sequence of buffers or events, or 'null', if nothing was added.
+	 * @return The readable sequence of buffers and events, or 'null', if nothing was added.
 	 */
 	BufferOrEventSequence rollOverReusingResources() throws IOException;
 

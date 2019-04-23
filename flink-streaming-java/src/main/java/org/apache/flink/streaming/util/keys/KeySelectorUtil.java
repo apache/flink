@@ -67,7 +67,7 @@ public final class KeySelectorUtil {
 
 	public static <X> ArrayKeySelector<X> getSelectorForArray(int[] positions, TypeInformation<X> typeInfo) {
 		if (positions == null || positions.length == 0 || positions.length > Tuple.MAX_ARITY) {
-			throw new IllegalArgumentException("The fields of array keys should between 1 and " + Tuple.MAX_ARITY + ".");
+			throw new IllegalArgumentException("Array keys must have between 1 and " + Tuple.MAX_ARITY + " fields.");
 		}
 
 		TypeInformation<?> componentType;

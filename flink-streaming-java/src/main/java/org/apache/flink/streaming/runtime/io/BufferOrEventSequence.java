@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * This class represents a sequence of buffers or events which are blocked by
+ * This class represents a sequence of buffers and events which are blocked by
  * {@link CheckpointBarrierHandler}. The sequence of buffers and events can be
  * read back using the method {@link #getNext()}.
  */
