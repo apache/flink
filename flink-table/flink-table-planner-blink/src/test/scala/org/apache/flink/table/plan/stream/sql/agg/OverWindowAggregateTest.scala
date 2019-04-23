@@ -417,6 +417,15 @@ class OverWindowAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
+    val sql2 = "SELECT " +
+      "a, " +
+      "SUM(c) OVER w1, " +
+      "MIN(c) OVER w2 " +
+      "FROM MyTable " +
+      "WINDOW w1 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)," +
+      "w2 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)"
+
+    verifyPlanIdentical(sql, sql2)
     util.verifyPlan(sql)
   }
 }

@@ -20,8 +20,16 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.dataformat.BinaryRowWriter;
+import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
+
+import java.util.Date;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
@@ -81,6 +89,43 @@ public class StreamRecordUtils {
 			}
 		}
 		return GenericRow.of(objects);
+	}
+
+	/**
+	 * Receives a object array, generates a BinaryRow based on the array.
+	 *
+	 * @param fields input object array
+	 * @return generated BinaryRow.
+	 */
+	public static BinaryRow binaryrow(Object... fields) {
+		BinaryRow row = new BinaryRow(fields.length);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		for (int j = 0; j < fields.length; j++) {
+			Object value = fields[j];
+			if (value == null) {
+				writer.setNullAt(j);
+			} else if (value instanceof Integer) {
+				writer.writeInt(j, (Integer) value);
+			} else if (value instanceof String) {
+				writer.writeString(j, BinaryString.fromString((String) value));
+			} else if (value instanceof Double) {
+				writer.writeDouble(j, (Double) value);
+			} else if (value instanceof Float) {
+				writer.writeFloat(j, (Float) value);
+			} else if (value instanceof Long) {
+				writer.writeLong(j, (Long) value);
+			} else if (value instanceof Boolean) {
+				writer.writeBoolean(j, (Boolean) value);
+			} else if (value instanceof Date) {
+				InternalType internalType = InternalTypes.DATE;
+				BinaryWriter.write(writer, j, value, internalType);
+			} else {
+				writer.setNullAt(j);
+			}
+		}
+
+		writer.complete();
+		return row;
 	}
 
 	private StreamRecordUtils() {

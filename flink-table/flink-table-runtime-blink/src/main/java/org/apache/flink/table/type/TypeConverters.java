@@ -161,6 +161,10 @@ public class TypeConverters {
 			ObjectArrayTypeInfo arrayType = (ObjectArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
 					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()));
+		} else if (typeInfo instanceof MultisetTypeInfo) {
+			MultisetTypeInfo multisetType = (MultisetTypeInfo) typeInfo;
+			return InternalTypes.createMultisetType(
+				createInternalTypeFromTypeInfo(multisetType.getElementTypeInfo()));
 		} else if (typeInfo instanceof MapTypeInfo) {
 			MapTypeInfo mapType = (MapTypeInfo) typeInfo;
 			return InternalTypes.createMapType(
@@ -236,20 +240,19 @@ public class TypeConverters {
 		} else if (type instanceof ArrayType) {
 			return ObjectArrayTypeInfo.getInfoFor(
 					createExternalTypeInfoFromInternalType(((ArrayType) type).getElementType()));
+		} else if (type instanceof MultisetType) {
+			MultisetType multisetType = (MultisetType) type;
+			return MultisetTypeInfo.getInfoFor(
+				createExternalTypeInfoFromInternalType(multisetType.getElementType()));
 		} else if (type instanceof MapType) {
 			MapType mapType = (MapType) type;
 			return new MapTypeInfo(
 					createExternalTypeInfoFromInternalType(mapType.getKeyType()),
 					createExternalTypeInfoFromInternalType(mapType.getValueType()));
-		} else if (type instanceof MultisetType) {
-			MultisetType multisetType = (MultisetType) type;
-			return MultisetTypeInfo.getInfoFor(
-				createExternalTypeInfoFromInternalType(multisetType.getElementType()));
-		}
-		else if (type instanceof DecimalType) {
+		} else if (type instanceof DecimalType) {
 			DecimalType decimalType = (DecimalType) type;
 			return new BigDecimalTypeInfo(decimalType.precision(), decimalType.scale());
-		}  else if (type instanceof GenericType) {
+		} else if (type instanceof GenericType) {
 			GenericType genericType = (GenericType) type;
 			return genericType.getTypeInfo();
 		} else {

@@ -47,13 +47,13 @@ public class BaseRowHarnessAssertor {
 	private final TypeInformation[] typeInfos;
 	private final Comparator<GenericRow> comparator;
 
-	public BaseRowHarnessAssertor(TypeInformation[] typeInfos) {
-		this(typeInfos, null);
-	}
-
 	public BaseRowHarnessAssertor(TypeInformation[] typeInfos, Comparator<GenericRow> comparator) {
 		this.typeInfos = typeInfos;
 		this.comparator = comparator;
+	}
+
+	public BaseRowHarnessAssertor(TypeInformation[] typeInfos) {
+		this(typeInfos, new StringComparator());
 	}
 
 
@@ -73,9 +73,9 @@ public class BaseRowHarnessAssertor {
 	 * comparator. Assertes two sorted converted array should be same.
 	 */
 	public void assertOutputEqualsSorted(
-			String message,
-			Collection<Object> expected,
-			Collection<Object> actual) {
+		String message,
+		Collection<Object> expected,
+		Collection<Object> actual) {
 		assertOutputEquals(message, expected, actual, true);
 	}
 
@@ -133,4 +133,10 @@ public class BaseRowHarnessAssertor {
 		Assert.assertArrayEquals(message, sortedExpected, sortedActual);
 	}
 
+	private static class StringComparator implements Comparator<GenericRow> {
+		@Override
+		public int compare(GenericRow o1, GenericRow o2) {
+			return o1.toString().compareTo(o2.toString());
+		}
+	}
 }
