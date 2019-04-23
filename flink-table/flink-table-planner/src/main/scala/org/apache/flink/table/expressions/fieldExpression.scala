@@ -69,9 +69,9 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     ValidationFailure(s"Unresolved reference $name.")
 }
 
-case class ResolvedFieldReference(
+case class PlannerResolvedFieldReference(
     name: String,
-    resultType: TypeInformation[_]) extends Attribute {
+    resultType: TypeInformation[_]) extends Attribute with ResolvedFieldReference {
 
   override def toString = s"'$name"
 
@@ -83,7 +83,7 @@ case class ResolvedFieldReference(
     if (newName == name) {
       this
     } else {
-      ResolvedFieldReference(newName, resultType)
+      PlannerResolvedFieldReference(newName, resultType)
     }
   }
 }
@@ -106,7 +106,7 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
 
   override private[flink] def toAttribute: Attribute = {
     if (valid) {
-      ResolvedFieldReference(name, child.resultType)
+      PlannerResolvedFieldReference(name, child.resultType)
     } else {
       UnresolvedFieldReference(name)
     }

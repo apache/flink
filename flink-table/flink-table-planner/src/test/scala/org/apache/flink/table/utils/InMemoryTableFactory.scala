@@ -22,8 +22,8 @@ import java.util
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.RowtimeValidator._
-import org.apache.flink.table.descriptors.SchemaValidator._
+import org.apache.flink.table.descriptors.Rowtime._
+import org.apache.flink.table.descriptors.Schema._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
 import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory, TableFactory}
 import org.apache.flink.table.sinks.StreamTableSink
