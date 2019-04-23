@@ -46,7 +46,6 @@ import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
-
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
@@ -58,10 +57,11 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable}
 import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
-
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
 import _root_.java.util.{Arrays => JArrays}
+
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
@@ -219,22 +219,23 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Registers an [[ReadableCatalog]] under a unique name in the TableEnvironment's schema.
-    * All tables registered in the [[ReadableCatalog]] can be accessed.
+    * Register an [[ReadableCatalog]] under a unique name.
     *
-    * @param name            The name under which the catalog will be registered
-    * @param catalog         The catalog to register
+    * @param name the name under which the catalog will be registered
+    * @param catalog the catalog to register
+    * @throws CatalogAlreadyExistsException thrown if the catalog already exists
     */
-  @throws[CatalogAlreadyExistException]
+  @throws[CatalogAlreadyExistsException]
   def registerCatalog(name: String, catalog: ReadableCatalog): Unit = {
     catalogManager.registerCatalog(name, catalog)
   }
 
   /**
-    * Get a registered catalog.
+    * Get a registered [[ReadableCatalog]].
     *
-    * @param catalogName
-    * @return ReadableCatalog
+    * @param catalogName name of the catalog to get
+    * @return the requested catalog
+    * @throws CatalogNotExistException thrown if the catalog doesn't exist
     */
   @throws[CatalogNotExistException]
   def getCatalog(catalogName: String): ReadableCatalog = {
@@ -244,15 +245,16 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Get the current catalog.
     *
-    * @return ReadableCatalog
+    * @return the current catalog in CatalogManager
     */
-  @throws[CatalogNotExistException]
   def getCurrentCatalog(): ReadableCatalog = {
     catalogManager.getCurrentCatalog
   }
 
   /**
     * Get the current database name.
+    *
+    * @return the current database of the current catalog
     */
   def getCurrentDatabaseName(): String = {
     catalogManager.getCurrentDatabaseName
@@ -261,17 +263,24 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Set the current catalog.
     *
-    * @param name Name of the catalog
+    * @param name name of the catalog to set as current catalog
+    * @throws CatalogNotExistException thrown if the catalog doesn't exist
     */
+  @throws[CatalogNotExistException]
   def setCurrentCatalog(name: String): Unit = {
     catalogManager.setCurrentCatalog(name)
   }
 
   /**
-    * Set the current catalog and database.
-    * @param catalogName  Name of the catalog.
-    * @param databaseName Name of the database.
+    * Set the current catalog and current database.
+    *
+    * @param catalogName name of the catalog to set as current catalog
+    * @param databaseName name of the database to set as current database
+    * @throws CatalogNotExistException  thrown if the catalog doesn't exist
+    * @throws DatabaseNotExistException thrown if the database doesn't exist
     */
+  @throws[CatalogNotExistException]
+  @throws[DatabaseNotExistException]
   def setCurrentCatalogAndDatabase(catalogName: String, databaseName: String): Unit = {
     catalogManager.setCurrentCatalogAndDatabase(catalogName, databaseName)
   }

@@ -19,64 +19,73 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.CatalogAlreadyExistException;
+import org.apache.flink.table.api.CatalogAlreadyExistsException;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 
 import java.util.Set;
 
 /**
- * CatalogManager manages all the registered ReadableCatalog instances with unique names in a table environment.
- * It has a concept of current catalog and current database, which will be used when they are not given
- * when referencing meta-objects.
+ * CatalogManager manages all the registered ReadableCatalog instances with unique names.
+ * It has a concept of current catalog, which will be used when it is not given when referencing meta-objects.
  */
 @PublicEvolving
 public interface CatalogManager {
 
 	/**
 	 * Register a catalog with a unique name.
-	 * @param catalogName	Catalog name.
-	 * @param catalog	catalog.
-	 * @throws CatalogAlreadyExistException Thrown if the name is already take.
+	 *
+	 * @param catalogName catalog name to register
+	 * @param catalog catalog to register
+	 * @throws CatalogAlreadyExistsException thrown if the name is already take
 	 */
-	void registerCatalog(String catalogName, ReadableCatalog catalog) throws CatalogAlreadyExistException;
+	void registerCatalog(String catalogName, ReadableCatalog catalog) throws CatalogAlreadyExistsException;
 
 	/**
 	 * Get a catalog by name.
-	 * @param catalogName	Catalog name.
-	 * @return	The requested catalog.
-	 * @throws	CatalogNotExistException	Thrown if the catalog doesn't exist.
+	 *
+	 * @param catalogName catalog name
+	 * @return the requested catalog
+	 * @throws CatalogNotExistException	thrown if the catalog doesn't exist
 	 */
 	ReadableCatalog getCatalog(String catalogName) throws CatalogNotExistException;
 
 	/**
 	 * Get names of all registered catalog.
-	 * @return	a set of catalog names.
+	 *
+	 * @return a set of names of registered catalogs
 	 */
 	Set<String> getCatalogNames();
 
 	/**
 	 * Get the current catalog.
-	 * @return	The current catalog.
+	 *
+	 * @return the current catalog
 	 */
 	ReadableCatalog getCurrentCatalog();
 
 	/**
 	 * Get name of the current database.
-	 * @return	name of the current database.
+	 *
+	 * @return name of the current database
 	 */
 	String getCurrentDatabaseName();
 
 	/**
 	 * Set the current catalog name.
-	 * @param catalogName	Catalog name.
+	 *
+	 * @param catalogName catalog name to set as current catalog
+	 * @throws CatalogNotExistException	thrown if the catalog doesn't exist
 	 */
 	void setCurrentCatalog(String catalogName) throws CatalogNotExistException;
 
 	/**
 	 * Set the current catalog and current database.
-	 * @param catalogName	Catalog name
-	 * @param databaseName	Database name
+	 *
+	 * @param catalogName catalog name to set as current catalog
+	 * @param databaseName database name to set as current database
+	 * @throws CatalogNotExistException	thrown if the catalog doesn't exist
+	 * @throws DatabaseNotExistException thrown if the database doesn't exist
 	 */
 	void setCurrentCatalogAndDatabase(String catalogName, String databaseName) throws CatalogNotExistException, DatabaseNotExistException;
 }

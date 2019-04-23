@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.CatalogAlreadyExistException;
+import org.apache.flink.table.api.CatalogAlreadyExistsException;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -36,11 +36,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- *	A CatalogManager implementation for Flink.
- *  TODO: [FLINK-11275] Decouple CatalogManager with Calcite
- *  	Idealy FlinkCatalogManager should be in flink-table-api-java module.
- *  	But due to that it currently depends on Calcite, a dependency that flink-table-api-java doesn't have right now.
- *  	We temporarily put FlinkCatalogManager in flink-table-planner-blink.
+ * A CatalogManager implementation for Flink.
+ * TODO: [FLINK-11275] Decouple CatalogManager with Calcite
+ *   Idealy FlinkCatalogManager should be in flink-table-api-java module.
+ *   But due to that it currently depends on Calcite, a dependency that flink-table-api-java doesn't have right now.
+ *   We temporarily put FlinkCatalogManager in flink-table-planner-blink.
  */
 public class FlinkCatalogManager implements CatalogManager {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkCatalogManager.class);
@@ -57,7 +57,6 @@ public class FlinkCatalogManager implements CatalogManager {
 
 	// The name of the default catalog and schema
 	private String currentCatalogName;
-	private String currentDbName;
 
 	public FlinkCatalogManager() {
 		LOG.info("Initializing FlinkCatalogManager");
@@ -66,18 +65,17 @@ public class FlinkCatalogManager implements CatalogManager {
 		GenericInMemoryCatalog inMemoryCatalog = new GenericInMemoryCatalog(BUILTIN_CATALOG_NAME);
 		catalogs.put(BUILTIN_CATALOG_NAME, inMemoryCatalog);
 		currentCatalogName = BUILTIN_CATALOG_NAME;
-		currentDbName = inMemoryCatalog.getCurrentDatabase();
 
 		CatalogCalciteSchema.registerCatalog(rootSchema, BUILTIN_CATALOG_NAME, inMemoryCatalog);
 	}
 
 	@Override
-	public void registerCatalog(String catalogName, ReadableCatalog catalog) throws CatalogAlreadyExistException {
+	public void registerCatalog(String catalogName, ReadableCatalog catalog) throws CatalogAlreadyExistsException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
 		checkNotNull(catalog, "catalog cannot be null");
 
 		if (catalogs.containsKey(catalogName)) {
-			throw new CatalogAlreadyExistException(catalogName);
+			throw new CatalogAlreadyExistsException(catalogName);
 		}
 
 		catalogs.put(catalogName, catalog);
@@ -106,7 +104,7 @@ public class FlinkCatalogManager implements CatalogManager {
 
 	@Override
 	public String getCurrentDatabaseName() {
-		return currentDbName;
+		return getCurrentCatalog().getCurrentDatabase();
 	}
 
 	@Override
@@ -119,8 +117,9 @@ public class FlinkCatalogManager implements CatalogManager {
 
 		if (!currentCatalogName.equals(catalogName)) {
 			currentCatalogName = catalogName;
-			currentDbName = catalogs.get(catalogName).getCurrentDatabase();
-			LOG.info("Set default catalog as '{}' and default database as '{}'", currentCatalogName, currentDbName);
+
+			LOG.info("Set default catalog as '{}' and default database as '{}'",
+				currentCatalogName, catalogs.get(currentCatalogName).getCurrentDatabase());
 		}
 	}
 
@@ -137,11 +136,12 @@ public class FlinkCatalogManager implements CatalogManager {
 			throw new DatabaseNotExistException(catalogName, databaseName);
 		}
 
-		if (!currentCatalogName.equals(catalogName) || !currentDbName.equals(databaseName)) {
+		if (!currentCatalogName.equals(catalogName) || !catalogs.get(currentCatalogName).getCurrentDatabase().equals(databaseName)) {
 			currentCatalogName = catalogName;
-			currentDbName = databaseName;
+			catalogs.get(currentCatalogName).setCurrentDatabase(databaseName);
 
-			LOG.info("Set default catalog as '{}' and default database as '{}'", currentCatalogName, currentDbName);
+			LOG.info("Set default catalog as '{}' and default database as '{}'",
+				currentCatalogName, catalogs.get(currentCatalogName).getCurrentDatabase());
 		}
 	}
 

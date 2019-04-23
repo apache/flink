@@ -60,10 +60,10 @@ public class CatalogCalciteSchema implements Schema {
 	}
 
 	/**
-	 * Looks up a sub-schema (database) by the given sub-schema name.
+	 * Look up a sub-schema (database) by the given sub-schema name.
 	 *
-	 * @param schemaName Name of sub-schema to look up.
-	 * @return Sub-schema with a given dbName, or null.
+	 * @param schemaName name of sub-schema to look up
+	 * @return the sub-schema with a given dbName, or null
 	 */
 	@Override
 	public Schema getSubSchema(String schemaName) {
@@ -96,12 +96,7 @@ public class CatalogCalciteSchema implements Schema {
 
 	@Override
 	public RelProtoDataType getType(String name) {
-		return new RelProtoDataType() {
-			@Override
-			public RelDataType apply(RelDataTypeFactory relDataTypeFactory) {
-				return relDataTypeFactory.createSqlType(SqlTypeName.valueOf(name));
-			}
-		};
+		return null;
 	}
 
 	@Override
@@ -137,9 +132,9 @@ public class CatalogCalciteSchema implements Schema {
 	/**
 	 * Register a ReadableCatalog to Calcite schema with given name.
 	 *
-	 * @param parentSchema	the parent schema
-	 * @param catalogName	name of the catalog
-	 * @param catalog	the catalog
+	 * @param parentSchema the parent schema
+	 * @param catalogName name of the catalog to register
+	 * @param catalog the catalog to register
 	 */
 	public static void registerCatalog(
 			SchemaPlus parentSchema,
@@ -152,7 +147,7 @@ public class CatalogCalciteSchema implements Schema {
 	}
 
 	/**
-	 * A mapping between Flink Catalog's database and Calcite's schema.
+	 * A mapping between Flink catalog's database and Calcite's schema.
 	 * Tables are registered as tables in the schema.
 	 */
 	private class DatabaseCalciteSchema implements Schema {
@@ -195,12 +190,7 @@ public class CatalogCalciteSchema implements Schema {
 
 		@Override
 		public RelProtoDataType getType(String name) {
-			return new RelProtoDataType() {
-				@Override
-				public RelDataType apply(RelDataTypeFactory relDataTypeFactory) {
-					return relDataTypeFactory.createSqlType(SqlTypeName.valueOf(name));
-				}
-			};
+			return null;
 		}
 
 		@Override

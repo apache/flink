@@ -21,19 +21,13 @@ package org.apache.flink.table.api;
 /**
  * Exception for adding an already existent catalog.
  */
-public class CatalogAlreadyExistException extends Exception {
-	/**
-	 * @param catalogName	name of the catalog
-	 */
-	public CatalogAlreadyExistException(String catalogName) {
+public class CatalogAlreadyExistsException extends Exception {
+
+	public CatalogAlreadyExistsException(String catalogName) {
 		this(catalogName, null);
 	}
 
-	/**
-	 * @param catalogName	name of the catalog
-	 * @param cause the cause.
-	 */
-	public CatalogAlreadyExistException(String catalogName, Throwable cause) {
+	public CatalogAlreadyExistsException(String catalogName, Throwable cause) {
 		super(String.format("Catalog %s already exists.", catalogName), cause);
 	}
 }
