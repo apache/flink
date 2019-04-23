@@ -25,6 +25,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
+import org.apache.flink.runtime.jobmaster.LegacySchedulerFactory;
+import org.apache.flink.runtime.jobmaster.SchedulerNGFactory;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
@@ -56,6 +58,8 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 
 		final SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(configuration);
 		final SchedulerFactory schedulerFactory = DefaultSchedulerFactory.fromConfiguration(configuration);
+		final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+			jobManagerServices.getRestartStrategyFactory());
 
 		final JobMasterServiceFactory jobMasterFactory = new DefaultJobMasterServiceFactory(
 			jobMasterConfiguration,
@@ -66,7 +70,8 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			jobManagerServices,
 			heartbeatServices,
 			jobManagerJobMetricGroupFactory,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			schedulerNGFactory);
 
 		return new JobManagerRunner(
 			jobGraph,
