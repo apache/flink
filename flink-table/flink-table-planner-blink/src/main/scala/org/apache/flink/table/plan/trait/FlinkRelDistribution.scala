@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.plan.`trait`
 
+import org.apache.flink.table.JArrayList
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import com.google.common.collect.{ImmutableList, Ordering}
@@ -221,6 +222,12 @@ object FlinkRelDistribution {
       requireStrict: Boolean = true): FlinkRelDistribution = {
     val list = ImmutableIntList.copyOf(columns)
     canonize(new FlinkRelDistribution(Type.HASH_DISTRIBUTED, list, requireStrict = requireStrict))
+  }
+
+  def hash(columns: Array[Int], requireStrict: Boolean): FlinkRelDistribution = {
+    val fields = new JArrayList[Integer]()
+    columns.foreach(fields.add(_))
+    hash(fields, requireStrict)
   }
 
   /** Creates a range distribution. */

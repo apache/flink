@@ -19,17 +19,22 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.plan.stats._
+import org.apache.flink.table.plan.util.FlinkRelOptUtil.ColumnRelatedVisitor
 
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.SqlKind.{EQUALS, GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
+import scala.collection.JavaConversions._
+
 /**
-  * Helper for FlinkRelMdColumnInterval.
+  * Helper for FlinkRelMdColumnInterval/FlinkRelMdFilteredColumnInterval.
   */
 object ColumnIntervalUtil {
 
   /**
-    * try get value interval if the operator is  +, -, *。
+    * try get value interval if the operator is  +, -, *
     */
   def getValueIntervalOfRexCall(
       rexCall: RexCall,
@@ -168,6 +173,83 @@ object ColumnIntervalUtil {
       case _ => null
     }
 
+  }
+
+  /**
+    * Calculate the interval of column which is referred in predicate expression, and intersect the
+    * result with the origin interval of the column.
+    *
+    * e.g for condition $1 <= 2 and $1 >= -1
+    * the interval of $1 is originInterval intersect with [-1, 2]
+    *
+    * for condition: $1 <= 2 and not ($1 < -1 or $2 is true),
+    * the interval of $1 is originInterval intersect with (-Inf, -1]
+    *
+    * for condition $1 <= 2 or $1 > -1
+    * the interval of $1 is (originInterval intersect with (-Inf, 2]) union
+    * (originInterval intersect with (-1, Inf])
+    *
+    * @param originInterval origin interval of the column
+    * @param predicate      the predicate expression
+    * @param inputRef       the index of the given column
+    * @param rexBuilder     RexBuilder instance to analyze the predicate expression
+    * @return
+    */
+  def getColumnIntervalWithFilter(
+      originInterval: Option[ValueInterval],
+      predicate: RexNode,
+      inputRef: Int,
+      rexBuilder: RexBuilder): ValueInterval = {
+    val isRelated = (r: RexNode) => r.accept(new ColumnRelatedVisitor(inputRef))
+    val (relatedSubRexNode, _) = FlinkRelOptUtil.partition(predicate, rexBuilder, isRelated)
+    val beginInterval = originInterval match {
+      case Some(i) => i
+      case _ => ValueInterval.infinite
+    }
+    val interval = relatedSubRexNode match {
+      case Some(rexNode) =>
+        val orParts = RexUtil.flattenOr(Vector(RexUtil.toDnf(rexBuilder, rexNode)))
+        orParts.map(or => {
+          val andParts = RexUtil.flattenAnd(Vector(or))
+          val andIntervals = andParts.map(and => columnIntervalOfSinglePredicate(and))
+          val res = andIntervals.filter(_ != null).foldLeft(beginInterval)(ValueInterval.intersect)
+          res
+        }).reduceLeft(ValueInterval.union)
+      case _ => beginInterval
+    }
+    if (interval == ValueInterval.infinite) null else interval
+  }
+
+  private def columnIntervalOfSinglePredicate(condition: RexNode): ValueInterval = {
+    val convertedCondition = condition.asInstanceOf[RexCall]
+    if (convertedCondition == null || convertedCondition.operands.size() != 2) {
+      null
+    } else {
+      val (literalValue, op) = (convertedCondition.operands.head, convertedCondition.operands.last)
+      match {
+        case (_: RexInputRef, literal: RexLiteral) =>
+          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind)
+        case (rex: RexCall, literal: RexLiteral) if rex.getKind == SqlKind.AS =>
+          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind)
+        case (literal: RexLiteral, _: RexInputRef) =>
+          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind.reverse())
+        case (literal: RexLiteral, rex: RexCall) if rex.getKind == SqlKind.AS =>
+          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind.reverse())
+        case _ => (null, null)
+      }
+      if (op == null || literalValue == null) {
+        null
+      } else {
+        op match {
+          case EQUALS => ValueInterval(literalValue, literalValue)
+          case LESS_THAN => ValueInterval(null, literalValue, includeUpper = false)
+          case LESS_THAN_OR_EQUAL => ValueInterval(null, literalValue)
+          case GREATER_THAN => ValueInterval(literalValue, null, includeLower = false)
+          case GREATER_THAN_OR_EQUAL => ValueInterval(literalValue, null)
+          case _ => null
+        }
+      }
+    }
   }
 
   /**

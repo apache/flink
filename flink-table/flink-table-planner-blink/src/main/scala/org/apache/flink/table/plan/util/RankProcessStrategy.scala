@@ -18,9 +18,12 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.plan.`trait`.TraitUtil
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 
+import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
@@ -66,8 +69,36 @@ object RankProcessStrategy {
         // and we fall back to using retract rank
         RetractStrategy
       } else {
-        // TODO get `isMonotonic` value by RelModifiedMonotonicity handler
-        val isMonotonic = false
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+        val monotonicity = fmq.getRelModifiedMonotonicity(input)
+        val isMonotonic = if (monotonicity == null) {
+          false
+        } else {
+          if (fieldCollations.isEmpty) {
+            false
+          } else {
+            fieldCollations.forall { collation =>
+              val fieldMonotonicity = monotonicity.fieldMonotonicities(collation.getFieldIndex)
+              val direction = collation.direction
+              if ((fieldMonotonicity == SqlMonotonicity.DECREASING
+                || fieldMonotonicity == SqlMonotonicity.STRICTLY_DECREASING)
+                && direction == Direction.ASCENDING) {
+                // sort field is ascending and its monotonicity is decreasing
+                true
+              } else if ((fieldMonotonicity == SqlMonotonicity.INCREASING
+                || fieldMonotonicity == SqlMonotonicity.STRICTLY_INCREASING)
+                && direction == Direction.DESCENDING) {
+                // sort field is descending and its monotonicity is increasing
+                true
+              } else if (fieldMonotonicity == SqlMonotonicity.CONSTANT) {
+                // sort key is a grouping key of upstream agg, it is monotonic
+                true
+              } else {
+                false
+              }
+            }
+          }
+        }
 
         if (isMonotonic) {
           //FIXME choose a set of primary key

@@ -32,6 +32,7 @@ import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAgg
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
 
@@ -39,6 +40,7 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.sql.fun._
+import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
 
@@ -131,6 +133,33 @@ object AggregateUtil extends Enumeration {
   def checkAndGetFullGroupSet(agg: Aggregate): Array[Int] = {
     val (auxGroupSet, _) = checkAndSplitAggCalls(agg)
     agg.getGroupSet.toArray ++ auxGroupSet
+  }
+
+  def getOutputIndexToAggCallIndexMap(
+      aggregateCalls: Seq[AggregateCall],
+      inputType: RelDataType,
+      orderKeyIdx: Array[Int] = null): util.Map[Integer, Integer] = {
+    val aggInfos = transformToAggregateInfoList(
+      aggregateCalls,
+      inputType,
+      orderKeyIdx,
+      Array.fill(aggregateCalls.size)(false),
+      needInputCount = false,
+      isStateBackedDataViews = false,
+      needDistinctInfo = false).aggInfos
+
+    val map = new util.HashMap[Integer, Integer]()
+    var outputIndex = 0
+    aggregateCalls.indices.foreach {
+      aggCallIndex =>
+        val aggInfo = aggInfos(aggCallIndex)
+        val aggBuffers = aggInfo.externalAccTypes
+        aggBuffers.indices.foreach { bufferIndex =>
+          map.put(outputIndex + bufferIndex, aggCallIndex)
+        }
+        outputIndex += aggBuffers.length
+    }
+    map
   }
 
   def transformToBatchAggregateFunctions(
@@ -261,7 +290,7 @@ object AggregateUtil extends Enumeration {
             externalAccType,
             isStateBackedDataViews)
           (Array(newExternalAccType), specs,
-              getResultTypeOfAggregateFunction(a, implicitResultType))
+            getResultTypeOfAggregateFunction(a, implicitResultType))
         case _ => throw new TableException(s"Unsupported function: $function")
       }
 
@@ -546,11 +575,30 @@ object AggregateUtil extends Enumeration {
     * update increasing.
     */
   def getNeedRetractions(
-      groupSize: Int,
+      groupCount: Int,
       needRetraction: Boolean,
-      aggs: Seq[AggregateCall]): Array[Boolean] = {
-    val needRetractionArray = Array.fill(aggs.size)(needRetraction)
-    // TODO supports RelModifiedMonotonicity
+      monotonicity: RelModifiedMonotonicity,
+      aggCalls: Seq[AggregateCall]): Array[Boolean] = {
+    val needRetractionArray = Array.fill(aggCalls.size)(needRetraction)
+    if (monotonicity != null && needRetraction) {
+      aggCalls.zipWithIndex.foreach { case (aggCall, idx) =>
+        aggCall.getAggregation match {
+          // if monotonicity is decreasing and aggCall is min with retract,
+          // set needRetraction to false
+          case a: SqlMinMaxAggFunction
+            if a.getKind == SqlKind.MIN &&
+              monotonicity.fieldMonotonicities(groupCount + idx) == SqlMonotonicity.DECREASING =>
+            needRetractionArray(idx) = false
+          // if monotonicity is increasing and aggCall is max with retract,
+          // set needRetraction to false
+          case a: SqlMinMaxAggFunction
+            if a.getKind == SqlKind.MAX &&
+              monotonicity.fieldMonotonicities(groupCount + idx) == SqlMonotonicity.INCREASING =>
+            needRetractionArray(idx) = false
+          case _ => // do nothing
+        }
+      }
+    }
 
     needRetractionArray
   }

@@ -18,25 +18,21 @@
 
 package org.apache.flink.table.plan.metadata
 
+import org.apache.flink.table.JDouble
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecGroupAggregateBase
+
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.core.{Aggregate, Join, SemiJoin, Union}
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.util.{BuiltInMethod, Util}
 
-import java.lang.Double
+import scala.collection.JavaConversions._
 
 /**
   * FlinkRelMdPercentageOriginalRows supplies a implementation of
   * [[RelMetadataQuery#getPercentageOriginalRows]] for the standard logical algebra.
-  *
-  * <p>Different from Calcite's default implementation, [[FlinkRelMdPercentageOriginalRows]] throws
-  * [[RelMdMethodNotImplementedException]] to disable the default implementation on [[RelNode]]
-  * and requires to provide implementation on each kind of RelNode.
-  *
-  * <p>When add a new kind of RelNode, the author maybe forget to implement the logic for
-  * the new rel, and get the unexpected result from the method on [[RelNode]]. So this handler
-  * will force the author to implement the logic for new rel to avoid the unexpected result.
   */
 class FlinkRelMdPercentageOriginalRows private
   extends MetadataHandler[BuiltInMetadata.PercentageOriginalRows] {
@@ -44,20 +40,98 @@ class FlinkRelMdPercentageOriginalRows private
   def getDef: MetadataDef[BuiltInMetadata.PercentageOriginalRows] =
     BuiltInMetadata.PercentageOriginalRows.DEF
 
-  def getPercentageOriginalRows(rel: TableScan, mq: RelMetadataQuery): Double = 1.0
+  def getPercentageOriginalRows(rel: Expand, mq: RelMetadataQuery): JDouble = {
+    mq.getPercentageOriginalRows(rel.getInput)
+  }
 
-  def getPercentageOriginalRows(subset: RelSubset, mq: RelMetadataQuery): Double = {
+  def getPercentageOriginalRows(rel: Rank, mq: RelMetadataQuery): JDouble = {
+    mq.getPercentageOriginalRows(rel.getInput)
+  }
+
+  def getPercentageOriginalRows(rel: Aggregate, mq: RelMetadataQuery): JDouble =
+    mq.getPercentageOriginalRows(rel.getInput)
+
+  def getPercentageOriginalRows(rel: BatchExecGroupAggregateBase, mq: RelMetadataQuery): JDouble = {
+    mq.getPercentageOriginalRows(rel.getInput)
+  }
+
+  def getPercentageOriginalRows(rel: Join, mq: RelMetadataQuery): JDouble = {
+    val left: JDouble = mq.getPercentageOriginalRows(rel.getLeft)
+    val right: JDouble = mq.getPercentageOriginalRows(rel.getRight)
+    if (left == null || right == null) {
+      null
+    } else {
+      left * right
+    }
+  }
+
+  def getPercentageOriginalRows(rel: SemiJoin, mq: RelMetadataQuery): JDouble = {
+    mq.getPercentageOriginalRows(rel.getLeft)
+  }
+
+  def getPercentageOriginalRows(rel: Union, mq: RelMetadataQuery): JDouble = {
+    var numerator: JDouble = 0.0
+    var denominator: JDouble = 0.0
+    rel.getInputs.foreach { input =>
+      val inputRowCount = mq.getRowCount(input)
+      val percentage = mq.getPercentageOriginalRows(input)
+      if (percentage != null && percentage != 0.0) {
+        denominator += inputRowCount / percentage
+        numerator += inputRowCount
+      }
+    }
+    quotientForPercentage(numerator, denominator)
+  }
+
+  def getPercentageOriginalRows(subset: RelSubset, mq: RelMetadataQuery): JDouble = {
     val rel = Util.first(subset.getBest, subset.getOriginal)
     mq.getPercentageOriginalRows(rel)
   }
 
   /**
-    * Throws [[RelMdMethodNotImplementedException]] to
-    * force implement [[getPercentageOriginalRows]] logic on each kind of RelNode.
+    * Catch-all rule when none of the others apply.
     */
-  def getPercentageOriginalRows(rel: RelNode, mq: RelMetadataQuery): Double = {
-    throw RelMdMethodNotImplementedException(
-      "getPercentageOriginalRows", getClass.getSimpleName, rel.getRelTypeName)
+  def getPercentageOriginalRows(rel: RelNode, mq: RelMetadataQuery): JDouble = {
+    if (rel.getInputs.size > 1) {
+      // No generic formula available for multiple inputs.
+      return null
+    }
+    if (rel.getInputs.size == 0) {
+      // Assume no filtering happening at leaf.
+      return 1.0
+    }
+    val input = rel.getInput(0)
+    val inputPercentage = mq.getPercentageOriginalRows(input)
+    if (inputPercentage == null) {
+      return null
+    }
+    // Compute product of percentage filtering from this rel (assuming any
+    // filtering is the effect of single-table filters) with the percentage
+    // filtering performed by the child.
+    val rowCount = mq.getRowCount(rel)
+    val inputRowCount = mq.getRowCount(input)
+    val relPercentage = quotientForPercentage(rowCount, inputRowCount)
+    if (relPercentage == null) {
+      return null
+    }
+    val percent = relPercentage * inputPercentage
+    if ((percent < 0.0) || (percent > 1.0)) {
+      return null
+    }
+    relPercentage * inputPercentage
+  }
+
+  private def quotientForPercentage(numerator: JDouble, denominator: JDouble): JDouble = {
+    if (numerator == null || denominator == null) {
+      return null
+    }
+    // may need epsilon instead
+    if (denominator == 0.0) {
+      // cap at 100%
+      1.0
+    } else {
+      numerator / denominator
+    }
   }
 }
 

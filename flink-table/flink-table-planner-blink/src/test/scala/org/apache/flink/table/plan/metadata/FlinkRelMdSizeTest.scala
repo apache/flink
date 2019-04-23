@@ -25,38 +25,162 @@ import scala.collection.JavaConversions._
 
 class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
 
-  @Test(expected = classOf[RelMdMethodNotImplementedException])
-  def testAverageRowSizeOnRelNode(): Unit = {
-    mq.getAverageRowSize(testRel)
-  }
-
-  @Test(expected = classOf[RelMdMethodNotImplementedException])
-  def testAverageColumnSizeOnRelNode(): Unit = {
-    mq.getAverageColumnSizes(testRel)
-  }
-
   @Test
   def testAverageRowSizeOnTableScan(): Unit = {
-    Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
-      assertEquals(32.2, mq.getAverageRowSize(scan))
-    }
+    Array(studentLogicalScan, studentFlinkLogicalScan, studentBatchScan, studentStreamScan)
+      .foreach { scan =>
+        assertEquals(40.2, mq.getAverageRowSize(scan))
+      }
 
-    Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
+    Array(empLogicalScan, empFlinkLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
       assertEquals(64.0, mq.getAverageRowSize(scan))
     }
   }
 
   @Test
+  def testAverageRowSizeOnDefault(): Unit = {
+    assertEquals(56.0, mq.getAverageRowSize(testRel))
+  }
+
+  @Test
   def testAverageColumnSizeOnTableScan(): Unit = {
-    Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
-      assertEquals(Seq(4.0, 7.2, 8.0, 4.0, 8.0, 1.0),
-        mq.getAverageColumnSizes(scan).toList)
-    }
+    Array(studentLogicalScan, studentFlinkLogicalScan, studentBatchScan, studentStreamScan)
+      .foreach { scan =>
+        assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0), mq.getAverageColumnSizes(scan).toList)
+      }
 
     Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
       assertEquals(Seq(4.0, 12.0, 12.0, 4.0, 12.0, 8.0, 8.0, 4.0),
         mq.getAverageColumnSizes(scan).toList)
     }
+  }
+
+  @Test
+  def testAverageColumnSizeOnValues(): Unit = {
+    assertEquals(Seq(6.25, 1.0, 9.25, 12.0, 9.25, 8.0, 1.0, 3.75),
+      mq.getAverageColumnSizes(logicalValues).toList)
+    assertEquals(Seq(8.0, 1.0, 12.0, 12.0, 12.0, 8.0, 4.0, 12.0),
+      mq.getAverageColumnSizes(emptyValues).toList)
+  }
+
+  @Test
+  def testAverageColumnSizeOnProject(): Unit = {
+    assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 8.0, 8.0, 4.0, 1.0, 8.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(logicalProject).toList)
+  }
+
+  @Test
+  def testAverageColumnSizeOnFilter(): Unit = {
+    assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+      mq.getAverageColumnSizes(logicalFilter).toList)
+  }
+
+  @Test
+  def testAverageColumnSizeOnCalc(): Unit = {
+    assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 8.0, 8.0, 4.0, 1.0, 8.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(logicalCalc).toList)
+  }
+
+  @Test
+  def testAverageColumnSizeOnExpand(): Unit = {
+    Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach {
+      expand =>
+        assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0, 8.0),
+          mq.getAverageColumnSizes(expand).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnExchange(): Unit = {
+    Array(batchExchange, streamExchange).foreach { exchange =>
+      assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+        mq.getAverageColumnSizes(exchange).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnRank(): Unit = {
+    Array(logicalRank, flinkLogicalRank, batchGlobalRank, streamRank).foreach { rank =>
+      assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0, 8.0),
+        mq.getAverageColumnSizes(rank).toList)
+    }
+    assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+      mq.getAverageColumnSizes(batchLocalRank).toList)
+  }
+
+  @Test
+  def testAverageColumnSizeOnSort(): Unit = {
+    Array(logicalSort, flinkLogicalSort, batchSort, streamSort,
+      logicalSortLimit, flinkLogicalSortLimit, batchSortLimit, streamSortLimit,
+      batchGlobalSortLimit,
+      batchLocalSortLimit, logicalLimit, flinkLogicalLimit, batchLimit, streamLimit).foreach {
+      sort =>
+        assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+          mq.getAverageColumnSizes(sort).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnAggregate(): Unit = {
+    Array(logicalAgg, flinkLogicalAgg, batchGlobalAggWithLocal, batchGlobalAggWithoutLocal,
+      streamGlobalAggWithLocal, streamGlobalAggWithoutLocal).foreach { agg =>
+      assertEquals(Seq(4.0, 8.0, 8.0, 8.0, 8.0, 8.0), mq.getAverageColumnSizes(agg).toList)
+    }
+
+    Array(logicalAggWithAuxGroup, flinkLogicalAggWithAuxGroup,
+      batchGlobalAggWithLocalWithAuxGroup, batchGlobalAggWithoutLocalWithAuxGroup).foreach {
+      agg =>
+        assertEquals(Seq(8.0, 7.2, 8.0, 8.0, 8.0, 8.0), mq.getAverageColumnSizes(agg).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnOverWindow(): Unit = {
+    Array(flinkLogicalOverWindow, batchOverWindowAgg).foreach { agg =>
+      assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0),
+        mq.getAverageColumnSizes(agg).toList)
+    }
+    assertEquals(Seq(8.0, 12.0, 8.0, 4.0, 4.0, 8.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(streamOverWindowAgg).toList)
+  }
+
+  @Test
+  def testAverageColumnSizeOnJoin(): Unit = {
+    assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0, 8.0, 8.0, 4.0, 8.0),
+      mq.getAverageColumnSizes(logicalInnerJoinOnUniqueKeys).toList)
+    Array(logicalInnerJoinOnDisjointKeys, logicalLeftJoinNotOnUniqueKeys,
+      logicalRightJoinOnLHSUniqueKeys, logicalFullJoinWithoutEquiCond).foreach { join =>
+      assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0, 4.0, 8.0, 12.0, 10.52, 4.0),
+        mq.getAverageColumnSizes(join).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnUnion(): Unit = {
+    Array(logicalUnion, logicalUnionAll).foreach { union =>
+      assertEquals(Seq(4.0, 8.0, 12.0, 49.66, 4.0),
+        mq.getAverageColumnSizes(union).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnIntersect(): Unit = {
+    Array(logicalIntersect, logicalIntersectAll).foreach { union =>
+      assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(union).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnMinus(): Unit = {
+    Array(logicalMinus, logicalMinusAll).foreach { union =>
+      assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(union).toList)
+    }
+  }
+
+  @Test
+  def testAverageColumnSizeOnDefault(): Unit = {
+    assertEquals(Seq(8.0, 12.0, 8.0, 4.0, 8.0, 12.0, 4.0),
+      mq.getAverageColumnSizes(testRel).toList)
   }
 
 }

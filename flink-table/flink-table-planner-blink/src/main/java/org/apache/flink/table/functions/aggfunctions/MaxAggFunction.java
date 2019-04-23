@@ -72,7 +72,9 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public Expression[] retractExpressions() {
-		throw new TableException("This function does not support retraction, Please choose MaxWithRetractAggFunction.");
+		// TODO FLINK-12295, ignore exception now
+//		throw new TableException("This function does not support retraction, Please choose MaxWithRetractAggFunction.");
+		return new Expression[0];
 	}
 
 	@Override

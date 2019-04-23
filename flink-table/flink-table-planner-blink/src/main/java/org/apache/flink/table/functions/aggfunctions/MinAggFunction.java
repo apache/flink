@@ -72,7 +72,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public Expression[] retractExpressions() {
-		throw new TableException("This function does not support retraction, Please choose MinWithRetractAggFunction.");
+		// TODO FLINK-12295, ignore exception now
+//		throw new TableException("This function does not support retraction, Please choose MinWithRetractAggFunction.");
+		return new Expression[0];
 	}
 
 	@Override

@@ -17,16 +17,17 @@
  */
 package org.apache.flink.table.plan.metadata
 
+import org.apache.flink.table.JHashMap
+import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.metadata.FlinkMetadata.FlinkDistribution
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Calc, Sort, TableScan}
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.util.mapping.Mappings
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -39,10 +40,10 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
   override def getDef: MetadataDef[FlinkDistribution] = FlinkDistribution.DEF
 
   def flinkDistribution(scan: TableScan, mq: RelMetadataQuery): FlinkRelDistribution = {
-    val statisticDistribution = scan.getTable.getDistribution
-    if (statisticDistribution != null &&
-      statisticDistribution.getTraitDef.equals(FlinkRelDistributionTraitDef.INSTANCE)) {
-      statisticDistribution.asInstanceOf[FlinkRelDistribution]
+    val statsDistribution = scan.getTable.getDistribution
+    if (statsDistribution != null &&
+      statsDistribution.getTraitDef.equals(FlinkRelDistributionTraitDef.INSTANCE)) {
+      statsDistribution.asInstanceOf[FlinkRelDistribution]
     } else {
       getFlinkDistribution(scan)
     }
@@ -52,13 +53,13 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val input = calc.getInput
     val distribution = fmq.flinkDistribution(input)
-    val mapInToOutPos = new util.HashMap[Integer, Integer]
-    val projExprs = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    val mapInToOutPos = new JHashMap[Integer, Integer]
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
     // Build an input to output position map.
-    projExprs.zipWithIndex.foreach {
-      case (projExpr, i) =>
-        projExpr match {
-          case ref: RexInputRef => mapInToOutPos.put(ref.getIndex, i)
+    projects.zipWithIndex.foreach {
+      case (project, idx) =>
+        project match {
+          case ref: RexInputRef => mapInToOutPos.put(ref.getIndex, idx)
           case _ => // ignore
         }
     }
@@ -70,16 +71,25 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
   }
 
   def flinkDistribution(sort: Sort, mq: RelMetadataQuery): FlinkRelDistribution = {
-    // TODO supports range sort
-    FlinkRelDistribution.SINGLETON
-  }
-
-  def flinkDistribution(rel: RelNode, mq: RelMetadataQuery): FlinkRelDistribution = {
-    getFlinkDistribution(rel)
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(sort)
+    val enableRangeSort = tableConfig.getConf.getBoolean(
+      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED)
+    if ((sort.getCollation.getFieldCollations.nonEmpty &&
+      sort.fetch == null && sort.offset == null) && enableRangeSort) {
+      //If Sort is global sort, and the table config allows the range partition.
+      //Then the Sort's required traits will are range distribution and sort collation.
+      FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
+    } else {
+      FlinkRelDistribution.SINGLETON
+    }
   }
 
   private def getFlinkDistribution(relNode: RelNode): FlinkRelDistribution = {
     relNode.getTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+  }
+
+  def flinkDistribution(rel: RelNode, mq: RelMetadataQuery): FlinkRelDistribution = {
+    getFlinkDistribution(rel)
   }
 }
 
@@ -89,4 +99,5 @@ object FlinkRelMdDistribution {
 
   val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
     FlinkMetadata.FlinkDistribution.METHOD, INSTANCE)
+
 }

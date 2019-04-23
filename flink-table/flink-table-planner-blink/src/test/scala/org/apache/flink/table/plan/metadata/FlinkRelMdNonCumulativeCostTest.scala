@@ -26,21 +26,26 @@ import org.junit.Test
 class FlinkRelMdNonCumulativeCostTest extends FlinkRelMdHandlerTestBase {
 
   @Test
-  def testGetNonCumulativeCostOnRelNode(): Unit = {
-    val expectedCost = FlinkCost.FACTORY.makeCost(1.0, 1.0, 1.0, 0.0, 0.0)
-    assertTrue(expectedCost.equals(mq.getNonCumulativeCost(testRel)))
-  }
-
-  @Test
   def testGetNonCumulativeCostOnTableScan(): Unit = {
-    Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
-      val expectedCost = FlinkCost.FACTORY.makeCost(50.0, 50.0, 50.0 * 32.2, 0.0, 0.0)
+    assertTrue(FlinkCost.FACTORY.makeCost(50.0, 51.0, 0.0, 0.0, 0.0).equals(
+      mq.getNonCumulativeCost(studentLogicalScan)))
+    Array(studentBatchScan, studentStreamScan).foreach { scan =>
+      val expectedCost = FlinkCost.FACTORY.makeCost(50.0, 50.0, 50.0 * 40.2, 0.0, 0.0)
       assertTrue(expectedCost.equals(mq.getNonCumulativeCost(scan)))
     }
 
-    Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
+    assertTrue(FlinkCost.FACTORY.makeCost(1.0E8, 1.00000001E8, 0.0, 0.0, 0.0).equals(
+      mq.getNonCumulativeCost(empLogicalScan)))
+    Array(empBatchScan, empStreamScan).foreach { scan =>
       val expectedCost = FlinkCost.FACTORY.makeCost(1.0E8, 1.0E8, 1.0E8 * 64.0, 0.0, 0.0)
       assertTrue(expectedCost.equals(mq.getNonCumulativeCost(scan)))
     }
   }
+
+  @Test
+  def testGetNonCumulativeCostOnDefault(): Unit = {
+    val expectedCost = FlinkCost.FACTORY.makeCost(1.0, 1.0, 1.0, 0.0, 0.0)
+    assertTrue(expectedCost.equals(mq.getNonCumulativeCost(testRel)))
+  }
+
 }

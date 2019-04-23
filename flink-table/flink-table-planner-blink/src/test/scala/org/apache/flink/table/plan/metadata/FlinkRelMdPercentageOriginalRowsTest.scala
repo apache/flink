@@ -23,11 +23,6 @@ import org.junit.Test
 
 class FlinkRelMdPercentageOriginalRowsTest extends FlinkRelMdHandlerTestBase {
 
-  @Test(expected = classOf[RelMdMethodNotImplementedException])
-  def testGetPercentageOriginalRowsOnRelNode(): Unit = {
-    mq.getPercentageOriginalRows(testRel)
-  }
-
   @Test
   def testGetPercentageOriginalRowsOnTableScan(): Unit = {
     Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
@@ -37,5 +32,53 @@ class FlinkRelMdPercentageOriginalRowsTest extends FlinkRelMdHandlerTestBase {
     Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
       assertEquals(1.0, mq.getPercentageOriginalRows(scan))
     }
+  }
+
+  @Test
+  def testGetPercentageOriginalRowsOnExpand(): Unit = {
+    Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach { expand =>
+      assertEquals(1.0, mq.getPercentageOriginalRows(expand))
+    }
+  }
+
+  @Test
+  def testGetPercentageOriginalRowsOnRank(): Unit = {
+    Array(logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank,
+      logicalRowNumber, flinkLogicalRowNumber, streamRowNumber).foreach { rank =>
+      assertEquals(1.0, mq.getPercentageOriginalRows(rank))
+    }
+  }
+
+  @Test
+  def testGetPercentageOriginalRowsOnAggregate(): Unit = {
+    Array(logicalAgg, flinkLogicalAgg, batchGlobalAggWithLocal, batchGlobalAggWithoutLocal,
+      streamGlobalAggWithLocal, streamGlobalAggWithoutLocal, logicalAggWithAuxGroup,
+      flinkLogicalAggWithAuxGroup, batchGlobalAggWithLocalWithAuxGroup,
+      batchGlobalAggWithoutLocalWithAuxGroup).foreach { agg =>
+      assertEquals(1.0, mq.getPercentageOriginalRows(agg))
+    }
+  }
+
+  @Test
+  def testGetPercentageOriginalRowsOnJoin(): Unit = {
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalInnerJoinOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalInnerJoinNotOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalLeftJoinWithEquiAndNonEquiCond))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalLeftJoinWithoutEquiCond))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalRightJoinOnLHSUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalRightJoinOnDisjointKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalFullJoinOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalFullJoinNotOnUniqueKeys))
+  }
+
+  @Test
+  def testGetPercentageOriginalRowsOnUnion(): Unit = {
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalUnion))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalUnionAll))
+  }
+
+  @Test
+  def testGetPercentageOriginalRowsOnDefault(): Unit = {
+    assertEquals(1.0, mq.getPercentageOriginalRows(testRel))
   }
 }

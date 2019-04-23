@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.common.CommonCalc
 
@@ -72,10 +73,16 @@ object FlinkLogicalCalc {
       calcProgram: RexProgram): FlinkLogicalCalc = {
     val cluster = input.getCluster
     val mq = cluster.getMetadataQuery
-    val traitSet = cluster.traitSet.replace(FlinkConventions.LOGICAL).replaceIfs(
+    val traitSet = cluster.traitSet.replace(Convention.NONE).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = RelMdCollation.calc(mq, input, calcProgram)
       })
-    new FlinkLogicalCalc(cluster, traitSet, input, calcProgram)
+    // FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    //  the distribution trait, so we have to create FlinkLogicalCalc to
+    //  calculate the distribution trait
+    val calc = new FlinkLogicalCalc(cluster, traitSet, input, calcProgram)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(calc)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    calc.copy(newTraitSet, calc.getInputs).asInstanceOf[FlinkLogicalCalc]
   }
 }

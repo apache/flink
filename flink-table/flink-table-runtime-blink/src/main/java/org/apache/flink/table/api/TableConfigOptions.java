@@ -215,4 +215,20 @@ public class TableConfigOptions {
 							"are disabled. If the configure's value is \"HashJoin\", " +
 							"ShuffleHashJoin and BroadcastHashJoin are disabled.");
 
+
+	// ------------------------------------------------------------------------
+	//  prefer and max memory resource Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_RESOURCE_INFER_ROWS_PER_PARTITION =
+			key("sql.resource.infer.rows-per-partition")
+					.defaultValue(1000000L)
+					.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
+							"to input row count.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MAX =
+			key("sql.resource.infer.operator.parallelism.max")
+					.defaultValue(800)
+					.withDescription("Sets max parallelism for all operators.");
+
 }
