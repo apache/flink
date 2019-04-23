@@ -45,7 +45,7 @@ under the License.
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
     <li class="active"><a href="#sbt_template" data-toggle="tab">使用 <strong>sbt 模版</strong></a></li>
-    <li><a href="#quickstart-script-sbt" data-toggle="tab">运行 <strong>快速开始脚本</strong></a></li>
+    <li><a href="#quickstart-script-sbt" data-toggle="tab">运行 <strong>quickstart 脚本</strong></a></li>
 </ul>
 
 <div class="tab-content">
@@ -59,7 +59,7 @@ under the License.
     <div class="tab-pane" id="quickstart-script-sbt">
     {% highlight bash %}
     $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
-    {% endhighlight %}·
+    {% endhighlight %}
     这将在 <strong>指定的</strong>目录创建一个Flink项目。
     </div>
 </div>
@@ -100,7 +100,7 @@ fork in run := true
 addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
 {% endhighlight %}
 
-在 `sbt` 中使用一下命令创建 Eclipse 项目文件
+在 `sbt` 中使用以下命令创建 Eclipse 项目文件
 
 {% highlight bash %}
 > eclipse
@@ -110,7 +110,7 @@ addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
 
 ## Maven
 
-### 要求
+### 环境要求
 
 唯一的要求是安装 __Maven 3.0.4__ (或更高版本) 和 __Java 8.x__。
 
@@ -120,8 +120,8 @@ addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
 使用以下命令之一来 __创建项目__:
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
-    <li class="active"><a href="#maven-archetype" data-toggle="tab">使用 <strong>Maven 原型</strong></a></li>
-    <li><a href="#quickstart-script" data-toggle="tab">运行 <strong>快速开始脚本</strong></a></li>
+    <li class="active"><a href="#maven-archetype" data-toggle="tab">使用 <strong>Maven archetypes</strong></a></li>
+    <li><a href="#quickstart-script" data-toggle="tab">运行 <strong>quickstart 开始脚本</strong></a></li>
 </ul>
 
 <div class="tab-content">
@@ -204,10 +204,10 @@ __注意:__ 如果你使用其他类而不是 *StreamingJob* 作为应用程序�
 开始编写你的应用！
 
 如果你准备编写流处理应用，正在寻找灵感来写什么，
-可以看看[流处理应用指南]({{ site.baseurl }}/tutorials/datastream_api.html#writing-a-flink-program)
+可以看看[流处理应用程序教程]({{ site.baseurl }}/tutorials/datastream_api.html#writing-a-flink-program)
 
 如果你准备编写批处理应用，正在寻找灵感来写什么，
-可以看看[批处理应用样例]({{ site.baseurl }}/dev/batch/examples.html)
+可以看看[批处理应用程序示例]({{ site.baseurl }}/dev/batch/examples.html)
 
 有关 API 的完整概述，请查看
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) 和
