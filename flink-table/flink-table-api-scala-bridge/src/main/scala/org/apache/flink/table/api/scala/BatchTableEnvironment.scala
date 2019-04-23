@@ -18,12 +18,11 @@
 package org.apache.flink.table.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api._
+import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.api.{TableEnvironment, _}
+import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
-
-import _root_.scala.reflect.ClassTag
 
 /**
   * The [[TableEnvironment]] for a Scala batch [[ExecutionEnvironment]] that works
@@ -37,16 +36,31 @@ import _root_.scala.reflect.ClassTag
   * - specify a SQL query on registered tables to obtain a [[Table]]
   * - convert a [[Table]] into a [[DataSet]]
   * - explain the AST and execution plan of a [[Table]]
-  *
-  * @param execEnv The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
-  * @param config The configuration of the TableEnvironment.
   */
-class BatchTableEnvironment @deprecated(
-      "This constructor will be removed. Use BatchTableEnvironment.create() instead.",
-      "1.8.0") (
-    execEnv: ExecutionEnvironment,
-    config: TableConfig)
-  extends org.apache.flink.table.api.BatchTableEnvironment(execEnv.getJavaEnv, config) {
+trait BatchTableEnvironment extends TableEnvironment {
+
+  /**
+    * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param tf The TableFunction to register.
+    * @tparam T The type of the output row.
+    */
+  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit
+
+  /**
+    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The AggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+    name: String,
+    f: AggregateFunction[T, ACC]): Unit
 
   /**
     * Converts the given [[DataSet]] into a [[Table]].
@@ -57,12 +71,7 @@ class BatchTableEnvironment @deprecated(
     * @tparam T The type of the [[DataSet]].
     * @return The converted [[Table]].
     */
-  def fromDataSet[T](dataSet: DataSet[T]): Table = {
-
-    val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet.javaSet)
-    scan(name)
-  }
+  def fromDataSet[T](dataSet: DataSet[T]): Table
 
   /**
     * Converts the given [[DataSet]] into a [[Table]] with specified field names.
@@ -79,12 +88,7 @@ class BatchTableEnvironment @deprecated(
     * @tparam T The type of the [[DataSet]].
     * @return The converted [[Table]].
     */
-  def fromDataSet[T](dataSet: DataSet[T], fields: Expression*): Table = {
-
-    val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet.javaSet, fields.toArray)
-    scan(name)
-  }
+  def fromDataSet[T](dataSet: DataSet[T], fields: Expression*): Table
 
   /**
     * Registers the given [[DataSet]] as table in the
@@ -97,11 +101,7 @@ class BatchTableEnvironment @deprecated(
     * @param dataSet The [[DataSet]] to register.
     * @tparam T The type of the [[DataSet]] to register.
     */
-  def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataSetInternal(name, dataSet.javaSet)
-  }
+  def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit
 
   /**
     * Registers the given [[DataSet]] as table with specified field names in the
@@ -120,11 +120,7 @@ class BatchTableEnvironment @deprecated(
     * @param fields The field names of the registered table.
     * @tparam T The type of the [[DataSet]] to register.
     */
-  def registerDataSet[T](name: String, dataSet: DataSet[T], fields: Expression*): Unit = {
-
-    checkValidTableName(name)
-    registerDataSetInternal(name, dataSet.javaSet, fields.toArray)
-  }
+  def registerDataSet[T](name: String, dataSet: DataSet[T], fields: Expression*): Unit
 
   /**
     * Converts the given [[Table]] into a [[DataSet]] of a specified type.
@@ -138,10 +134,7 @@ class BatchTableEnvironment @deprecated(
     * @tparam T The type of the resulting [[DataSet]].
     * @return The converted [[DataSet]].
     */
-  def toDataSet[T: TypeInformation](table: Table): DataSet[T] = {
-    // Use the default batch query config.
-    wrap[T](translate(table, queryConfig))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
-  }
+  def toDataSet[T: TypeInformation](table: Table): DataSet[T]
 
   /**
     * Converts the given [[Table]] into a [[DataSet]] of a specified type.
@@ -156,37 +149,40 @@ class BatchTableEnvironment @deprecated(
     * @tparam T The type of the resulting [[DataSet]].
     * @return The converted [[DataSet]].
     */
-  def toDataSet[T: TypeInformation](table: Table, queryConfig: BatchQueryConfig): DataSet[T] = {
-    wrap[T](translate(table, queryConfig))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
-  }
+  def toDataSet[T: TypeInformation](
+    table: Table,
+    queryConfig: BatchQueryConfig): DataSet[T]
 
   /**
-    * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
-    * Registered functions can be referenced in Table API and SQL queries.
+    * Creates a table source and/or table sink from a descriptor.
     *
-    * @param name The name under which the function is registered.
-    * @param tf The TableFunction to register.
-    * @tparam T The type of the output row.
-    */
-  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
-    registerTableFunctionInternal(name, tf)
-  }
-
-  /**
-    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
-    * Registered functions can be referenced in Table API and SQL queries.
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
     *
-    * @param name The name under which the function is registered.
-    * @param f The AggregateFunction to register.
-    * @tparam T The type of the output value.
-    * @tparam ACC The type of aggregate accumulator.
+    * The following example shows how to read from a connector using a JSON format and
+    * registering a table source as "MyTable":
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .connect(
+    *     new ExternalSystemXYZ()
+    *       .version("0.11"))
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *   .registerSource("MyTable")
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the external system
     */
-  def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: AggregateFunction[T, ACC])
-  : Unit = {
-    registerAggregateFunctionInternal[T, ACC](name, f)
-  }
+  override def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor
 }
 
 object BatchTableEnvironment {
@@ -207,7 +203,7 @@ object BatchTableEnvironment {
     * @param executionEnvironment The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
     */
   def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
-    new BatchTableEnvironment(executionEnvironment, new TableConfig())
+    create(executionEnvironment, new TableConfig)
   }
 
   /**
@@ -226,10 +222,14 @@ object BatchTableEnvironment {
     * @param executionEnvironment The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
     * @param tableConfig The configuration of the TableEnvironment.
     */
-  def create(
-    executionEnvironment: ExecutionEnvironment,
-    tableConfig: TableConfig): BatchTableEnvironment = {
-
-    new BatchTableEnvironment(executionEnvironment, tableConfig)
+  def create(executionEnvironment: ExecutionEnvironment, tableConfig: TableConfig)
+  : BatchTableEnvironment = {
+    try {
+      val clazz = Class.forName("org.apache.flink.table.api.scala.BatchTableEnvImpl")
+      val const = clazz.getConstructor(classOf[ExecutionEnvironment], classOf[TableConfig])
+      const.newInstance(executionEnvironment, tableConfig).asInstanceOf[BatchTableEnvironment]
+    } catch {
+      case t: Throwable => throw new TableException("Create BatchTableEnvironment failed.", t)
+    }
   }
 }

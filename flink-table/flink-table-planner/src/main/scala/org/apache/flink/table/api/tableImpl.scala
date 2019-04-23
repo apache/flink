@@ -42,7 +42,7 @@ import _root_.scala.collection.JavaConverters._
   * @param operationTree logical representation
   */
 class TableImpl(
-    private[flink] val tableEnv: TableEnvironment,
+    private[flink] val tableEnv: TableEnvImpl,
     private[flink] val operationTree: TableOperation)
   extends Table {
 
@@ -55,6 +55,11 @@ class TableImpl(
   var tableName: String = _
 
   def getRelNode: RelNode = tableEnv.getRelBuilder.tableOperation(operationTree).build()
+
+  /**
+    * Returns the [[TableEnvironment]] of this table.
+    */
+  def getTableEnvironment: TableEnvironment = tableEnv
 
   override def getSchema: TableSchema = tableSchema
 
@@ -364,7 +369,7 @@ class TableImpl(
 
   override def window(overWindows: OverWindow*): OverWindowedTable = {
 
-    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
+    if (tableEnv.isInstanceOf[BatchTableEnvImpl]) {
       throw new TableException("Over-windows for batch tables are currently not supported.")
     }
 

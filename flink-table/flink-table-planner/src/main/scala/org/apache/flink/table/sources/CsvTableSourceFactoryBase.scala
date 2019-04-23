@@ -25,7 +25,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTO
 import org.apache.flink.table.descriptors.OldCsvValidator._
 import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA
+import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
