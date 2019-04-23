@@ -24,8 +24,6 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
@@ -33,7 +31,6 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,14 +81,12 @@ public class CatalogCalciteSchema implements Schema {
 
 	@Override
 	public Table getTable(String name) {
-		throw new UnsupportedOperationException(
-			"CatalogCalciteSchema does not support getTable()");
+		return null;
 	}
 
 	@Override
 	public Set<String> getTableNames() {
-		throw new UnsupportedOperationException(
-			"CatalogCalciteSchema does not support getTableNames()");
+		return new HashSet<>();
 	}
 
 	@Override
@@ -210,14 +205,12 @@ public class CatalogCalciteSchema implements Schema {
 
 		@Override
 		public Schema getSubSchema(String s) {
-			throw new UnsupportedOperationException(
-				"DatabaseCalciteSchema does not support getSubSchema()");
+			return null;
 		}
 
 		@Override
 		public Set<String> getSubSchemaNames() {
-			throw new UnsupportedOperationException(
-				"DatabaseCalciteSchema does not support getSubSchemaNames()");
+			return new HashSet<>();
 		}
 
 		@Override
