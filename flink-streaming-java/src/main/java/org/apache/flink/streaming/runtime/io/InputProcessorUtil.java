@@ -59,7 +59,7 @@ public class InputProcessorUtil {
 		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
 			barrierHandler = new BarrierTracker(inputGate);
 		} else {
-			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
+			throw new IllegalArgumentException("Unrecognized Checkpoint Mode: " + checkpointMode);
 		}
 
 		if (checkpointedTask != null) {

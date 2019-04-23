@@ -38,7 +38,7 @@ import java.util.Arrays;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Utility class that contains helper methods to manipulating {@link KeySelector} for streaming.
+ * Utility class that contains helper methods to manipulate {@link KeySelector} for streaming.
  */
 @Internal
 public final class KeySelectorUtil {
@@ -67,7 +67,7 @@ public final class KeySelectorUtil {
 
 	public static <X> ArrayKeySelector<X> getSelectorForArray(int[] positions, TypeInformation<X> typeInfo) {
 		if (positions == null || positions.length == 0 || positions.length > Tuple.MAX_ARITY) {
-			throw new IllegalArgumentException("Array keys must have between 1 and " + Tuple.MAX_ARITY + " fields.");
+			throw new IllegalArgumentException("The fields of array keys should between 1 and " + Tuple.MAX_ARITY + ".");
 		}
 
 		TypeInformation<?> componentType;

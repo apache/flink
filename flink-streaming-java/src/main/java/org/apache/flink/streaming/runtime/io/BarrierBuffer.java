@@ -64,7 +64,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	/** The total number of channels that this buffer handles data from. */
 	private final int totalNumberOfInputChannels;
 
-	/** To utility to write blocked data to a file channel. */
+	/** The utility to write blocked data to a file channel. */
 	private final BufferBlocker bufferBlocker;
 
 	/**

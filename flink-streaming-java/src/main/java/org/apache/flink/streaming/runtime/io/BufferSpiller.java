@@ -122,7 +122,7 @@ public class BufferSpiller implements BufferBlocker {
 	 * Adds a buffer or event to the sequence of spilled buffers and events.
 	 *
 	 * @param boe The buffer or event to add and spill.
-	 * @throws IOException Thrown, if the buffer of event could not be spilled.
+	 * @throws IOException Thrown, if the buffer or event could not be spilled.
 	 */
 	@Override
 	public void add(BufferOrEvent boe) throws IOException {
@@ -287,7 +287,7 @@ public class BufferSpiller implements BufferBlocker {
 		private boolean opened = false;
 
 		/**
-		 * Create a reader that reads a sequence of spilled buffers and events.
+		 * Create a reader that reads a sequence of spilled buffers or events.
 		 *
 		 * @param file The file with the data.
 		 * @param fileChannel The file channel to read the data from.

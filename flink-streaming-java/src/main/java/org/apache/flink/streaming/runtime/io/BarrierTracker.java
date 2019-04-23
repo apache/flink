@@ -59,7 +59,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 
 	// ------------------------------------------------------------------------
 
-	/** The input gate, to draw the buffers and events from. */
+	/** The input gate to draw the buffers and events from. */
 	private final InputGate inputGate;
 
 	/**
