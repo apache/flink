@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
@@ -257,7 +258,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		}
 	}
 
-	private class FailureHandler implements ApiFutureCallback<String> {
+	private class FailureHandler implements ApiFutureCallback<String>, Serializable {
 		@Override
 		public void onFailure(Throwable t) {
 			throw new RuntimeException("Failed trying to publish message", t);
