@@ -42,12 +42,12 @@ import _root_.scala.collection.JavaConverters._
 /**
   * Builder for [[[Operation]] tree.
   */
-class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
+class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] = tableEnv.expressionBridge
   private val functionCatalog: FunctionDefinitionCatalog = tableEnv.functionCatalog
 
-  private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
+  private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvImpl]
   private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
   private val sortOperationFactory = new SortOperationFactory(isStreaming)
   private val calculatedTableFactory = new CalculatedTableFactory()

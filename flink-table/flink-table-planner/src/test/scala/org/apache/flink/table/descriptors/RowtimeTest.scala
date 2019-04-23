@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
-import org.apache.flink.table.expressions.{Cast, Expression, PlannerExpression, ResolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
 import org.apache.flink.types.Row

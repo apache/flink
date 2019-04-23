@@ -36,6 +36,7 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvImpl;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
@@ -246,7 +247,8 @@ public class LocalExecutor implements Executor {
 				.getTableEnvironment();
 
 		try {
-			return context.wrapClassLoader(() -> Arrays.asList(tableEnv.getCompletionHints(statement, position)));
+			return context.wrapClassLoader(() ->
+				Arrays.asList(((TableEnvImpl) tableEnv).getCompletionHints(statement, position)));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			if (LOG.isDebugEnabled()) {
@@ -417,9 +419,8 @@ public class LocalExecutor implements Executor {
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				envInst
-					.getTableEnvironment()
-					.writeToSink(table, result.getTableSink(), envInst.getQueryConfig());
+				envInst.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
+				table.insertInto(jobName, envInst.getQueryConfig());
 				return null;
 			});
 			jobGraph = envInst.createJobGraph(jobName);

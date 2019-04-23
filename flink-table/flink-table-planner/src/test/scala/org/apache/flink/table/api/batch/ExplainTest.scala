@@ -53,7 +53,8 @@ class ExplainTest
       .toTable(tEnv, 'a, 'b)
       .filter("a % 2 = 0")
 
-    val result = tEnv.explain(table, extended = true).replaceAll("\\r\\n", "\n")
+    val result = tEnv.asInstanceOf[BatchTableEnvImpl]
+      .explain(table, extended = true).replaceAll("\\r\\n", "\n")
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilter1.out").mkString.replaceAll("\\r\\n", "\n")
     assertEquals(source, result)
@@ -83,7 +84,8 @@ class ExplainTest
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
     val table = table1.join(table2).where("b = d").select("a, c")
 
-    val result = tEnv.explain(table, extended = true).replaceAll("\\r\\n", "\n")
+    val result = tEnv.asInstanceOf[BatchTableEnvImpl]
+      .explain(table, extended = true).replaceAll("\\r\\n", "\n")
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testJoin1.out").mkString.replaceAll("\\r\\n", "\n")
     assertEquals(source, result)
@@ -113,7 +115,8 @@ class ExplainTest
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
     val table = table1.unionAll(table2)
 
-    val result = tEnv.explain(table, extended = true).replaceAll("\\r\\n", "\n")
+    val result = tEnv.asInstanceOf[BatchTableEnvImpl]
+      .explain(table, extended = true).replaceAll("\\r\\n", "\n")
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnion1.out").mkString.replaceAll("\\r\\n", "\n")
     assertEquals(source, result)

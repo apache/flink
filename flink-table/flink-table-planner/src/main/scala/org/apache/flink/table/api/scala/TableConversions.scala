@@ -21,9 +21,8 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, TableException, TableImpl}
-import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, TableImpl, TableException}
 
 /**
   * Holds methods to convert a [[Table]] into a [[DataSet]] or a [[DataStream]].
@@ -45,7 +44,7 @@ class TableConversions(table: TableImpl) {
     */
   def toDataSet[T: TypeInformation]: DataSet[T] = {
 
-    table.tableEnv match {
+    table.getTableEnvironment match {
       case tEnv: ScalaBatchTableEnv =>
         tEnv.toDataSet(table)
       case _ =>
@@ -68,7 +67,7 @@ class TableConversions(table: TableImpl) {
     */
   def toDataSet[T: TypeInformation](queryConfig: BatchQueryConfig): DataSet[T] = {
 
-    table.tableEnv match {
+    table.getTableEnvironment match {
       case tEnv: ScalaBatchTableEnv =>
         tEnv.toDataSet(table, queryConfig)
       case _ =>
@@ -93,7 +92,7 @@ class TableConversions(table: TableImpl) {
     */
   def toAppendStream[T: TypeInformation]: DataStream[T] = {
 
-    table.tableEnv match {
+    table.getTableEnvironment match {
       case tEnv: ScalaStreamTableEnv =>
         tEnv.toAppendStream(table)
       case _ =>
@@ -119,7 +118,7 @@ class TableConversions(table: TableImpl) {
     * @return The converted [[DataStream]].
     */
   def toAppendStream[T: TypeInformation](queryConfig: StreamQueryConfig): DataStream[T] = {
-    table.tableEnv match {
+    table.getTableEnvironment match {
       case tEnv: ScalaStreamTableEnv =>
         tEnv.toAppendStream(table, queryConfig)
       case _ =>
@@ -138,7 +137,7 @@ class TableConversions(table: TableImpl) {
     */
   def toRetractStream[T: TypeInformation]: DataStream[(Boolean, T)] = {
 
-    table.tableEnv match {
+    table.getTableEnvironment match {
       case tEnv: ScalaStreamTableEnv =>
         tEnv.toRetractStream(table)
       case _ =>
@@ -160,7 +159,7 @@ class TableConversions(table: TableImpl) {
   def toRetractStream[T: TypeInformation](
       queryConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
 
-    table.tableEnv match {
+    table.getTableEnvironment match {
       case tEnv: ScalaStreamTableEnv =>
         tEnv.toRetractStream(table, queryConfig)
       case _ =>

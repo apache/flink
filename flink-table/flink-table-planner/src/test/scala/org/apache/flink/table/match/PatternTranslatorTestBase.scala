@@ -52,7 +52,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     context._2.getTypeFactory)
 
   private def prepareContext(typeInfo: TypeInformation[Row])
-  : (RelBuilder, StreamTableEnvironment, StreamExecutionEnvironment) = {
+  : (RelBuilder, StreamTableEnvImpl, StreamExecutionEnvironment) = {
     // create DataStreamTable
     val dataStreamMock = mock(classOf[DataStream[Row]])
     val jDataStreamMock = mock(classOf[JDataStream[Row]])
@@ -60,7 +60,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     when(jDataStreamMock.getType).thenReturn(typeInfo)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env).asInstanceOf[StreamTableEnvImpl]
     tEnv.registerDataStream(tableName, dataStreamMock, 'f0, 'proctime.proctime)
 
     // prepare RelBuilder

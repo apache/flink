@@ -30,7 +30,7 @@ import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.nodes.CommonSort
 import org.apache.calcite.rel.core.Sort
@@ -89,7 +89,7 @@ class DataStreamSort(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
+      tableEnv: StreamTableEnvImpl,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
     
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)

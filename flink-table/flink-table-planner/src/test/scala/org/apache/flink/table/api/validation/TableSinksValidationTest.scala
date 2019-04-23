@@ -50,8 +50,9 @@ class TableSinksValidationTest extends TableTestBase {
     val fieldNames = Array("a", "b", "c")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
     // table name already registered
-    util.tableEnv
-      .registerTableSink("TargetTable", fieldNames, fieldTypes, new UnsafeMemoryAppendTableSink)
+    util.tableEnv.registerTableSink(
+      "TargetTable",
+      new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }
 
   @Test(expected = classOf[TableException])
@@ -62,7 +63,8 @@ class TableSinksValidationTest extends TableTestBase {
     val fieldNames = Array("a", "b", "c")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
 
-    util.tableEnv
-      .registerTableSink("TargetTable", fieldNames, fieldTypes, new UnsafeMemoryAppendTableSink)
+    util.tableEnv.registerTableSink(
+      "TargetTable",
+      new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }
 }
