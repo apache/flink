@@ -1691,7 +1691,7 @@ object AggregateUtil {
     isParserCaseSensitive: Boolean): Int = {
 
     timeField match {
-      case ResolvedFieldReference(name, _) =>
+      case PlannerResolvedFieldReference(name: String, _) =>
         // get the RelDataType referenced by the time-field
         val relDataType = inputType.getFieldList.filter { r =>
           if (isParserCaseSensitive) {

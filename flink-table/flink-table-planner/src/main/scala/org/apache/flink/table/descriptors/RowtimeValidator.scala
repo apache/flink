@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.RowtimeValidator._
+import org.apache.flink.table.descriptors.Rowtime._
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp, TimestampExtractor}
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, BoundedOutOfOrderTimestamps, PreserveWatermarks, WatermarkStrategy}
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
@@ -100,64 +100,7 @@ class RowtimeValidator(
 
 object RowtimeValidator {
 
-  val ROWTIME = "rowtime"
-  val ROWTIME_TIMESTAMPS_TYPE = "rowtime.timestamps.type"
-  val ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD = "from-field"
-  val ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE = "from-source"
-  val ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM = "custom"
-  val ROWTIME_TIMESTAMPS_FROM = "rowtime.timestamps.from"
-  val ROWTIME_TIMESTAMPS_CLASS = "rowtime.timestamps.class"
-  val ROWTIME_TIMESTAMPS_SERIALIZED = "rowtime.timestamps.serialized"
-
-  val ROWTIME_WATERMARKS_TYPE = "rowtime.watermarks.type"
-  val ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING = "periodic-ascending"
-  val ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED = "periodic-bounded"
-  val ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE = "from-source"
-  val ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM = "custom"
-  val ROWTIME_WATERMARKS_CLASS = "rowtime.watermarks.class"
-  val ROWTIME_WATERMARKS_SERIALIZED = "rowtime.watermarks.serialized"
-  val ROWTIME_WATERMARKS_DELAY = "rowtime.watermarks.delay"
-
   // utilities
-
-  def normalizeTimestampExtractor(extractor: TimestampExtractor): Map[String, String] =
-    extractor match {
-
-        case existing: ExistingField =>
-          Map(
-            ROWTIME_TIMESTAMPS_TYPE -> ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD,
-            ROWTIME_TIMESTAMPS_FROM -> existing.getArgumentFields.apply(0))
-
-        case _: StreamRecordTimestamp =>
-          Map(ROWTIME_TIMESTAMPS_TYPE -> ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE)
-
-        case _: TimestampExtractor =>
-          Map(
-            ROWTIME_TIMESTAMPS_TYPE -> ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM,
-            ROWTIME_TIMESTAMPS_CLASS -> extractor.getClass.getName,
-            ROWTIME_TIMESTAMPS_SERIALIZED -> EncodingUtils.encodeObjectToString(extractor))
-    }
-
-  def normalizeWatermarkStrategy(strategy: WatermarkStrategy): Map[String, String] =
-    strategy match {
-
-      case _: AscendingTimestamps =>
-        Map(ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING)
-
-      case bounded: BoundedOutOfOrderTimestamps =>
-        Map(
-          ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED,
-          ROWTIME_WATERMARKS_DELAY -> bounded.delay.toString)
-
-      case _: PreserveWatermarks =>
-        Map(ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE)
-
-      case _: WatermarkStrategy =>
-        Map(
-          ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM,
-          ROWTIME_WATERMARKS_CLASS -> strategy.getClass.getName,
-          ROWTIME_WATERMARKS_SERIALIZED -> EncodingUtils.encodeObjectToString(strategy))
-    }
 
   def getRowtimeComponents(properties: DescriptorProperties, prefix: String)
     : Option[(TimestampExtractor, WatermarkStrategy)] = {

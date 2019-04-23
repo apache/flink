@@ -152,7 +152,7 @@ class RexNodeToExpressionConverter(
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
-    Some(ResolvedFieldReference(
+    Some(PlannerResolvedFieldReference(
       inputNames(inputRef.getIndex),
       FlinkTypeFactory.toTypeInfo(inputRef.getType)
     ))
