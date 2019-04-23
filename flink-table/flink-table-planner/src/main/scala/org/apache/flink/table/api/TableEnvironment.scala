@@ -117,7 +117,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
-  protected val calciteConfig: CalciteConfig = config.getPlannerConfig
+  protected def calciteConfig: CalciteConfig = config.getPlannerConfig
     .unwrap(classOf[CalciteConfig])
     .orElse(CalciteConfig.DEFAULT)
 
