@@ -16,16 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.factories;
 
-import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.sinks.TableSink;
+
+import java.util.Map;
 
 /**
-  * Descriptor for specifying a table source and/or sink in a batch environment.
-  */
-class BatchTableDescriptor(
-    tableEnv: BatchTableEnvironment,
-    connectorDescriptor: ConnectorDescriptor)
-  extends ConnectTableDescriptor[BatchTableDescriptor](
-    tableEnv,
-    connectorDescriptor)
+ * A factory to create configured table sink instances in a batch or stream environment based on
+ * string-based properties. See also {@link TableFactory} for more information.
+ *
+ * @param <T> type of records that the factory produces
+ */
+@PublicEvolving
+public interface TableSinkFactory<T> extends TableFactory {
+
+	/**
+	 * Creates and configures a {@link TableSink} using the given properties.
+	 *
+	 * @param properties normalized properties describing a table sink.
+	 * @return the configured table sink.
+	 */
+	TableSink<T> createTableSink(Map<String, String> properties);
+}
