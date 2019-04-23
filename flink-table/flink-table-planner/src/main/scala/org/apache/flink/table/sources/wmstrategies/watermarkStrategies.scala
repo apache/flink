@@ -18,17 +18,11 @@
 
 package org.apache.flink.table.sources.wmstrategies
 
-import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.types.Row
+import java.util
 
-/**
-  * Provides a strategy to generate watermarks for a rowtime attribute.
-  *
-  * A watermark strategy is either a [[PeriodicWatermarkAssigner]] or
-  * [[PunctuatedWatermarkAssigner]].
-  *
-  */
-sealed abstract class WatermarkStrategy extends Serializable
+import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.descriptors.Rowtime
+import org.apache.flink.types.Row
 
 /** A periodic watermark assigner. */
 abstract class PeriodicWatermarkAssigner extends WatermarkStrategy {
@@ -73,6 +67,12 @@ final class PreserveWatermarks extends WatermarkStrategy {
 
   override def hashCode(): Int =  {
     classOf[PreserveWatermarks].hashCode()
+  }
+
+  override def toProperties: util.Map[String, String] = {
+    val javaMap = new util.HashMap[String, String]()
+    javaMap.put(Rowtime.ROWTIME_WATERMARKS_TYPE, Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE)
+    javaMap
   }
 }
 object PreserveWatermarks {

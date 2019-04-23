@@ -63,7 +63,7 @@ class DataSetLogicalWindowAggregateRule
           // resolve field name of window attribute
           val fieldName = rowType.getFieldList.get(ref.getIndex).getName
           val fieldType = rowType.getFieldList.get(ref.getIndex).getType
-          ResolvedFieldReference(fieldName, FlinkTypeFactory.toTypeInfo(fieldType))
+          PlannerResolvedFieldReference(fieldName, FlinkTypeFactory.toTypeInfo(fieldType))
       }
     }
 

@@ -711,7 +711,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {
-    ResolvedFieldReference(
+    PlannerResolvedFieldReference(
       fieldReference.getName,
       fieldReference.getResultType)
   }

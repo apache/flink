@@ -25,7 +25,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Literal, ResolvedFieldReference, WindowReference}
+import org.apache.flink.table.expressions.{Literal, PlannerResolvedFieldReference, WindowReference}
 import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.rules.common.LogicalWindowAggregateRule
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
@@ -75,10 +75,10 @@ class DataStreamLogicalWindowAggregateRule
           "Only constant window intervals with millisecond resolution are supported.")
       }
 
-    def getOperandAsTimeIndicator(call: RexCall, idx: Int): ResolvedFieldReference =
+    def getOperandAsTimeIndicator(call: RexCall, idx: Int): PlannerResolvedFieldReference =
       call.getOperands.get(idx) match {
         case v: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(v.getType) =>
-          ResolvedFieldReference(
+          PlannerResolvedFieldReference(
             rowType.getFieldList.get(v.getIndex).getName,
             FlinkTypeFactory.toTypeInfo(v.getType))
         case _ =>
