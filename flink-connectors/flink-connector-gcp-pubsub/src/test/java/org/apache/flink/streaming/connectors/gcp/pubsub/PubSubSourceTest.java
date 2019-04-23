@@ -17,12 +17,12 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeIdsForCheckpoint;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeOnCheckpoint;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
@@ -32,6 +32,7 @@ import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.pubsub.v1.AcknowledgeRequest;
+import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.junit.Before;
@@ -41,13 +42,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.core.Is.is;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -64,15 +71,15 @@ public class PubSubSourceTest {
 	private static final String SECOND_MESSAGE = "SecondMessage";
 
 	@Mock
-	private org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext<String> sourceContext;
+	private SourceFunction.SourceContext<String> sourceContext;
 	@Mock
 	private PubSubDeserializationSchema<String> deserializationSchema;
 	@Mock
+	private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
+	@Mock
+	private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
+	@Mock
 	private StreamingRuntimeContext streamingRuntimeContext;
-	@Mock
-	private OperatorStateStore operatorStateStore;
-	@Mock
-	private FunctionInitializationContext functionInitializationContext;
 	@Mock
 	private MetricGroup metricGroup;
 	@Mock
@@ -89,20 +96,17 @@ public class PubSubSourceTest {
 	@Before
 	public void setup() throws Exception {
 		when(pubSubSubscriberFactory.getSubscriber(any(), eq(credentials))).thenReturn(subscriberStub);
-		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-		when(streamingRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(12);
-		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
-		when(operatorStateStore.getSerializableListState(any())).thenReturn(null);
+		when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
 
-		pubSubSource = PubSubSource.newBuilder(deserializationSchema, "project", "subscriptionName")
-									.withPubSubSubscriberFactory(pubSubSubscriberFactory)
-									.withCredentials(credentials)
-									.withMaxMessagesPerPull(100)
-									.build();
+		pubSubSource = new PubSubSource<>(deserializationSchema,
+			pubSubSubscriberFactory,
+			credentials,
+			ProjectSubscriptionName.format("project", "subscriptionName"),
+			100,
+			acknowledgeOnCheckpointFactory);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
-		pubSubSource.initializeState(functionInitializationContext);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -118,6 +122,7 @@ public class PubSubSourceTest {
 		pubSubSource.open(null);
 
 		verify(pubSubSubscriberFactory, times(1)).getSubscriber(any(), eq(credentials));
+		verify(acknowledgeOnCheckpointFactory, times(1)).create(pubSubSource);
 	}
 
 	@Test
@@ -136,10 +141,12 @@ public class PubSubSourceTest {
 		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
 		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(FIRST_MESSAGE));
 		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
+		verify(acknowledgeOnCheckpoint, times(1)).addAcknowledgeId("firstAckId");
 
 		verify(deserializationSchema, times(1)).isEndOfStream(SECOND_MESSAGE);
 		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(SECOND_MESSAGE));
 		verify(sourceContext, times(1)).collect(SECOND_MESSAGE);
+		verify(acknowledgeOnCheckpoint, times(1)).addAcknowledgeId("secondAckId");
 	}
 
 	@Test
@@ -148,15 +155,36 @@ public class PubSubSourceTest {
 		List<String> input = asList("firstAckId", "secondAckId");
 
 		pubSubSource.open(null);
-		pubSubSource.acknowledgeSessionIDs(input);
+		pubSubSource.acknowledge(input);
 
 		ArgumentCaptor<AcknowledgeRequest> captor = ArgumentCaptor.forClass(AcknowledgeRequest.class);
 		verify(acknowledgeCallable, times(1)).call(captor.capture());
 
 		AcknowledgeRequest actual = captor.getValue();
-		assertThat(actual.getAckIdsList().size(), is(2));
-		assertThat(actual.getAckIdsList().get(0), is("firstAckId"));
-		assertThat(actual.getAckIdsList().get(1), is("secondAckId"));
+		assertThat(actual.getAckIdsList(), hasSize(2));
+		assertThat(actual.getAckIdsList(), containsInAnyOrder("firstAckId", "secondAckId"));
+	}
+
+	@Test
+	public void testMessagesAcknowledgedInBatches() throws Exception {
+		when(subscriberStub.acknowledgeCallable()).thenReturn(acknowledgeCallable);
+		List<String> input = IntStream.range(0, 50000)
+			.mapToObj(i -> String.format("id-%d", i))
+			.collect(toList());
+
+		pubSubSource.open(null);
+		pubSubSource.acknowledge(input);
+
+		ArgumentCaptor<AcknowledgeRequest> captor = ArgumentCaptor.forClass(AcknowledgeRequest.class);
+		verify(acknowledgeCallable, times(2)).call(captor.capture());
+
+		List<AcknowledgeRequest> actual = captor.getAllValues();
+
+		assertThat(actual, hasSize(2));
+		assertThat(actual.get(0).getAckIdsList(), hasSize(47546));
+		assertThat(actual.get(0).getAckIdsList(), containsInAnyOrder(input.subList(0, 47546).toArray()));
+		assertThat(actual.get(1).getAckIdsList(), hasSize(2454));
+		assertThat(actual.get(1).getAckIdsList(), containsInAnyOrder(input.subList(47546, 50000).toArray()));
 	}
 
 	@Test
@@ -166,51 +194,8 @@ public class PubSubSourceTest {
 		pubSubSource.open(null);
 		pubSubSource.cancel();
 
-		pubSubSource.acknowledgeSessionIDs(input);
+		pubSubSource.acknowledge(input);
 		verifyZeroInteractions(subscriberStub);
-	}
-
-	@Test
-	public void testDuplicateMessagesAreIgnoredWhenParallelismIsOne() throws Exception {
-		when(streamingRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
-		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
-
-		pubSubSource.open(null);
-
-		ReceivedMessage message = receivedMessage("ackId", pubSubMessage(FIRST_MESSAGE));
-
-		//Process first message
-		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
-		pubSubSource.processMessage(sourceContext, singletonList(message));
-		verify(sourceContext, times(1)).getCheckpointLock();
-		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
-
-		//Ignore second message
-		pubSubSource.processMessage(sourceContext, singletonList(message));
-		verify(sourceContext, times(2)).getCheckpointLock();
-		verifyNoMoreInteractions(sourceContext);
-	}
-
-	@Test
-	public void testDuplicateMessagesAreNotIgnoredWhenParallelismIsHigherThanOne() throws Exception {
-		when(streamingRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(12);
-		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
-
-		pubSubSource.open(null);
-
-		ReceivedMessage message = receivedMessage("ackId", pubSubMessage(FIRST_MESSAGE));
-
-		//Process first message
-		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
-		pubSubSource.processMessage(sourceContext, singletonList(message));
-		verify(sourceContext, times(1)).getCheckpointLock();
-		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
-
-		//Process second message
-		pubSubSource.processMessage(sourceContext, singletonList(message));
-		verify(sourceContext, times(2)).getCheckpointLock();
-		verify(sourceContext, times(2)).collect(FIRST_MESSAGE);
-		verifyNoMoreInteractions(sourceContext);
 	}
 
 	@Test
@@ -239,6 +224,32 @@ public class PubSubSourceTest {
 		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verifyNoMoreInteractions(sourceContext);
+	}
+
+	@Test
+	public void testNotifyCheckpointComplete() throws Exception {
+		pubSubSource.open(null);
+		pubSubSource.notifyCheckpointComplete(45L);
+
+		verify(acknowledgeOnCheckpoint, times(1)).notifyCheckpointComplete(45L);
+	}
+
+	@Test
+	public void testRestoreState() throws Exception {
+		pubSubSource.open(null);
+
+		List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
+		pubSubSource.restoreState(input);
+
+		verify(acknowledgeOnCheckpoint, times(1)).restoreState(refEq(input));
+	}
+
+	@Test
+	public void testSnapshotState() throws Exception {
+		pubSubSource.open(null);
+		pubSubSource.snapshotState(1337L, 15000L);
+
+		verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
 	}
 
 	private ReceivedMessage receivedMessage(String ackId, PubsubMessage pubsubMessage) {

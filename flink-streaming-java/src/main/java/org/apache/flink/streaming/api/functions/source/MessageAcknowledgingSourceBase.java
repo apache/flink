@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -150,12 +149,16 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		if (context.isRestored()) {
 			LOG.info("Restoring state for the {}.", getClass().getSimpleName());
 
-			List<Map<Long, Set<UId>>> retrievedStates = new ArrayList<>();
+			List<SerializedCheckpointData[]> retrievedStates = new ArrayList<>();
 			for (SerializedCheckpointData[] entry : this.checkpointedState.get()) {
-				retrievedStates.add(SerializedCheckpointData.toMap(entry, idSerializer));
+				retrievedStates.add(entry);
 			}
-			pendingCheckpoints = SerializedCheckpointData.combine(retrievedStates);
 
+			// given that the parallelism of the function is 1, we can only have at most 1 state
+			Preconditions.checkArgument(retrievedStates.size() == 1,
+				getClass().getSimpleName() + " retrieved invalid state.");
+
+			pendingCheckpoints = SerializedCheckpointData.toDeque(retrievedStates.get(0), idSerializer);
 			// build a set which contains all processed ids. It may be used to check if we have
 			// already processed an incoming message.
 			for (Tuple2<Long, Set<UId>> checkpoint : pendingCheckpoints) {
@@ -168,12 +171,8 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 	@Override
 	public void close() throws Exception {
-		if (idsForCurrentCheckpoint != null) {
-			idsForCurrentCheckpoint.clear();
-		}
-		if (pendingCheckpoints != null) {
-			pendingCheckpoints.clear();
-		}
+		idsForCurrentCheckpoint.clear();
+		pendingCheckpoints.clear();
 	}
 
 
