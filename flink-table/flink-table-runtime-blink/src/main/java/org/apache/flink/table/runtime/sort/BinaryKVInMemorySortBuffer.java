@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.runtime.sort;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
@@ -25,6 +26,7 @@ import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -95,5 +97,57 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 			checkArgument(success);
 			writeIndexAndNormalizedKey(row, pointer);
 		}
+	}
+
+	/**
+	 * Gets an iterator over all KV records in this buffer in their logical order.
+	 *
+	 * @return An iterator returning the records in their logical order.
+	 */
+	public final MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> getIterator() {
+		return new MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>>() {
+			private final int size = size();
+			private int current = 0;
+
+			private int currentSegment = 0;
+			private int currentOffset = 0;
+
+			private MemorySegment currentIndexSegment = sortIndex.get(0);
+
+			@Override
+			public Tuple2<BinaryRow, BinaryRow> next(Tuple2<BinaryRow, BinaryRow> kv) {
+				if (this.current < this.size) {
+					this.current++;
+					if (this.currentOffset > lastIndexEntryOffset) {
+						this.currentOffset = 0;
+						this.currentIndexSegment = sortIndex.get(++this.currentSegment);
+					}
+
+					long pointer = this.currentIndexSegment.getLong(this.currentOffset);
+					this.currentOffset += indexEntrySize;
+
+					try {
+						return getRecordFromBuffer(kv.f0, kv.f1, pointer);
+					} catch (IOException ioe) {
+						throw new RuntimeException(ioe);
+					}
+				} else {
+					return null;
+				}
+			}
+
+			@Override
+			public Tuple2<BinaryRow, BinaryRow> next() {
+				throw new RuntimeException("Not support!");
+			}
+		};
+	}
+
+	private Tuple2<BinaryRow, BinaryRow> getRecordFromBuffer(
+			BinaryRow reuseKey, BinaryRow reuseValue, long pointer) throws IOException {
+		this.recordBuffer.setReadPosition(pointer);
+		reuseKey = this.serializer.mapFromPages(reuseKey, this.recordBuffer);
+		reuseValue =  this.serializer.mapFromPages(reuseValue, this.recordBuffer);
+		return Tuple2.of(reuseKey, reuseValue);
 	}
 }

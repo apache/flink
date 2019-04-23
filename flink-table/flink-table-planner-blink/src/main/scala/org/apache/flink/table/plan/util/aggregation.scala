@@ -79,16 +79,16 @@ case class DistinctInfo(
   * The information contains all aggregate infos, and including input count information.
   *
   * @param aggInfos the information about every aggregates
-  * @param count1AggIndex  None if input count is not needed, otherwise is needed and the index
-  *                        represents the count1 index
-  * @param count1AggInserted  true when the count1 is inserted into agg list,
-  *                           false when the count1 is already existent in agg list.
+  * @param indexOfCountStar  None if input count is not needed, otherwise is needed and the index
+  *                        represents the count(*) index
+  * @param countStarInserted  true when the count(*) is inserted into agg list,
+  *                           false when the count(*) is already existent in agg list.
   * @param distinctInfos the distinct information, empty if all the aggregates are not distinct
   */
 case class AggregateInfoList(
     aggInfos: Array[AggregateInfo],
-    count1AggIndex: Option[Int],
-    count1AggInserted: Boolean,
+    indexOfCountStar: Option[Int],
+    countStarInserted: Boolean,
     distinctInfos: Array[DistinctInfo]) {
 
   def getAggNames: Array[String] = aggInfos.map(_.agg.getName)
@@ -109,26 +109,26 @@ case class AggregateInfoList(
     getActualAggregateInfos.map(_.externalResultType)
   }
 
-  def getCount1AccIndex: Option[Int] = {
-    if (count1AggIndex.nonEmpty) {
+  def getIndexOfCountStar: Int = {
+    if (indexOfCountStar.nonEmpty) {
       var accOffset = 0
       aggInfos.indices.foreach { i =>
-        if (i < count1AggIndex.get) {
+        if (i < indexOfCountStar.get) {
           accOffset += aggInfos(i).externalAccTypes.length
         }
       }
-      Some(accOffset)
+      accOffset
     } else {
-      None
+      -1
     }
   }
 
   def getActualAggregateInfos: Array[AggregateInfo] = {
-    if (count1AggIndex.nonEmpty && count1AggInserted) {
+    if (indexOfCountStar.nonEmpty && countStarInserted) {
       // need input count agg and the count1 is inserted,
       // which means the count1 shouldn't be calculated in value
       aggInfos.zipWithIndex
-        .filter { case (_, index) => index != count1AggIndex.get }
+        .filter { case (_, index) => index != indexOfCountStar.get }
         .map { case (aggInfo, _) => aggInfo }
     } else {
       aggInfos

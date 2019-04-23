@@ -93,6 +93,10 @@ public class InternalTypes {
 		return new MapType(keyType, valueType);
 	}
 
+	public static MultisetType createMultisetType(InternalType elementType) {
+		return new MultisetType(elementType);
+	}
+
 	public static <T> GenericType<T> createGenericType(Class<T> cls) {
 		return new GenericType<>(cls);
 	}

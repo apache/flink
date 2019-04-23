@@ -24,8 +24,8 @@ import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, 
 import org.apache.flink.table.expressions.{ResolvedDistinctKeyReference, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfo
-
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 
 import scala.collection.JavaConverters._
 
@@ -124,7 +124,9 @@ class DeclarativeAggCodeGen(
   }
 
   def accumulate(generator: ExprCodeGenerator): String = {
-    val resolvedExprs = function.accumulateExpressions.map(_.accept(ResolveReference()))
+    val isDistinctMerge = generator.input1Term.startsWith(DISTINCT_KEY_TERM)
+    val resolvedExprs = function.accumulateExpressions
+      .map(_.accept(ResolveReference(isDistinctMerge = isDistinctMerge)))
 
     val exprs = resolvedExprs
       .map(_.accept(rexNodeGen)) // rex nodes
@@ -152,7 +154,9 @@ class DeclarativeAggCodeGen(
   }
 
   def retract(generator: ExprCodeGenerator): String = {
-    val resolvedExprs = function.retractExpressions.map(_.accept(ResolveReference()))
+    val isDistinctMerge = generator.input1Term.startsWith(DISTINCT_KEY_TERM)
+    val resolvedExprs = function.retractExpressions
+      .map(_.accept(ResolveReference(isDistinctMerge = isDistinctMerge)))
 
     val exprs = resolvedExprs
       .map(_.accept(rexNodeGen)) // rex nodes

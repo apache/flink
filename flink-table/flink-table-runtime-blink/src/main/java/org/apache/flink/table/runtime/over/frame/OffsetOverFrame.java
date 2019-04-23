@@ -19,12 +19,13 @@
 package org.apache.flink.table.runtime.over.frame;
 
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 
-import java.util.function.Function;
+import java.io.Serializable;
 
 /**
  * The offset window frame calculates frames containing LEAD/LAG statements.
@@ -34,8 +35,8 @@ import java.util.function.Function;
 public class OffsetOverFrame implements OverWindowFrame {
 
 	private GeneratedAggsHandleFunction aggsHandleFunction;
-	private final long offset;
-	private final Function<BaseRow, Long> calcOffsetFunc;
+	private final Long offset;
+	private final CalcOffsetFunc calcOffsetFunc;
 
 	private AggsHandleFunction processor;
 
@@ -55,8 +56,8 @@ public class OffsetOverFrame implements OverWindowFrame {
 	 */
 	public OffsetOverFrame(
 			GeneratedAggsHandleFunction aggsHandleFunction,
-			long offset,
-			Function<BaseRow, Long> calcOffsetFunc) {
+			Long offset,
+			CalcOffsetFunc calcOffsetFunc) {
 		this.aggsHandleFunction = aggsHandleFunction;
 		this.offset = offset;
 		this.calcOffsetFunc = calcOffsetFunc;
@@ -65,7 +66,7 @@ public class OffsetOverFrame implements OverWindowFrame {
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		processor = aggsHandleFunction.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
-		processor.open(ctx);
+		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
 		this.aggsHandleFunction = null;
 	}
@@ -75,13 +76,13 @@ public class OffsetOverFrame implements OverWindowFrame {
 		//reset the accumulator value
 		processor.setAccumulators(processor.createAccumulators());
 		currentBufferLength = rows.size();
-		inputIndex = offset;
 		if (calcOffsetFunc == null) {
+			inputIndex = offset;
 			if (inputIterator != null) {
 				inputIterator.close();
 			}
 			if (offset >= 0) {
-				inputIterator = rows.newIterator((int) offset);
+				inputIterator = rows.newIterator((int) inputIndex);
 			} else {
 				inputIterator = rows.newIterator();
 			}
@@ -94,7 +95,7 @@ public class OffsetOverFrame implements OverWindowFrame {
 	public BaseRow process(int index, BaseRow current) throws Exception {
 		if (calcOffsetFunc != null) {
 			//poor performance here
-			long realIndex = calcOffsetFunc.apply(current) + index;
+			long realIndex = calcOffsetFunc.calc(current) + index;
 			if (realIndex >= 0 && realIndex < currentBufferLength) {
 				ResettableExternalBuffer.BufferIterator tempIterator = externalBuffer.newIterator((int) realIndex);
 				processor.accumulate(OverWindowFrame.getNextOrNull(tempIterator));
@@ -115,5 +116,13 @@ public class OffsetOverFrame implements OverWindowFrame {
 			inputIndex += 1;
 		}
 		return processor.getValue();
+	}
+
+	/**
+	 * Calc offset from base row.
+	 */
+	public interface CalcOffsetFunc extends Serializable {
+
+		long calc(BaseRow row);
 	}
 }

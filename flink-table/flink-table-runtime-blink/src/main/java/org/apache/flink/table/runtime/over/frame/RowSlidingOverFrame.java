@@ -33,8 +33,8 @@ import org.apache.flink.table.type.RowType;
  */
 public class RowSlidingOverFrame extends SlidingOverFrame {
 
-	private final int leftBound;
-	private final int rightBound;
+	private final long leftBound;
+	private final long rightBound;
 
 	/**
 	 * Index of the right bound input row.
@@ -50,8 +50,8 @@ public class RowSlidingOverFrame extends SlidingOverFrame {
 			RowType inputType,
 			RowType valueType,
 			GeneratedAggsHandleFunction aggsHandleFunction,
-			int leftBound,
-			int rightBound) {
+			long leftBound,
+			long rightBound) {
 		super(inputType, valueType, aggsHandleFunction);
 		this.leftBound = leftBound;
 		this.rightBound = rightBound;
@@ -69,7 +69,7 @@ public class RowSlidingOverFrame extends SlidingOverFrame {
 		boolean bufferUpdated = index == 0;
 
 		// Drop all rows from the buffer util left bound.
-		while (!buffer.isEmpty() && inputLeftIndex < index - leftBound) {
+		while (!buffer.isEmpty() && inputLeftIndex < index + leftBound) {
 			buffer.remove();
 			inputLeftIndex += 1;
 			bufferUpdated = true;
@@ -77,7 +77,7 @@ public class RowSlidingOverFrame extends SlidingOverFrame {
 
 		// Add all rows to the buffer util right bound.
 		while (nextRow != null && inputRightIndex <= index + rightBound) {
-			if (inputLeftIndex < index - leftBound) {
+			if (inputLeftIndex < index + leftBound) {
 				inputLeftIndex += 1;
 			} else {
 				buffer.add(inputSer.copy(nextRow));

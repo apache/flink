@@ -23,16 +23,18 @@ import java.util.{Collections, Optional, List => JList}
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
-import org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION
+import org.apache.flink.table.expressions.FunctionDefinition.Type.{SCALAR_FUNCTION, TABLE_FUNCTION}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.plan.logical.{Minus => LMinus, _}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 import org.apache.flink.util.Preconditions
 
+import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -129,8 +131,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation)
     : TableOperation = {
 
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
-    val validateAliases = ColumnOperationUtils.renameColumns(inputFieldNames, aliases)
+    val validateAliases =
+      ColumnOperationUtils.renameColumns(inputFieldNames, resolver.resolve(aliases))
 
     project(validateAliases, child)
   }
@@ -140,8 +144,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation)
     : TableOperation = {
 
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
-    val finalFields = ColumnOperationUtils.dropFields(inputFieldNames, fieldLists)
+    val finalFields = ColumnOperationUtils.dropFields(inputFieldNames, resolver.resolve(fieldLists))
 
     project(finalFields, child)
   }
@@ -363,6 +368,53 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   private def isScalarFunction(mapFunction: Expression) = {
     mapFunction.isInstanceOf[CallExpression] &&
       mapFunction.asInstanceOf[CallExpression].getFunctionDefinition.getType == SCALAR_FUNCTION
+  }
+
+  def flatMap(tableFunction: Expression, child: TableOperation): TableOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedTableFunction = resolveSingleExpression(tableFunction, resolver)
+
+    if (!isTableFunction(resolvedTableFunction)) {
+      throw new ValidationException("Only TableFunction can be used in the flatMap operator.")
+    }
+
+    val originFieldNames: Seq[String] =
+      resolvedTableFunction.asInstanceOf[CallExpression].getFunctionDefinition match {
+        case tfd: TableFunctionDefinition =>
+          UserDefinedFunctionUtils.getFieldInfo(tfd.getResultType)._1
+      }
+
+    def getUniqueName(inputName: String, usedFieldNames: Seq[String]): String = {
+      var i = 0
+      var resultName = inputName
+      while (usedFieldNames.contains(resultName)) {
+        resultName = resultName + "_" + i
+        i += 1
+      }
+      resultName
+    }
+
+    val usedFieldNames = child.asInstanceOf[LogicalNode].output.map(_.name).toBuffer
+    val newFieldNames = originFieldNames.map({ e =>
+      val resultName = getUniqueName(e, usedFieldNames)
+      usedFieldNames.append(resultName)
+      resultName
+    })
+
+    val renamedTableFunction = ApiExpressionUtils.call(
+      BuiltInFunctionDefinitions.AS,
+      resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
+    val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())
+    val rightNode = dropColumns(
+      child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
+      joinNode)
+    alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
+  }
+
+  private def isTableFunction(tableFunction: Expression) = {
+    tableFunction.isInstanceOf[CallExpression] &&
+      tableFunction.asInstanceOf[CallExpression].getFunctionDefinition.getType == TABLE_FUNCTION
   }
 
   class NoWindowPropertyChecker(val exceptionMessage: String)

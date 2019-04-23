@@ -18,11 +18,28 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.CalcitePair
+import org.apache.flink.table.`type`.InternalTypes
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.generated.GeneratedRecordComparator
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
+import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
+import org.apache.flink.table.plan.util.{OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.over.frame.OffsetOverFrame.CalcOffsetFunc
+import org.apache.flink.table.runtime.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
+import org.apache.flink.table.runtime.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -30,9 +47,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.RexWindowBound
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
+
+import java.util
+import java.util.function.Function
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -55,14 +76,41 @@ class BatchExecOverAggregate(
     nullIsLasts: Array[Boolean],
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
-  with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   private lazy val modeToGroupToAggCallToAggFunction:
     Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] =
     splitOutOffsetOrInsensitiveGroup()
 
+  lazy val needBufferData: Boolean = {
+    modeToGroupToAggCallToAggFunction.exists {
+      case (mode, windowGroup, _) =>
+        mode match {
+          case OverWindowMode.Insensitive => false
+          case OverWindowMode.Row
+            if (windowGroup.lowerBound.isCurrentRow && windowGroup.upperBound.isCurrentRow) ||
+                (windowGroup.lowerBound.isUnbounded && windowGroup.upperBound.isCurrentRow) =>
+            false
+          case _ => true
+        }
+    }
+  }
+
+  private val constants = logicWindow.constants
+  private val inputTypeWithConstants = {
+    val constantTypes = constants.map(c => FlinkTypeFactory.toInternalType(c.getType))
+    val inputTypeNamesWithConstants =
+      inputType.getFieldNames ++ constants.indices.map(i => "TMP" + i)
+    val inputTypesWithConstants = inputType.getFieldTypes ++ constantTypes
+    cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+        .buildLogicalRowType(inputTypeNamesWithConstants, inputTypesWithConstants)
+  }
+
   lazy val aggregateCalls: Seq[AggregateCall] =
     windowGroupToAggCallToAggFunction.flatMap(_._2).map(_._1)
+
+  private lazy val inputType = FlinkTypeFactory.toInternalRowType(inputRowType)
 
   def getGrouping: Array[Int] = grouping
 
@@ -101,8 +149,6 @@ class BatchExecOverAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val partitionKeys: Array[Int] = grouping
     val groups = modeToGroupToAggCallToAggFunction.map(_._2)
-    val constants: Seq[RexLiteral] = logicWindow.constants
-
     val writer = super.explainTerms(pw)
       .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, inputRowType),
         partitionKeys.nonEmpty)
@@ -197,6 +243,259 @@ class BatchExecOverAggregate(
     windowGroupInfo
   }
 
+  override def getDamBehavior = DamBehavior.PIPELINED
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+
+    //The generated sort is used for generating the comparator among partitions.
+    //So here not care the ASC or DESC for the grouping fields.
+    //TODO just replace comparator to equaliser
+    val collation = grouping.map(_ => (true, false))
+    val genComparator =  ComparatorCodeGenerator.gen(
+      tableEnv.getConfig,
+      "SortComparator",
+      grouping,
+      grouping.map(inputType.getTypeAt),
+      collation.map(_._1),
+      collation.map(_._2))
+
+    val operator = if (!needBufferData) {
+      //operator needn't cache data
+      val aggHandlers = modeToGroupToAggCallToAggFunction.map { case (_, _, aggCallToAggFunction) =>
+        val aggInfoList = transformToBatchAggregateInfoList(
+          aggCallToAggFunction.map(_._1),
+          // use aggInputType which considers constants as input instead of inputType
+          inputTypeWithConstants,
+          orderKeyIndices)
+        val codeGenCtx = CodeGeneratorContext(tableEnv.getConfig)
+        val generator = new AggsHandlerCodeGenerator(
+          codeGenCtx,
+          relBuilder,
+          inputType.getFieldTypes,
+          needRetract = false,
+          copyInputField = false)
+        // over agg code gen must pass the constants
+        generator.withConstants(constants).generateAggsHandler(
+          "BoundedOverAggregateHelper", aggInfoList)
+      }.toArray
+
+      val resetAccumulators =
+        modeToGroupToAggCallToAggFunction.map { case (mode, windowGroup, _) =>
+          mode == OverWindowMode.Row &&
+              windowGroup.lowerBound.isCurrentRow &&
+              windowGroup.upperBound.isCurrentRow
+        }.toArray
+      new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
+    } else {
+      val windowFrames = createOverWindowFrames(tableEnv)
+      new BufferDataOverWindowOperator(
+        tableEnv.getConfig.getConf.getInteger(
+          TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB,
+        windowFrames,
+        genComparator,
+        inputType.getFieldTypes.forall(BinaryRow.isInFixedLengthPart))
+    }
+    new OneInputTransformation(
+      input, "OverAggregate", operator, outputType.toTypeInfo, input.getParallelism)
+  }
+
+  def createOverWindowFrames(tableEnv: BatchTableEnvironment): Array[OverWindowFrame] = {
+    val config = tableEnv.getConfig
+
+    def isUnboundedWindow(group: Window.Group) =
+      group.lowerBound.isUnbounded && group.upperBound.isUnbounded
+
+    def isUnboundedPrecedingWindow(group: Window.Group) =
+      group.lowerBound.isUnbounded && !group.upperBound.isUnbounded
+
+    def isUnboundedFollowingWindow(group: Window.Group) =
+      !group.lowerBound.isUnbounded && group.upperBound.isUnbounded
+
+    def isSlidingWindow(group: Window.Group) =
+      !group.lowerBound.isUnbounded && !group.upperBound.isUnbounded
+
+    modeToGroupToAggCallToAggFunction.flatMap { case (mode, windowGroup, aggCallToAggFunction) =>
+      mode match {
+        case OverWindowMode.Offset =>
+          //Split the aggCalls to different over window frame because the length of window frame
+          //lies on the offset of the window frame.
+          aggCallToAggFunction.map { case (aggCall, _) =>
+            val aggInfoList = transformToBatchAggregateInfoList(
+              Seq(aggCall),
+              inputTypeWithConstants,
+              orderKeyIndices,
+              Array[Boolean](true) /* needRetraction = true, See LeadLagAggFunction */)
+
+            val generator = new AggsHandlerCodeGenerator(
+              CodeGeneratorContext(config),
+              relBuilder,
+              inputType.getFieldTypes,
+              needRetract = true,
+              copyInputField = false)
+
+            // over agg code gen must pass the constants
+            val genAggsHandler = generator.withConstants(constants)
+                .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
+
+            // LEAD is behind the currentRow, so we need plus offset.
+            // LAG is in front of the currentRow, so we need minus offset.
+            val flag = if (aggCall.getAggregation.kind == SqlKind.LEAD) 1 else -1
+
+            // Either long or function.
+            val (offset, calcOffsetFunc) = {
+              // LEAD ( expression [, offset [, default] ] )
+              // LAG ( expression [, offset [, default] ] )
+              // The second arg mean the offset arg index for leag/lag function, default is 1.
+              if (aggCall.getArgList.length >= 2) {
+                val constantIndex =
+                  aggCall.getArgList.get(1) - OverAggregateUtil.calcOriginInputRows(logicWindow)
+                if (constantIndex < 0) {
+                  val rowIndex = aggCall.getArgList.get(1)
+                  val func = inputType.getTypeAt(rowIndex) match {
+                    case InternalTypes.LONG =>
+                      new CalcOffsetFunc {
+                        override def calc(value: BaseRow): Long = {
+                          value.getLong(rowIndex) * flag
+                        }
+                      }
+                    case InternalTypes.INT =>
+                      new CalcOffsetFunc {
+                        override def calc(value: BaseRow): Long = {
+                          value.getInt(rowIndex).toLong * flag
+                        }
+                      }
+                    case InternalTypes.SHORT =>
+                      new CalcOffsetFunc {
+                        override def calc(value: BaseRow): Long = {
+                          value.getShort(rowIndex).toLong * flag
+                        }
+                      }
+                    case _ => throw new RuntimeException(
+                      "The column type must be in long/int/short.")
+                  }
+                  (null, func)
+                } else {
+                  val constantOffset = logicWindow.constants.get(
+                    constantIndex).getValueAs(classOf[java.lang.Long])
+                  (constantOffset * flag, null)
+                }
+              } else {
+                (1L * flag, null)
+              }
+            }
+            new OffsetOverFrame(
+              genAggsHandler,
+              offset.asInstanceOf[java.lang.Long],
+              calcOffsetFunc.asInstanceOf[CalcOffsetFunc])
+          }
+
+        case _ =>
+          val aggInfoList = transformToBatchAggregateInfoList(
+            aggCallToAggFunction.map(_._1),
+            //use aggInputType which considers constants as input instead of inputSchema.relDataType
+            inputTypeWithConstants,
+            orderKeyIndices)
+          val codeGenCtx = CodeGeneratorContext(config)
+          val generator = new AggsHandlerCodeGenerator(
+            codeGenCtx,
+            relBuilder,
+            inputType.getFieldTypes,
+            needRetract = false,
+            copyInputField = false)
+
+          // over agg code gen must pass the constants
+          val genAggsHandler = generator.withConstants(constants)
+              .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
+
+          mode match {
+            case OverWindowMode.Range if isUnboundedWindow(windowGroup) =>
+              Array(new UnboundedOverWindowFrame(genAggsHandler, generator.valueType))
+
+            case OverWindowMode.Range if isUnboundedPrecedingWindow(windowGroup) =>
+              val genBoundComparator = createBoundComparator(
+                config, windowGroup, windowGroup.upperBound, isLowerBound = false)
+              Array(new RangeUnboundedPrecedingOverFrame(genAggsHandler, genBoundComparator))
+
+            case OverWindowMode.Range if isUnboundedFollowingWindow(windowGroup) =>
+              val genBoundComparator = createBoundComparator(
+                config, windowGroup, windowGroup.lowerBound, isLowerBound = true)
+              Array(new RangeUnboundedFollowingOverFrame(
+                generator.valueType, genAggsHandler, genBoundComparator))
+
+            case OverWindowMode.Range if isSlidingWindow(windowGroup) =>
+              val genlBoundComparator = createBoundComparator(
+                config, windowGroup, windowGroup.lowerBound, isLowerBound = true)
+              val genrBoundComparator = createBoundComparator(
+                config, windowGroup, windowGroup.upperBound, isLowerBound = false)
+              Array(new RangeSlidingOverFrame(
+                inputType, generator.valueType,
+                genAggsHandler, genlBoundComparator, genrBoundComparator))
+
+            case OverWindowMode.Row if isUnboundedWindow(windowGroup) =>
+              Array(new UnboundedOverWindowFrame(genAggsHandler, generator.valueType))
+
+            case OverWindowMode.Row if isUnboundedPrecedingWindow(windowGroup) =>
+
+              Array(new RowUnboundedPrecedingOverFrame(genAggsHandler,
+                getLongBoundary(logicWindow, windowGroup.upperBound)))
+
+            case OverWindowMode.Row if isUnboundedFollowingWindow(windowGroup) =>
+              Array(new RowUnboundedFollowingOverFrame(
+                generator.valueType,
+                genAggsHandler,
+                getLongBoundary(logicWindow, windowGroup.lowerBound)))
+
+            case OverWindowMode.Row if isSlidingWindow(windowGroup) =>
+              Array(new RowSlidingOverFrame(
+                inputType,
+                generator.valueType,
+                genAggsHandler,
+                getLongBoundary(logicWindow, windowGroup.lowerBound),
+                getLongBoundary(logicWindow, windowGroup.upperBound)))
+
+            case OverWindowMode.Insensitive => Array(new InsensitiveOverFrame(genAggsHandler))
+          }
+      }
+    }.toArray
+  }
+
+  private def createBoundComparator(
+      config: TableConfig,
+      windowGroup: Window.Group,
+      windowBound: RexWindowBound,
+      isLowerBound: Boolean): GeneratedRecordComparator = {
+    val bound = OverAggregateUtil.getBoundary(logicWindow, windowBound)
+    if (!windowBound.isCurrentRow) {
+      //Range Window only support comparing based on a field.
+      val sortKey = orderKeyIndices(0)
+      new RangeBoundComparatorCodeGenerator(
+        relBuilder,
+        config,
+        inputType,
+        bound,
+        sortKey,
+        inputType.getTypeAt(sortKey),
+        orders(0),
+        isLowerBound).generateBoundComparator("RangeBoundComparator")
+    } else {
+      //if the bound is current row, then window support comparing based on multi fields.
+      new MultiFieldRangeBoundComparatorCodeGenerator(
+        config,
+        inputType,
+        orderKeyIndices,
+        orderKeyIndices.map(inputType.getTypeAt),
+        orders,
+        nullIsLasts,
+        isLowerBound).generateBoundComparator("MultiFieldRangeBoundComparator")
+    }
+  }
 }
 
 object OverWindowMode extends Enumeration {

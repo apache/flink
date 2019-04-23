@@ -19,8 +19,9 @@
 package org.apache.flink.table.plan.nodes.exec
 
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.util.Logging
 
 /**
   * Base class for stream ExecNode.
   */
-trait StreamExecNode[T] extends ExecNode[StreamTableEnvironment, T]
+trait StreamExecNode[T] extends ExecNode[StreamTableEnvironment, T] with Logging

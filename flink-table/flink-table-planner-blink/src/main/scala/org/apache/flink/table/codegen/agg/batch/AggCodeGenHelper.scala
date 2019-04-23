@@ -24,7 +24,6 @@ import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.TypeConverters.{createInternalTypeFromTypeInfo, createInternalTypeInfoFromInternalType}
 import org.apache.flink.table.`type`.{ArrayType, InternalType, MapType, RowType, StringType}
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForExternalType, genToExternal, genToInternal, newName, primitiveTypeTermForType}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator}
@@ -126,7 +125,6 @@ object AggCodeGenHelper {
       isMerge: Boolean,
       isFinal: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       grouping: Array[Int],
       auxGrouping: Array[Int],
@@ -148,7 +146,6 @@ object AggCodeGenHelper {
     val aggBufferExprs = genFlatAggBufferExprs(
       isMerge,
       ctx,
-      config,
       builder,
       auxGrouping,
       aggregates,
@@ -158,7 +155,6 @@ object AggCodeGenHelper {
 
     val initAggBufferCode = genInitFlatAggregateBuffer(
       ctx,
-      config,
       builder,
       inputType,
       inputTerm,
@@ -172,7 +168,6 @@ object AggCodeGenHelper {
     val doAggregateCode = genAggregateByFlatAggregateBuffer(
       isMerge,
       ctx,
-      config,
       builder,
       inputType,
       inputTerm,
@@ -189,7 +184,6 @@ object AggCodeGenHelper {
       isMerge,
       isFinal,
       ctx,
-      config,
       builder,
       grouping,
       auxGrouping,
@@ -319,7 +313,6 @@ object AggCodeGenHelper {
   private[flink] def genFlatAggBufferExprs(
       isMerge: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       auxGrouping: Array[Int],
       aggregates: Seq[UserDefinedFunction],
@@ -352,7 +345,6 @@ object AggCodeGenHelper {
     */
   private[flink] def genInitFlatAggregateBuffer(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       inputType: RowType,
       inputTerm: String,
@@ -423,7 +415,6 @@ object AggCodeGenHelper {
   private[flink] def genAggregateByFlatAggregateBuffer(
       isMerge: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       inputType: RowType,
       inputTerm: String,
@@ -438,7 +429,6 @@ object AggCodeGenHelper {
     if (isMerge) {
       genMergeFlatAggregateBuffer(
         ctx,
-        config,
         builder,
         inputTerm,
         inputType,
@@ -452,7 +442,6 @@ object AggCodeGenHelper {
     } else {
       genAccumulateFlatAggregateBuffer(
         ctx,
-        config,
         builder,
         inputTerm,
         inputType,
@@ -470,7 +459,6 @@ object AggCodeGenHelper {
       isMerge: Boolean,
       isFinal: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       grouping: Array[Int],
       auxGrouping: Array[Int],
@@ -488,7 +476,6 @@ object AggCodeGenHelper {
       val getValueExprs = genGetValueFromFlatAggregateBuffer(
         isMerge,
         ctx,
-        config,
         builder,
         auxGrouping,
         aggregates,
@@ -514,7 +501,6 @@ object AggCodeGenHelper {
   private[flink] def genGetValueFromFlatAggregateBuffer(
       isMerge: Boolean,
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       auxGrouping: Array[Int],
       aggregates: Seq[UserDefinedFunction],
@@ -562,7 +548,6 @@ object AggCodeGenHelper {
     */
   private[flink] def genMergeFlatAggregateBuffer(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       inputTerm: String,
       inputType: RowType,
@@ -622,7 +607,6 @@ object AggCodeGenHelper {
     */
   private[flink] def genAccumulateFlatAggregateBuffer(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
       builder: RelBuilder,
       inputTerm: String,
       inputType: RowType,
@@ -714,8 +698,7 @@ object AggCodeGenHelper {
       operatorBaseClass: String,
       processCode: String,
       endInputCode: String,
-      inputType: RowType,
-      config: TableConfig): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      inputType: RowType): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
     ctx.addReusableMember("private boolean hasInput = false;")
     ctx.addReusableMember(s"$STREAM_RECORD element = new $STREAM_RECORD((Object)null);")
     OperatorCodeGenerator.generateOneInputStreamOperator(
@@ -724,7 +707,7 @@ object AggCodeGenHelper {
       processCode,
       endInputCode,
       inputType,
-      config,
+      ctx.tableConfig,
       lazyInputUnboxingCode = true)
   }
 }

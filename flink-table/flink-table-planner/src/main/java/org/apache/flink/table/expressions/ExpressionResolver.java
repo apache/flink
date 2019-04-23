@@ -54,15 +54,13 @@ import java.util.stream.Collectors;
 
 import scala.Some;
 
-import static java.util.stream.Collectors.toList;
-
 /**
  * Tries to resolve all unresolved expressions such as {@link UnresolvedReferenceExpression}
  * or calls such as {@link BuiltInFunctionDefinitions#OVER}.
  *
  * <p>The default set of rules ({@link ExpressionResolver#getResolverRules()}) will resolve following references:
  * <ul>
- *     <li>flatten '*' to all fields of underlying inputs</li>
+ *     <li>flatten '*' and column functions to all fields of underlying inputs</li>
  *     <li>join over aggregates with corresponding over windows into a single resolved call</li>
  *     <li>resolve remaining unresolved references to fields, tables or local references</li>
  *     <li>replace call to {@link BuiltInFunctionDefinitions#FLATTEN}</li>
@@ -79,6 +77,7 @@ public class ExpressionResolver {
 		return Arrays.asList(
 			ResolverRules.LOOKUP_CALL_BY_NAME,
 			ResolverRules.FLATTEN_STAR_REFERENCE,
+			ResolverRules.EXPAND_COLUMN_FUNCTIONS,
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
 			ResolverRules.FLATTEN_CALL,
@@ -160,7 +159,12 @@ public class ExpressionResolver {
 		}
 
 		final String windowName = ((UnresolvedReferenceExpression) alias).getName();
-		PlannerExpression timeField = resolveFieldsInSingleExpression(window.getTimeField()).accept(bridgeConverter);
+		List<Expression> resolvedTimeFieldExpression =
+			prepareExpressions(Collections.singletonList(window.getTimeField()));
+		if (resolvedTimeFieldExpression.size() != 1) {
+			throw new ValidationException("Group Window only supports a single time field column.");
+		}
+		PlannerExpression timeField = resolvedTimeFieldExpression.get(0).accept(bridgeConverter);
 
 		//TODO replace with LocalReferenceExpression
 		WindowReference resolvedAlias = new WindowReference(windowName, new Some<>(timeField.resultType()));
@@ -202,9 +206,10 @@ public class ExpressionResolver {
 	private void prepareLocalReferencesFromGroupWindows(@Nullable GroupWindow groupWindow) {
 		if (groupWindow != null) {
 			String windowName = ((UnresolvedReferenceExpression) groupWindow.getAlias()).getName();
-			TypeInformation<?> windowType = resolveFieldsInSingleExpression(groupWindow.getTimeField())
-				.accept(bridgeConverter)
-				.resultType();
+			TypeInformation<?> windowType =
+				prepareExpressions(Collections.singletonList(groupWindow.getTimeField())).get(0)
+					.accept(bridgeConverter)
+					.resultType();
 
 			localReferences.put(windowName, new LocalReferenceExpression(windowName, windowType));
 		}
@@ -219,6 +224,14 @@ public class ExpressionResolver {
 			));
 	}
 
+	private List<Expression> prepareExpressions(List<Expression> expressions) {
+		return expressions.stream()
+			.flatMap(e -> lookupCall(e).stream())
+			.flatMap(e -> resolveColumnFunctions(e).stream())
+			.map(this::resolveFieldsInSingleExpression)
+			.collect(Collectors.toList());
+	}
+
 	private Expression resolveFieldsInSingleExpression(Expression expression) {
 		List<Expression> expressions = ResolverRules.FIELD_RESOLVE.apply(Collections.singletonList(expression),
 			new ExpressionResolverContext());
@@ -228,6 +241,18 @@ public class ExpressionResolver {
 		}
 
 		return expressions.get(0);
+	}
+
+	private List<Expression> resolveColumnFunctions(Expression expression) {
+		List<Expression> expressions = ResolverRules.EXPAND_COLUMN_FUNCTIONS.apply(Collections.singletonList(expression),
+			new ExpressionResolverContext());
+		return expressions;
+	}
+
+	private List<Expression> lookupCall(Expression expression) {
+		List<Expression> expressions = ResolverRules.LOOKUP_CALL_BY_NAME.apply(Collections.singletonList(expression),
+			new ExpressionResolverContext());
+		return expressions;
 	}
 
 	private class ExpressionResolverContext implements ResolverRule.ResolutionContext {
@@ -266,7 +291,7 @@ public class ExpressionResolver {
 	private LogicalOverWindow resolveOverWindow(OverWindow overWindow) {
 		return new LogicalOverWindow(
 			overWindow.getAlias(),
-			overWindow.getPartitioning().stream().map(this::resolveFieldsInSingleExpression).collect(toList()),
+			prepareExpressions(overWindow.getPartitioning()),
 			resolveFieldsInSingleExpression(overWindow.getOrder()),
 			resolveFieldsInSingleExpression(overWindow.getPreceding()),
 			overWindow.getFollowing().map(this::resolveFieldsInSingleExpression)

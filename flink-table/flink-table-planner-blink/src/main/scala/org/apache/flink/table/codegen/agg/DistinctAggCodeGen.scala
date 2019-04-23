@@ -23,7 +23,7 @@ import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeIn
 import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.MapView
-import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName, _}
+import org.apache.flink.table.codegen.CodeGenUtils.{newName, _}
 import org.apache.flink.table.codegen.GenerateUtils.{generateFieldAccess, generateInputAccess}
 import org.apache.flink.table.codegen.GeneratedExpression._
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator._
@@ -33,7 +33,6 @@ import org.apache.flink.table.expressions.{Expression, RexNodeConverter}
 import org.apache.flink.table.plan.util.DistinctInfo
 import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
-
 import org.apache.calcite.tools.RelBuilder
 
 import java.lang.{Long => JLong}
@@ -139,8 +138,13 @@ class DistinctAggCodeGen(
       // when the distinct acc is excluded, no need to create distinct accumulator
       Seq()
     } else {
-      val accTerm = newName("distinct_acc")
-      val code = s"$MAP_VIEW $accTerm = new $MAP_VIEW();"
+      val Seq(mapViewTerm, accTerm) = newNames("mapview", "distinct_acc")
+      val code =
+        s"""
+           |$MAP_VIEW $mapViewTerm = new $MAP_VIEW();
+           |$BINARY_GENERIC $accTerm = ${genToInternal(ctx, externalAccType, mapViewTerm)};
+         """.stripMargin
+
       Seq(GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType))
     }
   }
@@ -170,10 +174,16 @@ class DistinctAggCodeGen(
       // when the distinct acc is excluded, the accumulator result shouldn't include distinct acc
       Seq()
     } else {
+      val accTerm = newName("distinct_acc")
+      val code =
+        s"""
+           |$BINARY_GENERIC $accTerm = ${genToInternal(ctx, externalAccType, distinctAccTerm)};
+         """.stripMargin
+
       Seq(GeneratedExpression(
-        distinctAccTerm,
+        accTerm,
         NEVER_NULL,
-        NO_CODE,
+        code,
         internalAccType))
     }
   }
@@ -299,19 +309,19 @@ class DistinctAggCodeGen(
       innerAggCodeGens.map(_.retract(exprGenerator))
     } else {
       innerAggCodeGens.map(_ =>
-          "throw new RuntimeException(\"This distinct aggregate do not consume" +
-            " retractions, " +
+          "throw new RuntimeException(\"This distinct aggregate do not consume retractions, " +
             "but received retract message, which should never happen.\");")
     }
 
     val otherAccTerm = otherAccExpr.resultTerm
-    val otherEntries = newName("otherEntries")
+    val Seq(otherEntries, otherMapView) = newNames("otherEntries", "otherMapView")
     val valueTypeTerm = valueGenerator.valueTypeTerm
     val thisValue = "thisValue"
     val otherValue = "otherValue"
 
     s"""
-       |$ITERABLE<$MAP_ENTRY> $otherEntries = ($ITERABLE<$MAP_ENTRY>) $otherAccTerm.entries();
+       |$MAP_VIEW $otherMapView = ${genToExternal(ctx, externalAccType, otherAccTerm)};
+       |$ITERABLE<$MAP_ENTRY> $otherEntries = ($ITERABLE<$MAP_ENTRY>) $otherMapView.entries();
        |if ($otherEntries != null) {
        |  for ($MAP_ENTRY entry: $otherEntries) {
        |    $keyTypeTerm $keyTerm = ($keyTypeTerm) entry.getKey();
@@ -417,7 +427,6 @@ class DistinctAggCodeGen(
       case None =>
 
         val expr = if (distinctInfo.dataViewSpec.nonEmpty && useStateDataView) {
-          ctx.addReusableMember(s"$BASE_ROW $CURRENT_KEY = ctx.currentKey();")
           val spec = distinctInfo.dataViewSpec.get
           val dataViewTerm = if (useBackupDataView) {
             createDataViewBackupTerm(spec)
@@ -435,17 +444,15 @@ class DistinctAggCodeGen(
             s"""
                |// when namespace is null, the dataview is used in heap, no key and namespace set
                |if ($NAMESPACE_TERM != null) {
-               |  $dataViewTerm.setCurrentKey($CURRENT_KEY);
                |  $dataViewTerm.setCurrentNamespace($NAMESPACE_TERM);
                |  $resultTerm = $dataViewTerm;
                |} else {
                |  ${expr.code}
-               |  $resultTerm = ${expr.resultTerm};
+               |  $resultTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
                |}
             """.stripMargin
           } else {
             s"""
-               |$dataViewTerm.setCurrentKey($CURRENT_KEY);
                |$resultTerm = $dataViewTerm;
             """.stripMargin
           }
@@ -459,7 +466,7 @@ class DistinctAggCodeGen(
             val code =
               s"""
                  |${expr.code}
-                 |$distinctAccTerm = ${expr.resultTerm};
+                 |$distinctAccTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
               """.stripMargin
             GeneratedExpression(distinctAccTerm, NEVER_NULL, code, expr.resultType)
           }
@@ -732,14 +739,14 @@ class DistinctAggCodeGen(
         s"""
            |$countTerm += 1;
            |if ($countTerm == 1) {  // cnt is 0 before
-           |  ${innerCodes.head}
+           |  ${innerCodes.mkString("\n")}
            |}
            """.stripMargin
       } else {
         s"""
            |$countTerm -= 1;
            |if ($countTerm == 0) {  // cnt is +1 before
-           |  ${innerCodes.head}
+           |  ${innerCodes.mkString("\n")}
            |}
            """.stripMargin
       }

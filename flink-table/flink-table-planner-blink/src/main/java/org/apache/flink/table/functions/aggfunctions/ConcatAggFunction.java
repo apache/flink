@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.concat;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
@@ -65,12 +66,12 @@ public class ConcatAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] { InternalTypes.STRING };
+		return new InternalType[] { InternalTypes.STRING, InternalTypes.STRING };
 	}
 
 	@Override
 	public TypeInformation getResultType() {
-		return BasicTypeInfo.STRING_TYPE_INFO;
+		return BinaryStringTypeInfo.INSTANCE;
 	}
 
 	@Override
