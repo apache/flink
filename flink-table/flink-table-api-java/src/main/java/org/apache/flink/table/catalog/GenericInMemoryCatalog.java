@@ -303,7 +303,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 				throw new PartitionAlreadyExistsException(catalogName, tablePath, partitionSpec);
 			}
 		} else {
-			partitions.get(tablePath).put(partitionSpec.copy(), partition.copy());
+			partitions.get(tablePath).put(partitionSpec, partition.copy());
 		}
 	}
 
@@ -327,7 +327,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		validatePartitionSpec(tablePath, partitionSpec);
 
 		if (partitionExists(tablePath, partitionSpec)) {
-			partitions.get(tablePath).put(partitionSpec.copy(), newPartition.copy());
+			partitions.get(tablePath).put(partitionSpec, newPartition.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
 		}

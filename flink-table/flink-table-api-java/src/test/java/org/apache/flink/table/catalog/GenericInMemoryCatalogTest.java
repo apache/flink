@@ -910,7 +910,7 @@ public class GenericInMemoryCatalogTest {
 		CatalogTable table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogPartitionSpec partitionSpec = new GenericCatalogPartitionSpec(
+		CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
 				put("second", "bob");
 			}}
@@ -987,7 +987,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	private CatalogPartitionSpec createPartitionSpec() {
-		return new GenericCatalogPartitionSpec(
+		return new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
 				put("third", "2000");
 				put("second", "bob");
@@ -995,7 +995,7 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	private CatalogPartitionSpec createAnotherPartitionSpec() {
-		return new GenericCatalogPartitionSpec(
+		return new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
 				put("third", "2010");
 				put("second", "bob");
@@ -1003,14 +1003,14 @@ public class GenericInMemoryCatalogTest {
 	}
 
 	private CatalogPartitionSpec createPartitionSpecSubset() {
-		return new GenericCatalogPartitionSpec(
+		return new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
 				put("second", "bob");
 			}});
 	}
 
 	private CatalogPartitionSpec createInvalidPartitionSpecSubset() {
-		return new GenericCatalogPartitionSpec(
+		return new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
 				put("third", "2010");
 			}});
