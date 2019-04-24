@@ -20,7 +20,7 @@ package org.apache.flink.table.catalog
 
 import java.util.{List => JList}
 
-import org.apache.flink.table.api.{CatalogAlreadyExistsException, CatalogNotExistException, TableAlreadyExistException, TableNotExistException}
+import org.apache.flink.table.api.{CatalogAlreadyExistException, CatalogNotExistException, TableAlreadyExistException, TableNotExistException}
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
@@ -67,7 +67,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     }
   }
 
-  @throws[CatalogAlreadyExistsException]
+  @throws[CatalogAlreadyExistException]
   override def createSubCatalog(
     catalogName: String,
     catalog: ExternalCatalog,
