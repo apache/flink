@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import java.util.Optional;
+
 /**
  * Topology of {@link SchedulingVertex SchedulingVertices}.
  */
@@ -30,4 +32,12 @@ public interface SchedulingTopology {
 	 * @return Iterable over all scheduling vertices in topological sorted order
 	 */
 	Iterable<SchedulingVertex> getVertices();
+
+	/**
+	 * Look up the {@link SchedulingVertex} with the given {@link ExecutionVertexID}.
+	 *
+	 * @param executionVertexId identifying the respective scheduling vertex
+	 * @return Optional containing the respective scheduling vertex or none if the vertex does not exist
+	 */
+	Optional<SchedulingVertex> getVertex(ExecutionVertexID executionVertexId);
 }
