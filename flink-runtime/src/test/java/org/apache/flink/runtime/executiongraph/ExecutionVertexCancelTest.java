@@ -23,13 +23,11 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -304,7 +302,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// deploying after canceling from CREATED needs to raise an exception, because
 			// the scheduler (or any caller) needs to know that the slot should be released
 			try {
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
+				Instance instance = getInstance(new SimpleAckingTaskManagerGateway());
 				SimpleSlot slot = instance.allocateSimpleSlot();
 
 				vertex.deployToSlot(slot);
@@ -344,7 +342,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
+				Instance instance = getInstance(new SimpleAckingTaskManagerGateway());
 				SimpleSlot slot = instance.allocateSimpleSlot();
 
 				vertex.deployToSlot(slot);
@@ -360,7 +358,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 						AkkaUtils.getDefaultTimeout());
 
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
+				Instance instance = getInstance(new SimpleAckingTaskManagerGateway());
 				SimpleSlot slot = instance.allocateSimpleSlot();
 
 				setVertexResource(vertex, slot);
