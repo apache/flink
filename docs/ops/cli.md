@@ -37,7 +37,6 @@ The command line can be used to
 - provide information about a job,
 - list running and waiting jobs,
 - trigger and dispose savepoints, and
-- modify a running job
 
 A prerequisite to using the command line interface is that the Flink
 master (JobManager) has been started (via
@@ -126,10 +125,6 @@ available.
 
         ./bin/flink stop -s [targetDirectory] -d <jobID>
         
--   Modify a running job (streaming jobs only):
-
-        ./bin/flink modify <jobID> -p <newParallelism>
-
 
 **NOTE**: The difference between cancelling and stopping a (streaming) job is the following:
 
@@ -422,24 +417,6 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager (master) to which
-                                     to connect. Use this flag to connect to a
-                                     different JobManager than the one specified
-                                     in the configuration.
-     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
-                                     for high availability mode
-
-
-
-Action "modify" modifies a running job (e.g. change of parallelism).
-
-  Syntax: modify <Job ID> [OPTIONS]
-  "modify" action options:
-     -h,--help                           Show the help message for the CLI
-                                         Frontend or the action.
-     -p,--parallelism <newParallelism>   New parallelism for the specified job.
-     -v,--verbose                        This option is deprecated.
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
