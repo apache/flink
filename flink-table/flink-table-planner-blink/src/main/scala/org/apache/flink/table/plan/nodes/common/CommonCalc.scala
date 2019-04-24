@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.common
 
 import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkRelNode}
+import org.apache.flink.table.plan.util.FlinkRexUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Calc
@@ -63,6 +64,8 @@ abstract class CommonCalc(
       .itemIf("where", conditionToString(), calcProgram.getCondition != null)
   }
 
+  override def isDeterministic: Boolean = CommonCalc.isDeterministic(calcProgram)
+
   protected def conditionToString(): String = {
     val cond = calcProgram.getCondition
     val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
@@ -93,4 +96,17 @@ abstract class CommonCalc(
     }.mkString(", ")
   }
 
+}
+
+object CommonCalc {
+  def isDeterministic(program: RexProgram): Boolean = {
+    if (program.getCondition != null) {
+      val condition = program.expandLocalRef(program.getCondition)
+      if (!FlinkRexUtil.isDeterministicOperator(condition)) {
+        return false
+      }
+    }
+    val projection = program.getProjectList.map(program.expandLocalRef)
+    projection.forall(p => FlinkRexUtil.isDeterministicOperator(p))
+  }
 }

@@ -35,13 +35,14 @@ LogicalProject(a1=[$0], a2=[$1])
       <![CDATA[
 Calc(select=[a1, a2])
 +- NestedLoopJoin(joinType=[InnerJoin], where=[<(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :- Exchange(distribution=[any], exchange_mode=[BATCH])
+   :  +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_COUNT(a1) AS count$0])
                +- Calc(select=[a1])
-                  +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -147,14 +148,15 @@ LogicalProject(a1=[$0], a_sum=[$2])
     <Resource name="planAfter">
       <![CDATA[
 NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, a_sum], build=[right], singleRowJoin=[true])
-:- Calc(select=[a1])
-:  +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+:- Exchange(distribution=[any], exchange_mode=[BATCH])
+:  +- Calc(select=[a1])
+:     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[+($f0, $f1) AS a_sum])
       +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0, Partial_SUM(a2) AS sum$1])
-               +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+               +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -206,13 +208,14 @@ LogicalProject(a1=[$0], a2=[$1])
       <![CDATA[
 Calc(select=[a1, a2])
 +- NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a1), cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :- Exchange(distribution=[any], exchange_mode=[BATCH])
+   :  +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_COUNT(a1) AS count$0])
                +- Calc(select=[a1])
-                  +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -271,7 +274,7 @@ Calc(select=[a2, EXPR$1])
    :- HashAggregate(isMerge=[true], groupBy=[a2], select=[a2, Final_SUM(sum$0) AS EXPR$1])
    :  +- Exchange(distribution=[hash[a2]])
    :     +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
-   :        +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :        +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_SINGLE_VALUE(value$0, count$1) AS $f0])
          +- Exchange(distribution=[single])
@@ -281,7 +284,7 @@ Calc(select=[a2, EXPR$1])
                      +- Exchange(distribution=[single])
                         +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0])
                            +- Calc(select=[a1])
-                              +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+                              +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

@@ -18,14 +18,20 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.FlinkJoinRelType
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.{FlinkRexUtil, RelExplainUtil}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -47,7 +53,8 @@ class StreamExecWindowJoin(
     rightTimeIndex: Int,
     remainCondition: Option[RexNode])
   extends BiRel(cluster, traitSet, leftRel, rightRel)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 
@@ -89,6 +96,34 @@ class StreamExecWindowJoin(
       .item("where",
         RelExplainUtil.expressionToString(joinCondition, outputRowType, getExpressionString))
       .item("select", getRowType.getFieldNames.mkString(", "))
+  }
+
+  override def isDeterministic: Boolean = {
+    remainCondition match {
+      case Some(condition) =>
+        if (!FlinkRexUtil.isDeterministicOperator(condition)) {
+          return false
+        }
+      case _ => // do nothing
+    }
+    FlinkRexUtil.isDeterministicOperator(joinCondition)
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    throw new TableException("Implements this")
   }
 
 }

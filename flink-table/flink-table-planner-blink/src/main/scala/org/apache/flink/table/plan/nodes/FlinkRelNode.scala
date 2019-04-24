@@ -32,6 +32,18 @@ import scala.collection.JavaConversions._
   */
 trait FlinkRelNode extends RelNode {
 
+  /**
+    * Return true if this rel is a deterministic RelNode which is guaranteed to
+    * always output the same result given the same input.
+    *
+    * <p>NOTES: A deterministic rel should not contain non-deterministic `SqlOperator`
+    * and dynamic function `SqlOperator`.
+    * e.g.
+    * `Filter` is non-deterministic if its condition contains non-deterministic udf,
+    * `Aggregate` is non-deterministic if its aggCalls contain non-deterministic `SqlAggFunction`.
+    */
+  def isDeterministic: Boolean
+
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],

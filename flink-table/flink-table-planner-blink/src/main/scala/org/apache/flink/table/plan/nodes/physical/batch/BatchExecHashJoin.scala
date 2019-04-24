@@ -17,8 +17,14 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
+import org.apache.flink.table.runtime.join.HashJoinType
 import org.apache.flink.table.typeutils.BinaryRowSerializer
 
 import org.apache.calcite.plan._
@@ -27,6 +33,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Util
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -49,6 +57,9 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
   // Inputs could be changed. See [[BiRel.replaceInput]].
   def buildRel: RelNode = if (leftIsBuild) getLeft else getRight
   def probeRel: RelNode = if (leftIsBuild) getRight else getLeft
+
+  val hashJoinType: HashJoinType = HashJoinType.of(leftIsBuild, getJoinType.generatesNullsOnRight(),
+    getJoinType.generatesNullsOnLeft())
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
@@ -90,6 +101,26 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
     } else {
       1
     }
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getDamBehavior: DamBehavior = {
+    if (hashJoinType.buildLeftSemiOrAnti()) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
+  }
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    throw new TableException("Implements this")
   }
 }
 

@@ -87,6 +87,8 @@ class BatchExecHashWindowAggregate(
       isMerge)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
   override def getOperatorName: String = {

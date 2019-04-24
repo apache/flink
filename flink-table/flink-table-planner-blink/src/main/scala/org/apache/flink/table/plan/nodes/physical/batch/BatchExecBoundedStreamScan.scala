@@ -71,7 +71,19 @@ class BatchExecBoundedStreamScan(
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
   }
 
+  override def isDeterministic: Boolean = true
+
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior = DamBehavior.PIPELINED
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = List()
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
@@ -99,5 +111,4 @@ class BatchExecBoundedStreamScan(
           boundedStreamTable.dataStream.getType.getTypeClass)
   }
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = List()
 }

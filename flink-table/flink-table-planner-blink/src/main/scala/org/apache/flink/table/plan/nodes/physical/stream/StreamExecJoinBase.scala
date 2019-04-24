@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -27,6 +31,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -36,7 +42,10 @@ import scala.collection.JavaConversions._
   * Regular joins are the most generic type of join in which any new records or changes to
   * either side of the join input are visible and are affecting the whole join result.
   */
-trait StreamExecJoinBase extends CommonPhysicalJoin with StreamPhysicalRel {
+trait StreamExecJoinBase
+  extends CommonPhysicalJoin
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = {
     flinkJoinType != FlinkJoinRelType.INNER && flinkJoinType != FlinkJoinRelType.SEMI
@@ -82,6 +91,23 @@ trait StreamExecJoinBase extends CommonPhysicalJoin with StreamPhysicalRel {
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val elementRate = 100.0d * 2 // two input stream
     planner.getCostFactory.makeCost(elementRate, elementRate, 0)
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    throw new TableException("Implements this")
   }
 
 }

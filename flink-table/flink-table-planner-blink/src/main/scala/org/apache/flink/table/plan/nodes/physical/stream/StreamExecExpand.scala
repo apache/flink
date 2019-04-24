@@ -19,12 +19,13 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.`type`.{RowType, TypeConverters}
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Expand
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.ExpandUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -63,8 +64,18 @@ class StreamExecExpand(
     new StreamExecExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
   }
 
+  override def isDeterministic: Boolean = ExpandUtil.isDeterministic(projects)
+
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(

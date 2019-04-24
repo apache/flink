@@ -54,6 +54,8 @@ class BatchExecSink[T](
     new BatchExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
 
+  override def isDeterministic: Boolean = true
+
   //~ ExecNode methods -----------------------------------------------------------
 
   /**
@@ -65,6 +67,12 @@ class BatchExecSink[T](
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(

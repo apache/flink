@@ -90,10 +90,18 @@ class StreamExecLimit(
       .item("fetch", RelExplainUtil.fetchToString(fetch))
   }
 
+  override def isDeterministic: Boolean = SortUtil.isDeterministic(offset, fetch)
+
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(

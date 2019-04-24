@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.common
 
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.plan.util.{JoinUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{FlinkRexUtil, JoinUtil, RelExplainUtil}
 
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -75,4 +75,7 @@ trait CommonPhysicalJoin extends Join with FlinkPhysicalRel {
         RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
+
+  override def isDeterministic: Boolean = FlinkRexUtil.isDeterministicOperator(getCondition)
+
 }

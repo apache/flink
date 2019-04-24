@@ -47,6 +47,8 @@ class FlinkLogicalSink(
     new FlinkLogicalSink(cluster, traitSet, inputs.head, sink, sinkName)
   }
 
+  override def isDeterministic: Boolean = true
+
 }
 
 private class FlinkLogicalSinkConverter

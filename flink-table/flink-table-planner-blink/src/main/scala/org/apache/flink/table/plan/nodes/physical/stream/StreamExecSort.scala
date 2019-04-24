@@ -45,9 +45,9 @@ import scala.collection.JavaConversions._
   *
   * @see [[StreamExecTemporalSort]] which must be time-ascending-order sort without `limit`.
   *
-  *      e.g.
-  *      ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
-  *      ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
+  * e.g.
+  * ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to [[StreamExecTemporalSort]]
+  * ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamExecSort]]
   */
 @Experimental
 class StreamExecSort(
@@ -87,6 +87,8 @@ class StreamExecSort(
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
   }
 
+  override def isDeterministic: Boolean = true
+
   //~ ExecNode methods -----------------------------------------------------------
 
   /**
@@ -97,6 +99,12 @@ class StreamExecSort(
     */
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   /**

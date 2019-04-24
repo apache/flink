@@ -24,7 +24,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{CorrelateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.AbstractProcessStreamOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -103,10 +103,18 @@ class StreamExecCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
+  override def isDeterministic: Boolean = CorrelateUtil.isDeterministic(scan, condition)
+
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {

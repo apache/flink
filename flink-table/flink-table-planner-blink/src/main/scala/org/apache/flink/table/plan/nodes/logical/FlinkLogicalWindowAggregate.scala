@@ -23,6 +23,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.plan.util.AggregateUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -60,8 +61,7 @@ class FlinkLogicalWindowAggregate(
       indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
-      aggCalls: util.List[AggregateCall])
-    : Aggregate = {
+      aggCalls: util.List[AggregateCall]): Aggregate = {
     new FlinkLogicalWindowAggregate(
       window,
       namedProperties,
@@ -112,6 +112,9 @@ class FlinkLogicalWindowAggregate(
       .item("window", window)
       .item("properties", namedProperties.map(_.name).mkString(", "))
   }
+
+  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(aggCalls)
+
 }
 
 class FlinkLogicalWindowAggregateConverter

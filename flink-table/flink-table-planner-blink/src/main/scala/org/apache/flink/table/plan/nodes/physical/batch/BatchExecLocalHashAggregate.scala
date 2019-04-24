@@ -92,6 +92,8 @@ class BatchExecLocalHashAggregate(
         isGlobal = false))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = {
     if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
   }

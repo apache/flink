@@ -78,6 +78,8 @@ class FlinkLogicalSort(
     planner.getCostFactory.makeCost(rowCount, rowCount, 0)
   }
 
+  override def isDeterministic: Boolean = SortUtil.isDeterministic(offset, fetch)
+
 }
 
 class FlinkLogicalSortStreamConverter

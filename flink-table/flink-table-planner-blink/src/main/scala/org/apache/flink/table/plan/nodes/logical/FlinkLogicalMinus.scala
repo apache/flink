@@ -58,6 +58,8 @@ class FlinkLogicalMinus(
     }
   }
 
+  override def isDeterministic: Boolean = true
+
 }
 
 private class FlinkLogicalMinusConverter

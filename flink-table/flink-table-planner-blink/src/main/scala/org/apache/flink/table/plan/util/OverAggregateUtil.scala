@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.JArrayList
+import org.apache.flink.table.{JArrayList, JList}
 
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.core.Window
@@ -30,6 +30,10 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import scala.collection.JavaConversions._
 
 object OverAggregateUtil {
+
+  def isDeterministic(groups: JList[Window.Group]): Boolean = {
+    groups.forall(g => g.aggCalls.forall(FlinkRexUtil.isDeterministicOperator))
+  }
 
   def calcOriginInputRows(logicWindow: Window): Int = {
     logicWindow.getRowType.getFieldCount - logicWindow.groups.flatMap(_.aggCalls).size

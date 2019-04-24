@@ -26,7 +26,7 @@ import org.apache.flink.table.codegen.{CodeGeneratorContext, ExpandCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Expand
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{ExpandUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -67,10 +67,20 @@ class BatchExecExpand(
       .item("projects", RelExplainUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 
+  override def isDeterministic: Boolean = ExpandUtil.isDeterministic(projects)
+
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
     getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(

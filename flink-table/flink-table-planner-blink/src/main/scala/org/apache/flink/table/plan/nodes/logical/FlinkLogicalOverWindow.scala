@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.util.OverAggregateUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -57,6 +58,8 @@ class FlinkLogicalOverWindow(
       getRowType,
       windowGroups)
   }
+
+  override def isDeterministic: Boolean = OverAggregateUtil.isDeterministic(windowGroups)
 
 }
 

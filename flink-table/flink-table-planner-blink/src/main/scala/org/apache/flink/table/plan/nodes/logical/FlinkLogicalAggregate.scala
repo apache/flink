@@ -81,6 +81,7 @@ class FlinkLogicalAggregate(
     }
   }
 
+  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(getAggCallList)
 }
 
 private class FlinkLogicalAggregateBatchConverter

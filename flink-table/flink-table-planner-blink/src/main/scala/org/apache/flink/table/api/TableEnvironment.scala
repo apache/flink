@@ -40,8 +40,8 @@ import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.plan.util.{SameRelObjectShuttle, SubplanReuseUtil}
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sinks.CollectTableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
@@ -211,8 +211,14 @@ abstract class TableEnvironment(val config: TableConfig) {
   @VisibleForTesting
   private[flink] def translateNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
     require(rels.nonEmpty && rels.forall(_.isInstanceOf[FlinkPhysicalRel]))
+    // Rewrite same rel object to different rel objects
+    // in order to get the correct dag (dag reuse is based on object not digest)
+    val shuttle = new SameRelObjectShuttle()
+    val relsWithoutSameObj = rels.map(_.accept(shuttle))
+    // reuse subplan
+    val reusedPlan = SubplanReuseUtil.reuseSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
-    rels.map(_.asInstanceOf[ExecNode[_, _]])
+    reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
   }
 
   /**

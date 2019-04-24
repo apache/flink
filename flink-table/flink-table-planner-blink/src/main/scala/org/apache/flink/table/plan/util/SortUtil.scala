@@ -34,6 +34,10 @@ import scala.collection.mutable
   */
 object SortUtil {
 
+  def isDeterministic(offset: RexNode, fetch: RexNode): Boolean = {
+    FlinkRexUtil.isDeterministicOperator(offset) && FlinkRexUtil.isDeterministicOperator(fetch)
+  }
+
   /**
     * Returns limit start value (never null).
     */

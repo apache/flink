@@ -57,10 +57,18 @@ class BatchExecCalc(
     new BatchExecCalc(cluster, traitSet, child, program, outputRowType)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior = DamBehavior.PIPELINED
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {

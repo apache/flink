@@ -56,6 +56,8 @@ class FlinkLogicalUnion(
     planner.getCostFactory.makeCost(rowCnt, 0, 0)
   }
 
+  override def isDeterministic: Boolean = true
+
 }
 
 private class FlinkLogicalUnionConverter

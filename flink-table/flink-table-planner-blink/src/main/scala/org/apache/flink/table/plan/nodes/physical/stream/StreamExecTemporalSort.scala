@@ -77,6 +77,8 @@ class StreamExecTemporalSort(
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
   }
 
+  override def isDeterministic: Boolean = true
+
   //~ ExecNode methods -----------------------------------------------------------
 
   /**
@@ -87,6 +89,12 @@ class StreamExecTemporalSort(
     */
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   /**

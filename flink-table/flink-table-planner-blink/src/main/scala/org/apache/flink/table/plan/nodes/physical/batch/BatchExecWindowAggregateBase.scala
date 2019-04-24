@@ -22,12 +22,14 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.logical.LogicalWindow
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{AggregateUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+
+import scala.collection.JavaConverters._
 
 abstract class BatchExecWindowAggregateBase(
     window: LogicalWindow,
@@ -71,4 +73,9 @@ abstract class BatchExecWindowAggregateBase(
           isMerge = isMerge,
           isGlobal = isFinal))
   }
+
+  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(getAggCallList.asJava)
+
+  def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
+
 }

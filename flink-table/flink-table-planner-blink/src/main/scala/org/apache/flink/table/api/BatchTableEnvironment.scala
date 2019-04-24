@@ -24,15 +24,16 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.{BatchOptimizer, Optimizer}
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.{DeadlockBreakupProcessor, FlinkRelOptUtil, SameRelObjectShuttle, SubplanReuseUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources._
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
-import org.apache.calcite.rel.RelCollationTraitDef
+import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
 
 import _root_.scala.collection.JavaConversions._
@@ -80,6 +81,12 @@ class BatchTableEnvironment(
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
     }
+  }
+
+  override private[flink] def translateNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
+    val nodeDag = super.translateNodeDag(rels)
+    // breakup deadlock
+    new DeadlockBreakupProcessor().process(nodeDag)
   }
 
   /**

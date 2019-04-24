@@ -37,6 +37,10 @@ import scala.collection.mutable
 
 object ExpandUtil {
 
+  def isDeterministic(projects: util.List[util.List[RexNode]]): Boolean = {
+    projects.forall(_.forall(r => FlinkRexUtil.isDeterministicOperator(r)))
+  }
+
   /**
     * Build the [[Expand]] node.
     * The input node should be pushed into the RelBuilder before calling this method

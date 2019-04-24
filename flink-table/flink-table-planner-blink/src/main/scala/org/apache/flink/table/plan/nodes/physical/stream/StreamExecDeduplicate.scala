@@ -86,7 +86,19 @@ class StreamExecDeduplicate(
       .item("order", "PROCTIME")
   }
 
+  override def isDeterministic: Boolean = true
+
   //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
@@ -144,10 +156,6 @@ class StreamExecDeduplicate(
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret
-  }
-
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
   }
 
   private def getOperatorName: String = {

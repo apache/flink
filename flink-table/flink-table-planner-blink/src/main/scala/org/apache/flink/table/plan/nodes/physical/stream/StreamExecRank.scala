@@ -111,10 +111,18 @@ class StreamExecRank(
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
+  override def isDeterministic: Boolean = true
+
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
