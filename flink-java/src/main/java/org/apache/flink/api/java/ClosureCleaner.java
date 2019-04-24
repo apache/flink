@@ -73,6 +73,21 @@ public class ClosureCleaner {
 			if (f.getName().startsWith("this$")) {
 				// found a closure referencing field - now try to clean
 				closureAccessed |= cleanThis0(func, cls, f.getName());
+			} else {
+				Object fo;
+				try {
+					f.setAccessible(true);
+					fo = f.get(func);
+				} catch (IllegalAccessException e) {
+					throw new RuntimeException(String.format("Can not access to the %s field in Class %s", f.getName(), func.getClass()));
+				}
+				// we should make a deep clean when we encounter an anonymous class or a inner class
+				if (fo != null && (fo.getClass().isAnonymousClass() || fo.getClass().getName().contains("$"))) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Dig to clean the {} class", fo.getClass().getName());
+					}
+					clean(fo, true);
+				}
 			}
 		}
 

@@ -90,10 +90,37 @@ public class ClosureCleanerTest {
 		int result = map.map(3);
 		Assert.assertEquals(result, 4);
 	}
+
+	@Test
+	public void testWrapperClass() throws Exception {
+		MapCreator creator = new NonSerializableMapCreator();
+		MapFunction<Integer, Integer> map = creator.getMap();
+
+		WrapperMapFunction wrapped = new WrapperMapFunction(map);
+		ClosureCleaner.clean(wrapped, true);
+
+		ClosureCleaner.ensureSerializable(wrapped);
+
+		int result = wrapped.map(3);
+		Assert.assertEquals(result, 4);
+	}
 }
 
 interface MapCreator {
 	MapFunction<Integer, Integer> getMap();
+}
+
+class WrapperMapFunction implements MapFunction<Integer, Integer> {
+
+	MapFunction<Integer, Integer> innerMapFuc;
+	public WrapperMapFunction(MapFunction<Integer, Integer> mapFunction) {
+		innerMapFuc = mapFunction;
+	}
+
+	@Override
+	public Integer map(Integer value) throws Exception {
+		return innerMapFuc.map(value);
+	}
 }
 
 @SuppressWarnings("serial")
