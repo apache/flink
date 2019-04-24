@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import java.util.Optional;
 
 /**
@@ -34,10 +36,18 @@ public interface SchedulingTopology {
 	Iterable<SchedulingVertex> getVertices();
 
 	/**
-	 * Look up the {@link SchedulingVertex} with the given {@link ExecutionVertexID}.
+	 * Looks up the {@link SchedulingVertex} for the given {@link ExecutionVertexID}.
 	 *
 	 * @param executionVertexId identifying the respective scheduling vertex
 	 * @return Optional containing the respective scheduling vertex or none if the vertex does not exist
 	 */
 	Optional<SchedulingVertex> getVertex(ExecutionVertexID executionVertexId);
+
+	/**
+	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
+	 *
+	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
+	 * @return Optional containing the respective scheduling result partition or none if the partition does not exist
+	 */
+	Optional<SchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
 }

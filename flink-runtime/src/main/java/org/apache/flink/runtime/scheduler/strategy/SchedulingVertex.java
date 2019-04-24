@@ -52,18 +52,16 @@ public interface SchedulingVertex {
 	JobVertexID getJobVertexId();
 
 	/**
-	 * Get all input edges. An input edge connects a producer with a consumer
-	 * and contains information about the result partition.
+	 * Get all consumed result partitions.
 	 *
-	 * @return collection of input edges
+	 * @return collection of input partitions
 	 */
-	Collection<SchedulingEdge> getInputs();
+	Collection<SchedulingResultPartition> getConsumedResultPartitions();
 
 	/**
-	 * Get all output edges. An output edge connects a producer with a consumer
-	 * and contains information about the result partition.
+	 * Get all produced result partitions.
 	 *
 	 * @return collection of output edges
 	 */
-	Collection<SchedulingEdge> getOutputs();
+	Collection<SchedulingResultPartition> getProducedResultPartitions();
 }

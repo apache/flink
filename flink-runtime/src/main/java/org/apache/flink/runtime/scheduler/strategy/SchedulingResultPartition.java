@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import java.util.Collection;
+
 /**
  * Representation of {@link IntermediateResultPartition}.
  */
@@ -55,6 +57,20 @@ public interface SchedulingResultPartition {
 	 * @return result partition state
 	 */
 	ResultPartitionState getState();
+
+	/**
+	 * Gets the producer of this result partition.
+	 *
+	 * @return producer vertex of this result partition
+	 */
+	SchedulingVertex getProducer();
+
+	/**
+	 * Gets the consumers of this result partition.
+	 *
+	 * @return Collection of consumer vertices of this result partition
+	 */
+	Collection<SchedulingVertex> getConsumers();
 
 	/**
 	 * State of the result partition.
