@@ -124,11 +124,13 @@ export interface CheckPointDetailInterface {
   latest_ack_timestamp: number;
   state_size: number;
   end_to_end_duration: number;
+  external_path: string;
+  discarded: boolean;
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
   tasks: Array<{
-    [taskId: string]: {
+    [ taskId: string ]: {
       id: number;
       status: string;
       latest_ack_timestamp: number;

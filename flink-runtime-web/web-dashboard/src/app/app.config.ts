@@ -27,6 +27,8 @@ export const COLOR_MAP = {
   CREATED: '#2f54eb',
   DEPLOYING: '#13c2c2',
   RECONCILING: '#eb2f96',
-  SCHEDULED: '#722ed1'
+  IN_PROGRESS: '#faad14',
+  SCHEDULED: '#722ed1',
+  COMPLETED  : '#1890ff'
 };
 export const LONG_MIN_VALUE = -9223372036854776000;

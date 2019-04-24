@@ -56,14 +56,16 @@ export class JobCheckpointsDetailComponent implements OnInit {
 
   refresh() {
     this.isLoading = true;
-    if (this.jobDetail.jid) {
+    if (this.jobDetail && this.jobDetail.jid) {
       this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id).subscribe(
         data => {
           this.checkPointDetail = data;
           this.isLoading = false;
+          this.cdr.markForCheck();
         },
         () => {
           this.isLoading = false;
+          this.cdr.markForCheck();
         }
       );
     }

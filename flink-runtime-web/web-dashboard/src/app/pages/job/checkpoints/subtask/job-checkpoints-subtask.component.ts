@@ -16,21 +16,30 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
-import { CheckPointSubTaskInterface, VerticesItemInterface } from 'interfaces';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges
+} from '@angular/core';
+import { CheckPointSubTaskInterface, JobDetailCorrectInterface, VerticesItemInterface } from 'interfaces';
 import { first } from 'rxjs/operators';
 import { JobService } from 'services';
 import { deepFind } from 'utils';
 
 @Component({
-  selector: 'flink-job-checkpoints-subtask',
-  templateUrl: './job-checkpoints-subtask.component.html',
-  styleUrls: ['./job-checkpoints-subtask.component.less'],
+  selector       : 'flink-job-checkpoints-subtask',
+  templateUrl    : './job-checkpoints-subtask.component.html',
+  styleUrls      : [ './job-checkpoints-subtask.component.less' ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobCheckpointsSubtaskComponent implements OnInit {
+export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
   @Input() vertex: VerticesItemInterface;
   @Input() checkPointId: number;
+  jobDetail: JobDetailCorrectInterface;
   subTaskCheckPoint: CheckPointSubTaskInterface;
   listOfSubTaskCheckPoint: Array<{ index: number; status: string }> = [];
   isLoading = true;
@@ -57,11 +66,9 @@ export class JobCheckpointsSubtaskComponent implements OnInit {
     }
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
-
-  ngOnInit() {
-    this.jobService.jobDetail$.pipe(first()).subscribe(job => {
-      this.jobService.loadCheckpointSubtaskDetails(job.jid, this.checkPointId, this.vertex.id).subscribe(
+  refresh() {
+    if (this.jobDetail && this.jobDetail.jid) {
+      this.jobService.loadCheckpointSubtaskDetails(this.jobDetail.jid, this.checkPointId, this.vertex.id).subscribe(
         data => {
           this.subTaskCheckPoint = data;
           this.listOfSubTaskCheckPoint = (data && data.subtasks) || [];
@@ -73,6 +80,22 @@ export class JobCheckpointsSubtaskComponent implements OnInit {
           this.cdr.markForCheck();
         }
       );
+    }
+  }
+
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
+  }
+
+  ngOnInit() {
+    this.jobService.jobDetail$.pipe(first()).subscribe(job => {
+      this.jobDetail = job;
+      this.refresh();
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes.checkPointId) {
+      this.refresh();
+    }
   }
 }
