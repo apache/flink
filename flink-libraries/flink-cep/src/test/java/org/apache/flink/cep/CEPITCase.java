@@ -32,6 +32,7 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 import org.junit.Test;
 
@@ -883,5 +885,32 @@ public class CEPITCase extends AbstractTestBase {
 		resultList.sort(String::compareTo);
 
 		assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), resultList);
+	}
+
+	@Test
+	public void testFlatSelectSerializationWithAnonymousClass() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
+		OutputTag<Integer> outputTag = new OutputTag<Integer>("AAA") {};
+		CEP.pattern(elements, Pattern.begin("A")).flatSelect(
+			outputTag,
+			new PatternFlatTimeoutFunction<Integer, Integer>() {
+				@Override
+				public void timeout(
+					Map<String, List<Integer>> pattern,
+					long timeoutTimestamp,
+					Collector<Integer> out) throws Exception {
+
+				}
+			},
+			new PatternFlatSelectFunction<Integer, Object>() {
+				@Override
+				public void flatSelect(Map<String, List<Integer>> pattern, Collector<Object> out) throws Exception {
+
+				}
+			}
+		);
+
+		env.execute();
 	}
 }
