@@ -21,17 +21,18 @@ package org.apache.flink.runtime.clusterframework.overlays;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_BIN_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_HOME_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_PLUGINS_DIR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -56,11 +57,13 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 	final File flinkBinPath;
 	final File flinkConfPath;
 	final File flinkLibPath;
+	final File flinkPluginsPath;
 
-	public FlinkDistributionOverlay(File flinkBinPath, File flinkConfPath, File flinkLibPath) {
+	public FlinkDistributionOverlay(File flinkBinPath, File flinkConfPath, File flinkLibPath, File flinkPluginsPath) {
 		this.flinkBinPath = checkNotNull(flinkBinPath);
 		this.flinkConfPath = checkNotNull(flinkConfPath);
 		this.flinkLibPath = checkNotNull(flinkLibPath);
+		this.flinkPluginsPath = checkNotNull(flinkPluginsPath);
 	}
 
 	@Override
@@ -72,6 +75,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		addPathRecursively(flinkBinPath, TARGET_ROOT, container);
 		addPathRecursively(flinkConfPath, TARGET_ROOT, container);
 		addPathRecursively(flinkLibPath, TARGET_ROOT, container);
+		addPathRecursively(flinkPluginsPath, TARGET_ROOT, container);
 	}
 
 	public static Builder newBuilder() {
@@ -85,6 +89,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		File flinkBinPath;
 		File flinkConfPath;
 		File flinkLibPath;
+		File flinkPluginsPath;
 
 		/**
 		 * Configures the overlay using the current environment.
@@ -97,12 +102,13 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 			flinkBinPath = getObligatoryFileFromEnvironment(ENV_FLINK_BIN_DIR);
 			flinkConfPath = getObligatoryFileFromEnvironment(ENV_FLINK_CONF_DIR);
 			flinkLibPath = getObligatoryFileFromEnvironment(ENV_FLINK_LIB_DIR);
+			flinkPluginsPath = getObligatoryFileFromEnvironment(ENV_FLINK_PLUGINS_DIR);
 
 			return this;
 		}
 
 		public FlinkDistributionOverlay build() {
-			return new FlinkDistributionOverlay(flinkBinPath, flinkConfPath, flinkLibPath);
+			return new FlinkDistributionOverlay(flinkBinPath, flinkConfPath, flinkLibPath, flinkPluginsPath);
 		}
 
 		private static File getObligatoryFileFromEnvironment(String envVariableName) {

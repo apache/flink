@@ -22,6 +22,7 @@ setlocal EnableDelayedExpansion
 SET bin=%~dp0
 SET FLINK_HOME=%bin%..
 SET FLINK_LIB_DIR=%FLINK_HOME%\lib
+SET FLINK_PLUGINS_DIR=%FLINK_HOME%\plugins
 SET FLINK_CONF_DIR=%FLINK_HOME%\conf
 SET FLINK_LOG_DIR=%FLINK_HOME%\log
 

@@ -298,6 +298,7 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 # Define the main directory of the flink installation
 FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_HOME/lib
+FLINK_PLUGINS_DIR=$FLINK_HOME/plugins
 FLINK_OPT_DIR=$FLINK_HOME/opt
 
 
@@ -314,6 +315,7 @@ YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 ### Exported environment variables ###
 export FLINK_CONF_DIR
 export FLINK_BIN_DIR
+export FLINK_PLUGINS_DIR
 # export /lib dir to access it during deployment of the Yarn staging files
 export FLINK_LIB_DIR
 # export /opt dir to access it for the SQL client

@@ -22,6 +22,7 @@ setlocal
 SET bin=%~dp0
 SET FLINK_HOME=%bin%..
 SET FLINK_LIB_DIR=%FLINK_HOME%\lib
+SET FLINK_PLUGINS_DIR=%FLINK_HOME%\plugins
 
 SET JVM_ARGS=-Xmx512m
 

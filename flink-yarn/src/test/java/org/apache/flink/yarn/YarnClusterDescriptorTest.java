@@ -435,10 +435,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests to ship a lib folder through the {@code YarnClusterDescriptor.addShipFiles}.
+	 * Tests to ship files through the {@code YarnClusterDescriptor.addShipFiles}.
 	 */
 	@Test
-	public void testExplicitLibShipping() throws Exception {
+	public void testExplicitFileShipping() throws Exception {
 		try (YarnClusterDescriptor descriptor = new YarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
@@ -464,7 +464,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			// only execute part of the deployment to test for shipped files
 			Set<File> effectiveShipFiles = new HashSet<>();
-			descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+			descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
 
 			Assert.assertEquals(0, effectiveShipFiles.size());
 			Assert.assertEquals(2, descriptor.shipFiles.size());
@@ -473,11 +473,17 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * Tests to ship a lib folder through the {@code ConfigConstants.ENV_FLINK_LIB_DIR}.
-	 */
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
+		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_LIB_DIR);
+	}
+
+	@Test
+	public void testEnvironmentPluginsShipping() throws Exception {
+		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_PLUGINS_DIR);
+	}
+
+	public void testEnvironmentDirectoryShipping(String environmentVariable) throws Exception {
 		try (YarnClusterDescriptor descriptor = new YarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
@@ -493,10 +499,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			final Map<String, String> oldEnv = System.getenv();
 			try {
 				Map<String, String> env = new HashMap<>(1);
-				env.put(ConfigConstants.ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
+				env.put(environmentVariable, libFolder.getAbsolutePath());
 				CommonTestUtils.setEnv(env);
 				// only execute part of the deployment to test for shipped files
-				descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+				descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
 			} finally {
 				CommonTestUtils.setEnv(oldEnv);
 			}
