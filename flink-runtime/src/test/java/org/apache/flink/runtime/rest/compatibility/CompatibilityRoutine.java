@@ -71,7 +71,7 @@ final class CompatibilityRoutine<C> {
 	CompatibilityCheckResult checkCompatibility(final Optional<C> old, final Optional<C> cur) {
 		Preconditions.checkArgument(
 			old.isPresent() || cur.isPresent(),
-			"Implementation error: Compatibility check container for routine {} for both old and new version is null.", key);
+			"Implementation error: Compatibility check container for routine %s for both old and new version is null.", key);
 
 		if (!old.isPresent()) {
 			// allow addition of new compatibility routines
