@@ -70,6 +70,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	protected final Credentials credentials;
 	protected final String projectSubscriptionName;
 	protected final int maxMessagesPerPull;
+	protected final int maxMessagesToAcknowledge;
 	protected final AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
 
 	protected transient AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
@@ -80,12 +81,13 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	protected transient volatile boolean isRunning;
 	protected transient volatile ApiFuture<PullResponse> messagesFuture;
 
-	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull, AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
+	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull, int maxMessagesToAcknowledge, AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
 		this.deserializationSchema = deserializationSchema;
 		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 		this.credentials = credentials;
 		this.projectSubscriptionName = projectSubscriptionName;
 		this.maxMessagesPerPull = maxMessagesPerPull;
+		this.maxMessagesToAcknowledge = maxMessagesToAcknowledge;
 		this.acknowledgeOnCheckpointFactory = acknowledgeOnCheckpointFactory;
 	}
 
@@ -168,6 +170,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
 		while (isRunning) {
 			try {
+				blockIfMaxMessagesToAcknowledgeLimitReached();
+
 				List<ReceivedMessage> messages = messagesFuture.get().getReceivedMessagesList();
 
 				// start the next pull while processing the current response.
@@ -197,6 +201,13 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 				sourceContext.collect(deserializedMessage);
 			}
 
+		}
+	}
+
+	private void blockIfMaxMessagesToAcknowledgeLimitReached() throws Exception {
+		while (maxMessagesToAcknowledge != -1 && getOutstandingMessagesToAck() > maxMessagesToAcknowledge) {
+			LOG.debug("Sleeping because there are {} messages waiting to be ack'ed but limit is {}", getOutstandingMessagesToAck(), maxMessagesToAcknowledge);
+			Thread.sleep(100);
 		}
 	}
 
@@ -274,6 +285,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private Credentials credentials;
 		private int maxMessagesPerPull = 100;
+		private int maxMessageToAcknowledge = -1;
 
 		protected PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 			this.deserializationSchema = deserializationSchema;
@@ -319,6 +331,16 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		}
 
 		/**
+		 * Set a limit of the number of outstanding or to-be acknowledged messages.
+		 * default is -1 or unlimited. Set this if you have high checkpoint intervals and / or run into memory issues
+		 * due to the amount of acknowledgement ids.
+		 */
+		public PubSubSourceBuilder<OUT> withMaxMessageToAcknowledge(int maxMessageToAcknowledge) {
+			this.maxMessageToAcknowledge = maxMessageToAcknowledge;
+			return this;
+		}
+
+		/**
 		 * Actually build the desired instance of the PubSubSourceBuilder.
 		 *
 		 * @return a brand new SourceFunction
@@ -334,7 +356,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory();
 			}
 
-			return new PubSubSource<>(deserializationSchema, pubSubSubscriberFactory, credentials, ProjectSubscriptionName.format(projectName, subscriptionName), maxMessagesPerPull, new AcknowledgeOnCheckpointFactory());
+			return new PubSubSource<>(deserializationSchema, pubSubSubscriberFactory, credentials, ProjectSubscriptionName.format(projectName, subscriptionName), maxMessagesPerPull, maxMessageToAcknowledge, new AcknowledgeOnCheckpointFactory());
 		}
 	}
 

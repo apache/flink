@@ -105,6 +105,7 @@ public class PubSubSourceTest {
 			credentials,
 			ProjectSubscriptionName.format("project", "subscriptionName"),
 			100,
+			1000,
 			acknowledgeOnCheckpointFactory);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 	}
