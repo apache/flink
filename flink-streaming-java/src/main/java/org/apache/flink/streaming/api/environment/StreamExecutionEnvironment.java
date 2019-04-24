@@ -1555,7 +1555,7 @@ public abstract class StreamExecutionEnvironment {
 	@Internal
 	public <F> F clean(F f) {
 		if (getConfig().isClosureCleanerEnabled()) {
-			ClosureCleaner.clean(f, true);
+			ClosureCleaner.clean(f, getConfig().getClosureCleanerLevel(), true);
 		}
 		ClosureCleaner.ensureSerializable(f);
 		return f;
