@@ -19,26 +19,17 @@
 package org.apache.flink.runtime.testingUtils
 
 import java.util
+import java.util.Collections
 import java.util.concurrent._
-import java.util.{Collections, UUID}
 
-import akka.actor.{ActorRef, ActorSystem, Kill, Props}
-import akka.pattern.{Patterns, ask}
+import akka.actor.{ActorRef, Kill}
 import com.typesafe.config.ConfigFactory
-import grizzled.slf4j.Logger
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration._
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices
-import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
-import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
-import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 
 import scala.concurrent.duration.{TimeUnit, _}
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.language.postfixOps
 
 /**

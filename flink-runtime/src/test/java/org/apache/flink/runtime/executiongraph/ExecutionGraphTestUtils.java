@@ -35,7 +35,6 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -50,10 +49,6 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
-import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -73,8 +68,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-
-import scala.concurrent.ExecutionContext;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -494,29 +487,6 @@ public class ExecutionGraphTestUtils {
 		groupVertex.setInvokableClass(invokable);
 		groupVertex.setParallelism(numTasks);
 		return groupVertex;
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleActorGateway extends BaseTestingActorGateway {
-
-
-		public SimpleActorGateway(ExecutionContext executionContext){
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if (message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				return Acknowledge.get();
-			} else if(message instanceof CancelTask) {
-				return Acknowledge.get();
-			} else if(message instanceof FailIntermediateResultPartitions) {
-				return new Object();
-			} else {
-				return null;
-			}
-		}
 	}
 
 	public static final String ERROR_MESSAGE = "test_failure_error_message";
