@@ -22,4 +22,4 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-"$FLINK_BIN_DIR"/flink run --class org.apache.flink.streaming.python.api.PythonStreamBinder -v "$FLINK_ROOT_DIR"/opt/flink-streaming-python*.jar "$@"
+"$FLINK_BIN_DIR"/flink run --class org.apache.flink.streaming.python.api.PythonStreamBinder -v "$FLINK_HOME"/opt/flink-streaming-python*.jar "$@"
