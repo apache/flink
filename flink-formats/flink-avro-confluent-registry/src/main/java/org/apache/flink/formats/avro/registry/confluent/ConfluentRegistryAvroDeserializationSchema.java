@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.avro.AvroDeserializationSchema;
 import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.SchemaCoder;
@@ -49,7 +50,8 @@ public class ConfluentRegistryAvroDeserializationSchema<T> extends RegistryAvroD
 	 *                            {@link GenericRecord}
 	 * @param schemaCoderProvider provider for schema coder that reads writer schema from Confluent Schema Registry
 	 */
-	private ConfluentRegistryAvroDeserializationSchema(Class<T> recordClazz, @Nullable Schema reader,
+	@VisibleForTesting
+	ConfluentRegistryAvroDeserializationSchema(Class<T> recordClazz, @Nullable Schema reader,
 			SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz, reader, schemaCoderProvider);
 	}

@@ -24,18 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.SchemaCoder;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 
 import java.io.IOException;
@@ -56,30 +51,37 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 	String schemaString;
 
 	@VisibleForTesting
-	String url;
-
-	@VisibleForTesting
 	Class<? extends SpecificRecord> recordClazz;
-
-	private int identityMapCapacity;
 
 	private transient Schema schema;
 
 	private transient RowTypeInfo typeInfo;
 
-	private transient IndexedRecord record;
-
-	private transient GenericDatumReader<IndexedRecord> datumReader;
-
-	private transient MutableByteArrayInputStream inputStream;
-
-	private transient Decoder decoder;
+	@VisibleForTesting
+	ConfluentRegistryAvroDeserializationSchema<? extends IndexedRecord> innerDeserializationSchema;
 
 	@VisibleForTesting
-	transient SchemaCoder schemaCoder;
+	ConfluentRegistryAvroRowDeserializationSchema() {
+		// for testing purposes only
+	}
 
-	@VisibleForTesting
-	ConfluentRegistryAvroRowDeserializationSchema() {}
+	private ConfluentRegistryAvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz,
+			ConfluentRegistryAvroDeserializationSchema<? extends IndexedRecord> deserializationSchema) {
+		this.recordClazz = recordClazz;
+		schema = SpecificData.get().getSchema(recordClazz);
+		schemaString = schema.toString();
+		typeInfo = getTypeInfo(schemaString);
+		innerDeserializationSchema = deserializationSchema;
+	}
+
+	private ConfluentRegistryAvroRowDeserializationSchema(Schema schema,
+			ConfluentRegistryAvroDeserializationSchema<? extends IndexedRecord> deserializationSchema) {
+		this.schema = schema;
+		recordClazz = null;
+		schemaString = schema.toString();
+		typeInfo = getTypeInfo(schemaString);
+		innerDeserializationSchema = deserializationSchema;
+	}
 
 	/**
 	 * Creates {@link AbstractDeserializationSchema} that produces {@link Row}
@@ -92,7 +94,9 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 	 */
 	public static ConfluentRegistryAvroRowDeserializationSchema forGeneric(Schema schema, String url,
 			int identityMapCapacity) {
-		return new ConfluentRegistryAvroRowDeserializationSchema(schema, url, identityMapCapacity);
+		ConfluentRegistryAvroDeserializationSchema<GenericRecord> deserializationSchema =
+			ConfluentRegistryAvroDeserializationSchema.forGeneric(schema, url, identityMapCapacity);
+		return new ConfluentRegistryAvroRowDeserializationSchema(schema, deserializationSchema);
 	}
 
 	/**
@@ -116,9 +120,11 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 	 * @param identityMapCapacity	maximum number of cached schema versions (default: 1000)
 	 * @return deserialized record in form of {@link Row}
 	 */
-	public static ConfluentRegistryAvroRowDeserializationSchema forSpecific(Class<? extends SpecificRecord> recordClazz,
-			String url, int identityMapCapacity) {
-		return new ConfluentRegistryAvroRowDeserializationSchema(recordClazz, url, identityMapCapacity);
+	public static <T extends SpecificRecord> ConfluentRegistryAvroRowDeserializationSchema forSpecific(
+			Class<T> recordClazz, String url, int identityMapCapacity) {
+		ConfluentRegistryAvroDeserializationSchema<T> deserializationSchema =
+			ConfluentRegistryAvroDeserializationSchema.forSpecific(recordClazz, url, identityMapCapacity);
+		return new ConfluentRegistryAvroRowDeserializationSchema(recordClazz, deserializationSchema);
 	}
 
 	/**
@@ -134,37 +140,6 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 		return forSpecific(recordClazz, url, DEFAULT_IDENTITY_MAP_CAPACITY);
 	}
 
-	protected ConfluentRegistryAvroRowDeserializationSchema(Schema schema, String url, int identityMapCapacity) {
-		this.url = url;
-		this.identityMapCapacity = identityMapCapacity;
-		this.schema = schema;
-		this.recordClazz = null;
-
-		schemaString = schema.toString();
-		typeInfo = getTypeInfo(schemaString);
-		schemaCoder = new ConfluenceCachedSchemaCoderProvider(url, identityMapCapacity).get();
-		record = new GenericData.Record(schema);
-		datumReader = new GenericDatumReader<>(schema);
-		inputStream = new MutableByteArrayInputStream();
-		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
-	}
-
-	protected ConfluentRegistryAvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz, String url,
-			int identityMapCapacity) {
-		this.url = url;
-		this.identityMapCapacity = identityMapCapacity;
-		this.recordClazz = recordClazz;
-		this.schema = SpecificData.get().getSchema(recordClazz);
-
-		schemaString = schema.toString();
-		typeInfo = getTypeInfo(schemaString);
-		schemaCoder = new ConfluenceCachedSchemaCoderProvider(url, identityMapCapacity).get();
-		record = new GenericData.Record(schema);
-		datumReader = new GenericDatumReader<>(schema);
-		inputStream = new MutableByteArrayInputStream();
-		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
-	}
-
 	private RowTypeInfo getTypeInfo(String schemaString) {
 		TypeInformation<?> typeInfo = AvroSchemaConverter.convertToTypeInfo(schemaString);
 		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Row type information expected.");
@@ -173,18 +148,8 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
-		try {
-			inputStream.setBuffer(message);
-			Schema writerSchema = schemaCoder.readSchema(inputStream);
-
-			datumReader.setSchema(writerSchema);
-			datumReader.setExpected(schema);
-
-			record = datumReader.read(record, decoder);
-			return convertAvroRecordToRow(schema, typeInfo, record);
-		} catch (Exception e) {
-			throw new IOException("Failed to deserialize Avro record.", e);
-		}
+		IndexedRecord avroRecord = innerDeserializationSchema.deserialize(message);
+		return convertAvroRecordToRow(schema, typeInfo, avroRecord);
 	}
 
 	@Override
@@ -196,8 +161,6 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 	void writeObject(ObjectOutputStream outputStream) throws IOException {
 		outputStream.writeObject(recordClazz);
 		outputStream.writeUTF(schemaString);
-		outputStream.writeUTF(url);
-		outputStream.writeInt(identityMapCapacity);
 	}
 
 	@VisibleForTesting
@@ -205,22 +168,8 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 	void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
 		recordClazz = (Class<? extends SpecificRecord>) inputStream.readObject();
 		schemaString = inputStream.readUTF();
-		url = inputStream.readUTF();
-		identityMapCapacity = inputStream.readInt();
-
 		typeInfo = (RowTypeInfo) AvroSchemaConverter.<Row>convertToTypeInfo(schemaString);
 		schema = new Schema.Parser().parse(schemaString);
-		if (recordClazz != null) {
-			record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
-		} else {
-			record = new GenericData.Record(schema);
-		}
-
-		datumReader = new SpecificDatumReader<>(schema);
-		this.inputStream = new MutableByteArrayInputStream();
-		decoder = DecoderFactory.get().binaryDecoder(this.inputStream, null);
-
-		schemaCoder = new ConfluenceCachedSchemaCoderProvider(url, identityMapCapacity).get();
 	}
 
 	@Override
@@ -233,12 +182,11 @@ public class ConfluentRegistryAvroRowDeserializationSchema extends AbstractDeser
 		}
 		ConfluentRegistryAvroRowDeserializationSchema that = (ConfluentRegistryAvroRowDeserializationSchema) o;
 		return Objects.equals(schemaString, that.schemaString) &&
-			Objects.equals(url, that.url) &&
 			Objects.equals(recordClazz, that.recordClazz);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(schemaString, url, recordClazz);
+		return Objects.hash(schemaString, recordClazz);
 	}
 }

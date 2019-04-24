@@ -35,7 +35,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link ConfluentRegistryAvroRowDeserializationSchemaTest}.
@@ -54,7 +56,11 @@ public class ConfluentRegistryAvroRowDeserializationSchemaTest {
 		MockSchemaRegistryClient client = new MockSchemaRegistryClient();
 		int id = client.register("subj", record.getSchema());
 
-		deser.schemaCoder = new ConfluentSchemaRegistryCoder(client);
+		ConfluenceCachedSchemaCoderProvider mockSchemaCoderProvider = mock(ConfluenceCachedSchemaCoderProvider.class);
+		when(mockSchemaCoderProvider.get()).thenReturn(new ConfluentSchemaRegistryCoder(client));
+
+		deser.innerDeserializationSchema = new ConfluentRegistryAvroDeserializationSchema<>(recordClass, null,
+			mockSchemaCoderProvider);
 
 		Row actual = deser.deserialize(AvroTestUtils.serialize(testData.f1, id));
 
@@ -74,7 +80,11 @@ public class ConfluentRegistryAvroRowDeserializationSchemaTest {
 		MockSchemaRegistryClient client = new MockSchemaRegistryClient();
 		int id = client.register("subj", schema);
 
-		deser.schemaCoder = new ConfluentSchemaRegistryCoder(client);
+		ConfluenceCachedSchemaCoderProvider mockSchemaCoderProvider = mock(ConfluenceCachedSchemaCoderProvider.class);
+		when(mockSchemaCoderProvider.get()).thenReturn(new ConfluentSchemaRegistryCoder(client));
+
+		deser.innerDeserializationSchema = new ConfluentRegistryAvroDeserializationSchema<>(GenericRecord.class, schema,
+			mockSchemaCoderProvider);
 
 		Row actual = deser.deserialize(AvroTestUtils.serialize(record, id));
 
@@ -98,7 +108,6 @@ public class ConfluentRegistryAvroRowDeserializationSchemaTest {
 		ConfluentRegistryAvroRowDeserializationSchema mock = spy(ConfluentRegistryAvroRowDeserializationSchema.class);
 		mock.readObject(new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())));
 
-		assertEquals(deser.url, mock.url);
 		assertEquals(deser.schemaString, mock.schemaString);
 		assertEquals(deser.recordClazz, mock.recordClazz);
 	}
@@ -120,7 +129,6 @@ public class ConfluentRegistryAvroRowDeserializationSchemaTest {
 		ConfluentRegistryAvroRowDeserializationSchema mock = spy(ConfluentRegistryAvroRowDeserializationSchema.class);
 		mock.readObject(new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())));
 
-		assertEquals(deser.url, mock.url);
 		assertEquals(deser.schemaString, mock.schemaString);
 		assertEquals(deser.recordClazz, mock.recordClazz);
 	}
