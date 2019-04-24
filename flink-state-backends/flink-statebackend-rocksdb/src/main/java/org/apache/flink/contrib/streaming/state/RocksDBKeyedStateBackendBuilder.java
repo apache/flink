@@ -231,6 +231,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		}
 	}
 
+	@Override
 	public RocksDBKeyedStateBackend<K> build() throws BackendBuildingException {
 		RocksDBWriteBatchWrapper writeBatchWrapper = null;
 		ColumnFamilyHandle defaultColumnFamilyHandle = null;
