@@ -163,7 +163,7 @@ public abstract class CatalogTestBase {
 	}
 
 	@Test
-	public void testDropDb_databaseIsNotEmpty() throws Exception {
+	public void testDropDb_DatabaseNotEmptyException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, createTable(), false);
 

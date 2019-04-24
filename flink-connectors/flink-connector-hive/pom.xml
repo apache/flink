@@ -561,61 +561,8 @@ under the License.
 								</artifactSet>
 								<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-								<relocations combine.children="append">
-									<relocation>
-										<pattern>org.apache.hadoop</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.hadoop</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>org.apache.thrift</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.thrift</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>org.apache.commons</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.commons</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>org.apache.derby</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.derby</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>org.datanucleus</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.datanucleus</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>org.apache.httpcomponents</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.apache.httpcomponents</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>com.jolbox</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.com.jolbox</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>javax.servlet</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.javax.servlet</shadedPattern>
-									</relocation>
-									<relocation>
-										<pattern>org.antlr</pattern>
-										<shadedPattern>org.apache.flink.table.catalog.hive.shaded.org.antlr</shadedPattern>
-									</relocation>
-								</relocations>
+								<!-- TODO: [FLINK-12310] shade user facing common libraries in flink-connector-hive -->
 								<filters>
-									<filter>
-										<artifact>*</artifact>
-										<excludes>
-											<exclude>common-version-info.properties</exclude>
-											<exclude>core-default.xml</exclude>
-											<exclude>META-INF/maven/org.apache.commons/**</exclude>
-											<exclude>META-INF/services/**</exclude>
-										</excludes>
-									</filter>
-									<filter>
-										<!-- some dependencies bring their own LICENSE.txt which we don't need -->
-										<artifact>*:*</artifact>
-										<excludes>
-											<exclude>META-INF/LICENSE.txt</exclude>
-										</excludes>
-									</filter>
 									<filter>
 										<!-- hive-metastore depends on org.apache.hadoop.crypto -->
 										<artifact>org.apache.hadoop:hadoop-common</artifact>

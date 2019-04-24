@@ -47,7 +47,7 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 
 	// TODO: re-enable this test once GenericHiveMetastoreCatalog support table operations
 	@Test
-	public void testDropDb_databaseIsNotEmpty() throws Exception {
+	public void testDropDb_DatabaseNotEmptyException() throws Exception {
 	}
 
 	// ------ utils ------
