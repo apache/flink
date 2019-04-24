@@ -270,6 +270,10 @@ under the License.
 					<artifactId>protobuf-java</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.apache.derby</groupId>
+					<artifactId>derby</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.hbase</groupId>
 					<artifactId>hbase-client</artifactId>
 				</exclusion>
@@ -503,6 +507,13 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
+			<groupId>org.apache.derby</groupId>
+			<artifactId>derby</artifactId>
+			<version>10.10.2.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
@@ -512,82 +523,98 @@ under the License.
 
 	</dependencies>
 
-        <build>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>test-jar</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-enforcer-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <id>dependency-convergence</id>
-                            <goals>
-                                <goal>enforce</goal>
-                            </goals>
-                            <configuration>
-                                <skip>true</skip>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>dependency-convergence</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-shade-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <id>shade-flink</id>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>shade</goal>
-                            </goals>
-                            <configuration>
-								<shadeTestJar>false</shadeTestJar>
-								<artifactSet>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<!-- Explicitly include selected jars since hive-exec is a uber jar with only reduced dependencies declared -->
+								<!-- Needs end-to-end tests to ensure the built flink-connector-hive jar contains all required dependencies and can run -->
+								<includes>
+									<include>commons-io:commons-io</include>
+									<include>commons-io:commons-dbcp</include>
+									<include>commons-io:commons-pool</include>
+									<include>commons-logging:commons-logging</include>
+									<include>commons-configuration:commons-configuration</include>
+									<include>commons-beanutils:commons-beanutils</include>
+									<include>com.jolbox:bonecp</include>
+									<include>org.apache.hadoop:hadoop-auth</include>
+									<include>org.apache.hadoop:hadoop-common</include>
+									<include>org.apache.hadoop:hadoop-mapreduce-client-core</include>
+									<include>org.apache.hive:*</include>
+									<include>org.apache.thrift:libthrift</include>
+									<include>org.datanucleus:*</include>
+									<include>javax.servlet:servlet-api</include>
+									<include>org.antlr:antlr-runtime</include>
+								</includes>
+							</artifactSet>
+							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
+							<!-- TODO: [FLINK-12310] shade user facing common libraries in flink-connector-hive -->
+							<filters>
+								<filter>
+									<!-- hive-metastore depends on org.apache.hadoop.crypto -->
+									<artifact>org.apache.hadoop:hadoop-common</artifact>
 									<includes>
-										<include>*:*</include>
+										<include>org/apache/hadoop/crypto/**</include>
 									</includes>
-								</artifactSet>
-								<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-								<!-- TODO: [FLINK-12310] shade user facing common libraries in flink-connector-hive -->
-								<filters>
-									<filter>
-										<!-- hive-metastore depends on org.apache.hadoop.crypto -->
-										<artifact>org.apache.hadoop:hadoop-common</artifact>
-										<includes>
-											<include>org/apache/hadoop/crypto/**</include>
-										</includes>
-									</filter>
-								</filters>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 
-				<!-- Configure derby.log of embedded Hive metastore for unit tests -->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <configuration>
-                        <forkCount>1</forkCount>
-                        <reuseForks>false</reuseForks>
-                        <systemPropertyVariables>
-                            <derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
-                        </systemPropertyVariables>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </build>
-    </project>
+			<!-- Configure derby.log of embedded Hive metastore for unit tests -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
+					<systemPropertyVariables>
+						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
