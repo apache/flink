@@ -103,13 +103,15 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 
 				for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
 					AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
-					ResponseBody json = createAccumulatorInfo(attempt);
-					String path = getMessageHeaders().getTargetRestEndpointURL()
-						.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-						.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
-						.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
-						.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
-					archive.add(new ArchivedJson(path, json));
+					if (attempt != null){
+						ResponseBody json = createAccumulatorInfo(attempt);
+						String path = getMessageHeaders().getTargetRestEndpointURL()
+							.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+							.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
+							.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
+							.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
+						archive.add(new ArchivedJson(path, json));
+					}
 				}
 			}
 		}
