@@ -305,6 +305,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return currentExecution.getAssignedResourceLocation();
 	}
 
+	@Nullable
 	@Override
 	public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
 		synchronized (priorExecutions) {
