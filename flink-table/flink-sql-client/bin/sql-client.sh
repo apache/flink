@@ -56,7 +56,7 @@ CC_CLASSPATH=`constructFlinkClassPath`
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-sql-client-$HOSTNAME.log
 log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
-export FLINK_ROOT_DIR
+export FLINK_HOME
 export FLINK_CONF_DIR
 
 # get path of jar in /opt if it exist

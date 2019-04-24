@@ -296,9 +296,9 @@ bin=`dirname "$target"`
 SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 
 # Define the main directory of the flink installation
-FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
-FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
-FLINK_OPT_DIR=$FLINK_ROOT_DIR/opt
+FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
+FLINK_LIB_DIR=$FLINK_HOME/lib
+FLINK_OPT_DIR=$FLINK_HOME/opt
 
 ### Exported environment variables ###
 export FLINK_CONF_DIR
@@ -310,10 +310,10 @@ export FLINK_OPT_DIR
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a
 # directory, so it needs to be unmangled.
-FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
-if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
-FLINK_BIN_DIR=$FLINK_ROOT_DIR_MANGLED/bin
-DEFAULT_FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
+FLINK_HOME_DIR_MANGLED=`manglePath "$FLINK_HOME"`
+if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_HOME_DIR_MANGLED/conf; fi
+FLINK_BIN_DIR=$FLINK_HOME_DIR_MANGLED/bin
+DEFAULT_FLINK_LOG_DIR=$FLINK_HOME_DIR_MANGLED/log
 FLINK_CONF_FILE="flink-conf.yaml"
 YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 

@@ -20,6 +20,6 @@
 setlocal EnableDelayedExpansion
 
 SET bin=%~dp0
-SET FLINK_ROOT_DIR=%bin%..
+SET FLINK_HOME=%bin%..
 
-"%FLINK_ROOT_DIR%\bin\flink" run -v "%FLINK_ROOT_DIR%"\opt\flink-python*.jar %*
+"%FLINK_HOME%\bin\flink" run -v "%FLINK_HOME%"\opt\flink-python*.jar %*

@@ -48,7 +48,7 @@ CC_CLASSPATH=`constructFlinkClassPath`
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-client-$HOSTNAME.log
 log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
-export FLINK_ROOT_DIR
+export FLINK_HOME
 export FLINK_CONF_DIR
 
 # Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
