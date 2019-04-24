@@ -27,7 +27,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
@@ -181,23 +180,6 @@ public interface RestfulGateway extends RpcGateway {
 	default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
 			JobID jobId,
 			JobVertexID jobVertexId) {
-		throw new UnsupportedOperationException();
-	}
-
-	/**
-	 * Trigger rescaling of the given job.
-	 *
-	 * @param jobId specifying the job to rescale
-	 * @param newParallelism new parallelism of the job
-	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
-	 * @param timeout of this operation
-	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
-	 */
-	default CompletableFuture<Acknowledge> rescaleJob(
-			JobID jobId,
-			int newParallelism,
-			RescalingBehaviour rescalingBehaviour,
-			@RpcTimeout Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 
