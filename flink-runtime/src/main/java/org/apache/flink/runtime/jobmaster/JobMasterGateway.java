@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nullable;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
@@ -48,6 +45,11 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+
 /**
  * {@link JobMaster} rpc gateway interface.
  */
@@ -64,34 +66,6 @@ public interface JobMasterGateway extends
 	 * @return Future acknowledge of the operation
 	 */
 	CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
-
-	/**
-	 * Triggers rescaling of the executed job.
-	 *
-	 * @param newParallelism new parallelism of the job
-	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
-	 * @param timeout of this operation
-	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
-	 */
-	CompletableFuture<Acknowledge> rescaleJob(
-		int newParallelism,
-		RescalingBehaviour rescalingBehaviour,
-		@RpcTimeout Time timeout);
-
-	/**
-	 * Triggers rescaling of the given set of operators.
-	 *
-	 * @param operators set of operators which shall be rescaled
-	 * @param newParallelism new parallelism of the given set of operators
-	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
-	 * @param timeout of this operation
-	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
-	 */
-	CompletableFuture<Acknowledge> rescaleOperators(
-		Collection<JobVertexID> operators,
-		int newParallelism,
-		RescalingBehaviour rescalingBehaviour,
-		@RpcTimeout Time timeout);
 
 	/**
 	 * Updates the task execution state for a given task.

@@ -118,8 +118,6 @@ public class CliFrontendParser {
 	public static final Option STOP_AND_DRAIN = new Option("d", "drain", false,
 			"Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
 
-	static final Option MODIFY_PARALLELISM_OPTION = new Option("p", "parallelism", true, "New parallelism for the specified job.");
-
 	static {
 		HELP_OPTION.setRequired(false);
 
@@ -161,9 +159,6 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setRequired(false);
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
-
-		MODIFY_PARALLELISM_OPTION.setRequired(false);
-		MODIFY_PARALLELISM_OPTION.setArgName("newParallelism");
 
 		STOP_WITH_SAVEPOINT.setRequired(false);
 		STOP_WITH_SAVEPOINT.setArgName("withSavepoint");
@@ -240,12 +235,6 @@ public class CliFrontendParser {
 		return options.addOption(JAR_OPTION);
 	}
 
-	static Options getModifyOptions() {
-		final Options options = buildGeneralOptions(new Options());
-		options.addOption(MODIFY_PARALLELISM_OPTION);
-		return options;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Help
 	// --------------------------------------------------------------------------------------------
@@ -297,7 +286,6 @@ public class CliFrontendParser {
 		printHelpForStop(customCommandLines);
 		printHelpForCancel(customCommandLines);
 		printHelpForSavepoint(customCommandLines);
-		printHelpForModify(customCommandLines);
 
 		System.out.println();
 	}
@@ -384,21 +372,6 @@ public class CliFrontendParser {
 		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
 		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
 		formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
-
-		printCustomCliOptions(customCommandLines, formatter, false);
-
-		System.out.println();
-	}
-
-	public static void printHelpForModify(Collection<CustomCommandLine<?>> customCommandLines) {
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.setLeftPadding(5);
-		formatter.setWidth(80);
-
-		System.out.println("\nAction \"modify\" modifies a running job (e.g. change of parallelism).");
-		System.out.println("\n  Syntax: modify <Job ID> [OPTIONS]");
-		formatter.setSyntaxPrefix("  \"modify\" action options:");
-		formatter.printHelp(" ", getModifyOptions());
 
 		printCustomCliOptions(customCommandLines, formatter, false);
 
