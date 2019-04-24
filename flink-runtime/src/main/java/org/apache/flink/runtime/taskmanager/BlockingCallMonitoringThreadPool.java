@@ -86,8 +86,14 @@ public class BlockingCallMonitoringThreadPool {
 		// ** a new thread will be created ONLY IF THE QUEUE IS FULL **.
 		// ``
 
-		executor.setCorePoolSize(newPoolSize);
-		executor.setMaximumPoolSize(newPoolSize);
+		// ensure that regardless of whether we increase/reduce the pool size, maximum is always >= core
+		if (newPoolSize < executor.getCorePoolSize()) {
+			executor.setCorePoolSize(newPoolSize);
+			executor.setMaximumPoolSize(newPoolSize);
+		} else {
+			executor.setMaximumPoolSize(newPoolSize);
+			executor.setCorePoolSize(newPoolSize);
+		}
 	}
 
 	public void shutdown() {
