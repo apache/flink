@@ -173,7 +173,7 @@ public abstract class SnapshotDirectory {
 	private static class TemporarySnapshotDirectory extends SnapshotDirectory {
 
 		TemporarySnapshotDirectory(@Nonnull Path directory) throws IOException {
-			super(directory);
+			super(directory, FileSystem.getLocalFileSystem());
 		}
 
 		@Override
@@ -185,7 +185,7 @@ public abstract class SnapshotDirectory {
 	private static class PermanentSnapshotDirectory extends SnapshotDirectory {
 
 		PermanentSnapshotDirectory(@Nonnull Path directory) throws IOException {
-			super(directory);
+			super(directory, FileSystem.getLocalFileSystem());
 		}
 
 		@Override

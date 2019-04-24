@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
@@ -79,13 +81,25 @@ public class SnapshotDirectoryTest extends TestLogger {
 		File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
 
 		Assert.assertFalse(folderA.isDirectory());
-		Path path = new Path(folderA.toURI());
-		SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(path);
-		Assert.assertFalse(snapshotDirectory.exists());
+		Path pathA = new Path(folderA.toURI());
+		SnapshotDirectory snapshotDirectoryA = SnapshotDirectory.permanent(pathA);
+		Assert.assertFalse(snapshotDirectoryA.exists());
 		Assert.assertTrue(folderA.mkdirs());
-		Assert.assertTrue(snapshotDirectory.exists());
+		Assert.assertTrue(snapshotDirectoryA.exists());
 		Assert.assertTrue(folderA.delete());
-		Assert.assertFalse(snapshotDirectory.exists());
+		Assert.assertFalse(snapshotDirectoryA.exists());
+
+		// ensure that snapshot directory will always use the local file system not the default file system
+		Configuration configuration = new Configuration();
+		configuration.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "nonexistfs:///");
+		FileSystem.initialize(configuration);
+		File folderB = new File(folderRoot, String.valueOf(UUID.randomUUID()));
+		// only pass the path and leave the scheme missing
+		Path pathB = new Path(folderB.getAbsolutePath());
+		SnapshotDirectory snapshotDirectoryB = SnapshotDirectory.temporary(pathB);
+		Assert.assertTrue(snapshotDirectoryB.getFileSystem().equals(FileSystem.getLocalFileSystem()));
+		// restore the FileSystem configuration
+		FileSystem.initialize(new Configuration());
 	}
 
 	/**
