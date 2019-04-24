@@ -300,12 +300,6 @@ FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_HOME/lib
 FLINK_OPT_DIR=$FLINK_HOME/opt
 
-### Exported environment variables ###
-export FLINK_CONF_DIR
-# export /lib dir to access it during deployment of the Yarn staging files
-export FLINK_LIB_DIR
-# export /opt dir to access it for the SQL client
-export FLINK_OPT_DIR
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a
@@ -316,6 +310,14 @@ FLINK_BIN_DIR=$FLINK_HOME_DIR_MANGLED/bin
 DEFAULT_FLINK_LOG_DIR=$FLINK_HOME_DIR_MANGLED/log
 FLINK_CONF_FILE="flink-conf.yaml"
 YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
+
+### Exported environment variables ###
+export FLINK_CONF_DIR
+export FLINK_BIN_DIR
+# export /lib dir to access it during deployment of the Yarn staging files
+export FLINK_LIB_DIR
+# export /opt dir to access it for the SQL client
+export FLINK_OPT_DIR
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
