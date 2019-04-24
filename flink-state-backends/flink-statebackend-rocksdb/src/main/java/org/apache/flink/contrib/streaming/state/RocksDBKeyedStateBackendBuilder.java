@@ -233,6 +233,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		}
 	}
 
+	@Override
 	public RocksDBKeyedStateBackend<K> build() throws BackendBuildingException {
 		RocksDBWriteBatchWrapper writeBatchWrapper = null;
 		ColumnFamilyHandle defaultColumnFamilyHandle = null;
@@ -451,6 +452,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				instanceBasePath,
 				backendUID,
 				materializedSstFiles,
+				operatorIdentifier,
 				lastCompletedCheckpointId,
 				numberOfTransferingThreads);
 		} else {

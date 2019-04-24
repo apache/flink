@@ -106,6 +106,9 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The help class used to upload state files. */
 	private final RocksDBStateUploader stateUploader;
 
+	/** the operator identifier who owns the current snapshot. */
+	private final String operatorIdentifier;
+
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
 		@Nonnull ResourceGuard rocksDBResourceGuard,
@@ -118,6 +121,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull File instanceBasePath,
 		@Nonnull UUID backendUID,
 		@Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
+		@Nonnull String operatorIdentifier,
 		long lastCompletedCheckpointId,
 		int numberOfTransferingThreads) {
 
@@ -137,6 +141,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
 		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
+		this.operatorIdentifier = operatorIdentifier;
 	}
 
 	@Nonnull
@@ -184,17 +189,19 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
 			File directory = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointId);
 
-			if (directory.exists()) {
-				FileUtils.deleteDirectory(directory);
-			}
-
-			if (!directory.mkdirs()) {
+			if (!directory.exists() && !directory.mkdirs()) {
 				throw new IOException("Local state base directory for checkpoint " + checkpointId +
 					" already exists: " + directory);
 			}
 
 			// introduces an extra directory because RocksDB wants a non-existing directory for native checkpoints.
-			File rdbSnapshotDir = new File(directory, "rocks_db");
+			// append operatorIdentifier here to solve directory collision problem when two stateful operators chained in one task.
+			String subDir = operatorIdentifier.replaceAll("[^a-zA-Z0-9\\-]", "_");
+			File rdbSnapshotDir = new File(directory, subDir);
+			if (rdbSnapshotDir.exists()) {
+				FileUtils.deleteDirectory(rdbSnapshotDir);
+			}
+
 			Path path = new Path(rdbSnapshotDir.toURI());
 			// create a "permanent" snapshot directory because local recovery is active.
 			try {
