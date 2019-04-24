@@ -33,6 +33,7 @@ import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_HOME_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Overlays Flink into a container, based on supplied bin/conf/lib directories.
@@ -93,34 +94,21 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		 * @param globalConfiguration the current configuration.
 		 */
 		public Builder fromEnvironment(Configuration globalConfiguration) {
-
-			Map<String,String> env = System.getenv();
-			if(env.containsKey(ENV_FLINK_BIN_DIR)) {
-				flinkBinPath = new File(System.getenv(ENV_FLINK_BIN_DIR));
-			}
-			else {
-				throw new IllegalStateException(String.format("the %s environment variable must be set", ENV_FLINK_BIN_DIR));
-			}
-
-			if(env.containsKey(ENV_FLINK_CONF_DIR)) {
-				flinkConfPath = new File(System.getenv(ENV_FLINK_CONF_DIR));
-			}
-			else {
-				throw new IllegalStateException(String.format("the %s environment variable must be set", ENV_FLINK_CONF_DIR));
-			}
-
-			if(env.containsKey(ENV_FLINK_LIB_DIR)) {
-				flinkLibPath = new File(System.getenv(ENV_FLINK_LIB_DIR));
-			}
-			else {
-				throw new IllegalStateException(String.format("the %s environment variable must be set", ENV_FLINK_LIB_DIR));
-			}
+			flinkBinPath = getObligatoryFileFromEnvironment(ENV_FLINK_BIN_DIR);
+			flinkConfPath = getObligatoryFileFromEnvironment(ENV_FLINK_CONF_DIR);
+			flinkLibPath = getObligatoryFileFromEnvironment(ENV_FLINK_LIB_DIR);
 
 			return this;
 		}
 
 		public FlinkDistributionOverlay build() {
 			return new FlinkDistributionOverlay(flinkBinPath, flinkConfPath, flinkLibPath);
+		}
+
+		private static File getObligatoryFileFromEnvironment(String envVariableName) {
+			String directory = System.getenv(envVariableName);
+			checkState(directory != null, "the %s environment variable must be set", envVariableName);
+			return new File(directory);
 		}
 	}
 }
