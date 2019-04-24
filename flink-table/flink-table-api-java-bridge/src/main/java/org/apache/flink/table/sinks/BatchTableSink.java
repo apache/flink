@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks
+package org.apache.flink.table.sinks;
 
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.table.api.Table;
 
-/**
-  * Defines an external stream table and provides write access to its data.
-  *
-  * @tparam T Type of the [[DataStream]] created by this [[TableSink]].
-  */
-trait StreamTableSink[T] extends TableSink[T] {
+/** Defines an external {@link TableSink} to emit a batch {@link Table}.
+ *
+ * @param <T> Type of {@link DataSet} that this {@link TableSink} expects and supports.
+ */
+public interface BatchTableSink<T> extends TableSink<T> {
 
-  /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[T]): Unit
-
+	/** Emits the DataSet. */
+	void emitDataSet(DataSet<T> dataSet);
 }
