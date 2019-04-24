@@ -19,38 +19,25 @@
 package org.apache.flink.table.catalog;
 
 import java.util.Map;
-import java.util.Optional;
 
 /**
- * Represents a partition object in catalog.
+ * Represents a partition spec object in catalog.
+ * Partition columns and values are NOT of strict order, and they need to be re-arranged to the correct order
+ * by comparing with a list of strictly ordered partition keys.
  */
-public interface CatalogPartition {
+public interface CatalogPartitionSpec {
 
 	/**
-	 * Get a map of properties associated with the partition.
+	 * Get the partition spec as key-value map.
 	 *
-	 * @return a map of properties with the partition
+	 * @return a map of partition spec keys and values
 	 */
-	Map<String, String> getProperties();
+	Map<String, String> getPartitionSpec();
 
 	/**
-	 * Get a deep copy of the CatalogPartition instance.
+	 * Get a deep copy of the CatalogPartitionSpec instance.
 	 *
-	 * @return a copy of CatalogPartition instance
+	 * @return a copy of CatalogPartitionSpec instance
 	 */
-	CatalogPartition copy();
-
-	/**
-	 * Get a brief description of the database.
-	 *
-	 * @return an optional short description of the database
-	 */
-	Optional<String> getDescription();
-
-	/**
-	 * Get a detailed description of the database.
-	 *
-	 * @return an optional long description of the database
-	 */
-	Optional<String> getDetailedDescription();
+	CatalogPartitionSpec copy();
 }

@@ -22,20 +22,20 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * Exception for operation on a nonexistent partition.
+ * Exception for trying to create a partition that already exists.
  */
-public class PartitionNotExistException extends Exception {
-	private static final String MSG = "Partition %s of table %s in catalog %s does not exist.";
+public class PartitionAlreadyExistsException extends Exception {
+	private static final String MSG = "Partition %s of table %s in catalog %s already exists.";
 
-	public PartitionNotExistException(
+	public PartitionAlreadyExistsException(
 		String catalogName,
 		ObjectPath tablePath,
 		CatalogPartitionSpec partitionSpec) {
 
-		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), null);
+		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName));
 	}
 
-	public PartitionNotExistException(
+	public PartitionAlreadyExistsException(
 		String catalogName,
 		ObjectPath tablePath,
 		CatalogPartitionSpec partitionSpec,

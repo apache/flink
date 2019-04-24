@@ -18,36 +18,25 @@
 
 package org.apache.flink.table.catalog;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A generic catalog partition implementation.
  */
 public class GenericCatalogPartition implements CatalogPartition {
-	private final PartitionSpec partitionSpec;
 	private final Map<String, String> properties;
 
 	private String comment = "This is a generic catalog partition";
 
-	public GenericCatalogPartition(PartitionSpec partitionSpec, Map<String, String> properties) {
-		this.partitionSpec = partitionSpec;
+	public GenericCatalogPartition(Map<String, String> properties) {
 		this.properties = properties;
 	}
 
-	public GenericCatalogPartition(PartitionSpec partitionSpec, Map<String, String> properties, String comment) {
-		this(partitionSpec, properties);
+	public GenericCatalogPartition(Map<String, String> properties, String comment) {
+		this(properties);
 		this.comment = comment;
-	}
-
-	@Override
-	public PartitionSpec getPartitionSpec() {
-		return partitionSpec;
 	}
 
 	@Override
@@ -57,7 +46,7 @@ public class GenericCatalogPartition implements CatalogPartition {
 
 	@Override
 	public CatalogPartition copy() {
-		return new GenericCatalogPartition(partitionSpec, new HashMap<>(properties));
+		return new GenericCatalogPartition(new HashMap<>(properties));
 	}
 
 	@Override
@@ -67,51 +56,6 @@ public class GenericCatalogPartition implements CatalogPartition {
 
 	@Override
 	public Optional<String> getDetailedDescription() {
-		return Optional.of(comment);
-	}
-
-	/**
-	 * A generic catalog partition spec implementation.
-	 */
-	public static class GenericPartitionSpec implements PartitionSpec {
-		// <partition key, value>
-		private final Map<String, String> partitionSpec;
-
-		public GenericPartitionSpec(Map<String, String> partitionSpec) {
-			checkNotNull(partitionSpec, "partitionSpec cannot be null");
-
-			this.partitionSpec = Collections.unmodifiableMap(partitionSpec);
-		}
-
-		@Override
-		public boolean contains(PartitionSpec another) {
-			checkNotNull(another, "another cannot be null");
-
-			return partitionSpec.entrySet().containsAll(((GenericPartitionSpec) another).partitionSpec.entrySet());
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			GenericPartitionSpec that = (GenericPartitionSpec) o;
-			return partitionSpec.equals(that.partitionSpec);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(partitionSpec);
-		}
-
-		@Override
-		public String toString() {
-			return "PartitionSpec{" + partitionSpec + '}';
-		}
+		return Optional.of("This is a generic catalog partition with detailed description");
 	}
 }

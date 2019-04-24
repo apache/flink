@@ -18,29 +18,35 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
-import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 
+import java.util.List;
+
 /**
- * Exception for adding an already existed partition.
+ * Exception for invalid PartitionSpec compared with partition key list of a partitioned Table.
+ * For example, it is thrown when the size of PartitionSpec exceeds the size of partition key list, or
+ * when the size of PartitionSpec is 'n' but its keys don't match the first 'n' keys in partition key list.
  */
-public class PartitionAlreadyExistException extends RuntimeException {
-	private static final String MSG = "Partition %s of table %s in catalog %s already exists.";
+public class PartitionSpecInvalidException extends Exception {
+	private static final String MSG = "PartitionSpec %s does not match partition keys %s of table %s in catalog %s.";
 
-	public PartitionAlreadyExistException(
+	public PartitionSpecInvalidException(
 		String catalogName,
+		List<String> partitionKeys,
 		ObjectPath tablePath,
-		CatalogPartition.PartitionSpec partitionSpec) {
+		CatalogPartitionSpec partitionSpec) {
 
-		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName));
+		super(String.format(MSG, partitionSpec, partitionKeys, tablePath.getFullName(), catalogName), null);
 	}
 
-	public PartitionAlreadyExistException(
+	public PartitionSpecInvalidException(
 		String catalogName,
+		List<String> partitionKeys,
 		ObjectPath tablePath,
-		CatalogPartition.PartitionSpec partitionSpec,
+		CatalogPartitionSpec partitionSpec,
 		Throwable cause) {
 
-		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), cause);
+		super(String.format(MSG, partitionSpec, partitionKeys, tablePath.getFullName(), catalogName), cause);
 	}
 }

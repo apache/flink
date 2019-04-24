@@ -22,8 +22,9 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
@@ -50,7 +51,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	private final String catalogName;
 	private final Map<String, CatalogDatabase> databases;
 	private final Map<ObjectPath, CatalogBaseTable> tables;
-	private final Map<ObjectPath, Map<CatalogPartition.PartitionSpec, CatalogPartition>> partitions;
+	private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogPartition>> partitions;
 
 	public GenericInMemoryCatalog(String name) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
@@ -292,33 +293,25 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	// ------ partitions ------
 
 	@Override
-	public void createPartition(ObjectPath tablePath, CatalogPartition partition, boolean ignoreIfExists)
-		throws TableNotExistException, TableNotPartitionedException, PartitionAlreadyExistException, CatalogException {
+	public void createPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition partition, boolean ignoreIfExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionAlreadyExistsException, CatalogException {
 
-		if (!tableExists(tablePath)) {
-			throw new TableNotExistException(catalogName, tablePath);
-		}
+		validatePartitionSpec(tablePath, partitionSpec);
 
-		validatePartitionedTable(tablePath);
-
-		if (partitionExists(tablePath, partition.getPartitionSpec())) {
+		if (partitionExists(tablePath, partitionSpec)) {
 			if (!ignoreIfExists) {
-				throw new PartitionAlreadyExistException(catalogName, tablePath, partition.getPartitionSpec());
+				throw new PartitionAlreadyExistsException(catalogName, tablePath, partitionSpec);
 			}
 		} else {
-			partitions.get(tablePath).put(partition.getPartitionSpec(), partition.copy());
+			partitions.get(tablePath).put(partitionSpec.copy(), partition.copy());
 		}
 	}
 
 	@Override
-	public void dropPartition(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec, boolean ignoreIfNotExists)
-		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException, CatalogException {
+	public void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
 
-		if (!tableExists(tablePath)) {
-			throw new TableNotExistException(catalogName, tablePath);
-		}
-
-		validatePartitionedTable(tablePath);
+		validatePartitionSpec(tablePath, partitionSpec);
 
 		if (partitionExists(tablePath, partitionSpec)) {
 			partitions.get(tablePath).remove(partitionSpec);
@@ -328,25 +321,20 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void alterPartition(ObjectPath tablePath, CatalogPartition newPartition, boolean ignoreIfNotExists)
-		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException {
-		if (!tableExists(tablePath)) {
-			throw new TableNotExistException(catalogName, tablePath);
-		}
+	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
 
-		validatePartitionedTable(tablePath);
-
-		CatalogPartition.PartitionSpec partitionSpec = newPartition.getPartitionSpec();
+		validatePartitionSpec(tablePath, partitionSpec);
 
 		if (partitionExists(tablePath, partitionSpec)) {
-			partitions.get(tablePath).put(partitionSpec, newPartition.copy());
+			partitions.get(tablePath).put(partitionSpec.copy(), newPartition.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
 		}
 	}
 
 	@Override
-	public List<CatalogPartition.PartitionSpec> listPartitions(ObjectPath tablePath)
+	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
 		throws TableNotExistException, TableNotPartitionedException, CatalogException {
 
 		validatePartitionedTable(tablePath);
@@ -355,23 +343,27 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public List<CatalogPartition.PartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpecs)
-		throws TableNotExistException, TableNotPartitionedException, CatalogException {
+	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
 
-		validatePartitionedTable(tablePath);
+		validatePartitionSpec(tablePath, partitionSpec);
 
 		return partitions.get(tablePath).keySet().stream()
-			.filter(ps -> ps.contains(partitionSpecs))
+			.filter(ps -> ps.getPartitionSpec().entrySet().containsAll(partitionSpec.getPartitionSpec().entrySet()))
 			.collect(Collectors.toList());
 	}
 
 	@Override
-	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec)
-		throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException, CatalogException {
+	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
 
-		validatePartitionedTable(tablePath);
+		CatalogTable table = validatePartitionSpec(tablePath, partitionSpec);
 
-		if (partitions.get(new ObjectPath(tablePath.getDatabaseName(), tablePath.getObjectName())).get(partitionSpec) != null) {
+		if (partitionSpec.getPartitionSpec().size() < table.getPartitionKeys().size()) {
+			throw new PartitionSpecInvalidException(catalogName, table.getPartitionKeys(), tablePath, partitionSpec);
+		}
+
+		if (partitionExists(tablePath, partitionSpec)) {
 			return partitions.get(tablePath).get(partitionSpec).copy();
 		} else {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
@@ -379,12 +371,46 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public boolean partitionExists(ObjectPath tablePath, CatalogPartition.PartitionSpec partitionSpec)
+	public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
 		throws CatalogException {
+
 		return partitions.containsKey(tablePath) && partitions.get(tablePath).containsKey(partitionSpec);
 	}
 
-	private void validatePartitionedTable(ObjectPath tablePath) throws TableNotExistException, TableNotPartitionedException {
+	/**
+	 * Validate the partitioned table and partitionSpec.
+	 */
+	private CatalogTable validatePartitionSpec(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException {
+
+		CatalogTable table = validatePartitionedTable(tablePath);
+
+		List<String> partitionKeys = table.getPartitionKeys();
+		Map<String, String> spec = partitionSpec.getPartitionSpec();
+
+		// The size of partition spec should not exceed the size of partition keys
+		if (partitionKeys.size() < spec.size()) {
+			throw new PartitionSpecInvalidException(catalogName, partitionKeys, tablePath, partitionSpec);
+		} else {
+			int size = spec.size();
+
+			// PartitionSpec should contain the first 'size' number of keys in partition key list
+			for (int i = 0; i < size; i++) {
+				if (!spec.containsKey(partitionKeys.get(i))) {
+					throw new PartitionSpecInvalidException(catalogName, partitionKeys, tablePath, partitionSpec);
+				}
+			}
+		}
+
+		return table;
+	}
+
+	/**
+	 * Validate the partitioned table.
+	 */
+	private CatalogTable validatePartitionedTable(ObjectPath tablePath)
+		throws TableNotExistException, TableNotPartitionedException {
+
 		CatalogBaseTable baseTable = getTable(tablePath);
 
 		if (!(baseTable instanceof CatalogTable)) {
@@ -397,5 +423,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		if (!table.isPartitioned()) {
 			throw new TableNotPartitionedException(catalogName, tablePath);
 		}
+
+		return table;
 	}
 }

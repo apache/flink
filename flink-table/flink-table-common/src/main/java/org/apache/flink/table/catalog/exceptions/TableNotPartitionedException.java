@@ -21,7 +21,7 @@ package org.apache.flink.table.catalog.exceptions;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * Exception for trying to operate partition against a non-partitioned table.
+ * Exception for trying to operate partition on a non-partitioned table.
  */
 public class TableNotPartitionedException extends Exception {
 
