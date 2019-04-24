@@ -168,7 +168,7 @@ public class WindowOperatorBuilder {
 			LogicalType[] accumulatorTypes,
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes) {
-		ClosureCleaner.clean(aggregateFunction, true);
+		ClosureCleaner.clean(aggregateFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 		this.accumulatorTypes = accumulatorTypes;
 		this.aggResultTypes = aggResultTypes;
 		this.windowPropertyTypes = windowPropertyTypes;

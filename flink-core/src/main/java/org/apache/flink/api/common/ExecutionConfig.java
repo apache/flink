@@ -90,7 +90,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Defines how data exchange happens - batch or pipelined */
 	private ExecutionMode executionMode = ExecutionMode.PIPELINED;
 
-	private boolean useClosureCleaner = true;
+	private ClosureCleanerLevel closureCleanerLevel = ClosureCleanerLevel.RECURSIVE;
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
@@ -188,7 +188,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * User code must be serializable because it needs to be sent to worker nodes.
 	 */
 	public ExecutionConfig enableClosureCleaner() {
-		useClosureCleaner = true;
+		this.closureCleanerLevel = ClosureCleanerLevel.RECURSIVE;
 		return this;
 	}
 
@@ -198,7 +198,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @see #enableClosureCleaner()
 	 */
 	public ExecutionConfig disableClosureCleaner() {
-		useClosureCleaner = false;
+		this.closureCleanerLevel = ClosureCleanerLevel.NONE;
 		return this;
 	}
 
@@ -208,7 +208,23 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @see #enableClosureCleaner()
 	 */
 	public boolean isClosureCleanerEnabled() {
-		return useClosureCleaner;
+		return !(closureCleanerLevel == ClosureCleanerLevel.NONE);
+	}
+
+	/**
+	 * Configures the closure cleaner. Please see {@link ClosureCleanerLevel} for details on the
+	 * different settings.
+	 */
+	public ExecutionConfig setClosureCleanerLevel(ClosureCleanerLevel level) {
+		this.closureCleanerLevel = level;
+		return this;
+	}
+
+	/**
+	 * Returns the configured {@link ClosureCleanerLevel}.
+	 */
+	public ClosureCleanerLevel getClosureCleanerLevel() {
+		return closureCleanerLevel;
 	}
 
 	/**
@@ -958,7 +974,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 			return other.canEqual(this) &&
 				Objects.equals(executionMode, other.executionMode) &&
-				useClosureCleaner == other.useClosureCleaner &&
+				closureCleanerLevel == other.closureCleanerLevel &&
 				parallelism == other.parallelism &&
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
 					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
@@ -988,7 +1004,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public int hashCode() {
 		return Objects.hash(
 			executionMode,
-			useClosureCleaner,
+				closureCleanerLevel,
 			parallelism,
 			restartStrategyConfiguration,
 			forceKryo,
@@ -1054,5 +1070,25 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		public Map<String, String> toMap() {
 			return Collections.emptyMap();
 		}
+	}
+
+	/**
+	 * Configuration settings for the closure cleaner.
+	 */
+	public enum ClosureCleanerLevel {
+		/**
+		 * Disable the closure cleaner completely.
+		 */
+		NONE,
+
+		/**
+		 * Clean only the top-level class without recursing into fields.
+		 */
+		TOP_LEVEL,
+
+		/**
+		 * Clean all the fields recursively.
+		 */
+		RECURSIVE
 	}
 }
