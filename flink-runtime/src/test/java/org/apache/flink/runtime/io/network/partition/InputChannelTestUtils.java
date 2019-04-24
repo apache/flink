@@ -21,13 +21,20 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import java.net.InetSocketAddress;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -38,6 +45,8 @@ import static org.mockito.Mockito.when;
  * Some utility methods used for testing InputChannels and InputGates.
  */
 public class InputChannelTestUtils {
+
+	private static final ConnectionID STUB_CONNECTION_ID = new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
 
 	/**
 	 * Creates a result partition manager that ignores all IDs, and simply returns the given
@@ -91,6 +100,66 @@ public class InputChannelTestUtils {
 		when(connManager.createPartitionRequestClient(any(ConnectionID.class))).thenReturn(mockClient);
 
 		return connManager;
+	}
+
+	public static LocalInputChannel createLocalInputChannel(
+		SingleInputGate inputGate,
+		ResultPartitionManager partitionManager) {
+
+		return createLocalInputChannel(inputGate, partitionManager, 0, 0);
+	}
+
+	public static LocalInputChannel createLocalInputChannel(
+		SingleInputGate inputGate,
+		int channelIndex,
+		ResultPartitionManager partitionManager) {
+
+		return new LocalInputChannel(
+			inputGate,
+			channelIndex,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			0,
+			0,
+			newUnregisteredTaskIOMetricGroup());
+	}
+
+	public static LocalInputChannel createLocalInputChannel(
+		SingleInputGate inputGate,
+		ResultPartitionManager partitionManager,
+		int initialBackoff,
+		int maxBackoff) {
+
+		return new LocalInputChannel(
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			initialBackoff,
+			maxBackoff,
+			newUnregisteredTaskIOMetricGroup());
+	}
+
+	public static RemoteInputChannel createRemoteInputChannel(
+		SingleInputGate inputGate,
+		int channelIndex,
+		ConnectionManager connectionManager) {
+
+		return new RemoteInputChannel(
+			inputGate,
+			channelIndex,
+			new ResultPartitionID(),
+			STUB_CONNECTION_ID,
+			connectionManager,
+			0,
+			0,
+			newUnregisteredTaskIOMetricGroup());
+	}
+
+	private static TaskIOMetricGroup newUnregisteredTaskIOMetricGroup() {
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
 	}
 
 	// ------------------------------------------------------------------------
