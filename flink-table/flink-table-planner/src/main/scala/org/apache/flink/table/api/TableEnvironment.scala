@@ -25,9 +25,10 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
+import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
-import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.schema
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
@@ -53,9 +54,9 @@ import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.OperationTreeBuilder
+import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
+import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.cost.DataSetCostFactory
-import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
@@ -93,12 +94,22 @@ abstract class TableEnvironment(val config: TableConfig) {
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
     .sqlToRelConverterConfig(getSqlToRelConverterConfig)
+    // the converter is needed when calling temporal table functions from SQL, because
+    // they reference a history table represented with a tree of table operations
+    .context(Contexts.of(
+      new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
+    ))
     // set the executor to evaluate constant expressions
     .executor(new ExpressionReducer(config))
     .build
 
+  // temporary bridge between API and planner
+  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
+    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
+
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
+  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder
+    .create(frameworkConfig, expressionBridge)
 
   // the planner instance used to optimize queries of this TableEnvironment
   private lazy val planner: RelOptPlanner = relBuilder.getPlanner
@@ -110,10 +121,6 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // registered external catalog names -> catalog
   private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
-
-  // temporary bridge between API and planner
-  private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
@@ -142,7 +149,7 @@ abstract class TableEnvironment(val config: TableConfig) {
           .withTrimUnusedFields(false)
           .withConvertTableAccess(false)
           .withInSubQueryThreshold(Integer.MAX_VALUE)
-          .withRelBuilderFactory(FlinkRelBuilderFactory)
+          .withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
           .build()
 
       case Some(c) => c
@@ -657,10 +664,19 @@ abstract class TableEnvironment(val config: TableConfig) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
       if (table != null) {
-        return Some(new TableImpl(this, CatalogNode(tablePath, table.getRowType(typeFactory))))
+        return Some(new TableImpl(this,
+          new CatalogTableOperation(tablePath.toList.asJava, extractTableSchema(table))))
       }
     }
     None
+  }
+
+  private def extractTableSchema(table: schema.Table): TableSchema = {
+    val relDataType = table.getRowType(typeFactory)
+    val fieldNames = relDataType.getFieldNames
+    val fieldTypes = relDataType.getFieldList.asScala
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
+    new TableSchema(fieldNames.asScala.toArray, fieldTypes.toArray)
   }
 
   private def getSchema(schemaPath: Array[String]): SchemaPlus = {
@@ -740,7 +756,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, LogicalRelNode(relational.rel))
+      new TableImpl(this, new PlannerTableOperation(relational.rel))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -802,7 +818,8 @@ abstract class TableEnvironment(val config: TableConfig) {
         val validatedQuery = planner.validate(query)
 
         // get query result as Table
-        val queryResult = new TableImpl(this, LogicalRelNode(planner.rel(validatedQuery).rel))
+        val queryResult = new TableImpl(this,
+          new PlannerTableOperation(planner.rel(validatedQuery).rel))
 
         // get name of sink table
         val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)

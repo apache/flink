@@ -20,16 +20,18 @@ package org.apache.flink.table.operations
 
 import java.util.{Collections, Optional, List => JList}
 
-import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
+import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType
 import org.apache.flink.table.expressions.FunctionDefinition.Type.{SCALAR_FUNCTION, TABLE_FUNCTION}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
-import org.apache.flink.table.plan.logical.{Minus => LMinus, _}
+import org.apache.flink.table.operations.JoinTableOperation.JoinType
+import org.apache.flink.table.operations.SetTableOperation.SetTableOperationType._
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 import org.apache.flink.util.Preconditions
@@ -47,18 +49,15 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
   private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
-  private val sortOperationFactory = new SortOperationFactory(expressionBridge, isStreaming)
-  private val calculatedTableFactory = new CalculatedTableFactory(expressionBridge)
+  private val sortOperationFactory = new SortOperationFactory(isStreaming)
+  private val calculatedTableFactory = new CalculatedTableFactory()
+  private val setOperationFactory = new SetOperationFactory(isStreaming)
+  private val aggregateOperationFactory = new AggregateOperationFactory(expressionBridge,
+    isStreaming)
+  private val joinOperationFactory = new JoinOperationFactory(expressionBridge)
+
   private val noWindowPropertyChecker = new NoWindowPropertyChecker(
     "Window start and end properties are not available for Over windows.")
-
-  private def bridgeExpression(expression: Expression): PlannerExpression = {
-    val expr = expressionBridge.bridge(expression)
-    if (!expr.valid) {
-      throw new ValidationException(s"Could not validate expression: $expression")
-    }
-    expr
-  }
 
   private val tableCatalog = new TableReferenceLookup {
     override def lookupTable(name: String): Optional[TableReferenceExpression] =
@@ -72,10 +71,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation,
       explicitAlias: Boolean = false)
     : TableOperation = {
-
-    val childNode = child.asInstanceOf[LogicalNode]
-
-    projectInternal(projectList, childNode, explicitAlias, Collections.emptyList())
+    projectInternal(projectList, child, explicitAlias, Collections.emptyList())
   }
 
   def project(
@@ -86,22 +82,20 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
     Preconditions.checkArgument(!overWindows.isEmpty)
 
-    val childNode = child.asInstanceOf[LogicalNode]
-
     projectList.asScala.map(_.accept(noWindowPropertyChecker))
 
     projectInternal(projectList,
-      childNode,
+      child,
       explicitAlias = true,
       overWindows)
   }
 
   private def projectInternal(
       projectList: JList[Expression],
-      child: LogicalNode,
+      child: TableOperation,
       explicitAlias: Boolean,
       overWindows: JList[OverWindow])
-    : LogicalNode = {
+    : TableOperation = {
     val resolver = resolverFor(tableCatalog, functionCatalog, child).withOverWindows(overWindows)
       .build
     val projections = resolver.resolve(projectList)
@@ -157,20 +151,12 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation)
     : TableOperation = {
 
-    val childNode = child.asInstanceOf[LogicalNode]
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build
 
-    val convertedGroupings = resolveExpressions(groupingExpressions, resolver)
-    val convertedAggregates = resolveExpressions(aggregates, resolver)
+    val resolvedGroupings = resolver.resolve(groupingExpressions)
+    val resolvedAggregates = resolver.resolve(aggregates)
 
-    Aggregate(convertedGroupings, convertedAggregates, childNode).validate(tableEnv)
-  }
-
-  private def resolveExpressions(
-      expressions: JList[Expression],
-      resolver: ExpressionResolver)
-    : Seq[PlannerExpression] = {
-    resolver.resolve(expressions).asScala.map(bridgeExpression)
+    aggregateOperationFactory.createAggregate(resolvedGroupings, resolvedAggregates, child)
   }
 
   def windowAggregate(
@@ -181,22 +167,28 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation)
     : TableOperation = {
 
-    val childNode = child.asInstanceOf[LogicalNode]
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).withGroupWindow(window).build
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver)
 
-    val convertedGroupings = resolveExpressions(groupingExpressions, resolver)
+    val resolverWithWindowReferences = resolverFor(tableCatalog, functionCatalog, child)
+      .withLocalReferences(
+        new LocalReferenceExpression(
+          resolvedWindow.getAlias,
+          resolvedWindow.getTimeAttribute.getResultType))
+      .build
 
-    val convertedAggregates = resolveExpressions(aggregates, resolver)
+    val convertedGroupings = resolverWithWindowReferences.resolve(groupingExpressions)
 
-    val convertedProperties = resolveExpressions(windowProperties, resolver)
+    val convertedAggregates = resolverWithWindowReferences.resolve(aggregates)
 
-    WindowAggregate(
-        convertedGroupings,
-        resolver.resolveGroupWindow(window),
-        convertedProperties,
-        convertedAggregates,
-        childNode)
-      .validate(tableEnv)
+    val convertedProperties = resolverWithWindowReferences.resolve(windowProperties)
+
+    aggregateOperationFactory.createWindowAggregate(
+      convertedGroupings,
+      convertedAggregates,
+      convertedProperties,
+      resolvedWindow,
+      child)
   }
 
   def join(
@@ -206,23 +198,11 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       condition: Optional[Expression],
       correlated: Boolean)
     : TableOperation = {
+    val resolver = resolverFor(tableCatalog, functionCatalog, left, right).build()
+    val resolvedCondition = toScala(condition).map(expr => resolveSingleExpression(expr, resolver))
 
-    val leftNode = left.asInstanceOf[LogicalNode]
-    val rightNode = right.asInstanceOf[LogicalNode]
-
-    val resolver = resolverFor(tableCatalog, functionCatalog, leftNode, rightNode).build()
-
-    val resolvedCondition = toScala(condition).map(c => resolver.resolve(List(c).asJava)) match {
-      case Some(resolvedExprs) if resolvedExprs.size != 1 =>
-        throw new ValidationException(s"Invalid join condition $condition")
-      case Some(resolvedExprs) =>
-        Some(resolvedExprs.get(0))
-      case None => None
-    }
-
-    val plannerExpression = resolvedCondition.map(bridgeExpression)
-
-    Join(leftNode, rightNode, joinType, plannerExpression, correlated).validate(tableEnv)
+    joinOperationFactory
+      .create(left, right, joinType, resolvedCondition.getOrElse(valueLiteral(true)), correlated)
   }
 
   def joinLateral(
@@ -231,15 +211,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       joinType: JoinType,
       condition: Optional[Expression])
     : TableOperation = {
-
-    val leftNode = left.asInstanceOf[LogicalNode]
-
-    val resolver = resolverFor(tableCatalog, functionCatalog, leftNode).build()
+    val resolver = resolverFor(tableCatalog, functionCatalog, left).build()
     val resolvedFunction = resolveSingleExpression(tableFunction, resolver)
 
-    val temporalTable = calculatedTableFactory.create(
-      resolvedFunction,
-      leftNode)
+    val temporalTable = calculatedTableFactory.create(resolvedFunction)
 
     join(left, temporalTable, joinType, condition, correlated = true)
   }
@@ -275,27 +250,11 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   }
 
   def limitWithOffset(offset: Int, child: TableOperation): TableOperation = {
-      limit(offset, -1, child)
+    sortOperationFactory.createLimitWithOffset(offset, child)
   }
 
   def limitWithFetch(fetch: Int, child: TableOperation): TableOperation = {
-      applyFetch(fetch, child)
-  }
-
-  private def applyFetch(fetch: Int, child: TableOperation): TableOperation = {
-    child match {
-      case Limit(o, -1, c) =>
-        // replace LIMIT without FETCH by LIMIT with FETCH
-        limit(o, fetch, c)
-      case Limit(_, _, _) =>
-        throw new ValidationException("FETCH is already defined.")
-      case _ =>
-        limit(0, fetch, child)
-    }
-  }
-
-  def limit(offset: Int, fetch: Int, child: TableOperation): TableOperation = {
-    sortOperationFactory.createLimit(offset, fetch, child)
+    sortOperationFactory.createLimitWithFetch(fetch, child)
   }
 
   def alias(
@@ -313,17 +272,21 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child: TableOperation)
     : TableOperation = {
 
-    val childNode = child.asInstanceOf[LogicalNode]
-    val resolver = resolverFor(tableCatalog, functionCatalog, childNode).build()
-    val convertedFields = expressionBridge.bridge(resolveSingleExpression(condition, resolver))
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedExpression = resolveSingleExpression(condition, resolver)
+    val convertedCondition = expressionBridge.bridge(resolvedExpression)
+    if (convertedCondition.resultType != Types.BOOLEAN) {
+      throw new ValidationException(s"Filter operator requires a boolean expression as input," +
+        s" but $condition is of type ${convertedCondition.resultType}")
+    }
 
-    Filter(convertedFields, childNode).validate(tableEnv)
+    new FilterTableOperation(resolvedExpression, child)
   }
 
   def distinct(
       child: TableOperation)
     : TableOperation = {
-    Distinct(child.asInstanceOf[LogicalNode]).validate(tableEnv)
+    new DistinctTableOperation(child)
   }
 
   def minus(
@@ -331,7 +294,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       right: TableOperation,
       all: Boolean)
     : TableOperation = {
-    LMinus(left.asInstanceOf[LogicalNode], right.asInstanceOf[LogicalNode], all).validate(tableEnv)
+    setOperationFactory.create(MINUS, left, right, all)
   }
 
   def intersect(
@@ -339,8 +302,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       right: TableOperation,
       all: Boolean)
     : TableOperation = {
-    Intersect(left.asInstanceOf[LogicalNode], right.asInstanceOf[LogicalNode], all)
-      .validate(tableEnv)
+    setOperationFactory.create(INTERSECT, left, right, all)
   }
 
   def union(
@@ -348,7 +310,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       right: TableOperation,
       all: Boolean)
     : TableOperation = {
-    Union(left.asInstanceOf[LogicalNode], right.asInstanceOf[LogicalNode], all).validate(tableEnv)
+    setOperationFactory.create(UNION, left, right, all)
   }
 
   def map(mapFunction: Expression, child: TableOperation): TableOperation = {
@@ -356,7 +318,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedMapFunction = resolveSingleExpression(mapFunction, resolver)
 
-    if (!isScalarFunction(resolvedMapFunction)) {
+    if (!isFunctionOfType(resolvedMapFunction, SCALAR_FUNCTION)) {
       throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
@@ -365,17 +327,12 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     project(Collections.singletonList(expandedFields), child)
   }
 
-  private def isScalarFunction(mapFunction: Expression) = {
-    mapFunction.isInstanceOf[CallExpression] &&
-      mapFunction.asInstanceOf[CallExpression].getFunctionDefinition.getType == SCALAR_FUNCTION
-  }
-
   def flatMap(tableFunction: Expression, child: TableOperation): TableOperation = {
 
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedTableFunction = resolveSingleExpression(tableFunction, resolver)
 
-    if (!isTableFunction(resolvedTableFunction)) {
+    if (!isFunctionOfType(resolvedTableFunction, TABLE_FUNCTION)) {
       throw new ValidationException("Only TableFunction can be used in the flatMap operator.")
     }
 
@@ -395,7 +352,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       resultName
     }
 
-    val usedFieldNames = child.asInstanceOf[LogicalNode].output.map(_.name).toBuffer
+    val usedFieldNames = child.getTableSchema.getFieldNames.toBuffer
     val newFieldNames = originFieldNames.map({ e =>
       val resultName = getUniqueName(e, usedFieldNames)
       usedFieldNames.append(resultName)
@@ -410,11 +367,6 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
       joinNode)
     alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
-  }
-
-  private def isTableFunction(tableFunction: Expression) = {
-    tableFunction.isInstanceOf[CallExpression] &&
-      tableFunction.asInstanceOf[CallExpression].getFunctionDefinition.getType == TABLE_FUNCTION
   }
 
   class NoWindowPropertyChecker(val exceptionMessage: String)

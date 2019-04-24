@@ -45,7 +45,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,7 +80,8 @@ public class ExpressionResolver {
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
 			ResolverRules.FLATTEN_CALL,
-			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS);
+			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS,
+			ResolverRules.VERIFY_NO_MORE_UNRESOLVED_EXPRESSIONS);
 	}
 
 	private final PlannerExpressionConverter bridgeConverter = PlannerExpressionConverter.INSTANCE();
@@ -92,8 +92,7 @@ public class ExpressionResolver {
 
 	private final FunctionDefinitionCatalog functionLookup;
 
-	//TODO change to LocalReferenceLookup, once we don't need to resolve fields to create LocalReferenceExpression
-	private final Map<String, LocalReferenceExpression> localReferences = new HashMap<>();
+	private final Map<String, LocalReferenceExpression> localReferences;
 
 	private final Map<Expression, LogicalOverWindow> overWindows;
 
@@ -104,15 +103,18 @@ public class ExpressionResolver {
 			FunctionDefinitionCatalog functionCatalog,
 			FieldReferenceLookup fieldLookup,
 			List<OverWindow> overWindows,
-			@Nullable GroupWindow groupWindow,
+			List<LocalReferenceExpression> localReferences,
 			List<ResolverRule> rules) {
 		this.tableLookup = Preconditions.checkNotNull(tableLookup);
 		this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
 		this.functionLookup = Preconditions.checkNotNull(functionCatalog);
 		this.resolveFunction = concatenateRules(rules);
 
+		this.localReferences = localReferences.stream().collect(Collectors.toMap(
+			LocalReferenceExpression::getName,
+			Function.identity()
+		));
 		this.overWindows = prepareOverWindows(overWindows);
-		prepareLocalReferencesFromGroupWindows(groupWindow);
 	}
 
 	/**
@@ -307,7 +309,7 @@ public class ExpressionResolver {
 		private final TableReferenceLookup tableCatalog;
 		private final FunctionDefinitionCatalog functionCatalog;
 		private List<OverWindow> logicalOverWindows = new ArrayList<>();
-		private GroupWindow groupWindow = null;
+		private List<LocalReferenceExpression> localReferences = new ArrayList<>();
 		private List<ResolverRule> rules = new ArrayList<>(getResolverRules());
 
 		private ExpressionResolverBuilder(
@@ -324,8 +326,8 @@ public class ExpressionResolver {
 			return this;
 		}
 
-		public ExpressionResolverBuilder withGroupWindow(GroupWindow window) {
-			this.groupWindow = Preconditions.checkNotNull(window);
+		public ExpressionResolverBuilder withLocalReferences(LocalReferenceExpression... localReferences) {
+			this.localReferences.addAll(Arrays.asList(localReferences));
 			return this;
 		}
 
@@ -335,7 +337,7 @@ public class ExpressionResolver {
 				functionCatalog,
 				new FieldReferenceLookup(tableOperations),
 				logicalOverWindows,
-				groupWindow,
+				localReferences,
 				rules);
 		}
 	}

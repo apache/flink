@@ -23,11 +23,6 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionBridge;
-import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.plan.logical.Limit;
-import org.apache.flink.table.plan.logical.LogicalNode;
-import org.apache.flink.table.plan.logical.Sort;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,24 +32,20 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.ORDE
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.ORDER_ASC;
 
 /**
- * Utility class for creating a valid {@link Sort} operation.
+ * Utility class for creating a valid {@link SortTableOperation} operation.
  */
 @Internal
 public class SortOperationFactory {
 
 	private final boolean isStreaming;
-	private final ExpressionBridge<PlannerExpression> expressionBridge;
 	private final OrderWrapper orderWrapper = new OrderWrapper();
 
-	public SortOperationFactory(
-			ExpressionBridge<PlannerExpression> expressionBridge,
-			boolean isStreaming) {
-		this.expressionBridge = expressionBridge;
+	public SortOperationFactory(boolean isStreaming) {
 		this.isStreaming = isStreaming;
 	}
 
 	/**
-	 * Creates a valid {@link Sort} operation.
+	 * Creates a valid {@link SortTableOperation} operation.
 	 *
 	 * <p><b>NOTE:</b> if the collation is not explicitly specified for any expression, it is wrapped in a
 	 * default ascending order
@@ -63,34 +54,69 @@ public class SortOperationFactory {
 	 * @param child relational expression on top of which to apply the sort operation
 	 * @return valid sort operation
 	 */
-	public Sort createSort(List<Expression> orders, TableOperation child) {
+	public TableOperation createSort(List<Expression> orders, TableOperation child) {
 		failIfStreaming();
 
-		List<PlannerExpression> convertedOrders = orders.stream()
+		List<Expression> convertedOrders = orders.stream()
 			.map(f -> f.accept(orderWrapper))
-			.map(expressionBridge::bridge)
 			.collect(Collectors.toList());
-		return new Sort(convertedOrders, (LogicalNode) child);
+		return new SortTableOperation(convertedOrders, child);
 	}
 
 	/**
-	 * Creates a valid {@link Limit} operation.
+	 * Adds offset to the underlying {@link SortTableOperation} if it is a valid one.
 	 *
-	 * @param offset offset to start from
-	 * @param fetch number of records to fetch
-	 * @return valid limit operation
+	 * @param offset offset to add
+	 * @param child should be {@link SortTableOperation}
+	 * @return valid sort operation with applied offset
 	 */
-	public Limit createLimit(int offset, int fetch, TableOperation child) {
+	public TableOperation createLimitWithOffset(int offset, TableOperation child) {
+		SortTableOperation previousSort = validateAndGetChildSort(child);
+
+		if (offset < 0) {
+			throw new ValidationException("Offset should be greater or equal 0");
+		}
+
+		if (previousSort.getOffset() != -1) {
+			throw new ValidationException("OFFSET already defined");
+		}
+
+		return new SortTableOperation(previousSort.getOrder(), previousSort.getChild(), offset, -1);
+	}
+
+	/**
+	 * Adds fetch to the underlying {@link SortTableOperation} if it is a valid one.
+	 *
+	 * @param fetch fetch number to add
+	 * @param child should be {@link SortTableOperation}
+	 * @return valid sort operation with applied fetch
+	 */
+	public TableOperation createLimitWithFetch(int fetch, TableOperation child) {
+		SortTableOperation previousSort = validateAndGetChildSort(child);
+
+		if (fetch < 0) {
+			throw new ValidationException("Fetch should be greater or equal 0");
+		}
+
+		int offset = Math.max(previousSort.getOffset(), 0);
+
+		return new SortTableOperation(previousSort.getOrder(), previousSort.getChild(), offset, fetch);
+	}
+
+	private SortTableOperation validateAndGetChildSort(TableOperation child) {
 		failIfStreaming();
 
-		if (!(child instanceof Sort)) {
+		if (!(child instanceof SortTableOperation)) {
 			throw new ValidationException("A limit operation must be preceded by a sort operation.");
 		}
-		if (offset < 0) {
-			throw new ValidationException("Offset should be greater than or equal to zero.");
+
+		SortTableOperation previousSort = (SortTableOperation) child;
+
+		if ((previousSort).getFetch() != -1) {
+			throw new ValidationException("FETCH is already defined.");
 		}
 
-		return new Limit(offset, fetch, (LogicalNode) child);
+		return previousSort;
 	}
 
 	private void failIfStreaming() {

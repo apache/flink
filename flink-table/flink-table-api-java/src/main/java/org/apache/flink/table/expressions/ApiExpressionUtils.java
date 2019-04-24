@@ -84,7 +84,7 @@ public final class ApiExpressionUtils {
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {
 		// check for constant
-		return extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
+		return ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
 			.map((v) -> (Expression) valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MONTHS))
 			.orElse(
 				call(
@@ -100,10 +100,10 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toMilliInterval(Expression e, long multiplier) {
-		final Optional<Expression> intInterval = extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
+		final Optional<Expression> intInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
 			.map((v) -> valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS));
 
-		final Optional<Expression> longInterval = extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
+		final Optional<Expression> longInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
 			.map((v) -> valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS));
 
 		if (intInterval.isPresent()) {
@@ -123,10 +123,10 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toRowInterval(Expression e) {
-		final Optional<Expression> intInterval = extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
+		final Optional<Expression> intInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
 			.map((v) -> valueLiteral((long) v, RowIntervalTypeInfo.INTERVAL_ROWS));
 
-		final Optional<Expression> longInterval = extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
+		final Optional<Expression> longInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
 			.map((v) -> valueLiteral(v, RowIntervalTypeInfo.INTERVAL_ROWS));
 
 		if (intInterval.isPresent()) {
@@ -135,16 +135,5 @@ public final class ApiExpressionUtils {
 			return longInterval.get();
 		}
 		throw new ValidationException("Invalid value for row interval literal: " + e);
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <V> Optional<V> extractValue(Expression e, TypeInformation<V> type) {
-		if (e instanceof ValueLiteralExpression) {
-			final ValueLiteralExpression valueLiteral = (ValueLiteralExpression) e;
-			if (valueLiteral.getType().equals(type)) {
-				return Optional.of((V) valueLiteral.getValue());
-			}
-		}
-		return Optional.empty();
 	}
 }
