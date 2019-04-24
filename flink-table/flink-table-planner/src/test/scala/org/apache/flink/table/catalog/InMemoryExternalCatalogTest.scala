@@ -107,7 +107,7 @@ class InMemoryExternalCatalogTest {
     assertEquals(1, catalog.listSubCatalogs().size)
   }
 
-  @Test(expected = classOf[CatalogAlreadyExistsException])
+  @Test(expected = classOf[CatalogAlreadyExistException])
   def testCreateExistedDatabase(): Unit = {
     catalog.createSubCatalog("existed", new InMemoryExternalCatalog("existed"),
       ignoreIfExists = false)
