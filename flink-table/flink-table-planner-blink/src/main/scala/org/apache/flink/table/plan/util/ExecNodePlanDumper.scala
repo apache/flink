@@ -18,21 +18,193 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
-import org.apache.flink.table.plan.nodes.exec.ExecNode
+import org.apache.flink.table.plan.nodes.calcite.Sink
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.plan.nodes.physical.stream.StreamPhysicalRel
-import org.apache.flink.table.plan.util.FlinkNodeOptUtil.ReuseInfoBuilder
 
-import com.google.common.collect.Maps
+import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
-import java.io.PrintWriter
+import java.io.{PrintWriter, StringWriter}
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConversions._
+
+/**
+  * An utility class for converting an exec node plan to a string as a tree style.
+  *
+  * The implementation is based on RelNode#explain now.
+  */
+object ExecNodePlanDumper {
+
+  /**
+    * Converts an [[ExecNode]] tree to a string as a tree style.
+    *
+    * @param node               the ExecNode to convert
+    * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
+    * @param withExecNodeId     whether including ID of ExecNode
+    * @param withRetractTraits  whether including Retraction Traits of RelNode corresponding to
+    *                           an ExecNode (only apply to StreamPhysicalRel node at present)
+    * @param withOutputType     whether including output rowType
+    * @return                   explain plan of ExecNode
+    */
+  def treeToString(
+      node: ExecNode[_, _],
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withExecNodeId: Boolean = false,
+      withRetractTraits: Boolean = false,
+      withOutputType: Boolean = false): String = {
+    doConvertTreeToString(
+      node,
+      detailLevel = detailLevel,
+      withExecNodeId = withExecNodeId,
+      withRetractTraits = withRetractTraits,
+      withOutputType = withOutputType)
+  }
+
+  /**
+    * Converts an [[ExecNode]] DAG to a string as a tree style.
+    *
+    * @param nodes              the ExecNodes to convert
+    * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
+    * @param withExecNodeId     whether including ID of ExecNode
+    * @param withRetractTraits  whether including Retraction Traits of RelNode corresponding to
+    *                           an ExecNode (only apply to StreamPhysicalRel node at present)
+    * @param withOutputType     whether including output rowType
+    * @return                   explain plan of ExecNode
+    */
+  def dagToString(
+      nodes: Seq[ExecNode[_, _]],
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withExecNodeId: Boolean = false,
+      withRetractTraits: Boolean = false,
+      withOutputType: Boolean = false): String = {
+    if (nodes.length == 1) {
+      return treeToString(
+        nodes.head,
+        detailLevel,
+        withExecNodeId = withExecNodeId,
+        withRetractTraits = withRetractTraits,
+        withOutputType = withOutputType)
+    }
+
+    val reuseInfoBuilder = new ReuseInfoBuilder()
+    nodes.foreach(reuseInfoBuilder.visit)
+    // node sets that stop explain when meet them
+    val stopExplainNodes = Sets.newIdentityHashSet[ExecNode[_, _]]()
+    // mapping node to reuse info, the map value is a tuple2,
+    // the first value of the tuple is reuse id,
+    // the second value is true if the node is first visited else false.
+    val reuseInfoMap = Maps.newIdentityHashMap[ExecNode[_, _], (Integer, Boolean)]()
+    // mapping node object to visited times
+    val mapNodeToVisitedTimes = Maps.newIdentityHashMap[ExecNode[_, _], Int]()
+    val sb = new StringBuilder()
+    val visitor = new ExecNodeVisitorImpl {
+      override def visit(node: ExecNode[_, _]): Unit = {
+        val visitedTimes = mapNodeToVisitedTimes.getOrDefault(node, 0) + 1
+        mapNodeToVisitedTimes.put(node, visitedTimes)
+        if (visitedTimes == 1) {
+          super.visit(node)
+        }
+        val reuseId = reuseInfoBuilder.getReuseId(node)
+        val isReuseNode = reuseId.isDefined
+        if (node.isInstanceOf[Sink] || (isReuseNode && !reuseInfoMap.containsKey(node))) {
+          if (isReuseNode) {
+            reuseInfoMap.put(node, (reuseId.get, true))
+          }
+          val reusePlan = doConvertTreeToString(
+            node,
+            detailLevel = detailLevel,
+            withExecNodeId = withExecNodeId,
+            withRetractTraits = withRetractTraits,
+            withOutputType = withOutputType,
+            stopExplainNodes = Some(stopExplainNodes),
+            reuseInfoMap = Some(reuseInfoMap))
+          sb.append(reusePlan).append(System.lineSeparator)
+          if (isReuseNode) {
+            // update visit info after the reuse node visited
+            stopExplainNodes.add(node)
+            reuseInfoMap.put(node, (reuseId.get, false))
+          }
+        }
+      }
+    }
+
+    nodes.foreach(visitor.visit)
+
+    if (sb.length() > 0) {
+      // delete last line separator
+      sb.deleteCharAt(sb.length - 1)
+    }
+    sb.toString()
+  }
+
+  private def doConvertTreeToString(
+      node: ExecNode[_, _],
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withExecNodeId: Boolean = false,
+      withRetractTraits: Boolean = false,
+      withOutputType: Boolean = false,
+      stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
+      reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None
+  ): String = {
+    // TODO refactor this part of code
+    //  get ExecNode explain value by RelNode#explain now
+    val sw = new StringWriter
+    val planWriter = new NodeTreeWriterImpl(
+      node,
+      new PrintWriter(sw),
+      explainLevel = detailLevel,
+      withExecNodeId = withExecNodeId,
+      withRetractTraits = withRetractTraits,
+      withOutputType = withOutputType,
+      stopExplainNodes = stopExplainNodes,
+      reuseInfoMap = reuseInfoMap)
+    node.asInstanceOf[RelNode].explain(planWriter)
+    sw.toString
+  }
+}
+
+/**
+  * build reuse id in an ExecNode DAG.
+  */
+class ReuseInfoBuilder extends ExecNodeVisitorImpl {
+  // visited node set
+  private val visitedNodes = Sets.newIdentityHashSet[ExecNode[_, _]]()
+  // mapping reuse node to its reuse id
+  private val mapReuseNodeToReuseId = Maps.newIdentityHashMap[ExecNode[_, _], Integer]()
+  private val reuseIdGenerator = new AtomicInteger(0)
+
+  override def visit(node: ExecNode[_, _]): Unit = {
+    // if a node is visited more than once, this node is a reusable node
+    if (visitedNodes.contains(node)) {
+      if (!mapReuseNodeToReuseId.containsKey(node)) {
+        val reuseId = reuseIdGenerator.incrementAndGet()
+        mapReuseNodeToReuseId.put(node, reuseId)
+      }
+    } else {
+      visitedNodes.add(node)
+      super.visit(node)
+    }
+  }
+
+  /**
+    * Returns reuse id if the given node is a reuse node (that means it has multiple outputs),
+    * else None.
+    */
+  def getReuseId(node: ExecNode[_, _]): Option[Integer] = {
+    if (mapReuseNodeToReuseId.containsKey(node)) {
+      Some(mapReuseNodeToReuseId.get(node))
+    } else {
+      None
+    }
+  }
+}
 
 /**
   * Convert node tree to string as a tree style.

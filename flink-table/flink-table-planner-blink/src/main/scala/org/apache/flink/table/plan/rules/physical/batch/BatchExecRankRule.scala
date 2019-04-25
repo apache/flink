@@ -23,7 +23,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
-import org.apache.flink.table.plan.util.RelFieldCollationUtil
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -64,8 +64,8 @@ class BatchExecRankRule
 
     val cluster = rel.getCluster
     val emptyTraits = cluster.getPlanner.emptyTraitSet().replace(FlinkConventions.BATCH_PHYSICAL)
-    val sortFieldCollations = rank.partitionKey.asList().map(RelFieldCollationUtil.of(_)) ++
-      rank.orderKey.getFieldCollations
+    val sortFieldCollations = rank.partitionKey.asList()
+      .map(FlinkRelOptUtil.ofRelFieldCollation(_)) ++ rank.orderKey.getFieldCollations
     val sortCollation = RelCollations.of(sortFieldCollations: _*)
     val localRequiredTraitSet = emptyTraits.replace(sortCollation)
     val newLocalInput = RelOptRule.convert(rank.getInput, localRequiredTraitSet)

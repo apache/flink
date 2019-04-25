@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.util
+package org.apache.flink.table.plan.reuse
 
 import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior

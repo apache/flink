@@ -38,9 +38,10 @@ import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
+import org.apache.flink.table.plan.reuse.SubplanReuser
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.plan.util.{SameRelObjectShuttle, SubplanReuseUtil}
+import org.apache.flink.table.plan.util.SameRelObjectShuttle
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
@@ -216,7 +217,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     val shuttle = new SameRelObjectShuttle()
     val relsWithoutSameObj = rels.map(_.accept(shuttle))
     // reuse subplan
-    val reusedPlan = SubplanReuseUtil.reuseSubplan(relsWithoutSameObj, config)
+    val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
     reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
   }

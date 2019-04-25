@@ -33,7 +33,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
-import org.apache.flink.table.plan.util.{FlinkNodeOptUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
@@ -345,7 +345,7 @@ abstract class TableTestUtil(test: TableTestBase) {
       case execNode: ExecNode[_, _] =>
         val optimizedNodes = tEnv.translateNodeDag(Seq(execNode))
         require(optimizedNodes.length == 1)
-        FlinkNodeOptUtil.treeToString(
+        ExecNodePlanDumper.treeToString(
           optimizedNodes.head,
           detailLevel = explainLevel,
           withRetractTraits = withRetractTraits,
