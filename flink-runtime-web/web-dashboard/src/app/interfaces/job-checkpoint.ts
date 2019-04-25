@@ -127,6 +127,7 @@ export interface CheckPointDetailInterface {
   external_path: string;
   discarded: boolean;
   alignment_buffered: number;
+  failure_message?: string;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
   tasks: Array<{

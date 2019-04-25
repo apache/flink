@@ -18,9 +18,13 @@
 <div class="extra">
   <strong>Checkpoint Detail:</strong>
   <div class="more-detail">
-    <strong>Path:</strong> {{checkPointDetail?.external_path}}
+    <strong>Path:</strong> {{checkPointDetail?.external_path || '-'}}
     <nz-divider nzType="vertical"></nz-divider>
-    <strong>Discarded:</strong> {{checkPointDetail?.discarded}}
+    <strong>Discarded:</strong> {{checkPointDetail?.discarded || '-'}}
+    <ng-container *ngIf="checkPointDetail?.failure_message">
+      <nz-divider nzType="vertical"></nz-divider>
+      <strong>Failure Message:</strong> {{checkPointDetail?.failure_message || '-' }}
+    </ng-container>
   </div>
 </div>
 <div class="operators">

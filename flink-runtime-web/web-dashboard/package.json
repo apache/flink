@@ -56,7 +56,7 @@
     "typescript": "~3.2.2"
   },
   "lint-staged": {
-    "src/*.{ts,less,json}": [
+    "*.{ts,less,json}": [
       "./node_modules/.bin/prettier --write",
       "git add"
     ]
