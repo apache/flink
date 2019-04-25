@@ -35,7 +35,7 @@
 
 (def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.11.tgz")
 (def hadoop-dist-url "https://archive.apache.org/dist/hadoop/common/hadoop-2.8.3/hadoop-2.8.3.tar.gz")
-(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.0.1/kafka_2.11-2.0.1.tgz")
+(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.2.0/kafka_2.11-2.2.0.tgz")
 (def deb-zookeeper-package "3.4.9-3+deb9u1")
 (def deb-mesos-package "1.5.0-2.0.1")
 (def marathon-dist-url "https://downloads.mesosphere.io/marathon/builds/1.7.189-48bfd6000/marathon-1.7.189-48bfd6000.tgz")

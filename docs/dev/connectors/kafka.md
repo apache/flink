@@ -88,7 +88,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>>= 1.0.0</td>
         <td>
         This universal Kafka connector attempts to track the latest version of the Kafka client.
-        The version of the client it uses may change between Flink releases.
+        The version of the client it uses may change between Flink releases. As of this release, it uses the Kafka 2.2.0 client.
         Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
         However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated
         flink-connector-kafka-0.11{{ site.scala_version_suffix }} and flink-connector-kafka-0.10{{ site.scala_version_suffix }} respectively.
