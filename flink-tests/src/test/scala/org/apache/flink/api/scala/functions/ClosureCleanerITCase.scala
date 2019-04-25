@@ -17,18 +17,15 @@
  */
 package org.apache.flink.api.scala.functions
 
-import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit.Assert.fail
-import org.junit.{After, Before, Test, Rule}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
-import org.apache.flink.api.common.InvalidProgramException
+import org.junit.{After, Before, Rule, Test}
 
 /* The test cases are originally from the Apache Spark project. Like the ClosureCleaner itself. */
 
