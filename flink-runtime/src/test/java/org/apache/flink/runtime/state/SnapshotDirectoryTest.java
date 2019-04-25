@@ -98,6 +98,11 @@ public class SnapshotDirectoryTest extends TestLogger {
 		Path pathB = new Path(folderB.getAbsolutePath());
 		SnapshotDirectory snapshotDirectoryB = SnapshotDirectory.temporary(pathB);
 		Assert.assertTrue(snapshotDirectoryB.getFileSystem().equals(FileSystem.getLocalFileSystem()));
+		Assert.assertFalse(snapshotDirectoryB.exists());
+		Assert.assertTrue(folderB.mkdirs());
+		Assert.assertTrue(snapshotDirectoryB.exists());
+		Assert.assertTrue(folderB.delete());
+		Assert.assertFalse(snapshotDirectoryB.exists());
 		// restore the FileSystem configuration
 		FileSystem.initialize(new Configuration());
 	}
