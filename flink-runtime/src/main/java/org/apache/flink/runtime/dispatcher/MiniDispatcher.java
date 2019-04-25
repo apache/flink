@@ -146,6 +146,6 @@ public class MiniDispatcher extends Dispatcher {
 		super.jobNotFinished(jobId);
 
 		// shut down since we have done our job
-		jobTerminationFuture.complete(ApplicationStatus.UNKNOWN);
+		jobTerminationFuture.complete(ApplicationStatus.FAILED);
 	}
 }
