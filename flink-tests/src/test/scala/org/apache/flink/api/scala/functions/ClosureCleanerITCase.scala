@@ -182,7 +182,7 @@ object TestObjectWithBogusReturns {
 
     // this return is invalid since it will transfer control outside the closure
     try {
-      nums.map { x => return 1; x * 2}.print()
+      nums.map { x => return 1;}.print()
     } catch {
       case inv: ReturnStatementInClosureException => // all good
       case _: Throwable => fail("Bogus return statement not detected.")
