@@ -298,6 +298,81 @@ val result = orders.where('b === "red")
   </tbody>
 </table>
 </div>
+<div data-lang="python" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+  		<td>
+        <strong>Scan</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+  		<td>
+        <p>Similar to the FROM clause in a SQL query. Performs a scan of a registered table.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+{% endhighlight %}
+      </td>
+  	</tr>
+    <tr>
+      <td>
+        <strong>Select</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.select("a, c as d");
+{% endhighlight %}
+        <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
+{% highlight python %}
+result = orders.select("*");
+{% endhighlight %}
+</td>
+        </tr>
+    <tr>
+      <td>
+        <strong>Alias</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Renames fields.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.alias("x, y, z, t");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Where / Filter</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.where("b === 'red'");
+{% endhighlight %}
+or
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.filter("a % 2 === 0");
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
 </div>
 
 {% top %}

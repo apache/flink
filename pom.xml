@@ -85,6 +85,7 @@ under the License.
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
+		<module>flink-python</module>
 	</modules>
 
 	<properties>
@@ -1411,6 +1412,9 @@ under the License.
 						<exclude>flink-jepsen/store/**</exclude>
 						<exclude>flink-jepsen/docker/id_rsa*</exclude>
 						<exclude>flink-jepsen/docker/nodes</exclude>
+
+						<!-- Py4j -->
+						<exclude>flink-python/lib/py4j-LICENSE.txt</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

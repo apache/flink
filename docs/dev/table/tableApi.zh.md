@@ -298,6 +298,81 @@ val result = orders.where('b === "red")
   </tbody>
 </table>
 </div>
+<div data-lang="python" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">操作</th>
+      <th class="text-center">描述</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+  		<td>
+        <strong>Scan</strong><br>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+  		<td>
+        <p>类似于SQL请求中的FROM子句，将一个环境中已注册的表转换成Table对象。</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+{% endhighlight %}
+      </td>
+  	</tr>
+    <tr>
+      <td>
+        <strong>Select</strong><br>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+      <td>
+        <p>类似于SQL请求中的SELECT子句，执行一个select操作。</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.select("a, c as d");
+{% endhighlight %}
+        <p>您可以使用星号 (<code>*</code>) 表示选择表中的所有列。</p>
+{% highlight python %}
+result = orders.select("*");
+{% endhighlight %}
+</td>
+        </tr>
+    <tr>
+      <td>
+        <strong>Alias</strong><br>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+      <td>
+        <p>重命名字段。</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.alias("x, y, z, t");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Where / Filter</strong><br>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+      <td>
+        <p>类似于SQL请求中的WHERE子句，过滤掉表中不满足条件的行。</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.where("b === 'red'");
+{% endhighlight %}
+or
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.filter("a % 2 === 0");
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
 </div>
 
 {% top %}

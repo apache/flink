@@ -14,7 +14,9 @@ tmp
 *.iml
 *.swp
 *.jar
+*.zip
 *.log
+*.pyc
 .DS_Store
 build-target
 flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/
@@ -23,6 +25,9 @@ flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/gener
 flink-runtime-web/web-dashboard/node/
 flink-runtime-web/web-dashboard/node_modules/
 flink-runtime-web/web-dashboard/web/
+flink-python/dist/
+flink-python/build/
+flink-python/pyflink.egg-info/
 atlassian-ide-plugin.xml
 out/
 /docs/api

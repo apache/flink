@@ -178,4 +178,11 @@
 			<fileMode>0644</fileMode>
 		</file>
 	</files>
+	<fileSets>
+		<fileSet>
+			<directory>../flink-python/lib/</directory>
+			<outputDirectory>opt/python/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+	</fileSets>
 </assembly>
