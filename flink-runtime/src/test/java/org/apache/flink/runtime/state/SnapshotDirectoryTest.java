@@ -89,7 +89,7 @@ public class SnapshotDirectoryTest extends TestLogger {
 		Assert.assertTrue(folderA.delete());
 		Assert.assertFalse(snapshotDirectoryA.exists());
 
-		// ensure that snapshot directory will always use the local file system not the default file system
+		// ensure that snapshot directory will always use the local file system instead of the default file system
 		Configuration configuration = new Configuration();
 		configuration.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "nonexistfs:///");
 		FileSystem.initialize(configuration);
