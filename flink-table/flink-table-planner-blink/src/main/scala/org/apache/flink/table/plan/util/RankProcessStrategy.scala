@@ -41,10 +41,6 @@ case class UpdateFastStrategy(primaryKeys: Array[Int]) extends RankProcessStrate
   override def toString: String = "UpdateFastStrategy" + primaryKeys.mkString("[", ",", "]")
 }
 
-case class UnaryUpdateStrategy(primaryKeys: Array[Int]) extends RankProcessStrategy {
-  override def toString: String = "UnaryUpdateStrategy" + primaryKeys.mkString("[", ",", "]")
-}
-
 object RankProcessStrategy {
 
   /**
@@ -104,14 +100,7 @@ object RankProcessStrategy {
           //FIXME choose a set of primary key
           UpdateFastStrategy(uniqueKeys.iterator().next().toArray)
         } else {
-          if (fieldCollations.length == 1) {
-            // single sort key in update stream scenario (no monotonic)
-            // we can utilize unary rank function to speed up processing
-            UnaryUpdateStrategy(uniqueKeys.iterator().next().toArray)
-          } else {
-            // no other choices, have to use retract rank
-            RetractStrategy
-          }
+          RetractStrategy
         }
       }
     } else {

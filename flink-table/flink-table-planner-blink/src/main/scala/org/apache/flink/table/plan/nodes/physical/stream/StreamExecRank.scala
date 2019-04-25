@@ -178,7 +178,7 @@ class StreamExecRank(
           cacheSize)
 
       // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
-      case RetractStrategy | UnaryUpdateStrategy(_) =>
+      case RetractStrategy =>
         val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
 
