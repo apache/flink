@@ -30,7 +30,7 @@ public interface SchedulerOperations {
 	/**
 	 * Allocate slots and deploy the vertex when slots are returned.
 	 *
-	 * @param executionVertexDeploymentOption The tasks to be deployed and deployment options.
+	 * @param executionVertexDeploymentOptions The tasks to be deployed and deployment options.
 	 */
-	void allocateSlotsAndDeploy(Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOption);
+	void allocateSlotsAndDeploy(Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions);
 }
