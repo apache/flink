@@ -18,31 +18,39 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.plan.stats.TableStats;
-
-import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
- * Represents a table in a catalog.
+ * Represents a partition object in catalog.
  */
-public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Get the statistics of the table.
-	 * @return table statistics
-	 */
-	TableStats getStatistics();
+public interface CatalogPartition {
 
 	/**
-	 * Check if the table is partitioned or not.
+	 * Get a map of properties associated with the partition.
 	 *
-	 * @return true if the table is partitioned; otherwise, false
+	 * @return a map of properties with the partition
 	 */
-	boolean isPartitioned();
+	Map<String, String> getProperties();
 
 	/**
-	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
+	 * Get a deep copy of the CatalogPartition instance.
 	 *
-	 * @return partition keys of the table
+	 * @return a copy of CatalogPartition instance
 	 */
-	List<String> getPartitionKeys();
+	CatalogPartition copy();
+
+	/**
+	 * Get a brief description of the database.
+	 *
+	 * @return an optional short description of the database
+	 */
+	Optional<String> getDescription();
+
+	/**
+	 * Get a detailed description of the database.
+	 *
+	 * @return an optional long description of the database
+	 */
+	Optional<String> getDetailedDescription();
 }

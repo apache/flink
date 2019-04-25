@@ -20,7 +20,10 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 
 import java.util.List;
 
@@ -131,5 +134,61 @@ public interface ReadableCatalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	boolean tableExists(ObjectPath objectPath) throws CatalogException;
+
+	// ------ partitions ------
+
+	/**
+	 * Get CatalogPartitionSpec of all partitions of the table.
+	 *
+	 * @param tablePath	path of the table
+	 * @return a list of CatalogPartitionSpec of the table
+	 *
+	 * @throws TableNotExistException thrown if the table does not exist in the catalog
+	 * @throws TableNotPartitionedException thrown if the table is not partitioned
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
+		throws TableNotExistException, TableNotPartitionedException, CatalogException;
+
+	/**
+	 * Get CatalogPartitionSpec of all partitions that is under the given CatalogPartitionSpec in the table.
+	 *
+	 * @param tablePath	path of the table
+	 * @param partitionSpec the partition spec to list
+	 * @return a list of CatalogPartitionSpec that is under the given CatalogPartitionSpec in the table
+	 *
+	 * @throws TableNotExistException thrown if the table does not exist in the catalog
+	 * @throws TableNotPartitionedException thrown if the table is not partitioned
+	 * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException;
+
+	/**
+	 * Get a partition of the given table.
+	 * The given partition spec keys and values need to be matched exactly for a result.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of partition to get
+	 * @return the requested partition
+	 *
+	 * @throws TableNotExistException thrown if the table does not exist in the catalog
+	 * @throws TableNotPartitionedException thrown if the table is not partitioned
+	 * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid,
+	 * @throws PartitionNotExistException thrown if the partition is not partitioned
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException;
+
+	/**
+	 * Check whether a partition exists or not.
+	 *
+	 * @param tablePath	path of the table
+	 * @param partitionSpec partition spec of the partition to check
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException;
 
 }

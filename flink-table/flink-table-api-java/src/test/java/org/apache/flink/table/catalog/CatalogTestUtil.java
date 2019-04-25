@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -36,7 +37,7 @@ public class CatalogTestUtil {
 
 	public static GenericCatalogTable createTable(String comment) {
 		TableSchema tableSchema = TableSchema.fromTypeInfo(getRowTypeInfo());
-		return createTable(tableSchema, createTableStats(), new HashMap<String, String>(), comment);
+		return new GenericCatalogTable(tableSchema, createTableStats(), new HashMap<>(), comment);
 	}
 
 	public static RowTypeInfo getRowTypeInfo() {
@@ -49,14 +50,21 @@ public class CatalogTestUtil {
 		return new TableStats(2);
 	}
 
-	public static GenericCatalogTable createTable(TableSchema schema, Map<String, String> tableProperties,
+	public static GenericCatalogTable createTable(
+		TableSchema schema,
+		Map<String, String> tableProperties,
 		String comment) {
-		return createTable(schema, new TableStats(0), tableProperties, comment);
+
+		return new GenericCatalogTable(schema, new TableStats(0), tableProperties, comment);
 	}
 
-	public static GenericCatalogTable createTable(TableSchema schema, TableStats stats,
-		Map<String, String> tableProperties, String comment) {
-		return new GenericCatalogTable(schema, stats, tableProperties, comment);
+	public static GenericCatalogTable createPartitionedTable(
+		TableSchema schema,
+		List<String> partitionKeys,
+		Map<String, String> tableProperties,
+		String comment) {
+
+		return new GenericCatalogTable(schema, new TableStats(0), partitionKeys, tableProperties, comment);
 	}
 
 	public static void checkEquals(GenericCatalogTable t1, GenericCatalogTable t2) {
@@ -79,4 +87,7 @@ public class CatalogTestUtil {
 		assertEquals(d1.getProperties(), d2.getProperties());
 	}
 
+	protected static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
+		assertEquals(p1.getProperties(), p2.getProperties());
+	}
 }
