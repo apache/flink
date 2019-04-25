@@ -18,38 +18,20 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
-import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Implementation which archives an {@link AccessExecutionGraph} such that it stores
- * the JSON requests for all possible history server requests.
+ * No-op implementation of the {@link HistoryServerArchivist}.
  */
-class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
-
-	private final JsonArchivist jsonArchivist;
-
-	private final Path archivePath;
-
-	JsonResponseHistoryServerArchivist(JsonArchivist jsonArchivist, Path archivePath) {
-		this.jsonArchivist = Preconditions.checkNotNull(jsonArchivist);
-		this.archivePath = Preconditions.checkNotNull(archivePath);
-	}
+public enum ExceptionHistoryServerArchivist implements HistoryServerArchivist {
+	INSTANCE;
 
 	@Override
 	public CompletableFuture<Acknowledge> archiveExecutionGraph(AccessExecutionGraph executionGraph) {
-		try {
-			FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph));
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(e);
-		}
+		System.out.println(1 / 0);
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 }
