@@ -60,9 +60,6 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		try {
 			subpartition.finish();
 			assertEquals(1, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated after consuming the buffers
-
-			assertEquals(1, subpartition.getTotalNumberOfBuffers());
 			assertEquals(0, subpartition.getBuffersInBacklog());
 			assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated after consuming the buffers
 
@@ -85,8 +82,6 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
 		try {
 			subpartition.release();
-			assertEquals(0, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getTotalNumberOfBytes());
 
 			assertEquals(0, subpartition.getTotalNumberOfBuffers());
 			assertEquals(0, subpartition.getBuffersInBacklog());
