@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.consumer;
+package org.apache.flink.runtime.io.network.metrics;
 
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import java.util.Collection;
 
@@ -176,12 +179,15 @@ public class InputGateMetrics {
 	//  Static access
 	// ------------------------------------------------------------------------
 
-	public static void registerQueueLengthMetrics(MetricGroup group, SingleInputGate gate) {
-		InputGateMetrics metrics = new InputGateMetrics(gate);
+	public static void registerQueueLengthMetrics(MetricGroup parent, SingleInputGate[] gates) {
+		for (int i = 0; i < gates.length; i++) {
+			InputGateMetrics metrics = new InputGateMetrics(gates[i]);
 
-		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
-		group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
-		group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
-		group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
+			MetricGroup group = parent.addGroup(i);
+			group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
+			group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
+			group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
+			group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
+		}
 	}
 }

@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.consumer;
+package org.apache.flink.runtime.io.network.metrics;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.metrics.MetricNames;
 
 /**
@@ -55,19 +57,19 @@ public class InputChannelMetrics {
 		parent.meter(IO_NUM_BUFFERS_IN_REMOTE_RATE, new MeterView(numBuffersInRemote, 60));
 	}
 
-	Counter getNumBytesInLocalCounter() {
+	public Counter getNumBytesInLocalCounter() {
 		return numBytesInLocal;
 	}
 
-	Counter getNumBytesInRemoteCounter() {
+	public Counter getNumBytesInRemoteCounter() {
 		return numBytesInRemote;
 	}
 
-	Counter getNumBuffersInLocalCounter() {
+	public Counter getNumBuffersInLocalCounter() {
 		return numBuffersInLocal;
 	}
 
-	Counter getNumBuffersInRemoteCounter() {
+	public Counter getNumBuffersInRemoteCounter() {
 		return numBuffersInRemote;
 	}
 }
