@@ -45,12 +45,11 @@ public class GenericCatalogTable implements CatalogTable {
 	private String comment = "This is a generic catalog table.";
 
 	public GenericCatalogTable(
-		TableSchema tableSchema,
-		TableStats tableStats,
-		List<String> partitionKeys,
-		Map<String, String> properties,
-		String comment) {
-
+			TableSchema tableSchema,
+			TableStats tableStats,
+			List<String> partitionKeys,
+			Map<String, String> properties,
+			String comment) {
 		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
 		this.tableStats = checkNotNull(tableStats, "tableStats cannot be null");
 		this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
@@ -59,11 +58,10 @@ public class GenericCatalogTable implements CatalogTable {
 	}
 
 	public GenericCatalogTable(
-		TableSchema tableSchema,
-		TableStats tableStats,
-		Map<String, String> properties,
-		String comment) {
-
+			TableSchema tableSchema,
+			TableStats tableStats,
+			Map<String, String> properties,
+			String comment) {
 		this(tableSchema, tableStats, new ArrayList<>(), properties, comment);
 	}
 
