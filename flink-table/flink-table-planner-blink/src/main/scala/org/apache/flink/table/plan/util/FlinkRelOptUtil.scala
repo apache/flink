@@ -39,6 +39,9 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+/**
+  * FlinkRelOptUtil provides utility methods for use in optimizing RelNodes.
+  */
 object FlinkRelOptUtil {
 
   /**

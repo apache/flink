@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util;
+package org.apache.flink.table.plan.nodes.exec;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -27,7 +27,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * Deal with resource config for {@link org.apache.flink.table.plan.nodes.exec.ExecNode}.
  */
-public class NodeResourceUtil {
+public class NodeResourceConfig {
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MIN =
 			key("sql.resource.infer.operator.parallelism.min")

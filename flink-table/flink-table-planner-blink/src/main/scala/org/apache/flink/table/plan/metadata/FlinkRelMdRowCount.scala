@@ -21,10 +21,10 @@ package org.apache.flink.table.plan.metadata
 import org.apache.flink.table.JDouble
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
+import org.apache.flink.table.plan.nodes.exec.NodeResourceConfig
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, SortUtil}
-import org.apache.flink.table.util.NodeResourceUtil
 
 import org.apache.calcite.adapter.enumerable.EnumerableLimit
 import org.apache.calcite.plan.volcano.RelSubset
@@ -168,7 +168,7 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     } else {
       val inputRowCnt = mq.getRowCount(input)
       val config = rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-      val parallelism = NodeResourceUtil.calOperatorParallelism(inputRowCnt, config.getConf)
+      val parallelism = NodeResourceConfig.calOperatorParallelism(inputRowCnt, config.getConf)
       if (parallelism == 1) {
         ndvOfGroupKeysOnGlobalAgg
       } else if (grouping.isEmpty) {

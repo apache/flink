@@ -34,7 +34,7 @@ import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import scala.collection.JavaConversions._
 
 /**
-  * Estimates selectivity of rows meeting a filter predicate on an Aggregate.
+  * Estimates selectivity of rows meeting an agg-call predicate on an Aggregate.
   *
   * A filter predicate on an Aggregate may contain two parts:
   * one is on group by columns, another is on aggregate call's result.
