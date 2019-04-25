@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.util.TestLogger;
 
@@ -27,10 +26,7 @@ import org.junit.Test;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 /**
  * Basic subpartition behaviour tests.
@@ -84,41 +80,5 @@ public abstract class SubpartitionTestBase extends TestLogger {
 				subpartition.release();
 			}
 		}
-	}
-
-	@Test
-	public void testReleaseParent() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		verifyViewReleasedAfterParentRelease(partition);
-	}
-
-	@Test
-	public void testReleaseParentAfterSpilled() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		partition.releaseMemory();
-
-		verifyViewReleasedAfterParentRelease(partition);
-	}
-
-	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
-		// Add a bufferConsumer
-		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
-		partition.add(bufferConsumer);
-		partition.finish();
-
-		// Create the view
-		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
-		ResultSubpartitionView view = partition.createReadView(listener);
-
-		// The added bufferConsumer and end-of-partition event
-		assertNotNull(view.getNextBuffer());
-		assertNotNull(view.getNextBuffer());
-
-		// Release the parent
-		assertFalse(view.isReleased());
-		partition.release();
-
-		// Verify that parent release is reflected at partition view
-		assertTrue(view.isReleased());
 	}
 }
