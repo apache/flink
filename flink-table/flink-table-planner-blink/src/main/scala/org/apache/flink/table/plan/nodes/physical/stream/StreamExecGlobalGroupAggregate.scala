@@ -98,12 +98,6 @@ class StreamExecGlobalGroupAggregate(
         isGlobal = true))
   }
 
-  override def isDeterministic: Boolean = {
-    (localAggInfoList.getActualAggregateCalls ++
-      globalAggInfoList.getActualAggregateCalls)
-      .forall(c => FlinkRexUtil.isDeterministicOperator(c.getAggregation))
-  }
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

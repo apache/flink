@@ -16,6 +16,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicUdf">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a FROM x WHERE b > random_udf(a))
+UNION ALL
+(SELECT a FROM x WHERE b > random_udf(a))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalFilter(condition=[>($1, random_udf($0))])
+:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[>($1, random_udf($0))])
+      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a], where=[>(b, random_udf(a))], reuse_id=[1])
+:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDisableReuseTableSource">
     <Resource name="sql">
       <![CDATA[
@@ -42,21 +70,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])
-:- StreamExecExchange(distribution=[hash[b]])
-:  +- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
-:     :- StreamExecExchange(distribution=[hash[a]])
-:     :  +- StreamExecCalc(select=[a, b, c], where=[<(a, 10)])
-:     :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- StreamExecExchange(distribution=[hash[d]])
-:        +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- StreamExecExchange(distribution=[hash[e]])
-   +- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
-      :- StreamExecExchange(distribution=[hash[a]])
-      :  +- StreamExecCalc(select=[a, b, c], where=[>(a, 5)])
-      :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-      +- StreamExecExchange(distribution=[hash[d]])
-         +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])
+:- Exchange(distribution=[hash[b]])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b, c], where=[<(a, 10)])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[hash[d]])
+:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[hash[e]])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b, c], where=[>(a, 5)])
+      :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Exchange(distribution=[hash[d]])
+         +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -86,25 +114,25 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0])
-:- StreamExecExchange(distribution=[hash[b]])
-:  +- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e])
-:     :- StreamExecExchange(distribution=[hash[a]])
-:     :  +- StreamExecCalc(select=[a, b], where=[<(a, 10)])
-:     :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
-:     +- StreamExecExchange(distribution=[hash[d]], reuse_id=[2])
-:        +- StreamExecCalc(select=[d, e])
-:           +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- StreamExecExchange(distribution=[hash[e]])
-   +- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e])
-      :- StreamExecExchange(distribution=[hash[a]])
-      :  +- StreamExecCalc(select=[a, b], where=[>(a, 5)])
+Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0])
+:- Exchange(distribution=[hash[b]])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+:     +- Exchange(distribution=[hash[d]], reuse_id=[2])
+:        +- Calc(select=[d, e])
+:           +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[hash[e]])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b], where=[>(a, 5)])
       :     +- Reused(reference_id=[1])
       +- Reused(reference_id=[2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testReusableSubplanOnAggregateWithNonDeterministicAggCallDisabled">
+  <TestCase name="testSubplanReuseOnAggregateWithNonDeterministicAggCall">
     <Resource name="sql">
       <![CDATA[
 WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
@@ -126,325 +154,14 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- StreamExecExchange(distribution=[single])
-:  +- StreamExecGroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b])
-:     +- StreamExecExchange(distribution=[hash[c]])
-:        +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[single])
-   +- StreamExecCalc(select=[c, a, b], where=[>(a, 1)])
-      +- StreamExecGroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b])
-         +- StreamExecExchange(distribution=[hash[c]])
-            +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnAggregateWithNonDeterministicAggCallEnabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
-+- LogicalFilter(condition=[AND(=(CAST($1):BIGINT, $5), >($4, 1))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalAggregate(group=[{0}], a=[MyFirst($1)], b=[MyLast($2)])
-      :  +- LogicalProject(c=[$2], a=[$0], b=[$1])
-      :     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      +- LogicalAggregate(group=[{0}], a=[MyFirst($1)], b=[MyLast($2)])
-         +- LogicalProject(c=[$2], a=[$0], b=[$1])
-            +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- StreamExecExchange(distribution=[single])
-:  +- StreamExecGroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
-:     +- StreamExecExchange(distribution=[hash[c]])
-:        +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[single])
-   +- StreamExecCalc(select=[c, a, b], where=[>(a, 1)])
+Join(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
+:- Exchange(distribution=[single])
+:  +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
+:     +- Exchange(distribution=[hash[c]])
+:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[single])
+   +- Calc(select=[c, a, b], where=[>(a, 1)])
       +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicProjectDisabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a, random_udf() FROM x WHERE a > 10)
-UNION ALL
-(SELECT a, random_udf() FROM x WHERE a > 10)
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-:  +- LogicalFilter(condition=[>($0, 10)])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-   +- LogicalFilter(condition=[>($0, 10)])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a, EXPR$1])
-:- StreamExecCalc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)])
-:  +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecCalc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)])
-   +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicProjectEnabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a, random_udf() FROM x WHERE a > 10)
-UNION ALL
-(SELECT a, random_udf() FROM x WHERE a > 10)
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-:  +- LogicalFilter(condition=[>($0, 10)])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-   +- LogicalFilter(condition=[>($0, 10)])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a, EXPR$1])
-:- StreamExecCalc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)], reuse_id=[1])
-:  +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicUdfDisabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a FROM x WHERE b > random_udf(a))
-UNION ALL
-(SELECT a FROM x WHERE b > random_udf(a))
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
-:  +- LogicalFilter(condition=[>($1, random_udf($0))])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0])
-   +- LogicalFilter(condition=[>($1, random_udf($0))])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a])
-:- StreamExecCalc(select=[a], where=[>(b, random_udf(a))])
-:  +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecCalc(select=[a], where=[>(b, random_udf(a))])
-   +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicUdfEnabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a FROM x WHERE b > random_udf(a))
-UNION ALL
-(SELECT a FROM x WHERE b > random_udf(a))
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
-:  +- LogicalFilter(condition=[>($1, random_udf($0))])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0])
-   +- LogicalFilter(condition=[>($1, random_udf($0))])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a])
-:- StreamExecCalc(select=[a], where=[>(b, random_udf(a))], reuse_id=[1])
-:  +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnJoin">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON ABS(a) = ABS(d) OR c = f
-           WHERE b > 1 and e < 2)
-
-SELECT a, b FROM r
-UNION ALL
-SELECT a, b * 2 AS b FROM r
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1])
-:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-:     +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
-:        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-:        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-+- LogicalProject(a=[$0], b=[*($1, 2)])
-   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
-         :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a, b])
-:- StreamExecCalc(select=[a, b])
-:  +- StreamExecJoin(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, f], reuse_id=[1])
-:     :- StreamExecExchange(distribution=[single])
-:     :  +- StreamExecCalc(select=[a, b, c], where=[>(b, 1)])
-:     :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- StreamExecExchange(distribution=[single])
-:        +- StreamExecCalc(select=[d, f], where=[<(e, 2)])
-:           +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- StreamExecCalc(select=[a, *(b, 2) AS b])
-   +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnJoinNonDeterministicJoinConditionDisabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
-           WHERE b > 1 and e < 2)
-
-SELECT a, b FROM r
-UNION ALL
-SELECT a, b * 2 AS b FROM r
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1])
-:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-:     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-:        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-:        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-+- LogicalProject(a=[$0], b=[*($1, 2)])
-   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-         :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a, b])
-:- StreamExecCalc(select=[a, b])
-:  +- StreamExecJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, f])
-:     :- StreamExecExchange(distribution=[single], reuse_id=[1])
-:     :  +- StreamExecCalc(select=[a, b, c], where=[>(b, 1)])
-:     :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- StreamExecExchange(distribution=[single], reuse_id=[2])
-:        +- StreamExecCalc(select=[d, f], where=[<(e, 2)])
-:           +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- StreamExecCalc(select=[a, *(b, 2) AS b])
-   +- StreamExecJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, f])
-      :- Reused(reference_id=[1])
-      +- Reused(reference_id=[2])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTFDisabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
-SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7])
-+- LogicalFilter(condition=[=($2, $7)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
-      :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :     :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
-         +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
-            :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
-:- StreamExecExchange(distribution=[hash[c]])
-:  +- StreamExecCorrelate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-:     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[f0]])
-   +- StreamExecCorrelate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-      +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnJoinNonDeterministicJoinConditionEnabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
-           WHERE b > 1 and e < 2)
-
-SELECT a, b FROM r
-UNION ALL
-SELECT a, b * 2 AS b FROM r
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1])
-:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-:     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-:        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-:        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-+- LogicalProject(a=[$0], b=[*($1, 2)])
-   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-         :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecUnion(all=[true], union=[a, b])
-:- StreamExecCalc(select=[a, b])
-:  +- StreamExecJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, f], reuse_id=[1])
-:     :- StreamExecExchange(distribution=[single])
-:     :  +- StreamExecCalc(select=[a, b, c], where=[>(b, 1)])
-:     :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- StreamExecExchange(distribution=[single])
-:        +- StreamExecCalc(select=[d, f], where=[<(e, 2)])
-:           +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- StreamExecCalc(select=[a, *(b, 2) AS b])
-   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -478,15 +195,43 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecUnion(all=[true], union=[a, c, e])
-:- StreamExecCalc(select=[a, LOWER(c) AS c, e], reuse_id=[1])
-:  +- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e])
-:     :- StreamExecExchange(distribution=[hash[a]])
-:     :  +- StreamExecCalc(select=[a, c], where=[LIKE(c, _UTF-16LE'test%')])
-:     :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- StreamExecExchange(distribution=[hash[d]])
-:        +- StreamExecCalc(select=[d, e])
-:           +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Union(all=[true], union=[a, c, e])
+:- Calc(select=[a, LOWER(c) AS c, e], reuse_id=[1])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, c], where=[LIKE(c, _UTF-16LE'test%')])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[hash[d]])
+:        +- Calc(select=[d, e])
+:           +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicProject">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a, random_udf() FROM x WHERE a > 10)
+UNION ALL
+(SELECT a, random_udf() FROM x WHERE a > 10)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
+:  +- LogicalFilter(condition=[>($0, 10)])
+:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0], EXPR$1=[random_udf()])
+   +- LogicalFilter(condition=[>($0, 10)])
+      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, EXPR$1])
+:- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)], reuse_id=[1])
+:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -515,17 +260,17 @@ LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3], a0=[$4], b0=[$5], c0=[$6], v0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(f0, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
-:- StreamExecExchange(distribution=[hash[f0]])
-:  +- StreamExecCorrelate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-:     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[f0]])
-   +- StreamExecCorrelate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-      +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Join(joinType=[InnerJoin], where=[=(f0, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
+:- Exchange(distribution=[hash[f0]])
+:  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+:     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f0]])
+   +- Correlate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+      +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTFEnabled">
+  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTF">
     <Resource name="sql">
       <![CDATA[
 WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
@@ -549,13 +294,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
-:- StreamExecExchange(distribution=[hash[c]])
-:  +- StreamExecCorrelate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-:     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[f0]])
-   +- StreamExecCorrelate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-      +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Join(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
+:- Exchange(distribution=[hash[c]])
+:  +- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+:     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f0]])
+   +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+      +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -589,19 +334,19 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecUnion(all=[true], union=[a, b, c, d, e, f])
-:- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
-:  :- StreamExecExchange(distribution=[hash[a]], reuse_id=[1])
-:  :  +- StreamExecCalc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'test%')])
-:  :     +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:  +- StreamExecExchange(distribution=[hash[d]])
-:     +- StreamExecCalc(select=[d, e, f], where=[>(e, 10)])
-:        +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- StreamExecJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
+Union(all=[true], union=[a, b, c, d, e, f])
+:- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
+:  :- Exchange(distribution=[hash[a]], reuse_id=[1])
+:  :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'test%')])
+:  :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[hash[d]])
+:     +- Calc(select=[d, e, f], where=[>(e, 10)])
+:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
    :- Reused(reference_id=[1])
-   +- StreamExecExchange(distribution=[hash[d]])
-      +- StreamExecCalc(select=[d, e, f], where=[<>(f, _UTF-16LE'':VARCHAR(65536) CHARACTER SET "UTF-16LE")])
-         +- StreamExecTableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, e, f], where=[<>(f, _UTF-16LE'':VARCHAR(65536) CHARACTER SET "UTF-16LE")])
+         +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -627,13 +372,129 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- StreamExecExchange(distribution=[single])
-:  +- StreamExecGroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
-:     +- StreamExecExchange(distribution=[hash[c]])
-:        +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[single])
-   +- StreamExecCalc(select=[c, a, b], where=[>(a, 1)])
+Join(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
+:- Exchange(distribution=[single])
+:  +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
+:     +- Exchange(distribution=[hash[c]])
+:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[single])
+   +- Calc(select=[c, a, b], where=[>(a, 1)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON ABS(a) = ABS(d) OR c = f
+           WHERE b > 1 and e < 2)
+
+SELECT a, b FROM r
+UNION ALL
+SELECT a, b * 2 AS b FROM r
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+:     +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+:        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], b=[*($1, 2)])
+   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+      +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+         :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b])
+:  +- Join(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, f], reuse_id=[1])
+:     :- Exchange(distribution=[single])
+:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[single])
+:        +- Calc(select=[d, f], where=[<(e, 2)])
+:           +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Calc(select=[a, *(b, 2) AS b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnJoinNonDeterministicJoinCondition">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
+           WHERE b > 1 and e < 2)
+
+SELECT a, b FROM r
+UNION ALL
+SELECT a, b * 2 AS b FROM r
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+:     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+:        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+:        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], b=[*($1, 2)])
+   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+      +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+         :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b])
+:  +- Join(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, f], reuse_id=[1])
+:     :- Exchange(distribution=[single])
+:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[single])
+:        +- Calc(select=[d, f], where=[<(e, 2)])
+:           +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Calc(select=[a, *(b, 2) AS b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnOverWindow">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      :  +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
+:     +- OverAggregate(orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, RANK(*) AS w0$o0], reuse_id=[1])
+:        +- Exchange(distribution=[single])
+:           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, w0$o0], where=[>(b, 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -665,17 +526,17 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecUnion(all=[true], union=[a, b])
-:- StreamExecCalc(select=[a, b], where=[>(a, 10)])
-:  +- StreamExecLimit(offset=[0], fetch=[10], reuse_id=[1])
-:     +- StreamExecExchange(distribution=[single])
-:        +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecCalc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b], where=[>(a, 10)])
+:  +- Limit(offset=[0], fetch=[10], reuse_id=[1])
+:     +- Exchange(distribution=[single])
+:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCallEnabled">
+  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCall">
     <Resource name="sql">
       <![CDATA[
 WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
@@ -695,81 +556,15 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0])
-:- StreamExecExchange(distribution=[hash[a]])
-:  +- StreamExecCalc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
-:     +- StreamExecOverAggregate(partitionBy=[c], orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, MyFirst(c) AS w0$o0], reuse_id=[1])
-:        +- StreamExecExchange(distribution=[hash[c]])
-:           +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[a]])
-   +- StreamExecCalc(select=[a, b, w0$o0], where=[>(b, 10)])
+Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
+:     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, MyFirst(c) AS w0$o0], reuse_id=[1])
+:        +- Exchange(distribution=[hash[c]])
+:           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, w0$o0], where=[>(b, 10)])
       +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSubplanReuseOnOverWindow">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
-+- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      :  +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0])
-:- StreamExecExchange(distribution=[hash[a]])
-:  +- StreamExecCalc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
-:     +- StreamExecOverAggregate(orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, RANK(*) AS w0$o0], reuse_id=[1])
-:        +- StreamExecExchange(distribution=[single])
-:           +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[a]])
-   +- StreamExecCalc(select=[a, b, w0$o0], where=[>(b, 10)])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCallDisabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
-+- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[MyFirst($2) OVER (PARTITION BY $2 ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      :  +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[MyFirst($2) OVER (PARTITION BY $2 ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0])
-:- StreamExecExchange(distribution=[hash[a]])
-:  +- StreamExecCalc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
-:     +- StreamExecOverAggregate(partitionBy=[c], orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, MyFirst(c) AS w0$o0])
-:        +- StreamExecExchange(distribution=[hash[c]])
-:           +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[a]])
-   +- StreamExecCalc(select=[a, b, w0$o0], where=[>(b, 10)])
-      +- StreamExecOverAggregate(partitionBy=[c], orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, MyFirst(c) AS w0$o0])
-         +- StreamExecExchange(distribution=[hash[c]])
-            +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -795,14 +590,14 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[c, a, b, c0, a0, b0])
-:- StreamExecExchange(distribution=[hash[a]])
-:  +- StreamExecCalc(select=[c, a, b], where=[>(a, 1)])
-:     +- StreamExecGroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
-:        +- StreamExecExchange(distribution=[hash[c]])
-:           +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecExchange(distribution=[hash[a]])
-   +- StreamExecCalc(select=[c, a, b], where=[<(b, 10)])
+Join(joinType=[InnerJoin], where=[=(a, a0)], select=[c, a, b, c0, a0, b0])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[c, a, b], where=[>(a, 1)])
+:     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
+:        +- Exchange(distribution=[hash[c]])
+:           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[c, a, b], where=[<(b, 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -836,14 +631,14 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-StreamExecUnion(all=[true], union=[a, b])
-:- StreamExecCalc(select=[a, b], where=[>(a, 10)])
-:  +- StreamExecSortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], reuse_id=[1])
-:     +- StreamExecExchange(distribution=[single])
-:        +- StreamExecGroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
-:           +- StreamExecExchange(distribution=[hash[c]])
-:              +- StreamExecTableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- StreamExecCalc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, b], where=[>(a, 10)])
+:  +- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], reuse_id=[1])
+:     +- Exchange(distribution=[single])
+:        +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+:           +- Exchange(distribution=[hash[c]])
+:              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

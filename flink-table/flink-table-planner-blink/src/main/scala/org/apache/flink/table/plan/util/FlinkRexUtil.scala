@@ -22,7 +22,7 @@ import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{ControlFlowException, Util}
@@ -356,52 +356,6 @@ object FlinkRexUtil {
       }
       val operands = call.getOperands
       rexBuilder.makeCall(newOp, operands.last, operands.head).asInstanceOf[RexCall]
-    }
-  }
-
-  /**
-    * Returns whether a given expression has dynamic function.
-    *
-    * @param e Expression
-    * @return true if tree has dynamic function, false otherwise
-    */
-  def hasDynamicFunction(e: RexNode): Boolean = try {
-    val visitor = new RexVisitorImpl[Void](true) {
-      override def visitCall(call: RexCall): Void = {
-        if (call.getOperator.isDynamicFunction) {
-          throw Util.FoundOne.NULL
-        }
-        super.visitCall(call)
-      }
-    }
-    e.accept(visitor)
-    false
-  } catch {
-    case ex: Util.FoundOne =>
-      Util.swallow(ex, null)
-      true
-  }
-
-  /**
-    * Return true if the given RexNode is null or does not have
-    * non-deterministic `SqlOperator` and dynamic function `SqlOperator`.
-    */
-  def isDeterministicOperator(rex: RexNode): Boolean = {
-    if (rex == null) {
-      true
-    } else {
-      RexUtil.isDeterministic(rex) && !FlinkRexUtil.hasDynamicFunction(rex)
-    }
-  }
-
-  /**
-    * Return true if the given operator is null or is deterministic and none dynamic function.
-    */
-  def isDeterministicOperator(op: SqlOperator): Boolean = {
-    if (op == null) {
-      true
-    } else {
-      op.isDeterministic && !op.isDynamicFunction
     }
   }
 

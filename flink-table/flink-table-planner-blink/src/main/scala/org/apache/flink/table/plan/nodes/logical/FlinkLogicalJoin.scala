@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.FlinkRexUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -68,8 +67,6 @@ class FlinkLogicalJoin(
 
     planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
-
-  override def isDeterministic: Boolean = FlinkRexUtil.isDeterministicOperator(getCondition)
 
 }
 

@@ -25,7 +25,6 @@ import org.apache.flink.table.codegen.{CodeGeneratorContext, ExpandCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Expand
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.util.ExpandUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -63,8 +62,6 @@ class StreamExecExpand(
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
   }
-
-  override def isDeterministic: Boolean = ExpandUtil.isDeterministic(projects)
 
   //~ ExecNode methods -----------------------------------------------------------
 

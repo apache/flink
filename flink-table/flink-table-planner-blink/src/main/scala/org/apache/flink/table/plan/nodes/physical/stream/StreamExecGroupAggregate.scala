@@ -107,8 +107,6 @@ class StreamExecGroupAggregate(
         grouping))
   }
 
-  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(aggCalls)
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

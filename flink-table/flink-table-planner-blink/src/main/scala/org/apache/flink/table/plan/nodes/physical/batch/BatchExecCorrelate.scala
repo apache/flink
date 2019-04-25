@@ -25,7 +25,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.plan.util.{CorrelateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -93,8 +93,6 @@ class BatchExecCorrelate(
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
-
-  override def isDeterministic: Boolean = CorrelateUtil.isDeterministic(scan, condition)
 
   //~ ExecNode methods -----------------------------------------------------------
 

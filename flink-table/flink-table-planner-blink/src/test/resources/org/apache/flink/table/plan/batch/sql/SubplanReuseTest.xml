@@ -274,42 +274,7 @@ Calc(select=[c, e, avg_b, sum_b, sum_b0 AS psum, sum_b1 AS nsum, avg_b0 AS avg_b
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testReusableSubplanOnAggregateWithNonDeterministicAggCallDisabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
-+- LogicalFilter(condition=[AND(=(CAST($1):BIGINT, $5), >($4, 1))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalAggregate(group=[{0}], a=[MyFirst($1)], b=[MyLast($2)])
-      :  +- LogicalProject(c=[$2], a=[$0], b=[$1])
-      :     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      +- LogicalAggregate(group=[{0}], a=[MyFirst($1)], b=[MyLast($2)])
-         +- LogicalProject(c=[$2], a=[$0], b=[$1])
-            +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0], build=[right])
-:- Exchange(distribution=[any], exchange_mode=[BATCH])
-:  +- SortAggregate(isMerge=[false], groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b])
-:     +- Sort(orderBy=[c ASC], reuse_id=[1])
-:        +- Exchange(distribution=[hash[c]])
-:           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[broadcast])
-   +- Calc(select=[c, a, b], where=[>(a, 1)])
-      +- SortAggregate(isMerge=[false], groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b])
-         +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnAggregateWithNonDeterministicAggCallEnabled">
+  <TestCase name="testSubplanReuseOnAggregateWithNonDeterministicAggCall">
     <Resource name="sql">
       <![CDATA[
 WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
@@ -340,275 +305,6 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[c, a, b], where=[>(a, 1)])
       +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicProjectDisabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a, random_udf() FROM x WHERE a > 10)
-UNION ALL
-(SELECT a, random_udf() FROM x WHERE a > 10)
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-:  +- LogicalFilter(condition=[>($0, 10)])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-   +- LogicalFilter(condition=[>($0, 10)])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[a, EXPR$1])
-:- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)])
-:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)])
-   +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicProjectEnabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a, random_udf() FROM x WHERE a > 10)
-UNION ALL
-(SELECT a, random_udf() FROM x WHERE a > 10)
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-:  +- LogicalFilter(condition=[>($0, 10)])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0], EXPR$1=[random_udf()])
-   +- LogicalFilter(condition=[>($0, 10)])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[a, EXPR$1])
-:- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)], reuse_id=[1])
-:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicUdfDisabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a FROM x WHERE b > random_udf(a))
-UNION ALL
-(SELECT a FROM x WHERE b > random_udf(a))
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
-:  +- LogicalFilter(condition=[>($1, random_udf($0))])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0])
-   +- LogicalFilter(condition=[>($1, random_udf($0))])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[a])
-:- Calc(select=[a], where=[>(b, random_udf(a))])
-:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[a], where=[>(b, random_udf(a))])
-   +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnCalcWithNonDeterministicUdfEnabled">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a FROM x WHERE b > random_udf(a))
-UNION ALL
-(SELECT a FROM x WHERE b > random_udf(a))
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
-:  +- LogicalFilter(condition=[>($1, random_udf($0))])
-:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0])
-   +- LogicalFilter(condition=[>($1, random_udf($0))])
-      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Union(all=[true], union=[a])
-:- Calc(select=[a], where=[>(b, random_udf(a))], reuse_id=[1])
-:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnJoin">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON ABS(a) = ABS(d) OR c = f
-           WHERE b > 1 and e < 2)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7], c0=[$8], d0=[$9], e0=[$10], f0=[$11])
-+- LogicalFilter(condition=[=(CAST($0):BIGINT, $7)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-      :  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      :     +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
-      :        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-         +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-            +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
-               :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-               +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- NestedLoopJoin(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, e, f], build=[left], reuse_id=[1])
-:     :- Exchange(distribution=[broadcast])
-:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
-:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- Calc(select=[d, e, f], where=[<(e, 2)])
-:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Exchange(distribution=[any], exchange_mode=[BATCH])
-   +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnJoinNonDeterministicJoinConditionDisabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
-           WHERE b > 1 and e < 2)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7], c0=[$8], d0=[$9], e0=[$10], f0=[$11])
-+- LogicalFilter(condition=[=(CAST($0):BIGINT, $7)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-      :  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      :     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-      :        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-         +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-            +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-               :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-               +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- NestedLoopJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], build=[left])
-:     :- Exchange(distribution=[broadcast], reuse_id=[1])
-:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
-:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- Calc(select=[d, e, f], where=[<(e, 2)], reuse_id=[2])
-:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Exchange(distribution=[any], exchange_mode=[BATCH])
-   +- NestedLoopJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], build=[left])
-      :- Reused(reference_id=[1])
-      +- Reused(reference_id=[2])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTFDisabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
-SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7])
-+- LogicalFilter(condition=[=($2, $7)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
-      :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :     :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
-         +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
-            :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-:     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testReusableSubplanOnJoinNonDeterministicJoinConditionEnabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
-           WHERE b > 1 and e < 2)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7], c0=[$8], d0=[$9], e0=[$10], f0=[$11])
-+- LogicalFilter(condition=[=(CAST($0):BIGINT, $7)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-      :  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      :     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-      :        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-         +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-            +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-               :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-               +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- NestedLoopJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], build=[left], reuse_id=[1])
-:     :- Exchange(distribution=[broadcast])
-:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
-:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- Calc(select=[d, e, f], where=[<(e, 2)])
-:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Exchange(distribution=[any], exchange_mode=[BATCH])
-   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -655,6 +351,62 @@ Union(all=[true], union=[a, c, e])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicProject">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a, random_udf() FROM x WHERE a > 10)
+UNION ALL
+(SELECT a, random_udf() FROM x WHERE a > 10)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], EXPR$1=[random_udf()])
+:  +- LogicalFilter(condition=[>($0, 10)])
+:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0], EXPR$1=[random_udf()])
+   +- LogicalFilter(condition=[>($0, 10)])
+      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, EXPR$1])
+:- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)], reuse_id=[1])
+:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicUdf">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a FROM x WHERE b > random_udf(a))
+UNION ALL
+(SELECT a FROM x WHERE b > random_udf(a))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalFilter(condition=[>($1, random_udf($0))])
+:     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[>($1, random_udf($0))])
+      +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a], where=[>(b, random_udf(a))], reuse_id=[1])
+:  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSubplanReuseOnCorrelate">
     <Resource name="sql">
       <![CDATA[
@@ -688,42 +440,7 @@ HashJoin(joinType=[InnerJoin], where=[=(f0, f00)], select=[a, b, c, f0, a0, b0, 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSubplanReuseOnSourceWithLimit">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b FROM x LIMIT 10)
-SELECT r1.a, r1.b, r2.a FROM r r1, r r2 WHERE r1.a = r2.b
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], a0=[$2])
-+- LogicalFilter(condition=[=(CAST($0):BIGINT, $3)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalSort(fetch=[10])
-      :  +- LogicalProject(a=[$0], b=[$1])
-      :     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      +- LogicalSort(fetch=[10])
-         +- LogicalProject(a=[$0], b=[$1])
-            +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, a0])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, a0, b0], build=[left])
-   :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[a, b], reuse_id=[1])
-   :     +- Limit(offset=[0], fetch=[10], global=[true])
-   :        +- Exchange(distribution=[single])
-   :           +- Limit(offset=[0], fetch=[10], global=[false])
-   :              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Exchange(distribution=[any], exchange_mode=[BATCH])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTFEnabled">
+  <TestCase name="testSubplanReuseOnCorrelateWithNonDeterministicUDTF">
     <Resource name="sql">
       <![CDATA[
 WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
@@ -875,6 +592,86 @@ HashJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, e, f, a0, b
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuseOnJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON ABS(a) = ABS(d) OR c = f
+           WHERE b > 1 and e < 2)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7], c0=[$8], d0=[$9], e0=[$10], f0=[$11])
++- LogicalFilter(condition=[=(CAST($0):BIGINT, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      :  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+      :     +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+      :        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+            +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+               :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- NestedLoopJoin(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, e, f], build=[left], reuse_id=[1])
+:     :- Exchange(distribution=[broadcast])
+:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Calc(select=[d, e, f], where=[<(e, 2)])
+:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[any], exchange_mode=[BATCH])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnJoinNonDeterministicJoinCondition">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
+           WHERE b > 1 and e < 2)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7], c0=[$8], d0=[$9], e0=[$10], f0=[$11])
++- LogicalFilter(condition=[=(CAST($0):BIGINT, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      :  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+      :     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+      :        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+            +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+               :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- NestedLoopJoin(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], build=[left], reuse_id=[1])
+:     :- Exchange(distribution=[broadcast])
+:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Calc(select=[d, e, f], where=[<(e, 2)])
+:        +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[any], exchange_mode=[BATCH])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSubplanReuseOnLimit">
     <Resource name="sql">
       <![CDATA[
@@ -981,7 +778,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCallDisabled">
+  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCall">
     <Resource name="sql">
       <![CDATA[
 WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
@@ -1004,14 +801,13 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
 HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0], build=[left])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
-:     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window#0=[MyFirst(c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
-:        +- Sort(orderBy=[c DESC], reuse_id=[1])
+:     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window#0=[MyFirst(c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0], reuse_id=[1])
+:        +- Sort(orderBy=[c DESC])
 :           +- Exchange(distribution=[hash[c]])
 :              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]], exchange_mode=[BATCH])
    +- Calc(select=[a, b, w0$o0], where=[>(b, 10)])
-      +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window#0=[MyFirst(c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
-         +- Reused(reference_id=[1])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1050,6 +846,41 @@ HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[c, a, b, c0, a0, b0], b
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuseOnSourceWithLimit">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b FROM x LIMIT 10)
+SELECT r1.a, r1.b, r2.a FROM r r1, r r2 WHERE r1.a = r2.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], a0=[$2])
++- LogicalFilter(condition=[=(CAST($0):BIGINT, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[10])
+      :  +- LogicalProject(a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, a0])
++- NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[a, b, a0, b0], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a, b], reuse_id=[1])
+   :     +- Limit(offset=[0], fetch=[10], global=[true])
+   :        +- Exchange(distribution=[single])
+   :           +- Limit(offset=[0], fetch=[10], global=[false])
+   :              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[any], exchange_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSubplanReuseOnSortAggregate">
     <Resource name="sql">
       <![CDATA[
@@ -1082,39 +913,6 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0
 :                 +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[c, a, b], where=[>(a, 1)])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSubplanReuseOnOverWindowWithNonDeterministicAggCallEnabled">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
-+- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[MyFirst($2) OVER (PARTITION BY $2 ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-      :  +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[MyFirst($2) OVER (PARTITION BY $2 ORDER BY $2 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, w0$o0], build=[left])
-:- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
-:     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window#0=[MyFirst(c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0], reuse_id=[1])
-:        +- Sort(orderBy=[c DESC])
-:           +- Exchange(distribution=[hash[c]])
-:              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[a]], exchange_mode=[BATCH])
-   +- Calc(select=[a, b, w0$o0], where=[>(b, 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>

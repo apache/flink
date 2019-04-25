@@ -85,8 +85,6 @@ class FlinkLogicalTableSourceScan(
       .item("fields", tableSource.getTableSchema.getColumnNames.mkString(", "))
   }
 
-  override def isDeterministic: Boolean = true
-
 }
 
 class FlinkLogicalTableSourceScanConverter

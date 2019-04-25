@@ -54,8 +54,6 @@ class FlinkLogicalDataStreamTableScan(
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
   }
 
-  override def isDeterministic: Boolean = true
-
 }
 
 class FlinkLogicalDataStreamTableScanConverter

@@ -81,8 +81,6 @@ class FlinkLogicalRank(
       outputRankNumber)
   }
 
-  override def isDeterministic: Boolean = true
-
 }
 
 private class FlinkLogicalRankConverter extends ConverterRule(

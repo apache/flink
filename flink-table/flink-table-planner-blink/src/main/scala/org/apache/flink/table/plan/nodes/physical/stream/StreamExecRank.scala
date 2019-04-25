@@ -111,8 +111,6 @@ class StreamExecRank(
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

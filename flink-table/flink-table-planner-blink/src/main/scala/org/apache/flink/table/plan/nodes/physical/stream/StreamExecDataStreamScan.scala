@@ -91,8 +91,6 @@ class StreamExecDataStreamScan(
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = List()

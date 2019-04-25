@@ -108,10 +108,8 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testReusableSubplanOnCalcWithNonDeterministicProjectDisabled(): Unit = {
+  def testSubplanReuseOnCalcWithNonDeterministicProject(): Unit = {
     util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, false)
 
     val sqlQuery =
       """
@@ -123,40 +121,8 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testReusableSubplanOnCalcWithNonDeterministicProjectEnabled(): Unit = {
+  def testSubplanReuseOnCalcWithNonDeterministicUdf(): Unit = {
     util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, true)
-
-    val sqlQuery =
-      """
-        |(SELECT a, random_udf() FROM x WHERE a > 10)
-        |UNION ALL
-        |(SELECT a, random_udf() FROM x WHERE a > 10)
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testReusableSubplanOnCalcWithNonDeterministicUdfDisabled(): Unit = {
-    util.tableEnv.registerFunction("random_udf",  new NonDeterministicUdf())
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, false)
-
-    val sqlQuery =
-      """
-        |(SELECT a FROM x WHERE b > random_udf(a))
-        |UNION ALL
-        |(SELECT a FROM x WHERE b > random_udf(a))
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testReusableSubplanOnCalcWithNonDeterministicUdfEnabled(): Unit = {
-    util.tableEnv.registerFunction("random_udf",  new NonDeterministicUdf())
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, true)
 
     val sqlQuery =
       """
@@ -190,28 +156,10 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testReusableSubplanOnAggregateWithNonDeterministicAggCallDisabled(): Unit = {
+  def testSubplanReuseOnAggregateWithNonDeterministicAggCall(): Unit = {
     // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
     util.tableEnv.registerFunction("MyFirst", new IntFirstValueAggFunction)
     util.tableEnv.registerFunction("MyLast", new LongLastValueAggFunction)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, false)
-
-    val sqlQuery =
-      """
-        |WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
-        |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testReusableSubplanOnAggregateWithNonDeterministicAggCallEnabled(): Unit = {
-    // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
-    util.tableEnv.registerFunction("MyFirst", new IntFirstValueAggFunction)
-    util.tableEnv.registerFunction("MyLast", new LongLastValueAggFunction)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, true)
 
     val sqlQuery =
       """
@@ -260,7 +208,7 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testReusableSubplanOnJoin(): Unit = {
+  def testSubplanReuseOnJoin(): Unit = {
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON ABS(a) = ABS(d) OR c = f
@@ -274,27 +222,8 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testReusableSubplanOnJoinNonDeterministicJoinConditionDisabled(): Unit = {
+  def testSubplanReuseOnJoinNonDeterministicJoinCondition(): Unit = {
     util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, false)
-    val sqlQuery =
-      """
-        |WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
-        |           WHERE b > 1 and e < 2)
-        |
-        |SELECT a, b FROM r
-        |UNION ALL
-        |SELECT a, b * 2 AS b FROM r
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testReusableSubplanOnJoinNonDeterministicJoinConditionEnabled(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, true)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
@@ -318,26 +247,9 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testSubplanReuseOnOverWindowWithNonDeterministicAggCallDisabled(): Unit = {
+  def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
     // IntFirstValueAggFunction is deterministic
     util.tableEnv.registerFunction("MyFirst", new IntFirstValueAggFunction)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, false)
-
-    val sqlQuery =
-      """
-        |WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
-        |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testSubplanReuseOnOverWindowWithNonDeterministicAggCallEnabled(): Unit = {
-    // IntFirstValueAggFunction is deterministic
-    util.tableEnv.registerFunction("MyFirst", new IntFirstValueAggFunction)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, true)
 
     val sqlQuery =
       """
@@ -361,32 +273,14 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
-  def testSubplanReuseOnCorrelateWithNonDeterministicUDTFDisabled(): Unit = {
+  def testSubplanReuseOnCorrelateWithNonDeterministicUDTF(): Unit = {
     util.tableEnv.registerFunction("TableFun", new NonDeterministicTableFunc)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, false)
 
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
         |SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
       """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testSubplanReuseOnCorrelateWithNonDeterministicUDTFEnabled(): Unit = {
-    util.tableEnv.registerFunction("TableFun", new NonDeterministicTableFunc)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED, true)
-
-    val sqlQuery =
-      """
-        |WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
-        |SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
-      """.stripMargin
-    // TODO the sub-plan of Correlate should be reused,
-    // however the digests of Correlates are different
     util.verifyPlan(sqlQuery)
   }
 

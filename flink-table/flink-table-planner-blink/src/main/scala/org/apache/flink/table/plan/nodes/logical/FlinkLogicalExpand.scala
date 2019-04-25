@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.{Expand, LogicalExpand}
-import org.apache.flink.table.plan.util.ExpandUtil
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -47,8 +46,6 @@ class FlinkLogicalExpand(
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
   }
-
-  override def isDeterministic: Boolean = ExpandUtil.isDeterministic(projects)
 
 }
 

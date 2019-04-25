@@ -67,8 +67,6 @@ class StreamExecSink[T](
     new StreamExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

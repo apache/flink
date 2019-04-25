@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.FlinkRexUtil
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRuleCall, RelTraitSet}
@@ -75,8 +74,6 @@ class FlinkLogicalTableFunctionScan(
       rowType,
       columnMappings)
   }
-
-  override def isDeterministic: Boolean = FlinkRexUtil.isDeterministicOperator(rexCall)
 
 }
 

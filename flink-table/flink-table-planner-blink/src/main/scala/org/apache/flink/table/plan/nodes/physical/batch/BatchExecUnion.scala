@@ -58,8 +58,6 @@ class BatchExecUnion(
       .item("union", getRowType.getFieldNames.mkString(", "))
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED

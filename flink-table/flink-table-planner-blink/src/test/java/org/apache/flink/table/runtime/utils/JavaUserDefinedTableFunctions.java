@@ -97,10 +97,10 @@ public class JavaUserDefinedTableFunctions {
 		public void eval(String str, String separatorChars, int startIndex) {
 			if (str != null) {
 				String[] strs = StringUtils.split(str, separatorChars);
-				if (startIndex<0) {
+				if (startIndex < 0) {
 					startIndex = 0;
 				}
-				for(int i = startIndex; i < strs.length; ++ i) {
+				for (int i = startIndex; i < strs.length; ++i) {
 					collect(strs[i]);
 				}
 			}
@@ -114,7 +114,7 @@ public class JavaUserDefinedTableFunctions {
 
 		@Override
 		public TypeInformation<String> getResultType() {
-			return  Types.STRING;
+			return Types.STRING;
 		}
 	}
 

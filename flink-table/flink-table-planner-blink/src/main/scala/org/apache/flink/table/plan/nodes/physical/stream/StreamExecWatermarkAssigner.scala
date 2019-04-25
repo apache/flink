@@ -89,8 +89,6 @@ class StreamExecWatermarkAssigner(
     super.explainTerms(pw).item("miniBatchInterval", value)
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

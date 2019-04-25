@@ -38,10 +38,7 @@ object SubplanReuseUtil {
     }
     val tableSourceReuseEnabled = tableConfig.getConf.getBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED)
-    val nonDeterministicOpReuseEnabled = tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED)
-    val context = new SubplanReuseContext(
-      tableSourceReuseEnabled, nonDeterministicOpReuseEnabled, rels: _*)
+    val context = new SubplanReuseContext(tableSourceReuseEnabled, rels: _*)
     val reuseShuttle = new SubplanReuseShuttle(context)
     rels.map(_.accept(reuseShuttle))
   }
@@ -70,12 +67,9 @@ object SubplanReuseUtil {
   * }}}
   * Project1-Scan1 and Project2-Scan2 have same digest, so they are in a reusable sub-plan group.
   */
-class SubplanReuseContext(
-    tableSourceReuseEnabled: Boolean,
-    nonDeterministicOpReuseEnabled: Boolean,
-    roots: RelNode*) {
+class SubplanReuseContext(tableSourceReuseEnabled: Boolean, roots: RelNode*) {
   // mapping a relNode to its digest
-  private val digestCache = Maps.newIdentityHashMap[RelNode, String]()
+  private val mapRelToDigest = Maps.newIdentityHashMap[RelNode, String]()
   // mapping the digest to RelNodes
   private val mapDigestToReusableNodes = new util.HashMap[String, util.List[RelNode]]()
 
@@ -86,7 +80,14 @@ class SubplanReuseContext(
     * Return the digest of the given rel node.
     */
   def getRelDigest(node: RelNode): String = {
-    RelDigestUtil.getDigestWithCache(node, !nonDeterministicOpReuseEnabled, digestCache)
+    val digest = mapRelToDigest.get(node)
+    if (digest != null) {
+      digest
+    } else {
+      val newDigest = RelDigestUtil.getDigest(node)
+      mapRelToDigest.put(node, newDigest)
+      newDigest
+    }
   }
 
   /**

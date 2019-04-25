@@ -120,13 +120,6 @@ class StreamExecIncrementalGroupAggregate(
         shuffleKey = Some(partialAggGrouping)))
   }
 
-  override def isDeterministic: Boolean = {
-    (partialAggInfoList.getActualAggregateCalls ++
-      finalAggInfoList.getActualAggregateCalls ++
-      finalAggCalls)
-      .forall(c => FlinkRexUtil.isDeterministicOperator(c.getAggregation))
-  }
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

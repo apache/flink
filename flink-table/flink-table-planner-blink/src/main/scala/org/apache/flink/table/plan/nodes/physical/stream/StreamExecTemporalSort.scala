@@ -77,8 +77,6 @@ class StreamExecTemporalSort(
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   /**

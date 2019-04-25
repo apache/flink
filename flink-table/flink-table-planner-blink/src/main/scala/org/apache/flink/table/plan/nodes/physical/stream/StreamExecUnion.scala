@@ -18,16 +18,15 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.{StreamTransformation, UnionTransformation}
+import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.streaming.api.transformations.{StreamTransformation, UnionTransformation}
-import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import java.util
 
@@ -67,8 +66,6 @@ class StreamExecUnion(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw).item("union", outputRowType.getFieldNames.mkString(", "))
   }
-
-  override def isDeterministic: Boolean = true
 
   //~ ExecNode methods -----------------------------------------------------------
 

@@ -23,7 +23,7 @@ import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.util.{FlinkRexUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -96,17 +96,6 @@ class StreamExecWindowJoin(
       .item("where",
         RelExplainUtil.expressionToString(joinCondition, outputRowType, getExpressionString))
       .item("select", getRowType.getFieldNames.mkString(", "))
-  }
-
-  override def isDeterministic: Boolean = {
-    remainCondition match {
-      case Some(condition) =>
-        if (!FlinkRexUtil.isDeterministicOperator(condition)) {
-          return false
-        }
-      case _ => // do nothing
-    }
-    FlinkRexUtil.isDeterministicOperator(joinCondition)
   }
 
   //~ ExecNode methods -----------------------------------------------------------

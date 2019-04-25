@@ -102,15 +102,4 @@ public class PlannerConfigOptions {
 					.withDescription("When true, the optimizer will try to find out duplicated table-source and " +
 							"reuse them. This works only when " + SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED + " is true.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_NONDETERMINISTIC_OPERATOR_ENABLED =
-			key("sql.optimizer.reuse.nondeterministic-operator.enabled")
-					.defaultValue(false)
-					.withDescription("When true, the optimizer will try to find out duplicated " +
-							"non-deterministic operator and reuse them. This works only when " +
-							"" + SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED + " is true. \n" +
-							"Non-deterministic operator contains :\n" +
-							"1. non-deterministic [[ScalarFunction]] (UDF, e.g. now)\n" +
-							"2. non-deterministic [[AggregateFunction]] (UDAF)\n" +
-							"3. non-deterministic [[TableFunction]] (UDTF)");
-
 }

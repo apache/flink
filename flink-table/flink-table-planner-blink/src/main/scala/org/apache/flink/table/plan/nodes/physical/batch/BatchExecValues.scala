@@ -60,8 +60,6 @@ class BatchExecValues(
       .item("values", getRowType.getFieldNames.toList.mkString(", "))
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED

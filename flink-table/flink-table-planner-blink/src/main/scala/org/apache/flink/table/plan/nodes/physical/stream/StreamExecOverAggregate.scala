@@ -23,7 +23,7 @@ import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.util.{OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -119,8 +119,6 @@ class StreamExecOverAggregate(
     for (i <- 0 until aggregateCalls.size())
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "w0$o" + i)
   }
-
-  override def isDeterministic: Boolean = OverAggregateUtil.isDeterministic(logicWindow.groups)
 
   //~ ExecNode methods -----------------------------------------------------------
 

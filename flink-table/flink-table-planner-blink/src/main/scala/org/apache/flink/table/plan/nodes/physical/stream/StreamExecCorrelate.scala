@@ -103,8 +103,6 @@ class StreamExecCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  override def isDeterministic: Boolean = CorrelateUtil.isDeterministic(scan, condition)
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] =

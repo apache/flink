@@ -24,8 +24,6 @@ import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableImpl}
 import org.apache.flink.table.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 
-import com.google.common.collect.Maps
-import org.apache.calcite.rel.RelNode
 import org.junit.Assert.assertEquals
 import org.junit.{Before, Test}
 
@@ -38,7 +36,6 @@ class RelDigestUtilTest {
 
   @Before
   def before(): Unit = {
-    RelDigestUtil.nonDeterministicIdCounter.set(0)
     val conf = new TableConfig()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
@@ -63,7 +60,7 @@ class RelDigestUtilTest {
       """.stripMargin)
     val rel = table.asInstanceOf[TableImpl].getRelNode
     val expected = readFromResource("testGetDigestWithDynamicFunction.out")
-    assertEquals(expected, RelDigestUtil.getDigest(rel, addUniqueIdForNonDeterministicOp = true))
+    assertEquals(expected, RelDigestUtil.getDigest(rel))
   }
 
   @Test
@@ -80,26 +77,7 @@ class RelDigestUtilTest {
       """.stripMargin)
     val rel = table.asInstanceOf[TableImpl].getRelNode.accept(new ExpandTableScanShuttle())
     val expected = readFromResource("testGetDigestWithDynamicFunctionView.out")
-    assertEquals(expected, RelDigestUtil.getDigest(rel, addUniqueIdForNonDeterministicOp = true))
-  }
-
-  @Test
-  def testGetDigestWithDynamicFunctionViewAndCache(): Unit = {
-    val view = tableEnv.sqlQuery("SELECT id AS random FROM MyTable ORDER BY rand() LIMIT 1")
-    tableEnv.registerTable("MyView", view)
-    val table = tableEnv.sqlQuery(
-      """
-        |(SELECT * FROM MyView)
-        |INTERSECT
-        |(SELECT * FROM MyView)
-        |INTERSECT
-        |(SELECT * FROM MyView)
-      """.stripMargin)
-    val rel = table.asInstanceOf[TableImpl].getRelNode.accept(new ExpandTableScanShuttle())
-    val expected = readFromResource("testGetDigestWithDynamicFunctionViewAndCache.out")
-    val cache = Maps.newIdentityHashMap[RelNode, String]()
-    assertEquals(expected, RelDigestUtil.getDigestWithCache(
-      rel, addUniqueIdForNonDeterministicOp = true, cache))
+    assertEquals(expected, RelDigestUtil.getDigest(rel))
   }
 
   private def readFromResource(name: String): String = {

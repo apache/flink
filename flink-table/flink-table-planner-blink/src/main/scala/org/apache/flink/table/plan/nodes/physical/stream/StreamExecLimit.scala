@@ -90,8 +90,6 @@ class StreamExecLimit(
       .item("fetch", RelExplainUtil.fetchToString(fetch))
   }
 
-  override def isDeterministic: Boolean = SortUtil.isDeterministic(offset, fetch)
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {

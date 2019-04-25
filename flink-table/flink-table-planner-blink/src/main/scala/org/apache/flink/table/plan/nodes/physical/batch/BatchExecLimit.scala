@@ -86,8 +86,6 @@ class BatchExecLimit(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, 0)
   }
 
-  override def isDeterministic: Boolean = SortUtil.isDeterministic(offset, fetch)
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED

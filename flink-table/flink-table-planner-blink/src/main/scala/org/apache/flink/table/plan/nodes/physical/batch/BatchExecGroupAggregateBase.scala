@@ -20,15 +20,13 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.{AggregateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.tools.RelBuilder
-
-import scala.collection.JavaConverters._
 
 /**
   * Batch physical RelNode for aggregate.
@@ -65,8 +63,6 @@ abstract class BatchExecGroupAggregateBase(
   }
 
   override def deriveRowType(): RelDataType = outputRowType
-
-  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(getAggCallList.asJava)
 
   def getGrouping: Array[Int] = grouping
 

@@ -57,8 +57,6 @@ class FlinkLogicalValues(
     planner.getCostFactory.makeCost(dRows, dCpu, dIo)
   }
 
-  override def isDeterministic: Boolean = true
-
 }
 
 private class FlinkLogicalValuesConverter

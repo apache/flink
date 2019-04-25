@@ -50,10 +50,6 @@ import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil extends Enumeration {
 
-  def isDeterministic(aggCalls: util.List[AggregateCall]): Boolean = {
-    aggCalls.forall(c => FlinkRexUtil.isDeterministicOperator(c.getAggregation))
-  }
-
   /**
     * Returns whether any of the aggregates are accurate DISTINCT.
     *

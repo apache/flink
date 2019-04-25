@@ -86,8 +86,6 @@ class BatchExecSort(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior = DamBehavior.FULL_DAM

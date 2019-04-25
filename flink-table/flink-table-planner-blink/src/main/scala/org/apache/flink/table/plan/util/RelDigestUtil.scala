@@ -18,21 +18,13 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.FlinkRelNode
-import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, Sink, WatermarkAssigner}
-import org.apache.flink.table.plan.nodes.common.CommonCalc
-
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.externalize.RelWriterImpl
-import org.apache.calcite.rel.rules.MultiJoin
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
 import java.io.{PrintWriter, StringWriter}
 import java.util
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
 
@@ -69,12 +61,8 @@ import scala.collection.JavaConversions._
   * on `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])` as digest,
   * we will get incorrect result. So rewrite `explain_` method of `RelWriterImpl` to
   * add row-type to digest value.
-  *
-  * NOTES: in some cases, non-deterministic operator can't not be reused by digest, so adds
-  * unique id for non-deterministic operator into its digest to distinguish different rel with
-  * same explain terms. This writer is stateless, and may get different result for same rel object.
   */
-class RelDigestWriterImpl(sw: StringWriter, addUniqueIdForNonDeterministicOp: Boolean)
+class RelDigestWriterImpl(sw: StringWriter)
   extends RelWriterImpl(new PrintWriter(sw), SqlExplainLevel.DIGEST_ATTRIBUTES, false) {
 
   override def explain_(rel: RelNode, values: util.List[Pair[String, AnyRef]]): Unit = {
@@ -109,122 +97,24 @@ class RelDigestWriterImpl(sw: StringWriter, addUniqueIdForNonDeterministicOp: Bo
       s.append(",")
     }
     s.append("rowType=[").append(rel.getRowType.toString).append("]")
-    // if the given rel contains non-deterministic `SqlOperator`,
-    // add a unique id to distinguish each other
-    if (addUniqueIdForNonDeterministicOp && !isDeterministicOperator(rel)) {
-      s.append(",nonDeterministicId=[")
-        .append(RelDigestUtil.nonDeterministicIdCounter.incrementAndGet()).append("]")
-    }
     s.append(")")
     s.toString()
   }
 
-  /**
-    * Return true if the given rel does not contain non-deterministic `SqlOperator`
-    * and dynamic function `SqlOperator`(e.g. op in `RexCall`, op in `SqlAggFunction`),
-    * otherwise false.
-    */
-  private def isDeterministicOperator(rel: RelNode): Boolean = {
-    rel match {
-      case r: FlinkRelNode => r.isDeterministic
-      case f: Filter => FlinkRexUtil.isDeterministicOperator(f.getCondition)
-      case p: Project => p.getProjects.forall(p => FlinkRexUtil.isDeterministicOperator(p))
-      case c: Calc => CommonCalc.isDeterministic(c.getProgram)
-      case s: Sort => SortUtil.isDeterministic(s.offset, s.fetch)
-      case j: Join => FlinkRexUtil.isDeterministicOperator(j.getCondition)
-      case a: Aggregate => AggregateUtil.isDeterministic(a.getAggCallList)
-      case w: Window => OverAggregateUtil.isDeterministic(w.groups)
-      case s: TableFunctionScan => FlinkRexUtil.isDeterministicOperator(s.getCall)
-      case m: MultiJoin =>
-        m.getOuterJoinConditions.forall(FlinkRexUtil.isDeterministicOperator) &&
-          FlinkRexUtil.isDeterministicOperator(m.getJoinFilter) &&
-          FlinkRexUtil.isDeterministicOperator(m.getPostJoinFilter)
-      case t: TableModify =>
-        t.getSourceExpressionList != null &&
-          t.getSourceExpressionList.forall(FlinkRexUtil.isDeterministicOperator)
-      case e: Expand => ExpandUtil.isDeterministic(e.projects)
-      case _: Collect | _: Correlate | _: Exchange | _: SetOp | _: Sample |
-           _: TableScan | _: Uncollect | _: Values | _: Sink | _: Rank |
-           _: WatermarkAssigner => true
-      case o => throw new TableException(
-        s"Unsupported RelNode: ${o.getRelTypeName}, which should be handled before this exception")
-    }
-  }
-
-}
-
-/**
-  * A RelDigestWriterImpl that will cache explain result for each rel in given rel tree.
-  * NOTES: Different from RelDigestWriterImpl, this writer is stateful and always returns
-  * same result for same rel object whether the rel tree contains non-deterministic operator.
-  */
-class CachedRelDigestWriterImpl(
-    sw: StringWriter,
-    addUniqueIdForNonDeterministicOp: Boolean,
-    digestCache: util.IdentityHashMap[RelNode, String])
-  extends RelDigestWriterImpl(sw, addUniqueIdForNonDeterministicOp) {
-
-  require(digestCache != null)
-
-  override def explain_(rel: RelNode, values: util.List[Pair[String, AnyRef]]): Unit = {
-    val cachedDigest = digestCache.get(rel)
-    if (cachedDigest != null) {
-      pw.println(cachedDigest)
-      return
-    }
-
-    val inputs = rel.getInputs
-    val mq = rel.getCluster.getMetadataQuery
-    if (!mq.isVisibleInExplain(rel, getDetailLevel)) {
-      // render children in place of this, at same level
-      inputs.foreach(_.explain(this))
-      return
-    }
-    val s = explainRel(rel, values)
-    pw.println(s)
-    inputs.foreach(_.explain(this))
-
-    val digest = if (inputs.isEmpty) s else s"$s\n${inputs.map(digestCache.get).mkString("\n")}"
-    digestCache.put(rel, digest)
-  }
 }
 
 object RelDigestUtil {
-  private[flink] val nonDeterministicIdCounter = new AtomicInteger(0)
 
   /**
     * Gets the digest for a rel tree.
     *
     * @param rel rel node tree
-    * @param addUniqueIdForNonDeterministicOp whether add unique id for non-deterministic operator.
     * @return The digest of given rel tree.
     */
-  def getDigest(
-      rel: RelNode,
-      addUniqueIdForNonDeterministicOp: Boolean): String = {
+  def getDigest(rel: RelNode): String = {
     val sw = new StringWriter
-    rel.explain(new RelDigestWriterImpl(sw, addUniqueIdForNonDeterministicOp))
+    rel.explain(new RelDigestWriterImpl(sw))
     sw.toString
   }
 
-  /**
-    * Gets the digest for a rel tree.
-    *
-    * <p>NOTES: this method will cache explain result for each rel in given rel tree,
-    * and always returns same result for same rel object whether the rel tree contains
-    * non-deterministic operator.
-    *
-    * @param rel rel node tree
-    * @param addUniqueIdForNonDeterministicOp whether add unique id for non-deterministic operator.
-    * @param digestCache cache digest of each rel in the given tree.
-    * @return The digest of given rel tree.
-    */
-  def getDigestWithCache(
-      rel: RelNode,
-      addUniqueIdForNonDeterministicOp: Boolean,
-      digestCache: util.IdentityHashMap[RelNode, String]): String = {
-    val sw = new StringWriter
-    rel.explain(new CachedRelDigestWriterImpl(sw, addUniqueIdForNonDeterministicOp, digestCache))
-    sw.toString
-  }
 }

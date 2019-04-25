@@ -58,8 +58,6 @@ class FlinkLogicalIntersect(
     }
   }
 
-  override def isDeterministic: Boolean = true
-
 }
 
 private class FlinkLogicalIntersectConverter

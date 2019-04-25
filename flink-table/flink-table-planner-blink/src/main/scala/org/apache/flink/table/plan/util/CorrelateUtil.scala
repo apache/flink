@@ -18,7 +18,6 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl}
 import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexNode, RexProgram, RexProgramBuilder}
@@ -30,16 +29,6 @@ import scala.collection.mutable.ListBuffer
   * An utility class for optimizing and generating ExecCorrelate operators.
   */
 object CorrelateUtil {
-
-  def isDeterministic(scan: FlinkLogicalTableFunctionScan, condition: Option[RexNode]): Boolean = {
-    if (!FlinkRexUtil.isDeterministicOperator(scan.getCall)) {
-      return false
-    }
-    condition match {
-      case Some(c) => FlinkRexUtil.isDeterministicOperator(c)
-      case _ => true
-    }
-  }
 
   def projectable(downsideCalc: RexProgram, correlateProgram: Option[RexProgram]): Boolean = {
     val refs = downsideCalc.getReferenceCounts

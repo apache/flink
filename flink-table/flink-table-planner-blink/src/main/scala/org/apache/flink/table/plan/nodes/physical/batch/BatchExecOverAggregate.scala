@@ -36,7 +36,7 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
-import org.apache.flink.table.plan.util.{AggregateUtil, OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.over.frame.OffsetOverFrame.CalcOffsetFunc
 import org.apache.flink.table.runtime.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
 import org.apache.flink.table.runtime.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
@@ -241,8 +241,6 @@ class BatchExecOverAggregate(
     }
     windowGroupInfo
   }
-
-  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(aggregateCalls)
 
   //~ ExecNode methods -----------------------------------------------------------
 

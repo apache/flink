@@ -61,8 +61,6 @@ class BatchExecTableSourceScan(
     planner.getCostFactory.makeCost(rowCnt, cpu, size)
   }
 
-  override def isDeterministic: Boolean = true
-
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
