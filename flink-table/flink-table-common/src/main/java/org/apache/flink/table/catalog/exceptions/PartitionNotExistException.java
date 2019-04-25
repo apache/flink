@@ -16,33 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.catalog.exceptions;
 
-import org.apache.flink.table.plan.stats.TableStats;
-
-import java.util.List;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * Represents a table in a catalog.
+ * Exception for operation on a nonexistent partition.
  */
-public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Get the statistics of the table.
-	 * @return table statistics
-	 */
-	TableStats getStatistics();
+public class PartitionNotExistException extends Exception {
+	private static final String MSG = "Partition %s of table %s in catalog %s does not exist.";
 
-	/**
-	 * Check if the table is partitioned or not.
-	 *
-	 * @return true if the table is partitioned; otherwise, false
-	 */
-	boolean isPartitioned();
+	public PartitionNotExistException(
+		String catalogName,
+		ObjectPath tablePath,
+		CatalogPartitionSpec partitionSpec) {
 
-	/**
-	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
-	 *
-	 * @return partition keys of the table
-	 */
-	List<String> getPartitionKeys();
+		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), null);
+	}
+
+	public PartitionNotExistException(
+		String catalogName,
+		ObjectPath tablePath,
+		CatalogPartitionSpec partitionSpec,
+		Throwable cause) {
+
+		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), cause);
+	}
 }

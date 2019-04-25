@@ -16,33 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.catalog.exceptions;
 
-import org.apache.flink.table.plan.stats.TableStats;
-
-import java.util.List;
+import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * Represents a table in a catalog.
+ * Exception for trying to operate partition on a non-partitioned table.
  */
-public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Get the statistics of the table.
-	 * @return table statistics
-	 */
-	TableStats getStatistics();
+public class TableNotPartitionedException extends Exception {
 
-	/**
-	 * Check if the table is partitioned or not.
-	 *
-	 * @return true if the table is partitioned; otherwise, false
-	 */
-	boolean isPartitioned();
+	private static final String MSG = "Table %s in catalog %s is not partitioned.";
 
-	/**
-	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
-	 *
-	 * @return partition keys of the table
-	 */
-	List<String> getPartitionKeys();
+	public TableNotPartitionedException(String catalogName, ObjectPath tablePath) {
+		this(catalogName, tablePath, null);
+	}
+
+	public TableNotPartitionedException(String catalogName, ObjectPath tablePath, Throwable cause) {
+		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+	}
 }
