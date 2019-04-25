@@ -177,5 +177,20 @@
 			<destName>flink-streaming-python_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<!-- Python Table API -->
+		<file>
+			<source>../flink-python/flink-python-table/target/flink-python-table-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-python-table-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
+	<fileSets>
+		<fileSet>
+			<directory>../flink-python/flink-python-table/lib/</directory>
+			<outputDirectory>opt/python/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+	</fileSets>
 </assembly>
