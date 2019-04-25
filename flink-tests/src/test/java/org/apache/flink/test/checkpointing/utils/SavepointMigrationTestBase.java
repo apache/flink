@@ -20,6 +20,7 @@ package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -47,15 +49,14 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-
 import static junit.framework.Assert.fail;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 
 /**
@@ -75,7 +76,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	public final MiniClusterWithClientResource miniClusterResource;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
-	private static final Deadline DEADLINE = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+	private static final Deadline DEADLINE = Deadline.fromNow(Duration.ofMinutes(5));
 	protected static final int DEFAULT_PARALLELISM = 4;
 
 	protected static String getResourceFilename(String filename) {
@@ -184,6 +185,9 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		} else {
 			FileUtils.moveFile(jobManagerSavepoint, new File(savepointPath));
 		}
+
+		client.cancel(jobGraph.getJobID());
+		waitJobCanceled(client, jobGraph.getJobID());
 	}
 
 	@SafeVarargs
@@ -244,5 +248,19 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		if (!done) {
 			fail("Did not see the expected accumulator results within time limit.");
 		}
+
+		client.cancel(jobGraph.getJobID());
+		waitJobCanceled(client, jobGraph.getJobID());
+	}
+
+	private void waitJobCanceled(ClusterClient<?> client, JobID jobId) throws Exception {
+		CommonTestUtils.waitUntilCondition(() -> {
+			final JobStatus jobStatus = client.getJobStatus(jobId).get(DEADLINE.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			if (jobStatus == JobStatus.CANCELED) {
+				return true;
+			}
+			assertFalse("Unexpected status " + jobStatus + " of job " + jobId, jobStatus.isGloballyTerminalState());
+			return false;
+		}, DEADLINE);
 	}
 }
