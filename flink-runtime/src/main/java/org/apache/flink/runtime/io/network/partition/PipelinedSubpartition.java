@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -30,6 +31,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -56,6 +58,13 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	// ------------------------------------------------------------------------
 
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	private final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
+
+	/** The number of non-event buffers currently in this subpartition. */
+	@GuardedBy("buffers")
+	private int buffersInBacklog;
+
 	/** The read view to consume this subpartition. */
 	private PipelinedSubpartitionView readView;
 
@@ -67,6 +76,12 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
+
+	/** The total number of buffers (both data and event buffers). */
+	private long totalNumberOfBuffers;
+
+	/** The total number of bytes (both data and event buffers). */
+	private long totalNumberOfBytes;
 
 	// ------------------------------------------------------------------------
 
@@ -298,6 +313,61 @@ class PipelinedSubpartition extends ResultSubpartition {
 		if (notifyDataAvailable) {
 			notifyDataAvailable();
 		}
+	}
+
+	@Override
+	protected long getTotalNumberOfBuffers() {
+		return totalNumberOfBuffers;
+	}
+
+	@Override
+	protected long getTotalNumberOfBytes() {
+		return totalNumberOfBytes;
+	}
+
+	Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
+
+	private void updateStatistics(BufferConsumer buffer) {
+		totalNumberOfBuffers++;
+	}
+
+	private void updateStatistics(Buffer buffer) {
+		totalNumberOfBytes += buffer.getSize();
+	}
+
+	@GuardedBy("buffers")
+	private void decreaseBuffersInBacklogUnsafe(boolean isBuffer) {
+		assert Thread.holdsLock(buffers);
+		if (isBuffer) {
+			buffersInBacklog--;
+		}
+	}
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	@GuardedBy("buffers")
+	private void increaseBuffersInBacklog(BufferConsumer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
+	}
+
+	/**
+	 * Gets the number of non-event buffers in this subpartition.
+	 *
+	 * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
+	 * scenarios since it does not make any concurrency guarantees.
+	 */
+	@SuppressWarnings("FieldAccessNotGuarded")
+	@VisibleForTesting
+	public int getBuffersInBacklog() {
+		return buffersInBacklog;
 	}
 
 	private boolean shouldNotifyDataAvailable() {
