@@ -26,6 +26,9 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -33,6 +36,8 @@ import java.util.concurrent.CompletableFuture;
  * the JSON requests for all possible history server requests.
  */
 class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
+
+	private static final Logger LOG = LoggerFactory.getLogger(JsonResponseHistoryServerArchivist.class);
 
 	private final JsonArchivist jsonArchivist;
 
@@ -49,6 +54,7 @@ class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
 			FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph));
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} catch (Exception e) {
+			LOG.error("FsJobArchivist archiveJob failed.", e);
 			return FutureUtils.completedExceptionally(e);
 		}
 	}
