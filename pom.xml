@@ -748,6 +748,7 @@ under the License.
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-common</artifactId>
+						<version>${hadoop.version}</version>
 						<exclusions>
 							<exclusion>
 								<!-- This dependency is not available with java 9.-->
@@ -760,7 +761,21 @@ under the License.
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-common</artifactId>
+						<version>${hadoop.version}</version>
 						<type>test-jar</type>
+						<exclusions>
+							<exclusion>
+								<!-- This dependency is not available with java 9.-->
+								<groupId>jdk.tools</groupId>
+								<artifactId>jdk.tools</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-annotations</artifactId>
+						<version>${hadoop.version}</version>
 						<exclusions>
 							<exclusion>
 								<!-- This dependency is not available with java 9.-->
