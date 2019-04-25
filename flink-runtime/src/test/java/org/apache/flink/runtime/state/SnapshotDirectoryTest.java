@@ -95,8 +95,7 @@ public class SnapshotDirectoryTest extends TestLogger {
 		FileSystem.initialize(configuration);
 		File folderB = new File(folderRoot, String.valueOf(UUID.randomUUID()));
 		// only pass the path and leave the scheme missing
-		Path pathB = new Path(folderB.getAbsolutePath());
-		SnapshotDirectory snapshotDirectoryB = SnapshotDirectory.temporary(pathB);
+		SnapshotDirectory snapshotDirectoryB = SnapshotDirectory.temporary(folderB);
 		Assert.assertTrue(snapshotDirectoryB.getFileSystem().equals(FileSystem.getLocalFileSystem()));
 		Assert.assertFalse(snapshotDirectoryB.exists());
 		Assert.assertTrue(folderB.mkdirs());
@@ -213,8 +212,7 @@ public class SnapshotDirectoryTest extends TestLogger {
 		File folderRoot = temporaryFolder.getRoot();
 		File folder = new File(folderRoot, String.valueOf(UUID.randomUUID()));
 		Assert.assertTrue(folder.mkdirs());
-		Path folderPath = new Path(folder.toURI());
-		SnapshotDirectory tmpSnapshotDirectory = SnapshotDirectory.temporary(folderPath);
+		SnapshotDirectory tmpSnapshotDirectory = SnapshotDirectory.temporary(folder);
 		// temporary snapshot directories should not return a handle, because they will be deleted.
 		Assert.assertNull(tmpSnapshotDirectory.completeSnapshotAndGetHandle());
 		// check that the directory is deleted even after we called #completeSnapshotAndGetHandle.
