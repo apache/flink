@@ -68,12 +68,12 @@ object ExternalTableUtil extends Logging {
       statistics: FlinkStatistic)
     : TableSourceTable[T] = tableEnv match {
 
-    case _: BatchTableEnvironment if externalTable.isBatchTable =>
-      val source = TableFactoryUtil.findAndCreateTableSource(tableEnv, externalTable)
+    case _: BatchTableEnvImpl if externalTable.isBatchTable =>
+      val source = TableFactoryUtil.findAndCreateTableSource(externalTable)
       new BatchTableSourceTable[T](source.asInstanceOf[BatchTableSource[T]], statistics)
 
-    case _: StreamTableEnvironment if externalTable.isStreamTable =>
-      val source = TableFactoryUtil.findAndCreateTableSource(tableEnv, externalTable)
+    case _: StreamTableEnvImpl if externalTable.isStreamTable =>
+      val source = TableFactoryUtil.findAndCreateTableSource(externalTable)
       new StreamTableSourceTable[T](source.asInstanceOf[StreamTableSource[T]], statistics)
 
     case _ =>
@@ -87,12 +87,12 @@ object ExternalTableUtil extends Logging {
       statistics: FlinkStatistic)
     : TableSinkTable[T] = tableEnv match {
 
-    case _: BatchTableEnvironment if externalTable.isBatchTable =>
-      val sink = TableFactoryUtil.findAndCreateTableSink(tableEnv, externalTable)
+    case _: BatchTableEnvImpl if externalTable.isBatchTable =>
+      val sink = TableFactoryUtil.findAndCreateTableSink(externalTable)
       new TableSinkTable[T](sink.asInstanceOf[BatchTableSink[T]], statistics)
 
-    case _: StreamTableEnvironment if externalTable.isStreamTable =>
-      val sink = TableFactoryUtil.findAndCreateTableSink(tableEnv, externalTable)
+    case _: StreamTableEnvImpl if externalTable.isStreamTable =>
+      val sink = TableFactoryUtil.findAndCreateTableSink(externalTable)
       new TableSinkTable[T](sink.asInstanceOf[StreamTableSink[T]], statistics)
 
     case _ =>

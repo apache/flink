@@ -21,19 +21,21 @@ package org.apache.flink.table.generated;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.context.ExecutionContext;
+import org.apache.flink.table.dataview.StateDataViewStore;
 
 /**
  * The base class for handling aggregate functions.
- * It encapsulates CodeGenerate and Optimization for all {@link AggregateFunction}s.
- * It is the entry point of Aggregate operators to operate all {@link AggregateFunction}s.
+ *
+ * <p>It is code generated to handle all {@link AggregateFunction}s together in an aggregation.
+ *
+ * <p>It is the entry point for aggregate operators to operate all {@link AggregateFunction}s.
  */
 public interface AggsHandleFunction extends Function {
 
 	/**
 	 * Initialization method for the function. It is called before the actual working methods.
 	 */
-	void open(ExecutionContext ctx) throws Exception;
+	void open(StateDataViewStore store) throws Exception;
 
 	/**
 	 * Accumulates the input values to the accumulators.

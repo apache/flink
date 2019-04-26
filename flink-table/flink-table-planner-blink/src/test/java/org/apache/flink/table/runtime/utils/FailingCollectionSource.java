@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * to perform checkpoint and restore in IT cases.
  */
 public class FailingCollectionSource<T>
-		implements SourceFunction<T>, CheckpointedFunction, CheckpointListener {
+	implements SourceFunction<T>, CheckpointedFunction, CheckpointListener {
 
 	public static volatile boolean failedBefore = false;
 
@@ -85,14 +85,10 @@ public class FailingCollectionSource<T>
 	/** The last successful checkpointed number of emitted elements. */
 	private volatile int lastCheckpointedEmittedNum = 0;
 
-	/** Whether to perform a checkpoint before job finished. */
-	private final boolean performCheckpointBeforeJobFinished;
-
 	public FailingCollectionSource(
-			TypeSerializer<T> serializer,
-			Iterable<T> elements,
-			int failureAfterNumElements,
-			boolean performCheckpointBeforeJobFinished) throws IOException {
+		TypeSerializer<T> serializer,
+		Iterable<T> elements,
+		int failureAfterNumElements) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 
@@ -102,7 +98,8 @@ public class FailingCollectionSource<T>
 				serializer.serialize(element, wrapper);
 				count++;
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
 		}
 
@@ -111,24 +108,23 @@ public class FailingCollectionSource<T>
 		this.numElements = count;
 		checkArgument(failureAfterNumElements > 0);
 		this.failureAfterNumElements = failureAfterNumElements;
-		this.performCheckpointBeforeJobFinished = performCheckpointBeforeJobFinished;
 		this.checkpointedEmittedNums = new HashMap<>();
 	}
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 		Preconditions.checkState(
-				this.checkpointedState == null,
-				"The " + getClass().getSimpleName() + " has already been initialized.");
+			this.checkpointedState == null,
+			"The " + getClass().getSimpleName() + " has already been initialized.");
 
 		this.checkpointedState = context.getOperatorStateStore().getListState(
-				new ListStateDescriptor<>(
-						"from-elements-state",
-						IntSerializer.INSTANCE
-				)
+			new ListStateDescriptor<>(
+				"from-elements-state",
+				IntSerializer.INSTANCE
+			)
 		);
 
-		if (failedBefore && context.isRestored()) {
+		if (context.isRestored()) {
 			List<Integer> retrievedStates = new ArrayList<>();
 			for (Integer entry : this.checkpointedState.get()) {
 				retrievedStates.add(entry);
@@ -136,8 +132,8 @@ public class FailingCollectionSource<T>
 
 			// given that the parallelism of the function is 1, we can only have 1 state
 			Preconditions.checkArgument(
-					retrievedStates.size() == 1,
-					getClass().getSimpleName() + " retrieved invalid state.");
+				retrievedStates.size() == 1,
+				getClass().getSimpleName() + " retrieved invalid state.");
 
 			this.numElementsToSkip = retrievedStates.get(0);
 		}
@@ -156,11 +152,12 @@ public class FailingCollectionSource<T>
 					serializer.deserialize(input);
 					toSkip--;
 				}
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				throw new IOException(
-						"Failed to deserialize an element from the source. " +
-								"If you are using user-defined serialization (Value and Writable types), check the " +
-								"serialization functions.\nSerializer is " + serializer);
+					"Failed to deserialize an element from the source. " +
+						"If you are using user-defined serialization (Value and Writable types), check the " +
+						"serialization functions.\nSerializer is " + serializer);
 			}
 
 			this.numElementsEmitted = this.numElementsToSkip;
@@ -183,11 +180,12 @@ public class FailingCollectionSource<T>
 				T next;
 				try {
 					next = serializer.deserialize(input);
-				} catch (Exception e) {
+				}
+				catch (Exception e) {
 					throw new IOException(
-							"Failed to deserialize an element from the source. " +
-									"If you are using user-defined serialization (Value and Writable types), check the " +
-									"serialization functions.\nSerializer is " + serializer);
+						"Failed to deserialize an element from the source. " +
+							"If you are using user-defined serialization (Value and Writable types), check the " +
+							"serialization functions.\nSerializer is " + serializer);
 				}
 
 				synchronized (ctx.getCheckpointLock()) {
@@ -197,19 +195,6 @@ public class FailingCollectionSource<T>
 			} else {
 				// if our work is done, delay a bit to prevent busy waiting
 				Thread.sleep(1);
-			}
-		}
-
-		if (performCheckpointBeforeJobFinished) {
-			while (isRunning) {
-				// wait until the latest checkpoint records everything
-				if (lastCheckpointedEmittedNum < numElements) {
-					// delay a bit to prevent busy waiting
-					Thread.sleep(1);
-				} else {
-					// cause a failure to retain the last checkpoint
-					throw new Exception("Job finished normally");
-				}
 			}
 		}
 	}
@@ -245,8 +230,8 @@ public class FailingCollectionSource<T>
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Preconditions.checkState(
-				this.checkpointedState != null,
-				"The " + getClass().getSimpleName() + " has not been properly initialized.");
+			this.checkpointedState != null,
+			"The " + getClass().getSimpleName() + " has not been properly initialized.");
 
 		this.checkpointedState.clear();
 		this.checkpointedState.add(this.numElementsEmitted);

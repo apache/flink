@@ -41,7 +41,10 @@ public class DeduplicateKeepLastRowFunction
 	// state stores complete row.
 	private ValueState<BaseRow> state;
 
-	public DeduplicateKeepLastRowFunction(long minRetentionTime, long maxRetentionTime, BaseRowTypeInfo rowTypeInfo,
+	public DeduplicateKeepLastRowFunction(
+			long minRetentionTime,
+			long maxRetentionTime,
+			BaseRowTypeInfo rowTypeInfo,
 			boolean generateRetraction) {
 		super(minRetentionTime, maxRetentionTime);
 		this.rowTypeInfo = rowTypeInfo;

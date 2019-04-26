@@ -20,7 +20,7 @@ package org.apache.flink.table.generated;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.context.ExecutionContext;
+import org.apache.flink.table.dataview.StateDataViewStore;
 
 /**
  * The base class for handling aggregate functions.
@@ -34,7 +34,7 @@ public interface NamespaceAggsHandleFunction<N> extends Function {
 	/**
 	 * Initialization method for the function. It is called before the actual working methods.
 	 */
-	void open(ExecutionContext ctx) throws Exception;
+	void open(StateDataViewStore store) throws Exception;
 
 	/**
 	 * Set the current accumulators (saved in a row) which contains the current

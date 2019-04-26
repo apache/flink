@@ -91,7 +91,15 @@ class StreamExecDataStreamScan(
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = List()
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {

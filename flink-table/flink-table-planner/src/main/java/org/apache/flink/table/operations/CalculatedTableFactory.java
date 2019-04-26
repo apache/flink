@@ -21,58 +21,46 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableEnvImpl$;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionBridge;
+import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FunctionDefinition;
-import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.TableFunctionDefinition;
-import org.apache.flink.table.plan.logical.CalculatedTable;
-import org.apache.flink.table.plan.logical.LogicalNode;
 
 import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_FUNCTION;
 
 /**
- * Utility class for creating a valid {@link CalculatedTable} operation.
+ * Utility class for creating a valid {@link CalculatedTableOperation} operation.
  */
 @Internal
 public class CalculatedTableFactory {
 
-	private final ExpressionBridge<PlannerExpression> bridge;
-
-	public CalculatedTableFactory(ExpressionBridge<PlannerExpression> bridge) {
-		this.bridge = bridge;
-	}
+	private FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor();
 
 	/**
-	 * Creates a valid {@link CalculatedTable} operation.
+	 * Creates a valid {@link CalculatedTableOperation} operation.
 	 *
 	 * @param callExpr call to table function as expression
-	 * @param child relational expression on top of which to apply the {@link CalculatedTable}
 	 * @return valid calculated table
 	 */
-	public CalculatedTable create(Expression callExpr, TableOperation child) {
-		return callExpr.accept(new FunctionTableCallVisitor(child));
+	public TableOperation create(Expression callExpr) {
+		return callExpr.accept(calculatedTableCreator);
 	}
 
-	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedTable> {
-
-		private final TableOperation operation;
-
-		private FunctionTableCallVisitor(TableOperation operation) {
-			this.operation = operation;
-		}
+	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedTableOperation> {
 
 		@Override
-		public CalculatedTable visitCall(CallExpression call) {
+		public CalculatedTableOperation visitCall(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
 				return unwrapFromAlias(call);
@@ -86,15 +74,15 @@ public class CalculatedTableFactory {
 			}
 		}
 
-		private CalculatedTable unwrapFromAlias(CallExpression call) {
+		private CalculatedTableOperation unwrapFromAlias(CallExpression call) {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
-				.map(alias -> ApiExpressionUtils.extractValue(alias, Types.STRING)
+				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 
-			if (!isTableFunctionCall(children.get(0))) {
+			if (!isFunctionOfType(children.get(0), TABLE_FUNCTION)) {
 				throw fail();
 			}
 
@@ -104,7 +92,7 @@ public class CalculatedTableFactory {
 			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getChildren());
 		}
 
-		private CalculatedTable createFunctionCall(
+		private CalculatedTableOperation createFunctionCall(
 				TableFunctionDefinition tableFunctionDefinition,
 				List<String> aliases,
 				List<Expression> parameters) {
@@ -115,7 +103,7 @@ public class CalculatedTableFactory {
 
 			String[] fieldNames;
 			if (aliasesSize == 0) {
-				fieldNames = new String[0];
+				fieldNames = TableEnvImpl$.MODULE$.getFieldNames(resultType);
 			} else if (aliasesSize != callArity) {
 				throw new ValidationException(String.format(
 					"List of column aliases must have same degree as table; " +
@@ -128,21 +116,17 @@ public class CalculatedTableFactory {
 				fieldNames = aliases.toArray(new String[aliasesSize]);
 			}
 
-			return new CalculatedTable(
-				tableFunctionDefinition.getTableFunction(),
-				parameters.stream().map(bridge::bridge).collect(toList()),
-				tableFunctionDefinition.getResultType(),
-				fieldNames,
-				(LogicalNode) operation);
-		}
+			TypeInformation<?>[] fieldTypes = TableEnvImpl$.MODULE$.getFieldTypes(resultType);
 
-		boolean isTableFunctionCall(Expression expression) {
-			return (expression instanceof CallExpression) &&
-				((CallExpression) expression).getFunctionDefinition().getType() == TABLE_FUNCTION;
+			return new CalculatedTableOperation(
+				tableFunctionDefinition.getTableFunction(),
+				parameters,
+				tableFunctionDefinition.getResultType(),
+				new TableSchema(fieldNames, fieldTypes));
 		}
 
 		@Override
-		protected CalculatedTable defaultMethod(Expression expression) {
+		protected CalculatedTableOperation defaultMethod(Expression expression) {
 			throw fail();
 		}
 

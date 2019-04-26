@@ -184,7 +184,7 @@ LogicalAggregate(group=[{0}], groups=[[{0}, {}]], g=[GROUP_ID()], c=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, 0 AS g, c])
+Calc(select=[deptno, 0:BIGINT AS g, c])
 +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
@@ -218,7 +218,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
@@ -278,7 +278,7 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M'), =(deptno, 10)))])
+Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(65536) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
 +- SortAggregate(isMerge=[true], groupBy=[deptno, gender, deptno0, $e], select=[deptno, gender, deptno0, $e, Final_MIN(min$0) AS min_name, Final_COUNT(count1$1) AS $f5])
    +- Sort(orderBy=[deptno ASC, gender ASC, deptno0 ASC, $e ASC])
       +- Exchange(distribution=[hash[deptno, gender, deptno0, $e]])
@@ -318,7 +318,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
@@ -348,7 +348,7 @@ LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(=($e, 0), 0, =($e, 1), 5, 7) AS EXPR$2, c])
+Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:BIGINT, 7:BIGINT) AS EXPR$2, c])
 +- HashAggregate(isMerge=[true], groupBy=[gender, deptno, $e], select=[gender, deptno, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[gender, deptno, $e]])
       +- LocalHashAggregate(groupBy=[gender, deptno, $e], select=[gender, deptno, $e, Partial_COUNT(*) AS count1$0])
@@ -400,7 +400,7 @@ from scott_emp
     <Resource name="planBefore">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
-+- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename', =($5, 1), _UTF-16LE'grouped by deptno,job', =($5, 3), _UTF-16LE'grouped by deptno', =($5, 7), _UTF-16LE'grouped by ()', null)])
++- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE")])
    +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2, 3}, {0, 1}, {0}, {}]], sumsal=[SUM($4)], agg#1=[GROUPING_ID($0, $1, $2)])
       +- LogicalProject(deptno=[$7], job=[$2], empno=[$0], ename=[$1], sal=[$5])
          +- LogicalTableScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
@@ -408,19 +408,16 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
-+- Exchange(distribution=[single])
-   +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
-      +- Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 0), _UTF-16LE'grouped by deptno,job,empno,ename', =(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 1), _UTF-16LE'grouped by deptno,job', =(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 3), _UTF-16LE'grouped by deptno', =(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 7), _UTF-16LE'grouped by ()', null) AS gr_text])
-         +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
-            +- Exchange(distribution=[single])
-               +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
-                  +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
-                     +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
-                        +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
-                           +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
-                              +- Calc(select=[deptno, job, empno, ename, sal])
-                                 +- TableSourceScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE") AS gr_text])
++- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
+   +- Exchange(distribution=[single])
+      +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
+         +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
+            +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
+               +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
+                  +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
+                     +- Calc(select=[deptno, job, empno, ename, sal])
+                        +- TableSourceScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -448,11 +445,11 @@ LogicalProject(c=[$2], gd=[$3], gid=[$4], gdgd=[$5], gidgd=[$6])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gd, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gid, CASE(=($e, 0), 0, =($e, 1), 2, 7) AS gdgd, CASE(=($e, 0), 0, =($e, 1), 2, 7) AS gidgd])
+Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gid, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gdgd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gidgd])
 +- HashAggregate(isMerge=[true], groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
-         +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0), =($e, 1)), 0, 1), CASE(=($e, 0), 0, =($e, 1), 2, 7))])
+         +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT), CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT))])
             +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[null], $e=[3]}], projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
                +- Calc(select=[deptno, gender])
                   +- TableSourceScan(table=[[emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
@@ -482,7 +479,7 @@ LogicalProject(c=[$2], g=[$3], gid=[$4], gd=[$5], gg=[$6], ggd=[$7], gdg=[$8])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS g, 0 AS gid, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gd, CASE(=($e, 0), 0, 1) AS gg, CASE(=($e, 0), 0, =($e, 1), 2, 3) AS ggd, CASE(=($e, 0), 0, =($e, 1), 1, 3) AS gdg])
+Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS g, 0:BIGINT AS gid, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 3:BIGINT) AS ggd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gdg])
 +- HashAggregate(isMerge=[true], groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
@@ -516,7 +513,7 @@ LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gi
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gd, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gg, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS dg, CASE(=($e, 0), 0, =($e, 1), 2, =($e, 2), 1, 3) AS gd0, 0 AS gid, c])
+Calc(select=[deptno, gender, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS dg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, =($e, 2:BIGINT), 1:BIGINT, 3:BIGINT) AS gd0, 0:BIGINT AS gid, c])
 +- HashAggregate(isMerge=[true], groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
@@ -547,7 +544,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()], d
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, job, c, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS d, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS j, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS x])
+Calc(select=[deptno, job, c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS d, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS j, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS x])
 +- HashAggregate(isMerge=[true], groupBy=[deptno, job, $e], select=[deptno, job, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno, job, $e]])
       +- LocalHashAggregate(groupBy=[deptno, job, $e], select=[deptno, job, $e, Partial_COUNT(*) AS count1$0])
@@ -571,7 +568,7 @@ LogicalProject(c=[$1], g=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, 0 AS g])
+Calc(select=[c, 0:BIGINT AS g])
 +- HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno]])
       +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_COUNT(*) AS count1$0])
@@ -596,7 +593,7 @@ LogicalProject(c=[$1], deptno=[$0], g=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, deptno, CASE(=($e, 0), 0, 1) AS g])
+Calc(select=[c, deptno, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
 +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
@@ -622,7 +619,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)], g=[GROUP_ID()
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g])
+Calc(select=[b, c, a, 0:BIGINT AS g])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
@@ -678,7 +675,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], g=[GROUP_
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(=($e, 1), 0, 1) AS gb, CASE(=($e, 1), 1, =($e, 2), 0, 1) AS gc, CASE(=($e, 1), 0, 1) AS gib, CASE(=($e, 1), 1, =($e, 2), 0, 1) AS gic, CASE(=($e, 1), 1, =($e, 2), 2, 3) AS gid, cnt])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid, cnt])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS a, Final_COUNT(count1$2) AS cnt])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1), Partial_COUNT(*) AS count1$2])
@@ -734,7 +731,7 @@ Calc(select=[c])
 +- SortLimit(orderBy=[$f2 ASC, c ASC], offset=[0], fetch=[200], global=[true])
    +- Exchange(distribution=[single])
       +- SortLimit(orderBy=[$f2 ASC, c ASC], offset=[0], fetch=[200], global=[false])
-         +- Calc(select=[deptno, c, CASE(=($e, 0), 0, 1) AS $f2])
+         +- Calc(select=[deptno, c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS $f2])
             +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
                +- Exchange(distribution=[hash[deptno, $e]])
                   +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
@@ -764,7 +761,7 @@ LogicalAggregate(group=[{0}], a=[AVG($1)], g=[GROUP_ID()], gb=[GROUPING($0)], gi
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, a, 0 AS g, 0 AS gb, 0 AS gib])
+Calc(select=[deptno, a, 0:BIGINT AS g, 0:BIGINT AS gb, 0:BIGINT AS gib])
 +- HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_AVG(sum$0, count$1) AS a])
    +- Exchange(distribution=[hash[deptno]])
       +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_AVG(age) AS (sum$0, count$1)])
@@ -797,7 +794,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GRO
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
@@ -830,7 +827,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GRO
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
@@ -953,10 +950,10 @@ LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[true])
-+- Exchange(distribution=[single])
-   +- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[false])
-      +- Calc(select=[gender, c])
+Calc(select=[gender, c])
++- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[true])
+   +- Exchange(distribution=[single])
+      +- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[false])
          +- HashAggregate(isMerge=[true], groupBy=[gender, $e], select=[gender, $e, Final_COUNT(count1$0) AS c])
             +- Exchange(distribution=[hash[gender, $e]])
                +- LocalHashAggregate(groupBy=[gender, $e], select=[gender, $e, Partial_COUNT(*) AS count1$0])

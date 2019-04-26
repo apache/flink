@@ -19,10 +19,9 @@
 package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.aggfunctions.ConcatWsWithRetractAggFunction.ConcatWsWithRetractAccumulator;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.InvocationTargetException;
@@ -35,7 +34,9 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test case for built-in concatWs with retraction aggregate function.
  */
-public class ConcatWsWithRetractAggFunctionTest extends AggFunctionTestBase<BinaryString, GenericRow> {
+public class ConcatWsWithRetractAggFunctionTest
+	extends AggFunctionTestBase<BinaryString, ConcatWsWithRetractAccumulator> {
+
 	@Override
 	protected List<List<BinaryString>> getInputValueSets() {
 		return Arrays.asList(
@@ -83,7 +84,7 @@ public class ConcatWsWithRetractAggFunctionTest extends AggFunctionTestBase<Bina
 	}
 
 	@Override
-	protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
+	protected AggregateFunction<BinaryString, ConcatWsWithRetractAccumulator> getAggregator() {
 		return new ConcatWsWithRetractAggFunction();
 	}
 
@@ -100,51 +101,48 @@ public class ConcatWsWithRetractAggFunctionTest extends AggFunctionTestBase<Bina
 
 	@Override
 	protected Class<?> getAccClass() {
-		return GenericRow.class;
+		return ConcatWsWithRetractAccumulator.class;
 	}
 
 	@Override
 	protected <E> void validateResult(E expected, E result) {
-		if (expected instanceof GenericRow && result instanceof GenericRow) {
-			assertEqualsListView((GenericRow) expected, (GenericRow) result, 0);
-			assertEqualsListView((GenericRow) expected, (GenericRow) result, 1);
+		if (expected instanceof ConcatWsWithRetractAccumulator && result instanceof ConcatWsWithRetractAccumulator) {
+			ConcatWsWithRetractAccumulator e = (ConcatWsWithRetractAccumulator) expected;
+			ConcatWsWithRetractAccumulator r = (ConcatWsWithRetractAccumulator) result;
+			assertEquals(e.list, r.list);
+			assertEquals(e.list, r.list);
 		} else {
 			super.validateResult(expected, result);
 		}
 	}
 
-	private void assertEqualsListView(GenericRow expected, GenericRow result, int ordinal) {
-		assertEquals(((BinaryGeneric) expected.getField(ordinal)).getJavaObject(),
-				((BinaryGeneric) result.getField(ordinal)).getJavaObject());
-	}
-
 	@Override
-	protected GenericRow accumulateValues(List<BinaryString> values)
+	protected ConcatWsWithRetractAccumulator accumulateValues(List<BinaryString> values)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-		AggregateFunction<BinaryString, GenericRow> aggregator = getAggregator();
-		GenericRow accumulator = getAggregator().createAccumulator();
+		AggregateFunction<BinaryString, ConcatWsWithRetractAccumulator> aggregator = getAggregator();
+		ConcatWsWithRetractAccumulator accumulator = getAggregator().createAccumulator();
 		Method accumulateFunc = getAccumulateFunc();
 		Preconditions.checkArgument(values.size() % 2 == 0,
 				"number of values must be an integer multiple of 2.");
 		for (int i = 0; i < values.size(); i += 2) {
 			BinaryString value = values.get(i);
 			BinaryString delimiter = values.get(i + 1);
-			accumulateFunc.invoke(aggregator, (Object) accumulator, (Object) delimiter, (Object) value);
+			accumulateFunc.invoke(aggregator, accumulator, delimiter, value);
 		}
 		return accumulator;
 	}
 
 	@Override
-	protected void retractValues(GenericRow accumulator, List<BinaryString> values)
+	protected void retractValues(ConcatWsWithRetractAccumulator accumulator, List<BinaryString> values)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-		AggregateFunction<BinaryString, GenericRow> aggregator = getAggregator();
+		AggregateFunction<BinaryString, ConcatWsWithRetractAccumulator> aggregator = getAggregator();
 		Method retractFunc = getRetractFunc();
 		Preconditions.checkArgument(values.size() % 2 == 0,
 				"number of values must be an integer multiple of 2.");
 		for (int i = 0; i < values.size(); i += 2) {
 			BinaryString value = values.get(i);
 			BinaryString delimiter = values.get(i + 1);
-			retractFunc.invoke(aggregator, (Object) accumulator, (Object) delimiter, (Object) value);
+			retractFunc.invoke(aggregator, accumulator, delimiter, value);
 		}
 	}
 

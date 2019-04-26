@@ -229,9 +229,7 @@ object UserDefinedFunctionUtils {
       methodName,
       internalTypesToClasses(input),
       input.map{ t => if (t == null) null else t}.toArray,
-//      (cls) => Array(accType) ++
-//          function.getUserDefinedInputTypes(cls.drop(1)))
-      (cls) => Array(accType) ++ cls.drop(1).map(TypeExtractor.createTypeInfo(_)))
+      cls => Array(accType) ++ cls.drop(1).map(TypeExtractor.createTypeInfo(_)))
   }
 
   /**
@@ -247,7 +245,13 @@ object UserDefinedFunctionUtils {
       methodName,
       typesToClasses(signature),
       signature.map{ t => if (t == null) null else createInternalTypeFromTypeInfo(t)}.toArray,
-      (cls) => cls.indices.map((_) => null).toArray)
+      cls => cls.map { clazz =>
+        try {
+          TypeExtractor.createTypeInfo(clazz)
+        } catch {
+          case _: Exception => null
+        }
+      })
   }
 
   /**
@@ -356,6 +360,13 @@ object UserDefinedFunctionUtils {
       if (applyCnt > 0) {
         // As we can not decide type while apply() exists, so choose any one is correct
         return found.headOption
+      }
+      // ignore methods with Object parameter
+      val nonObjectParameterMethods = found.filter { m =>
+        !m.getParameterTypes.contains(classOf[Object])
+      }
+      if (nonObjectParameterMethods.length == 1) {
+        return nonObjectParameterMethods.headOption
       }
       throw new ValidationException(
         s"Found multiple '$methodName' methods which match the signature.")
@@ -706,6 +717,8 @@ object UserDefinedFunctionUtils {
         candidate == classOf[String] && expected == classOf[BinaryString] ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
         candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
+        classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||
+        candidate == classOf[BaseRow] && classOf[BaseRow].isAssignableFrom(expected) ||
         candidate == classOf[Decimal] && expected == classOf[BigDecimal] ||
         candidate == classOf[BigDecimal] && expected == classOf[Decimal] ||
         (candidate.isArray &&

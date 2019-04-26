@@ -18,16 +18,14 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.TableConfigOptions
-import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
+import org.apache.flink.table.runtime.utils.TestData._
 
-import org.apache.commons.lang3.StringUtils
 import org.junit.{Before, Ignore, Test}
 
 import scala.collection.Seq
@@ -266,43 +264,5 @@ class CorrelateITCase2 extends BatchTestBase {
         row("nosharp", "nosharp", "haha"),
         row("Anna#44", "Anna#44", "haha")
       ))
-  }
-}
-
-class StringSplit extends TableFunction[String] {
-  def eval(): Unit = {
-    Array("a", "b", "c").foreach(collect)
-  }
-
-  def eval(str: String): Unit = {
-    if (null != str) {
-      StringUtils.split(str, ",").foreach(collect)
-    }
-  }
-
-  def eval(str: String, splitChar: String): Unit = {
-    if (null != str && null != splitChar) {
-      StringUtils.split(str, splitChar).foreach(collect)
-    }
-  }
-
-  def eval(str: String, splitChar: String, startIndex: Int): Unit = {
-    if (null != str && null != splitChar) {
-      val result = StringUtils.split(str, splitChar)
-      val idx = if (startIndex <= 0) 0 else startIndex
-      if (idx < result.length) {
-        result.drop(idx).foreach(collect)
-      }
-    }
-  }
-
-  def eval(varbinary: Array[Byte]): Unit = {
-    if (null != varbinary) {
-      StringUtils.split(new String(varbinary), ",").foreach(collect)
-    }
-  }
-
-  override def getResultType: TypeInformation[String] = {
-    Types.STRING
   }
 }

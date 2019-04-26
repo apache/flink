@@ -101,6 +101,12 @@ class BatchExecCorrelate(
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
 
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
   /**
     * Internal method, translates the [[org.apache.flink.table.plan.nodes.exec.BatchExecNode]]
     * into a Batch operator.

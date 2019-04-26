@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.util.Collector;
 
 /**
- * Operator for limit.
+ * Operator for batch limit.
  * TODO support stopEarly.
  */
 public class LimitOperator extends TableStreamOperator<BaseRow>

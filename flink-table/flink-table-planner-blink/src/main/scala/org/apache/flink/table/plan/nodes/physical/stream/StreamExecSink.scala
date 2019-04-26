@@ -73,6 +73,12 @@ class StreamExecSink[T](
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
   }
 
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[Any] = {
     val resultTransformation = sink match {

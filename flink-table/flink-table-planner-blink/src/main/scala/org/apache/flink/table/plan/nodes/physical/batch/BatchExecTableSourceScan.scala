@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.sources.BatchTableSource
@@ -28,6 +33,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import java.util
 
+import scala.collection.JavaConversions._
+
 /**
   * Batch physical RelNode to read data from an external source defined by a [[BatchTableSource]].
   */
@@ -36,7 +43,8 @@ class BatchExecTableSourceScan(
     traitSet: RelTraitSet,
     relOptTable: FlinkRelOptTable)
   extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
-   with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
@@ -51,6 +59,23 @@ class BatchExecTableSourceScan(
     val rowSize = mq.getAverageRowSize(this)
     val size = rowCnt * rowSize
     planner.getCostFactory.makeCost(rowCnt, cpu, size)
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = List()
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    throw new TableException("Implements this")
   }
 
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.over.frame;
 
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
@@ -61,7 +62,7 @@ public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 	public void open(ExecutionContext ctx) throws Exception {
 		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
 		processor = aggsHandleFunction.newInstance(cl);
-		processor.open(ctx);
+		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
 		this.aggsHandleFunction = null;
 		this.valueSer = new BaseRowSerializer(ctx.getRuntimeContext().getExecutionConfig(), valueType.getFieldTypes());

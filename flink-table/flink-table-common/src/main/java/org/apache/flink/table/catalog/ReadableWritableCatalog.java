@@ -22,8 +22,12 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 
 /**
  * An interface responsible for manipulating catalog metadata.
@@ -105,9 +109,9 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	/**
 	 * Create a new table or view.
 	 *
-	 * @param tablePath      Path of the table or view to be created
-	 * @param table          The table definition
-	 * @param ignoreIfExists Flag to specify behavior when a table or view already exists at the given path:
+	 * @param tablePath path of the table or view to be created
+	 * @param table the table definition
+	 * @param ignoreIfExists flag to specify behavior when a table or view already exists at the given path:
 	 *                       if set to false, it throws a TableAlreadyExistException,
 	 *                       if set to true, do nothing.
 	 * @throws TableAlreadyExistException if table already exists and ignoreIfExists is false
@@ -119,10 +123,12 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 
 	/**
 	 * Modify an existing table or view.
+	 * Note that the new and old CatalogBaseTable must be of the same type. For example, this doesn't
+	 * allow alter a regular table to partitioned table, or alter a view to a table, and vice versa.
 	 *
-	 * @param tableName         Path of the table or view to be modified
-	 * @param newTable          The new table definition
-	 * @param ignoreIfNotExists Flag to specify behavior when the table or view does not exist:
+	 * @param tableName path of the table or view to be modified
+	 * @param newTable the new table definition
+	 * @param ignoreIfNotExists flag to specify behavior when the table or view does not exist:
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
@@ -130,5 +136,63 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException, CatalogException;
+
+	// ------ partitions ------
+
+	/**
+	 * Create a partition.
+	 *
+	 * @param tablePath path of the table.
+	 * @param partitionSpec partition spec of the partition
+	 * @param partition the partition to add.
+	 * @param ignoreIfExists flag to specify behavior if a table with the given name already exists:
+	 *                       if set to false, it throws a TableAlreadyExistException,
+	 *                       if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException thrown if the target table does not exist
+	 * @throws TableNotPartitionedException thrown if the target table is not partitioned
+	 * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
+	 * @throws PartitionAlreadyExistsException thrown if the target partition already exists
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void createPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition partition, boolean ignoreIfExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionAlreadyExistsException, CatalogException;
+
+	/**
+	 * Drop a partition.
+	 *
+	 * @param tablePath path of the table.
+	 * @param partitionSpec partition spec of the partition to drop
+	 * @param ignoreIfNotExists flag to specify behavior if the database does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException thrown if the target table does not exist
+	 * @throws TableNotPartitionedException thrown if the target table is not partitioned
+	 * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
+	 * @throws PartitionNotExistException thrown if the target partition does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException;
+
+	/**
+	 * Alter a partition.
+	 *
+	 * @param tablePath	path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @param newPartition new partition to replace the old one
+	 * @param ignoreIfNotExists flag to specify behavior if the database does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException thrown if the target table does not exist
+	 * @throws TableNotPartitionedException thrown if the target table is not partitioned
+	 * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
+	 * @throws PartitionNotExistException thrown if the target partition does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException;
 
 }

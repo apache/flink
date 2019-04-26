@@ -94,6 +94,8 @@ class BatchExecHashAggregate(
         isGlobal = true))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior = DamBehavior.FULL_DAM
 
   override def getOperatorName: String = {

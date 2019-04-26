@@ -88,6 +88,16 @@ class StreamExecDeduplicate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
 
@@ -130,15 +140,20 @@ class StreamExecDeduplicate(
       new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
     }
     val ret = new OneInputTransformation(
-      inputTransform, getOperatorName, operator, rowTypeInfo, inputTransform.getParallelism)
+      inputTransform,
+      getOperatorName,
+      operator,
+      rowTypeInfo,
+      tableEnv.execEnv.getParallelism)
+
+    if (uniqueKeys.isEmpty) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
+    }
     val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret
-  }
-
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
   }
 
   private def getOperatorName: String = {

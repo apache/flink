@@ -27,10 +27,11 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.java.{BatchTableEnvImpl => JavaBatchTableEnvImpl, StreamTableEnvImpl => JavaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.api.scala.{BatchTableEnvImpl => ScalaBatchTableEnvImpl, StreamTableEnvImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, TableImpl, TableSchema}
+import org.apache.flink.table.api.{Table, TableConfig, TableImpl, TableSchema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
@@ -190,9 +191,9 @@ object TableTestUtil {
 
 case class BatchTableTestUtil() extends TableTestUtil {
   val javaEnv = new LocalEnvironment()
-  val javaTableEnv = JavaBatchTableEnv.create(javaEnv)
+  val javaTableEnv = new JavaBatchTableEnvImpl(javaEnv, new TableConfig)
   val env = new ExecutionEnvironment(javaEnv)
-  val tableEnv = ScalaBatchTableEnv.create(env)
+  val tableEnv = ScalaBatchTableEnv.create(env).asInstanceOf[ScalaBatchTableEnvImpl]
 
   def addTable[T: TypeInformation](
       name: String,
@@ -276,9 +277,9 @@ case class StreamTableTestUtil() extends TableTestUtil {
   val javaEnv = new LocalStreamEnvironment()
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-  val javaTableEnv = JavaStreamTableEnv.create(javaEnv)
+  val javaTableEnv = new JavaStreamTableEnvImpl(javaEnv, new TableConfig)
   val env = new StreamExecutionEnvironment(javaEnv)
-  val tableEnv = ScalaStreamTableEnv.create(env)
+  val tableEnv = ScalaStreamTableEnv.create(env).asInstanceOf[StreamTableEnvImpl]
 
   def addTable[T: TypeInformation](
       name: String,

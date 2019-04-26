@@ -1289,24 +1289,28 @@ under the License.
 
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/bower.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/package-lock.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/angular.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/proxy.conf.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/tsconfig.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/tslint.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/browserslist</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.spec.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/tslint.json</exclude>
 
-						<!-- web dashboard files under 3rd party license -->
-						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
-
-						<!-- web dashboard non-binary image assets -->
-						<exclude>flink-runtime-web/web-dashboard/assets/images/manifest.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/images/safari-pinned-tab.svg</exclude>
+						<!-- web dashboard non-binary assets -->
+						<exclude>flink-runtime-web/web-dashboard/src/assets/**</exclude>
 
 						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
+						<!-- old version -->
+						<exclude>flink-runtime-web/web-dashboard/old-version/**</exclude>
+
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
-						<exclude>flink-runtime-web/web-dashboard/bower_components/**</exclude>
-						<exclude>flink-runtime-web/web-dashboard/tmp/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
 
 						<!-- Test Data. -->
 						<exclude>**/src/test/resources/*-data</exclude>

@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 
+import java.util.List;
+
 /**
  * Base class for representing the operation structure behind a user-facing {@link Table} API.
  */
@@ -32,4 +34,8 @@ public interface TableOperation {
 	 * Resolved schema of this operation.
 	 */
 	TableSchema getTableSchema();
+
+	List<TableOperation> getChildren();
+
+	<T> T accept(TableOperationVisitor<T> visitor);
 }

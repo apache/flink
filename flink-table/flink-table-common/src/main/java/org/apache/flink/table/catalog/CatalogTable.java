@@ -20,6 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.plan.stats.TableStats;
 
+import java.util.List;
+
 /**
  * Represents a table in a catalog.
  */
@@ -29,4 +31,18 @@ public interface CatalogTable extends CatalogBaseTable {
 	 * @return table statistics
 	 */
 	TableStats getStatistics();
+
+	/**
+	 * Check if the table is partitioned or not.
+	 *
+	 * @return true if the table is partitioned; otherwise, false
+	 */
+	boolean isPartitioned();
+
+	/**
+	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
+	 *
+	 * @return partition keys of the table
+	 */
+	List<String> getPartitionKeys();
 }

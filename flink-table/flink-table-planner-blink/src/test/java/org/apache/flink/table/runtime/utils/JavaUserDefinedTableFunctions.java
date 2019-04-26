@@ -18,7 +18,13 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.functions.TableFunction;
+
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.Random;
 
 /**
  * Test functions.
@@ -67,4 +73,70 @@ public class JavaUserDefinedTableFunctions {
 			collect(sum);
 		}
 	}
+
+	/**
+	 * String split table function.
+	 */
+	public static class StringSplit extends TableFunction<String> {
+
+		public void eval() {
+			String[] strs = { "a", "b", "c" };
+			for (String str : strs) {
+				eval(str);
+			}
+		}
+
+		public void eval(String str) {
+			this.eval(str, ",");
+		}
+
+		public void eval(String str, String separatorChars) {
+			this.eval(str, separatorChars, 0);
+		}
+
+		public void eval(String str, String separatorChars, int startIndex) {
+			if (str != null) {
+				String[] strs = StringUtils.split(str, separatorChars);
+				if (startIndex < 0) {
+					startIndex = 0;
+				}
+				for (int i = startIndex; i < strs.length; ++i) {
+					collect(strs[i]);
+				}
+			}
+		}
+
+		public void eval(byte[] varbinary) {
+			if (varbinary != null) {
+				this.eval(new String(varbinary));
+			}
+		}
+
+		@Override
+		public TypeInformation<String> getResultType() {
+			return Types.STRING;
+		}
+	}
+
+	/**
+	 * Non-deterministic table function.
+	 */
+	public static class NonDeterministicTableFunc extends TableFunction<String> {
+
+		Random random = new Random();
+
+		public void eval(String str) {
+			String[] values = str.split("#");
+			int endIndex = random.nextInt(values.length);
+			for (int i = 0; i < endIndex; ++i) {
+				collect(values[i]);
+			}
+		}
+
+		@Override
+		public boolean isDeterministic() {
+			return false;
+		}
+	}
+
 }

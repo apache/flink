@@ -116,8 +116,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
 			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
 		}
+
 		args.add("--name");
 		args.add("MyCustomName");
+
+		args.add("--applicationType");
+		args.add("Apache Flink 1.x");
 
 		args.add("--detached");
 
@@ -167,6 +171,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			ApplicationReport app = apps.get(0);
 
 			Assert.assertEquals("MyCustomName", app.getName());
+			Assert.assertEquals("Apache Flink 1.x", app.getApplicationType());
 			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
 

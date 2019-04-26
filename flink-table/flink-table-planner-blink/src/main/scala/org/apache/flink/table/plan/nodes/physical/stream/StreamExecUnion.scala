@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.{StreamTransformation, UnionTransformation}
+import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{SetOp, Union}
@@ -37,7 +42,8 @@ class StreamExecUnion(
     all: Boolean,
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   require(all, "Only support union all")
 
@@ -59,5 +65,25 @@ class StreamExecUnion(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw).item("union", outputRowType.getFieldNames.mkString(", "))
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    val transformations = getInputNodes.map {
+      input => input.translateToPlan(tableEnv).asInstanceOf[StreamTransformation[BaseRow]]
+    }
+    new UnionTransformation(transformations)
   }
 }

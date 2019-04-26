@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.sources.tsextractors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.descriptors.Rowtime
 import org.apache.flink.table.expressions.{Expression, PlannerExpression, ResolvedFieldReference}
 
 /**
@@ -50,6 +53,12 @@ final class StreamRecordTimestamp extends TimestampExtractor {
 
   override def hashCode(): Int = {
     classOf[StreamRecordTimestamp].hashCode()
+  }
+
+  override def toProperties: util.Map[String, String] = {
+    val javaMap = new util.HashMap[String, String]()
+    javaMap.put(Rowtime.ROWTIME_TIMESTAMPS_TYPE, Rowtime.ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE)
+    javaMap
   }
 }
 

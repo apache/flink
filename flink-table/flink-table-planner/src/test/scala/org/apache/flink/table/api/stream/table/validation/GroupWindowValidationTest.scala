@@ -27,8 +27,11 @@ import org.junit.Test
 
 class GroupWindowValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWindowProperty(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Window properties can only be used on windowed tables.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
@@ -37,8 +40,11 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'string.start) // property in non windowed table
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupByWithoutWindowAlias(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("GroupBy must contain exactly one window alias.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
@@ -48,8 +54,11 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidRowTimeRef(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Cannot resolve field [int]")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
@@ -62,8 +71,11 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidTumblingSize(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("A tumble window expects a size value literal")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
@@ -73,31 +85,57 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testTumbleUdAggWithInvalidArgs(): Unit = {
-    val util = streamTestUtil()
-    val weightedAvg = new WeightedAvgWithMerge
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+  @Test
+  def testInvalidTumblingSizeType(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Tumbling window expects size literal of type Interval of " +
+      "Milliseconds or Interval of Rows.")
 
-    table
-      .window(Tumble over 2.hours on 'rowtime as 'w)
-      .groupBy('w, 'string)
-      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidSlidingSize(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
     table
-      .window(Slide over "WRONG" every "WRONG" on 'long as 'w) // string is not a valid interval
+      // row interval is not valid for session windows
+      .window(Tumble over 10 on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
+  def testTumbleUdAggWithInvalidArgs(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Invalid arguments")
+
+    val util = streamTestUtil()
+    val weightedAvg = new WeightedAvgWithMerge
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      .window(Tumble over 2.hours on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
+  }
+
+  @Test
+  def testInvalidSlidingSize(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("A sliding window expects a size value literal")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      // field reference is not a valid interval
+      .window(Slide over "WRONG" every "WRONG" on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+  }
+
+  @Test
   def testInvalidSlidingSlide(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("A sliding window expects the same type of size and slide.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
@@ -108,20 +146,43 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testSlideUdAggWithInvalidArgs(): Unit = {
+  @Test
+  def testInvalidSlidingizeType(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("A sliding window expects size literal of type Interval of " +
+      "Milliseconds or Interval of Rows.")
+
     val util = streamTestUtil()
-    val weightedAvg = new WeightedAvgWithMerge
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
     table
-      .window(Slide over 2.hours every 30.minutes on 'rowtime as 'w)
+      // row interval is not valid for session windows
+      .window(Slide over 10 every 10.milli  on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+  }
+
+  @Test
+  def testSlideUdAggWithInvalidArgs(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Invalid arguments")
+
+    val util = streamTestUtil()
+    val weightedAvg = new WeightedAvgWithMerge
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      .window(Slide over 2.hours every 30.minutes on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidSessionGap(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("A session window expects gap literal of type " +
+      "Interval of Milliseconds.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
@@ -132,19 +193,43 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidWindowAlias1(): Unit = {
+  @Test
+  def testInvalidSessionGapType(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("A session window expects gap literal of type Interval of " +
+      "Milliseconds.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
     table
-      .window(Session withGap 100.milli on 'long as 1 + 1) // expression instead of a symbol
-      .groupBy('string)
+      // row interval is not valid for session windows
+      .window(Session withGap 10 on 'long as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
+  def testInvalidWindowAlias1(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Only unresolved reference supported for alias of a " +
+      "group window.")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+
+    table
+      // expression instead of a symbol
+      .window(Session withGap 100.milli on 'long as concat("A", "B"))
+      .groupBy(concat("A", "B"))
+      .select('string, 'int.count)
+  }
+
+  @Test
   def testInvalidWindowAlias2(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Cannot resolve field [string]")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
@@ -155,8 +240,11 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, 'int.count)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSessionUdAggWithInvalidArgs(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Invalid arguments")
+
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'rowtime.rowtime)
@@ -167,8 +255,12 @@ class GroupWindowValidationTest extends TableTestBase {
       .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWindowPropertyOnRowCountsTumblingWindow(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Window start and Window end cannot be selected " +
+      "for a row-count tumble window.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 
@@ -178,8 +270,12 @@ class GroupWindowValidationTest extends TableTestBase {
     .select('string, 'w.start, 'w.end) // invalid start/end on rows-count window
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWindowPropertyOnRowCountsSlidingWindow(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Window start and Window end cannot be selected for a " +
+      "row-count slide window.")
+
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 

@@ -1,0 +1,169 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "theme.less";
+
+.trigger {
+  font-size: 18px;
+  line-height: 64px;
+  padding: 0 24px;
+  cursor: pointer;
+  transition: color .3s;
+}
+
+.trigger:hover {
+  color: @primary-color;
+}
+
+.logo {
+  height: 64px;
+  position: relative;
+  line-height: 64px;
+  padding-left: 24px;
+  transition: all 0.3s ease 0s;
+  background: @layout-header-background;
+  overflow: hidden;
+
+  a {
+    line-height: 64px;
+
+    h1 {
+      color: #ffffff;
+      font-size: 14px;
+      font-family: "Myriad Pro", "Helvetica Neue", Arial, Helvetica, sans-serif;
+      font-weight: 600;
+      margin: 0px 0px 0px 12px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    img {
+      height: 32px;
+      width: 32px;
+      display: inline-block;
+      vertical-align: middle;
+      top: -4px;
+      position: relative;
+    }
+  }
+
+}
+
+nz-layout {
+  min-height: 100vh;
+  overflow: hidden;
+  background: darken(@component-background, 5%);
+}
+
+nz-sider {
+  min-height: 100vh;
+  box-shadow: rgba(0, 21, 41, 0.35) 2px 0px 6px;
+  position: relative;
+  z-index: 10;
+}
+
+nz-header {
+  background: @component-background;
+  border-bottom: 1px solid @border-color-split;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, .08);
+  position: relative;
+  padding: 0px 12px 0px 0px;
+  flex: 0 0 auto;
+  overflow: hidden;
+
+  nz-badge {
+    margin-left: 12px;
+    cursor: pointer;
+
+    ::ng-deep {
+      .ant-badge-count {
+        background: @primary-color;
+      }
+    }
+
+    &.normal {
+      cursor: default;
+
+      ::ng-deep {
+        .ant-badge-count {
+          background: @text-color;
+        }
+      }
+    }
+  }
+
+  .right {
+    float: right;
+    height: 100%;
+
+    .text {
+      padding: 0 12px;
+      display: inline-block;
+      height: 100%;
+      color: @text-color;
+    }
+
+    .action {
+      transition: all .3s;
+
+      &:hover {
+        background: @background-color-light;
+      }
+
+      i {
+        font-size: 16px;
+        vertical-align: middle;
+      }
+    }
+
+    .version {
+      cursor: default;
+    }
+  }
+}
+
+nz-content {
+  margin: 24px;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.menu {
+  padding: 16px 0px;
+}
+
+nz-alert {
+  margin-bottom: 12px;
+}
+
+.offline {
+  color: @error-color;
+  animation: opacity 3s ease-in infinite alternate;
+}
+
+@keyframes opacity {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+

@@ -26,8 +26,9 @@ import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
+import org.apache.flink.table.dataview.StateDataViewStore
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.generated.HashFunction
+import org.apache.flink.table.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.util.MurmurHashUtil
 import org.apache.flink.types.Row
@@ -77,6 +78,12 @@ object CodeGenUtils {
   val DECIMAL: String = className[Decimal]
 
   val SEGMENT: String = className[MemorySegment]
+
+  val AGGS_HANDLER_FUNCTION: String = className[AggsHandleFunction]
+
+  val NAMESPACE_AGGS_HANDLER_FUNCTION: String = className[NamespaceAggsHandleFunction[_]]
+
+  val STATE_DATA_VIEW_STORE: String = className[StateDataViewStore]
 
   // ----------------------------------------------------------------------------------------
 

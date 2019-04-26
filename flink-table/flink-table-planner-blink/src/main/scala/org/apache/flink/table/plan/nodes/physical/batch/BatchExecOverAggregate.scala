@@ -24,10 +24,10 @@ import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
+import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.generated.GeneratedRecordComparator
@@ -53,7 +53,6 @@ import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
 
 import java.util
-import java.util.function.Function
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -243,10 +242,18 @@ class BatchExecOverAggregate(
     windowGroupInfo
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior = DamBehavior.PIPELINED
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {

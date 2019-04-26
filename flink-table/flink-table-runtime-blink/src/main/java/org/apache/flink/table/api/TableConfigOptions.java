@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.runtime.window.grouping.HeapWindowsGrouping;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -70,6 +71,13 @@ public class TableConfigOptions {
 					.defaultValue(32)
 					.withDescription("Sets the number of per-requested buffers when the operator " +
 							"allocates much more segments from the floating memory pool.");
+
+	public static final ConfigOption<Boolean> SQL_EXEC_SORT_NON_TEMPORAL_ENABLED =
+			key("sql.exec.sort.non-temporal.enabled")
+					.defaultValue(false)
+					.withDescription("Switch on/off stream sort without temporal or limit." +
+							"Set whether to enable universal sort for stream. When it is false, " +
+							"universal sort can't use for stream, default false. Just for testing.");
 
 	// ------------------------------------------------------------------------
 	//  Spill Options
@@ -132,6 +140,18 @@ public class TableConfigOptions {
 			key("sql.resource.sort.buffer-max-memory-mb")
 					.defaultValue(512)
 					.withDescription("Sets the max buffer memory size for sort. It defines the upper memory for the sort.");
+
+	// ------------------------------------------------------------------------
+	//  Agg Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * See {@link HeapWindowsGrouping}.
+	 */
+	public static final ConfigOption<Integer> SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT =
+			key("sql.exec.window-agg.buffer-size.limit")
+					.defaultValue(100 * 1000)
+					.withDescription("Sets the window elements buffer limit in size used in group window agg operator.");
 
 	// ------------------------------------------------------------------------
 	//  topN Options

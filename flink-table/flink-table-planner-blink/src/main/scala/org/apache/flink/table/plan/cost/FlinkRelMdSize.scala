@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.plan.cost
 
+
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.metadata.{ReflectiveRelMetadataProvider, RelMdSize, RelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.util.BuiltInMethod
 
@@ -31,6 +33,15 @@ class FlinkRelMdSize extends RelMdSize {
 
   override def averageColumnSizes(rel: RelNode, mq: RelMetadataQuery): util.List[Double] = {
     rel.getRowType.getFieldList.map(f => averageTypeValueSize(f.getType)).toList
+  }
+
+  override def averageTypeValueSize(t: RelDataType): Double = {
+    val size = super.averageTypeValueSize(t)
+    if (size == null) {
+      1D
+    } else {
+      size
+    }
   }
 }
 

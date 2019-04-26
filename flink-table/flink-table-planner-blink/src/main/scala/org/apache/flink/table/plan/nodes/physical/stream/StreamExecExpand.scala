@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.`type`.{RowType, TypeConverters}
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
@@ -63,8 +63,16 @@ class StreamExecExpand(
     new StreamExecExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
     getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
@@ -83,7 +91,8 @@ class StreamExecExpand(
       outputType,
       config,
       projects,
-      opName = "StreamExpand")
+      opName = "StreamExpand",
+      retainHeader = true)
 
     val operatorName = s"StreamExecExpand: ${getRowType.getFieldList.map(_.getName).mkString(", ")}"
     new OneInputTransformation(
@@ -91,7 +100,7 @@ class StreamExecExpand(
       operatorName,
       operator,
       outputType.toTypeInfo,
-      config.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
+      inputTransform.getParallelism)
   }
 
 }

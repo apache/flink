@@ -65,7 +65,7 @@ class IncrementalAggregateRule
     val exchange: StreamExecExchange = call.rel(1)
     val finalLocalAgg: StreamExecLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(3)
-    val aggInputRowType = partialGlobalAgg.getInput.getRowType
+    val aggInputRowType = partialGlobalAgg.inputRowType
 
     val partialLocalAggInfoList = partialGlobalAgg.localAggInfoList
     val partialGlobalAggInfoList = partialGlobalAgg.globalAggInfoList
@@ -93,8 +93,8 @@ class IncrementalAggregateRule
     val incrAggInfoList = AggregateInfoList(
       // pick local aggs info from local which is on heap
       partialLocalAggInfoList.aggInfos,
-      partialGlobalAggInfoList.count1AggIndex,
-      partialGlobalAggInfoList.count1AggInserted,
+      partialGlobalAggInfoList.indexOfCountStar,
+      partialGlobalAggInfoList.countStarInserted,
       incrDistinctInfo)
 
     val incrAggOutputRowType = AggregateUtil.inferLocalAggRowType(
@@ -112,14 +112,14 @@ class IncrementalAggregateRule
       partialLocalAggInfoList,
       incrAggInfoList,
       aggCalls,
-      partialGlobalAgg.grouping,
-      finalLocalAgg.grouping)
+      finalLocalAgg.grouping,
+      partialGlobalAgg.grouping)
 
     val newExchange = exchange.copy(exchange.getTraitSet, incrAgg, exchange.distribution)
 
-    val partialAggCount1Inserted = partialGlobalAgg.globalAggInfoList.count1AggInserted
+    val partialAggCountStarInserted = partialGlobalAgg.globalAggInfoList.countStarInserted
 
-    val globalAgg = if (partialAggCount1Inserted) {
+    val globalAgg = if (partialAggCountStarInserted) {
       val globalAggInputAccType = finalLocalAgg.getRowType
       Preconditions.checkState(RelOptUtil.areRowTypesEqual(
         incrAggOutputRowType,
@@ -165,7 +165,7 @@ class IncrementalAggregateRule
         finalGlobalAgg.getCluster,
         finalGlobalAgg.getTraitSet,
         newExchange,
-        finalGlobalAgg.getInput.getRowType,
+        finalGlobalAgg.inputRowType,
         finalGlobalAgg.getRowType,
         finalGlobalAgg.grouping,
         localAggInfoList, // the agg info list is changed

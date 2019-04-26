@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -131,7 +131,7 @@ public class SimpleSlotTest extends  TestLogger {
 		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 		Instance instance = new Instance(
-			new ActorTaskManagerGateway(DummyActorGateway.INSTANCE),
+			new SimpleAckingTaskManagerGateway(),
 			connection,
 			new InstanceID(),
 			hardwareDescription,

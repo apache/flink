@@ -67,6 +67,12 @@ class BatchExecSink[T](
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
   }
 
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
   override protected def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[Any] = {
     val resultTransformation = sink match {

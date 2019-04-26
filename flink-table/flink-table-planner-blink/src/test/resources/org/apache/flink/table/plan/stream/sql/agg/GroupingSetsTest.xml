@@ -178,7 +178,7 @@ LogicalAggregate(group=[{0}], groups=[[{0}, {}]], g=[GROUP_ID()], c=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, 0 AS g, c])
+Calc(select=[deptno, 0:BIGINT AS g, c])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
@@ -211,7 +211,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
@@ -268,7 +268,7 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M'), =(deptno, 10)))])
+Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(65536) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
 +- GroupAggregate(groupBy=[deptno, gender, deptno0, $e], select=[deptno, gender, deptno0, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
    +- Exchange(distribution=[hash[deptno, gender, deptno0, $e]])
       +- Expand(projects=[{ename=[$0], deptno=[$1], gender=[$2], deptno0=[$3], $e=[0]}, {ename=[$0], deptno=[$1], gender=[$2], deptno0=[null], $e=[1]}, {ename=[$0], deptno=[$1], gender=[null], deptno0=[$3], $e=[2]}, {ename=[$0], deptno=[$1], gender=[null], deptno0=[null], $e=[3]}, {ename=[$0], deptno=[null], gender=[$2], deptno0=[$3], $e=[4]}, {ename=[$0], deptno=[null], gender=[$2], deptno0=[null], $e=[5]}, {ename=[$0], deptno=[null], gender=[null], deptno0=[$3], $e=[6]}, {ename=[$0], deptno=[null], gender=[null], deptno0=[null], $e=[7]}])
@@ -305,7 +305,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
@@ -334,7 +334,7 @@ LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(=($e, 0), 0, =($e, 1), 5, 7) AS EXPR$2, c])
+Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:BIGINT, 7:BIGINT) AS EXPR$2, c])
 +- GroupAggregate(groupBy=[gender, deptno, $e], select=[gender, deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[gender, deptno, $e]])
       +- Expand(projects=[{gender=[$0], deptno=[$1], $e=[0]}, {gender=[$0], deptno=[null], $e=[1]}, {gender=[null], deptno=[null], $e=[3]}])
@@ -384,7 +384,7 @@ from scott_emp
     <Resource name="planBefore">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
-+- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename', =($5, 1), _UTF-16LE'grouped by deptno,job', =($5, 3), _UTF-16LE'grouped by deptno', =($5, 7), _UTF-16LE'grouped by ()', null)])
++- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE")])
    +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2, 3}, {0, 1}, {0}, {}]], sumsal=[SUM($4)], agg#1=[GROUPING_ID($0, $1, $2)])
       +- LogicalProject(deptno=[$7], job=[$2], empno=[$0], ename=[$1], sal=[$5])
          +- LogicalTableScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
@@ -392,7 +392,7 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 0), _UTF-16LE'grouped by deptno,job,empno,ename', =(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 1), _UTF-16LE'grouped by deptno,job', =(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 3), _UTF-16LE'grouped by deptno', =(CASE(=($e, 0), 0, =($e, 3), 1, =($e, 7), 3, 7), 7), _UTF-16LE'grouped by ()', null) AS gr_text])
+Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE") AS gr_text])
 +- Sort(orderBy=[deptno ASC, job ASC, empno ASC])
    +- Exchange(distribution=[single])
       +- GroupAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, SUM(sal) AS sumsal])
@@ -427,10 +427,10 @@ LogicalProject(c=[$2], gd=[$3], gid=[$4], gdgd=[$5], gidgd=[$6])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gd, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gid, CASE(=($e, 0), 0, =($e, 1), 2, 7) AS gdgd, CASE(=($e, 0), 0, =($e, 1), 2, 7) AS gidgd])
+Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gid, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gdgd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gidgd])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0), =($e, 1)), 0, 1), CASE(=($e, 0), 0, =($e, 1), 2, 7))])
+      +- Calc(select=[deptno, gender, $e], where=[<=(CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT), CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT))])
          +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[null], $e=[3]}])
             +- Calc(select=[deptno, gender])
                +- TableSourceScan(table=[[emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
@@ -460,7 +460,7 @@ LogicalProject(c=[$2], g=[$3], gid=[$4], gd=[$5], gg=[$6], ggd=[$7], gdg=[$8])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS g, 0 AS gid, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gd, CASE(=($e, 0), 0, 1) AS gg, CASE(=($e, 0), 0, =($e, 1), 2, 3) AS ggd, CASE(=($e, 0), 0, =($e, 1), 1, 3) AS gdg])
+Calc(select=[c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS g, 0:BIGINT AS gid, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 3:BIGINT) AS ggd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gdg])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[null], $e=[3]}])
@@ -493,7 +493,7 @@ LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gi
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gd, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS gg, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS dg, CASE(=($e, 0), 0, =($e, 1), 2, =($e, 2), 1, 3) AS gd0, 0 AS gid, c])
+Calc(select=[deptno, gender, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS dg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, =($e, 2:BIGINT), 1:BIGINT, 3:BIGINT) AS gd0, 0:BIGINT AS gid, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[{deptno=[$0], gender=[$1], $e=[0]}, {deptno=[$0], gender=[null], $e=[1]}, {deptno=[null], gender=[$1], $e=[2]}, {deptno=[null], gender=[null], $e=[3]}])
@@ -523,7 +523,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()], d
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, job, c, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS d, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 0, 1) AS j, CASE(=($e, 0), 0, =($e, 1), 1, =($e, 2), 2, 3) AS x])
+Calc(select=[deptno, job, c, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS d, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS j, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS x])
 +- GroupAggregate(groupBy=[deptno, job, $e], select=[deptno, job, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, job, $e]])
       +- Expand(projects=[{deptno=[$0], job=[$1], $e=[0]}, {deptno=[$0], job=[null], $e=[1]}, {deptno=[null], job=[$1], $e=[2]}, {deptno=[null], job=[null], $e=[3]}])
@@ -546,7 +546,7 @@ LogicalProject(c=[$1], g=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, 0 AS g])
+Calc(select=[c, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[deptno], select=[deptno, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno]])
       +- Calc(select=[deptno])
@@ -570,7 +570,7 @@ LogicalProject(c=[$1], deptno=[$0], g=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, deptno, CASE(=($e, 0), 0, 1) AS g])
+Calc(select=[c, deptno, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
@@ -595,7 +595,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)], g=[GROUP_ID()
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g])
+Calc(select=[b, c, a, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}])
@@ -649,7 +649,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], g=[GROUP_
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(=($e, 1), 0, 1) AS gb, CASE(=($e, 1), 1, =($e, 2), 0, 1) AS gc, CASE(=($e, 1), 0, 1) AS gib, CASE(=($e, 1), 1, =($e, 2), 0, 1) AS gic, CASE(=($e, 1), 1, =($e, 2), 2, 3) AS gid, cnt])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid, cnt])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a, COUNT(*) AS cnt])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
@@ -702,7 +702,7 @@ LogicalProject(c=[$0])
 Calc(select=[c])
 +- Sort(orderBy=[$f2 ASC, c ASC])
    +- Exchange(distribution=[single])
-      +- Calc(select=[deptno, c, CASE(=($e, 0), 0, 1) AS $f2])
+      +- Calc(select=[deptno, c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS $f2])
          +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
             +- Exchange(distribution=[hash[deptno, $e]])
                +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
@@ -731,7 +731,7 @@ LogicalAggregate(group=[{0}], a=[AVG($1)], g=[GROUP_ID()], gb=[GROUPING($0)], gi
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, a, 0 AS g, 0 AS gb, 0 AS gib])
+Calc(select=[deptno, a, 0:BIGINT AS g, 0:BIGINT AS gb, 0:BIGINT AS gib])
 +- GroupAggregate(groupBy=[deptno], select=[deptno, AVG(age) AS a])
    +- Exchange(distribution=[hash[deptno]])
       +- Calc(select=[deptno, age])
@@ -763,7 +763,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GRO
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[null], $e=[3]}])
@@ -795,7 +795,7 @@ LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GRO
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, c, a, 0 AS g, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gb, CASE(=($e, 0), 0, 1) AS gc, CASE(OR(=($e, 0), =($e, 1)), 0, 1) AS gib, CASE(=($e, 0), 0, 1) AS gic, CASE(=($e, 0), 0, =($e, 1), 1, 3) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[null], $e=[3]}])

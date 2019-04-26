@@ -178,6 +178,14 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 			this.decimalTypeInfo = decimalTypeInfo;
 		}
 
+		public void accumulate(GenericRow acc, Decimal value) {
+			super.accumulate(acc, value);
+		}
+
+		public void accumulate(GenericRow acc, Decimal value, Long order) {
+			super.accumulate(acc, value, order);
+		}
+
 		@Override
 		public TypeInformation<Decimal> getResultType() {
 			return decimalTypeInfo;
@@ -195,18 +203,16 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 			return BinaryStringTypeInfo.INSTANCE;
 		}
 
-		@Override
-		public void accumulate(GenericRow acc, Object value) {
+		public void accumulate(GenericRow acc, BinaryString value) {
 			if (value != null) {
-				super.accumulate(acc, ((BinaryString) value).copy());
+				super.accumulate(acc, value.copy());
 			}
 		}
 
-		@Override
-		public void accumulate(GenericRow acc, Object value, Long order) {
+		public void accumulate(GenericRow acc, BinaryString value, Long order) {
 			// just ignore nulls values and orders
 			if (value != null) {
-				super.accumulate(acc, ((BinaryString) value).copy(), order);
+				super.accumulate(acc, value.copy(), order);
 			}
 		}
 	}

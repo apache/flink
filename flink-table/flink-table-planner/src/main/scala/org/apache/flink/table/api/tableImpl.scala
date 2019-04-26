@@ -21,12 +21,11 @@ import _root_.java.util.Collections.emptyList
 import _root_.java.util.function.Supplier
 
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
+import org.apache.flink.table.operations.JoinTableOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
-import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
 import _root_.scala.collection.JavaConversions._
@@ -43,7 +42,7 @@ import _root_.scala.collection.JavaConverters._
   * @param operationTree logical representation
   */
 class TableImpl(
-    private[flink] val tableEnv: TableEnvironment,
+    private[flink] val tableEnv: TableEnvImpl,
     private[flink] val operationTree: TableOperation)
   extends Table {
 
@@ -55,8 +54,12 @@ class TableImpl(
 
   var tableName: String = _
 
-  def getRelNode: RelNode = operationTree.asInstanceOf[LogicalNode]
-    .toRelNode(tableEnv.getRelBuilder)
+  def getRelNode: RelNode = tableEnv.getRelBuilder.tableOperation(operationTree).build()
+
+  /**
+    * Returns the [[TableEnvironment]] of this table.
+    */
+  def getTableEnvironment: TableEnvironment = tableEnv
 
   override def getSchema: TableSchema = tableSchema
 
@@ -366,7 +369,7 @@ class TableImpl(
 
   override def window(overWindows: OverWindow*): OverWindowedTable = {
 
-    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
+    if (tableEnv.isInstanceOf[BatchTableEnvImpl]) {
       throw new TableException("Over-windows for batch tables are currently not supported.")
     }
 

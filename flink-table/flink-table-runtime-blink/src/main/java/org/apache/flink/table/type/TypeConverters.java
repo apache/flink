@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -208,8 +209,8 @@ public class TypeConverters {
 			DecimalType decimalType = (DecimalType) type;
 			return new DecimalTypeInfo(decimalType.precision(), decimalType.scale());
 		}  else if (type instanceof GenericType) {
-			GenericType genericType = (GenericType) type;
-			return new BinaryGenericTypeInfo(genericType);
+			GenericType<?> genericType = (GenericType<?>) type;
+			return new BinaryGenericTypeInfo<>(genericType);
 		} else {
 			throw new UnsupportedOperationException("Not support yet: " + type);
 		}
@@ -222,6 +223,7 @@ public class TypeConverters {
 	 * {@link InternalTypes#STRING} => {@link BasicTypeInfo#STRING_TYPE_INFO}.
 	 * {@link RowType} => {@link RowTypeInfo}.
 	 */
+	@SuppressWarnings("unchecked")
 	public static TypeInformation createExternalTypeInfoFromInternalType(InternalType type) {
 		TypeInformation typeInfo = INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO.get(type);
 		if (typeInfo != null) {
@@ -242,7 +244,12 @@ public class TypeConverters {
 			return new MapTypeInfo(
 					createExternalTypeInfoFromInternalType(mapType.getKeyType()),
 					createExternalTypeInfoFromInternalType(mapType.getValueType()));
-		} else if (type instanceof DecimalType) {
+		} else if (type instanceof MultisetType) {
+			MultisetType multisetType = (MultisetType) type;
+			return MultisetTypeInfo.getInfoFor(
+				createExternalTypeInfoFromInternalType(multisetType.getElementType()));
+		}
+		else if (type instanceof DecimalType) {
 			DecimalType decimalType = (DecimalType) type;
 			return new BigDecimalTypeInfo(decimalType.precision(), decimalType.scale());
 		}  else if (type instanceof GenericType) {

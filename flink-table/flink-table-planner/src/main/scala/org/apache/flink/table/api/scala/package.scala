@@ -75,7 +75,8 @@ package object scala extends ImplicitExpressionConversions {
   }
 
   implicit def table2RowDataSet(table: Table): DataSet[Row] = {
-    val tableEnv = table.asInstanceOf[TableImpl].tableEnv.asInstanceOf[ScalaBatchTableEnv]
+    val tableEnv =
+      table.asInstanceOf[TableImpl].getTableEnvironment.asInstanceOf[ScalaBatchTableEnv]
     tableEnv.toDataSet[Row](table)
   }
 
@@ -84,7 +85,8 @@ package object scala extends ImplicitExpressionConversions {
   }
 
   implicit def table2RowDataStream(table: Table): DataStream[Row] = {
-    val tableEnv = table.asInstanceOf[TableImpl].tableEnv.asInstanceOf[ScalaStreamTableEnv]
+    val tableEnv =
+      table.asInstanceOf[TableImpl].getTableEnvironment.asInstanceOf[ScalaStreamTableEnv]
     tableEnv.toAppendStream[Row](table)
   }
 }
