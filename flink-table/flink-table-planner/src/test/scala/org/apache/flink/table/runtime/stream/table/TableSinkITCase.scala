@@ -158,6 +158,36 @@ class TableSinkITCase extends AbstractTestBase {
   }
 
   @Test
+  def testAppendSinkWithSubsetOfSourceKeys(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    val tEnv = StreamTableEnvironment.create(env)
+
+    val table = StreamTestData.getSmall3TupleDataStream(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+
+    tEnv.registerTableSink(
+      "appendSink",
+      new TestAppendSink().configure(
+        Array[String]("a", "b", "c","d","e"),
+        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING,
+          Types.BOOLEAN, Types.DECIMAL)))
+
+    table.select('a, 'b ,'c)
+      .insertInto("appendSink")
+
+    env.execute()
+
+    val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
+    val expected = List(
+      "1,1,Hi",
+      "2,2,Hello",
+      "3,2,Hello world")
+      .sorted
+    assertEquals(expected, result)
+  }
+
+  @Test
   def testAppendSinkOnAppendTableForInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
