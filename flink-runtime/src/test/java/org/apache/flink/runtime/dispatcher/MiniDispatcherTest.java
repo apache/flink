@@ -53,13 +53,11 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link MiniDispatcher}.
@@ -195,37 +193,6 @@ public class MiniDispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that in detached mode, the {@link MiniDispatcher} will nerver complete the future that
-	 * signals job termination.
-	 */
-	@Test
-	public void testTerminationAfterJobCompletionWithExceptionHistoryServerArchivist() throws Exception {
-		final MiniDispatcher miniDispatcher = createMiniDispatcherWithExcetionHistoryServerArchivist(ClusterEntrypoint.ExecutionMode.DETACHED);
-
-		miniDispatcher.start();
-
-		try {
-			// wait until the Dispatcher is the leader
-			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
-
-			// wait until we have submitted the job
-			jobGraphFuture.get();
-
-			resultFuture.complete(archivedExecutionGraph);
-
-			// wait until we terminate
-			miniDispatcher.getJobTerminationFuture().get(10, TimeUnit.SECONDS);
-
-		} catch (Exception e){
-			// jobTermination timeout
-			assertTrue(e instanceof TimeoutException);
-		}
-		finally {
-			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
-		}
-	}
-
-	/**
 	 * Tests that the {@link MiniDispatcher} only terminates in {@link ClusterEntrypoint.ExecutionMode#NORMAL}
 	 * after it has served the {@link org.apache.flink.runtime.jobmaster.JobResult} once.
 	 */
@@ -279,26 +246,6 @@ public class MiniDispatcherTest extends TestLogger {
 			testingJobManagerRunnerFactory,
 			testingFatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE,
-			jobGraph,
-			executionMode);
-	}
-
-	@Nonnull
-	private MiniDispatcher createMiniDispatcherWithExcetionHistoryServerArchivist(ClusterEntrypoint.ExecutionMode executionMode) throws Exception {
-		return new MiniDispatcher(
-			rpcService,
-			UUID.randomUUID().toString(),
-			configuration,
-			highAvailabilityServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
-			blobServer,
-			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			null,
-			archivedExecutionGraphStore,
-			testingJobManagerRunnerFactory,
-			testingFatalErrorHandler,
-			ExceptionHistoryServerArchivist.INSTANCE,
 			jobGraph,
 			executionMode);
 	}
