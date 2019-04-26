@@ -60,8 +60,7 @@ class FlinkLogicalWindowAggregate(
       indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
-      aggCalls: util.List[AggregateCall])
-    : Aggregate = {
+      aggCalls: util.List[AggregateCall]): Aggregate = {
     new FlinkLogicalWindowAggregate(
       window,
       namedProperties,
@@ -112,6 +111,7 @@ class FlinkLogicalWindowAggregate(
       .item("window", window)
       .item("properties", namedProperties.map(_.name).mkString(", "))
   }
+
 }
 
 class FlinkLogicalWindowAggregateConverter

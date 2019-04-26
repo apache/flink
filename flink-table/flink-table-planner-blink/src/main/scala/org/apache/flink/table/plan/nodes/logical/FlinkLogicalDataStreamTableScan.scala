@@ -53,6 +53,7 @@ class FlinkLogicalDataStreamTableScan(
     val rowSize = mq.getAverageRowSize(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
   }
+
 }
 
 class FlinkLogicalDataStreamTableScanConverter

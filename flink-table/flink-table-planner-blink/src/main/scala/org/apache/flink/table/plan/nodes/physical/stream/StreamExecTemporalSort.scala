@@ -89,6 +89,12 @@ class StreamExecTemporalSort(
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
   }
 
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
   /**
     * Internal method, translates this node into a Flink operator.
     *

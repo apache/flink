@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, StreamTransformation}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
 import org.apache.flink.table.`type`.RowType
-import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
@@ -32,7 +34,7 @@ import org.apache.flink.table.runtime.BinaryHashPartitioner
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelDistribution, RelNode}
+import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 
 import java.util
 
@@ -100,12 +102,35 @@ class BatchExecExchange(
   // and different PartitionTransformation objects will be created which have same input.
   // cache input transformation to reuse
   private var reusedInput: Option[StreamTransformation[BaseRow]] = None
+  // the required exchange mode for reusable ExchangeBatchExec
+  // if it's None, use value from getDataExchangeMode
+  private var requiredExchangeMode: Option[DataExchangeMode] = None
 
   override def copy(
       traitSet: RelTraitSet,
       newInput: RelNode,
       newDistribution: RelDistribution): BatchExecExchange = {
     new BatchExecExchange(cluster, traitSet, newInput, relDistribution)
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+      .itemIf("exchange_mode", requiredExchangeMode.orNull,
+        requiredExchangeMode.contains(DataExchangeMode.BATCH))
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  def setRequiredDataExchangeMode(exchangeMode: DataExchangeMode): Unit = {
+    require(exchangeMode != null)
+    requiredExchangeMode = Some(exchangeMode)
+  }
+
+  private[flink] def getDataExchangeMode(tableConf: Configuration): DataExchangeMode = {
+    requiredExchangeMode match {
+      case Some(mode) if mode eq DataExchangeMode.BATCH => mode
+      case _ => DataExchangeMode.PIPELINED
+    }
   }
 
   override def getDamBehavior: DamBehavior = {
@@ -117,6 +142,12 @@ class BatchExecExchange(
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
@@ -131,6 +162,11 @@ class BatchExecExchange(
 
     val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val outputRowType = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+
+    // TODO supports DataExchangeMode.BATCH in runtime
+    if (requiredExchangeMode.contains(DataExchangeMode.BATCH)) {
+      throw new TableException("DataExchangeMode.BATCH is not supported now")
+    }
 
     relDistribution.getType match {
       case RelDistribution.Type.ANY =>

@@ -17,8 +17,12 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.CalcitePair
+import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -31,7 +35,7 @@ import org.apache.calcite.rex.RexLiteral
 
 import java.util
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for time-based over [[Window]].
@@ -44,7 +48,8 @@ class StreamExecOverAggregate(
     inputRowType: RelDataType,
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 
@@ -91,7 +96,7 @@ class StreamExecOverAggregate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val overWindow: Group = logicWindow.groups.get(0)
-    val constants: Seq[RexLiteral] = logicWindow.constants.asScala
+    val constants: Seq[RexLiteral] = logicWindow.constants
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
@@ -115,4 +120,20 @@ class StreamExecOverAggregate(
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "w0$o" + i)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    throw new TableException("Implements this")
+  }
 }

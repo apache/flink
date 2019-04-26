@@ -75,4 +75,5 @@ trait CommonPhysicalJoin extends Join with FlinkPhysicalRel {
         RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
+
 }

@@ -17,8 +17,12 @@
  */
 package org.apache.flink.table.plan.util
 
+import org.apache.flink.table.calcite.FlinkPlannerImpl
+
+import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
+import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.io.{PrintWriter, StringWriter}
@@ -60,4 +64,56 @@ object FlinkRelOptUtil {
     sw.toString
   }
 
+  /**
+    * Returns the null direction if not specified.
+    *
+    * @param direction Direction that a field is ordered in.
+    * @return default null direction
+    */
+  def defaultNullDirection(direction: Direction): NullDirection = {
+    FlinkPlannerImpl.defaultNullCollation match {
+      case NullCollation.FIRST => NullDirection.FIRST
+      case NullCollation.LAST => NullDirection.LAST
+      case NullCollation.LOW =>
+        direction match {
+          case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => NullDirection.FIRST
+          case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => NullDirection.LAST
+          case _ => NullDirection.UNSPECIFIED
+        }
+      case NullCollation.HIGH =>
+        direction match {
+          case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => NullDirection.LAST
+          case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => NullDirection.FIRST
+          case _ => NullDirection.UNSPECIFIED
+        }
+    }
+  }
+
+  /**
+    * Creates a field collation with default direction.
+    *
+    * @param fieldIndex 0-based index of field being sorted
+    * @return the field collation with default direction and given field index.
+    */
+  def ofRelFieldCollation(fieldIndex: Int): RelFieldCollation = {
+    new RelFieldCollation(
+      fieldIndex,
+      FlinkPlannerImpl.defaultCollationDirection,
+      defaultNullDirection(FlinkPlannerImpl.defaultCollationDirection))
+  }
+
+  /**
+    * Creates a field collation.
+    *
+    * @param fieldIndex    0-based index of field being sorted
+    * @param direction     Direction of sorting
+    * @param nullDirection Direction of sorting of nulls
+    * @return the field collation.
+    */
+  def ofRelFieldCollation(
+      fieldIndex: Int,
+      direction: RelFieldCollation.Direction,
+      nullDirection: RelFieldCollation.NullDirection): RelFieldCollation = {
+    new RelFieldCollation(fieldIndex, direction, nullDirection)
+  }
 }

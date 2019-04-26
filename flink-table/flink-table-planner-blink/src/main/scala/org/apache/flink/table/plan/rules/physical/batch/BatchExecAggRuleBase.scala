@@ -25,7 +25,7 @@ import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.util.{AggregateUtil, RelFieldCollationUtil}
+import org.apache.flink.table.plan.util.{AggregateUtil, FlinkRelOptUtil}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Aggregate
@@ -170,7 +170,7 @@ trait BatchExecAggRuleBase {
   protected def createRelCollation(groupSet: Array[Int]): RelCollation = {
     val fields = new JArrayList[RelFieldCollation]()
     for (field <- groupSet) {
-      fields.add(RelFieldCollationUtil.of(field))
+      fields.add(FlinkRelOptUtil.ofRelFieldCollation(field))
     }
     RelCollations.of(fields)
   }

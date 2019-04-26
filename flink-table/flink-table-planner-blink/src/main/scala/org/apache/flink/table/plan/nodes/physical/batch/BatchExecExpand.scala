@@ -67,10 +67,18 @@ class BatchExecExpand(
       .item("projects", RelExplainUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
     getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(

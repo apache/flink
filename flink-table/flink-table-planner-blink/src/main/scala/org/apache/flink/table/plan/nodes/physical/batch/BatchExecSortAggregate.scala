@@ -95,6 +95,8 @@ class BatchExecSortAggregate(
         isGlobal = true))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = {
     if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.PIPELINED
   }
