@@ -101,7 +101,7 @@ object TopSpeedWindowing {
         })
       }
 
-    val topSeed = cars
+    val topSpeed = cars
       .assignAscendingTimestamps( _.time )
       .keyBy("carId")
       .window(GlobalWindows.create)
@@ -115,10 +115,10 @@ object TopSpeedWindowing {
       .maxBy("speed")
 
     if (params.has("output")) {
-      topSeed.writeAsText(params.get("output"))
+      topSpeed.writeAsText(params.get("output"))
     } else {
       println("Printing result to stdout. Use --output to specify output path.")
-      topSeed.print()
+      topSpeed.print()
     }
 
     env.execute("TopSpeedWindowing")
