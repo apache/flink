@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
+import java.util
+
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -486,6 +489,56 @@ class JoinITCase(
 
     val expected = List("1,Hi", "1,w", "2,Hello", "2,k", "3,Hello world", "3,x")
     val results = result.toDataSet[Row].collect().toList
+    assertEquals(expected.toString(), results.sortWith(_.toString < _.toString).toString())
+  }
+
+  @Test
+  def testCrossWithUnnestForMap(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env, config)
+
+    val data = List(
+      Row.of(Int.box(1),
+        Long.box(11L), {
+          val map = new util.HashMap[String, String]()
+          map.put("a", "10")
+          map.put("b", "11")
+          map
+        }),
+      Row.of(Int.box(2),
+        Long.box(22L), {
+          val map = new util.HashMap[String, String]()
+          map.put("c", "20")
+          map
+        }),
+      Row.of(Int.box(3),
+        Long.box(33L), {
+          val map = new util.HashMap[String, String]()
+          map.put("d", "30")
+          map.put("e", "31")
+          map
+        })
+    )
+
+    implicit val typeInfo = Types.ROW(
+      fieldNames = Array("a", "b", "c"),
+      types = Array(Types.INT,
+        Types.LONG,
+        Types.MAP(Types.STRING, Types.STRING))
+    )
+    val table = tEnv.fromDataSet(env.fromCollection(data))
+    tEnv.registerTable("src", table)
+
+
+    val sqlQuery =
+      """
+        |SELECT a,b,v FROM src
+        |CROSS JOIN UNNEST(c) as f (k,v)
+      """.stripMargin
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
+    val results = result.collect().toList
     assertEquals(expected.toString(), results.sortWith(_.toString < _.toString).toString())
   }
 
