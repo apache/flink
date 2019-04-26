@@ -107,7 +107,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 		this.sslHandlerFactory = configuration.getSslHandlerFactory();
 
 		this.uploadDir = configuration.getUploadDir();
-		createUploadDir(uploadDir, log);
+		createUploadDir(uploadDir, log, true);
 
 		this.maxContentLength = configuration.getMaxContentLength();
 		this.responseHeaders = configuration.getResponseHeaders();
@@ -446,12 +446,20 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	/**
 	 * Creates the upload dir if needed.
+	 * @param uploadDir directory to check
+	 * @param log logger used for logging output
+	 * @param initial indicates whether is initial startup
+	 * @throws IOException
 	 */
 	@VisibleForTesting
-	static void createUploadDir(final Path uploadDir, final Logger log) throws IOException {
+	static void createUploadDir(final Path uploadDir, final Logger log, boolean initial) throws IOException {
 		if (!Files.exists(uploadDir)) {
-			log.info("Upload directory {} does not exist, or has been deleted externally. " +
-				"Previously uploaded files are no longer available.", uploadDir);
+			if (initial) {
+				log.info("Upload directory {} does not exist. " + uploadDir);
+			} else {
+				log.warn("Upload directory {} has been deleted externally. " +
+					"Previously uploaded files are no longer available.", uploadDir);
+			}
 			checkAndCreateUploadDir(uploadDir, log);
 		}
 	}

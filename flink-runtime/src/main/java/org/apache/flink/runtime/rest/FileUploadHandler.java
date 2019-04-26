@@ -104,7 +104,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 						currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
 
 						// make sure that we still have a upload dir in case that it got deleted in the meanwhile
-						RestServerEndpoint.createUploadDir(uploadDir, LOG);
+						RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
 
 						currentUploadDir = Files.createDirectory(uploadDir.resolve(UUID.randomUUID().toString()));
 					} else {
@@ -116,7 +116,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 			} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
 				LOG.trace("Received http content.");
 				// make sure that we still have a upload dir in case that it got deleted in the meanwhile
-				RestServerEndpoint.createUploadDir(uploadDir, LOG);
+				RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
 
 				final HttpContent httpContent = (HttpContent) msg;
 				currentHttpPostRequestDecoder.offer(httpContent);
