@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.disk.iomanager.NoOpIOManager;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
-
 /**
  * This class should consolidate all mocking logic for ResultPartitions.
  * While using Mockito internally (for now), the use of Mockito should not
@@ -34,41 +30,26 @@ public class PartitionTestUtils {
 	}
 
 	public static ResultPartition createPartition(ResultPartitionType type) {
-		return createPartition(
-				new NoOpResultPartitionConsumableNotifier(),
-				type,
-				false);
-	}
-
-	public static ResultPartition createPartition(ResultPartitionType type, int numChannels) {
-		return createPartition(new NoOpResultPartitionConsumableNotifier(), type, numChannels, false);
+		return new ResultPartitionBuilder().setResultPartitionType(type).build();
 	}
 
 	public static ResultPartition createPartition(
 			ResultPartitionConsumableNotifier notifier,
 			ResultPartitionType type,
 			boolean sendScheduleOrUpdateConsumersMessage) {
-
-		return createPartition(notifier, type, 1, sendScheduleOrUpdateConsumersMessage);
+		return new ResultPartitionBuilder()
+			.setResultPartitionConsumableNotifier(notifier)
+			.setResultPartitionType(type)
+			.setSendScheduleOrUpdateConsumersMessage(sendScheduleOrUpdateConsumersMessage)
+			.build();
 	}
 
 	public static ResultPartition createPartition(
-			ResultPartitionConsumableNotifier notifier,
-			ResultPartitionType type,
-			int numChannels,
-			boolean sendScheduleOrUpdateConsumersMessage) {
-
-		return new ResultPartition(
-				"TestTask",
-				new NoOpTaskActions(),
-				new JobID(),
-				new ResultPartitionID(),
-				type,
-				numChannels,
-				numChannels,
-				new ResultPartitionManager(),
-				notifier,
-				new NoOpIOManager(),
-				sendScheduleOrUpdateConsumersMessage);
+			ResultPartitionType partitionType,
+			int numChannels) {
+		return new ResultPartitionBuilder()
+			.setResultPartitionType(partitionType)
+			.setNumberOfSubpartitions(numChannels)
+			.build();
 	}
 }
