@@ -36,6 +36,14 @@ public class ExecutionVertexID {
 		this.subtaskIndex = subtaskIndex;
 	}
 
+	public JobVertexID getJobVertexId() {
+		return jobVertexId;
+	}
+
+	public int getSubtaskIndex() {
+		return subtaskIndex;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

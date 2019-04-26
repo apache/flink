@@ -16,29 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler;
+package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import java.util.Collection;
 
 /**
- * Component that stores the task need to be scheduled and the option for deployment.
+ * A Simple scheduling vertex for testing purposes.
  */
-public class ExecutionVertexDeploymentOption {
+public class TestingSchedulingVertex implements SchedulingVertex {
 
 	private final ExecutionVertexID executionVertexId;
 
-	private final DeploymentOption deploymentOption;
-
-	public ExecutionVertexDeploymentOption(ExecutionVertexID executionVertexId, DeploymentOption deploymentOption) {
-		this.executionVertexId = executionVertexId;
-		this.deploymentOption = deploymentOption;
+	public TestingSchedulingVertex(JobVertexID jobVertexId, int subtaskIndex) {
+		this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
 	}
 
-	public ExecutionVertexID getExecutionVertexId() {
+	@Override
+	public ExecutionVertexID getId() {
 		return executionVertexId;
 	}
 
-	public DeploymentOption getDeploymentOption() {
-		return deploymentOption;
+	@Override
+	public ExecutionState getState() {
+		return ExecutionState.CREATED;
 	}
+
+	@Override
+	public JobVertexID getJobVertexId() {
+		return executionVertexId.getJobVertexId();
+	}
+
+	@Override
+	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
+		return null;
+	}
+
+	@Override
+	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
+			return null;
+		}
 }
