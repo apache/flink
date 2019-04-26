@@ -138,8 +138,8 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             # the packing&upload / download&unpacking process
             # by removing files not required for subsequent stages
     
-            # original jars
-            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name 'original-*.jar' | xargs rm -rf
+            # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
+            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
     
             # .git directory
             # not deleting this can cause build stability issues
