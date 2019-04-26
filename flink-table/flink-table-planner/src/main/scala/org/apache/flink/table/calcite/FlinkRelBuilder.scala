@@ -105,30 +105,6 @@ class FlinkRelBuilder(
 
 object FlinkRelBuilder {
 
-  def create(
-      config: FrameworkConfig,
-      expressionBridge: ExpressionBridge[PlannerExpression])
-    : FlinkRelBuilder = {
-
-    // create Flink type factory
-    val typeSystem = config.getTypeSystem
-    val typeFactory = new FlinkTypeFactory(typeSystem)
-
-    // create context instances with Flink type factory
-    val planner = new VolcanoPlanner(config.getCostFactory, Contexts.empty())
-    planner.setExecutor(config.getExecutor)
-    planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
-    val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
-    val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
-    val relOptSchema = new CalciteCatalogReader(
-      calciteSchema,
-      Collections.emptyList(),
-      typeFactory,
-      CalciteConfig.connectionConfig(config.getParserConfig))
-
-    new FlinkRelBuilder(config.getContext, cluster, relOptSchema, expressionBridge)
-  }
-
   /**
     * Information necessary to create a window aggregate.
     *

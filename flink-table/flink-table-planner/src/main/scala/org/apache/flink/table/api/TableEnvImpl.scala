@@ -22,7 +22,6 @@ import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan._
@@ -32,9 +31,6 @@ import org.apache.calcite.schema
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -43,16 +39,15 @@ import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
-import org.apache.flink.table.plan.TableOperationConverter
-import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
+import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -77,36 +72,9 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog()
 
-  // the configuration to create a Calcite planner
-  private lazy val frameworkConfig: FrameworkConfig = Frameworks
-    .newConfigBuilder
-    .defaultSchema(rootSchema)
-    .parserConfig(getSqlParserConfig)
-    .costFactory(new DataSetCostFactory)
-    .typeSystem(new FlinkTypeSystem)
-    .operatorTable(getSqlOperatorTable)
-    .sqlToRelConverterConfig(getSqlToRelConverterConfig)
-    // the converter is needed when calling temporal table functions from SQL, because
-    // they reference a history table represented with a tree of table operations
-    .context(Contexts.of(
-      new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
-    ))
-    // set the executor to evaluate constant expressions
-    .executor(new ExpressionReducer(config))
-    .build
-
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
-
-  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder
-    .create(frameworkConfig, expressionBridge)
-
-  // the planner instance used to optimize queries of this TableEnvironment
-  private lazy val planner: RelOptPlanner = relBuilder.getPlanner
-
-  private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -115,6 +83,12 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
+
+  private val planningSession: PlanningConfigurationBuilder = new PlanningConfigurationBuilder(
+    config,
+    functionCatalog,
+    internalSchema,
+    expressionBridge)
 
   protected def calciteConfig: CalciteConfig = config.getPlannerConfig
     .unwrap(classOf[CalciteConfig])
@@ -126,42 +100,6 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     case _: BatchTableEnvImpl => new BatchQueryConfig
     case _: StreamTableEnvImpl => new StreamQueryConfig
     case _ => null
-  }
-
-  /**
-    * Returns the SqlToRelConverter config.
-    */
-  protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
-    calciteConfig.sqlToRelConverterConfig match {
-
-      case None =>
-        SqlToRelConverter.configBuilder()
-          .withTrimUnusedFields(false)
-          .withConvertTableAccess(false)
-          .withInSubQueryThreshold(Integer.MAX_VALUE)
-          .withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
-          .build()
-
-      case Some(c) => c
-    }
-  }
-
-  /**
-    * Returns the operator table for this environment including a custom Calcite configuration.
-    */
-  protected def getSqlOperatorTable: SqlOperatorTable = {
-    calciteConfig.sqlOperatorTable match {
-
-      case None =>
-        functionCatalog.getSqlOperatorTable
-
-      case Some(table) =>
-        if (calciteConfig.replacesSqlOperatorTable) {
-          table
-        } else {
-          ChainedSqlOperatorTable.of(functionCatalog.getSqlOperatorTable, table)
-        }
-    }
   }
 
   /**
@@ -218,25 +156,6 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
         } else {
           RuleSets.ofList((getBuiltInPhysicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
-    }
-  }
-
-  /**
-    * Returns the SQL parser config for this environment including a custom Calcite configuration.
-    */
-  protected def getSqlParserConfig: SqlParser.Config = {
-    calciteConfig.sqlParserConfig match {
-
-      case None =>
-        // we use Java lex because back ticks are easier than double quotes in programming
-        // and cases are preserved
-        SqlParser
-          .configBuilder()
-          .setLex(Lex.JAVA)
-          .build()
-
-      case Some(sqlParserConfig) =>
-        sqlParserConfig
     }
   }
 
@@ -355,7 +274,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     input: RelNode,
     targetTraits: RelTraitSet): RelNode = {
 
-    val planner = new HepPlanner(hepProgram, frameworkConfig.getContext)
+    val planner = new HepPlanner(hepProgram, planningSession.getContext)
     planner.setRoot(input)
     if (input.getTraitSet != targetTraits) {
       planner.changeTraits(input, targetTraits.simplify)
@@ -424,7 +343,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     functionCatalog.registerScalarFunction(
       name,
       function,
-      typeFactory)
+      planningSession.getTypeFactory)
   }
 
   /**
@@ -448,7 +367,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       name,
       function,
       typeInfo,
-      typeFactory)
+      planningSession.getTypeFactory)
   }
 
   /**
@@ -475,7 +394,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       function,
       resultTypeInfo,
       accTypeInfo,
-      typeFactory)
+      planningSession.getTypeFactory)
   }
 
   override def registerTable(name: String, table: Table): Unit = {
@@ -554,7 +473,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   }
 
   private def extractTableSchema(table: schema.Table): TableSchema = {
-    val relDataType = table.getRowType(typeFactory)
+    val relDataType = table.getRowType(planningSession.getTypeFactory)
     val fieldNames = relDataType.getFieldNames
     val fieldTypes = relDataType.getFieldList.asScala
       .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
@@ -779,17 +698,17 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
-    relBuilder
+    planningSession.createRelBuilder(List().asJava)
   }
 
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
   private[flink] def getPlanner: RelOptPlanner = {
-    planner
+    planningSession.getPlanner
   }
 
   /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
   private[flink] def getTypeFactory: FlinkTypeFactory = {
-    typeFactory
+    planningSession.getTypeFactory
   }
 
   private[flink] def getFunctionCatalog: FunctionCatalog = {
@@ -798,7 +717,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   private[flink] def getFrameworkConfig: FrameworkConfig = {
-    frameworkConfig
+    planningSession.createFrameworkConfig(rootSchema)
   }
 
   /**
