@@ -566,7 +566,7 @@ public class CheckpointCoordinator {
 						job,
 						numUnsuccessful,
 						t);
-				throw new CheckpointException(CheckpointFailureReason.EXCEPTION);
+				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 			}
 
 			final PendingCheckpoint checkpoint = new PendingCheckpoint(
@@ -705,7 +705,7 @@ public class CheckpointCoordinator {
 					LOG.warn("Cannot dispose failed checkpoint storage location {}", checkpointStorageLocation, t2);
 				}
 
-				throw new CheckpointException(CheckpointFailureReason.EXCEPTION);
+				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 			}
 
 		} // end trigger lock

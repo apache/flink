@@ -52,6 +52,8 @@ public enum CheckpointFailureReason {
 
 	JOB_FAILURE("The job has failed."),
 
+	JOB_FAILOVER_REGION("FailoverRegion is restarting."),
+
 	TASK_CHECKPOINT_FAILURE("Task local checkpoint failure."),
 
 	FINALIZE_CHECKPOINT_FAILURE("Failure to finalize checkpoint."),

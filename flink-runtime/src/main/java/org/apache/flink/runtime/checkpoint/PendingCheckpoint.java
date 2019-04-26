@@ -425,7 +425,7 @@ public class PendingCheckpoint {
 	}
 
 	private void assertAbortSubsumedForced(CheckpointFailureReason reason) {
-		if (props.forceCheckpoint()) {
+		if (props.forceCheckpoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
 			throw new IllegalStateException("Bug: forced checkpoints must never be subsumed, " +
 				"the abort reason is : " + reason.message());
 		}

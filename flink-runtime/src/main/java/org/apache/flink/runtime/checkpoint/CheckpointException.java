@@ -25,7 +25,7 @@ import org.apache.flink.util.Preconditions;
  */
 public class CheckpointException extends Exception {
 
-	private static final long serialVersionUID = -4341865597039002540L;
+	private static final long serialVersionUID = 3257526119022486948L;
 
 	private final CheckpointFailureReason checkpointFailureReason;
 
@@ -35,7 +35,7 @@ public class CheckpointException extends Exception {
 	}
 
 	public CheckpointException(String message, CheckpointFailureReason failureReason) {
-		super(message + failureReason.message());
+		super(message + " Failure reason: " + failureReason.message());
 		this.checkpointFailureReason = Preconditions.checkNotNull(failureReason);
 	}
 
@@ -45,7 +45,7 @@ public class CheckpointException extends Exception {
 	}
 
 	public CheckpointException(String message, CheckpointFailureReason failureReason, Throwable cause) {
-		super(message + failureReason.message(), cause);
+		super(message + " Failure reason: " + failureReason.message(), cause);
 		this.checkpointFailureReason = Preconditions.checkNotNull(failureReason);
 	}
 
