@@ -68,7 +68,7 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         printf "Checking scala suffixes\n"
         printf "==============================================================================\n"
 
-        ./tools/verify_scala_suffixes.sh
+        ./tools/verify_scala_suffixes.sh "${PROFILE}"
         EXIT_CODE=$?
     else
         printf "\n==============================================================================\n"
