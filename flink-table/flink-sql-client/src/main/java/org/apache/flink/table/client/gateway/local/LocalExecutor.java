@@ -69,7 +69,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
@@ -113,8 +112,7 @@ public class LocalExecutor implements Executor {
 			this.flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
 
 			// initialize default file system
-			//TODO provide plugin path.
-			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
 			// load command lines for deployment
 			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);

@@ -130,7 +130,32 @@ public final class GlobalConfiguration {
 			configuration.addAll(dynamicProperties);
 		}
 
+		return enrichWithEnvironmentVariables(configuration);
+	}
+
+	private static Configuration enrichWithEnvironmentVariables(Configuration configuration) {
+		enrichWithEnvironmentVariable(ConfigConstants.ENV_FLINK_PLUGINS_DIR, configuration);
 		return configuration;
+	}
+
+	private static void enrichWithEnvironmentVariable(String environmentVariable, Configuration configuration) {
+		String pluginsDirFromEnv = System.getenv(environmentVariable);
+
+		if (pluginsDirFromEnv == null) {
+			return;
+		}
+
+		String pluginsDirFromConfig = configuration.getString(environmentVariable, pluginsDirFromEnv);
+
+		if (!pluginsDirFromEnv.equals(pluginsDirFromConfig)) {
+			throw new IllegalConfigurationException(
+				"The given configuration file already contains a value (" + pluginsDirFromEnv +
+					") for the key (" + environmentVariable +
+					") that would have been overwritten with (" + pluginsDirFromConfig +
+					") by an environment with the same name.");
+		}
+
+		configuration.setString(environmentVariable, pluginsDirFromEnv);
 	}
 
 	/**
