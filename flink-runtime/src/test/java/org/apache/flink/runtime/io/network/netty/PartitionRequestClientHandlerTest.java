@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -44,7 +45,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -128,7 +128,7 @@ public class PartitionRequestClientHandlerTest {
 	@Test
 	public void testReceiveBuffer() throws Exception {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -41,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -66,7 +64,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -294,7 +291,7 @@ public class LocalInputChannelTest {
 	 */
 	@Test
 	public void testConcurrentReleaseAndRetriggerPartitionRequest() throws Exception {
-		final SingleInputGate gate = createSingleInputGate(1);
+		final SingleInputGate gate = new SingleInputGateBuilder().build();
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager
@@ -452,16 +449,10 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfInputChannels >= 1);
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
-			this.inputGate = new SingleInputGate(
-				"Test Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				ResultPartitionType.PIPELINED,
-				subpartitionIndex,
-				numberOfInputChannels,
-				new NoOpTaskActions(),
-				new SimpleCounter(),
-				true);
+			this.inputGate = new SingleInputGateBuilder()
+				.setConsumedSubpartitionIndex(subpartitionIndex)
+				.setNumberOfChannels(numberOfInputChannels)
+				.build();
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);

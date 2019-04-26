@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -46,7 +47,6 @@ import org.junit.Test;
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createBufferResponse;
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -137,7 +137,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 	@Test
 	public void testReceiveBuffer() throws Exception {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
@@ -170,7 +170,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
 
 		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
@@ -246,7 +246,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel1 = createRemoteInputChannel(inputGate, client);
 		final RemoteInputChannel inputChannel2 = createRemoteInputChannel(inputGate, client);
 		try {
@@ -347,7 +347,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);

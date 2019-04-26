@@ -61,7 +61,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -98,7 +97,7 @@ public class SingleInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final SingleInputGate inputGate = createInputGate();
+		final SingleInputGate inputGate = createInputGate(2);
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -134,7 +133,7 @@ public class SingleInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
 		// Setup
-		final SingleInputGate inputGate = createInputGate();
+		final SingleInputGate inputGate = createInputGate(2);
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -175,7 +174,7 @@ public class SingleInputGateTest {
 
 		// Setup reader with one local and one unknown input channel
 
-		final SingleInputGate inputGate = createInputGate();
+		final SingleInputGate inputGate = createInputGate(2);
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -546,16 +545,16 @@ public class SingleInputGateTest {
 
 	// ---------------------------------------------------------------------------------------------
 
-	private SingleInputGate createInputGate() {
-		return createInputGate(2);
-	}
-
 	private SingleInputGate createInputGate(int numberOfInputChannels) {
 		return createInputGate(numberOfInputChannels, ResultPartitionType.PIPELINED);
 	}
 
 	private SingleInputGate createInputGate(int numberOfInputChannels, ResultPartitionType partitionType) {
-		SingleInputGate inputGate = createSingleInputGate(numberOfInputChannels, partitionType, enableCreditBasedFlowControl);
+		SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfInputChannels)
+			.setResultPartitionType(partitionType)
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build();
 
 		assertEquals(partitionType, inputGate.getConsumedPartitionType());
 

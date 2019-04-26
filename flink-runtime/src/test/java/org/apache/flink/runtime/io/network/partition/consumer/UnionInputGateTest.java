@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.junit.Test;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -41,8 +40,12 @@ public class UnionInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final SingleInputGate ig1 = createSingleInputGate(3);
-		final SingleInputGate ig2 = createSingleInputGate(5);
+		final SingleInputGate ig1 = new SingleInputGateBuilder()
+			.setNumberOfChannels(3)
+			.build();
+		final SingleInputGate ig2 = new SingleInputGateBuilder()
+			.setNumberOfChannels(5)
+			.build();
 
 		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
 

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 
 import org.junit.Test;
 
@@ -38,7 +39,6 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
@@ -60,7 +60,9 @@ public class InputGateConcurrentTest {
 
 		final ResultPartitionManager resultPartitionManager = createResultPartitionManager(partitions);
 
-		final SingleInputGate gate = createSingleInputGate(numberOfChannels);
+		final SingleInputGate gate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.build();
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			LocalInputChannel channel = createLocalInputChannel(gate, i, resultPartitionManager);
@@ -88,7 +90,9 @@ public class InputGateConcurrentTest {
 		final ConnectionManager connManager = createDummyConnectionManager();
 		final Source[] sources = new Source[numberOfChannels];
 
-		final SingleInputGate gate = createSingleInputGate(numberOfChannels);
+		final SingleInputGate gate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.build();
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = createRemoteInputChannel(gate, i, connManager);
@@ -128,7 +132,9 @@ public class InputGateConcurrentTest {
 
 		final Source[] sources = new Source[numberOfChannels];
 
-		final SingleInputGate gate = createSingleInputGate(numberOfChannels);
+		final SingleInputGate gate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.build();
 
 		for (int i = 0, local = 0; i < numberOfChannels; i++) {
 			if (localOrRemote.get(i)) {

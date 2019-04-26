@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.Task;
 
@@ -302,7 +303,11 @@ public class NetworkEnvironmentTest {
 	 * @return input gate with some fake settings
 	 */
 	private SingleInputGate createSingleInputGate(ResultPartitionType partitionType, int numberOfChannels) {
-		return spy(InputChannelTestUtils.createSingleInputGate(numberOfChannels, partitionType, enableCreditBasedFlowControl));
+		return spy(new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.setResultPartitionType(partitionType)
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build());
 	}
 
 	private static void createRemoteInputChannel(

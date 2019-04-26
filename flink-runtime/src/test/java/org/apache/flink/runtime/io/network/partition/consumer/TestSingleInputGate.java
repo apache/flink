@@ -26,7 +26,6 @@ import org.mockito.stubbing.Answer;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -44,7 +43,9 @@ public class TestSingleInputGate {
 	public TestSingleInputGate(int numberOfInputChannels, boolean initialize) {
 		checkArgument(numberOfInputChannels >= 1);
 
-		SingleInputGate realGate = createSingleInputGate(numberOfInputChannels);
+		SingleInputGate realGate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfInputChannels)
+			.build();
 
 		this.inputGate = spy(realGate);
 

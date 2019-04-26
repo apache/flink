@@ -49,7 +49,6 @@ import java.util.concurrent.Future;
 
 import scala.Tuple2;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
@@ -344,7 +343,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -484,7 +483,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -560,7 +559,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -650,7 +649,7 @@ public class RemoteInputChannelTest {
 		final int numExclusiveBuffers = 2;
 		final int numFloatingBuffers = 3;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel channel1 = spy(createRemoteInputChannel(inputGate));
 		final RemoteInputChannel channel2 = spy(createRemoteInputChannel(inputGate));
 		final RemoteInputChannel channel3 = spy(createRemoteInputChannel(inputGate));
@@ -722,7 +721,7 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			numTotalBuffers, 32);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel successfulRemoteIC = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(successfulRemoteIC.partitionId.getPartitionId(), successfulRemoteIC);
 
@@ -787,7 +786,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -850,7 +849,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -902,7 +901,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
@@ -957,7 +956,7 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
+		final SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
 		Throwable thrown = null;
