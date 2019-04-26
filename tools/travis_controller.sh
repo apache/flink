@@ -59,7 +59,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-	MVN="mvn clean install -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
+	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
 	$MVN
 	EXIT_CODE=$?
 
@@ -73,19 +73,6 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
     else
         printf "\n==============================================================================\n"
         printf "Previous build failure detected, skipping scala-suffixes check.\n"
-        printf "==============================================================================\n"
-    fi
-
-    if [ $EXIT_CODE == 0 ]; then
-        printf "\n\n==============================================================================\n"
-        printf "Checking dependency convergence\n"
-        printf "==============================================================================\n"
-
-        ./tools/check_dependency_convergence.sh
-        EXIT_CODE=$?
-    else
-        printf "\n==============================================================================\n"
-        printf "Previous build failure detected, skipping dependency-convergence check.\n"
         printf "==============================================================================\n"
     fi
     
