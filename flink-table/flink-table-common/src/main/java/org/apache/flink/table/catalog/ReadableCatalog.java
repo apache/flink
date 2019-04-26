@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -190,5 +191,37 @@ public interface ReadableCatalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException;
+
+	// ------ functions ------
+
+	/**
+	 * List the names of all functions in the given database. An empty list is returned if none is registered.
+	 *
+	 * @param dbName name of the database.
+	 * @return a list of the names of the functions in this database
+	 * @throws DatabaseNotExistException if the database does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException;
+
+	/**
+	 * Get the function.
+	 *
+	 * @param functionPath path of the function
+	 * @return the requested function
+	 * @throws FunctionNotExistException if the function does not exist in the catalog
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException;
+
+	/**
+	 * Check whether a function exists or not.
+	 *
+	 * @param functionPath path of the function
+	 * @return true if the function exists in the catalog
+	 *         false otherwise
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	boolean functionExists(ObjectPath functionPath) throws CatalogException;
 
 }
