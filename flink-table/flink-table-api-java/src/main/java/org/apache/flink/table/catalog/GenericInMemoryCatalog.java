@@ -301,7 +301,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
-		throws FunctionAlreadyExistException, DatabaseNotExistException {
+			throws FunctionAlreadyExistException, DatabaseNotExistException {
 		checkNotNull(functionPath);
 		checkNotNull(function);
 
@@ -320,7 +320,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
-		throws FunctionNotExistException {
+			throws FunctionNotExistException {
 		checkNotNull(functionPath);
 		checkNotNull(newFunction);
 

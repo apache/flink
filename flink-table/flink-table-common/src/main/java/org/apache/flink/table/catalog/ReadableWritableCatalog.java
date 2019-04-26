@@ -204,11 +204,11 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *
 	 * @param functionPath      path of the function
 	 * @param function          the function to be created
-	 * @param ignoreIfExists    flag to specify behavior if a table/view with the given name already exists:
-	 *                          if set to false, it throws a TableAlreadyExistException,
+	 * @param ignoreIfExists    flag to specify behavior if a function with the given name already exists:
+	 *                          if set to false, it throws a FunctionAlreadyExistException,
 	 *                          if set to true, nothing happens.
 	 * @throws FunctionAlreadyExistException if the function already exist
-	 * @throws DatabaseNotExistException     if the function does not exist
+	 * @throws DatabaseNotExistException     if the given database does not exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
@@ -232,7 +232,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 * Drop a function.
 	 *
 	 * @param functionPath       path of the function to be dropped
-	 * @param ignoreIfNotExists  plag to specify behavior if the database does not exist:
+	 * @param ignoreIfNotExists  plag to specify behavior if the function does not exist:
 	 *                           if set to false, throw an exception
 	 *                           if set to true, nothing happens
 	 * @throws FunctionNotExistException if the function does not exist

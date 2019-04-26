@@ -48,14 +48,14 @@ public interface CatalogFunction {
 	CatalogFunction copy();
 
 	/**
-	 * Get a brief description of the table or view.
+	 * Get a brief description of the function.
 	 *
 	 * @return an optional short description of the function
 	 */
 	Optional<String> getDescription();
 
 	/**
-	 * Get a detailed description of the table or view.
+	 * Get a detailed description of the function.
 	 *
 	 * @return an optional long description of the function
 	 */
