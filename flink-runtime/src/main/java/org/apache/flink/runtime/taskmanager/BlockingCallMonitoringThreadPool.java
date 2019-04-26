@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -44,6 +47,10 @@ public class BlockingCallMonitoringThreadPool {
 
 	private final ThreadPoolExecutor executor;
 
+	public BlockingCallMonitoringThreadPool() {
+		this(Executors.defaultThreadFactory());
+	}
+
 	public BlockingCallMonitoringThreadPool(final ThreadFactory dispatcherThreadFactory) {
 		this.executor = new ThreadPoolExecutor(
 				1,
@@ -54,22 +61,22 @@ public class BlockingCallMonitoringThreadPool {
 				checkNotNull(dispatcherThreadFactory));
 	}
 
-	public void submit(final Runnable runnable, final boolean blocking) {
+	public CompletableFuture<?> submit(final Runnable runnable, final boolean blocking) {
 		if (blocking) {
-			submitBlocking(runnable);
+			return submitBlocking(runnable);
 		} else {
-			submit(runnable);
+			return submit(runnable);
 		}
 	}
 
-	private void submit(final Runnable task) {
+	private CompletableFuture<?> submit(final Runnable task) {
 		adjustThreadPoolSize(inFlightBlockingCallCounter.get());
-		executor.execute(task);
+		return CompletableFuture.runAsync(task, executor);
 	}
 
-	private void submitBlocking(final Runnable task) {
+	private CompletableFuture<?> submitBlocking(final Runnable task) {
 		adjustThreadPoolSize(inFlightBlockingCallCounter.incrementAndGet());
-		CompletableFuture.runAsync(task, executor).whenComplete(
+		return CompletableFuture.runAsync(task, executor).whenComplete(
 				(ignored, e) -> inFlightBlockingCallCounter.decrementAndGet());
 	}
 
@@ -106,5 +113,15 @@ public class BlockingCallMonitoringThreadPool {
 
 	public void shutdownNow() {
 		executor.shutdownNow();
+	}
+
+	@VisibleForTesting
+	int getMaximumPoolSize() {
+		return executor.getMaximumPoolSize();
+	}
+
+	@VisibleForTesting
+	int getQueueSize() {
+		return executor.getQueue().size();
 	}
 }
