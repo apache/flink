@@ -62,17 +62,13 @@ public class SegmentsUtil {
 	public static byte[] allocateReuseBytes(int length) {
 		byte[] bytes = BYTES_LOCAL.get();
 
-		if (bytes == null) {
-			if (length <= MAX_BYTES_LENGTH) {
-				bytes = new byte[MAX_BYTES_LENGTH];
-				BYTES_LOCAL.set(bytes);
-			} else {
-				bytes = new byte[length];
-			}
-		} else if (bytes.length < length) {
+		if (bytes == null || bytes.length < length) {
 			bytes = new byte[length];
-		}
 
+			if (length <= MAX_BYTES_LENGTH) {
+				BYTES_LOCAL.set(bytes);
+			}
+		}
 		return bytes;
 	}
 
@@ -445,7 +441,7 @@ public class SegmentsUtil {
 	 * @param index bit index from base offset.
 	 */
 	public static boolean bitGet(MemorySegment segment, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + (index  >>> 3);
 		byte current = segment.get(offset);
 		return (current & (1 << (index & BIT_BYTE_INDEX_MASK))) != 0;
 	}
@@ -460,7 +456,7 @@ public class SegmentsUtil {
 	public static void bitUnSet(MemorySegment[] segments, int baseOffset, int index) {
 		if (segments.length == 1) {
 			MemorySegment segment = segments[0];
-			int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+			int offset = baseOffset + (index >>> 3);
 			byte current = segment.get(offset);
 			current &= ~(1 << (index & BIT_BYTE_INDEX_MASK));
 			segment.put(offset, current);
