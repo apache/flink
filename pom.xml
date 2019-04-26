@@ -128,6 +128,7 @@ under the License.
 		<powermock.version>2.0.0-RC.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
+		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -872,7 +873,7 @@ under the License.
 						<executions>
 							<execution>
 								<id>dependency-convergence</id>
-								<phase>validate</phase>
+								<phase>${flink.convergence.phase}</phase>
 							</execution>
 						</executions>
 					</plugin>
