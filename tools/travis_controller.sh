@@ -43,6 +43,33 @@ source "${HERE}/travis/fold.sh"
 source "${HERE}/travis/stage.sh"
 source "${HERE}/travis/shade.sh"
 
+print_system_info() {
+	FOLD_ESCAPE="\x0d\x1b"
+	COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
+	COLOR_OFF="\x1b\x5b\x30\x6d"
+
+	start_fold "cpu_info" "CPU information"
+	lscpu
+	end_fold "cpu_info"
+
+	start_fold "mem_info" "Memory information"
+	cat /proc/meminfo
+	end_fold "mem_info"
+
+	start_fold "disk_info" "Disk information"
+	df -hH
+	end_fold "disk_info"
+
+	start_fold "cache_info" "Cache information"
+	echo "Maven: $(du -s --si $HOME/.m2)"
+	echo "RVM: $(du -s --si $HOME/.rvm)"
+	echo "Flink: $(du -s --si $HOME/flink_cache)"
+	echo "Maven (binaries): $(du -s --si $HOME/maven_cache)"
+	end_fold "cache_info"
+}
+
+print_system_info
+
 function deleteOldCaches() {
 	while read CACHE_DIR; do
 		local old_number="${CACHE_DIR##*/}"
