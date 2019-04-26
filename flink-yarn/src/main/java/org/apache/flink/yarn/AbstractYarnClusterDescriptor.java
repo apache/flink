@@ -97,7 +97,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -660,8 +659,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// ------------------ Initialize the file systems -------------------------
 
-		//TODO provide plugin path.
-		org.apache.flink.core.fs.FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+		org.apache.flink.core.fs.FileSystem.initialize(
+			configuration,
+			PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		// initialize file system
 		// Copy the application master jar to the filesystem

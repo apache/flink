@@ -70,7 +70,6 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -285,8 +284,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		final Configuration configuration = loadConfiguration(args);
 
-		//TODO provide plugin path.
-		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		SecurityUtils.install(new SecurityConfiguration(configuration));
 

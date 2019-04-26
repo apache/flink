@@ -18,13 +18,12 @@
 
 package org.apache.flink.core.plugin;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
 
 /**
  * Utility functions for the plugin mechanism.
@@ -35,20 +34,22 @@ public final class PluginUtils {
 		throw new AssertionError("Singleton class.");
 	}
 
-	public static PluginManager createPluginManagerFromRootFolder(Optional<Path> pluginsRootPath) {
-		Collection<PluginDescriptor> pluginDescriptorsForDirectory;
+	public static PluginManager createPluginManagerFromRootFolder(Configuration configuration) {
+		return createPluginManagerFromRootFolder(PluginConfig.fromConfiguration(configuration));
+	}
 
-		if (pluginsRootPath.isPresent()) {
+	private static PluginManager createPluginManagerFromRootFolder(PluginConfig pluginConfig) {
+		if (pluginConfig.getPluginsPath().isPresent()) {
 			try {
-				pluginDescriptorsForDirectory =
-					new DirectoryBasedPluginFinder(pluginsRootPath.get()).findPlugins();
+				Collection<PluginDescriptor> pluginDescriptors =
+					new DirectoryBasedPluginFinder(pluginConfig.getPluginsPath().get()).findPlugins();
+				return new PluginManager(pluginDescriptors);
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Exception when trying to initialize plugin system.", e);
 			}
-		} else {
-			pluginDescriptorsForDirectory = Collections.emptyList();
 		}
-
-		return new PluginManager(pluginDescriptorsForDirectory);
+		else {
+			return new PluginManager(Collections.emptyList());
+		}
 	}
 }

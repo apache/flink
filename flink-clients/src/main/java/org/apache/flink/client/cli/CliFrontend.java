@@ -80,7 +80,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -124,8 +123,7 @@ public class CliFrontend {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
 
-		//TODO provide plugin path.
-		FileSystem.initialize(this.configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		this.customCommandLineOptions = new Options();
 

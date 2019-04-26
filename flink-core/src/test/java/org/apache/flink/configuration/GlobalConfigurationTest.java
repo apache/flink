@@ -97,7 +97,7 @@ public class GlobalConfigurationTest extends TestLogger {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testFailIfNull() {
-		GlobalConfiguration.loadConfiguration(null);
+		GlobalConfiguration.loadConfiguration((String) null);
 	}
 
 	@Test(expected = IllegalConfigurationException.class)
