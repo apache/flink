@@ -22,6 +22,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -38,6 +40,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A generic catalog implementation that holds all meta objects in memory.
@@ -51,6 +54,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	private final String catalogName;
 	private final Map<String, CatalogDatabase> databases;
 	private final Map<ObjectPath, CatalogBaseTable> tables;
+	private final Map<ObjectPath, CatalogFunction> functions;
 	private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogPartition>> partitions;
 
 	public GenericInMemoryCatalog(String name) {
@@ -60,6 +64,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		this.databases = new LinkedHashMap<>();
 		this.databases.put(DEFAULT_DB, new GenericCatalogDatabase(new HashMap<>()));
 		this.tables = new LinkedHashMap<>();
+		this.functions = new LinkedHashMap<>();
 		this.partitions = new LinkedHashMap<>();
 	}
 
@@ -95,7 +100,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	public void createDatabase(String databaseName, CatalogDatabase db, boolean ignoreIfExists)
 		throws DatabaseAlreadyExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
-		checkArgument(db != null);
+		checkNotNull(db);
 
 		if (databaseExists(databaseName)) {
 			if (!ignoreIfExists) {
@@ -127,15 +132,15 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	private boolean isDatabaseEmpty(String databaseName) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
 
-		return tables.keySet().stream().noneMatch(op -> op.getDatabaseName().equals(databaseName));
-		// TODO: also check function when function is added.
+		return tables.keySet().stream().noneMatch(op -> op.getDatabaseName().equals(databaseName)) &&
+			functions.keySet().stream().noneMatch(op -> op.getDatabaseName().equals(databaseName));
 	}
 
 	@Override
 	public void alterDatabase(String databaseName, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
 		throws DatabaseNotExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
-		checkArgument(newDatabase != null);
+		checkNotNull(newDatabase);
 
 		if (databaseExists(databaseName)) {
 			databases.put(databaseName, newDatabase.copy());
@@ -172,8 +177,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	@Override
 	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
 		throws TableAlreadyExistException, DatabaseNotExistException {
-		checkArgument(tablePath != null);
-		checkArgument(table != null);
+		checkNotNull(tablePath);
+		checkNotNull(table);
 
 		if (!databaseExists(tablePath.getDatabaseName())) {
 			throw new DatabaseNotExistException(catalogName, tablePath.getDatabaseName());
@@ -195,8 +200,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	@Override
 	public void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException {
-		checkArgument(tablePath != null);
-		checkArgument(newTable != null);
+		checkNotNull(tablePath);
+		checkNotNull(newTable);
 
 		// TODO: validate the new and old CatalogBaseTable must be of the same type. For example, this doesn't
 		//		allow alter a regular table to partitioned table, or alter a view to a table, and vice versa.
@@ -213,7 +218,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException {
-		checkArgument(tablePath != null);
+		checkNotNull(tablePath);
 
 		if (tableExists(tablePath)) {
 			tables.remove(tablePath);
@@ -227,7 +232,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	@Override
 	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
 		throws TableNotExistException, TableAlreadyExistException {
-		checkArgument(tablePath != null);
+		checkNotNull(tablePath);
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(newTableName));
 
 		if (tableExists(tablePath)) {
@@ -276,7 +281,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException {
-		checkArgument(tablePath != null);
+		checkNotNull(tablePath);
 
 		if (!tableExists(tablePath)) {
 			throw new TableNotExistException(catalogName, tablePath);
@@ -287,7 +292,84 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public boolean tableExists(ObjectPath tablePath) {
-		return tablePath != null && databaseExists(tablePath.getDatabaseName()) && tables.containsKey(tablePath);
+		checkNotNull(tablePath);
+
+		return databaseExists(tablePath.getDatabaseName()) && tables.containsKey(tablePath);
+	}
+
+	// ------ functions ------
+
+	@Override
+	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
+			throws FunctionAlreadyExistException, DatabaseNotExistException {
+		checkNotNull(functionPath);
+		checkNotNull(function);
+
+		if (!databaseExists(functionPath.getDatabaseName())) {
+			throw new DatabaseNotExistException(catalogName, functionPath.getDatabaseName());
+		}
+
+		if (functionExists(functionPath)) {
+			if (!ignoreIfExists) {
+				throw new FunctionAlreadyExistException(catalogName, functionPath);
+			}
+		} else {
+			functions.put(functionPath, function.copy());
+		}
+	}
+
+	@Override
+	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
+			throws FunctionNotExistException {
+		checkNotNull(functionPath);
+		checkNotNull(newFunction);
+
+		if (functionExists(functionPath)) {
+			functions.put(functionPath, newFunction.copy());
+		} else if (!ignoreIfNotExists) {
+			throw new FunctionNotExistException(catalogName, functionPath);
+		}
+	}
+
+	@Override
+	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists) throws FunctionNotExistException {
+		checkNotNull(functionPath);
+
+		if (functionExists(functionPath)) {
+			functions.remove(functionPath);
+		} else if (!ignoreIfNotExists) {
+			throw new FunctionNotExistException(catalogName, functionPath);
+		}
+	}
+
+	@Override
+	public List<String> listFunctions(String databaseName) throws DatabaseNotExistException {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+
+		if (!databaseExists(databaseName)) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
+		}
+
+		return functions.keySet().stream()
+			.filter(k -> k.getDatabaseName().equals(databaseName)).map(k -> k.getObjectName())
+			.collect(Collectors.toList());
+	}
+
+	@Override
+	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException {
+		checkNotNull(functionPath);
+
+		if (!functionExists(functionPath)) {
+			throw new FunctionNotExistException(catalogName, functionPath);
+		} else {
+			return functions.get(functionPath).copy();
+		}
+	}
+
+	@Override
+	public boolean functionExists(ObjectPath functionPath) {
+		checkNotNull(functionPath);
+		return databaseExists(functionPath.getDatabaseName()) && functions.containsKey(functionPath);
 	}
 
 	// ------ partitions ------

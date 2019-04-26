@@ -24,12 +24,15 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
 import org.junit.Before;
@@ -93,6 +96,9 @@ public class GenericInMemoryCatalogTest {
 		}
 		if (catalog.tableExists(path3)) {
 			catalog.dropTable(path3, true);
+		}
+		if (catalog.functionExists(path1)) {
+			catalog.dropFunction(path1, true);
 		}
 		if (catalog.databaseExists(db1)) {
 			catalog.dropDatabase(db1, true);
@@ -946,6 +952,158 @@ public class GenericInMemoryCatalogTest {
 		assertFalse(catalog.partitionExists(ObjectPath.fromString("non.exist"), createPartitionSpec()));
 	}
 
+	// ------ functions ------
+
+	@Test
+	public void testCreateFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		assertFalse(catalog.functionExists(path1));
+
+		catalog.createFunction(path1, createFunction(), false);
+
+		assertTrue(catalog.functionExists(path1));
+
+		catalog.dropFunction(path1, false);
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
+	public void testCreateFunction_DatabaseNotExistException() throws Exception {
+		assertFalse(catalog.databaseExists(db1));
+
+		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database db1 does not exist in Catalog");
+		catalog.createFunction(path1, createFunction(), false);
+	}
+
+	@Test
+	public void testCreateFunction_FunctionAlreadyExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createFunction(path1, createFunction(), false);
+
+		exception.expect(FunctionAlreadyExistException.class);
+		exception.expectMessage("Function db1.t1 already exists in Catalog");
+		catalog.createFunction(path1, createFunction(), false);
+	}
+
+	@Test
+	public void testCreateFunction_FunctionAlreadyExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogFunction func = createFunction();
+		catalog.createFunction(path1, func, false);
+
+		CatalogTestUtil.checkEquals(func, catalog.getFunction(path1));
+
+		catalog.createFunction(path1, createAnotherFunction(), true);
+
+		CatalogTestUtil.checkEquals(func, catalog.getFunction(path1));
+
+		catalog.dropFunction(path1, false);
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
+	public void testAlterFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogFunction func = createFunction();
+		catalog.createFunction(path1, func, false);
+
+		CatalogTestUtil.checkEquals(func, catalog.getFunction(path1));
+
+		CatalogFunction newFunc = createAnotherFunction();
+		catalog.alterFunction(path1, newFunc, false);
+
+		assertNotEquals(func, catalog.getFunction(path1));
+		CatalogTestUtil.checkEquals(newFunc, catalog.getFunction(path1));
+
+		catalog.dropFunction(path1, false);
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
+	public void testAlterFunction_FunctionNotExistException() throws Exception {
+		exception.expect(FunctionNotExistException.class);
+		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
+		catalog.alterFunction(nonExistObjectPath, createFunction(), false);
+	}
+
+	@Test
+	public void testAlterFunction_FunctionNotExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.alterFunction(nonExistObjectPath, createFunction(), true);
+
+		assertFalse(catalog.functionExists(nonExistObjectPath));
+
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
+	public void testListFunctions() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogFunction func = createFunction();
+		catalog.createFunction(path1, func, false);
+
+		assertEquals(path1.getObjectName(), catalog.listFunctions(db1).get(0));
+
+		catalog.dropFunction(path1, false);
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
+	public void testListFunctions_DatabaseNotExistException() throws Exception{
+		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database db1 does not exist in Catalog");
+		catalog.listFunctions(db1);
+	}
+
+	@Test
+	public void testGetFunction_FunctionNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		exception.expect(FunctionNotExistException.class);
+		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
+		catalog.getFunction(nonExistObjectPath);
+	}
+
+	@Test
+	public void testGetFunction_FunctionNotExistException_NoDb() throws Exception {
+		exception.expect(FunctionNotExistException.class);
+		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
+		catalog.getFunction(nonExistObjectPath);
+	}
+
+	@Test
+	public void testDropFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createFunction(path1, createFunction(), false);
+
+		assertTrue(catalog.functionExists(path1));
+
+		catalog.dropFunction(path1, false);
+
+		assertFalse(catalog.functionExists(path1));
+
+		catalog.dropDatabase(db1, false);
+	}
+
+	@Test
+	public void testDropFunction_FunctionNotExistException() throws Exception {
+		exception.expect(FunctionNotExistException.class);
+		exception.expectMessage("Function non.exist does not exist in Catalog");
+		catalog.dropFunction(nonExistDbPath, false);
+	}
+
+	@Test
+	public void testDropFunction_FunctionNotExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.dropFunction(nonExistObjectPath, true);
+		catalog.dropDatabase(db1, false);
+	}
+
 	// ------ utilities ------
 
 	private GenericCatalogTable createStreamingTable() {
@@ -1092,4 +1250,29 @@ public class GenericInMemoryCatalogTest {
 			"This is another view");
 	}
 
+	protected CatalogFunction createFunction() {
+		return new GenericCatalogFunction(MyScalarFunction.class.getName());
+	}
+
+	protected CatalogFunction createAnotherFunction() {
+		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
+	}
+
+	/**
+	 * Test UDF.
+	 */
+	public static class MyScalarFunction extends ScalarFunction {
+		public Integer eval(Integer i) {
+			return i + 1;
+		}
+	}
+
+	/**
+	 * Test UDF.
+	 */
+	public static class MyOtherScalarFunction extends ScalarFunction {
+		public String eval(Integer i) {
+			return String.valueOf(i);
+		}
+	}
 }

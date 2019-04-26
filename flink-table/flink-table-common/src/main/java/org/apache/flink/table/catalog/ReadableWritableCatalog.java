@@ -22,6 +22,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -195,4 +197,47 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
 		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException;
 
+	// ------ functions ------
+
+	/**
+	 * Create a function.
+	 *
+	 * @param functionPath      path of the function
+	 * @param function          the function to be created
+	 * @param ignoreIfExists    flag to specify behavior if a function with the given name already exists:
+	 *                          if set to false, it throws a FunctionAlreadyExistException,
+	 *                          if set to true, nothing happens.
+	 * @throws FunctionAlreadyExistException if the function already exist
+	 * @throws DatabaseNotExistException     if the given database does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
+		throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException;
+
+	/**
+	 * Modify an existing function.
+	 *
+	 * @param functionPath       path of the function
+	 * @param newFunction        the function to be modified
+	 * @param ignoreIfNotExists  flag to specify behavior if the function does not exist:
+	 *                           if set to false, throw an exception
+	 *                           if set to true, nothing happens
+	 * @throws FunctionNotExistException if the function does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
+		throws FunctionNotExistException, CatalogException;
+
+	/**
+	 * Drop a function.
+	 *
+	 * @param functionPath       path of the function to be dropped
+	 * @param ignoreIfNotExists  plag to specify behavior if the function does not exist:
+	 *                           if set to false, throw an exception
+	 *                           if set to true, nothing happens
+	 * @throws FunctionNotExistException if the function does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists) throws FunctionNotExistException,
+		CatalogException;
 }
