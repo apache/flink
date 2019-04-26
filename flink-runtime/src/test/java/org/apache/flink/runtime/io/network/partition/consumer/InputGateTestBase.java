@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -80,10 +79,11 @@ public abstract class InputGateTestBase {
 
 	protected SingleInputGate createInputGate(
 			int numberOfInputChannels, ResultPartitionType partitionType) {
-		SingleInputGate inputGate = createSingleInputGate(
-			numberOfInputChannels,
-			partitionType,
-			enableCreditBasedFlowControl);
+		SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfInputChannels)
+			.setResultPartitionType(partitionType)
+			.setIsCreditBased(enableCreditBasedFlowControl)
+			.build();
 
 		assertEquals(partitionType, inputGate.getConsumedPartitionType());
 		return inputGate;
