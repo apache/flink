@@ -26,6 +26,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -48,7 +49,7 @@ class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
 		try {
 			FsJobArchivist.archiveJob(archivePath, executionGraph.getJobID(), jsonArchivist.archiveJsonWithPath(executionGraph));
 			return CompletableFuture.completedFuture(Acknowledge.get());
-		} catch (Exception e) {
+		} catch (IOException e) {
 			return FutureUtils.completedExceptionally(e);
 		}
 	}

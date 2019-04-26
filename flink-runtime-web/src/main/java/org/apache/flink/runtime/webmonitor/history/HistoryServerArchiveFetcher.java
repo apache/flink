@@ -249,7 +249,6 @@ class HistoryServerArchiveFetcher {
 		JsonNode tasks = job.get("tasks");
 		int numTasks = tasks.get("total").asInt();
 		int pending = tasks.get("pending").asInt();
-		// int pending = tasks.get("pending").asInt();
 		int running = tasks.get("running").asInt();
 		int finished = tasks.get("finished").asInt();
 		int canceling = tasks.get("canceling").asInt();
