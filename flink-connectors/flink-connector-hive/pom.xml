@@ -37,8 +37,7 @@ under the License.
 
 	<properties>
 		<hive.version>2.3.4</hive.version>
-		<!-- hive-metastore 2.x requires the Hadoop minimum version as 2.6 -->
-		<hivemetastore2.hadoop.minimum.version>2.6.5</hivemetastore2.hadoop.minimum.version>
+		<hivemetastore.hadoop.version>2.7.2</hivemetastore.hadoop.version>
 	</properties>
 
 	<dependencies>
@@ -60,13 +59,20 @@ under the License.
 		</dependency>
 
 		<!-- Hadoop dependency -->
-		<!-- Hadoop as an optional dependency, so we can hard depend on this without pulling in Hadoop by default -->
+		<!-- Hadoop as provided dependencies, so we can depend on them without pulling in Hadoop -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${hivemetastore2.hadoop.minimum.version}-${project.version}</version>
-			<optional>true</optional>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- Hive dependencies -->
