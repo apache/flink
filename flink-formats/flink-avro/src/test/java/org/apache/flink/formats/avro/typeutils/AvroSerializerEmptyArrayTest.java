@@ -37,7 +37,7 @@ public class AvroSerializerEmptyArrayTest {
 	public void testBookSerialization() {
 		try {
 			Book b = new Book(123, "This is a test book", 26382648);
-			AvroSerializer<Book> serializer = new AvroSerializer<Book>(Book.class);
+			AvroSerializer<Book> serializer = new AvroSerializer<>(Book.class);
 			SerializerTestInstance<Book> test = new SerializerTestInstance<Book>(serializer, Book.class, -1, b);
 			test.testAll();
 		}

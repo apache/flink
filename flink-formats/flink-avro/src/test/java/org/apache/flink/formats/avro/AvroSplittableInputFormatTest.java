@@ -156,44 +156,45 @@ public class AvroSplittableInputFormatTest {
 				// 20.00
 				.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 				.build();
+
 		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<>(User.class);
-		DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter);
-		dataFileWriter.create(user1.getSchema(), testFile);
-		dataFileWriter.append(user1);
-		dataFileWriter.append(user2);
+		try (DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter)) {
+			dataFileWriter.create(user1.getSchema(), testFile);
+			dataFileWriter.append(user1);
+			dataFileWriter.append(user2);
 
-		Random rnd = new Random(1337);
-		for (int i = 0; i < NUM_RECORDS - 2; i++) {
-			User user = new User();
-			user.setName(TEST_NAME + rnd.nextInt());
-			user.setFavoriteNumber(rnd.nextInt());
-			user.setTypeDoubleTest(rnd.nextDouble());
-			user.setTypeBoolTest(true);
-			user.setTypeArrayString(stringArray);
-			user.setTypeArrayBoolean(booleanArray);
-			user.setTypeEnum(TEST_ENUM_COLOR);
-			user.setTypeMap(longMap);
-			Address address = new Address();
-			address.setNum(TEST_NUM);
-			address.setStreet(TEST_STREET);
-			address.setCity(TEST_CITY);
-			address.setState(TEST_STATE);
-			address.setZip(TEST_ZIP);
-			user.setTypeNested(address);
-			user.setTypeBytes(ByteBuffer.allocate(10));
-			user.setTypeDate(LocalDate.parse("2014-03-01"));
-			user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-			user.setTypeTimeMicros(123456);
-			user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
-			user.setTypeTimestampMicros(123456L);
-			// 20.00
-			user.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
-			// 20.00
-			user.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+			Random rnd = new Random(1337);
+			for (int i = 0; i < NUM_RECORDS - 2; i++) {
+				User user = new User();
+				user.setName(TEST_NAME + rnd.nextInt());
+				user.setFavoriteNumber(rnd.nextInt());
+				user.setTypeDoubleTest(rnd.nextDouble());
+				user.setTypeBoolTest(true);
+				user.setTypeArrayString(stringArray);
+				user.setTypeArrayBoolean(booleanArray);
+				user.setTypeEnum(TEST_ENUM_COLOR);
+				user.setTypeMap(longMap);
+				Address address = new Address();
+				address.setNum(TEST_NUM);
+				address.setStreet(TEST_STREET);
+				address.setCity(TEST_CITY);
+				address.setState(TEST_STATE);
+				address.setZip(TEST_ZIP);
+				user.setTypeNested(address);
+				user.setTypeBytes(ByteBuffer.allocate(10));
+				user.setTypeDate(LocalDate.parse("2014-03-01"));
+				user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+				user.setTypeTimeMicros(123456);
+				user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
+				user.setTypeTimestampMicros(123456L);
+				// 20.00
+				user.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+				// 20.00
+				user.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 
-			dataFileWriter.append(user);
+				dataFileWriter.append(user);
+			}
 		}
-		dataFileWriter.close();
 	}
 
 	@Test

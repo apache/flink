@@ -30,7 +30,6 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
@@ -54,12 +53,7 @@ public class RegistryAvroDeserializationSchemaTest {
 				.requiredInt("num")
 				.optionalString("country")
 				.endRecord(),
-			() -> new SchemaCoder() {
-				@Override
-				public Schema readSchema(InputStream in) {
-					return Address.getClassSchema();
-				}
-			}
+			() -> in -> Address.getClassSchema()
 		);
 
 		GenericRecord genericRecord = deserializer.deserialize(writeRecord(

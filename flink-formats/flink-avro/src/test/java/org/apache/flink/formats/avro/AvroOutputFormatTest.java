@@ -107,23 +107,23 @@ public class AvroOutputFormatTest {
 			outputFormat.setSchema(schema);
 		}
 
-		final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try (final ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+			// when
+			try (final ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+				oos.writeObject(outputFormat);
+			}
+			try (final ByteArrayInputStream bais = new ByteArrayInputStream(bos.toByteArray());
+				final ObjectInputStream ois = new ObjectInputStream(bais)) {
+				// then
+				Object o = ois.readObject();
+				assertTrue(o instanceof AvroOutputFormat);
+				@SuppressWarnings("unchecked") final AvroOutputFormat<User> restored = (AvroOutputFormat<User>) o;
+				final AvroOutputFormat.Codec restoredCodec = (AvroOutputFormat.Codec) Whitebox.getInternalState(restored, "codec");
+				final Schema restoredSchema = (Schema) Whitebox.getInternalState(restored, "userDefinedSchema");
 
-		// when
-		try (final ObjectOutputStream oos = new ObjectOutputStream(bos)) {
-			oos.writeObject(outputFormat);
-		}
-		try (final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bos.toByteArray()))) {
-			// then
-			Object o = ois.readObject();
-			assertTrue(o instanceof AvroOutputFormat);
-			@SuppressWarnings("unchecked")
-			final AvroOutputFormat<User> restored = (AvroOutputFormat<User>) o;
-			final AvroOutputFormat.Codec restoredCodec = (AvroOutputFormat.Codec) Whitebox.getInternalState(restored, "codec");
-			final Schema restoredSchema = (Schema) Whitebox.getInternalState(restored, "userDefinedSchema");
-
-			assertTrue(codec != null ? restoredCodec == codec : restoredCodec == null);
-			assertTrue(schema != null ? restoredSchema.equals(schema) : restoredSchema == null);
+				assertTrue(codec != null ? restoredCodec == codec : restoredCodec == null);
+				assertTrue(schema != null ? restoredSchema.equals(schema) : restoredSchema == null);
+			}
 		}
 	}
 
@@ -195,13 +195,13 @@ public class AvroOutputFormatTest {
 		output(outputFormat, schema);
 
 		GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
-		DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(new File(outputPath.getPath()), reader);
-
-		while (dataFileReader.hasNext()) {
-			GenericRecord record = dataFileReader.next();
-			assertEquals(record.get("user_name").toString(), "testUser");
-			assertEquals(record.get("favorite_number"), 1);
-			assertEquals(record.get("favorite_color").toString(), "blue");
+		try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(new File(outputPath.getPath()), reader)) {
+			while (dataFileReader.hasNext()) {
+				GenericRecord record = dataFileReader.next();
+				assertEquals(record.get("user_name").toString(), "testUser");
+				assertEquals(record.get("favorite_number"), 1);
+				assertEquals(record.get("favorite_color").toString(), "blue");
+			}
 		}
 
 		//cleanup

@@ -245,11 +245,11 @@ public final class AvroTestUtils {
 	 * @return serialized record
 	 */
 	public static byte[] writeRecord(GenericRecord record, Schema schema) throws IOException {
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
-
-		new GenericDatumWriter<>(schema).write(record, encoder);
-		encoder.flush();
-		return stream.toByteArray();
+		try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+			BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+			new GenericDatumWriter<>(schema).write(record, encoder);
+			encoder.flush();
+			return stream.toByteArray();
+		}
 	}
 }

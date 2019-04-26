@@ -179,11 +179,11 @@ public class AvroRecordInputFormatTest {
 				.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 				.build();
 		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<>(User.class);
-		DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter);
-		dataFileWriter.create(user1.getSchema(), testFile);
-		dataFileWriter.append(user1);
-		dataFileWriter.append(user2);
-		dataFileWriter.close();
+		try (DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter)) {
+			dataFileWriter.create(user1.getSchema(), testFile);
+			dataFileWriter.append(user1);
+			dataFileWriter.append(user2);
+		}
 	}
 
 	@Before
@@ -341,7 +341,7 @@ public class AvroRecordInputFormatTest {
 			assertNotNull(newRec);
 			assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), newRec.get("type_enum").toString());
 			assertEquals("name not equal", TEST_NAME, newRec.get("name").toString());
-			assertEquals(null, newRec.get("type_long_test"));
+			assertNull(newRec.get("type_long_test"));
 		}
 	}
 

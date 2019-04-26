@@ -37,7 +37,7 @@ public class AvroInputFormatTypeExtractionTest {
 	@Test
 	public void testTypeExtraction() {
 		try {
-			InputFormat<MyAvroType, ?> format = new AvroInputFormat<MyAvroType>(new Path("file:///ignore/this/file"), MyAvroType.class);
+			InputFormat<MyAvroType, ?> format = new AvroInputFormat<>(new Path("file:///ignore/this/file"), MyAvroType.class);
 
 			TypeInformation<?> typeInfoDirect = TypeExtractor.getInputFormatTypes(format);
 

@@ -56,8 +56,9 @@ public class AvroKryoSerializerRegistrationsTest {
 	public void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
 		final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
 
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-				getClass().getClassLoader().getResourceAsStream("flink_11-kryo_registrations")))) {
+		try (InputStreamReader input = new InputStreamReader(
+				getClass().getClassLoader().getResourceAsStream("flink_11-kryo_registrations"));
+			BufferedReader reader = new BufferedReader(input)) {
 
 			String line;
 			while ((line = reader.readLine()) != null) {

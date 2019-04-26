@@ -176,19 +176,17 @@ public class AvroExternalJarProgram  {
 
 	public static void writeTestData(File testFile, int numRecords) throws IOException {
 
-		DatumWriter<MyUser> userDatumWriter = new ReflectDatumWriter<MyUser>(MyUser.class);
-		DataFileWriter<MyUser> dataFileWriter = new DataFileWriter<MyUser>(userDatumWriter);
+		DatumWriter<MyUser> userDatumWriter = new ReflectDatumWriter<>(MyUser.class);
+		try (DataFileWriter<MyUser> dataFileWriter = new DataFileWriter<>(userDatumWriter)) {
+			dataFileWriter.create(ReflectData.get().getSchema(MyUser.class), testFile);
 
-		dataFileWriter.create(ReflectData.get().getSchema(MyUser.class), testFile);
+			Generator generator = new Generator();
 
-		Generator generator = new Generator();
-
-		for (int i = 0; i < numRecords; i++) {
-			MyUser user = generator.nextUser();
-			dataFileWriter.append(user);
+			for (int i = 0; i < numRecords; i++) {
+				MyUser user = generator.nextUser();
+				dataFileWriter.append(user);
+			}
 		}
-
-		dataFileWriter.close();
 	}
 
 //	public static void main(String[] args) throws Exception {
@@ -201,11 +199,11 @@ public class AvroExternalJarProgram  {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<MyUser> input = env.createInput(new AvroInputFormat<MyUser>(new Path(inputPath), MyUser.class));
+		DataSet<MyUser> input = env.createInput(new AvroInputFormat<>(new Path(inputPath), MyUser.class));
 
 		DataSet<Tuple2<String, MyUser>> result = input.map(new NameExtractor()).groupBy(0).reduce(new NameGrouper());
 
-		result.output(new DiscardingOutputFormat<Tuple2<String, MyUser>>());
+		result.output(new DiscardingOutputFormat<>());
 		env.execute();
 	}
 }

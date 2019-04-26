@@ -66,27 +66,28 @@ public class EncoderDecoderTest {
 
 				ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
 				{
-					DataOutputStream dataOut = new DataOutputStream(baos);
-					DataOutputEncoder encoder = new DataOutputEncoder();
-					encoder.setOut(dataOut);
+					try (DataOutputStream dataOut = new DataOutputStream(baos)) {
+						DataOutputEncoder encoder = new DataOutputEncoder();
+						encoder.setOut(dataOut);
 
-					encoder.writeString(testString);
-					dataOut.flush();
-					dataOut.close();
+						encoder.writeString(testString);
+						dataOut.flush();
+					}
 				}
 
 				byte[] data = baos.toByteArray();
 
 				// deserialize
 				{
-					ByteArrayInputStream bais = new ByteArrayInputStream(data);
-					DataInputStream dataIn = new DataInputStream(bais);
-					DataInputDecoder decoder = new DataInputDecoder();
-					decoder.setIn(dataIn);
+					try (ByteArrayInputStream bais = new ByteArrayInputStream(data)) {
+						DataInputStream dataIn = new DataInputStream(bais);
+						DataInputDecoder decoder = new DataInputDecoder();
+						decoder.setIn(dataIn);
 
-					String deserialized = decoder.readString();
+						String deserialized = decoder.readString();
 
-					assertEquals(testString, deserialized);
+						assertEquals(testString, deserialized);
+					}
 				}
 			}
 		}
@@ -286,25 +287,19 @@ public class EncoderDecoderTest {
 
 			// write
 			ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-			{
-				DataOutputStream dataOut = new DataOutputStream(baos);
-
+			try (DataOutputStream dataOut = new DataOutputStream(baos)) {
 				for (long val : values) {
 					DataOutputEncoder.writeVarLongCount(dataOut, val);
 				}
-
-				dataOut.flush();
-				dataOut.close();
 			}
 
 			// read
-			{
-				ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-				DataInputStream dataIn = new DataInputStream(bais);
-
-				for (long val : values) {
-					long read = DataInputDecoder.readVarLongCount(dataIn);
-					assertEquals("Wrong var-len encoded value read.", val, read);
+			try (ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray())) {
+				try (DataInputStream dataIn = new DataInputStream(bais)) {
+					for (long val : values) {
+						long read = DataInputDecoder.readVarLongCount(dataIn);
+						assertEquals("Wrong var-len encoded value read.", val, read);
+					}
 				}
 			}
 		}
@@ -319,29 +314,27 @@ public class EncoderDecoderTest {
 
 		try {
 
+			final byte[] data;
 			// serialize
-			ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-			{
-				DataOutputStream dataOut = new DataOutputStream(baos);
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+				DataOutputStream dataOut = new DataOutputStream(baos)) {
+
 				DataOutputEncoder encoder = new DataOutputEncoder();
 				encoder.setOut(dataOut);
 
 				@SuppressWarnings("unchecked")
 				Class<X> clazz = (Class<X>) obj.getClass();
 				ReflectDatumWriter<X> writer = new ReflectDatumWriter<>(clazz);
-
 				writer.write(obj, encoder);
-				dataOut.flush();
-				dataOut.close();
+
+				data = baos.toByteArray();
 			}
 
-			byte[] data = baos.toByteArray();
 			X result;
 
 			// deserialize
-			{
-				ByteArrayInputStream bais = new ByteArrayInputStream(data);
-				DataInputStream dataIn = new DataInputStream(bais);
+			try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+				DataInputStream dataIn = new DataInputStream(bais)) {
 				DataInputDecoder decoder = new DataInputDecoder();
 				decoder.setIn(dataIn);
 

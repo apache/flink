@@ -28,6 +28,6 @@ public class AvroGenericArraySerializerTest extends AbstractGenericArraySerializ
 
 	@Override
 	protected <T> TypeSerializer<T> createComponentSerializer(Class<T> type) {
-		return new AvroSerializer<T>(type);
+		return new AvroSerializer<>(type);
 	}
 }
