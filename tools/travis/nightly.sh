@@ -27,6 +27,9 @@ fi
 
 SCRIPT=$1
 
+source ${HERE}/setup_docker.sh
+source ${HERE}/setup_kubernetes.sh
+
 ARTIFACTS_DIR="${HERE}/artifacts"
 
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
