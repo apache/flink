@@ -61,6 +61,7 @@
 # [INFO]       \- org.scala-lang:scala-library:jar:2.10.4:compile
 # [INFO]
 
+MAVEN_ARGUMENTS=${1:-""}
 
 if [[ `basename $PWD` == "tools" ]] ; then
     cd ..
@@ -83,7 +84,7 @@ block_infected=0
 # a) are not deployed during a release
 # b) exist only for dev purposes
 # c) no-one should depend on them
-e2e_modules=$(find flink-end-to-end-tests -mindeptha 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
+e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
 excluded_modules=\!${e2e_modules//,/,\!},!flink-docs
 
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
@@ -116,7 +117,7 @@ while read line; do
             block_infected=1
         fi
     fi
-done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} | tee /dev/tty)
+done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} ${MAVEN_ARGUMENTS} | tee /dev/tty)
 
 
 # deduplicate and sort
@@ -140,7 +141,7 @@ echo
 echo "Checking Scala-free modules:"
 
 for module in $clean; do
-    out=`find . -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\d\+\.\d\+</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\d\+\.\d\+</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else
@@ -154,7 +155,7 @@ echo
 echo "Checking Scala-dependent modules:"
 
 for module in $infected; do
-    out=`find . -name 'pom.xml' -not -path '*target*' -exec grep "${module}</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else
