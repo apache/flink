@@ -19,15 +19,16 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
@@ -90,6 +91,7 @@ public class InputChannelTestUtils {
 			0,
 			numberOfChannels,
 			new NoOpTaskActions(),
+			new SimpleCounter(),
 			isCreditBased);
 	}
 
@@ -122,7 +124,7 @@ public class InputChannelTestUtils {
 			new TaskEventDispatcher(),
 			0,
 			0,
-			newUnregisteredTaskIOMetricGroup());
+			newUnregisteredInputChannelMetrics());
 	}
 
 	public static LocalInputChannel createLocalInputChannel(
@@ -139,7 +141,7 @@ public class InputChannelTestUtils {
 			new TaskEventDispatcher(),
 			initialBackoff,
 			maxBackoff,
-			newUnregisteredTaskIOMetricGroup());
+			newUnregisteredInputChannelMetrics());
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
@@ -155,11 +157,11 @@ public class InputChannelTestUtils {
 			connectionManager,
 			0,
 			0,
-			newUnregisteredTaskIOMetricGroup());
+			newUnregisteredInputChannelMetrics());
 	}
 
-	private static TaskIOMetricGroup newUnregisteredTaskIOMetricGroup() {
-		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
+	public static InputChannelMetrics newUnregisteredInputChannelMetrics() {
+		return new InputChannelMetrics(UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 	}
 
 	// ------------------------------------------------------------------------

@@ -55,6 +55,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionMetrics;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -397,6 +398,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		counter = 0;
 
+		InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(metricGroup.getIOMetricGroup());
 		for (InputGateDeploymentDescriptor inputGateDeploymentDescriptor: inputGateDeploymentDescriptors) {
 			SingleInputGate gate = SingleInputGate.create(
 				taskNameWithSubtaskAndId,
@@ -405,7 +407,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				networkEnvironment,
 				taskEventDispatcher,
 				this,
-				metricGroup.getIOMetricGroup());
+				inputChannelMetrics,
+				metricGroup.getIOMetricGroup().getNumBytesInCounter());
 
 			inputGates[counter] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
