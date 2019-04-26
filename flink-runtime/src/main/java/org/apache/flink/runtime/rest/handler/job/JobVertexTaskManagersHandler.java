@@ -173,8 +173,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				taskVertices.size());
 
 			final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-				counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-				counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+				counts.getNumBytesIn(),
+				counts.isNumBytesInComplete(),
 				counts.getNumBytesOut(),
 				counts.isNumBytesOutComplete(),
 				counts.getNumRecordsIn(),

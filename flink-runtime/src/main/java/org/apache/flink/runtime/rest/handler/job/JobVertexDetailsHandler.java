@@ -138,8 +138,8 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 				endTime,
 				duration,
 				new IOMetricsInfo(
-					counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-					counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+					counts.getNumBytesIn(),
+					counts.isNumBytesInComplete(),
 					counts.getNumBytesOut(),
 					counts.isNumBytesOutComplete(),
 					counts.getNumRecordsIn(),

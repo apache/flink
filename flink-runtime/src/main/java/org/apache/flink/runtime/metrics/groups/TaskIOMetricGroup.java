@@ -39,33 +39,25 @@ import java.util.List;
  */
 public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
+	private final Counter numBytesIn;
 	private final Counter numBytesOut;
-	private final Counter numBytesInLocal;
-	private final Counter numBytesInRemote;
 	private final SumCounter numRecordsIn;
 	private final SumCounter numRecordsOut;
 	private final Counter numBuffersOut;
-	private final Counter numBuffersInLocal;
-	private final Counter numBuffersInRemote;
 
-	private final Meter numBytesInRateLocal;
-	private final Meter numBytesInRateRemote;
+	private final Meter numBytesInRate;
 	private final Meter numBytesOutRate;
 	private final Meter numRecordsInRate;
 	private final Meter numRecordsOutRate;
 	private final Meter numBuffersOutRate;
-	private final Meter numBuffersInRateLocal;
-	private final Meter numBuffersInRateRemote;
 
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
+		this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
 		this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
-		this.numBytesInLocal = counter(MetricNames.IO_NUM_BYTES_IN_LOCAL);
-		this.numBytesInRemote = counter(MetricNames.IO_NUM_BYTES_IN_REMOTE);
+		this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn, 60));
 		this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut, 60));
-		this.numBytesInRateLocal = meter(MetricNames.IO_NUM_BYTES_IN_LOCAL_RATE, new MeterView(numBytesInLocal, 60));
-		this.numBytesInRateRemote = meter(MetricNames.IO_NUM_BYTES_IN_REMOTE_RATE, new MeterView(numBytesInRemote, 60));
 
 		this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
 		this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
@@ -73,30 +65,23 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		this.numRecordsOutRate = meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut, 60));
 
 		this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
-		this.numBuffersInLocal = counter(MetricNames.IO_NUM_BUFFERS_IN_LOCAL);
-		this.numBuffersInRemote = counter(MetricNames.IO_NUM_BUFFERS_IN_REMOTE);
 		this.numBuffersOutRate = meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut, 60));
-		this.numBuffersInRateLocal = meter(MetricNames.IO_NUM_BUFFERS_IN_LOCAL_RATE, new MeterView(numBuffersInLocal, 60));
-		this.numBuffersInRateRemote = meter(MetricNames.IO_NUM_BUFFERS_IN_REMOTE_RATE, new MeterView(numBuffersInRemote, 60));
 	}
 
 	public IOMetrics createSnapshot() {
-		return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRateLocal, numBytesInRateRemote, numBytesOutRate);
+		return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRate, numBytesOutRate);
 	}
 
 	// ============================================================================================
 	// Getters
 	// ============================================================================================
+
+	public Counter getNumBytesInCounter() {
+		return numBytesIn;
+	}
+
 	public Counter getNumBytesOutCounter() {
 		return numBytesOut;
-	}
-
-	public Counter getNumBytesInLocalCounter() {
-		return numBytesInLocal;
-	}
-
-	public Counter getNumBytesInRemoteCounter() {
-		return numBytesInRemote;
 	}
 
 	public Counter getNumRecordsInCounter() {
@@ -109,14 +94,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 	public Counter getNumBuffersOutCounter() {
 		return numBuffersOut;
-	}
-
-	public Counter getNumBuffersInLocalCounter() {
-		return numBuffersInLocal;
-	}
-
-	public Counter getNumBuffersInRemoteCounter() {
-		return numBuffersInRemote;
 	}
 
 	// ============================================================================================

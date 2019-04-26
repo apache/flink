@@ -32,26 +32,22 @@ public class IOMetrics implements Serializable {
 	protected long numRecordsIn;
 	protected long numRecordsOut;
 
-	protected long numBytesInLocal;
-	protected long numBytesInRemote;
+	protected long numBytesIn;
 	protected long numBytesOut;
 
-	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesLocalIn, Meter bytesRemoteIn, Meter bytesOut) {
+	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
 		this.numRecordsOut = recordsOut.getCount();
-		this.numBytesInLocal = bytesLocalIn.getCount();
-		this.numBytesInRemote = bytesRemoteIn.getCount();
+		this.numBytesIn = bytesIn.getCount();
 		this.numBytesOut = bytesOut.getCount();
 	}
 
 	public IOMetrics(
-			long numBytesInLocal,
-			long numBytesInRemote,
+			long numBytesIn,
 			long numBytesOut,
 			long numRecordsIn,
 			long numRecordsOut) {
-		this.numBytesInLocal = numBytesInLocal;
-		this.numBytesInRemote = numBytesInRemote;
+		this.numBytesIn = numBytesIn;
 		this.numBytesOut = numBytesOut;
 		this.numRecordsIn = numRecordsIn;
 		this.numRecordsOut = numRecordsOut;
@@ -65,12 +61,8 @@ public class IOMetrics implements Serializable {
 		return numRecordsOut;
 	}
 
-	public long getNumBytesInLocal() {
-		return numBytesInLocal;
-	}
-
-	public long getNumBytesInRemote() {
-		return numBytesInRemote;
+	public long getNumBytesIn() {
+		return numBytesIn;
 	}
 
 	public long getNumBytesOut() {
