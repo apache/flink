@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.Buffe
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
@@ -184,6 +184,8 @@ public class SingleInputGate implements InputGate {
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
 
+	private final Counter numBytesIn;
+
 	public SingleInputGate(
 		String owningTaskName,
 		JobID jobId,
@@ -192,6 +194,7 @@ public class SingleInputGate implements InputGate {
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
 		TaskActions taskActions,
+		Counter numBytesIn,
 		boolean isCreditBased) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
@@ -211,6 +214,9 @@ public class SingleInputGate implements InputGate {
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
 		this.taskActions = checkNotNull(taskActions);
+
+		this.numBytesIn = checkNotNull(numBytesIn);
+
 		this.isCreditBased = isCreditBased;
 	}
 
@@ -561,6 +567,7 @@ public class SingleInputGate implements InputGate {
 		}
 
 		final Buffer buffer = result.get().buffer();
+		numBytesIn.inc(buffer.getSizeUnsafe());
 		if (buffer.isBuffer()) {
 			return Optional.of(new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable));
 		}
@@ -666,7 +673,8 @@ public class SingleInputGate implements InputGate {
 		NetworkEnvironment networkEnvironment,
 		TaskEventPublisher taskEventPublisher,
 		TaskActions taskActions,
-		TaskIOMetricGroup metrics) {
+		InputChannelMetrics metrics,
+		Counter numBytesInCounter) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 		final ResultPartitionType consumedPartitionType = checkNotNull(igdd.getConsumedPartitionType());
@@ -680,7 +688,7 @@ public class SingleInputGate implements InputGate {
 
 		final SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, networkConfig.isCreditBased());
+			icdd.length, taskActions, numBytesInCounter, networkConfig.isCreditBased());
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];

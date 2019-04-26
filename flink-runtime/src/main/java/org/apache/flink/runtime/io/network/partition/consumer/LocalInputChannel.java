@@ -27,7 +27,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +67,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
 		TaskEventPublisher taskEventPublisher,
-		TaskIOMetricGroup metrics) {
+		InputChannelMetrics metrics) {
 
 		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
 			0, 0, metrics);
@@ -82,7 +81,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		TaskEventPublisher taskEventPublisher,
 		int initialBackoff,
 		int maxBackoff,
-		TaskIOMetricGroup metrics) {
+		InputChannelMetrics metrics) {
 
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
 

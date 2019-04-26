@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -304,7 +303,7 @@ public class RemoteInputChannelTest {
 				partitionId,
 				mock(ConnectionID.class),
 				connectionManager,
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				InputChannelTestUtils.newUnregisteredInputChannelMetrics());
 
 		ch.onFailedPartitionRequest();
 
@@ -1050,7 +1049,7 @@ public class RemoteInputChannelTest {
 			connectionManager,
 			initialAndMaxRequestBackoff._1(),
 			initialAndMaxRequestBackoff._2(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
 	}
 
 	/**
