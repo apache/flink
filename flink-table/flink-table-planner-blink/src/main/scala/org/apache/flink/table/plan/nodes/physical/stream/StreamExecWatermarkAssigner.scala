@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
 import org.apache.flink.table.plan.nodes.calcite.WatermarkAssigner
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.optimize.program.FlinkOptimizeContext
 import org.apache.flink.util.Preconditions
 
@@ -28,6 +31,8 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for [[WatermarkAssigner]].
@@ -39,7 +44,8 @@ class StreamExecWatermarkAssigner(
     rowtimeFieldIndex: Option[Int],
     watermarkDelay: Option[Long])
   extends WatermarkAssigner(cluster, traits, inputRel, rowtimeFieldIndex, watermarkDelay)
-  with StreamPhysicalRel {
+  with StreamPhysicalRel
+  with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = false
 
@@ -81,6 +87,23 @@ class StreamExecWatermarkAssigner(
       case o => throw new TableException(s"Unsupported mode: $o")
     }
     super.explainTerms(pw).item("miniBatchInterval", value)
+  }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  }
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override protected def translateToPlanInternal(
+      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+    throw new TableException("Implements this")
   }
 
 }

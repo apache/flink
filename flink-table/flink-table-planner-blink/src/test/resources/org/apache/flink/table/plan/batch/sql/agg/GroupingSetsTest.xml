@@ -408,19 +408,16 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
-+- Exchange(distribution=[single])
-   +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
-      +- Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE") AS gr_text])
-         +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
-            +- Exchange(distribution=[single])
-               +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
-                  +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
-                     +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
-                        +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
-                           +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
-                              +- Calc(select=[deptno, job, empno, ename, sal])
-                                 +- TableSourceScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE") AS gr_text])
++- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
+   +- Exchange(distribution=[single])
+      +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
+         +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
+            +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
+               +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
+                  +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
+                     +- Calc(select=[deptno, job, empno, ename, sal])
+                        +- TableSourceScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -953,10 +950,10 @@ LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[true])
-+- Exchange(distribution=[single])
-   +- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[false])
-      +- Calc(select=[gender, c])
+Calc(select=[gender, c])
++- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[true])
+   +- Exchange(distribution=[single])
+      +- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[false])
          +- HashAggregate(isMerge=[true], groupBy=[gender, $e], select=[gender, $e, Final_COUNT(count1$0) AS c])
             +- Exchange(distribution=[hash[gender, $e]])
                +- LocalHashAggregate(groupBy=[gender, $e], select=[gender, $e, Partial_COUNT(*) AS count1$0])

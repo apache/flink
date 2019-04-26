@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{TableConfigOptions, Types}
+import org.apache.flink.table.api.{TableConfigOptions, TableException, Types}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -236,7 +236,7 @@ class GroupingSetsITCase extends BatchTestBase {
   }
 
   // TODO remove expected exception after BatchExecHashJoin extends ExecNode
-  @Test(expected = classOf[ClassCastException])
+  @Test(expected = classOf[TableException])
   def testCubeAndJoin(): Unit = {
     checkResult(
       "select e.deptno, e.gender, min(e.ename) as min_name " +

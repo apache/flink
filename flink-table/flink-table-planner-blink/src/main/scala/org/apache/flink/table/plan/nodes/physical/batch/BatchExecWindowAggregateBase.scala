@@ -71,4 +71,5 @@ abstract class BatchExecWindowAggregateBase(
           isMerge = isMerge,
           isGlobal = isFinal))
   }
+
 }

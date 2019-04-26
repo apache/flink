@@ -119,16 +119,22 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase with BatchExecNode[Ba
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   /**
     * Now must be full dam without two input operator chain.
     * TODO two input operator chain will return different value.
     */
-  override def getDamBehavior: DamBehavior = {
-    DamBehavior.FULL_DAM
-  }
+  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {

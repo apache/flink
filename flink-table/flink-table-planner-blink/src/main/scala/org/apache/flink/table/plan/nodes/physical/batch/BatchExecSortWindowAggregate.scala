@@ -88,6 +88,8 @@ class BatchExecSortWindowAggregate(
       isMerge)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override def getOperatorName: String = {

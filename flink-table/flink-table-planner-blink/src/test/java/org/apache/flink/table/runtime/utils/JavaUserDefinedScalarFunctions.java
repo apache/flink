@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import java.util.Arrays;
+import java.util.Random;
 
 /**
  * Test scalar functions.
@@ -130,6 +131,26 @@ public class JavaUserDefinedScalarFunctions {
 				throw new IllegalStateException("Open method is not called!");
 			}
 			return "$" + c;
+		}
+	}
+
+	/**
+	 * Non-deterministic scalar function.
+	 */
+	public static class NonDeterministicUdf extends ScalarFunction {
+		Random random = new Random();
+
+		public int eval() {
+			return random.nextInt();
+		}
+
+		public int eval(int v) {
+			return v + random.nextInt();
+		}
+
+		@Override
+		public boolean isDeterministic() {
+			return false;
 		}
 	}
 

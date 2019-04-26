@@ -67,6 +67,7 @@ class FlinkLogicalJoin(
 
     planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
+
 }
 
 /**

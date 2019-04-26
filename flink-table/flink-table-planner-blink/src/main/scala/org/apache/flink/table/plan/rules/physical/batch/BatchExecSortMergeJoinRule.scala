@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSortMergeJoin
-import org.apache.flink.table.plan.util.RelFieldCollationUtil
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -67,7 +67,7 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
         .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(FlinkRelDistribution.hash(shuffleKeys, requireStrict))
       if (requireCollation) {
-        val fieldCollations = shuffleKeys.map(RelFieldCollationUtil.of(_))
+        val fieldCollations = shuffleKeys.map(FlinkRelOptUtil.ofRelFieldCollation(_))
         val relCollation = RelCollations.of(fieldCollations)
         traitSet = traitSet.replace(relCollation)
       }

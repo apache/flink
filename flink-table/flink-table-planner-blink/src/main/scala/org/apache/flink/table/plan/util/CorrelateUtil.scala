@@ -112,7 +112,7 @@ object CorrelateUtil {
     val reservedFieldsMapping = calcProgram.getExprList.zipWithIndex.filter {
       case (_, index) => refs(index) > 0
     }.zipWithIndex.map {
-      case (((expr, srcIndex), newIndex)) => srcIndex -> newIndex
+      case ((expr, srcIndex), newIndex) => srcIndex -> newIndex
     }.toMap
 
     val shiftProjects = calcProgram.getProjectList.map {

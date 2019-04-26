@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.`trait`
 
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelFieldCollationUtil}
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import com.google.common.collect.{ImmutableList, Ordering}
 import org.apache.calcite.plan.{RelMultipleTrait, RelOptPlanner, RelTrait}
@@ -235,7 +235,7 @@ object FlinkRelDistribution {
   def range(columns: util.Collection[_ <: Number]): FlinkRelDistribution = {
     val keys = ImmutableIntList.copyOf(columns)
     val collations = new util.ArrayList[RelFieldCollation]()
-    columns.foreach(f => collations.add(RelFieldCollationUtil.of(f.intValue())))
+    columns.foreach(f => collations.add(FlinkRelOptUtil.ofRelFieldCollation(f.intValue())))
     val fieldCollations = ImmutableList.copyOf[RelFieldCollation](collations)
     canonize(new FlinkRelDistribution(
       RelDistribution.Type.RANGE_DISTRIBUTED, keys, Some(fieldCollations)))

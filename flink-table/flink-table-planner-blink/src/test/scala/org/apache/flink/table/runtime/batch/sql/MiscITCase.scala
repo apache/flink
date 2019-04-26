@@ -509,7 +509,7 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[ClassCastException])
+  @Test(expected = classOf[TableException])
   def testCompareFunctionWithSubquery(): Unit = {
     checkResult("SELECT " +
         "b IN (3, 4, 5)," +

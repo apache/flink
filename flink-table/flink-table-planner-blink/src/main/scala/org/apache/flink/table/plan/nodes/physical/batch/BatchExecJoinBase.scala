@@ -20,15 +20,20 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.generated.GeneratedJoinCondition
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
+import org.apache.flink.table.plan.nodes.exec.BatchExecNode
 
 import org.apache.calcite.rel.core.Join
 
 /**
   * Batch physical RelNode for [[Join]]
   */
-trait BatchExecJoinBase extends CommonPhysicalJoin with BatchPhysicalRel {
+trait BatchExecJoinBase
+  extends CommonPhysicalJoin
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   private[flink] def generateCondition(
       config: TableConfig,

@@ -102,8 +102,16 @@ abstract class BatchExecHashAggregateBase(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   def getOperatorName: String
 
