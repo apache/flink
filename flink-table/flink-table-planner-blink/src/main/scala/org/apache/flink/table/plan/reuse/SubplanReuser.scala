@@ -73,8 +73,8 @@ object SubplanReuser {
     * same digest, they are in a reusable sub-plan group.
     * In a reusable sub-plan group, the leftmost sub-plan in the earlier visited tree is reused
     * sub-plan and the remaining will reuse the leftmost one in the earlier visited tree.
-    * <p>Uses reuse id to distinguish different reusable sub-plan group, the reuse id of each sub-plan
-    * is same in a group.
+    * <p>Uses reuse id to distinguish different reusable sub-plan group,
+    * the reuse id of each sub-plan is same in a group.
     *
     * <p>e.g.
     * {{{
@@ -238,4 +238,3 @@ object SubplanReuser {
   }
 
 }
-
