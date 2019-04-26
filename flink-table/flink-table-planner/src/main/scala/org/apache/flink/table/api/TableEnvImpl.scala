@@ -637,6 +637,25 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   }
 
   /**
+    * Validate does the source schema is the subset of sink schema.
+    *
+    * @param srcTable The source table.
+    * @param tableSink the sink table.
+    * @return true/false - subset or not.
+    */
+  private[flink] def isSubSchema(srcTable: Table, tableSink: TableSink[_]): Boolean = {
+    val srcFieldTypes = srcTable.getSchema.getFieldTypes
+    val srcFiledNames = srcTable.getSchema.getFieldNames
+    val sinkFieldNames = tableSink.getFieldNames
+    val sinkFieldTypes = tableSink.getFieldTypes
+
+    val srcFiledNameTypesSet = srcFiledNames.zip(srcFieldTypes).toSet
+    val sinkFiledNameTypesSet = sinkFieldNames.zip(sinkFieldTypes).toSet
+
+    srcFiledNameTypesSet.subsetOf(sinkFiledNameTypesSet)
+  }
+
+  /**
     * Writes a [[Table]] to a [[TableSink]].
     *
     * @param table The [[Table]] to write.
@@ -670,28 +689,34 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
         val srcFieldTypes = table.getSchema.getFieldTypes
         val sinkFieldTypes = tableSink.getFieldTypes
 
-        if (srcFieldTypes.length != sinkFieldTypes.length ||
+        val resultTableSink = if (srcFieldTypes.length != sinkFieldTypes.length ||
           srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
-          val srcFieldNames = table.getSchema.getFieldNames
-          val sinkFieldNames = tableSink.getFieldNames
+          if (isSubSchema(table, tableSink)) {
+            tableSink.configure(table.getSchema.getFieldNames, table.getSchema.getFieldTypes)
+          } else {
+            val srcFieldNames = table.getSchema.getFieldNames
+            val sinkFieldNames = tableSink.getFieldNames
 
-          // format table and table sink schema strings
-          val srcSchema = srcFieldNames.zip(srcFieldTypes)
-            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
-            .mkString("[", ", ", "]")
-          val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
-            .mkString("[", ", ", "]")
+            // format table and table sink schema strings
+            val srcSchema = srcFieldNames.zip(srcFieldTypes)
+              .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
+              .mkString("[", ", ", "]")
+            val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
+              .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
+              .mkString("[", ", ", "]")
 
-          throw new ValidationException(
-            s"Field types of query result and registered TableSink " +
-              s"$sinkTableName do not match.\n" +
-              s"Query result schema: $srcSchema\n" +
-              s"TableSink schema:    $sinkSchema")
+            throw new ValidationException(
+              s"Field types of query result and registered TableSink " +
+                s"$sinkTableName do not match.\n" +
+                s"Query result schema: $srcSchema\n" +
+                s"TableSink schema:    $sinkSchema")
+          }
+        } else {
+          tableSink
         }
         // emit the table to the configured table sink
-        writeToSink(table, tableSink, conf)
+        writeToSink(table, resultTableSink, conf)
 
       case Some(_) =>
         throw new TableException(s"The table registered as $sinkTableName is not a TableSink. " +
