@@ -29,7 +29,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.sql.`type`.AbstractSqlType
-import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
@@ -99,9 +99,9 @@ class LogicalUnnestRule(
             case map: MapRelDataType =>
               val keyTypeInfo = FlinkTypeFactory.toTypeInfo(map.keyType)
               val valueTypeInfo = FlinkTypeFactory.toTypeInfo(map.valueType)
-              val componentTypeInfo = createTuple2TypeInformation(keyTypeInfo, valueTypeInfo)
+              val componentTypeInfo = Types.ROW(keyTypeInfo, valueTypeInfo)
               val componentType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-                .createTypeFromTypeInfo(componentTypeInfo, true)
+                .createTypeFromTypeInfo(componentTypeInfo, isNullable = true)
 
               val explodeFunction = ExplodeFunctionUtil.explodeTableFuncFromType(map.typeInfo)
               (componentType, explodeFunction)
