@@ -23,43 +23,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The following example programs showcase different applications of Flink
-from simple word counting to graph algorithms. The code samples illustrate the
-use of [Flink's DataSet API]({{ site.baseurl }}/dev/batch/index.html).
+以下示例展示了 Flink 从简单的WordCount到图算法的应用。示例代码展示了 [Flink's DataSet API]({{ site.baseurl }}/zh/dev/batch/index.html) 的使用。
 
-The full source code of the following and more examples can be found in the {% gh_link flink-examples/flink-examples-batch "flink-examples-batch" %} module of the Flink source repository.
+完整的源代码可以在 Flink 源代码库的 {% gh_link flink-examples/flink-examples-batch "flink-examples-batch" %} 模块找到。
 
 * This will be replaced by the TOC
 {:toc}
 
 
-## Running an example
+## 运行一个示例
 
-In order to run a Flink example, we assume you have a running Flink instance available. The "Quickstart" and "Setup" tabs in the navigation describe various ways of starting Flink.
+在开始运行一个示例前，我们假设你已经有了 Flink 的运行示例。导航栏中的“快速开始（Quickstart）”和“安装（Setup）” 标签页提供了启动 Flink 的不同方法。
 
-The easiest way is running the `./bin/start-cluster.sh`, which by default starts a local cluster with one JobManager and one TaskManager.
+最简单的方法就是执行 `./bin/start-cluster.sh`，从而启动一个只有一个 JobManager 和 TaskManager 的本地 Flink 集群。
 
-Each binary release of Flink contains an `examples` directory with jar files for each of the examples on this page.
+每个 Flink 的 binary release 都会包含一个`examples`（示例）目录，其中可以找到这个页面上每个示例的 jar 包文件。
 
-To run the WordCount example, issue the following command:
+可以通过执行以下命令来运行WordCount 示例:
 
 {% highlight bash %}
 ./bin/flink run ./examples/batch/WordCount.jar
 {% endhighlight %}
 
-The other examples can be started in a similar way.
+其他的示例也可以通过类似的方式执行。
 
-Note that many examples run without passing any arguments for them, by using build-in data. To run WordCount with real data, you have to pass the path to the data:
+注意很多示例在不传递执行参数的情况下都会使用内置数据。如果需要利用 WordCount 程序计算真实数据，你需要传递存储数据的文件路径。
 
 {% highlight bash %}
 ./bin/flink run ./examples/batch/WordCount.jar --input /path/to/some/text/data --output /path/to/result
 {% endhighlight %}
 
-Note that non-local file systems require a schema prefix, such as `hdfs://`.
+注意非本地文件系统需要一个对应前缀，例如 `hdfs://`。
 
 
 ## Word Count
-WordCount is the "Hello World" of Big Data processing systems. It computes the frequency of words in a text collection. The algorithm works in two steps: First, the texts are splits the text to individual words. Second, the words are grouped and counted.
+WordCount 是大数据系统中的 “Hello World”。他可以计算一个文本集合中不同单词的出现频次。这个算法分两步进行： 第一步，把所有文本切割成单独的单词。第二步，把单词分组并分别统计。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -70,23 +68,23 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 DataSet<String> text = env.readTextFile("/path/to/file");
 
 DataSet<Tuple2<String, Integer>> counts =
-        // split up the lines in pairs (2-tuples) containing: (word,1)
+        // 把每一行文本切割成二元组，每个二元组为: (word,1)
         text.flatMap(new Tokenizer())
-        // group by the tuple field "0" and sum up tuple field "1"
+        // 根据二元组的第“0”位分组，然后对第“1”位求和
         .groupBy(0)
         .sum(1);
 
 counts.writeAsCsv(outputPath, "\n", " ");
 
-// User-defined functions
+// 自定义函数
 public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 
     @Override
     public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-        // normalize and split the line
+        // 统一大小写并把每一行切割为单词
         String[] tokens = value.toLowerCase().split("\\W+");
 
-        // emit the pairs
+        // 消费二元组
         for (String token : tokens) {
             if (token.length() > 0) {
                 out.collect(new Tuple2<String, Integer>(token, 1));
@@ -96,7 +94,7 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
 }
 {% endhighlight %}
 
-The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
+{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java  "WordCount 示例" %}增加如下执行参数: `--input <path> --output <path>`即可实现上述算法。 任何文本文件都可作为测试数据使用。
 
 </div>
 <div data-lang="scala" markdown="1">
@@ -104,7 +102,7 @@ The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/fli
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 
-// get input data
+// 获取输入数据
 val text = env.readTextFile("/path/to/file")
 
 val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
@@ -115,7 +113,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
 counts.writeAsCsv(outputPath, "\n", " ")
 {% endhighlight %}
 
-The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
+{% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount 示例" %}增加如下执行参数: `--input <path> --output <path>`即可实现上述算法。 任何文本文件都可作为测试数据使用。
 
 
 </div>
@@ -123,9 +121,9 @@ The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/fl
 
 ## Page Rank
 
-The PageRank algorithm computes the "importance" of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.
+PageRank算法可以计算互联网中一个网页的重要性，这个重要性通过由一个页面指向其他页面的链接定义。PageRank 算法是一个重复执行相同运算的迭代图算法。在每一次迭代中，每个页面把他当前的 rank 值分发给他所有的邻居节点，并且通过他收到邻居节点的 rank 值更新自身的 rank 值。PageRank 算法因 Google 搜索引擎的使用而流行，它根据网页的重要性来对搜索结果进行排名。
 
-In this simple example, PageRank is implemented with a [bulk iteration](iterations.html) and a fixed number of iterations.
+在这个简单的示例中，PageRank 算法由一个[批量迭代](iterations.html)和一些固定次数的迭代实现。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -133,33 +131,33 @@ In this simple example, PageRank is implemented with a [bulk iteration](iteratio
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-// read the pages and initial ranks by parsing a CSV file
+// 通过解析一个CSV文件来获取每个页面原始的rank值
 DataSet<Tuple2<Long, Double>> pagesWithRanks = env.readCsvFile(pagesInputPath)
 						   .types(Long.class, Double.class)
 
-// the links are encoded as an adjacency list: (page-id, Array(neighbor-ids))
+// 链接被编码为邻接表: (page-id, Array(neighbor-ids))
 DataSet<Tuple2<Long, Long[]>> pageLinkLists = getLinksDataSet(env);
 
-// set iterative data set
+// 设置迭代数据集合
 IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(maxIterations);
 
 DataSet<Tuple2<Long, Double>> newRanks = iteration
-        // join pages with outgoing edges and distribute rank
+        // 为每个页面匹配其对应的出边，并发送rank值
         .join(pageLinkLists).where(0).equalTo(0).flatMap(new JoinVertexWithEdgesMatch())
-        // collect and sum ranks
+        // 收集并计算新的rank值
         .groupBy(0).sum(1)
-        // apply dampening factor
+        // 施加阻尼系数
         .map(new Dampener(DAMPENING_FACTOR, numPages));
 
 DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(
         newRanks,
         newRanks.join(iteration).where(0).equalTo(0)
-        // termination condition
+        // 结束条件
         .filter(new EpsilonFilter()));
 
 finalPageRanks.writeAsCsv(outputPath, "\n", " ");
 
-// User-defined functions
+// 自定义函数
 
 public static final class JoinVertexWithEdgesMatch
                     implements FlatJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Long[]>,
@@ -203,31 +201,31 @@ public static final class EpsilonFilter
 }
 {% endhighlight %}
 
-The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/PageRank.java "PageRank program" %} implements the above example.
-It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
+{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/PageRank.java "PageRank代码" %}实现了以上示例。
+他需要以下参数来运行: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`。
 
 </div>
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-// User-defined types
+// 自定义类型
 case class Link(sourceId: Long, targetId: Long)
 case class Page(pageId: Long, rank: Double)
 case class AdjacencyList(sourceId: Long, targetIds: Array[Long])
 
-// set up execution environment
+// 初始化执行环境
 val env = ExecutionEnvironment.getExecutionEnvironment
 
-// read the pages and initial ranks by parsing a CSV file
+// 通过解析一个CSV文件来获取每个页面原始的rank值
 val pages = env.readCsvFile[Page](pagesInputPath)
 
-// the links are encoded as an adjacency list: (page-id, Array(neighbor-ids))
+// 链接被编码为邻接表: (page-id, Array(neighbor-ids))
 val links = env.readCsvFile[Link](linksInputPath)
 
-// assign initial ranks to pages
+// 将原始rank值赋给每个页面
 val pagesWithRanks = pages.map(p => Page(p, 1.0 / numPages))
 
-// build adjacency list from link input
+// 通过输入链接建立邻接表
 val adjacencyLists = links
   // initialize lists
   .map(e => AdjacencyList(e.sourceId, Array(e.targetId)))
@@ -236,25 +234,25 @@ val adjacencyLists = links
   (l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds)
   }
 
-// start iteration
+// 开始迭代
 val finalRanks = pagesWithRanks.iterateWithTermination(maxIterations) {
   currentRanks =>
     val newRanks = currentRanks
-      // distribute ranks to target pages
+      // 发送rank值给目标页面
       .join(adjacencyLists).where("pageId").equalTo("sourceId") {
         (page, adjacent, out: Collector[Page]) =>
         for (targetId <- adjacent.targetIds) {
           out.collect(Page(targetId, page.rank / adjacent.targetIds.length))
         }
       }
-      // collect ranks and sum them up
+      // 收集rank值并求和更新
       .groupBy("pageId").aggregate(SUM, "rank")
-      // apply dampening factor
+      // 施加阻尼系数
       .map { p =>
         Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
       }
 
-    // terminate if no rank update was significant
+    // 如果没有明显的rank更新则停止迭代
     val termination = currentRanks.join(newRanks).where("pageId").equalTo("pageId") {
       (current, next, out: Collector[Int]) =>
         // check for significant update
@@ -266,61 +264,62 @@ val finalRanks = pagesWithRanks.iterateWithTermination(maxIterations) {
 
 val result = finalRanks
 
-// emit result
+// 输出结果
 result.writeAsCsv(outputPath, "\n", " ")
 {% endhighlight %}
 
-The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
-It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
+{% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank代码" %} 实现了以上示例。
+他需要以下参数来执行： `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`。
 </div>
 </div>
 
-Input files are plain text files and must be formatted as follows:
-- Pages represented as an (long) ID separated by new-line characters.
-    * For example `"1\n2\n12\n42\n63\n"` gives five pages with IDs 1, 2, 12, 42, and 63.
-- Links are represented as pairs of page IDs which are separated by space characters. Links are separated by new-line characters:
-    * For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (directed) links (1)->(2), (2)->(12), (1)->(12), and (42)->(63).
+输入文件是纯文本文件，并且必须存为以下格式：
+- 页面被表示为一个长整型（long）ID并由换行符分割
+    * 例如 `"1\n2\n12\n42\n63\n"` 给出了ID为 1, 2, 12, 42和63的五个页面。
+- 链接由空格分割的两个页面ID来表示。每个链接由换行符来分割。 
+    * 例如 `"1 2\n2 12\n1 12\n42 63\n"` 表示了以下四个有向链接： (1)->(2), (2)->(12), (1)->(12) 和 (42)->(63).
 
-For this simple implementation it is required that each page has at least one incoming and one outgoing link (a page can point to itself).
+这个简单的实现版本要求每个页面至少有一个入链接和一个出链接（一个页面可以指向自己）。
 
-## Connected Components
+## Connected Components（连通组件算法）
 
-The Connected Components algorithm identifies parts of a larger graph which are connected by assigning all vertices in the same connected part the same component ID. Similar to PageRank, Connected Components is an iterative algorithm. In each step, each vertex propagates its current component ID to all its neighbors. A vertex accepts the component ID from a neighbor, if it is smaller than its own component ID.
+Connected Components 通过给相连的顶点相同的组件ID来标示出一个较大的图中的连通部分。类似PageRank，Connected Components 也是一个迭代算法。在每一次迭代中，每个顶点把他现在的组件ID传播给所有邻居顶点。当一个顶点接收到的组件ID小于他自身的组件ID时，这个顶点也更新其组件ID为这个新组件ID。
 
-This implementation uses a [delta iteration](iterations.html): Vertices that have not changed their component ID do not participate in the next step. This yields much better performance, because the later iterations typically deal only with a few outlier vertices.
+
+这个代码实现使用了[增量迭代](iterations.html)： 没有改变其组件 ID 的顶点不会参与下一轮迭代。这种方法会带来更好的性能，因为后面的迭代可以只处理少量的需要计算的顶点。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
 {% highlight java %}
-// read vertex and edge data
+// 读取顶点和边的数据
 DataSet<Long> vertices = getVertexDataSet(env);
 DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge());
 
-// assign the initial component IDs (equal to the vertex ID)
+// 分配初始的组件ID（等于每个顶点的ID）
 DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
 
-// open a delta iteration
+// 开始一个增量迭代
 DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
         verticesWithInitialId.iterateDelta(verticesWithInitialId, maxIterations, 0);
 
-// apply the step logic:
+// 应用迭代计算逻辑:
 DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset()
-        // join with the edges
+        // 链接相应的边
         .join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
-        // select the minimum neighbor component ID
+        // 选出最小的邻居组件ID
         .groupBy(0).aggregate(Aggregations.MIN, 1)
-        // update if the component ID of the candidate is smaller
+        // 如果邻居的组件ID更小则进行更新
         .join(iteration.getSolutionSet()).where(0).equalTo(0)
         .flatMap(new ComponentIdFilter());
 
-// close the delta iteration (delta and new workset are identical)
+// 停止增量迭代 （增量和新的数据集是相同的）
 DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
-// emit result
+// 输出结果
 result.writeAsCsv(outputPath, "\n", " ");
 
-// User-defined functions
+// 自定义函数
 
 public static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
 
@@ -366,42 +365,41 @@ public static final class ComponentIdFilter
 }
 {% endhighlight %}
 
-The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
+{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java "ConnectedComponents代码" %} 实现了以上示例。他需要以下参数来运行: `--vertices <path> --edges <path> --output <path> --iterations <n>`。
 
 </div>
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-// set up execution environment
+// 初始化运行环境
 val env = ExecutionEnvironment.getExecutionEnvironment
 
-// read vertex and edge data
-// assign the initial components (equal to the vertex id)
+// 读顶点和边的数据
+// 分配初始的组件ID（等于每个顶点的ID）
 val vertices = getVerticesDataSet(env).map { id => (id, id) }
 
-// undirected edges by emitting for each input edge the input edges itself and an inverted
-// version
+// 通过发出每条输入边自身和他的反向边得到无向边
 val edges = getEdgesDataSet(env).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
 
-// open a delta iteration
+// 开始增量迭代
 val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Array(0)) {
   (s, ws) =>
 
-    // apply the step logic: join with the edges
+    // 开始迭代逻辑： 链接相应的边
     val allNeighbors = ws.join(edges).where(0).equalTo(0) { (vertex, edge) =>
       (edge._2, vertex._2)
     }
 
-    // select the minimum neighbor
+    // 选择组件ID最小的邻居节点
     val minNeighbors = allNeighbors.groupBy(0).min(1)
 
-    // update if the component of the candidate is smaller
+    // 如果邻居的ID更小则更新
     val updatedComponents = minNeighbors.join(s).where(0).equalTo(0) {
       (newVertex, oldVertex, out: Collector[(Long, Long)]) =>
         if (newVertex._2 < oldVertex._2) out.collect(newVertex)
     }
 
-    // delta and new workset are identical
+    // 增量和新的数据集是一致的
     (updatedComponents, updatedComponents)
 }
 
@@ -409,14 +407,14 @@ verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
 
 {% endhighlight %}
 
-The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
+{% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents代码" %} 实现了以上示例。他需要以下参数来运行: `--vertices <path> --edges <path> --output <path> --iterations <n>`。
 </div>
 </div>
 
-Input files are plain text files and must be formatted as follows:
-- Vertices represented as IDs and separated by new-line characters.
-    * For example `"1\n2\n12\n42\n63\n"` gives five vertices with (1), (2), (12), (42), and (63).
-- Edges are represented as pairs for vertex IDs which are separated by space characters. Edges are separated by new-line characters:
-    * For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (undirected) links (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
+输入文件是纯文本文件并且必须被存储为如下格式：
+- 顶点被表示为 ID，并且由换行符分隔。
+    * 例如 `"1\n2\n12\n42\n63\n"` 表示 (1), (2), (12), (42) 和 (63)五个顶点。
+- 边被表示为空格分隔的顶点对。边由换行符分隔:
+    * 例如 `"1 2\n2 12\n1 12\n42 63\n"` 表示四条无向边： (1)-(2), (2)-(12), (1)-(12), and (42)-(63)。
 
 {% top %}
