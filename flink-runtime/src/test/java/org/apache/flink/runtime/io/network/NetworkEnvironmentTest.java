@@ -20,8 +20,8 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -272,8 +272,11 @@ public class NetworkEnvironmentTest {
 	 */
 	private static ResultPartition createResultPartition(
 			final ResultPartitionType partitionType, final int channels) {
-
-		return PartitionTestUtils.createPartition(partitionType, channels);
+		return new ResultPartitionBuilder()
+			.setResultPartitionType(partitionType)
+			.setNumberOfSubpartitions(channels)
+			.setNumTargetKeyGroups(channels)
+			.build();
 	}
 
 	/**
