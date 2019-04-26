@@ -38,8 +38,8 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -211,18 +211,14 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			NetworkEnvironment environment,
 			int channels) throws Exception {
 
-		ResultPartition resultPartition = new ResultPartition(
-			"sender task",
-			new NoOpTaskActions(),
-			jobId,
-			partitionId,
-			ResultPartitionType.PIPELINED_BOUNDED,
-			channels,
-			1,
-			environment.getResultPartitionManager(),
-			new NoOpResultPartitionConsumableNotifier(),
-			ioManager,
-			false);
+		ResultPartition resultPartition = new ResultPartitionBuilder()
+			.setJobId(jobId)
+			.setResultPartitionId(partitionId)
+			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
+			.setNumberOfSubpartitions(channels)
+			.setResultPartitionManager(environment.getResultPartitionManager())
+			.setIOManager(ioManager)
+			.build();
 
 		environment.setupPartition(resultPartition);
 
