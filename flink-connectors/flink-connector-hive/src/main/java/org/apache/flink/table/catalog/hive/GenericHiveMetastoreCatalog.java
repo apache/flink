@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
@@ -29,6 +30,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -224,27 +227,32 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 	// ------ tables and views------
 
 	@Override
-	public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
+	public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists)
+			throws TableNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists) throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException, CatalogException {
+	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
+			throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists) throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
+	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
+			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
+	public void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists)
+			throws TableNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public List<String> listTables(String databaseName) throws DatabaseNotExistException, CatalogException {
+	public List<String> listTables(String databaseName)
+			throws DatabaseNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -304,6 +312,41 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 	@Override
 	public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
 			throws CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	// ------ functions ------
+
+	@Override
+	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
+			throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
+			throws FunctionNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
+			throws FunctionNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
 		throw new UnsupportedOperationException();
 	}
 }
