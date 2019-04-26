@@ -16,29 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler;
+package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
+import org.apache.flink.runtime.scheduler.SchedulerOperations;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
- * Component that stores the task need to be scheduled and the option for deployment.
+ * A Simple scheduler operation for testing purposes.
  */
-public class ExecutionVertexDeploymentOption {
+public class TestingSchedulerOperation implements SchedulerOperations {
 
-	private final ExecutionVertexID executionVertexId;
+	private final List<ExecutionVertexDeploymentOption> scheduledVertices = new ArrayList<>();
 
-	private final DeploymentOption deploymentOption;
-
-	public ExecutionVertexDeploymentOption(ExecutionVertexID executionVertexId, DeploymentOption deploymentOption) {
-		this.executionVertexId = executionVertexId;
-		this.deploymentOption = deploymentOption;
+	@Override
+	public void allocateSlotsAndDeploy(Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
+		scheduledVertices.addAll(executionVertexDeploymentOptions);
 	}
 
-	public ExecutionVertexID getExecutionVertexId() {
-		return executionVertexId;
-	}
-
-	public DeploymentOption getDeploymentOption() {
-		return deploymentOption;
-	}
+	public List<ExecutionVertexDeploymentOption> getScheduledVertices() {
+			return scheduledVertices;
+		}
 }

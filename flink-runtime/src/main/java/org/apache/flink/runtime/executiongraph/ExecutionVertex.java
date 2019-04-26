@@ -30,6 +30,8 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -47,6 +49,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.scheduler.DeploymentOption;
+import org.apache.flink.runtime.scheduler.ExecutionVertexSchedulingRequirements;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -826,7 +831,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			ExecutionAttemptID executionId,
 			LogicalSlot targetSlot,
 			@Nullable JobManagerTaskRestore taskRestore,
-			int attemptNumber) throws ExecutionGraphException {
+			int attemptNumber,
+			DeploymentOption deploymentOption) throws ExecutionGraphException {
 
 		// Produced intermediate results
 		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<>(resultPartitions.size());
@@ -845,7 +851,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
 						partition,
 						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-						lazyScheduling));
+						// For the old scheduler code path, will be removed.
+						deploymentOption == null ? lazyScheduling : deploymentOption.sendScheduleOrUpdateConsumerMessage()));
 			} else {
 				Preconditions.checkState(1 == consumers.size(),
 						"Only one consumer supported in the current implementation! Found: " + consumers.size());
@@ -918,6 +925,23 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			taskRestore,
 			producedPartitions,
 			consumedPartitions);
+	}
+
+	/**
+	 * Creates the requirements for scheduling this execution vertex.
+	 */
+	ExecutionVertexSchedulingRequirements createSchedulingRequirements() {
+		return new ExecutionVertexSchedulingRequirements(
+				new ExecutionVertexID(getJobvertexId(), subTaskIndex),
+				getLatestPriorAllocation(),
+				ResourceProfile.UNKNOWN,
+				jobVertex.getSlotSharingGroup() == null ? null : jobVertex.getSlotSharingGroup().getSlotSharingGroupId(),
+				getLocationConstraint(),
+				null,
+				// TODO: As producer and consumer may allocate slots at the same time, the preferred locations
+				// based on inputs can not be used, need to find a new way.
+				null
+		);
 	}
 
 	// --------------------------------------------------------------------------------------------
