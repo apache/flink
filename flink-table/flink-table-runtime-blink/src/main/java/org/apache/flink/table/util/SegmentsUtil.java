@@ -36,7 +36,7 @@ public class SegmentsUtil {
 	 */
 	public static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
-	private static final int BIT_BYTE_POSITION_MASK = 0xfffffff8;
+	private static final int ADDRESS_BITS_PER_WORD = 3;
 
 	private static final int BIT_BYTE_INDEX_MASK = 7;
 
@@ -410,6 +410,15 @@ public class SegmentsUtil {
 	}
 
 	/**
+	 * Given a bit index, return the byte index containing it.
+	 * @param bitIndex the bit index.
+	 * @return the byte index.
+	 */
+	private static int byteIndex(int bitIndex) {
+		return bitIndex >>> ADDRESS_BITS_PER_WORD;
+	}
+
+	/**
 	 * unset bit.
 	 *
 	 * @param segment target segment.
@@ -417,7 +426,7 @@ public class SegmentsUtil {
 	 * @param index bit index from base offset.
 	 */
 	public static void bitUnSet(MemorySegment segment, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + byteIndex(index);
 		byte current = segment.get(offset);
 		current &= ~(1 << (index & BIT_BYTE_INDEX_MASK));
 		segment.put(offset, current);
@@ -431,7 +440,7 @@ public class SegmentsUtil {
 	 * @param index bit index from base offset.
 	 */
 	public static void bitSet(MemorySegment segment, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + byteIndex(index);
 		byte current = segment.get(offset);
 		current |= (1 << (index & BIT_BYTE_INDEX_MASK));
 		segment.put(offset, current);
@@ -445,7 +454,7 @@ public class SegmentsUtil {
 	 * @param index bit index from base offset.
 	 */
 	public static boolean bitGet(MemorySegment segment, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + byteIndex(index);
 		byte current = segment.get(offset);
 		return (current & (1 << (index & BIT_BYTE_INDEX_MASK))) != 0;
 	}
@@ -460,7 +469,7 @@ public class SegmentsUtil {
 	public static void bitUnSet(MemorySegment[] segments, int baseOffset, int index) {
 		if (segments.length == 1) {
 			MemorySegment segment = segments[0];
-			int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+			int offset = baseOffset + byteIndex(index);
 			byte current = segment.get(offset);
 			current &= ~(1 << (index & BIT_BYTE_INDEX_MASK));
 			segment.put(offset, current);
@@ -470,7 +479,7 @@ public class SegmentsUtil {
 	}
 
 	private static void bitUnSetMultiSegments(MemorySegment[] segments, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + byteIndex(index);
 		int segSize = segments[0].size();
 		int segIndex = offset / segSize;
 		int segOffset = offset - segIndex * segSize; // equal to %
@@ -490,7 +499,7 @@ public class SegmentsUtil {
 	 */
 	public static void bitSet(MemorySegment[] segments, int baseOffset, int index) {
 		if (segments.length == 1) {
-			int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+			int offset = baseOffset + byteIndex(index);
 			MemorySegment segment = segments[0];
 			byte current = segment.get(offset);
 			current |= (1 << (index & BIT_BYTE_INDEX_MASK));
@@ -501,7 +510,7 @@ public class SegmentsUtil {
 	}
 
 	private static void bitSetMultiSegments(MemorySegment[] segments, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + byteIndex(index);
 		int segSize = segments[0].size();
 		int segIndex = offset / segSize;
 		int segOffset = offset - segIndex * segSize; // equal to %
@@ -520,7 +529,7 @@ public class SegmentsUtil {
 	 * @param index bit index from base offset.
 	 */
 	public static boolean bitGet(MemorySegment[] segments, int baseOffset, int index) {
-		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
+		int offset = baseOffset + byteIndex(index);
 		byte current = getByte(segments, offset);
 		return (current & (1 << (index & BIT_BYTE_INDEX_MASK))) != 0;
 	}
