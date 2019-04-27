@@ -61,7 +61,6 @@ run_test "class loading end-to-end test" "$END_TO_END_DIR/test-scripts/test_stre
 run_test "Shaded Hadoop S3A end-to-end test" "$END_TO_END_DIR/test-scripts/test_shaded_hadoop_s3a.sh"
 run_test "Shaded Presto S3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_shaded_presto_s3.sh"
 run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
-run_test "Wordcount end-to-end test in docker env" "$END_TO_END_DIR/test-scripts/test_docker_embedded_job.sh"
 
 printf "\n[PASS] All tests passed\n"
 exit 0
