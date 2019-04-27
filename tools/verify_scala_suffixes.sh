@@ -94,14 +94,14 @@ infected=""
 clean=""
 
 while read line; do
-    if [[ $line == "$BEGIN"* ]]; then
+    if [[ $line == *"$BEGIN"* ]]; then
         reached_block=1
         # Maven module name
         block_name=`[[ "$line" =~ .*(flink-?[-a-zA-Z0-9.]*).* ]] && echo ${BASH_REMATCH[1]}`
-    elif [[ $line == "$SEPARATOR" ]] && [[ $reached_block -eq 1 ]]; then
+    elif [[ $line == *"$SEPARATOR"* ]] && [[ $reached_block -eq 1 ]]; then
         reached_block=0
         in_block=1
-    elif [[ $line == "$END" ]] && [[ $in_block -eq 1 ]]; then
+    elif [[ $line == *"$END"* ]] && [[ $in_block -eq 1 ]]; then
         if [[ $block_infected -eq 0 ]]; then
             clean="$block_name $clean"
         fi
