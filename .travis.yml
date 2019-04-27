@@ -23,11 +23,12 @@ cache:
   # default timeout is too low
   timeout: 600
   directories:
-  - $HOME/.rvm/
   - $HOME/.m2
   - $HOME/flink_cache
   # keep in sync with tools/travis/setup_maven.sh
   - $HOME/maven_cache
+  # keep in sync with tools/travis/docs.sh
+  - $HOME/gem_cache
 
 # do not cache our own artifacts
 before_cache:

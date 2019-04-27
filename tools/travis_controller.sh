@@ -65,6 +65,7 @@ print_system_info() {
 	echo "RVM: $(du -s --si $HOME/.rvm)"
 	echo "Flink: $(du -s --si $HOME/flink_cache)"
 	echo "Maven (binaries): $(du -s --si $HOME/maven_cache)"
+	echo "gems: $(du -s -si $HOME/gem_cache)"
 	end_fold "cache_info"
 }
 
