@@ -18,28 +18,19 @@
 
 package org.apache.flink.table.plan.optimize.program
 
-import org.apache.calcite.rex.RexBuilder
+import org.apache.flink.table.calcite.RelTimeIndicatorConverter
+import org.apache.flink.util.Preconditions
+
+import org.apache.calcite.rel.RelNode
 
 /**
-  * A OptimizeContext allows to obtain stream table environment information when optimizing.
+  * A FlinkOptimizeProgram that deals with time.
   */
-trait StreamOptimizeContext extends FlinkOptimizeContext {
+class FlinkRelTimeIndicatorProgram extends FlinkOptimizeProgram[StreamOptimizeContext] {
 
-  /**
-    * Gets the Calcite [[RexBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def getRexBuilder: RexBuilder
-
-  /**
-    * Returns true if the sink requests updates as retraction messages
-    * defined in [[org.apache.flink.table.plan.optimize.StreamOptimizer.optimize]].
-    */
-  def updateAsRetraction: Boolean
-
-  /**
-    * Returns true if the output node needs final TimeIndicator conversion
-    * defined in [[org.apache.flink.table.api.TableEnvironment.optimize]].
-    */
-  def needFinalTimeIndicatorConversion: Boolean
+  override def optimize(input: RelNode, context: StreamOptimizeContext): RelNode = {
+    val rexBuilder = Preconditions.checkNotNull(context.getRexBuilder)
+    RelTimeIndicatorConverter.convert(input, rexBuilder, context.needFinalTimeIndicatorConversion)
+  }
 
 }

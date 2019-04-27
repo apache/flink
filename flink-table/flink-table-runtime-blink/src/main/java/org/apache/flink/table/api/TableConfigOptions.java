@@ -176,6 +176,11 @@ public class TableConfigOptions {
 					.defaultValue(Long.MIN_VALUE)
 					.withDescription("The maximum number of inputs that MiniBatch buffer can accommodate.");
 
+	public static final ConfigOption<Boolean> SQL_EXEC_MINI_BATCH_WINDOW_ENABLED =
+			key("sql.exec.mini-batch.window.enabled")
+					.defaultValue(false)
+					.withDescription("Whether to enable miniBatch window.");
+
 	// ------------------------------------------------------------------------
 	//  STATE BACKEND Options
 	// ------------------------------------------------------------------------

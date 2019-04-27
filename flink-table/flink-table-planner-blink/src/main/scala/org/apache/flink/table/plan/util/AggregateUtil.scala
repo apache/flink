@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
+import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo, TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -695,5 +695,17 @@ object AggregateUtil extends Enumeration {
       }
     }
     (propPos._1, propPos._2, propPos._3)
+  }
+
+  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
+    TimeIndicatorTypeInfo.ROWTIME_INDICATOR == fieldType
+  }
+
+  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
+    TimeIndicatorTypeInfo.PROCTIME_INDICATOR == fieldType
+  }
+
+  def isTimeIntervalType(intervalType: TypeInformation[_]): Boolean = {
+    intervalType == TimeIntervalTypeInfo.INTERVAL_MILLIS
   }
 }

@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.plan.util.AggregateUtil
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS
+import org.apache.flink.table.plan.util.AggregateUtil.isTimeIntervalType
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -44,14 +44,14 @@ import org.apache.commons.math3.util.ArithmeticUtils
 import scala.collection.JavaConversions._
 
 class BatchExecWindowAggregateRule
-    extends RelOptRule(
-      operand(classOf[FlinkLogicalWindowAggregate],
-        operand(classOf[RelNode], any)),
-      "BatchExecWindowAggregateRule")
-        with BatchExecAggRuleBase {
+  extends RelOptRule(
+    operand(classOf[FlinkLogicalWindowAggregate],
+      operand(classOf[RelNode], any)),
+    "BatchExecWindowAggregateRule")
+  with BatchExecAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: FlinkLogicalWindowAggregate = call.rel(0).asInstanceOf[FlinkLogicalWindowAggregate]
+    val agg: FlinkLogicalWindowAggregate = call.rel(0)
 
     // check if we have distinct aggregates
     val distinctAggs = agg.containsDistinctCall()
@@ -65,13 +65,12 @@ class BatchExecWindowAggregateRule
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
-    !distinctAggs && !groupSets && !agg.indicator
+    true
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[TableConfig])
-    val input = call.rels(1)
-    val agg = call.rels(0).asInstanceOf[FlinkLogicalWindowAggregate]
+    val agg: FlinkLogicalWindowAggregate = call.rel(0)
+    val input: RelNode = call.rel(1)
     val window = agg.getWindow
 
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
@@ -80,9 +79,10 @@ class BatchExecWindowAggregateRule
       aggCallsWithoutAuxGroupCalls, input.getRowType)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(createInternalTypeFromTypeInfo))
+    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
 
     window match {
-      case TumblingGroupWindow(_, _, size) if size.getType == INTERVAL_MILLIS =>
+      case TumblingGroupWindow(_, _, size) if isTimeIntervalType(size.getType) =>
         val sizeInLong = size.getValue.asInstanceOf[java.lang.Long]
         transformTimeSlidingWindow(
           call,
@@ -92,14 +92,14 @@ class BatchExecWindowAggregateRule
           auxGroupSet,
           aggCallToAggFunction,
           internalAggBufferTypes,
-          useHashExec(agg),
+          useHashWindowAgg(agg),
           enableAssignPane = false,
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
 
-      case SlidingGroupWindow(_, _, size, slide) if size.getType == INTERVAL_MILLIS =>
+      case SlidingGroupWindow(_, _, size, slide) if isTimeIntervalType(size.getType) =>
         val (sizeInLong, slideInLong) = (
-            size.getValue.asInstanceOf[java.lang.Long],
-            slide.getValue.asInstanceOf[java.lang.Long])
+          size.getValue.asInstanceOf[java.lang.Long],
+          slide.getValue.asInstanceOf[java.lang.Long])
         transformTimeSlidingWindow(
           call,
           input,
@@ -108,12 +108,12 @@ class BatchExecWindowAggregateRule
           auxGroupSet,
           aggCallToAggFunction,
           internalAggBufferTypes,
-          useHashExec(agg),
+          useHashWindowAgg(agg),
           useAssignPane(aggregates, sizeInLong, slideInLong),
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, slideInLong))
 
       case _ => // sliding & tumbling count window and session window not supported
-        throw new UnsupportedOperationException(s"Window $window is not supported right now.")
+        throw new TableException(s"Window $window is not supported right now.")
     }
   }
 
@@ -155,42 +155,42 @@ class BatchExecWindowAggregateRule
         val localProvidedTraitSet = localRequiredTraitSet
 
         new BatchExecLocalHashWindowAggregate(
-          window,
-          inputTimeFieldIndex,
-          inputTimeIsDate,
-          agg.getNamedProperties,
           agg.getCluster,
           call.builder(),
           localProvidedTraitSet,
           newLocalInput,
-          aggCallToAggFunction,
           localAggRelType,
           newLocalInput.getRowType,
           groupSet,
           auxGroupSet,
+          aggCallToAggFunction,
+          window,
+          inputTimeFieldIndex,
+          inputTimeIsDate,
+          agg.getNamedProperties,
           enableAssignPane)
       } else {
         // sort
-        localRequiredTraitSet = localRequiredTraitSet.replace(createRelCollation(
-          groupSet :+ inputTimeFieldIndex))
+        localRequiredTraitSet = localRequiredTraitSet
+          .replace(createRelCollation(groupSet :+ inputTimeFieldIndex))
 
         val newLocalInput = RelOptRule.convert(input, localRequiredTraitSet)
         val localProvidedTraitSet = localRequiredTraitSet
 
         new BatchExecLocalSortWindowAggregate(
-          window,
-          inputTimeFieldIndex,
-          inputTimeIsDate,
-          agg.getNamedProperties,
           agg.getCluster,
           call.builder(),
           localProvidedTraitSet,
           newLocalInput,
-          aggCallToAggFunction,
           localAggRelType,
           newLocalInput.getRowType,
           groupSet,
           auxGroupSet,
+          aggCallToAggFunction,
+          window,
+          inputTimeFieldIndex,
+          inputTimeIsDate,
+          agg.getNamedProperties,
           enableAssignPane)
       }
 
@@ -211,46 +211,46 @@ class BatchExecWindowAggregateRule
         val newGlobalAggInput = RelOptRule.convert(localAgg, globalRequiredTraitSet)
 
         new BatchExecHashWindowAggregate(
-          window,
-          newInputTimeFieldIndexFromLocal,
-          inputTimeIsDate,
-          agg.getNamedProperties,
           agg.getCluster,
           call.builder(),
           aggProvidedTraitSet,
           newGlobalAggInput,
-          aggCallToAggFunction,
           agg.getRowType,
           newGlobalAggInput.getRowType,
           input.getRowType,
           groupSet.indices.toArray,
           // auxGroupSet starts from `size of groupSet + 1(assignTs)`
           (groupSet.length + 1 until groupSet.length + 1 + auxGroupSet.length).toArray,
+          aggCallToAggFunction,
+          window,
+          newInputTimeFieldIndexFromLocal,
+          inputTimeIsDate,
+          agg.getNamedProperties,
           enableAssignPane,
           isMerge = true)
       } else {
         // sort
         globalRequiredTraitSet = globalRequiredTraitSet
-            .replace(RelCollations.EMPTY)
-            .replace(createRelCollation(groupSet.indices.toArray :+ groupSet.length))
+          .replace(RelCollations.EMPTY)
+          .replace(createRelCollation(groupSet.indices.toArray :+ groupSet.length))
         val newGlobalAggInput = RelOptRule.convert(localAgg, globalRequiredTraitSet)
 
         new BatchExecSortWindowAggregate(
-          window,
-          newInputTimeFieldIndexFromLocal,
-          inputTimeIsDate,
-          agg.getNamedProperties,
           agg.getCluster,
           call.builder(),
           aggProvidedTraitSet,
           newGlobalAggInput,
-          aggCallToAggFunction,
           agg.getRowType,
           newGlobalAggInput.getRowType,
           input.getRowType,
           groupSet.indices.toArray,
           // auxGroupSet starts from `size of groupSet + 1(assignTs)`
           (groupSet.length + 1 until groupSet.length + 1 + auxGroupSet.length).toArray,
+          aggCallToAggFunction,
+          window,
+          newInputTimeFieldIndexFromLocal,
+          inputTimeIsDate,
+          agg.getNamedProperties,
           enableAssignPane,
           isMerge = true)
       }
@@ -274,20 +274,20 @@ class BatchExecWindowAggregateRule
         val newInput = RelOptRule.convert(input, requiredTraitSet)
 
         new BatchExecHashWindowAggregate(
-          window,
-          inputTimeFieldIndex,
-          inputTimeIsDate,
-          agg.getNamedProperties,
           agg.getCluster,
           call.builder(),
           aggProvidedTraitSet,
           newInput,
-          aggCallToAggFunction,
           agg.getRowType,
           newInput.getRowType,
           newInput.getRowType,
           groupSet,
           auxGroupSet,
+          aggCallToAggFunction,
+          window,
+          inputTimeFieldIndex,
+          inputTimeIsDate,
+          agg.getNamedProperties,
           enableAssignPane,
           isMerge = false)
       } else {
@@ -297,20 +297,20 @@ class BatchExecWindowAggregateRule
         val newInput = RelOptRule.convert(input, requiredTraitSet)
 
         new BatchExecSortWindowAggregate(
-          window,
-          inputTimeFieldIndex,
-          inputTimeIsDate,
-          agg.getNamedProperties,
           agg.getCluster,
           call.builder(),
           aggProvidedTraitSet,
           newInput,
-          aggCallToAggFunction,
           agg.getRowType,
           newInput.getRowType,
           newInput.getRowType,
           groupSet,
           auxGroupSet,
+          aggCallToAggFunction,
+          window,
+          inputTimeFieldIndex,
+          inputTimeIsDate,
+          agg.getNamedProperties,
           enableAssignPane,
           isMerge = false)
       }
@@ -330,7 +330,7 @@ class BatchExecWindowAggregateRule
       windowSize: Long,
       slideSize: Long): Boolean = {
     doAllSupportMerge(aggregateList) &&
-        slideSize < windowSize && isEffectiveAssigningPane(windowSize, slideSize)
+      slideSize < windowSize && isEffectiveAssigningPane(windowSize, slideSize)
   }
 
   /**
@@ -353,11 +353,11 @@ class BatchExecWindowAggregateRule
     }
   }
 
-  private def useHashExec(agg: Aggregate): Boolean = {
+  private def useHashWindowAgg(agg: FlinkLogicalWindowAggregate): Boolean = {
     isAggBufferFixedLength(agg)
   }
 
-  private def isEffectiveAssigningPane(windowSize: Long, slideSize: Long) =
+  private def isEffectiveAssigningPane(windowSize: Long, slideSize: Long): Boolean =
     ArithmeticUtils.gcd(windowSize, slideSize) > 1
 
   def inferLocalWindowAggType(
@@ -373,14 +373,15 @@ class BatchExecWindowAggregateRule
 
     val aggBufferFieldNames = new Array[Array[String]](aggregates.length)
     var index = -1
-    aggregates.zipWithIndex.foreach{ case (udf, aggIndex) =>
+    aggregates.zipWithIndex.foreach { case (udf, aggIndex) =>
       aggBufferFieldNames(aggIndex) = udf match {
         case _: AggregateFunction[_, _] =>
           Array(aggNames(aggIndex))
         case agf: DeclarativeAggregateFunction =>
           agf.aggBufferAttributes.map { attr =>
             index += 1
-            s"${attr.getName}$$$index"}
+            s"${attr.getName}$$$index"
+          }
         case _: UserDefinedFunction =>
           throw new TableException(s"Don't get localAgg merge name")
       }
@@ -394,20 +395,20 @@ class BatchExecWindowAggregateRule
     }
 
     val localAggFieldTypes = (
-        groupSet.map(inputType.getFieldList.get(_).getType) ++ // groupSet
-            // assignTs
-            Array(typeFactory.createTypeFromInternalType(windowType, isNullable = true)) ++
-            auxGroupSet.map(inputType.getFieldList.get(_).getType) ++ // auxGroupSet
-            aggBufferSqlTypes // aggCalls
-        ).toList
+      groupSet.map(inputType.getFieldList.get(_).getType) ++ // groupSet
+        // assignTs
+        Array(typeFactory.createTypeFromInternalType(windowType, isNullable = true)) ++
+        auxGroupSet.map(inputType.getFieldList.get(_).getType) ++ // auxGroupSet
+        aggBufferSqlTypes // aggCalls
+      ).toList
 
     val assignTsFieldName = if (enableAssignPane) "assignedPane$" else "assignedWindow$"
     val localAggFieldNames = (
-        groupSet.map(inputType.getFieldList.get(_).getName) ++ // groupSet
-            Array(assignTsFieldName) ++ // assignTs
-            auxGroupSet.map(inputType.getFieldList.get(_).getName) ++ // auxGroupSet
-            aggBufferFieldNames.flatten.toArray[String] // aggCalls
-        ).toList
+      groupSet.map(inputType.getFieldList.get(_).getName) ++ // groupSet
+        Array(assignTsFieldName) ++ // assignTs
+        auxGroupSet.map(inputType.getFieldList.get(_).getName) ++ // auxGroupSet
+        aggBufferFieldNames.flatten.toArray[String] // aggCalls
+      ).toList
 
     typeFactory.createStructType(localAggFieldTypes, localAggFieldNames)
   }

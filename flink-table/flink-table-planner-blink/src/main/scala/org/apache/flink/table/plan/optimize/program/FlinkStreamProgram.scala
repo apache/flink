@@ -62,6 +62,9 @@ object FlinkStreamProgram {
     // query decorrelation
     chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
 
+    // convert time indicators
+    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
+
     // default rewrite, includes: predicate simplification, expression reduction, window
     // properties rewrite, etc.
     chainedProgram.addLast(

@@ -24,9 +24,11 @@ import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
@@ -38,16 +40,14 @@ import java.util
 import scala.collection.JavaConverters._
 
 class FlinkLogicalWindowAggregate(
-    window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
     groupSet: ImmutableBitSet,
-    groupSets: util.List[ImmutableBitSet],
-    aggCalls: util.List[AggregateCall])
-  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls)
+    aggCalls: util.List[AggregateCall],
+    window: LogicalWindow,
+    namedProperties: Seq[NamedWindowProperty])
+  extends Aggregate(cluster, traitSet, child, false, groupSet, ImmutableList.of(groupSet), aggCalls)
   with FlinkLogicalRel {
 
   def getWindow: LogicalWindow = window
@@ -62,15 +62,13 @@ class FlinkLogicalWindowAggregate(
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): Aggregate = {
     new FlinkLogicalWindowAggregate(
-      window,
-      namedProperties,
       cluster,
       traitSet,
       input,
-      indicator,
       groupSet,
-      groupSets,
-      aggCalls)
+      aggCalls,
+      window,
+      namedProperties)
   }
 
   override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
@@ -137,19 +135,18 @@ class FlinkLogicalWindowAggregateConverter
 
   override def convert(rel: RelNode): RelNode = {
     val agg = rel.asInstanceOf[LogicalWindowAggregate]
+    require(!agg.indicator && (agg.getGroupType == Group.SIMPLE))
     val newInput = RelOptRule.convert(agg.getInput, FlinkConventions.LOGICAL)
     val traitSet = newInput.getCluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
 
     new FlinkLogicalWindowAggregate(
-      agg.getWindow,
-      agg.getNamedProperties,
       rel.getCluster,
       traitSet,
       newInput,
-      agg.indicator,
       agg.getGroupSet,
-      agg.getGroupSets,
-      agg.getAggCallList)
+      agg.getAggCallList,
+      agg.getWindow,
+      agg.getNamedProperties)
   }
 
 }

@@ -53,6 +53,30 @@ class TableConfig {
     */
   private var maxGeneratedCodeLength: Int = 64000 // just an estimate
 
+  private val DEFAULT_FIRE_INTERVAL = Long.MinValue
+
+  /**
+    * The early firing interval in milli second, early fire is the emit strategy
+    * before watermark advanced to end of window.
+    *
+    * < 0 means no early fire
+    * 0 means no delay (fire on every element).
+    * > 0 means the fire interval
+    */
+  private var earlyFireInterval = DEFAULT_FIRE_INTERVAL
+
+  /**
+    * The late firing interval in milli second, late fire is the emit strategy
+    * after watermark advanced to end of window.
+    *
+    * < 0 means no late fire, drop every late elements
+    * 0 means no delay (fire on every element).
+    * > 0 means the fire interval
+    *
+    * NOTE: late firing strategy is only enabled when allowLateness > 0
+    */
+  private var lateFireInterval = DEFAULT_FIRE_INTERVAL
+
   /**
     * Defines the configuration of Calcite for Table API and SQL queries.
     */
@@ -207,6 +231,40 @@ class TableConfig {
     }
     this.conf.getLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS)
   }
+
+  /**
+    * Specifies the early firing interval in milli second, early fire is the emit strategy
+    * before watermark advanced to end of window.
+    */
+  def withEarlyFireInterval(interval: Time): TableConfig = {
+    if (this.earlyFireInterval != DEFAULT_FIRE_INTERVAL
+      && this.earlyFireInterval != interval.toMilliseconds) {
+      // earlyFireInterval of the two query config is not equal and not the default
+      throw new RuntimeException(
+        "Currently not support different earlyFireInterval configs in one job")
+    }
+    earlyFireInterval = interval.toMilliseconds
+    this
+  }
+
+  def getEarlyFireInterval: Long = earlyFireInterval
+
+  /**
+    * Specifies the late firing interval in milli second, early fire is the emit strategy
+    * after watermark advanced to end of window.
+    */
+  def withLateFireInterval(interval: Time): TableConfig = {
+    if (this.lateFireInterval != DEFAULT_FIRE_INTERVAL
+      && this.lateFireInterval != interval.toMilliseconds) {
+      // lateFireInterval of the two query config is not equal and not the default
+      throw new RuntimeException(
+        "Currently not support different lateFireInterval configs in one job")
+    }
+    lateFireInterval = interval.toMilliseconds
+    this
+  }
+
+  def getLateFireInterval: Long = lateFireInterval
 }
 
 object TableConfig {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.common
+package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
@@ -24,8 +24,9 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.plan.util.AggregateUtil
 
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject}
@@ -35,27 +36,27 @@ import org.apache.calcite.tools.RelBuilder
 import scala.collection.JavaConversions._
 
 class WindowPropertiesRule extends RelOptRule(
-  RelOptRule.operand(classOf[LogicalProject],
-      RelOptRule.operand(classOf[LogicalProject],
-        RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none()))),
-    "WindowPropertiesRule") {
+  operand(classOf[LogicalProject],
+    operand(classOf[LogicalProject],
+      operand(classOf[LogicalWindowAggregate], none()))),
+  "WindowPropertiesRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val project = call.rel(0).asInstanceOf[LogicalProject]
+    val project: LogicalProject = call.rel(0)
     // project includes at least on group auxiliary function
     project.getProjects.exists(WindowPropertiesRules.hasGroupAuxiliaries)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-      val project = call.rel(0).asInstanceOf[LogicalProject]
-      val innerProject = call.rel(1).asInstanceOf[LogicalProject]
-      val agg = call.rel(2).asInstanceOf[LogicalWindowAggregate]
+    val project: LogicalProject = call.rel(0)
+    val innerProject: LogicalProject = call.rel(1)
+    val agg: LogicalWindowAggregate = call.rel(2)
 
-      val converted = WindowPropertiesRules.convertWindowNodes(
-        call.builder(), project, None, innerProject, agg)
+    val converted = WindowPropertiesRules.convertWindowNodes(
+      call.builder(), project, None, innerProject, agg)
 
-      call.transformTo(converted)
-    }
+    call.transformTo(converted)
+  }
 }
 
 class WindowPropertiesHavingRule extends RelOptRule(
@@ -66,18 +67,18 @@ class WindowPropertiesHavingRule extends RelOptRule(
   "WindowPropertiesHavingRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val project = call.rel(0).asInstanceOf[LogicalProject]
-    val filter = call.rel(1).asInstanceOf[LogicalFilter]
+    val project: LogicalProject = call.rel(0)
+    val filter: LogicalFilter = call.rel(1)
 
     project.getProjects.exists(WindowPropertiesRules.hasGroupAuxiliaries) ||
-        WindowPropertiesRules.hasGroupAuxiliaries(filter.getCondition)
+      WindowPropertiesRules.hasGroupAuxiliaries(filter.getCondition)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val project = call.rel(0).asInstanceOf[LogicalProject]
-    val filter = call.rel(1).asInstanceOf[LogicalFilter]
-    val innerProject = call.rel(2).asInstanceOf[LogicalProject]
-    val agg = call.rel(3).asInstanceOf[LogicalWindowAggregate]
+    val project: LogicalProject = call.rel(0)
+    val filter: LogicalFilter = call.rel(1)
+    val innerProject: LogicalProject = call.rel(2)
+    val agg: LogicalWindowAggregate = call.rel(3)
 
     val converted = WindowPropertiesRules.convertWindowNodes(
       call.builder(), project, Some(filter), innerProject, agg)
@@ -125,8 +126,7 @@ object WindowPropertiesRules {
     builder.push(agg.copy(properties))
 
     // forward window start and end properties
-    builder.project(
-      innerProject.getProjects ++ properties.map(np => builder.field(np.name)))
+    builder.project(innerProject.getProjects ++ properties.map(np => builder.field(np.name)))
 
     // replace window auxiliary function in filter by access to window properties
     filter.foreach { f =>
@@ -145,11 +145,11 @@ object WindowPropertiesRules {
   }
 
   private def getWindowType(window: LogicalWindow): Symbol = {
-    if (window.timeAttribute.getResultType == TimeIndicatorTypeInfo.ROWTIME_INDICATOR) {
+    if (AggregateUtil.isRowtimeIndicatorType(window.timeAttribute.getResultType)) {
       'streamRowtime
-    } else if (window.timeAttribute.getResultType == TimeIndicatorTypeInfo.PROCTIME_INDICATOR) {
+    } else if (AggregateUtil.isProctimeIndicatorType(window.timeAttribute.getResultType)) {
       'streamProctime
-    } else if (window.timeAttribute.getResultType == Types.SQL_TIMESTAMP) {
+    } else if (Types.SQL_TIMESTAMP == window.timeAttribute.getResultType) {
       'batchRowtime
     } else {
       throw new TableException("Unknown window type encountered. Please report this bug.")
@@ -162,9 +162,9 @@ object WindowPropertiesRules {
 
   /** Replace group auxiliaries with field references. */
   def replaceGroupAuxiliaries(
-    node: RexNode,
-    window: LogicalWindow,
-    builder: RelBuilder): RexNode = {
+      node: RexNode,
+      window: LogicalWindow,
+      builder: RelBuilder): RexNode = {
     val rexBuilder = builder.getRexBuilder
     val windowType = getWindowType(window)
 
@@ -233,8 +233,7 @@ object WindowPropertiesRules {
         n.getOperator match {
           case FlinkSqlOperatorTable.TUMBLE_END |
                FlinkSqlOperatorTable.HOP_END |
-               FlinkSqlOperatorTable.SESSION_END
-          => true
+               FlinkSqlOperatorTable.SESSION_END => true
           case _ => false
         }
       case _ => false
@@ -248,8 +247,7 @@ object WindowPropertiesRules {
         n.getOperator match {
           case FlinkSqlOperatorTable.TUMBLE_ROWTIME |
                FlinkSqlOperatorTable.HOP_ROWTIME |
-               FlinkSqlOperatorTable.SESSION_ROWTIME
-            => true
+               FlinkSqlOperatorTable.SESSION_ROWTIME => true
           case _ => false
         }
       case _ => false
@@ -263,8 +261,7 @@ object WindowPropertiesRules {
         n.getOperator match {
           case FlinkSqlOperatorTable.TUMBLE_PROCTIME |
                FlinkSqlOperatorTable.HOP_PROCTIME |
-               FlinkSqlOperatorTable.SESSION_PROCTIME
-            => true
+               FlinkSqlOperatorTable.SESSION_PROCTIME => true
           case _ => false
         }
       case _ => false
@@ -289,4 +286,3 @@ object WindowPropertiesRules {
   }
 
 }
-
