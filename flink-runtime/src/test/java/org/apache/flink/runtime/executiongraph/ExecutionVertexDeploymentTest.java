@@ -41,7 +41,6 @@ import org.junit.Test;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -52,6 +51,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ExecutionVertexDeploymentTest extends TestLogger {
+
+	private static final String ERROR_MESSAGE = "test_failure_error_message";
 
 	@Test
 	public void testDeployCall() {
