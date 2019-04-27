@@ -449,8 +449,6 @@ public class ExecutionGraphTestUtils {
 		return groupVertex;
 	}
 
-	public static final String ERROR_MESSAGE = "test_failure_error_message";
-
 	public static ExecutionJobVertex getExecutionVertex(
 			JobVertexID id, ScheduledExecutorService executor) 
 		throws Exception {
