@@ -62,10 +62,9 @@ print_system_info() {
 
 	start_fold "cache_info" "Cache information"
 	echo "Maven: $(du -s --si $HOME/.m2)"
-	echo "RVM: $(du -s --si $HOME/.rvm)"
 	echo "Flink: $(du -s --si $HOME/flink_cache)"
 	echo "Maven (binaries): $(du -s --si $HOME/maven_cache)"
-	echo "gems: $(du -s -si $HOME/gem_cache)"
+	echo "gems: $(du -s --si $HOME/gem_cache)"
 	end_fold "cache_info"
 }
 
