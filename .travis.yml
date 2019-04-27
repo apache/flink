@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
-
 # send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
 sudo: required
 dist: trusty
@@ -49,7 +47,6 @@ env:
     - CHANGE_MINIKUBE_NONE_USER=true
 
 before_script:
-   - "gem install --no-document --version 0.8.9 faraday "
    - "export -f travis_nanoseconds"
    - "export -f travis_time_start"
    - "export -f travis_time_finish"
