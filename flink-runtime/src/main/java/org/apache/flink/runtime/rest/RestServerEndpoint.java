@@ -446,15 +446,11 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	/**
 	 * Creates the upload dir if needed.
-	 * @param uploadDir directory to check
-	 * @param log logger used for logging output
-	 * @param initial indicates whether is initial startup
-	 * @throws IOException
 	 */
 	@VisibleForTesting
-	static void createUploadDir(final Path uploadDir, final Logger log, boolean initial) throws IOException {
+	static void createUploadDir(final Path uploadDir, final Logger log, final boolean initialCreation) throws IOException {
 		if (!Files.exists(uploadDir)) {
-			if (initial) {
+			if (initialCreation) {
 				log.info("Upload directory {} does not exist. " + uploadDir);
 			} else {
 				log.warn("Upload directory {} has been deleted externally. " +
