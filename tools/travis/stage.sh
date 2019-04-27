@@ -26,6 +26,7 @@ STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 
 MODULES_CORE="\
+flink-annotations,\
 flink-test-utils-parent/flink-test-utils,\
 flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
@@ -36,7 +37,9 @@ flink-runtime,\
 flink-runtime-web,\
 flink-scala,\
 flink-streaming-java,\
-flink-streaming-scala"
+flink-streaming-scala,\
+flink-metrics,\
+flink-metrics/flink-metrics-core"
 
 MODULES_CORE_JDK9_EXCLUSIONS="\
 !flink-runtime"
@@ -64,32 +67,54 @@ flink-queryable-state/flink-queryable-state-client-java"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
+flink-filesystems,\
+flink-filesystems/flink-fs-hadoop-shaded,\
 flink-filesystems/flink-hadoop-fs,\
 flink-filesystems/flink-mapr-fs,\
+flink-filesystems/flink-oss-fs-hadoop,\
 flink-filesystems/flink-s3-fs-base,\
 flink-filesystems/flink-s3-fs-hadoop,\
 flink-filesystems/flink-s3-fs-presto,\
+flink-filesystems/flink-swift-fs-hadoop,\
+flink-fs-tests,\
+flink-formats,\
+flink-formats/flink-avro-confluent-registry,\
 flink-formats/flink-avro,\
 flink-formats/flink-parquet,\
+flink-formats/flink-sequence-file,\
 flink-formats/flink-json,\
 flink-formats/flink-csv,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors/flink-jdbc,\
+flink-connectors,\
+flink-connectors/flink-orc,\
 flink-connectors/flink-connector-cassandra,\
 flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
+flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
 flink-connectors/flink-connector-kafka-0.9,\
+flink-connectors/flink-sql-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
+flink-connectors/flink-sql-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\
+flink-connectors/flink-sql-connector-kafka-0.11,\
 flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
-flink-connectors/flink-connector-twitter"
+flink-connectors/flink-connector-twitter,\
+flink-metrics/flink-metrics-dropwizard,\
+flink-metrics/flink-metrics-graphite,\
+flink-metrics/flink-metrics-jmx,\
+flink-metrics/flink-metrics-influxdb,\
+flink-metrics/flink-metrics-prometheus,\
+flink-metrics/flink-metrics-statsd,\
+flink-metrics/flink-metrics-datadog,\
+flink-metrics/flink-metrics-slf4j"
 
 MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-filesystems/flink-s3-fs-hadoop,\
