@@ -155,7 +155,8 @@ function get_compile_modules_for_stage() {
             echo "-pl $MODULES_TESTS -am"
         ;;
         (${STAGE_MISC})
-            # compile everything since dist needs it anyway
+            # compile everything; using the -am switch does not work with negated module lists!
+            # the negation takes precedence, thus not all required modules would be built
             echo ""
         ;;
     esac
