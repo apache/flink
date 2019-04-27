@@ -222,11 +222,6 @@ public class ExecutionGraphTestUtils {
 		};
 	}
 
-	/**
-	 * Predicate which is true if the given {@link Execution} has a resource assigned.
-	 */
-	static final Predicate<Execution> hasResourceAssigned = (Execution execution) -> execution.getAssignedResource() != null;
-
 	public static Predicate<AccessExecution> isInExecutionState(ExecutionState executionState) {
 		return (AccessExecution execution) -> execution.getState() == executionState;
 	}
@@ -248,15 +243,6 @@ public class ExecutionGraphTestUtils {
 
 		if (System.nanoTime() >= deadline) {
 			throw new TimeoutException();
-		}
-	}
-
-	public static void failExecutionGraph(ExecutionGraph executionGraph, Exception cause) {
-		executionGraph.getAllExecutionVertices().iterator().next().fail(cause);
-		assertEquals(JobStatus.FAILING, executionGraph.getState());
-
-		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 
