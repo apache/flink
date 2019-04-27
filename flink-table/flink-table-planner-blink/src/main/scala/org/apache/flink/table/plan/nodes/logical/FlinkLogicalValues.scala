@@ -18,17 +18,16 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rel.metadata.{RelMdCollation, RelMetadataQuery}
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexLiteral
 
 import java.util
@@ -81,16 +80,10 @@ object FlinkLogicalValues {
       rowType: RelDataType,
       tuples: ImmutableList[ImmutableList[RexLiteral]]): FlinkLogicalValues = {
     val mq = cluster.getMetadataQuery
-    val traitSet = cluster.traitSetOf(Convention.NONE).replaceIfs(
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = RelMdCollation.values(mq, rowType, tuples)
-      })
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create a temporary FlinkLogicalValues node
-    // to calculate the distribution trait
-    val values = new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(values)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    values.copy(newTraitSet, values.getInputs).asInstanceOf[FlinkLogicalValues]
+      }).simplify()
+    new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
   }
 }

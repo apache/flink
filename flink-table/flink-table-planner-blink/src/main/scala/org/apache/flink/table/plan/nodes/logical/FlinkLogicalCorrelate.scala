@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
@@ -94,14 +93,8 @@ object FlinkLogicalCorrelate {
       requiredColumns: ImmutableBitSet,
       joinType: SemiJoinType): FlinkLogicalCorrelate = {
     val cluster = left.getCluster
-    val traitSet = cluster.traitSetOf(Convention.NONE)
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create a temporary FlinkLogicalCorrelate node
-    // to calculate the distribution trait
-    val correlate = new FlinkLogicalCorrelate(
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalCorrelate(
       cluster, traitSet, left, right, correlationId, requiredColumns, joinType)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(correlate)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    correlate.copy(newTraitSet, correlate.getInputs).asInstanceOf[FlinkLogicalCorrelate]
   }
 }

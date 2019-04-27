@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
@@ -88,13 +87,7 @@ object FlinkLogicalUnion {
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalUnion = {
     val cluster = inputs.get(0).getCluster
-    val traitSet = cluster.traitSetOf(Convention.NONE)
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create a temporary FlinkLogicalUnion node
-    // to calculate the distribution trait
-    val union = new FlinkLogicalUnion(cluster, traitSet, inputs, all)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(union)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    union.copy(newTraitSet, union.getInputs).asInstanceOf[FlinkLogicalUnion]
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalUnion(cluster, traitSet, inputs, all)
   }
 }

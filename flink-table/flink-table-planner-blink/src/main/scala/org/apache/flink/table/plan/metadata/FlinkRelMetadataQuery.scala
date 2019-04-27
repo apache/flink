@@ -19,16 +19,13 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.JDouble
-import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, RelModifiedMonotonicity}
 import org.apache.flink.table.plan.metadata.FlinkMetadata._
 import org.apache.flink.table.plan.stats.ValueInterval
 
-import org.apache.calcite.plan.RelTraitSet
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.util.ImmutableBitSet
-
-import java.util.function.Supplier
 
 /**
   * RelMetadataQuery provides a strongly-typed facade on top of
@@ -206,15 +203,6 @@ class FlinkRelMetadataQuery private(
 object FlinkRelMetadataQuery {
 
   def instance(): FlinkRelMetadataQuery = new FlinkRelMetadataQuery()
-
-  def traitSet(rel: RelNode): RelTraitSet = {
-    rel.getTraitSet.replaceIf(
-      FlinkRelDistributionTraitDef.INSTANCE, new Supplier[FlinkRelDistribution]() {
-        def get: FlinkRelDistribution = {
-          reuseOrCreate(rel.getCluster.getMetadataQuery).flinkDistribution(rel)
-        }
-      })
-  }
 
   /**
     * Reuse input metadataQuery instance if it could cast to FlinkRelMetadataQuery class,

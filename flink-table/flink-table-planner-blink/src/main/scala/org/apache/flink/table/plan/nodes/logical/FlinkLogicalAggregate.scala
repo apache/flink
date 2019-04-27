@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.util.AggregateUtil
@@ -162,14 +161,7 @@ object FlinkLogicalAggregate {
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): FlinkLogicalAggregate = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSetOf(Convention.NONE)
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create a temporary FlinkLogicalAggregate node
-    // to calculate the distribution trait
-    val agg = new FlinkLogicalAggregate(
-      cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(agg)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    agg.copy(newTraitSet, agg.getInputs).asInstanceOf[FlinkLogicalAggregate]
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalAggregate(cluster,traitSet, input, indicator, groupSet, groupSets, aggCalls)
   }
 }

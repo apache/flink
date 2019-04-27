@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.util.SortUtil
 
@@ -133,13 +132,7 @@ object FlinkLogicalSort {
       sortFetch: RexNode): FlinkLogicalSort = {
     val cluster = input.getCluster
     val collationTrait = RelCollationTraitDef.INSTANCE.canonize(collation)
-    val traitSet = input.getTraitSet.replace(Convention.NONE).replace(collationTrait)
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create a temporary FlinkLogicalSort node to
-    // calculate the distribution trait
-    val sort = new FlinkLogicalSort(cluster, traitSet, input, collation, sortOffset, sortFetch)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(sort)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    sort.copy(newTraitSet, sort.getInputs).asInstanceOf[FlinkLogicalSort]
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replace(collationTrait)
+    new FlinkLogicalSort(cluster,  traitSet, input, collation, sortOffset, sortFetch)
   }
 }

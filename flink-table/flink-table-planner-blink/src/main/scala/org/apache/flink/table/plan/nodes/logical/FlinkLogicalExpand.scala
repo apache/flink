@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.{Expand, LogicalExpand}
 
@@ -77,19 +76,7 @@ object FlinkLogicalExpand {
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): FlinkLogicalExpand = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSetOf(Convention.NONE)
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create a temporary FlinkLogicalExpand node
-    // to calculate the distribution trait
-    val expand = new FlinkLogicalExpand(
-      cluster,
-      traitSet,
-      input,
-      outputRowType,
-      projects,
-      expandIdIndex)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(expand)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    expand.copy(newTraitSet, expand.getInputs).asInstanceOf[FlinkLogicalExpand]
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalExpand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
   }
 }

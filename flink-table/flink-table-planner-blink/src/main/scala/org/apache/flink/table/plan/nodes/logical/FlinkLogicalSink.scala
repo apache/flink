@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.sinks.TableSink
@@ -75,13 +74,7 @@ object FlinkLogicalSink {
       sink: TableSink[_],
       sinkName: String): FlinkLogicalSink = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSetOf(Convention.NONE)
-    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
-    // the distribution trait, so we have to create temporary FlinkLogicalSink node
-    // to calculate the distribution trait
-    val sinkNode = new FlinkLogicalSink(cluster, traitSet, input, sink,sinkName)
-    val newTraitSet = FlinkRelMetadataQuery.traitSet(sinkNode)
-      .replace(FlinkConventions.LOGICAL).simplify()
-    sinkNode.copy(newTraitSet, sinkNode.getInputs).asInstanceOf[FlinkLogicalSink]
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalSink(cluster, traitSet, input, sink, sinkName)
   }
 }

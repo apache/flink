@@ -33,7 +33,7 @@ import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
-import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, RelFieldCollationUtil, SortUtil}
+import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, FlinkRelOptUtil, SortUtil}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.util.CountAggFunction
 
@@ -1030,7 +1030,8 @@ class FlinkRelMdHandlerTestBase {
     val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
     val exchange1 = new BatchExecExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
     // sort class, name
-    val collection1 = RelCollations.of(RelFieldCollationUtil.of(4), RelFieldCollationUtil.of(1))
+    val collection1 = RelCollations.of(
+      FlinkRelOptUtil.ofRelFieldCollation(4), FlinkRelOptUtil.ofRelFieldCollation(1))
     val newSortTrait1 = exchange1.getTraitSet.replace(collection1)
     val sort1 = new BatchExecSort(cluster, newSortTrait1, exchange1,
       newSortTrait1.getTrait(RelCollationTraitDef.INSTANCE))
@@ -1055,7 +1056,8 @@ class FlinkRelMdHandlerTestBase {
     )
 
     // sort class, score
-    val collation2 = RelCollations.of(RelFieldCollationUtil.of(4), RelFieldCollationUtil.of(2))
+    val collation2 = RelCollations.of(
+      FlinkRelOptUtil.ofRelFieldCollation(4), FlinkRelOptUtil.ofRelFieldCollation(2))
     val newSortTrait2 = innerWindowAgg1.getTraitSet.replace(collation2)
     val sort2 = new BatchExecSort(cluster, newSortTrait2, innerWindowAgg1,
       newSortTrait2.getTrait(RelCollationTraitDef.INSTANCE))
