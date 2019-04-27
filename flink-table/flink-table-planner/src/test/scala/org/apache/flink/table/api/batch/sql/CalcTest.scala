@@ -53,7 +53,8 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val resultStr = (1 to 30).mkString(", ")
+    val sqlStr = (1 to 30).mkString(", ")
+    val resultStr = (1 to 30).mkString(":BIGINT, ") + ":BIGINT"
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
@@ -62,7 +63,7 @@ class CalcTest extends TableTestBase {
     )
 
     util.verifySql(
-      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
+      s"SELECT * FROM MyTable WHERE b in ($sqlStr)",
       expected)
   }
 
@@ -71,7 +72,8 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val resultStr = (1 to 30).mkString(", ")
+    val sqlStr = (1 to 30).mkString(", ")
+    val resultStr = (1 to 30).mkString(":BIGINT, ") + ":BIGINT"
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
@@ -80,7 +82,7 @@ class CalcTest extends TableTestBase {
     )
 
     util.verifySql(
-      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
+      s"SELECT * FROM MyTable WHERE b NOT IN ($sqlStr)",
       expected)
   }
 }

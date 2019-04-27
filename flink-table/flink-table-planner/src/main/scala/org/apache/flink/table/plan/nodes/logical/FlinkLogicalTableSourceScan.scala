@@ -100,6 +100,8 @@ class FlinkLogicalTableSourceScan(
       s"Scan($s)"
     }
   }
+
+  override def computeDigest(): String = this.toString
 }
 
 class FlinkLogicalTableSourceScanConverter

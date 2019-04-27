@@ -74,7 +74,7 @@ class SetOperatorsTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select", "IN(b, 1972-02-22 07:12:00.333) AS b2")
+      term("select", "IN(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2")
     )
 
     util.verifyTable(in, expected)
@@ -99,7 +99,9 @@ class SetOperatorsTest extends TableTestBase {
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
-        term("select", "CASE(>(c, 0), b, null) AS _c0")
+        term("select", "CASE(>(c, 0), b",
+          "null:RecordType:peek_no_expand(" +
+            "INTEGER _1, VARCHAR(65536) CHARACTER SET \"UTF-16LE\" _2)) AS _c0")
       ),
       term("all", "true"),
       term("union", "a")

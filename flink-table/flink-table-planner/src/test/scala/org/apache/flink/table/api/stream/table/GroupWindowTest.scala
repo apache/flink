@@ -734,10 +734,10 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS TMP_0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS TMP_1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS TMP_2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS TMP_3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS TMP_1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS TMP_2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1)))",
+          "0.5:DECIMAL(2, 1))) AS TMP_3",
           "TMP_4",
           "TMP_5")
       )
