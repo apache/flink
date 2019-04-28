@@ -93,14 +93,8 @@ object FlinkLogicalCorrelate {
       requiredColumns: ImmutableBitSet,
       joinType: SemiJoinType): FlinkLogicalCorrelate = {
     val cluster = left.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalCorrelate(
-      cluster,
-      traitSet,
-      left,
-      right,
-      correlationId,
-      requiredColumns,
-      joinType)
+      cluster, traitSet, left, right, correlationId, requiredColumns, joinType)
   }
 }

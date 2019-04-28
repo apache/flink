@@ -115,16 +115,9 @@ object FlinkLogicalRank {
       rankNumberType: RelDataTypeField,
       outputRankNumber: Boolean): FlinkLogicalRank = {
     val cluster = input.getCluster
-    val traits = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalRank(
-      cluster,
-      traits,
-      input,
-      partitionKey,
-      orderKey,
-      rankType,
-      rankRange,
-      rankNumberType,
-      outputRankNumber)
+    val traits = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalRank(cluster, traits, input, partitionKey,
+      orderKey, rankType, rankRange, rankNumberType, outputRankNumber)
   }
+
 }

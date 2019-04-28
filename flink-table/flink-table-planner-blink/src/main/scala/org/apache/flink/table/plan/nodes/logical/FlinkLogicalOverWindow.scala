@@ -19,17 +19,21 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.logical.LogicalWindow
+import org.apache.calcite.rel.metadata.RelMdCollation
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.sql.SqlRankFunction
 
+import java.util
+import java.util.function.Supplier
 import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
@@ -69,8 +73,13 @@ class FlinkLogicalOverWindowConverter
 
   override def convert(rel: RelNode): RelNode = {
     val window = rel.asInstanceOf[LogicalWindow]
-    val cluster = rel.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val mq = rel.getCluster.getMetadataQuery
+    val traitSet = rel.getCluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
+      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
+        def get: util.List[RelCollation] = {
+          RelMdCollation.window(mq, window.getInput(), window.groups)
+        }
+      }).simplify()
     val newInput = RelOptRule.convert(window.getInput, FlinkConventions.LOGICAL)
 
     window.groups.foreach { group =>

@@ -81,7 +81,7 @@ object FlinkLogicalMinus {
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalMinus = {
     val cluster = inputs.get(0).getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalMinus(cluster, traitSet, inputs, all)
   }
 }

@@ -18,9 +18,12 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.plan.`trait`.TraitUtil
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 
+import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
@@ -36,10 +39,6 @@ case object RetractStrategy extends RankProcessStrategy
 
 case class UpdateFastStrategy(primaryKeys: Array[Int]) extends RankProcessStrategy {
   override def toString: String = "UpdateFastStrategy" + primaryKeys.mkString("[", ",", "]")
-}
-
-case class UnaryUpdateStrategy(primaryKeys: Array[Int]) extends RankProcessStrategy {
-  override def toString: String = "UnaryUpdateStrategy" + primaryKeys.mkString("[", ",", "]")
 }
 
 object RankProcessStrategy {
@@ -66,21 +65,42 @@ object RankProcessStrategy {
         // and we fall back to using retract rank
         RetractStrategy
       } else {
-        // TODO get `isMonotonic` value by RelModifiedMonotonicity handler
-        val isMonotonic = false
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+        val monotonicity = fmq.getRelModifiedMonotonicity(input)
+        val isMonotonic = if (monotonicity == null) {
+          false
+        } else {
+          if (fieldCollations.isEmpty) {
+            false
+          } else {
+            fieldCollations.forall { collation =>
+              val fieldMonotonicity = monotonicity.fieldMonotonicities(collation.getFieldIndex)
+              val direction = collation.direction
+              if ((fieldMonotonicity == SqlMonotonicity.DECREASING
+                || fieldMonotonicity == SqlMonotonicity.STRICTLY_DECREASING)
+                && direction == Direction.ASCENDING) {
+                // sort field is ascending and its monotonicity is decreasing
+                true
+              } else if ((fieldMonotonicity == SqlMonotonicity.INCREASING
+                || fieldMonotonicity == SqlMonotonicity.STRICTLY_INCREASING)
+                && direction == Direction.DESCENDING) {
+                // sort field is descending and its monotonicity is increasing
+                true
+              } else if (fieldMonotonicity == SqlMonotonicity.CONSTANT) {
+                // sort key is a grouping key of upstream agg, it is monotonic
+                true
+              } else {
+                false
+              }
+            }
+          }
+        }
 
         if (isMonotonic) {
           //FIXME choose a set of primary key
           UpdateFastStrategy(uniqueKeys.iterator().next().toArray)
         } else {
-          if (fieldCollations.length == 1) {
-            // single sort key in update stream scenario (no monotonic)
-            // we can utilize unary rank function to speed up processing
-            UnaryUpdateStrategy(uniqueKeys.iterator().next().toArray)
-          } else {
-            // no other choices, have to use retract rank
-            RetractStrategy
-          }
+          RetractStrategy
         }
       }
     } else {

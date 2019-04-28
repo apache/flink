@@ -132,8 +132,7 @@ object FlinkLogicalSort {
       sortFetch: RexNode): FlinkLogicalSort = {
     val cluster = input.getCluster
     val collationTrait = RelCollationTraitDef.INSTANCE.canonize(collation)
-    val traitSet = input.getTraitSet.replace(FlinkConventions.LOGICAL)
-      .replace(collationTrait).simplify()
-    new FlinkLogicalSort(cluster, traitSet, input, collation, sortOffset, sortFetch)
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replace(collationTrait)
+    new FlinkLogicalSort(cluster,  traitSet, input, collation, sortOffset, sortFetch)
   }
 }

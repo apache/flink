@@ -94,10 +94,10 @@ object FlinkLogicalJoin {
   def create(
       left: RelNode,
       right: RelNode,
-      condition: RexNode,
+      conditionExpr: RexNode,
       joinType: JoinRelType): FlinkLogicalJoin = {
     val cluster = left.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalJoin(cluster, traitSet, left, right, condition, joinType)
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
   }
 }
