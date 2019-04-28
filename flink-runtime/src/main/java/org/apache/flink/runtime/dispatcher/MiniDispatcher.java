@@ -134,13 +134,13 @@ public class MiniDispatcher extends Dispatcher {
 	@Override
 	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
 
-		try{
+		try {
 			super.jobReachedGloballyTerminalState(archivedExecutionGraph);
-		}catch (Exception e){
+		} catch (Exception e) {
 			// may be unknown RuntimeException happen here, we need catch
 			log.error("Job reache globally terminal state failed", e);
 			throw e;
-		}finally {
+		} finally {
 			if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
 				// shut down since we don't have to wait for the execution result retrieval
 				jobTerminationFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
