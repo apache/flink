@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.plan.metadata.FlinkMetadata.ModifiedMonotonicity
-import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.plan.nodes.physical.stream._
@@ -217,8 +217,6 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
-  // TODO supports window aggregate
-
   def getRelModifiedMonotonicity(rel: Exchange, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     // for exchange, get correspond from input
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
@@ -259,6 +257,20 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getRelModifiedMonotonicityOnAggregate(
       rel.getInput, mq, rel.finalAggCalls.toList, rel.finalAggGrouping)
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: WindowAggregate,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = null
+
+  def getRelModifiedMonotonicity(
+      rel: StreamExecGroupWindowAggregate,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    if (allAppend(mq, rel.getInput) && !rel.producesUpdates) {
+      constants(rel.getRowType.getFieldCount)
+    } else {
+      null
+    }
   }
 
   def getRelModifiedMonotonicity(

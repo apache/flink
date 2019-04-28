@@ -50,6 +50,16 @@ abstract class BatchExecWindowAggregateBase(
     throw new TableException("auxGrouping should be empty if grouping is emtpy.")
   }
 
+  def getGrouping: Array[Int] = grouping
+
+  def getAuxGrouping: Array[Int] = auxGrouping
+
+  def getWindow: LogicalWindow = window
+
+  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+
+  def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
+
   override def deriveRowType(): RelDataType = outputRowType
 
   override def explainTerms(pw: RelWriter): RelWriter = {
