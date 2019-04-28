@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.Optional;
@@ -50,4 +51,11 @@ public interface SchedulingTopology {
 	 * @return Optional containing the respective scheduling result partition or none if the partition does not exist
 	 */
 	Optional<SchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
+
+	/**
+	 * Looks up the {@link SchedulingIntermediateDataSet} for the given {@link IntermediateDataSetID}.
+	 * @param intermediateDataSetId identifying the respective scheduling intermediate dataset
+	 * @return Optional containing the respective scheduling intermediate dataset or none if the dataset does not exist
+	 */
+	Optional<SchedulingIntermediateDataSet> getIntermediateDataSet(IntermediateDataSetID intermediateDataSetId);
 }
