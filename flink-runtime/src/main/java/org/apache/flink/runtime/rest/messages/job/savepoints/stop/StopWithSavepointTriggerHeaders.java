@@ -79,8 +79,8 @@ public class StopWithSavepointTriggerHeaders
 	}
 
 	@Override
-	public String getDescription() {
+	protected String getAsyncOperationDescription() {
 		return "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking" +
-				" the savepoint to flush out any state waiting for timers to fire.";
+			" the savepoint to flush out any state waiting for timers to fire.";
 	}
 }
