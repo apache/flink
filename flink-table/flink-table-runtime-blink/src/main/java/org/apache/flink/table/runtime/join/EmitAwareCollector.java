@@ -27,9 +27,6 @@ import org.apache.flink.util.Collector;
  */
 class EmitAwareCollector implements Collector<BaseRow> {
 
-	static final byte JOINED = 1;
-	static final byte NONJOINED = 0;
-
 	private boolean emitted = false;
 	private Collector<BaseRow> innerCollector;
 
@@ -56,7 +53,4 @@ class EmitAwareCollector implements Collector<BaseRow> {
 		innerCollector.close();
 	}
 
-	static boolean isJoined(BaseRow baseRow) {
-		return baseRow.getHeader() == JOINED;
-	}
 }

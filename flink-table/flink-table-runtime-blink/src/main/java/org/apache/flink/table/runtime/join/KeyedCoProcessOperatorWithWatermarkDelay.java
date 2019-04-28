@@ -29,8 +29,8 @@ import java.util.function.Consumer;
 /**
  * A {@link KeyedCoProcessOperator} that supports holding back watermarks with a static delay.
  */
-public class KeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT> extends
-		KeyedCoProcessOperator<K, IN1, IN2, OUT> {
+public class KeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT>
+		extends KeyedCoProcessOperator<K, IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = -7435774708099223442L;
 

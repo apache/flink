@@ -25,7 +25,9 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -67,9 +69,9 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 	private transient FlatJoinFunction<BaseRow, BaseRow, BaseRow> joinFunction;
 
 	// cache to store rows form the left stream
-	private transient MapState<Long, List<BaseRow>> leftCache;
+	private transient MapState<Long, List<Tuple2<BaseRow, Boolean>>> leftCache;
 	// cache to store rows from the right stream
-	private transient MapState<Long, List<BaseRow>> rightCache;
+	private transient MapState<Long, List<Tuple2<BaseRow, Boolean>>> rightCache;
 
 	// state to record the timer on the left stream. 0 means no timer set
 	private transient ValueState<Long> leftTimerState;
@@ -115,15 +117,17 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 		joinCollector = new EmitAwareCollector();
 
 		// Initialize the data caches.
-		ListTypeInfo<BaseRow> leftRowListTypeInfo = new ListTypeInfo<>(leftType);
-		MapStateDescriptor<Long, List<BaseRow>> leftMapStateDescriptor = new MapStateDescriptor<>(
+		ListTypeInfo<Tuple2<BaseRow, Boolean>> leftRowListTypeInfo = new ListTypeInfo<>(
+				new TupleTypeInfo<>(leftType, BasicTypeInfo.BOOLEAN_TYPE_INFO));
+		MapStateDescriptor<Long, List<Tuple2<BaseRow, Boolean>>> leftMapStateDescriptor = new MapStateDescriptor<>(
 				"WindowJoinLeftCache",
 				BasicTypeInfo.LONG_TYPE_INFO,
 				leftRowListTypeInfo);
 		leftCache = getRuntimeContext().getMapState(leftMapStateDescriptor);
 
-		ListTypeInfo<BaseRow> rightRowListTypeInfo = new ListTypeInfo<>(rightType);
-		MapStateDescriptor<Long, List<BaseRow>> rightMapStateDescriptor = new MapStateDescriptor<>(
+		ListTypeInfo<Tuple2<BaseRow, Boolean>> rightRowListTypeInfo = new ListTypeInfo<>(
+				new TupleTypeInfo<>(rightType, BasicTypeInfo.BOOLEAN_TYPE_INFO));
+		MapStateDescriptor<Long, List<Tuple2<BaseRow, Boolean>>> rightMapStateDescriptor = new MapStateDescriptor<>(
 				"WindowJoinRightCache",
 				BasicTypeInfo.LONG_TYPE_INFO,
 				rightRowListTypeInfo);
@@ -162,21 +166,21 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 			// There might be qualifying rows in the cache that the current row needs to be joined with.
 			rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize);
 			// Join the leftRow with rows from the right cache.
-			Iterator<Map.Entry<Long, List<BaseRow>>> rightIterator = rightCache.iterator();
+			Iterator<Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>>> rightIterator = rightCache.iterator();
 			while (rightIterator.hasNext()) {
-				Map.Entry<Long, List<BaseRow>> rightEntry = rightIterator.next();
+				Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>> rightEntry = rightIterator.next();
 				Long rightTime = rightEntry.getKey();
 				if (rightTime >= rightQualifiedLowerBound && rightTime <= rightQualifiedUpperBound) {
-					List<BaseRow> rightRows = rightEntry.getValue();
+					List<Tuple2<BaseRow, Boolean>> rightRows = rightEntry.getValue();
 					boolean entryUpdated = false;
-					for (BaseRow row : rightRows) {
+					for (Tuple2<BaseRow, Boolean> tuple : rightRows) {
 						joinCollector.reset();
-						joinFunction.join(leftRow, row, joinCollector);
+						joinFunction.join(leftRow, tuple.f0, joinCollector);
 						emitted = emitted || joinCollector.isEmitted();
 						if (joinType.isRightOuter()) {
-							if (!EmitAwareCollector.isJoined(row) && joinCollector.isEmitted()) {
+							if (!tuple.f1 && joinCollector.isEmitted()) {
 								// Mark the right row as being successfully joined and emitted.
-								row.setHeader(EmitAwareCollector.JOINED);
+								tuple.f1 = true;
 								entryUpdated = true;
 							}
 						}
@@ -189,11 +193,11 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 				// Clean up the expired right cache row, clean the cache while join
 				if (rightTime <= rightExpirationTime) {
 					if (joinType.isRightOuter()) {
-						List<BaseRow> rightRows = rightEntry.getValue();
-						rightRows.forEach((BaseRow row) -> {
-							if (!EmitAwareCollector.isJoined(row)) {
+						List<Tuple2<BaseRow, Boolean>> rightRows = rightEntry.getValue();
+						rightRows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+							if (!tuple.f1) {
 								// Emit a null padding result if the right row has never been successfully joined.
-								joinCollector.collect(paddingUtil.padRight(row));
+								joinCollector.collect(paddingUtil.padRight(tuple.f0));
 							}
 						});
 					}
@@ -207,12 +211,11 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 			// Operator time of right stream has not exceeded the upper window bound of the current
 			// row. Put it into the left cache, since later coming records from the right stream are
 			// expected to be joined with it.
-			List<BaseRow> leftRowList = leftCache.get(timeForLeftRow);
+			List<Tuple2<BaseRow, Boolean>> leftRowList = leftCache.get(timeForLeftRow);
 			if (leftRowList == null) {
 				leftRowList = new ArrayList<>(1);
 			}
-			leftRow.setHeader(emitted ? EmitAwareCollector.JOINED : EmitAwareCollector.NONJOINED);
-			leftRowList.add(leftRow);
+			leftRowList.add(Tuple2.of(leftRow, emitted));
 			leftCache.put(timeForLeftRow, leftRowList);
 			if (rightTimerState.value() == null) {
 				// Register a timer on the RIGHT stream to remove rows.
@@ -240,21 +243,21 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 		if (leftExpirationTime < leftQualifiedUpperBound) {
 			leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize);
 			// Join the rightRow with rows from the left cache.
-			Iterator<Map.Entry<Long, List<BaseRow>>> leftIterator = leftCache.iterator();
+			Iterator<Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>>> leftIterator = leftCache.iterator();
 			while (leftIterator.hasNext()) {
-				Map.Entry<Long, List<BaseRow>> leftEntry = leftIterator.next();
+				Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>> leftEntry = leftIterator.next();
 				Long leftTime = leftEntry.getKey();
 				if (leftTime >= leftQualifiedLowerBound && leftTime <= leftQualifiedUpperBound) {
-					List<BaseRow> leftRows = leftEntry.getValue();
+					List<Tuple2<BaseRow, Boolean>> leftRows = leftEntry.getValue();
 					boolean entryUpdated = false;
-					for (BaseRow row : leftRows) {
+					for (Tuple2<BaseRow, Boolean> tuple : leftRows) {
 						joinCollector.reset();
-						joinFunction.join(row, rightRow, joinCollector);
+						joinFunction.join(tuple.f0, rightRow, joinCollector);
 						emitted = emitted || joinCollector.isEmitted();
 						if (joinType.isLeftOuter()) {
-							if (!EmitAwareCollector.isJoined(row) && joinCollector.isEmitted()) {
+							if (!tuple.f1 && joinCollector.isEmitted()) {
 								// Mark the left row as being successfully joined and emitted.
-								row.setHeader(EmitAwareCollector.JOINED);
+								tuple.f1 = true;
 								entryUpdated = true;
 							}
 						}
@@ -267,11 +270,11 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 
 				if (leftTime <= leftExpirationTime) {
 					if (joinType.isLeftOuter()) {
-						List<BaseRow> leftRows = leftEntry.getValue();
-						leftRows.forEach((BaseRow row) -> {
-							if (!EmitAwareCollector.isJoined(row)) {
+						List<Tuple2<BaseRow, Boolean>> leftRows = leftEntry.getValue();
+						leftRows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+							if (!tuple.f1) {
 								// Emit a null padding result if the left row has never been successfully joined.
-								joinCollector.collect(paddingUtil.padLeft(row));
+								joinCollector.collect(paddingUtil.padLeft(tuple.f0));
 							}
 						});
 					}
@@ -285,12 +288,11 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 			// Operator time of left stream has not exceeded the upper window bound of the current
 			// row. Put it into the right cache, since later coming records from the left stream are
 			// expected to be joined with it.
-			List<BaseRow> rightRowList = rightCache.get(timeForRightRow);
+			List<Tuple2<BaseRow, Boolean>> rightRowList = rightCache.get(timeForRightRow);
 			if (null == rightRowList) {
 				rightRowList = new ArrayList<>(1);
 			}
-			rightRow.setHeader(emitted ? EmitAwareCollector.JOINED : EmitAwareCollector.NONJOINED);
-			rightRowList.add(rightRow);
+			rightRowList.add(Tuple2.of(rightRow, emitted));
 			rightCache.put(timeForRightRow, rightRowList);
 			if (leftTimerState.value() == null) {
 				// Register a timer on the LEFT stream to remove rows.
@@ -385,34 +387,34 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 	private void removeExpiredRows(
 			Collector<BaseRow> collector,
 			long expirationTime,
-			MapState<Long, List<BaseRow>> rowCache,
+			MapState<Long, List<Tuple2<BaseRow, Boolean>>> rowCache,
 			ValueState<Long> timerState,
 			OnTimerContext ctx,
 			boolean removeLeft) throws Exception {
-		Iterator<Map.Entry<Long, List<BaseRow>>> iterator = rowCache.iterator();
+		Iterator<Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>>> iterator = rowCache.iterator();
 
 		long earliestTimestamp = -1L;
 
 		// We remove all expired keys and do not leave the loop early.
 		// Hence, we do a full pass over the state.
 		while (iterator.hasNext()) {
-			Map.Entry<Long, List<BaseRow>> entry = iterator.next();
+			Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>> entry = iterator.next();
 			Long rowTime = entry.getKey();
 			if (rowTime <= expirationTime) {
 				if (removeLeft && joinType.isLeftOuter()) {
-					List<BaseRow> rows = entry.getValue();
-					rows.forEach((BaseRow row) -> {
-						if (!EmitAwareCollector.isJoined(row)) {
+					List<Tuple2<BaseRow, Boolean>> rows = entry.getValue();
+					rows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+						if (!tuple.f1) {
 							// Emit a null padding result if the row has never been successfully joined.
-							collector.collect(paddingUtil.padLeft(row));
+							collector.collect(paddingUtil.padLeft(tuple.f0));
 						}
 					});
 				} else if (!removeLeft && joinType.isRightOuter()) {
-					List<BaseRow> rows = entry.getValue();
-					rows.forEach((BaseRow row) -> {
-						if (!EmitAwareCollector.isJoined(row)) {
+					List<Tuple2<BaseRow, Boolean>> rows = entry.getValue();
+					rows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+						if (!tuple.f1) {
 							// Emit a null padding result if the row has never been successfully joined.
-							collector.collect(paddingUtil.padRight(row));
+							collector.collect(paddingUtil.padRight(tuple.f0));
 						}
 					});
 				}
