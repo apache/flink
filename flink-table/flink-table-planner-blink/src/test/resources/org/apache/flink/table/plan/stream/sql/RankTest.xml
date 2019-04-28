@@ -56,12 +56,12 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, $3, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Calc(select=[a, b, count_c, $3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, cn, count_c, $3], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[AccRetract])
-               +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[true], accMode=[AccRetract])
++- Rank(strategy=[UpdateFastStrategy[0,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, $3, w0$o0], updateAsRetraction=[false], accMode=[Acc])
+   +- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
+      +- Calc(select=[a, b, count_c, $3], updateAsRetraction=[false], accMode=[Acc])
+         +- Rank(strategy=[UpdateFastStrategy[0,1,2]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, cn, count_c, $3], updateAsRetraction=[false], accMode=[Acc])
+            +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
+               +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
                   +- Exchange(distribution=[hash[a, b, cn]], updateAsRetraction=[true], accMode=[Acc])
                      +- Calc(select=[a, b, _UTF-16LE'cn' AS cn], updateAsRetraction=[true], accMode=[Acc])
                         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
@@ -372,9 +372,9 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[true], accMode=[AccRetract])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
++- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
             +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
@@ -471,9 +471,9 @@ LogicalProject(rowkey=[CONCAT($0, $2, $3, $1)], seller_id=[$0], sku_id=[$1], ven
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[CONCAT(seller_id, venture, stat_date, sku_id) AS rowkey, seller_id, sku_id, venture, stat_date, amt_dtr, byr_cnt_dtr, pv_dtr, uv_dtr], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[seller_id, venture, stat_date], orderBy=[amt_dtr DESC], select=[seller_id, sku_id, venture, stat_date, amt_dtr, byr_cnt_dtr, pv_dtr, uv_dtr], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[seller_id, venture, stat_date]], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[seller_id, sku_id, venture, stat_date], select=[seller_id, sku_id, venture, stat_date, INCR_SUM(trd_amt) AS amt_dtr, COUNT(DISTINCT trd_buyer_id) AS byr_cnt_dtr, SUM(log_pv) AS pv_dtr, COUNT(DISTINCT log_visitor_id) AS uv_dtr], updateAsRetraction=[true], accMode=[AccRetract])
++- Rank(strategy=[UpdateFastStrategy[0,1,2,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[seller_id, venture, stat_date], orderBy=[amt_dtr DESC], select=[seller_id, sku_id, venture, stat_date, amt_dtr, byr_cnt_dtr, pv_dtr, uv_dtr], updateAsRetraction=[false], accMode=[Acc])
+   +- Exchange(distribution=[hash[seller_id, venture, stat_date]], updateAsRetraction=[false], accMode=[Acc])
+      +- GroupAggregate(groupBy=[seller_id, sku_id, venture, stat_date], select=[seller_id, sku_id, venture, stat_date, INCR_SUM(trd_amt) AS amt_dtr, COUNT(DISTINCT trd_buyer_id) AS byr_cnt_dtr, SUM(log_pv) AS pv_dtr, COUNT(DISTINCT log_visitor_id) AS uv_dtr], updateAsRetraction=[false], accMode=[Acc])
          +- Exchange(distribution=[hash[seller_id, sku_id, venture, stat_date]], updateAsRetraction=[true], accMode=[Acc])
             +- TableSourceScan(table=[[stream_source, source: [TestTableSource(seller_id, sku_id, venture, stat_date, trd_amt, trd_buyer_id, log_pv, log_visitor_id)]]], fields=[seller_id, sku_id, venture, stat_date, trd_amt, trd_buyer_id, log_pv, log_visitor_id], updateAsRetraction=[true], accMode=[Acc])
 ]]>
@@ -512,9 +512,9 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
 GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
 +- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
    +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
-      +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC], select=[a, b, count_c], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[true], accMode=[AccRetract])
+      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC], select=[a, b, count_c], updateAsRetraction=[true], accMode=[AccRetract])
+         +- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
+            +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
                +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
                   +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
                      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
@@ -548,9 +548,9 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, INCR_SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
++- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, INCR_SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
             +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
@@ -584,7 +584,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -622,9 +622,9 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
++- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], where=[>=(c, 0)], updateAsRetraction=[true], accMode=[Acc])
             +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
@@ -658,7 +658,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -694,7 +694,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c ASC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c ASC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -798,9 +798,9 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, cn, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-   +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[true], accMode=[AccRetract])
++- Rank(strategy=[UpdateFastStrategy[0,1,2]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, cn, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
+   +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
+      +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
          +- Exchange(distribution=[hash[a, b, cn]], updateAsRetraction=[true], accMode=[Acc])
             +- Calc(select=[a, b, _UTF-16LE'cn' AS cn], updateAsRetraction=[true], accMode=[Acc])
                +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])

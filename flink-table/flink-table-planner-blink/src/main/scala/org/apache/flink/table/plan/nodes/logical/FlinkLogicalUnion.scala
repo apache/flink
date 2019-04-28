@@ -87,7 +87,7 @@ object FlinkLogicalUnion {
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalUnion = {
     val cluster = inputs.get(0).getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalUnion(cluster, traitSet, inputs, all)
   }
 }

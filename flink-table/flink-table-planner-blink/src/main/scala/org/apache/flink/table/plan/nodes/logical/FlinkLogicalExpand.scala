@@ -76,13 +76,7 @@ object FlinkLogicalExpand {
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): FlinkLogicalExpand = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalExpand(
-      cluster,
-      traitSet,
-      input,
-      outputRowType,
-      projects,
-      expandIdIndex)
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalExpand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
   }
 }

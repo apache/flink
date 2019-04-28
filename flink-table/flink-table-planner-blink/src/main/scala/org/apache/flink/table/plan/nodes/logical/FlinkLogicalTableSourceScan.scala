@@ -125,7 +125,7 @@ object FlinkLogicalTableSourceScan {
             ImmutableList.of[RelCollation]
           }
         }
-      })
+      }).simplify()
     new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
   }
 }

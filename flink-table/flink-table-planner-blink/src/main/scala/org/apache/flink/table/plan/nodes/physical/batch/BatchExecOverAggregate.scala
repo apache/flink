@@ -70,9 +70,9 @@ class BatchExecOverAggregate(
     grouping: Array[Int],
     orderKeyIndices: Array[Int],
     orders: Array[Boolean],
+    nullIsLasts: Array[Boolean],
     windowGroupToAggCallToAggFunction: Seq[
       (Window.Group, Seq[(AggregateCall, UserDefinedFunction)])],
-    nullIsLasts: Array[Boolean],
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with BatchPhysicalRel
@@ -126,8 +126,8 @@ class BatchExecOverAggregate(
       grouping,
       orderKeyIndices,
       orders,
-      windowGroupToAggCallToAggFunction,
       nullIsLasts,
+      windowGroupToAggCallToAggFunction,
       logicWindow)
   }
 

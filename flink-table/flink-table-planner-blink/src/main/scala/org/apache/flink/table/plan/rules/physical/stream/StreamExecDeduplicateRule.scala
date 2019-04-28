@@ -68,7 +68,11 @@ class StreamExecDeduplicateRule
 
   override def convert(rel: RelNode): RelNode = {
     val rank = rel.asInstanceOf[FlinkLogicalRank]
-    val requiredDistribution = FlinkRelDistribution.hash(rank.partitionKey.toList)
+    val requiredDistribution = if (rank.partitionKey.isEmpty) {
+      FlinkRelDistribution.SINGLETON
+    } else {
+      FlinkRelDistribution.hash(rank.partitionKey.toList)
+    }
     val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
       .replace(FlinkConventions.STREAM_PHYSICAL)
       .replace(requiredDistribution)

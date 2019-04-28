@@ -83,11 +83,9 @@ object FlinkLogicalDataStreamTableScan {
     dataStreamTable != null
   }
 
-  def create(
-      cluster: RelOptCluster,
-      relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
+  def create(cluster: RelOptCluster, relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
     val table = relOptTable.unwrap(classOf[Table])
-    val traitSet = cluster.traitSetOf(Convention.NONE).replaceIfs(
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = {
           if (table != null) {
@@ -96,8 +94,7 @@ object FlinkLogicalDataStreamTableScan {
             ImmutableList.of[RelCollation]
           }
         }
-      })
-    val newTraitSet = traitSet.replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalDataStreamTableScan(cluster, newTraitSet, relOptTable)
+      }).simplify()
+    new FlinkLogicalDataStreamTableScan(cluster, traitSet, relOptTable)
   }
 }

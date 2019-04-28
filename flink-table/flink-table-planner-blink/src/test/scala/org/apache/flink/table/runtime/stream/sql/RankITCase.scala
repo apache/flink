@@ -589,7 +589,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Ignore("Enable after FLINK-11822 is merged")
   @Test
   def testNestedTopN(): Unit = {
     val data = List(
@@ -656,13 +655,12 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,3,book,d,4,2)",
       "(true,4,book,b,3,2)",
       "(true,4,book,b,3,2)")
-    assertEquals(expected.mkString("\n"), sink.getUpsertResults.mkString("\n"))
+    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
 
     val expected2 = List("1,fruit,b,6,1", "2,book,e,5,1", "3,book,d,4,2", "4,book,b,3,2")
     assertEquals(expected2, sink.getUpsertResults.sorted)
   }
 
-  @Ignore("Enable after FLINK-11822 is merged")
   @Test
   def testTopNWithoutDeduplicate(): Unit = {
     val data = List(
@@ -938,7 +936,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Ignore("Enable after FLINK-11822 is merged")
   @Test
   def testTopNWithGroupByCountWithoutRowNumber(): Unit = {
     val data = List(

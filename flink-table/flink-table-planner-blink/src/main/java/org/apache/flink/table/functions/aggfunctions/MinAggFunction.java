@@ -20,7 +20,6 @@ package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.InternalType;
@@ -72,7 +71,9 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 
 	@Override
 	public Expression[] retractExpressions() {
-		throw new TableException("This function does not support retraction, Please choose MinWithRetractAggFunction.");
+		// TODO FLINK-12295, ignore exception now
+//		throw new TableException("This function does not support retraction, Please choose MinWithRetractAggFunction.");
+		return new Expression[0];
 	}
 
 	@Override

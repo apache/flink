@@ -17,10 +17,6 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
@@ -30,11 +26,17 @@ import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.PartialFinalType
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.plan.util._
+import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil, RelExplainUtil, _}
 import org.apache.flink.table.runtime.aggregate.{GroupAggFunction, MiniBatchGroupAggFunction}
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.{RelNode, RelWriter}
 
 import java.util
 
@@ -60,9 +62,10 @@ class StreamExecGroupAggregate(
 
   val aggInfoList: AggregateInfoList = {
     val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
-    // TODO supports RelModifiedMonotonicity
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
+    val monotonicity = fmq.getRelModifiedMonotonicity(this)
     val needRetractionArray = AggregateUtil.getNeedRetractions(
-      grouping.length, needRetraction, aggCalls)
+      grouping.length, needRetraction, monotonicity, aggCalls)
     AggregateUtil.transformToStreamAggregateInfoList(
       aggCalls,
       getInput.getRowType,

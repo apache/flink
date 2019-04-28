@@ -343,7 +343,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
+GroupAggregate(select=[MAX(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
 +- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
    +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
       +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])
@@ -402,7 +402,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupAggregate(select=[MIN_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
+GroupAggregate(select=[MIN(a) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
 +- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[AccRetract])
    +- Calc(select=[a], updateAsRetraction=[true], accMode=[AccRetract])
       +- GroupAggregate(groupBy=[b], select=[b, MIN(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])

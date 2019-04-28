@@ -55,13 +55,14 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(a) AS EXPR$1, MAX(a) AS EXPR$2])
+SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MAX(max$2) AS EXPR$2])
 +- Exchange(distribution=[single])
-   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalHashAggregate(groupBy=[a], select=[a])
-            +- Calc(select=[a])
-               +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LocalSortAggregate(select=[Partial_COUNT(a) AS count$0, Partial_SUM(a) AS sum$1, Partial_MAX(a) AS max$2])
+      +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalHashAggregate(groupBy=[a], select=[a])
+               +- Calc(select=[a])
+                  +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -103,13 +104,14 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0])
+SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalHashAggregate(groupBy=[a], select=[a])
-            +- Calc(select=[a])
-               +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LocalSortAggregate(select=[Partial_COUNT(a) AS count$0])
+      +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalHashAggregate(groupBy=[a], select=[a])
+               +- Calc(select=[a])
+                  +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

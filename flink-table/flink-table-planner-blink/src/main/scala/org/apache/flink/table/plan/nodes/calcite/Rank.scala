@@ -47,7 +47,7 @@ import scala.collection.JavaConversions._
   * @param traitSet         the traits of this rel
   * @param input            input relational expression
   * @param partitionKey     partition keys (may be empty)
-  * @param orderKey         order keys (should not empty)
+  * @param orderKey         order keys (should not be empty)
   * @param rankType         rank type to define how exactly generate rank number
   * @param rankRange        the expected range of rank number value
   * @param rankNumberType   the field type of rank number

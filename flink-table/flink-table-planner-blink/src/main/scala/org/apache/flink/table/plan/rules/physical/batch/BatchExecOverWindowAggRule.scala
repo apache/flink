@@ -109,8 +109,8 @@ class BatchExecOverWindowAggRule
         groupSet,
         orderKeyIndexes,
         orders,
-        groupToAggCallToAggFunction,
         nullIsLasts,
+        groupToAggCallToAggFunction,
         logicWindow)
 
       input = overWindowAgg
