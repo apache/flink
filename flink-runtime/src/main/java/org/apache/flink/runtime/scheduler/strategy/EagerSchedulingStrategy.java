@@ -82,6 +82,9 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 		// Will not react to these notifications.
 	}
 
+	/**
+	 * The factory for creating {@link EagerSchedulingStrategy}.
+	 */
 	public static class Factory implements SchedulingStrategyFactory {
 
 		@Override
