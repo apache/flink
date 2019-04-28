@@ -2131,7 +2131,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers the rescaling of a job.</td>
+      <td colspan="2">Triggers the rescaling of a job. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2261,7 +2261,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers a savepoint, and optionally cancels the job afterwards.</td>
+      <td colspan="2">Triggers a savepoint, and optionally cancels the job afterwards. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2392,7 +2392,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking the savepoint to flush out any state waiting for timers to fire.</td>
+      <td colspan="2">Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking the savepoint to flush out any state waiting for timers to fire. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3581,7 +3581,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers the desposal of a savepoint.</td>
+      <td colspan="2">Triggers the desposal of a savepoint. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">
