@@ -66,7 +66,7 @@ public class SavepointDisposalTriggerHeaders extends AsynchronousOperationTrigge
 	}
 
 	@Override
-	public String getDescription() {
+	protected String getAsyncOperationDescription() {
 		return "Triggers the desposal of a savepoint.";
 	}
 }
