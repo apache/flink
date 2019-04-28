@@ -194,6 +194,8 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	# adjust timestamps to prevent recompilation
 	find . -type f -name '*.java' | xargs touch
 	find . -type f -name '*.scala' | xargs touch
+	# wait a bit for better odds of different timestamps
+	sleep 5
 	find . -type f -name '*.class' | xargs touch
 	find . -type f -name '*.timestamp' | xargs touch
 	travis_time_finish
