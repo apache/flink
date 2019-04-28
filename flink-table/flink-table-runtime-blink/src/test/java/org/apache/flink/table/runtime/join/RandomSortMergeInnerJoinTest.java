@@ -41,7 +41,6 @@ import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.runtime.join.SortMergeJoinOperator.SortMergeJoinType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.MutableObjectIterator;
@@ -350,7 +349,7 @@ public class RandomSortMergeInnerJoinTest {
 	}
 
 	private StreamOperator getOperator() {
-		return Int2SortMergeJoinOperatorTest.newOperator(SortMergeJoinType.INNER, leftIsSmall);
+		return Int2SortMergeJoinOperatorTest.newOperator(FlinkJoinType.INNER, leftIsSmall);
 	}
 
 	public static LinkedBlockingQueue<Object> transformToBinary(LinkedBlockingQueue<Object> output) {

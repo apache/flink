@@ -49,7 +49,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- * The function could handle update input stream, input stream could contain acc, delete, retract or update record .
+ * The function could handle retract stream. Input stream could only contain acc, delete or retract record.
  */
 public class RetractableTopNFunction extends AbstractTopNFunction {
 

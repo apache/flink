@@ -66,7 +66,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private final long reservedSortMemory1;
 	private final long reservedSortMemory2;
 	private final long externalBufferMemory;
-	private final SortMergeJoinType type;
+	private final FlinkJoinType type;
 	private final boolean leftIsSmaller;
 	private final boolean[] filterNulls;
 
@@ -99,7 +99,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 	@VisibleForTesting
 	public SortMergeJoinOperator(
-			long reservedSortMemory, long externalBufferMemory, SortMergeJoinType type, boolean leftIsSmaller,
+			long reservedSortMemory, long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
 			GeneratedJoinCondition condFuncCode,
 			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
 			GeneratedNormalizedKeyComputer computer1, GeneratedRecordComparator comparator1,
@@ -114,7 +114,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	public SortMergeJoinOperator(
 			long reservedSortMemory1,
 			long reservedSortMemory2,
-			long externalBufferMemory, SortMergeJoinType type, boolean leftIsSmaller,
+			long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
 			GeneratedJoinCondition condFuncCode,
 			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
 			GeneratedNormalizedKeyComputer computer1, GeneratedRecordComparator comparator1,
@@ -227,7 +227,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		MutableObjectIterator iterator1 = sorter1.getIterator();
 		MutableObjectIterator iterator2 = sorter2.getIterator();
 
-		if (type.equals(SortMergeJoinType.INNER)) {
+		if (type.equals(FlinkJoinType.INNER)) {
 			if (!leftIsSmaller) {
 				try (SortMergeInnerJoinIterator joinIterator = new SortMergeInnerJoinIterator(
 						serializer1, serializer2, projection1, projection2,
@@ -241,26 +241,26 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 					innerJoin(joinIterator, true);
 				}
 			}
-		} else if (type.equals(SortMergeJoinType.LEFT)) {
+		} else if (type.equals(FlinkJoinType.LEFT)) {
 			try (SortMergeOneSideOuterJoinIterator joinIterator = new SortMergeOneSideOuterJoinIterator(
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
 				oneSideOuterJoin(joinIterator, false, rightNullRow);
 			}
-		} else if (type.equals(SortMergeJoinType.RIGHT)) {
+		} else if (type.equals(FlinkJoinType.RIGHT)) {
 			try (SortMergeOneSideOuterJoinIterator joinIterator = new SortMergeOneSideOuterJoinIterator(
 					serializer2, serializer1, projection2, projection1,
 					keyComparator, iterator2, iterator1, newBuffer(serializer1), filterNulls)) {
 				oneSideOuterJoin(joinIterator, true, leftNullRow);
 			}
-		} else if (type.equals(SortMergeJoinType.FULL)) {
+		} else if (type.equals(FlinkJoinType.FULL)) {
 			try (SortMergeFullOuterJoinIterator fullOuterJoinIterator = new SortMergeFullOuterJoinIterator(
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2,
 					newBuffer(serializer1), newBuffer(serializer2), filterNulls)) {
 				fullOuterJoin(fullOuterJoinIterator);
 			}
-		} else if (type.equals(SortMergeJoinType.SEMI)) {
+		} else if (type.equals(FlinkJoinType.SEMI)) {
 			try (SortMergeInnerJoinIterator joinIterator = new SortMergeInnerJoinIterator(
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
@@ -281,7 +281,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 					}
 				}
 			}
-		} else if (type.equals(SortMergeJoinType.ANTI)) {
+		} else if (type.equals(FlinkJoinType.ANTI)) {
 			try (SortMergeOneSideOuterJoinIterator joinIterator = new SortMergeOneSideOuterJoinIterator(
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
@@ -458,10 +458,4 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		}
 	}
 
-	/**
-	 * Join type for sort merge join.
-	 */
-	public enum SortMergeJoinType {
-		INNER, LEFT, RIGHT, FULL, SEMI, ANTI
-	}
 }

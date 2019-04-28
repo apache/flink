@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.plan.nodes.common
 
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.plan.util.{JoinUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{JoinTypeUtil, JoinUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.join.FlinkJoinType
 
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -46,12 +46,7 @@ trait CommonPhysicalJoin extends Join with FlinkPhysicalRel {
 
   lazy val keyPairs: List[IntPair] = joinInfo.pairs.toList
 
-  // TODO supports FlinkJoinRelType.ANTI
-  lazy val flinkJoinType: FlinkJoinRelType = this match {
-    case sj: SemiJoin => FlinkJoinRelType.SEMI
-    case j: Join => FlinkJoinRelType.toFlinkJoinRelType(getJoinType)
-    case _ => throw new IllegalArgumentException(s"Illegal join node: ${this.getRelTypeName}")
-  }
+  lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(this)
 
   lazy val inputRowType: RelDataType = this match {
     case sj: SemiJoin =>
@@ -70,7 +65,7 @@ trait CommonPhysicalJoin extends Join with FlinkPhysicalRel {
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
-      .item("joinType", RelExplainUtil.joinTypeToString(flinkJoinType))
+      .item("joinType", flinkJoinType.toString)
       .item("where",
         RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
       .item("select", getRowType.getFieldNames.mkString(", "))

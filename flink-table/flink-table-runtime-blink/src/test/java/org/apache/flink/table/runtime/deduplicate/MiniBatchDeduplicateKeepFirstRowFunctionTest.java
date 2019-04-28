@@ -64,10 +64,10 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 		testHarness.processElement(record("book", 1L, 13));
 
 		// Keep FirstRow in deduplicate will not send retraction
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 11));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
 	}
 

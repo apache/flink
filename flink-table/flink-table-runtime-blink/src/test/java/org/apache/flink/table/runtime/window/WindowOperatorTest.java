@@ -109,7 +109,7 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		// process elements
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		// add elements out-of-order
 		testHarness.processElement(record("key2", 1, 3999L));
@@ -124,26 +124,26 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 1, 1000L));
 
 		testHarness.processWatermark(new Watermark(999));
-		expectedOutputOutput.add(record("key1", 3L, 3L, -2000L, 1000L, 999L));
-		expectedOutputOutput.add(new Watermark(999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 3L, 3L, -2000L, 1000L, 999L));
+		expectedOutput.add(new Watermark(999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(1999));
-		expectedOutputOutput.add(record("key1", 3L, 3L, -1000L, 2000L, 1999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, -1000L, 2000L, 1999L));
-		expectedOutputOutput.add(new Watermark(1999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 3L, 3L, -1000L, 2000L, 1999L));
+		expectedOutput.add(record("key2", 3L, 3L, -1000L, 2000L, 1999L));
+		expectedOutput.add(new Watermark(1999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(2999));
-		expectedOutputOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(new Watermark(2999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(new Watermark(2999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		testHarness = createTestHarness(operator);
 		testHarness.setup();
@@ -151,27 +151,27 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(3999));
-		expectedOutputOutput.add(record("key2", 5L, 5L, 1000L, 4000L, 3999L));
-		expectedOutputOutput.add(new Watermark(3999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 5L, 5L, 1000L, 4000L, 3999L));
+		expectedOutput.add(new Watermark(3999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(4999));
-		expectedOutputOutput.add(record("key2", 2L, 2L, 2000L, 5000L, 4999L));
-		expectedOutputOutput.add(new Watermark(4999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 2L, 2L, 2000L, 5000L, 4999L));
+		expectedOutput.add(new Watermark(4999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutputOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(new Watermark(5999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(new Watermark(5999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(6999));
 		testHarness.processWatermark(new Watermark(7999));
-		expectedOutputOutput.add(new Watermark(6999));
-		expectedOutputOutput.add(new Watermark(7999));
+		expectedOutput.add(new Watermark(6999));
+		expectedOutput.add(new Watermark(7999));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
@@ -193,7 +193,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -203,27 +203,27 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(1000);
 
-		expectedOutputOutput.add(record("key2", 1L, 1L, -2000L, 1000L, 999L));
+		expectedOutput.add(record("key2", 1L, 1L, -2000L, 1000L, 999L));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 1, Long.MAX_VALUE));
 		testHarness.processElement(record("key2", 1, Long.MAX_VALUE));
 
 		testHarness.setProcessingTime(2000);
 
-		expectedOutputOutput.add(record("key2", 3L, 3L, -1000L, 2000L, 1999L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 3L, 3L, -1000L, 2000L, 1999L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
 		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
 
 		testHarness.setProcessingTime(3000);
 
-		expectedOutputOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key1", 2L, 2L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 2L, 2L, 0L, 3000L, 2999L));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
 		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
@@ -231,12 +231,12 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(7000);
 
-		expectedOutputOutput.add(record("key2", 2L, 2L, 1000L, 4000L, 3999L));
-		expectedOutputOutput.add(record("key1", 5L, 5L, 1000L, 4000L, 3999L));
-		expectedOutputOutput.add(record("key1", 5L, 5L, 2000L, 5000L, 4999L));
-		expectedOutputOutput.add(record("key1", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 2L, 2L, 1000L, 4000L, 3999L));
+		expectedOutput.add(record("key1", 5L, 5L, 1000L, 4000L, 3999L));
+		expectedOutput.add(record("key1", 5L, 5L, 2000L, 5000L, 4999L));
+		expectedOutput.add(record("key1", 3L, 3L, 3000L, 6000L, 5999L));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 	}
@@ -256,7 +256,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -273,17 +273,17 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 1, 1000L));
 
 		testHarness.processWatermark(new Watermark(999));
-		expectedOutputOutput.add(new Watermark(999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(1999));
-		expectedOutputOutput.add(new Watermark(1999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(1999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		testHarness = createTestHarness(operator);
 		testHarness.setup();
@@ -291,31 +291,31 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(2999));
-		expectedOutputOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(new Watermark(2999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(new Watermark(2999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(3999));
-		expectedOutputOutput.add(new Watermark(3999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(3999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(4999));
-		expectedOutputOutput.add(new Watermark(4999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(4999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutputOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(new Watermark(5999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(new Watermark(5999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(6999));
 		testHarness.processWatermark(new Watermark(7999));
-		expectedOutputOutput.add(new Watermark(6999));
-		expectedOutputOutput.add(new Watermark(7999));
+		expectedOutput.add(new Watermark(6999));
+		expectedOutput.add(new Watermark(7999));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
@@ -343,7 +343,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 		testHarness.setProcessingTime(0L);
@@ -362,24 +362,24 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 1, 1000L));
 
 		testHarness.setProcessingTime(1000);
-		expectedOutputOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
 		testHarness.processWatermark(new Watermark(999));
-		expectedOutputOutput.add(new Watermark(999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(1001);
-		expectedOutputOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
 
 		testHarness.processWatermark(new Watermark(1999));
 		testHarness.setProcessingTime(2001);
-		expectedOutputOutput.add(new Watermark(1999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(1999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		// new a testHarness
 		testHarness = createTestHarness(operator);
@@ -390,50 +390,50 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(3001);
 		testHarness.processWatermark(new Watermark(2999));
 		// on time fire key1 & key2 [0 ~ 3000) window, but because of early firing, on time result is ignored
-		expectedOutputOutput.add(new Watermark(2999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(2999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 1, 4999L));
 		testHarness.processWatermark(new Watermark(3999));
 		testHarness.setProcessingTime(4001);
-		expectedOutputOutput.add(new Watermark(3999));
-		expectedOutputOutput.add(retractRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(3999));
+		expectedOutput.add(retractRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
 		testHarness.processElement(record("key2", 1, 2001L));
 		testHarness.processElement(record("key1", 1, 2030L));
 		// drop late elements
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(5100);
 		testHarness.processElement(record("key2", 1, 5122L));
 		testHarness.processWatermark(new Watermark(4999));
-		expectedOutputOutput.add(new Watermark(4999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(4999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutputOutput.add(retractRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(record("key2", 4L, 4L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(new Watermark(5999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(retractRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 4L, 4L, 3000L, 6000L, 5999L));
+		expectedOutput.add(new Watermark(5999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(6001);
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(6999));
 		testHarness.processWatermark(new Watermark(7999));
-		expectedOutputOutput.add(new Watermark(6999));
-		expectedOutputOutput.add(new Watermark(7999));
+		expectedOutput.add(new Watermark(6999));
+		expectedOutput.add(new Watermark(7999));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival, drop
 		testHarness.processElement(record("key2", 1, 2877L));
 		testHarness.processElement(record("key1", 1, 2899L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
@@ -463,7 +463,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 		testHarness.setProcessingTime(0L);
@@ -482,24 +482,24 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 1, 1000L));
 
 		testHarness.setProcessingTime(1000);
-		expectedOutputOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
 		testHarness.processWatermark(new Watermark(999));
-		expectedOutputOutput.add(new Watermark(999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(1001);
-		expectedOutputOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
 
 		testHarness.processWatermark(new Watermark(1999));
 		testHarness.setProcessingTime(2001);
-		expectedOutputOutput.add(new Watermark(1999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(1999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		// new a testHarness
 		testHarness = createTestHarness(operator);
@@ -510,56 +510,56 @@ public class WindowOperatorTest {
 		testHarness.setProcessingTime(3001);
 		testHarness.processWatermark(new Watermark(2999));
 		// on time fire key1 & key2 [0 ~ 3000) window, but because of early firing, on time result is ignored
-		expectedOutputOutput.add(new Watermark(2999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(2999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 1, 4999L));
 		testHarness.processWatermark(new Watermark(3999));
 		testHarness.setProcessingTime(4001);
-		expectedOutputOutput.add(new Watermark(3999));
-		expectedOutputOutput.add(retractRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(record("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(3999));
+		expectedOutput.add(retractRecord("key2", 2L, 2L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
 		testHarness.processElement(record("key2", 1, 2001L));
-		expectedOutputOutput.add(retractRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key2", 4L, 4L, 0L, 3000L, 2999L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(retractRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 4L, 4L, 0L, 3000L, 2999L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival
 		testHarness.processElement(record("key1", 1, 2030L));
-		expectedOutputOutput.add(retractRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key1", 4L, 4L, 0L, 3000L, 2999L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(retractRecord("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 4L, 4L, 0L, 3000L, 2999L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(5100);
 		testHarness.processElement(record("key2", 1, 5122L));
 		testHarness.processWatermark(new Watermark(4999));
-		expectedOutputOutput.add(new Watermark(4999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(new Watermark(4999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutputOutput.add(retractRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(record("key2", 4L, 4L, 3000L, 6000L, 5999L));
-		expectedOutputOutput.add(new Watermark(5999));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(retractRecord("key2", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key2", 4L, 4L, 3000L, 6000L, 5999L));
+		expectedOutput.add(new Watermark(5999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(6001);
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(6999));
 		testHarness.processWatermark(new Watermark(7999));
-		expectedOutputOutput.add(new Watermark(6999));
-		expectedOutputOutput.add(new Watermark(7999));
+		expectedOutput.add(new Watermark(6999));
+		expectedOutput.add(new Watermark(7999));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// late arrival, but too late, drop
 		testHarness.processElement(record("key2", 1, 2877L));
 		testHarness.processElement(record("key1", 1, 2899L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
@@ -582,7 +582,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -598,10 +598,10 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(5000);
 
-		expectedOutputOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(record("key1", 2L, 2L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 2L, 2L, 0L, 3000L, 2999L));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 1, 7000L));
 		testHarness.processElement(record("key1", 1, 7000L));
@@ -609,10 +609,10 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(7000);
 
-		expectedOutputOutput.add(record("key1", 3L, 3L, 3000L, 6000L, 5999L));
+		expectedOutput.add(record("key1", 3L, 3L, 3000L, 6000L, 5999L));
 
 		assertEquals(0L, operator.getWatermarkLatency().getValue());
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 	}
@@ -632,7 +632,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -647,7 +647,7 @@ public class WindowOperatorTest {
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshotV2 = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		testHarness = createTestHarness(operator);
 		testHarness.setup();
@@ -665,11 +665,11 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 
-		expectedOutputOutput.add(record("key1", 6L, 3L, 10L, 5500L, 5499L));
-		expectedOutputOutput.add(record("key2", 6L, 3L, 0L, 5500L, 5499L));
+		expectedOutput.add(record("key1", 6L, 3L, 10L, 5500L, 5499L));
+		expectedOutput.add(record("key2", 6L, 3L, 0L, 5500L, 5499L));
 
-		expectedOutputOutput.add(record("key2", 20L, 4L, 5501L, 9050L, 9049L));
-		expectedOutputOutput.add(new Watermark(12000));
+		expectedOutput.add(record("key2", 20L, 4L, 5501L, 9050L, 9049L));
+		expectedOutput.add(new Watermark(12000));
 
 		// add a late data
 		testHarness.processElement(record("key1", 3, 4000L));
@@ -678,10 +678,10 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(17999));
 
-		expectedOutputOutput.add(record("key2", 30L, 2L, 15000L, 18000L, 17999L));
-		expectedOutputOutput.add(new Watermark(17999));
+		expectedOutput.add(record("key2", 30L, 2L, 15000L, 18000L, 17999L));
+		expectedOutput.add(new Watermark(17999));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(18000);
 		assertEquals(1L, operator.getWatermarkLatency().getValue());
@@ -710,7 +710,7 @@ public class WindowOperatorTest {
 		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
 				outputType.getFieldTypes(), new GenericRowRecordSortComparator(0, InternalTypes.STRING));
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -723,9 +723,9 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(5000);
 
-		expectedOutputOutput.add(record("key2", 2L, 2L, 3L, 4000L, 3999L));
+		expectedOutput.add(record("key2", 2L, 2L, 3L, 4000L, 3999L));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 1, 5000L));
 		testHarness.processElement(record("key2", 1, 5000L));
@@ -735,10 +735,10 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(10000);
 
-		expectedOutputOutput.add(record("key2", 2L, 2L, 5000L, 8000L, 7999L));
-		expectedOutputOutput.add(record("key1", 3L, 3L, 5000L, 8000L, 7999L));
+		expectedOutput.add(record("key2", 2L, 2L, 5000L, 8000L, 7999L));
+		expectedOutput.add(record("key1", 3L, 3L, 5000L, 8000L, 7999L));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 	}
@@ -765,7 +765,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -790,11 +790,11 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 
-		expectedOutputOutput.add(record("key1", 36L, 3L, 10L, 4000L, 3999L));
-		expectedOutputOutput.add(record("key2", 67L, 3L, 0L, 3000L, 2999L));
-		expectedOutputOutput.add(new Watermark(12000));
+		expectedOutput.add(record("key1", 36L, 3L, 10L, 4000L, 3999L));
+		expectedOutput.add(record("key2", 67L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(new Watermark(12000));
 
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
@@ -962,7 +962,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -974,14 +974,14 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutputOutput.add(record("key2", 6L, 3L, 0L));
-		expectedOutputOutput.add(new Watermark(12000));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 6L, 3L, 0L));
+		expectedOutput.add(new Watermark(12000));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshotV2 = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		testHarness = createTestHarness(operator);
 		testHarness.setup();
@@ -989,27 +989,27 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutputOutput.add(record("key1", 5L, 3L, 0L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 5L, 3L, 0L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 4, 5501L));
 		testHarness.processElement(record("key2", 5, 6000L));
 		testHarness.processElement(record("key2", 5, 6000L));
 		testHarness.processElement(record("key2", 6, 6050L));
 
-		expectedOutputOutput.add(record("key2", 14L, 3L, 1L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 14L, 3L, 1L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 3, 4000L));
 		testHarness.processElement(record("key2", 10, 15000L));
 		testHarness.processElement(record("key2", 20, 15000L));
-		expectedOutputOutput.add(record("key2", 36L, 3L, 2L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 36L, 3L, 2L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 2, 2500L));
 		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutputOutput.add(record("key1", 7L, 3L, 1L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 7L, 3L, 1L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
@@ -1032,7 +1032,7 @@ public class WindowOperatorTest {
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
-		ConcurrentLinkedQueue<Object> expectedOutputOutput = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -1046,14 +1046,14 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutputOutput.add(record("key2", 15L, 5L, 0L));
-		expectedOutputOutput.add(new Watermark(12000));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 15L, 5L, 0L));
+		expectedOutput.add(new Watermark(12000));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, close and restore again
 		OperatorSubtaskState snapshotV2 = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		testHarness = createTestHarness(operator);
 		testHarness.setup();
@@ -1063,24 +1063,24 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key1", 3, 2500L));
 		testHarness.processElement(record("key1", 4, 2500L));
 		testHarness.processElement(record("key1", 5, 2500L));
-		expectedOutputOutput.add(record("key1", 15L, 5L, 0L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 15L, 5L, 0L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 6, 6000L));
 		testHarness.processElement(record("key2", 7, 6000L));
 		testHarness.processElement(record("key2", 8, 6050L));
 		testHarness.processElement(record("key2", 9, 6050L));
-		expectedOutputOutput.add(record("key2", 30L, 5L, 1L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key2", 30L, 5L, 1L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 6, 4000L));
 		testHarness.processElement(record("key1", 7, 4000L));
 		testHarness.processElement(record("key1", 8, 4000L));
 		testHarness.processElement(record("key2", 10, 15000L));
 		testHarness.processElement(record("key2", 11, 15000L));
-		expectedOutputOutput.add(record("key1", 30L, 5L, 1L));
-		expectedOutputOutput.add(record("key2", 45L, 5L, 2L));
-		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record("key1", 30L, 5L, 1L));
+		expectedOutput.add(record("key2", 45L, 5L, 2L));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 

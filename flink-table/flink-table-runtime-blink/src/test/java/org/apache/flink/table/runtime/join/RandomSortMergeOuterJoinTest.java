@@ -32,7 +32,6 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorIterator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.table.runtime.join.SortMergeJoinOperator.SortMergeJoinType;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
@@ -58,22 +57,22 @@ public class RandomSortMergeOuterJoinTest {
 
 	@Test
 	public void testFullOuterJoinWithHighNumberOfCommonKeys() {
-		testOuterJoinWithHighNumberOfCommonKeys(SortMergeJoinType.FULL, 200, 500, 2048, 0.02f, 200, 500, 2048, 0.02f);
+		testOuterJoinWithHighNumberOfCommonKeys(FlinkJoinType.FULL, 200, 500, 2048, 0.02f, 200, 500, 2048, 0.02f);
 	}
 
 	@Test
 	public void testLeftOuterJoinWithHighNumberOfCommonKeys() {
-		testOuterJoinWithHighNumberOfCommonKeys(SortMergeJoinType.LEFT, 200, 10, 4096, 0.02f, 100, 4000, 2048, 0.02f);
+		testOuterJoinWithHighNumberOfCommonKeys(FlinkJoinType.LEFT, 200, 10, 4096, 0.02f, 100, 4000, 2048, 0.02f);
 	}
 
 	@Test
 	public void testRightOuterJoinWithHighNumberOfCommonKeys() {
-		testOuterJoinWithHighNumberOfCommonKeys(SortMergeJoinType.RIGHT, 100, 10, 2048, 0.02f, 200, 4000, 4096, 0.02f);
+		testOuterJoinWithHighNumberOfCommonKeys(FlinkJoinType.RIGHT, 100, 10, 2048, 0.02f, 200, 4000, 4096, 0.02f);
 	}
 
 	@SuppressWarnings("unchecked, rawtypes")
 	protected void testOuterJoinWithHighNumberOfCommonKeys(
-			SortMergeJoinType outerJoinType, int input1Size, int input1Duplicates, int input1ValueLength,
+			FlinkJoinType outerJoinType, int input1Size, int input1Duplicates, int input1ValueLength,
 			float input1KeyDensity, int input2Size, int input2Duplicates, int input2ValueLength,
 			float input2KeyDensity) {
 		TypeComparator<Tuple2<Integer, String>> comparator1 = new TupleComparator<>(
@@ -167,14 +166,14 @@ public class RandomSortMergeOuterJoinTest {
 	private Map<Integer, Collection<Match>> joinValues(
 			Map<Integer, Collection<String>> leftMap,
 			Map<Integer, Collection<String>> rightMap,
-			SortMergeJoinType outerJoinType) {
+			FlinkJoinType outerJoinType) {
 		Map<Integer, Collection<Match>> map = new HashMap<>();
 
 		for (Integer key : leftMap.keySet()) {
 			Collection<String> leftValues = leftMap.get(key);
 			Collection<String> rightValues = rightMap.get(key);
 
-			if (outerJoinType == SortMergeJoinType.RIGHT && rightValues == null) {
+			if (outerJoinType == FlinkJoinType.RIGHT && rightValues == null) {
 				continue;
 			}
 
@@ -195,7 +194,7 @@ public class RandomSortMergeOuterJoinTest {
 			}
 		}
 
-		if (outerJoinType == SortMergeJoinType.RIGHT || outerJoinType == SortMergeJoinType.FULL) {
+		if (outerJoinType == FlinkJoinType.RIGHT || outerJoinType == FlinkJoinType.FULL) {
 			for (Integer key : rightMap.keySet()) {
 				Collection<String> leftValues = leftMap.get(key);
 				Collection<String> rightValues = rightMap.get(key);
@@ -219,7 +218,7 @@ public class RandomSortMergeOuterJoinTest {
 		return map;
 	}
 
-	protected StreamOperator getOperator(SortMergeJoinType outerJoinType) {
+	protected StreamOperator getOperator(FlinkJoinType outerJoinType) {
 		return Int2SortMergeJoinOperatorTest.newOperator(outerJoinType, false);
 	}
 }

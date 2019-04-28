@@ -151,19 +151,19 @@ abstract class TopNFunctionTestBase {
 		testHarness.close();
 
 		// Notes: Delete message will be sent even disable generate retraction when not output rankNumber.
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 19));
-		expectedOutputOutput.add(deleteRecord("book", 2L, 19));
-		expectedOutputOutput.add(record("book", 4L, 11));
-		expectedOutputOutput.add(deleteRecord("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 5L, 11));
-		expectedOutputOutput.add(record("fruit", 4L, 33));
-		expectedOutputOutput.add(record("fruit", 3L, 44));
-		expectedOutputOutput.add(deleteRecord("fruit", 3L, 44));
-		expectedOutputOutput.add(record("fruit", 5L, 22));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 19));
+		expectedOutput.add(deleteRecord("book", 2L, 19));
+		expectedOutput.add(record("book", 4L, 11));
+		expectedOutput.add(deleteRecord("book", 1L, 12));
+		expectedOutput.add(record("book", 5L, 11));
+		expectedOutput.add(record("fruit", 4L, 33));
+		expectedOutput.add(record("fruit", 3L, 44));
+		expectedOutput.add(deleteRecord("fruit", 3L, 44));
+		expectedOutput.add(record("fruit", 5L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -183,17 +183,17 @@ abstract class TopNFunctionTestBase {
 
 		// Notes: Retract message will not be sent if disable generate retraction and output rankNumber.
 		// Because partition key + rankNumber decomposes a uniqueKey.
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12, 1L));
-		expectedOutputOutput.add(record("book", 2L, 19, 2L));
-		expectedOutputOutput.add(record("book", 4L, 11, 1L));
-		expectedOutputOutput.add(record("book", 1L, 12, 2L));
-		expectedOutputOutput.add(record("book", 5L, 11, 2L));
-		expectedOutputOutput.add(record("fruit", 4L, 33, 1L));
-		expectedOutputOutput.add(record("fruit", 3L, 44, 2L));
-		expectedOutputOutput.add(record("fruit", 5L, 22, 1L));
-		expectedOutputOutput.add(record("fruit", 4L, 33, 2L));
-		assertorWithRowNumber.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12, 1L));
+		expectedOutput.add(record("book", 2L, 19, 2L));
+		expectedOutput.add(record("book", 4L, 11, 1L));
+		expectedOutput.add(record("book", 1L, 12, 2L));
+		expectedOutput.add(record("book", 5L, 11, 2L));
+		expectedOutput.add(record("fruit", 4L, 33, 1L));
+		expectedOutput.add(record("fruit", 3L, 44, 2L));
+		expectedOutput.add(record("fruit", 5L, 22, 1L));
+		expectedOutput.add(record("fruit", 4L, 33, 2L));
+		assertorWithRowNumber.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -211,23 +211,23 @@ abstract class TopNFunctionTestBase {
 		testHarness.processElement(record("fruit", 5L, 22));
 		testHarness.close();
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12, 1L));
-		expectedOutputOutput.add(record("book", 2L, 19, 2L));
-		expectedOutputOutput.add(retractRecord("book", 1L, 12, 1L));
-		expectedOutputOutput.add(retractRecord("book", 2L, 19, 2L));
-		expectedOutputOutput.add(record("book", 4L, 11, 1L));
-		expectedOutputOutput.add(record("book", 1L, 12, 2L));
-		expectedOutputOutput.add(retractRecord("book", 1L, 12, 2L));
-		expectedOutputOutput.add(record("book", 5L, 11, 2L));
-		expectedOutputOutput.add(record("fruit", 4L, 33, 1L));
-		expectedOutputOutput.add(record("fruit", 3L, 44, 2L));
-		expectedOutputOutput.add(retractRecord("fruit", 4L, 33, 1L));
-		expectedOutputOutput.add(retractRecord("fruit", 3L, 44, 2L));
-		expectedOutputOutput.add(record("fruit", 4L, 33, 2L));
-		expectedOutputOutput.add(record("fruit", 5L, 22, 1L));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12, 1L));
+		expectedOutput.add(record("book", 2L, 19, 2L));
+		expectedOutput.add(retractRecord("book", 1L, 12, 1L));
+		expectedOutput.add(retractRecord("book", 2L, 19, 2L));
+		expectedOutput.add(record("book", 4L, 11, 1L));
+		expectedOutput.add(record("book", 1L, 12, 2L));
+		expectedOutput.add(retractRecord("book", 1L, 12, 2L));
+		expectedOutput.add(record("book", 5L, 11, 2L));
+		expectedOutput.add(record("fruit", 4L, 33, 1L));
+		expectedOutput.add(record("fruit", 3L, 44, 2L));
+		expectedOutput.add(retractRecord("fruit", 4L, 33, 1L));
+		expectedOutput.add(retractRecord("fruit", 3L, 44, 2L));
+		expectedOutput.add(record("fruit", 4L, 33, 2L));
+		expectedOutput.add(record("fruit", 5L, 22, 1L));
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -244,15 +244,15 @@ abstract class TopNFunctionTestBase {
 		testHarness.processElement(record("fruit", 5L, 22));
 		testHarness.close();
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 2L, 19));
-		expectedOutputOutput.add(retractRecord("book", 2L, 19));
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("fruit", 3L, 44));
-		expectedOutputOutput.add(retractRecord("fruit", 3L, 44));
-		expectedOutputOutput.add(record("fruit", 4L, 33));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 2L, 19));
+		expectedOutput.add(retractRecord("book", 2L, 19));
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("fruit", 3L, 44));
+		expectedOutput.add(retractRecord("fruit", 3L, 44));
+		expectedOutput.add(record("fruit", 4L, 33));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -268,18 +268,18 @@ abstract class TopNFunctionTestBase {
 		testHarness.processElement(record("fruit", 1L, 22));
 		testHarness.close();
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 2L, 12, 1L));
-		expectedOutputOutput.add(record("book", 2L, 19, 2L));
-		expectedOutputOutput.add(retractRecord("book", 2L, 12, 1L));
-		expectedOutputOutput.add(retractRecord("book", 2L, 19, 2L));
-		expectedOutputOutput.add(record("book", 2L, 11, 1L));
-		expectedOutputOutput.add(record("book", 2L, 12, 2L));
-		expectedOutputOutput.add(record("fruit", 1L, 33, 1L));
-		expectedOutputOutput.add(retractRecord("fruit", 1L, 33, 1L));
-		expectedOutputOutput.add(record("fruit", 1L, 22, 1L));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 2L, 12, 1L));
+		expectedOutput.add(record("book", 2L, 19, 2L));
+		expectedOutput.add(retractRecord("book", 2L, 12, 1L));
+		expectedOutput.add(retractRecord("book", 2L, 19, 2L));
+		expectedOutput.add(record("book", 2L, 11, 1L));
+		expectedOutput.add(record("book", 2L, 12, 2L));
+		expectedOutput.add(record("fruit", 1L, 33, 1L));
+		expectedOutput.add(retractRecord("fruit", 1L, 33, 1L));
+		expectedOutput.add(record("fruit", 1L, 22, 1L));
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -295,22 +295,22 @@ abstract class TopNFunctionTestBase {
 		testHarness.processElement(record("fruit", 3L, 44));
 		testHarness.processElement(record("fruit", 5L, 22));
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 19));
-		expectedOutputOutput.add(retractRecord("book", 2L, 19));
-		expectedOutputOutput.add(record("book", 4L, 11));
-		expectedOutputOutput.add(record("fruit", 4L, 33));
-		expectedOutputOutput.add(record("fruit", 3L, 44));
-		expectedOutputOutput.add(retractRecord("fruit", 3L, 44));
-		expectedOutputOutput.add(record("fruit", 5L, 22));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 19));
+		expectedOutput.add(retractRecord("book", 2L, 19));
+		expectedOutput.add(record("book", 4L, 11));
+		expectedOutput.add(record("fruit", 4L, 33));
+		expectedOutput.add(record("fruit", 3L, 44));
+		expectedOutput.add(retractRecord("fruit", 3L, 44));
+		expectedOutput.add(record("fruit", 5L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
 		testHarness = createTestHarness(func);
@@ -320,10 +320,10 @@ abstract class TopNFunctionTestBase {
 		testHarness.processElement(record("book", 1L, 10));
 		testHarness.close();
 
-		expectedOutputOutput.add(retractRecord("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 1L, 10));
+		expectedOutput.add(retractRecord("book", 1L, 12));
+		expectedOutput.add(record("book", 1L, 10));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(

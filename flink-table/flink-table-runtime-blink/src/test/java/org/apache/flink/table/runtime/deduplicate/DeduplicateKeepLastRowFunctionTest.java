@@ -58,11 +58,11 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		testHarness.processElement(record("book", 1L, 13));
 		testHarness.close();
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		expectedOutputOutput.add(record("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("book", 1L, 13));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -76,11 +76,11 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 		testHarness.close();
 
 		// Keep LastRow in deduplicate may send retraction
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(retractRecord("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 1L, 13));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(retractRecord("book", 1L, 12));
+		expectedOutput.add(record("book", 1L, 13));
+		expectedOutput.add(record("book", 2L, 11));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 }

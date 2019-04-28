@@ -21,9 +21,9 @@ package org.apache.flink.table.plan.nodes.physical.stream
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.runtime.join.FlinkJoinType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -48,7 +48,7 @@ trait StreamExecJoinBase
   with StreamExecNode[BaseRow] {
 
   override def producesUpdates: Boolean = {
-    flinkJoinType != FlinkJoinRelType.INNER && flinkJoinType != FlinkJoinRelType.SEMI
+    flinkJoinType != FlinkJoinType.INNER && flinkJoinType != FlinkJoinType.SEMI
   }
 
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
@@ -80,8 +80,8 @@ trait StreamExecJoinBase
 
   override def producesRetractions: Boolean = {
     flinkJoinType match {
-      case FlinkJoinRelType.FULL | FlinkJoinRelType.RIGHT | FlinkJoinRelType.LEFT => true
-      case FlinkJoinRelType.ANTI => true
+      case FlinkJoinType.FULL | FlinkJoinType.RIGHT | FlinkJoinType.LEFT => true
+      case FlinkJoinType.ANTI => true
       case _ => false
     }
   }
