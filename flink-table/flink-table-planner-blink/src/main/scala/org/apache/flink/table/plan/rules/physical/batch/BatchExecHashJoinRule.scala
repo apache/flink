@@ -21,11 +21,11 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.JDouble
 import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.FlinkContext
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecHashJoin
+import org.apache.flink.table.runtime.join.FlinkJoinType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -61,7 +61,7 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val isShuffleHashJoinEnabled = tableConfig.isOperatorEnabled(OperatorType.ShuffleHashJoin)
     val isBroadcastHashJoinEnabled = tableConfig.isOperatorEnabled(OperatorType.BroadcastHashJoin)
 
-    val joinType = getFlinkJoinRelType(join)
+    val joinType = getFlinkJoinType(join)
     val leftSize = binaryRowRelNodeSize(join.getLeft)
     val rightSize = binaryRowRelNodeSize(join.getRight)
     val (isBroadcast, _) = canBroadcast(joinType, leftSize, rightSize, tableConfig)
@@ -74,7 +74,7 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
-    val joinType = getFlinkJoinRelType(join)
+    val joinType = getFlinkJoinType(join)
 
     val left = join.getLeft
     val right = join.getRight
@@ -155,7 +155,7 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     *         as broadcast side, false else.
     */
   private def canBroadcast(
-      joinType: FlinkJoinRelType,
+      joinType: FlinkJoinType,
       leftSize: JDouble,
       rightSize: JDouble,
       tableConfig: TableConfig): (Boolean, Boolean) = {
@@ -166,13 +166,13 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val threshold = tableConfig.getConf.getLong(
       PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD)
     joinType match {
-      case FlinkJoinRelType.LEFT => (rightSize <= threshold, false)
-      case FlinkJoinRelType.RIGHT => (leftSize <= threshold, true)
-      case FlinkJoinRelType.FULL => (false, false)
-      case FlinkJoinRelType.INNER =>
+      case FlinkJoinType.LEFT => (rightSize <= threshold, false)
+      case FlinkJoinType.RIGHT => (leftSize <= threshold, true)
+      case FlinkJoinType.FULL => (false, false)
+      case FlinkJoinType.INNER =>
         (leftSize <= threshold || rightSize <= threshold, leftSize < rightSize)
       // left side cannot be used as build side in SEMI/ANTI join.
-      case FlinkJoinRelType.SEMI | FlinkJoinRelType.ANTI => (rightSize <= threshold, false)
+      case FlinkJoinType.SEMI | FlinkJoinType.ANTI => (rightSize <= threshold, false)
     }
   }
 }

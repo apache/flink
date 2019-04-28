@@ -67,20 +67,20 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 		testHarness.processElement(record("book", 1L, 13));
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 2L, 11));
-		expectedOutputOutput.add(record("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("book", 1L, 13));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("book", 1L, 12));
 		testHarness.processElement(record("book", 2L, 11));
 		testHarness.processElement(record("book", 3L, 11));
 
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		expectedOutputOutput.add(record("book", 3L, 11));
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("book", 3L, 11));
 		testHarness.close();
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -95,22 +95,22 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 		testHarness.processElement(record("book", 1L, 13));
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 2L, 11));
-		expectedOutputOutput.add(record("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("book", 1L, 13));
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("book", 1L, 12));
 		testHarness.processElement(record("book", 2L, 11));
 		testHarness.processElement(record("book", 3L, 11));
 
 		// this will send retract message to downstream
-		expectedOutputOutput.add(retractRecord("book", 1L, 13));
-		expectedOutputOutput.add(record("book", 1L, 12));
-		expectedOutputOutput.add(retractRecord("book", 2L, 11));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		expectedOutputOutput.add(record("book", 3L, 11));
+		expectedOutput.add(retractRecord("book", 1L, 13));
+		expectedOutput.add(record("book", 1L, 12));
+		expectedOutput.add(retractRecord("book", 2L, 11));
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("book", 3L, 11));
 		testHarness.close();
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 }

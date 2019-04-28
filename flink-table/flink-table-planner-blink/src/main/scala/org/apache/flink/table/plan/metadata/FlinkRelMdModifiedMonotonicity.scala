@@ -21,7 +21,6 @@ package org.apache.flink.table.plan.metadata
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.plan.metadata.FlinkMetadata.ModifiedMonotonicity
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
@@ -30,6 +29,8 @@ import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCorrelate, Bat
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{WithLower, WithUpper}
+import org.apache.flink.table.plan.util.JoinTypeUtil
+import org.apache.flink.table.runtime.join.FlinkJoinType
 import org.apache.flink.table.{JByte, JDouble, JFloat, JList, JLong, JShort}
 
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -363,7 +364,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val joinInfo = rel.analyzeCondition
     val leftKeys = joinInfo.leftKeys
     val rightKeys = joinInfo.rightKeys
-    val joinType = FlinkJoinRelType.toFlinkJoinRelType(rel.getJoinType)
+    val joinType = JoinTypeUtil.toFlinkJoinType(rel.getJoinType)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
 
     // if group set contains update return null
@@ -378,11 +379,11 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val isKeyAllAppend = isAllConstantOnKeys(left, leftKeys.toIntArray) &&
       isAllConstantOnKeys(right, rightKeys.toIntArray)
 
-    if (!containDelete && !joinType.equals(FlinkJoinRelType.ANTI) && isKeyAllAppend &&
+    if (!containDelete && !joinType.equals(FlinkJoinType.ANTI) && isKeyAllAppend &&
       (containUpdate && joinInfo.isEqui || !containUpdate)) {
 
       // output rowtype of semi equals to the rowtype of left child
-      if (joinType.equals(FlinkJoinRelType.SEMI)) {
+      if (joinType.equals(FlinkJoinType.SEMI)) {
         fmq.getRelModifiedMonotonicity(left)
       } else {
         val leftFieldMonotonicities = fmq.getRelModifiedMonotonicity(left).fieldMonotonicities

@@ -18,13 +18,19 @@
 
 package org.apache.flink.table.plan.util
 
+import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.ExpressionReducer
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator,
+ExpressionReducer, FunctionCodeGenerator}
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.generated.GeneratedFunction
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.`type`.RowType
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 
@@ -71,6 +77,78 @@ object WindowJoinUtil {
         c.operands.exists(accessesTimeAttribute(_, inputType))
       case _ => false
     }
+  }
+
+  /**
+    * Generates a JoinFunction that applies additional join predicates and projects the result.
+    *
+    * @param  config          table env config
+    * @param  joinType        join type to determine whether input can be null
+    * @param  leftType        left stream type
+    * @param  rightType       right stream type
+    * @param  returnType      return type
+    * @param  otherCondition  non-equi condition
+    * @param  funcName        name of generated function
+    */
+  private[flink] def generateJoinFunction(
+      config: TableConfig,
+      joinType: JoinRelType,
+      leftType: RowType,
+      rightType: RowType,
+      returnType: RelDataType,
+      otherCondition: Option[RexNode],
+      funcName: String): GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow]] = {
+
+    // whether input can be null
+    val nullCheck = joinType match {
+      case JoinRelType.INNER => false
+      case JoinRelType.LEFT => true
+      case JoinRelType.RIGHT => true
+      case JoinRelType.FULL => true
+    }
+
+    val ctx = CodeGeneratorContext(config)
+    val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
+
+    val returnTypeInfo = FlinkTypeFactory.toInternalRowType(returnType)
+    val joinedRow = "joinedRow"
+    ctx.addReusableOutputRecord(returnTypeInfo, classOf[JoinedRow], joinedRow)
+
+    val exprGenerator = new ExprCodeGenerator(ctx, nullCheck)
+      .bindInput(leftType)
+      .bindSecondInput(rightType)
+
+    val leftRow = CodeGenUtils.DEFAULT_INPUT1_TERM
+    val rightRow = CodeGenUtils.DEFAULT_INPUT2_TERM
+    val buildJoinedRow =
+      s"""
+         |$joinedRow.replace($leftRow,$rightRow);""".stripMargin
+
+    val body = otherCondition match {
+      case None =>
+        s"""
+           |$buildJoinedRow
+           |$collectorTerm.collect($joinedRow)
+           |""".stripMargin
+      case Some(remainCondition) =>
+        val genCond = exprGenerator.generateExpression(remainCondition)
+        s"""
+           |${genCond.code}
+           |if (${genCond.resultTerm}) {
+           |  $buildJoinedRow
+           |  $collectorTerm.collect($joinedRow);
+           |}""".stripMargin
+    }
+
+    FunctionCodeGenerator.generateFunction(
+      ctx,
+      funcName,
+      classOf[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
+      body,
+      returnTypeInfo,
+      leftType,
+      input2Type = Some(rightType),
+      collectorTerm = collectorTerm)
   }
 
   /**

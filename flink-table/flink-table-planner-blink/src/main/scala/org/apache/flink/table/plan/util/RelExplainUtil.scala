@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
 
@@ -87,20 +86,6 @@ object RelExplainUtil {
       expressionFunc(expr, inputFieldNames, None)
     } else {
       ""
-    }
-  }
-
-  /**
-    * Converts [[FlinkJoinRelType]] to String.
-    */
-  def joinTypeToString(joinType: FlinkJoinRelType): String = {
-    joinType match {
-      case FlinkJoinRelType.INNER => "InnerJoin"
-      case FlinkJoinRelType.LEFT => "LeftOuterJoin"
-      case FlinkJoinRelType.RIGHT => "RightOuterJoin"
-      case FlinkJoinRelType.FULL => "FullOuterJoin"
-      case FlinkJoinRelType.SEMI => "LeftSemiJoin"
-      case FlinkJoinRelType.ANTI => "LeftAntiJoin"
     }
   }
 

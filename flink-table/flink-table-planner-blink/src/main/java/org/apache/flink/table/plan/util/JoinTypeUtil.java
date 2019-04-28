@@ -16,76 +16,53 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan;
+package org.apache.flink.table.plan.util;
+
+import org.apache.flink.table.runtime.join.FlinkJoinType;
 
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.SemiJoin;
 
 /**
- * Enumeration of join types.
+ * Utility for {@link FlinkJoinType}.
  */
-public enum FlinkJoinRelType {
-	INNER, LEFT, RIGHT, FULL, SEMI, ANTI;
+public class JoinTypeUtil {
 
-	public boolean isOuter() {
-		switch (this) {
-			case LEFT:
-			case RIGHT:
-			case FULL:
-				return true;
-			default:
-				return false;
-		}
-	}
-
-	public boolean isLeftOuter() {
-		switch (this) {
-			case LEFT:
-			case FULL:
-				return true;
-			default:
-				return false;
-		}
-	}
-
-	public boolean isRightOuter() {
-		switch (this) {
-			case RIGHT:
-			case FULL:
-				return true;
-			default:
-				return false;
-		}
-	}
-
-	/** Convert JoinRelType to FlinkJoinRelType. */
-	public static FlinkJoinRelType toFlinkJoinRelType(JoinRelType joinType) {
-		switch (joinType) {
+	/**
+	 * Converts {@link JoinRelType} to {@link FlinkJoinType}.
+	 */
+	public static FlinkJoinType toFlinkJoinType(JoinRelType joinRelType) {
+		switch (joinRelType) {
 			case INNER:
-				return FlinkJoinRelType.INNER;
+				return FlinkJoinType.INNER;
 			case LEFT:
-				return FlinkJoinRelType.LEFT;
+				return FlinkJoinType.LEFT;
 			case RIGHT:
-				return FlinkJoinRelType.RIGHT;
+				return FlinkJoinType.RIGHT;
 			case FULL:
-				return FlinkJoinRelType.FULL;
+				return FlinkJoinType.FULL;
 			default:
-				throw new IllegalArgumentException("invalid: " + joinType);
+				throw new IllegalArgumentException("invalid: " + joinRelType);
 		}
 	}
 
-	public static FlinkJoinRelType getFlinkJoinRelType(Join join) {
+	/**
+	 * Gets {@link FlinkJoinType} of the input Join RelNode.
+	 */
+	public static FlinkJoinType getFlinkJoinType(Join join) {
 		if (join instanceof SemiJoin) {
 			// TODO supports ANTI
-			return SEMI;
+			return FlinkJoinType.SEMI;
 		} else {
-			return toFlinkJoinRelType(join.getJoinType());
+			return toFlinkJoinType(join.getJoinType());
 		}
 	}
 
-	/** Convert FlinkJoinRelType to JoinRelType. */
-	public static JoinRelType toJoinRelType(FlinkJoinRelType joinType) {
+	/**
+	 * Converts {@link FlinkJoinType} to {@link JoinRelType}.
+	 */
+	public static JoinRelType toJoinRelType(FlinkJoinType joinType) {
 		switch (joinType) {
 			case INNER:
 				return JoinRelType.INNER;
@@ -99,5 +76,5 @@ public enum FlinkJoinRelType {
 				throw new IllegalArgumentException("invalid: " + joinType);
 		}
 	}
-}
 
+}

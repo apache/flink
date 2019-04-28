@@ -32,7 +32,6 @@ import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.Projection;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest.MyProjection;
-import org.apache.flink.table.runtime.join.SortMergeJoinOperator.SortMergeJoinType;
 import org.apache.flink.table.runtime.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
@@ -97,7 +96,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
-		buildJoin(buildInput, probeInput, SortMergeJoinType.INNER, numKeys * buildValsPerKey * probeValsPerKey,
+		buildJoin(buildInput, probeInput, FlinkJoinType.INNER, numKeys * buildValsPerKey * probeValsPerKey,
 				numKeys, 165);
 	}
 
@@ -112,7 +111,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
-		buildJoin(buildInput, probeInput, SortMergeJoinType.LEFT, numKeys1 * buildValsPerKey * probeValsPerKey,
+		buildJoin(buildInput, probeInput, FlinkJoinType.LEFT, numKeys1 * buildValsPerKey * probeValsPerKey,
 				numKeys1, 165);
 	}
 
@@ -126,7 +125,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
-		buildJoin(buildInput, probeInput, SortMergeJoinType.RIGHT, 280, numKeys2, -1);
+		buildJoin(buildInput, probeInput, FlinkJoinType.RIGHT, 280, numKeys2, -1);
 	}
 
 	@Test
@@ -139,7 +138,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
-		buildJoin(buildInput, probeInput, SortMergeJoinType.FULL, 280, numKeys2, -1);
+		buildJoin(buildInput, probeInput, FlinkJoinType.FULL, 280, numKeys2, -1);
 	}
 
 	@Test
@@ -152,7 +151,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
-		StreamOperator operator = newOperator(SortMergeJoinType.SEMI, false);
+		StreamOperator operator = newOperator(FlinkJoinType.SEMI, false);
 		joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true, false);
 	}
 
@@ -166,14 +165,14 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
-		StreamOperator operator = newOperator(SortMergeJoinType.ANTI, false);
+		StreamOperator operator = newOperator(FlinkJoinType.ANTI, false);
 		joinAndAssert(operator, buildInput, probeInput, 10, 1, 45, true, false);
 	}
 
 	private void buildJoin(
 			MutableObjectIterator<BinaryRow> input1,
 			MutableObjectIterator<BinaryRow> input2,
-			SortMergeJoinType type,
+			FlinkJoinType type,
 			int expertOutSize, int expertOutKeySize, int expertOutVal) throws Exception {
 
 		joinAndAssert(
@@ -181,11 +180,11 @@ public class Int2SortMergeJoinOperatorTest {
 				input1, input2, expertOutSize, expertOutKeySize, expertOutVal, false, false);
 	}
 
-	private StreamOperator getOperator(SortMergeJoinType type) {
+	private StreamOperator getOperator(FlinkJoinType type) {
 		return newOperator(type, leftIsSmaller);
 	}
 
-	static StreamOperator newOperator(SortMergeJoinType type, boolean leftIsSmaller) {
+	static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
 		return new SortMergeJoinOperator(
 				32 * 32 * 1024, 1024 * 1024, type, leftIsSmaller,
 				new GeneratedJoinCondition("", "", new Object[0]) {

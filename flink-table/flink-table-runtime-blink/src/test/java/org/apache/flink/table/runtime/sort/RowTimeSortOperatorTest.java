@@ -82,26 +82,26 @@ public class RowTimeSortOperatorTest {
 		testHarness.processElement(record(4, 5L, "Hello, how are you?", 4));
 		testHarness.processWatermark(new Watermark(4L));
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record(1, 1L, "Hi", 2));
-		expectedOutputOutput.add(record(1, 1L, "Hi", 1));
-		expectedOutputOutput.add(record(7, 1L, "Comment#1", 7));
-		expectedOutputOutput.add(record(2, 2L, "Hello", 2));
-		expectedOutputOutput.add(record(6, 2L, "Luke Skywalker", 6));
-		expectedOutputOutput.add(record(3, 3L, "Hello world", 3));
-		expectedOutputOutput.add(record(4, 3L, "Helloworld, how are you?", 4));
-		expectedOutputOutput.add(record(5, 3L, "I am fine.", 5));
-		expectedOutputOutput.add(record(8, 4L, "Comment#2", 8));
-		expectedOutputOutput.add(record(9, 4L, "Comment#3", 9));
-		expectedOutputOutput.add(record(10, 4L, "Comment#4", 10));
-		expectedOutputOutput.add(new Watermark(4L));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record(1, 1L, "Hi", 2));
+		expectedOutput.add(record(1, 1L, "Hi", 1));
+		expectedOutput.add(record(7, 1L, "Comment#1", 7));
+		expectedOutput.add(record(2, 2L, "Hello", 2));
+		expectedOutput.add(record(6, 2L, "Luke Skywalker", 6));
+		expectedOutput.add(record(3, 3L, "Hello world", 3));
+		expectedOutput.add(record(4, 3L, "Helloworld, how are you?", 4));
+		expectedOutput.add(record(5, 3L, "I am fine.", 5));
+		expectedOutput.add(record(8, 4L, "Comment#2", 8));
+		expectedOutput.add(record(9, 4L, "Comment#3", 9));
+		expectedOutput.add(record(10, 4L, "Comment#4", 10));
+		expectedOutput.add(new Watermark(4L));
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
 
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		operator = createSortOperator(inputRowType, rowTimeIdx, gComparator);
 		testHarness = createTestHarness(operator);
@@ -111,18 +111,18 @@ public class RowTimeSortOperatorTest {
 		testHarness.processElement(record(5, 3L, "I am fine.", 6));
 		testHarness.processWatermark(new Watermark(5L));
 
-		expectedOutputOutput.add(record(4, 5L, "Hello, how are you?", 4));
-		expectedOutputOutput.add(new Watermark(5L));
+		expectedOutput.add(record(4, 5L, "Hello, how are you?", 4));
+		expectedOutput.add(new Watermark(5L));
 
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
 		// those watermark has no effect
 		testHarness.processWatermark(new Watermark(11L));
 		testHarness.processWatermark(new Watermark(12L));
-		expectedOutputOutput.add(new Watermark(11L));
-		expectedOutputOutput.add(new Watermark(12L));
+		expectedOutput.add(new Watermark(11L));
+		expectedOutput.add(new Watermark(12L));
 
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -150,25 +150,25 @@ public class RowTimeSortOperatorTest {
 		testHarness.processElement(record(4L, 3L, "Helloworld, how are you?", 4));
 		testHarness.processWatermark(new Watermark(9L));
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record(1L, 1L, "Hi", 2));
-		expectedOutputOutput.add(record(1L, 1L, "Hi", 1));
-		expectedOutputOutput.add(record(2L, 2L, "Hello", 2));
-		expectedOutputOutput.add(record(3L, 2L, "Hello world", 3));
-		expectedOutputOutput.add(record(4L, 3L, "Helloworld, how are you?", 4));
-		expectedOutputOutput.add(record(5L, 3L, "I am fine.", 5));
-		expectedOutputOutput.add(record(6L, 3L, "Luke Skywalker", 6));
-		expectedOutputOutput.add(record(7L, 4L, "Comment#1", 7));
-		expectedOutputOutput.add(record(8L, 4L, "Comment#2", 8));
-		expectedOutputOutput.add(record(9L, 4L, "Comment#3", 9));
-		expectedOutputOutput.add(new Watermark(9L));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record(1L, 1L, "Hi", 2));
+		expectedOutput.add(record(1L, 1L, "Hi", 1));
+		expectedOutput.add(record(2L, 2L, "Hello", 2));
+		expectedOutput.add(record(3L, 2L, "Hello world", 3));
+		expectedOutput.add(record(4L, 3L, "Helloworld, how are you?", 4));
+		expectedOutput.add(record(5L, 3L, "I am fine.", 5));
+		expectedOutput.add(record(6L, 3L, "Luke Skywalker", 6));
+		expectedOutput.add(record(7L, 4L, "Comment#1", 7));
+		expectedOutput.add(record(8L, 4L, "Comment#2", 8));
+		expectedOutput.add(record(9L, 4L, "Comment#3", 9));
+		expectedOutput.add(new Watermark(9L));
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
 
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		operator = createSortOperator(inputRowType, rowTimeIdx, null);
 		testHarness = createTestHarness(operator);
@@ -178,18 +178,18 @@ public class RowTimeSortOperatorTest {
 		testHarness.processElement(record(5L, 3L, "I am fine.", 6));
 		testHarness.processWatermark(new Watermark(10L));
 
-		expectedOutputOutput.add(record(10L, 4L, "Comment#4", 10));
-		expectedOutputOutput.add(new Watermark(10L));
+		expectedOutput.add(record(10L, 4L, "Comment#4", 10));
+		expectedOutput.add(new Watermark(10L));
 
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
 		// those watermark has no effect
 		testHarness.processWatermark(new Watermark(11L));
 		testHarness.processWatermark(new Watermark(12L));
-		expectedOutputOutput.add(new Watermark(11L));
-		expectedOutputOutput.add(new Watermark(12L));
+		expectedOutput.add(new Watermark(11L));
+		expectedOutput.add(new Watermark(12L));
 
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	private RowTimeSortOperator createSortOperator(BaseRowTypeInfo inputRowType, int rowTimeIdx,

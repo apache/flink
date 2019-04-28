@@ -74,14 +74,14 @@ public class ProcTimeSortOperatorTest {
 		testHarness.processElement(record(9, 4L, "Comment#3", 9));
 		testHarness.setProcessingTime(1L);
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record(2, 2L, "Hello", 2));
-		expectedOutputOutput.add(record(3, 3L, "Hello world", 3));
-		expectedOutputOutput.add(record(5, 3L, "I am fine.", 5));
-		expectedOutputOutput.add(record(6, 2L, "Luke Skywalker", 6));
-		expectedOutputOutput.add(record(7, 1L, "Comment#1", 7));
-		expectedOutputOutput.add(record(9, 4L, "Comment#3", 9));
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record(2, 2L, "Hello", 2));
+		expectedOutput.add(record(3, 3L, "Hello world", 3));
+		expectedOutput.add(record(5, 3L, "I am fine.", 5));
+		expectedOutput.add(record(6, 2L, "Luke Skywalker", 6));
+		expectedOutput.add(record(7, 1L, "Comment#1", 7));
+		expectedOutput.add(record(9, 4L, "Comment#3", 9));
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record(10, 4L, "Comment#4", 10));
 		testHarness.processElement(record(8, 4L, "Comment#2", 8));
@@ -94,7 +94,7 @@ public class ProcTimeSortOperatorTest {
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
 		testHarness.close();
 
-		expectedOutputOutput.clear();
+		expectedOutput.clear();
 
 		operator = createSortOperator();
 		testHarness = createTestHarness(operator);
@@ -103,14 +103,14 @@ public class ProcTimeSortOperatorTest {
 		testHarness.processElement(record(5, 3L, "I am fine.", 6));
 		testHarness.setProcessingTime(1L);
 
-		expectedOutputOutput.add(record(1, 1L, "Hi", 2));
-		expectedOutputOutput.add(record(1, 1L, "Hi", 1));
-		expectedOutputOutput.add(record(4, 3L, "Helloworld, how are you?", 4));
-		expectedOutputOutput.add(record(4, 5L, "Hello, how are you?", 4));
-		expectedOutputOutput.add(record(5, 3L, "I am fine.", 6));
-		expectedOutputOutput.add(record(8, 4L, "Comment#2", 8));
-		expectedOutputOutput.add(record(10, 4L, "Comment#4", 10));
-		assertor.assertOutputEquals("output wrong.", expectedOutputOutput, testHarness.getOutput());
+		expectedOutput.add(record(1, 1L, "Hi", 2));
+		expectedOutput.add(record(1, 1L, "Hi", 1));
+		expectedOutput.add(record(4, 3L, "Helloworld, how are you?", 4));
+		expectedOutput.add(record(4, 5L, "Hello, how are you?", 4));
+		expectedOutput.add(record(5, 3L, "I am fine.", 6));
+		expectedOutput.add(record(8, 4L, "Comment#2", 8));
+		expectedOutput.add(record(10, 4L, "Comment#4", 10));
+		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	private ProcTimeSortOperator createSortOperator() {

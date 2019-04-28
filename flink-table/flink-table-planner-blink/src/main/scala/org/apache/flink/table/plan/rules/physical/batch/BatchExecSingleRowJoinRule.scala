@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.runtime.join.FlinkJoinType
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -44,14 +44,14 @@ class BatchExecSingleRowJoinRule(joinClass: Class[_ <: Join])
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
-    val joinType = getFlinkJoinRelType(join)
+    val joinType = getFlinkJoinType(join)
     joinType match {
-      case FlinkJoinRelType.INNER | FlinkJoinRelType.FULL =>
+      case FlinkJoinType.INNER | FlinkJoinType.FULL =>
         isSingleRow(join.getLeft) || isSingleRow(join.getRight)
-      case FlinkJoinRelType.LEFT if isSingleRow(join.getRight) => true
-      case FlinkJoinRelType.RIGHT if isSingleRow(join.getLeft) => true
-      case FlinkJoinRelType.SEMI if isSingleRow(join.getRight) => true
-      case FlinkJoinRelType.ANTI if isSingleRow(join.getRight) => true
+      case FlinkJoinType.LEFT if isSingleRow(join.getRight) => true
+      case FlinkJoinType.RIGHT if isSingleRow(join.getLeft) => true
+      case FlinkJoinType.SEMI if isSingleRow(join.getRight) => true
+      case FlinkJoinType.ANTI if isSingleRow(join.getRight) => true
       case _ => false
     }
   }

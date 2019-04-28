@@ -55,16 +55,16 @@ public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 		testHarness.processElement(record("fruit", 1L, 22));
 		testHarness.close();
 
-		List<Object> expectedOutputOutput = new ArrayList<>();
-		expectedOutputOutput.add(record("book", 2L, 12));
-		expectedOutputOutput.add(record("book", 2L, 19));
-		expectedOutputOutput.add(retractRecord("book", 2L, 19));
-		expectedOutputOutput.add(record("book", 2L, 11));
-		expectedOutputOutput.add(record("fruit", 1L, 33));
-		expectedOutputOutput.add(retractRecord("fruit", 1L, 33));
-		expectedOutputOutput.add(record("fruit", 1L, 22));
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 2L, 12));
+		expectedOutput.add(record("book", 2L, 19));
+		expectedOutput.add(retractRecord("book", 2L, 19));
+		expectedOutput.add(record("book", 2L, 11));
+		expectedOutput.add(record("fruit", 1L, 33));
+		expectedOutput.add(retractRecord("fruit", 1L, 33));
+		expectedOutput.add(record("fruit", 1L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutputOutput, testHarness.getOutput());
+				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 }
