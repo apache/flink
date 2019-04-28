@@ -19,8 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -58,11 +56,6 @@ public class TableConfig {
 	 * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
 	 */
 	private Integer maxGeneratedCodeLength = 64000; // just an estimate
-
-	/**
-	 * Defines user-defined configuration.
-	 */
-	private Configuration userDefinedConfig = GlobalConfiguration.loadConfiguration();
 
 	/**
 	 * Returns the timezone for date/time/timestamp conversions.
