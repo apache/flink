@@ -58,9 +58,7 @@ flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-table-planner,\
 flink-table/flink-table-planner-blink,\
 flink-table/flink-table-runtime-blink,\
-flink-table/flink-sql-client,\
-flink-queryable-state/flink-queryable-state-runtime,\
-flink-queryable-state/flink-queryable-state-client-java"
+flink-table/flink-sql-client"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
@@ -111,7 +109,9 @@ flink-metrics/flink-metrics-influxdb,\
 flink-metrics/flink-metrics-prometheus,\
 flink-metrics/flink-metrics-statsd,\
 flink-metrics/flink-metrics-datadog,\
-flink-metrics/flink-metrics-slf4j"
+flink-metrics/flink-metrics-slf4j,\
+flink-queryable-state/flink-queryable-state-runtime,\
+flink-queryable-state/flink-queryable-state-client-java"
 
 MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-filesystems/flink-s3-fs-hadoop,\
