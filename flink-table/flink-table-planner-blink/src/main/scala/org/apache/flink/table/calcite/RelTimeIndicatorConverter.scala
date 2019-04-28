@@ -30,6 +30,7 @@ import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 import scala.collection.JavaConversions._
@@ -485,6 +486,26 @@ object RelTimeIndicatorConverter {
       rowType.getFieldList.map(_.getType))
 
     expr.accept(materializer)
+  }
+
+  /**
+    * Checks if the given call is a materialization call for either proctime or rowtime.
+    */
+  def isMaterializationCall(call: RexCall): Boolean = {
+    val isProctimeCall: Boolean = {
+      call.getOperator == FlinkSqlOperatorTable.PROCTIME &&
+        call.getOperands.size() == 1 &&
+        isProctimeIndicatorType(call.getOperands.get(0).getType)
+    }
+
+    val isRowtimeCall: Boolean = {
+      call.getOperator == SqlStdOperatorTable.CAST &&
+        call.getOperands.size() == 1 &&
+        isRowtimeIndicatorType(call.getOperands.get(0).getType) &&
+        call.getType.getSqlTypeName == SqlTypeName.TIMESTAMP
+    }
+
+    isProctimeCall || isRowtimeCall
   }
 }
 

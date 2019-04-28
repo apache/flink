@@ -87,6 +87,20 @@ class WindowAggregateTest(aggStrategy: AggPhaseEnforcer) extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test(expected = classOf[AssertionError])
+  def testWindowAggWithGroupSets(): Unit = {
+    // TODO supports group sets
+    // currently, the optimized plan is not collect, and an exception will be thrown in code-gen
+    val sql =
+    """
+      |SELECT COUNT(*),
+      |    TUMBLE_END(ts, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE
+      |FROM MyTable1
+      |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
+    """.stripMargin
+    util.verifyPlanNotExpected(sql, "TUMBLE(ts")
+  }
+
   @Test
   def testNoGroupingTumblingWindow(): Unit = {
     val sqlQuery = "SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)"

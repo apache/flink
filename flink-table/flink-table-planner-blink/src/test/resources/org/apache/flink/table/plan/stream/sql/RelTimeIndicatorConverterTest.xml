@@ -259,10 +259,9 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[rowtime])
-:- Calc(select=[rowtime])
+:- Calc(select=[rowtime], reuse_id=[1])
 :  +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[rowtime, long, int])
-+- Calc(select=[rowtime])
-   +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[rowtime, long, int])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

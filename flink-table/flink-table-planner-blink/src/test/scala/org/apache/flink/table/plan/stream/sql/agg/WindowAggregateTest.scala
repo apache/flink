@@ -69,6 +69,20 @@ class WindowAggregateTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test(expected = classOf[AssertionError])
+  def testWindowAggWithGroupSets(): Unit = {
+    // TODO supports group sets
+    // currently, the optimized plan is not collect, and an exception will be thrown in code-gen
+    val sql =
+    """
+      |SELECT COUNT(*),
+      |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE
+      |FROM MyTable
+      |    GROUP BY rollup(TUMBLE(rowtime, INTERVAL '15' MINUTE), b)
+    """.stripMargin
+    util.verifyPlanNotExpected(sql, "TUMBLE(rowtime")
+  }
+
   @Test
   def testTumbleFunction(): Unit = {
     val sql =

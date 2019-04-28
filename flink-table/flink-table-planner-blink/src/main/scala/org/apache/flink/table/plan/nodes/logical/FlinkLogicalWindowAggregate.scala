@@ -19,19 +19,16 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.plan.nodes.calcite.{LogicalWindowAggregate, WindowAggregate}
 
-import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -47,12 +44,8 @@ class FlinkLogicalWindowAggregate(
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty])
-  extends Aggregate(cluster, traitSet, child, false, groupSet, ImmutableList.of(groupSet), aggCalls)
+  extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties)
   with FlinkLogicalRel {
-
-  def getWindow: LogicalWindow = window
-
-  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
 
   override def copy(
       traitSet: RelTraitSet,
@@ -71,22 +64,6 @@ class FlinkLogicalWindowAggregate(
       namedProperties)
   }
 
-  override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
-
-  override def deriveRowType(): RelDataType = {
-    val aggregateRowType = super.deriveRowType()
-    val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val builder = typeFactory.builder
-    builder.addAll(aggregateRowType.getFieldList)
-    namedProperties.foreach { namedProp =>
-      builder.add(
-        namedProp.name,
-        typeFactory.createTypeFromInternalType(namedProp.property.resultType, isNullable = true)
-      )
-    }
-    builder.build()
-  }
-
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val child = this.getInput
     val rowCnt = mq.getRowCount(child)
@@ -95,19 +72,6 @@ class FlinkLogicalWindowAggregate(
     // group by CPU cost(multiple by 1.1 to encourage less group keys) + agg call CPU cost
     val cpuCost: Double = rowCnt * getGroupCount * 1.1 + rowCnt * aggCnt
     planner.getCostFactory.makeCost(rowCnt, cpuCost, rowCnt * rowSize)
-  }
-
-  /**
-    * The [[getDigest]] should be uniquely identifies the node; another node
-    * is equivalent if and only if it has the same value. The [[getDigest]] is
-    * computed by [[explainTerms(pw)]], so it should contains window information
-    * to identify different WindowAggregate nodes, otherwise WindowAggregate node
-    * can be replaced by any other WindowAggregate node.
-    */
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .item("window", window)
-      .item("properties", namedProperties.map(_.name).mkString(", "))
   }
 
 }
