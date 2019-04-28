@@ -186,7 +186,8 @@ public class YarnFileStageTest extends TestLogger {
 				ApplicationId.newInstance(0, 0),
 				remotePaths,
 				localResources,
-				new StringBuilder());
+				new StringBuilder(),
+				3 /* HDFS default replications */);
 
 			assertThat(
 				classpath,

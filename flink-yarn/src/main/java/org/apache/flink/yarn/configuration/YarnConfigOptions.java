@@ -204,6 +204,17 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	/**
+	 * Yarn session client uploads flink jar and user libs to file system (hdfs/s3) as local resource for yarn
+	 * application context. The replication number changes the how many replica of each of these files in hdfs/s3.
+	 * It is useful to accelerate this container bootstrap time, when a Flink application needs more one hundred
+	 * of containers.
+	 */
+	public static final ConfigOption<String> FILE_REPLICATION =
+		key("yarn.file-replication")
+		.noDefaultValue()
+		.withDescription("Number of file replication of each local resource file.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */

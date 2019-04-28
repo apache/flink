@@ -34,6 +34,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -73,6 +74,7 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
+import java.net.Socket;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -105,6 +107,7 @@ import static org.junit.Assert.assertEquals;
  */
 public abstract class YarnTestBase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTestBase.class);
+	private static final int NAME_NODE_START_PORT = 19000;
 
 	protected static final PrintStream ORIGINAL_STDOUT = System.out;
 	protected static final PrintStream ORIGINAL_STDERR = System.err;
@@ -143,7 +146,13 @@ public abstract class YarnTestBase extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder tmp = new TemporaryFolder();
 
+	// Temp directory for mini hdfs
+	@ClassRule
+	public static TemporaryFolder tmpHDFS = new TemporaryFolder();
+
 	protected static MiniYARNCluster yarnCluster = null;
+
+	protected static MiniDFSCluster miniDFSCluster = null;
 
 	/**
 	 * Uberjar (fat jar) file of Flink.
@@ -164,6 +173,7 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static File flinkShadedHadoopDir;
 
 	protected static File yarnSiteXML = null;
+	protected static File coreSiteXML = null;
 
 	private YarnClient yarnClient = null;
 
@@ -202,6 +212,21 @@ public abstract class YarnTestBase extends TestLogger {
 		conf.set(YarnConfiguration.NM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY, keytab);
 
 		conf.set("hadoop.security.auth_to_local", "RULE:[1:$1] RULE:[2:$1]");
+	}
+
+	public static void populateHDFSSecureConfigurations(Configuration conf, String principal, String keytab) {
+		if (principal != null && keytab != null) {
+			conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+			conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
+			conf.set("dfs.namenode.kerberos.principal", principal);
+			conf.set("dfs.namenode.keytab.file", keytab);
+			conf.set("kerberos.principal", principal);
+			conf.set("kerberos.keytab", keytab);
+
+			conf.set("dfs.web.authentication.kerberos.principal", principal);
+			conf.set("dfs.web.authentication.kerberos.keytab", keytab);
+			conf.set("hadoop.security.auth_to_local", "RULE:[1:$1] RULE:[2:$1]");
+		}
 	}
 
 	@Before
@@ -368,6 +393,14 @@ public abstract class YarnTestBase extends TestLogger {
 		yarnSiteXML = new File(targetFolder, "/yarn-site.xml");
 		try (FileWriter writer = new FileWriter(yarnSiteXML)) {
 			yarnConf.writeXml(writer);
+			writer.flush();
+		}
+	}
+
+	public static void writeHDFSCoreSiteConfigXML(Configuration coreSite, File targetFolder) throws IOException {
+		coreSiteXML = new File(targetFolder, "/core-site.xml");
+		try (FileWriter writer = new FileWriter(coreSiteXML)) {
+			coreSite.writeXml(writer);
 			writer.flush();
 		}
 	}
@@ -662,6 +695,29 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File targetTestClassesFolder = new File("target/test-classes");
 			writeYarnSiteConfigXML(conf, targetTestClassesFolder);
+
+			LOG.info("Starting up MiniDFSCluster");
+			if (miniDFSCluster == null) {
+
+				Configuration hdfsConfiguration = new Configuration();
+				hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
+				populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
+				MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdfsConfiguration);
+
+				int port = NAME_NODE_START_PORT;
+				while (!isPortAvailable(port)) {
+					port = port + 1;
+				}
+
+				builder.nameNodePort(port);
+				miniDFSCluster = builder.build();
+				miniDFSCluster.waitClusterUp();
+
+				hdfsConfiguration = miniDFSCluster.getConfiguration(0);
+				writeHDFSCoreSiteConfigXML(hdfsConfiguration, targetTestClassesFolder);
+				YARN_CONFIGURATION.addResource(hdfsConfiguration);
+			}
+
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
 			TestBaseUtils.setEnv(map);
@@ -958,6 +1014,9 @@ public abstract class YarnTestBase extends TestLogger {
 			yarnCluster = null;
 		}
 
+		LOG.info("Stopping MiniDFS Cluster");
+		miniDFSCluster.shutdown();
+
 		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
 		Map<String, String> map = new HashMap<>(System.getenv());
 		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
@@ -972,6 +1031,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 		if (yarnSiteXML != null) {
 			yarnSiteXML.delete();
+		}
+
+		if (coreSiteXML != null) {
+			coreSiteXML.delete();
 		}
 
 		// When we are on travis, we copy the temp files of JUnit (containing the MiniYARNCluster log files)
@@ -996,6 +1059,24 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static boolean isOnTravis() {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
+	}
+
+	private static boolean isPortAvailable(int port) {
+		Socket socket = null;
+		try {
+			socket = new Socket("localhost", port);
+			return false;
+		} catch (IOException e) {
+			return true;
+		} finally {
+			if (socket != null) {
+				try {
+					socket.close();
+				} catch (IOException e) {
+					throw new RuntimeException("Fail to close test socket");
+				}
+			}
+		}
 	}
 
 	/**

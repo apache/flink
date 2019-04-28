@@ -28,8 +28,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -67,6 +70,7 @@ public class YARNITCase extends YarnTestBase {
 		runTest(() -> {
 			Configuration configuration = new Configuration();
 			configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+			configuration.setString(YarnConfigOptions.FILE_REPLICATION, "5");
 			final YarnClient yarnClient = getYarnClient();
 
 			try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
@@ -113,6 +117,13 @@ public class YARNITCase extends YarnTestBase {
 
 					assertThat(jobResult, is(notNullValue()));
 					assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+					
+					final FileSystem fs = FileSystem.get(getYarnConfiguration());
+					String suffix = ".flink/" + applicationId.toString() + "/" + flinkUberjar.getName();
+
+					Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
+					FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
+					Assert.assertEquals(5, fsStatus.getReplication());
 
 					waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
 				}

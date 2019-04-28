@@ -141,6 +141,8 @@ public final class Utils {
 	 * 		remote home directory base (will be extended)
 	 * @param relativeTargetPath
 	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 * @param replication
+	 * 		number of replication of the file to be created
 	 *
 	 * @return Path to remote file (usually hdfs)
 	 */
@@ -149,7 +151,8 @@ public final class Utils {
 		String appId,
 		Path localSrcPath,
 		Path homedir,
-		String relativeTargetPath) throws IOException {
+		String relativeTargetPath,
+		int replication) throws IOException {
 
 		File localFile = new File(localSrcPath.toUri().getPath());
 		if (localFile.isDirectory()) {
@@ -165,10 +168,9 @@ public final class Utils {
 				+ "/" + localSrcPath.getName();
 
 		Path dst = new Path(homedir, suffix);
-
-		LOG.debug("Copying from {} to {}", localSrcPath, dst);
-
+		LOG.debug("Copying from {} to {} with replication number {}", localSrcPath, dst, replication);
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
+		fs.setReplication(dst, (short) replication);
 
 		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
 		//       file once again which has problems with eventually consistent read-after-write file
@@ -498,6 +500,8 @@ public final class Utils {
 			log.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
 			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
 
+			final int replication = yarnConfig.getInt("dfs.replication", 3);
+
 			try {
 				Path homeDirPath = new Path(clientHomeDir);
 				FileSystem fs = homeDirPath.getFileSystem(yarnConfig);
@@ -507,7 +511,7 @@ public final class Utils {
 					appId,
 					new Path(taskManagerConfigFile.toURI()),
 					homeDirPath,
-					"").f1;
+					"", replication).f1;
 
 				log.debug("Prepared local resource for modified yaml: {}", flinkConf);
 			} finally {
