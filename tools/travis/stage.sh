@@ -50,7 +50,6 @@ flink-libraries/flink-cep-scala,\
 flink-libraries/flink-gelly,\
 flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
-flink-libraries/flink-ml,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
