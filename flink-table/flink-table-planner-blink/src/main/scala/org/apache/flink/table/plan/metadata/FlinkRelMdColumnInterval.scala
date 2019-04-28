@@ -464,10 +464,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           index: Int,
           aggCalls: Seq[AggregateCall],
           inputType: RelDataType): AggregateCall = {
-        val mapOutputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
+        val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
           aggCalls, inputType)
-        if (mapOutputIndexToAggCallIndexMap.containsKey(index)) {
-          val realIndex = mapOutputIndexToAggCallIndexMap.get(index)
+        if (outputIndexToAggCallIndexMap.containsKey(index)) {
+          val realIndex = outputIndexToAggCallIndexMap.get(index)
           aggCalls(realIndex)
         } else {
           null
@@ -478,10 +478,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           index: Int,
           globalAggCalls: Seq[AggregateCall],
           inputRowType: RelDataType): Integer = {
-        val mapOutputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
+        val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
           globalAggCalls, inputRowType)
 
-        mapOutputIndexToAggCallIndexMap.foreach {
+        outputIndexToAggCallIndexMap.foreach {
           case (k, v) => if (v == index) {
             return k
           }
@@ -517,7 +517,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
           case agg: BatchExecHashAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
+              aggCallIndex, agg.getAggCallList, agg.aggInputRowType)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {

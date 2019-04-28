@@ -408,9 +408,9 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UnaryUpdateStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[b]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
++- Exchange(distribution=[hash[b]], updateAsRetraction=[true], accMode=[AccRetract])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
             +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
@@ -730,7 +730,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UnaryUpdateStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -900,9 +900,9 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Rank(strategy=[UnaryUpdateStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[category]], updateAsRetraction=[false], accMode=[Acc])
-   +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], updateAsRetraction=[false], accMode=[Acc])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], updateAsRetraction=[false], accMode=[Acc])
++- Exchange(distribution=[hash[category]], updateAsRetraction=[true], accMode=[AccRetract])
+   +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], updateAsRetraction=[true], accMode=[AccRetract])
       +- Exchange(distribution=[hash[category, shopId]], updateAsRetraction=[true], accMode=[Acc])
          +- TableSourceScan(table=[[T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], updateAsRetraction=[true], accMode=[Acc])
 ]]>
