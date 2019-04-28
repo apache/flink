@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-runtime-blink</artifactId>
+	<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
 	<name>flink-table-runtime-blink</name>
 	<description>
 		This module contains classes that are required by a task manager for
