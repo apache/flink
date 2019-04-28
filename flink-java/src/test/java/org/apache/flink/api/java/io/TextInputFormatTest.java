@@ -23,7 +23,9 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,6 +46,10 @@ import static org.junit.Assert.fail;
  * Tests for {@link TextInputFormat}.
  */
 public class TextInputFormatTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
 	public void testSimpleRead() {
 		final String first = "First line";
@@ -51,8 +57,7 @@ public class TextInputFormatTest {
 
 		try {
 			// create input file
-			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
-			tempFile.deleteOnExit();
+			File tempFile = File.createTempFile("TextInputFormatTest", "tmp", temporaryFolder.getRoot());
 			tempFile.setWritable(true);
 
 			PrintStream ps = new  PrintStream(tempFile);
@@ -93,23 +98,19 @@ public class TextInputFormatTest {
 
 	@Test
 	public void testNestedFileRead() {
-		String[] dirs = new String[] {"tmp/first/", "tmp/second/"};
+		String[] dirs = new String[] {"first", "second"};
 		List<String> expectedFiles = new ArrayList<>();
 
 		try {
+			File parentDir = temporaryFolder.getRoot();
 			for (String dir: dirs) {
 				// create input file
-				File tmpDir = new File(dir);
-				if (!tmpDir.exists()) {
-					tmpDir.mkdirs();
-				}
+				File tmpDir = temporaryFolder.newFolder(dir);
 
 				File tempFile = File.createTempFile("TextInputFormatTest", ".tmp", tmpDir);
-				tempFile.deleteOnExit();
 
 				expectedFiles.add(new Path(tempFile.getAbsolutePath()).makeQualified(FileSystem.getLocalFileSystem()).toString());
 			}
-			File parentDir = new File("tmp");
 
 			TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI()));
 			inputFormat.setNestedFileEnumeration(true);
@@ -158,16 +159,13 @@ public class TextInputFormatTest {
 	}
 
 	private void testRemovingTrailingCR(String lineBreaker, String delimiter) {
-		File tempFile = null;
-
 		String first = "First line";
 		String second = "Second line";
 		String content = first + lineBreaker + second + lineBreaker;
 
 		try {
 			// create input file
-			tempFile = File.createTempFile("TextInputFormatTest", "tmp");
-			tempFile.deleteOnExit();
+			File tempFile = File.createTempFile("TextInputFormatTest", "tmp", temporaryFolder.getRoot());
 			tempFile.setWritable(true);
 
 			OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
