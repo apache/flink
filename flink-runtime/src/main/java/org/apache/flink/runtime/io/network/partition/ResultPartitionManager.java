@@ -76,7 +76,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 		synchronized (registeredPartitions) {
 			ResultPartition resultPartition = registeredPartitions.remove(partitionId);
 			if (resultPartition != null) {
-				registeredPartitions.get(partitionId).release(cause);
+				resultPartition.release(cause);
 				LOG.debug("Released partition {} produced by {}.",
 					partitionId.getPartitionId(), partitionId.getProducerId());
 			}
