@@ -582,8 +582,10 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
+
 		assertTrue(catalog.getTableStatistics(path1) == null);
 		assertTrue(catalog.getTableColumnStatistics(path1) == null);
+
 		CatalogTableStatistics tableStatistics = new CatalogTableStatistics(5, 2, 100, 575);
 		catalog.alterTableStatistics(path1, tableStatistics, false);
 		CatalogTestUtil.checkEquals(tableStatistics, catalog.getTableStatistics(path1));
@@ -597,8 +599,10 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		catalog.createTable(path2, table2, false);
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		catalog.createPartition(path2, partitionSpec, createPartition(), false);
+
 		assertTrue(catalog.getPartitionStatistics(path2, partitionSpec) == null);
 		assertTrue(catalog.getPartitionColumnStatistics(path2, partitionSpec) == null);
+
 		catalog.alterPartitionStatistics(path2, partitionSpec, tableStatistics, false);
 		CatalogTestUtil.checkEquals(tableStatistics, catalog.getPartitionStatistics(path2, partitionSpec));
 		catalog.alterPartitionColumnStatistics(path2, partitionSpec, columnStatistics, false);

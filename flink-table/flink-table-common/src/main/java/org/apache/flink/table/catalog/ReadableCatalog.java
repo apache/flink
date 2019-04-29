@@ -227,7 +227,7 @@ public interface ReadableCatalog {
 	 * Get the statistics of a table.
 	 *
 	 * @param tablePath path of the table
-	 * @return the statistics of the given table, null if its statistics don't exist or are unknown.
+	 * @return the statistics of the given table
 	 *
 	 * @throws TableNotExistException if the table does not exist in the catalog
 	 * @throws CatalogException	in case of any runtime exception
@@ -238,7 +238,7 @@ public interface ReadableCatalog {
 	 * Get the column statistics of a table.
 	 *
 	 * @param tablePath path of the table
-	 * @return the column statistics of the given table,  null if its column statistics don't exist or are unknown.
+	 * @return the column statistics of the given table
 	 *
 	 * @throws TableNotExistException if the table does not exist in the catalog
 	 * @throws CatalogException	in case of any runtime exception
@@ -250,7 +250,7 @@ public interface ReadableCatalog {
 	 *
 	 * @param tablePath path of the table
 	 * @param partitionSpec partition spec of the partition
-	 * @return the statistics of the given partition, null if its statistics don't exist or are unknown.
+	 * @return the statistics of the given partition
 	 *
 	 * @throws PartitionNotExistException if the partition is not partitioned
 	 * @throws CatalogException	in case of any runtime exception
@@ -263,7 +263,7 @@ public interface ReadableCatalog {
 	 *
 	 * @param tablePath path of the table
 	 * @param partitionSpec partition spec of the partition
-	 * @return the column statistics of the given partition,  null if its column statistics don't exist or are unknown.
+	 * @return the column statistics of the given partition
 	 *
 	 * @throws PartitionNotExistException if the partition is not partitioned
 	 * @throws CatalogException	in case of any runtime exception
