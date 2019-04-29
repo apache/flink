@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.checkpoint;
 
 /**
- * Various reasons why a checkpoint was declined.
+ * Various reasons why a checkpoint was failure.
  */
-public enum CheckpointDeclineReason {
+public enum CheckpointFailureReason {
 
 	COORDINATOR_SHUTDOWN("Checkpoint coordinator is shut down."),
 
@@ -38,13 +38,33 @@ public enum CheckpointDeclineReason {
 
 	EXCEPTION("An Exception occurred while triggering the checkpoint."),
 
-	EXPIRED("The checkpoint expired before triggering was complete");
+	EXPIRED("The checkpoint expired before triggering was complete"),
+
+	CHECKPOINT_EXPIRED("Checkpoint expired before completing."),
+
+	CHECKPOINT_SUBSUMED("Checkpoint has been subsumed."),
+
+	CHECKPOINT_DECLINED("Checkpoint was declined (tasks not ready)."),
+
+	CHECKPOINT_COORDINATOR_SHUTDOWN("CheckpointCoordinator shutdown."),
+
+	CHECKPOINT_COORDINATOR_SUSPEND("Checkpoint Coordinator is suspending."),
+
+	JOB_FAILURE("The job has failed."),
+
+	JOB_FAILOVER_REGION("FailoverRegion is restarting."),
+
+	TASK_CHECKPOINT_FAILURE("Task local checkpoint failure."),
+
+	FINALIZE_CHECKPOINT_FAILURE("Failure to finalize checkpoint."),
+
+	TRIGGER_CHECKPOINT_FAILURE("Trigger checkpoint failure.");
 
 	// ------------------------------------------------------------------------
 
 	private final String message;
 
-	CheckpointDeclineReason(String message) {
+	CheckpointFailureReason(String message) {
 		this.message = message;
 	}
 

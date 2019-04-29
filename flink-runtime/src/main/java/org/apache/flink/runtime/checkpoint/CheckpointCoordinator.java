@@ -338,7 +338,7 @@ public class CheckpointCoordinator {
 
 				// clear and discard all pending checkpoints
 				for (PendingCheckpoint pending : pendingCheckpoints.values()) {
-					pending.abortError(new Exception("Checkpoint Coordinator is shutting down"));
+					pending.abort(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
 				}
 				pendingCheckpoints.clear();
 
@@ -405,17 +405,17 @@ public class CheckpointCoordinator {
 
 		checkNotNull(checkpointProperties);
 
-		CheckpointTriggerResult triggerResult = triggerCheckpoint(
-				timestamp,
-				checkpointProperties,
-				targetLocation,
-				false,
-				advanceToEndOfEventTime);
+		try {
+			PendingCheckpoint pendingCheckpoint = triggerCheckpoint(
+					timestamp,
+					checkpointProperties,
+					targetLocation,
+					false,
+					advanceToEndOfEventTime);
 
-		if (triggerResult.isSuccess()) {
-			return triggerResult.getPendingCheckpoint().getCompletionFuture();
-		} else {
-			Throwable cause = new CheckpointTriggerException("Failed to trigger savepoint.", triggerResult.getFailureReason());
+			return pendingCheckpoint.getCompletionFuture();
+		} catch (CheckpointException e) {
+			Throwable cause = new CheckpointException("Failed to trigger savepoint.", e.getCheckpointFailureReason());
 			return FutureUtils.completedExceptionally(cause);
 		}
 	}
@@ -431,16 +431,21 @@ public class CheckpointCoordinator {
 	 * @return <code>true</code> if triggering the checkpoint succeeded.
 	 */
 	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) {
-		return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false).isSuccess();
+		try {
+			triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false);
+			return true;
+		} catch (CheckpointException e) {
+			return false;
+		}
 	}
 
 	@VisibleForTesting
-	public CheckpointTriggerResult triggerCheckpoint(
+	public PendingCheckpoint triggerCheckpoint(
 			long timestamp,
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
 			boolean isPeriodic,
-			boolean advanceToEndOfTime) {
+			boolean advanceToEndOfTime) throws CheckpointException {
 
 		if (advanceToEndOfTime && !(props.isSynchronous() && props.isSavepoint())) {
 			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
@@ -450,12 +455,12 @@ public class CheckpointCoordinator {
 		synchronized (lock) {
 			// abort if the coordinator has been shutdown in the meantime
 			if (shutdown) {
-				return new CheckpointTriggerResult(CheckpointDeclineReason.COORDINATOR_SHUTDOWN);
+				throw new CheckpointException(CheckpointFailureReason.COORDINATOR_SHUTDOWN);
 			}
 
 			// Don't allow periodic checkpoint if scheduling has been disabled
 			if (isPeriodic && !periodicScheduling) {
-				return new CheckpointTriggerResult(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN);
+				throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
 			}
 
 			// validate whether the checkpoint can be triggered, with respect to the limit of
@@ -465,7 +470,7 @@ public class CheckpointCoordinator {
 				// sanity check: there should never be more than one trigger request queued
 				if (triggerRequestQueued) {
 					LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-					return new CheckpointTriggerResult(CheckpointDeclineReason.ALREADY_QUEUED);
+					throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
 				}
 
 				// if too many checkpoints are currently in progress, we need to mark that a request is queued
@@ -475,7 +480,7 @@ public class CheckpointCoordinator {
 						currentPeriodicTrigger.cancel(false);
 						currentPeriodicTrigger = null;
 					}
-					return new CheckpointTriggerResult(CheckpointDeclineReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
+					throw new CheckpointException(CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
 				}
 
 				// make sure the minimum interval between checkpoints has passed
@@ -492,7 +497,7 @@ public class CheckpointCoordinator {
 							new ScheduledTrigger(),
 							durationTillNextMillis, baseInterval, TimeUnit.MILLISECONDS);
 
-					return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
+					throw new CheckpointException(CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 				}
 			}
 		}
@@ -506,7 +511,7 @@ public class CheckpointCoordinator {
 				LOG.info("Checkpoint triggering task {} of job {} is not being executed at the moment. Aborting checkpoint.",
 						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
 						job);
-				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			} else if (ee.getState() == ExecutionState.RUNNING) {
 				executions[i] = ee;
 			} else {
@@ -515,7 +520,7 @@ public class CheckpointCoordinator {
 						job,
 						ExecutionState.RUNNING,
 						ee.getState());
-				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
 
@@ -531,7 +536,7 @@ public class CheckpointCoordinator {
 				LOG.info("Checkpoint acknowledging task {} of job {} is not being executed at the moment. Aborting checkpoint.",
 						ev.getTaskNameWithSubtaskIndex(),
 						job);
-				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
 
@@ -561,7 +566,7 @@ public class CheckpointCoordinator {
 						job,
 						numUnsuccessful,
 						t);
-				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
+				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 			}
 
 			final PendingCheckpoint checkpoint = new PendingCheckpoint(
@@ -590,7 +595,7 @@ public class CheckpointCoordinator {
 					if (!checkpoint.isDiscarded()) {
 						LOG.info("Checkpoint {} of job {} expired before completing.", checkpointID, job);
 
-						checkpoint.abortExpired();
+						checkpoint.abort(CheckpointFailureReason.CHECKPOINT_EXPIRED);
 						pendingCheckpoints.remove(checkpointID);
 						rememberRecentCheckpointId(checkpointID);
 
@@ -605,12 +610,12 @@ public class CheckpointCoordinator {
 					// since we released the lock in the meantime, we need to re-check
 					// that the conditions still hold.
 					if (shutdown) {
-						return new CheckpointTriggerResult(CheckpointDeclineReason.COORDINATOR_SHUTDOWN);
+						throw new CheckpointException(CheckpointFailureReason.COORDINATOR_SHUTDOWN);
 					}
 					else if (!props.forceCheckpoint()) {
 						if (triggerRequestQueued) {
 							LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-							return new CheckpointTriggerResult(CheckpointDeclineReason.ALREADY_QUEUED);
+							throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
 						}
 
 						if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
@@ -619,7 +624,7 @@ public class CheckpointCoordinator {
 								currentPeriodicTrigger.cancel(false);
 								currentPeriodicTrigger = null;
 							}
-							return new CheckpointTriggerResult(CheckpointDeclineReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
+							throw new CheckpointException(CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
 						}
 
 						// make sure the minimum interval between checkpoints has passed
@@ -637,7 +642,7 @@ public class CheckpointCoordinator {
 									new ScheduledTrigger(),
 									durationTillNextMillis, baseInterval, TimeUnit.MILLISECONDS);
 
-							return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
+							throw new CheckpointException(CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 						}
 					}
 
@@ -677,7 +682,7 @@ public class CheckpointCoordinator {
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
-				return new CheckpointTriggerResult(checkpoint);
+				return checkpoint;
 			}
 			catch (Throwable t) {
 				// guard the map against concurrent modifications
@@ -690,7 +695,7 @@ public class CheckpointCoordinator {
 						checkpointID, job, numUnsuccessful, t);
 
 				if (!checkpoint.isDiscarded()) {
-					checkpoint.abortError(new Exception("Failed to trigger checkpoint", t));
+					checkpoint.abort(CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, t);
 				}
 
 				try {
@@ -700,7 +705,7 @@ public class CheckpointCoordinator {
 					LOG.warn("Cannot dispose failed checkpoint storage location {}", checkpointStorageLocation, t2);
 				}
 
-				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
+				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 			}
 
 		} // end trigger lock
@@ -879,10 +884,11 @@ public class CheckpointCoordinator {
 			catch (Exception e1) {
 				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.
 				if (!pendingCheckpoint.isDiscarded()) {
-					pendingCheckpoint.abortError(e1);
+					pendingCheckpoint.abort(CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1);
 				}
 
-				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.', e1);
+				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.',
+					CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1);
 			}
 
 			// the pending checkpoint must be discarded after the finalization
@@ -903,7 +909,8 @@ public class CheckpointCoordinator {
 					}
 				});
 
-				throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
+				throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.',
+					CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, exception);
 			}
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
@@ -984,7 +991,7 @@ public class CheckpointCoordinator {
 			// remove all pending checkpoints that are lesser than the current completed checkpoint
 			if (p.getCheckpointId() < checkpointId && p.canBeSubsumed()) {
 				rememberRecentCheckpointId(p.getCheckpointId());
-				p.abortSubsumed();
+				p.abort(CheckpointFailureReason.CHECKPOINT_SUBSUMED);
 				entries.remove();
 			}
 		}
@@ -1244,7 +1251,7 @@ public class CheckpointCoordinator {
 				currentPeriodicTrigger = null;
 			}
 
-			abortPendingCheckpoints(new Exception("Checkpoint Coordinator is suspending."));
+			abortPendingCheckpoints(new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SUSPEND));
 
 			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
@@ -1254,10 +1261,10 @@ public class CheckpointCoordinator {
 	 * Aborts all the pending checkpoints due to en exception.
 	 * @param exception The exception.
 	 */
-	public void abortPendingCheckpoints(Exception exception) {
+	public void abortPendingCheckpoints(CheckpointException exception) {
 		synchronized (lock) {
 			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				p.abortError(exception);
+				p.abort(exception.getCheckpointFailureReason());
 			}
 
 			pendingCheckpoints.clear();
@@ -1312,9 +1319,9 @@ public class CheckpointCoordinator {
 		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
 		if (cause == null || cause instanceof CheckpointDeclineException) {
-			pendingCheckpoint.abortDeclined();
+			pendingCheckpoint.abort(CheckpointFailureReason.CHECKPOINT_DECLINED, cause);
 		} else {
-			pendingCheckpoint.abortError(cause);
+			pendingCheckpoint.abort(CheckpointFailureReason.JOB_FAILURE, cause);
 		}
 
 		rememberRecentCheckpointId(checkpointId);
