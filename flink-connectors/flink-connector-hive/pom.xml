@@ -243,10 +243,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- test dependencies -->
+
 		<dependency>
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-exec</artifactId>
 			<version>${hive.version}</version>
+			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
@@ -334,8 +337,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
-		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.derby</groupId>
