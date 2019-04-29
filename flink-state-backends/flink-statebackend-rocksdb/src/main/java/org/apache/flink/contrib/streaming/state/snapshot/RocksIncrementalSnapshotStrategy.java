@@ -106,8 +106,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The help class used to upload state files. */
 	private final RocksDBStateUploader stateUploader;
 
-	/** the operator identifier who owns the current snapshot. */
-	private final String operatorIdentifier;
+	/** The local directory name of the current snapshot strategy. */
+	private final String localDirectoryName;
 
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
@@ -121,7 +121,6 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull File instanceBasePath,
 		@Nonnull UUID backendUID,
 		@Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
-		@Nonnull String operatorIdentifier,
 		long lastCompletedCheckpointId,
 		int numberOfTransferingThreads) {
 
@@ -141,7 +140,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
 		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
-		this.operatorIdentifier = operatorIdentifier;
+		this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
 	}
 
 	@Nonnull
@@ -195,9 +194,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			}
 
 			// introduces an extra directory because RocksDB wants a non-existing directory for native checkpoints.
-			// append operatorIdentifier here to solve directory collision problem when two stateful operators chained in one task.
-			String subDir = operatorIdentifier.replaceAll("[^a-zA-Z0-9\\-]", "_");
-			File rdbSnapshotDir = new File(directory, subDir);
+			// append localDirectoryName here to solve directory collision problem when two stateful operators chained in one task.
+			File rdbSnapshotDir = new File(directory, localDirectoryName);
 			if (rdbSnapshotDir.exists()) {
 				FileUtils.deleteDirectory(rdbSnapshotDir);
 			}

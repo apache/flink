@@ -452,7 +452,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				instanceBasePath,
 				backendUID,
 				materializedSstFiles,
-				operatorIdentifier,
 				lastCompletedCheckpointId,
 				numberOfTransferingThreads);
 		} else {
