@@ -26,7 +26,6 @@ import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl}
-import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
@@ -118,12 +117,6 @@ class DataStreamGroupAggregate(
 
     val outRowType = CRowTypeInfo(schema.typeInfo)
 
-    val generator = new AggregationCodeGenerator(
-      tableEnv.getConfig,
-      false,
-      inputSchema.typeInfo,
-      None)
-
     val aggString = aggregationToString(
       inputSchema.relDataType,
       groupings,
@@ -137,7 +130,10 @@ class DataStreamGroupAggregate(
 
     def createKeyedProcessFunction[K]: KeyedProcessFunction[K, CRow, CRow] = {
       AggregateUtil.createGroupAggregateFunction[K](
-        generator,
+        tableEnv.getConfig,
+        false,
+        inputSchema.typeInfo,
+        None,
         namedAggregates,
         inputSchema.relDataType,
         inputSchema.fieldTypeInfos,
