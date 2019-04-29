@@ -18,23 +18,15 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
-import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
+import org.apache.flink.runtime.dispatcher.DispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 /**
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher} which has an
@@ -45,31 +37,12 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory<Dispat
 
 	@Override
 	public Dispatcher createDispatcher(
-		Configuration configuration,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServiceAddress,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		FatalErrorHandler fatalErrorHandler,
-		HistoryServerArchivist historyServerArchivist) throws Exception {
+			@Nonnull RpcService rpcService,
+			@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			generateEndpointIdWithUUID(),
-			configuration,
-			highAvailabilityServices,
-			resourceManagerGatewayRetriever,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			metricQueryServiceAddress,
-			archivedExecutionGraphStore,
-			DefaultJobManagerRunnerFactory.INSTANCE,
-			fatalErrorHandler,
-			historyServerArchivist);
+			DispatcherServices.from(partialDispatcherServices, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

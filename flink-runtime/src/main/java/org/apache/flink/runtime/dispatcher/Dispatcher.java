@@ -136,33 +136,24 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public Dispatcher(
 			RpcService rpcService,
 			String endpointId,
-			Configuration configuration,
-			HighAvailabilityServices highAvailabilityServices,
-			JobGraphStore jobGraphStore,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			JobManagerMetricGroup jobManagerMetricGroup,
-			@Nullable String metricServiceQueryAddress,
-			ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			JobManagerRunnerFactory jobManagerRunnerFactory,
-			FatalErrorHandler fatalErrorHandler,
-			HistoryServerArchivist historyServerArchivist) throws Exception {
+			DispatcherServices dispatcherServices,
+			JobGraphStore jobGraphStore) throws Exception {
 		super(rpcService, endpointId);
+		Preconditions.checkNotNull(dispatcherServices);
 
-		this.configuration = Preconditions.checkNotNull(configuration);
-		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
-		this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices);
-		this.blobServer = Preconditions.checkNotNull(blobServer);
-		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
+		this.configuration = dispatcherServices.getConfiguration();
+		this.highAvailabilityServices = dispatcherServices.getHighAvailabilityServices();
+		this.resourceManagerGatewayRetriever = dispatcherServices.getResourceManagerGatewayRetriever();
+		this.heartbeatServices = dispatcherServices.getHeartbeatServices();
+		this.blobServer = dispatcherServices.getBlobServer();
+		this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
 		this.jobGraphStore = Preconditions.checkNotNull(jobGraphStore);
-		this.jobManagerMetricGroup = Preconditions.checkNotNull(jobManagerMetricGroup);
-		this.metricServiceQueryAddress = metricServiceQueryAddress;
+		this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
+		this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
 
 		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
-			this.blobServer);
+			blobServer);
 
 		this.runningJobsRegistry = highAvailabilityServices.getRunningJobsRegistry();
 
@@ -170,11 +161,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		leaderElectionService = highAvailabilityServices.getDispatcherLeaderElectionService();
 
-		this.historyServerArchivist = Preconditions.checkNotNull(historyServerArchivist);
+		this.historyServerArchivist = dispatcherServices.getHistoryServerArchivist();
 
-		this.archivedExecutionGraphStore = Preconditions.checkNotNull(archivedExecutionGraphStore);
+		this.archivedExecutionGraphStore = dispatcherServices.getArchivedExecutionGraphStore();
 
-		this.jobManagerRunnerFactory = Preconditions.checkNotNull(jobManagerRunnerFactory);
+		this.jobManagerRunnerFactory = dispatcherServices.getJobManagerRunnerFactory();
 
 		this.jobManagerTerminationFutures = new HashMap<>(2);
 	}
