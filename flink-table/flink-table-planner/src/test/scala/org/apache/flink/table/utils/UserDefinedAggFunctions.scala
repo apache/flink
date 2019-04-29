@@ -20,7 +20,7 @@ package org.apache.flink.table.utils
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import java.lang.{Float => JFloat, Integer => JInt, Long => JLong}
+import java.lang.{Integer => JInt, Long => JLong, Float => JFloat}
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation

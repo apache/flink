@@ -49,18 +49,6 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testAggregationInSelection(): Unit = {
-    val util = streamTestUtil()
-    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
-
-    table
-      .groupBy('a)
-      .aggregate('b.sum as 'd)
-      // must fail. Cannot use AggregateFunction in select after aggregate
-      .select('d.sum)
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testTableFunctionInSelection(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)

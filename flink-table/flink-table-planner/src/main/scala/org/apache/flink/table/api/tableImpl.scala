@@ -445,6 +445,14 @@ class TableImpl(
     wrap(operationTreeBuilder.flatMap(tableFunction, operationTree))
   }
 
+  override def aggregate(aggregateFunction: String): AggregatedTable = {
+    aggregate(ExpressionParser.parseExpression(aggregateFunction))
+  }
+
+  override def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    groupBy().aggregate(aggregateFunction)
+  }
+
   override def flatAggregate(tableAggFunction: String): FlatAggregateTable = {
     groupBy().flatAggregate(tableAggFunction)
   }
@@ -503,12 +511,47 @@ class GroupedTableImpl(
       ))
   }
 
+  override def aggregate(aggregateFunction: String): AggregatedTable = {
+    aggregate(ExpressionParser.parseExpression(aggregateFunction))
+  }
+
+  override def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    new AggregatedTableImpl(table, groupKeys, aggregateFunction)
+  }
+
   override def flatAggregate(tableAggFunction: String): FlatAggregateTable = {
     flatAggregate(ExpressionParser.parseExpression(tableAggFunction))
   }
 
   override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = {
     new FlatAggregateTableImpl(table, groupKeys, tableAggFunction)
+  }
+}
+
+/**
+  * The implementation of a [[AggregatedTable]] that has been grouped on a set of grouping keys.
+  */
+class AggregatedTableImpl(
+  private[flink] val table: Table,
+  private[flink] val groupKeys: Seq[Expression],
+  private[flink] val aggregateFunction: Expression)
+  extends AggregatedTable {
+
+  private val tableImpl = table.asInstanceOf[TableImpl]
+
+  override def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
+  }
+
+  override def select(fields: Expression*): Table = {
+    new TableImpl(tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder.project(fields,
+        tableImpl.operationTreeBuilder.rowBasedAggregate(
+          groupKeys.asJava,
+          aggregateFunction,
+          tableImpl.operationTree
+        )
+      ))
   }
 }
 
@@ -621,3 +664,4 @@ class OverWindowedTableImpl(
     )
   }
 }
+

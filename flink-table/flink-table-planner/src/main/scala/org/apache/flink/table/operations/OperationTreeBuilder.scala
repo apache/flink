@@ -38,7 +38,6 @@ import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable.ListBuffer
 
 /**
   * Builder for [[[Operation]] tree.
@@ -158,6 +157,66 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val resolvedAggregates = resolver.resolve(aggregates)
 
     aggregateOperationFactory.createAggregate(resolvedGroupings, resolvedAggregates, child)
+  }
+
+  def rowBasedAggregate(
+    groupingExpressions: JList[Expression],
+    aggregate: Expression,
+    child: TableOperation)
+  : TableOperation = {
+    // resolve for java string case, i.e., turn LookupCallExpression to CallExpression.
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build
+    val resolvedAggregate = resolveSingleExpression(aggregate, resolver)
+
+    // extract alias and aggregate function
+    var alias: Seq[String] = Seq()
+    val aggWithoutAlias = resolvedAggregate match {
+      case c: CallExpression
+        if c.getFunctionDefinition.getName == BuiltInFunctionDefinitions.AS.getName => {
+        alias = c.getChildren
+          .drop(1)
+          .map(e => e.asInstanceOf[ValueLiteralExpression].getValue.asInstanceOf[String])
+        c.getChildren.get(0)
+      }
+      case c: CallExpression
+        if c.getFunctionDefinition.isInstanceOf[AggregateFunctionDefinition] => {
+        if (alias.isEmpty) alias = UserDefinedFunctionUtils.getFieldInfo(
+          c.getFunctionDefinition.asInstanceOf[AggregateFunctionDefinition].getResultTypeInfo)._1
+        c
+      }
+      case e => e
+    }
+
+    var cnt = 0
+    val childNames = child.getTableSchema.getFieldNames
+    while (childNames.contains("TMP_" + cnt)) {
+      cnt += 1
+    }
+    // turn agg to a named agg, because it will be verified later.
+    val aggWithNamedAlias = new CallExpression(
+      BuiltInFunctionDefinitions.AS,
+      Seq(aggWithoutAlias, new ValueLiteralExpression("TMP_" + cnt, Types.STRING)))
+
+    // get agg table
+    val aggTableOperation = this.aggregate(groupingExpressions, Seq(aggWithNamedAlias), child)
+
+    // flatten the aggregate function
+    val aggNames = aggTableOperation.getTableSchema.getFieldNames
+    val flattenExpressions = aggNames.take(groupingExpressions.size())
+      .map(e => new UnresolvedReferenceExpression(e)) ++
+      Seq(new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
+        Seq(new UnresolvedReferenceExpression(aggNames.last))))
+    val flattenedOperation = this.project(flattenExpressions.toList, aggTableOperation)
+
+    // add alias
+    if (alias.nonEmpty) {
+      val namesBeforeAlias = flattenedOperation.getTableSchema.getFieldNames
+      val namesAfterAlias = namesBeforeAlias.dropRight(alias.size()) ++ alias
+      this.alias(namesAfterAlias.map(e =>
+        new UnresolvedReferenceExpression(e)).toList, flattenedOperation)
+    } else {
+      flattenedOperation
+    }
   }
 
   def tableAggregate(

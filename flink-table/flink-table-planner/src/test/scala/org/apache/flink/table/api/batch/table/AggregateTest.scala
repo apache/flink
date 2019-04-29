@@ -21,7 +21,7 @@ package org.apache.flink.table.api.batch.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{CountMinMax, TableTestBase}
+import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
 /**
@@ -133,117 +133,6 @@ class AggregateTest extends TableTestBase {
         "COUNT(c) AS TMP_2",
         "SUM($f3) AS TMP_3")
     )
-    util.verifyTable(resultTable, expected)
-  }
-
-  @Test
-  def testSimpleAggregate(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    val testAgg = new CountMinMax
-    val resultTable = table
-      .groupBy('b)
-      .aggregate(testAgg('a))
-      .select('b, 'f0, 'f1)
-
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "b", "a")
-          ),
-          term("groupBy", "b"),
-          term("select", "b", "CountMinMax(a) AS TMP_0")
-        ),
-        term("select", "b", "TMP_0.f0 AS f0", "TMP_0.f1 AS f1")
-      )
-    util.verifyTable(resultTable, expected)
-  }
-
-  @Test
-  def testSelectStar(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    val testAgg = new CountMinMax
-    val resultTable = table
-      .groupBy('b)
-      .aggregate(testAgg('a))
-      .select('*)
-
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "b", "a")
-          ),
-          term("groupBy", "b"),
-          term("select", "b", "CountMinMax(a) AS TMP_0")
-        ),
-        term("select", "b", "TMP_0.f0 AS f0", "TMP_0.f1 AS f1", "TMP_0.f2 AS f2")
-      )
-    util.verifyTable(resultTable, expected)
-  }
-
-  @Test
-  def testAggregateWithScalarResult(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    val resultTable = table
-      .groupBy('b)
-      .aggregate('a.count)
-      .select('b, 'f0)
-
-    val expected =
-      unaryNode(
-        "DataSetAggregate",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "b", "a")
-        ),
-        term("groupBy", "b"),
-        term("select", "b", "COUNT(a) AS TMP_0")
-      )
-    util.verifyTable(resultTable, expected)
-  }
-
-  @Test
-  def testAggregateWithAlias(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    val testAgg = new CountMinMax
-    val resultTable = table
-      .groupBy('b)
-      .aggregate(testAgg('a) as ('x, 'y, 'z))
-      .select('b, 'x, 'y)
-
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "b", "a")
-          ),
-          term("groupBy", "b"),
-          term("select", "b", "CountMinMax(a) AS TMP_0")
-        ),
-        term("select", "b", "TMP_0.f0 AS x", "TMP_0.f1 AS y")
-      )
     util.verifyTable(resultTable, expected)
   }
 }
