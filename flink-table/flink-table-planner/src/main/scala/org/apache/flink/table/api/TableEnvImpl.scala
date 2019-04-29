@@ -46,7 +46,7 @@ import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
 import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.cost.DataSetCostFactory
@@ -456,7 +456,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     * user-defined functions under this name.
     */
   private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
-      name: String, function: AggregateFunction[T, ACC]): Unit = {
+      name: String, function: UserDefinedAggregateFunction[T, ACC]): Unit = {
     // check if class not Scala object
     checkNotSingleton(function.getClass)
     // check if class could be instantiated
