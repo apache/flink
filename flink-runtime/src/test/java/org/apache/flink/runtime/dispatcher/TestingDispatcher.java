@@ -60,18 +60,19 @@ class TestingDispatcher extends Dispatcher {
 		super(
 			rpcService,
 			endpointId,
-			configuration,
-			highAvailabilityServices,
-			highAvailabilityServices.getJobGraphStore(),
-			resourceManagerGatewayRetriever,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			metricQueryServiceAddress,
-			archivedExecutionGraphStore,
-			jobManagerRunnerFactory,
-			fatalErrorHandler,
-			VoidHistoryServerArchivist.INSTANCE);
+			new DispatcherServices(
+				configuration,
+				highAvailabilityServices,
+				resourceManagerGatewayRetriever,
+				blobServer,
+				heartbeatServices,
+				jobManagerMetricGroup,
+				archivedExecutionGraphStore,
+				fatalErrorHandler,
+				VoidHistoryServerArchivist.INSTANCE,
+				metricQueryServiceAddress,
+				jobManagerRunnerFactory),
+			highAvailabilityServices.getJobGraphStore());
 
 		this.startFuture = new CompletableFuture<>();
 	}
