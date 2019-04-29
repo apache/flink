@@ -141,7 +141,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	/** Default names for Flink's distributed components. */
 	public static final String JOB_MANAGER_NAME = "jobmanager";
-	public static final String ARCHIVE_NAME = "archive";
 
 	// ------------------------------------------------------------------------
 
