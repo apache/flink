@@ -382,20 +382,15 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
-								<!-- Explicitly include selected jars since hive-exec is a uber jar with only reduced dependencies declared -->
 								<!-- Needs end-to-end tests to ensure the built flink-connector-hive jar contains all required dependencies and can run -->
 								<includes>
-									<include>commons-io:commons-io</include>
-									<include>commons-io:commons-dbcp</include>
-									<include>commons-io:commons-pool</include>
-									<include>commons-logging:commons-logging</include>
-									<include>commons-configuration:commons-configuration</include>
+									<include>commons-dbcp:commons-dbcp</include>
+									<include>commons-pool:commons-pool</include>
 									<include>commons-beanutils:commons-beanutils</include>
 									<include>com.jolbox:bonecp</include>
 									<include>org.apache.hive:*</include>
 									<include>org.apache.thrift:libthrift</include>
 									<include>org.datanucleus:*</include>
-									<include>javax.servlet:servlet-api</include>
 									<include>org.antlr:antlr-runtime</include>
 								</includes>
 							</artifactSet>
