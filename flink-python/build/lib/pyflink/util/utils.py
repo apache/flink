@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -17,32 +16,18 @@
 # limitations under the License.
 ################################################################################
 
-# =====================================================================
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+from pyflink.java_gateway import get_gateway
 
-. "$bin"/config.sh
 
-FLINK_CLASSPATH=`constructFlinkClassPath`
+def to_jarray(j_type, arr):
+    """
+    Convert python list to java type array
 
-ARGS=()
-
-while [[ $# -gt 0 ]]
-do
-    key="$1"
-    case $key in
-        -c|--class)
-            DRIVER=$2
-            shift
-            shift
-            ;;
-        *)
-           ARGS+=("$1")
-           shift
-           ;;
-    esac
-done
-
-PYTHON_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-python-*.jar`
-TABLE_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-table*.jar`
-exec $JAVA_RUN $JVM_ARGS -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH} ${DRIVER} ${ARGS[@]}
+    :param j_type: java type of element in array
+    :param arr: python type list
+    """
+    gateway = get_gateway()
+    j_arr = gateway.new_array(j_type, len(arr))
+    for i in range(0, len(arr)):
+        j_arr[i] = arr[i]
+    return j_arr

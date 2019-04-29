@@ -15,18 +15,49 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from distutils.core import setup
+from __future__ import print_function
+
+import os
+import sys
+from setuptools import setup
+
+if sys.version_info < (2, 7):
+    print("Python versions prior to 2.7 are not supported for PyFlink.",
+          file=sys.stderr)
+    sys.exit(-1)
+
+this_directory = os.path.abspath(os.path.dirname(__file__))
+version_file = os.path.join(this_directory, 'pyflink/version.py')
+
+try:
+    exec(open(version_file).read())
+except IOError:
+    print("Failed to load PyFlink version file for packaging. " +
+          "'%s' not found!" % version_file,
+          file=sys.stderr)
+    sys.exit(-1)
+VERSION = __version__  # noqa
+
+with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name='pyflink',
-    version='1.0',
+    version=VERSION,
     packages=['pyflink',
               'pyflink.table',
               'pyflink.util'],
     url='http://flink.apache.org',
-    license='Licensed under the Apache License, Version 2.0',
+    license='http://www.apache.org/licenses/LICENSE-2.0',
     author='Flink Developers',
     author_email='dev@flink.apache.org',
     install_requires=['py4j==0.10.8.1'],
-    description='Flink Python API'
+    description='Apache Flink Python API',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    classifiers=[
+        'Development Status :: 1 - Planning',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.7']
 )

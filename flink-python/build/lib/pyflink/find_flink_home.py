@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,33 +15,30 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from __future__ import print_function
+import os
+import sys
 
-# =====================================================================
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
 
-. "$bin"/config.sh
+def _find_flink_home():
+    """
+    Find the FLINK_HOME.
+    """
+    # If the environment has set FLINK_HOME, trust it.
+    if 'FLINK_HOME' in os.environ:
+        return os.environ['FLINK_HOME']
+    else:
+        try:
+            flink_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../")
+            build_target = flink_root_dir + "/build-target"
+            pyflink_file = build_target + "/bin/pyflink2.sh"
+            if os.path.isfile(pyflink_file):
+                return build_target
+        except Exception:
+            pass
+        print("Could not find valid FLINK_HOME in current environment.", file=sys.stderr)
+        sys.exit(-1)
 
-FLINK_CLASSPATH=`constructFlinkClassPath`
 
-ARGS=()
-
-while [[ $# -gt 0 ]]
-do
-    key="$1"
-    case $key in
-        -c|--class)
-            DRIVER=$2
-            shift
-            shift
-            ;;
-        *)
-           ARGS+=("$1")
-           shift
-           ;;
-    esac
-done
-
-PYTHON_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-python-*.jar`
-TABLE_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-table*.jar`
-exec $JAVA_RUN $JVM_ARGS -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH} ${DRIVER} ${ARGS[@]}
+if __name__ == "__main__":
+    print(_find_flink_home())
