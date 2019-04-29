@@ -47,9 +47,6 @@ MODULES_CORE_JDK9_EXCLUSIONS="\
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
-flink-libraries/flink-gelly,\
-flink-libraries/flink-gelly-scala,\
-flink-libraries/flink-gelly-examples,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
@@ -119,6 +116,9 @@ MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-connectors/flink-hbase"
 
 MODULES_TESTS="\
+flink-libraries/flink-gelly,\
+flink-libraries/flink-gelly-scala,\
+flink-libraries/flink-gelly-examples,\
 flink-tests"
 
 if [[ ${PROFILE} == *"include-kinesis"* ]]; then
