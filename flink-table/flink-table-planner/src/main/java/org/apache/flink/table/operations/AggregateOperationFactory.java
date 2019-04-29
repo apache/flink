@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
 import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
@@ -29,6 +31,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.AggregateFunctionDefinition;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
@@ -36,23 +39,30 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionResolver;
+import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
@@ -97,17 +107,31 @@ public class AggregateOperationFactory {
 		List<PlannerExpression> convertedGroupings = bridge(groupings);
 		List<PlannerExpression> convertedAggregates = bridge(aggregates);
 
+		Boolean isTableAggregate = aggregates.size() == 1 && isTableAggFunctionCall(aggregates.get(0));
+
 		TypeInformation[] fieldTypes = Stream.concat(
-			convertedGroupings.stream(),
-			convertedAggregates.stream()
-		).map(PlannerExpression::resultType)
-			.toArray(TypeInformation[]::new);
+			convertedGroupings.stream().map(PlannerExpression::resultType),
+			convertedAggregates.stream().flatMap(expr -> {
+				if (isTableAggregate) {
+					return Stream.of(UserDefinedFunctionUtils.getFieldInfo(expr.resultType())._3());
+				} else {
+					return Stream.of(expr.resultType());
+				}
+			})
+		).toArray(TypeInformation[]::new);
 
 		String[] fieldNames = Stream.concat(
-			groupings.stream(),
-			aggregates.stream()
-		).map(expr -> extractName(expr).orElseGet(expr::toString))
-			.toArray(String[]::new);
+			groupings.stream().map(expr -> extractName(expr).orElseGet(expr::toString)),
+			aggregates.stream().flatMap(expr -> {
+				if (isTableAggregate) {
+					return Stream.of(UserDefinedFunctionUtils.getFieldInfo(
+						((AggregateFunctionDefinition) ((CallExpression) expr).getFunctionDefinition())
+							.getResultTypeInfo())._1());
+				} else {
+					return Stream.of(extractName(expr).orElseGet(expr::toString));
+				}
+			})
+		).toArray(String[]::new);
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
 
@@ -399,7 +423,10 @@ public class AggregateOperationFactory {
 		}
 
 		private boolean requiresOver(FunctionDefinition functionDefinition) {
-			return ((AggregateFunctionDefinition) functionDefinition).getAggregateFunction().requiresOver();
+			return ((AggregateFunctionDefinition) functionDefinition).getAggregateFunction()
+				instanceof AggregateFunction &&
+				((AggregateFunction) ((AggregateFunctionDefinition) functionDefinition)
+					.getAggregateFunction()).requiresOver();
 		}
 
 		@Override
@@ -408,7 +435,7 @@ public class AggregateOperationFactory {
 			return null;
 		}
 
-		private void failExpression(Expression expression) {
+		protected void failExpression(Expression expression) {
 			throw new ValidationException(format("Expression '%s' is invalid because it is neither" +
 				" present in GROUP BY nor an aggregate function", expression));
 		}
@@ -464,5 +491,97 @@ public class AggregateOperationFactory {
 			}
 			return null;
 		}
+	}
+
+	/**
+	 * Extract a table aggregate Expression and it's aliases.
+	 */
+	public Tuple2<Expression, List<String>> extractTableAggFunctionAndAliases(Expression callExpr) {
+		TableAggFunctionCallVisitor visitor = new TableAggFunctionCallVisitor();
+		return Tuple2.of(callExpr.accept(visitor), visitor.getAlias());
+	}
+
+	private class TableAggFunctionCallVisitor extends ApiExpressionDefaultVisitor<Expression> {
+
+		private List<String> alias = new LinkedList<>();
+
+		public List<String> getAlias() {
+			return alias;
+		}
+
+		@Override
+		public Expression visitCall(CallExpression call) {
+			FunctionDefinition definition = call.getFunctionDefinition();
+			if (definition.equals(AS)) {
+				return unwrapFromAlias(call);
+			} else if (definition instanceof AggregateFunctionDefinition) {
+				if (!isTableAggFunctionCall(call)) {
+					throw fail();
+				}
+				return call;
+			} else {
+				return defaultMethod(call);
+			}
+		}
+
+		private Expression unwrapFromAlias(CallExpression call) {
+			List<Expression> children = call.getChildren();
+			List<String> aliases = children.subList(1, children.size())
+				.stream()
+				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
+					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
+				.collect(toList());
+
+			if (!isTableAggFunctionCall(children.get(0))) {
+				throw fail();
+			}
+
+			validateAlias(aliases, (AggregateFunctionDefinition) ((CallExpression) children.get(0)).getFunctionDefinition());
+			alias = aliases;
+			return children.get(0);
+		}
+
+		private void validateAlias(
+			List<String> aliases,
+			AggregateFunctionDefinition aggFunctionDefinition) {
+
+			TypeInformation resultType = aggFunctionDefinition.getResultTypeInfo();
+
+			int callArity = resultType.getTotalFields();
+			int aliasesSize = aliases.size();
+
+			if (aliasesSize > 0 && aliasesSize != callArity) {
+				throw new ValidationException(String.format(
+					"List of column aliases must have same degree as table; " +
+						"the returned table of function '%s' has " +
+						"%d columns, whereas alias list has %d columns",
+					aggFunctionDefinition.getName(),
+					callArity,
+					aliasesSize));
+			}
+		}
+
+		@Override
+		protected AggFunctionCall defaultMethod(Expression expression) {
+			throw fail();
+		}
+
+		private ValidationException fail() {
+			return new ValidationException(
+				"A flatAggregate only accepts an expression which defines a table aggregate " +
+					"function that might be followed by some alias.");
+		}
+	}
+
+	/**
+	 * Return true if the input {@link Expression} is a {@link CallExpression} of table aggregate function.
+	 */
+	public static boolean isTableAggFunctionCall(Expression expression) {
+		return Stream.of(expression)
+			.filter(p -> p instanceof CallExpression)
+			.map(p -> (CallExpression) p)
+			.filter(p -> p.getFunctionDefinition() instanceof AggregateFunctionDefinition)
+			.map(p -> (AggregateFunctionDefinition) p.getFunctionDefinition())
+			.anyMatch(p -> p.getAggregateFunction() instanceof TableAggregateFunction);
 	}
 }

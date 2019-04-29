@@ -20,7 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
@@ -31,13 +31,13 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGA
 @PublicEvolving
 public final class AggregateFunctionDefinition extends FunctionDefinition {
 
-	private final AggregateFunction<?, ?> aggregateFunction;
+	private final UserDefinedAggregateFunction<?, ?> aggregateFunction;
 	private final TypeInformation<?> resultTypeInfo;
 	private final TypeInformation<?> accumulatorTypeInfo;
 
 	public AggregateFunctionDefinition(
 			String name,
-			AggregateFunction<?, ?> aggregateFunction,
+			UserDefinedAggregateFunction<?, ?> aggregateFunction,
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
 		super(name, AGGREGATE_FUNCTION);
@@ -46,7 +46,7 @@ public final class AggregateFunctionDefinition extends FunctionDefinition {
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
-	public AggregateFunction<?, ?> getAggregateFunction() {
+	public UserDefinedAggregateFunction<?, ?> getAggregateFunction() {
 		return aggregateFunction;
 	}
 
