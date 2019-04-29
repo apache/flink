@@ -47,7 +47,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@SuppressWarnings("serial")
+/**
+ * Tests for cancelling {@link ExecutionVertex ExecutionVertices}.
+ */
 public class ExecutionVertexCancelTest extends TestLogger {
 
 	// --------------------------------------------------------------------------------------------
@@ -348,7 +350,6 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				// that is what we expect
 			}
 
-
 			// fail while canceling
 			{
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
@@ -373,7 +374,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 		}
 	}
 
-	public static class CancelSequenceSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
+	private static class CancelSequenceSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
 		private final int successfulOperations;
 		private int index = -1;
 
