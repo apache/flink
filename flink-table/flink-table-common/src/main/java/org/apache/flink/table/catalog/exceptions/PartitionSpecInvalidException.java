@@ -29,15 +29,14 @@ import java.util.List;
  * when the size of PartitionSpec is 'n' but its keys don't match the first 'n' keys in partition key list.
  */
 public class PartitionSpecInvalidException extends Exception {
-	private static final String MSG = "PartitionSpec %s does not match partition keys %s of table %s in catalog %s.";
+	private static final String MSG = "PartitionSpec %s does not match the partition keys of table %s in catalog %s.";
 
 	public PartitionSpecInvalidException(
 		String catalogName,
-		List<String> partitionKeys,
 		ObjectPath tablePath,
 		CatalogPartitionSpec partitionSpec) {
 
-		super(String.format(MSG, partitionSpec, partitionKeys, tablePath.getFullName(), catalogName), null);
+		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), null);
 	}
 
 	public PartitionSpecInvalidException(
@@ -47,6 +46,6 @@ public class PartitionSpecInvalidException extends Exception {
 		CatalogPartitionSpec partitionSpec,
 		Throwable cause) {
 
-		super(String.format(MSG, partitionSpec, partitionKeys, tablePath.getFullName(), catalogName), cause);
+		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), cause);
 	}
 }
