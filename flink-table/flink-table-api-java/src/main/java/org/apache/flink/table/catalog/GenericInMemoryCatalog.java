@@ -396,7 +396,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		}
 
 		if (!isPartitionSpecValid(tablePath, partitionSpec)) {
-			throw new PartitionSpecInvalidException(catalogName, tablePath, partitionSpec);
+			throw new PartitionSpecInvalidException(catalogName, ((CatalogTable) getTable(tablePath)).getPartitionKeys(),
+				tablePath, partitionSpec);
 		}
 
 		partitions.get(tablePath).put(partitionSpec, partition.copy());
@@ -430,7 +431,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public List<CatalogPartitionSpec> listAllPartitions(ObjectPath tablePath)
+	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
 			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		checkNotNull(tablePath);
 
@@ -491,7 +492,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	/**
-	 * Check if the given partitionSpec is valid to the given table.
+	 * Check if the given partitionSpec is valid for the given table.
+	 * Note that partition spec is considered invalid if the table doesn't exist or isn't partitioned.
 	 */
 	private boolean isPartitionSpecValid(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) {
 		CatalogBaseTable baseTable;
@@ -528,6 +530,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 	/**
 	 * Check if the given table is a partitioned table.
+	 * Note that "false" is returned if the table doesn't exists.
 	 */
 	private boolean isPartitionedTable(ObjectPath tablePath) {
 		CatalogBaseTable table = null;

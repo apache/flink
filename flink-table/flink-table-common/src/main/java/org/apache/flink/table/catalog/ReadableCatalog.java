@@ -147,7 +147,7 @@ public interface ReadableCatalog {
 	 * @throws TableNotPartitionedException thrown if the table is not partitioned
 	 * @throws CatalogException	in case of any runtime exception
 	 */
-	List<CatalogPartitionSpec> listAllPartitions(ObjectPath tablePath)
+	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
 		throws TableNotExistException, TableNotPartitionedException, CatalogException;
 
 	/**
