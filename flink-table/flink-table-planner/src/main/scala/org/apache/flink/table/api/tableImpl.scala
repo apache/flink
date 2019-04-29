@@ -445,6 +445,10 @@ class TableImpl(
     wrap(operationTreeBuilder.flatMap(tableFunction, operationTree))
   }
 
+  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = ???
+
+  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = ???
+
   /**
     * Registers an unique table name under the table environment
     * and return the registered table name.
@@ -494,6 +498,10 @@ class GroupedTableImpl(
         )
       ))
   }
+
+  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = ???
+
+  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = ???
 }
 
 /**
