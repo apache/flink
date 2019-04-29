@@ -217,7 +217,9 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
 			spy(db),
 			defaultCFHandle,
-			new CloseableRegistry()).build();
+			new CloseableRegistry())
+			.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
+			.build();
 
 		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
@@ -294,7 +296,9 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				AbstractStateBackend.getCompressionDecorator(executionConfig),
 				db,
 				defaultCFHandle,
-				new CloseableRegistry()).build();
+				new CloseableRegistry())
+				.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
+				.build();
 			ValueStateDescriptor<String> stubState1 =
 				new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
 			test.createInternalState(StringSerializer.INSTANCE, stubState1);
