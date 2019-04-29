@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,8 +34,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class GenericCatalogTable implements CatalogTable {
 	// Schema of the table (column names and types)
 	private final TableSchema tableSchema;
-	// Statistics of the table
-	private final TableStats tableStats;
 	// Partition keys if this is a partitioned table. It's an empty set if the table is not partitioned
 	private final List<String> partitionKeys;
 	// Properties of the table
@@ -46,12 +43,10 @@ public class GenericCatalogTable implements CatalogTable {
 
 	public GenericCatalogTable(
 			TableSchema tableSchema,
-			TableStats tableStats,
 			List<String> partitionKeys,
 			Map<String, String> properties,
 			String comment) {
 		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
-		this.tableStats = checkNotNull(tableStats, "tableStats cannot be null");
 		this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
 		this.properties = checkNotNull(properties, "properties cannot be null");
 		this.comment = comment;
@@ -59,15 +54,9 @@ public class GenericCatalogTable implements CatalogTable {
 
 	public GenericCatalogTable(
 			TableSchema tableSchema,
-			TableStats tableStats,
 			Map<String, String> properties,
 			String description) {
-		this(tableSchema, tableStats, new ArrayList<>(), properties, description);
-	}
-
-	@Override
-	public TableStats getStatistics() {
-		return this.tableStats;
+		this(tableSchema, new ArrayList<>(), properties, description);
 	}
 
 	@Override
@@ -98,7 +87,7 @@ public class GenericCatalogTable implements CatalogTable {
 	@Override
 	public GenericCatalogTable copy() {
 		return new GenericCatalogTable(
-			this.tableSchema.copy(), this.tableStats.copy(), new ArrayList<>(partitionKeys), new HashMap<>(this.properties), comment);
+			this.tableSchema.copy(), new ArrayList<>(partitionKeys), new HashMap<>(this.properties), comment);
 	}
 
 	@Override

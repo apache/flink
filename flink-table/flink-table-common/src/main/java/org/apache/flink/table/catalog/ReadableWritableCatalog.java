@@ -233,4 +233,69 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
 		throws FunctionNotExistException, CatalogException;
+
+	// ------ Statistics ------
+
+	/**
+	 * Update the statistics of a table.
+	 *
+	 * @param tablePath path of the table
+	 * @param tableStatistics new statistics to set
+	 * @param ignoreIfNotExists flag to specify behavior if the table does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException if the table does not exist in the catalog
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists)
+		throws TableNotExistException, CatalogException;
+
+	/**
+	 * Update the column statistics of a table.
+	 *
+	 * @param tablePath path of the table
+	 * @param columnStatistics new column statistics to set
+	 * @param ignoreIfNotExists flag to specify behavior if the table does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException if the table does not exist in the catalog
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
+		throws TableNotExistException, CatalogException;
+
+	/**
+	 * Update the statistics of a table partition.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @param partitionStatistics new statistics to set
+	 * @param ignoreIfNotExists flag to specify behavior if the partition does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws PartitionNotExistException if the partition does not exist
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec,
+		CatalogTableStatistics partitionStatistics, boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException;
+
+	/**
+	 * Update the column statistics of a table partition.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @@param columnStatistics new column statistics to set
+	 * @param ignoreIfNotExists flag to specify behavior if the partition does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws PartitionNotExistException if the partition is not partitioned
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec,
+		CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException;
+
 }

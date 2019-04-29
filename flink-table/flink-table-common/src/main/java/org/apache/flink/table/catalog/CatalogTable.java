@@ -18,20 +18,12 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.plan.stats.TableStats;
-
 import java.util.List;
 
 /**
  * Represents a table in a catalog.
  */
 public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Get the statistics of the table.
-	 * @return table statistics
-	 */
-	TableStats getStatistics();
-
 	/**
 	 * Check if the table is partitioned or not.
 	 *

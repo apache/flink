@@ -180,7 +180,7 @@ public class GenericHiveMetastoreCatalogUtil {
 			);
 		} else {
 			return new GenericCatalogTable(
-				tableSchema, new TableStats(0), partitionKeys, properties, comment);
+				tableSchema, partitionKeys, properties, comment);
 		}
 	}
 

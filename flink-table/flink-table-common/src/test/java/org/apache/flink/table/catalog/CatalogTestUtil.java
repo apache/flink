@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.plan.stats.TableStats;
-
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -29,16 +27,11 @@ public class CatalogTestUtil {
 
 	public static void checkEquals(CatalogTable t1, CatalogTable t2) {
 		assertEquals(t1.getSchema(), t2.getSchema());
-		checkEquals(t1.getStatistics(), t2.getStatistics());
 		assertEquals(t1.getComment(), t2.getComment());
 		assertEquals(t1.getProperties(), t2.getProperties());
 		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
 		assertEquals(t1.isPartitioned(), t2.isPartitioned());
-	}
-
-	public static void checkEquals(TableStats ts1, TableStats ts2) {
-		assertEquals(ts1.getRowCount(), ts2.getRowCount());
-		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
+		assertEquals(t1.getDescription(), t2.getDescription());
 	}
 
 	public static void checkEquals(CatalogView v1, CatalogView v2) {
@@ -60,5 +53,23 @@ public class CatalogTestUtil {
 
 	public static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
 		assertEquals(p1.getProperties(), p2.getProperties());
+	}
+
+	static void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {
+		assertEquals(ts1.getRowCount(), ts2.getRowCount());
+		assertEquals(ts1.getFileCount(), ts2.getFileCount());
+		assertEquals(ts1.getTotalSize(), ts2.getTotalSize());
+		assertEquals(ts1.getRawDataSize(), ts2.getRawDataSize());
+		assertEquals(ts1.getProperties(), ts2.getProperties());
+	}
+
+	static void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
+		assertEquals(cs1.getNdv(), cs2.getNdv());
+		assertEquals(cs1.getNullCount(), cs2.getNullCount());
+		assertEquals(cs1.getAvgLen(), cs2.getAvgLen());
+		assertEquals(cs1.getMaxLen(), cs2.getMaxLen());
+		assertEquals(cs1.getMinValue(), cs2.getMinValue());
+		assertEquals(cs2.getMaxValue(), cs2.getMaxValue());
+		assertEquals(cs1.getProperties(), cs2.getProperties());
 	}
 }

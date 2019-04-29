@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -575,6 +574,43 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		catalog.dropDatabase(db1, false);
 	}
 
+	// ------ statistics ------
+
+	@Test
+	public void testStatistics() throws Exception {
+		// Table related
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createTable();
+		catalog.createTable(path1, table, false);
+		assertTrue(catalog.getTableStatistics(path1) == null);
+		assertTrue(catalog.getTableColumnStatistics(path1) == null);
+		CatalogTableStatistics tableStatistics = new CatalogTableStatistics(5, 2, 100, 575);
+		catalog.alterTableStatistics(path1, tableStatistics, false);
+		CatalogTestUtil.checkEquals(tableStatistics, catalog.getTableStatistics(path1));
+		CatalogColumnStatistics columnStatistics = new CatalogColumnStatistics(20L, 2L, 40.5, 17, 45, 15);
+		catalog.alterTableColumnStatistics(path1, columnStatistics, false);
+		CatalogTestUtil.checkEquals(columnStatistics, catalog.getTableColumnStatistics(path1));
+
+		// Partition related
+		catalog.createDatabase(db2, createDb(), false);
+		CatalogTable table2 = createPartitionedTable();
+		catalog.createTable(path2, table2, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path2, partitionSpec, createPartition(), false);
+		assertTrue(catalog.getPartitionStatistics(path2, partitionSpec) == null);
+		assertTrue(catalog.getPartitionColumnStatistics(path2, partitionSpec) == null);
+		catalog.alterPartitionStatistics(path2, partitionSpec, tableStatistics, false);
+		CatalogTestUtil.checkEquals(tableStatistics, catalog.getPartitionStatistics(path2, partitionSpec));
+		catalog.alterPartitionColumnStatistics(path2, partitionSpec, columnStatistics, false);
+		CatalogTestUtil.checkEquals(columnStatistics, catalog.getPartitionColumnStatistics(path2, partitionSpec));
+
+		// Clean up
+		catalog.dropTable(path1, false);
+		catalog.dropDatabase(db1, false);
+		catalog.dropTable(path2, false);
+		catalog.dropDatabase(db2, false);
+	}
+
 	// ------ utilities ------
 
 	@Override
@@ -604,7 +640,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public GenericCatalogTable createStreamingTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			getStreamingTableProperties(),
 			TEST_COMMENT);
 	}
@@ -613,7 +648,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
@@ -622,7 +656,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createAnotherTable() {
 		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
@@ -631,7 +664,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createPartitionedTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
@@ -641,7 +673,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createAnotherPartitionedTable() {
 		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
