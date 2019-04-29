@@ -23,7 +23,7 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -361,7 +361,7 @@ case class VarSamp(child: PlannerExpression) extends Aggregation {
   * Expression for calling a user-defined aggregate function.
   */
 case class AggFunctionCall(
-    aggregateFunction: AggregateFunction[_, _],
+    val aggregateFunction: UserDefinedAggregateFunction[_, _],
     resultTypeInfo: TypeInformation[_],
     accTypeInfo: TypeInformation[_],
     args: Seq[PlannerExpression])
@@ -382,6 +382,7 @@ case class AggFunctionCall(
                             getMethodSignatures(aggregateFunction, "accumulate")
                               .map(_.drop(1))
                               .map(signatureToString)
+                              .sorted  // make sure order to verify error messages in tests
                               .mkString(", ")}")
     } else {
       ValidationSuccess
@@ -409,8 +410,7 @@ case class AggFunctionCall(
       aggregateFunction,
       resultType,
       accTypeInfo,
-      typeFactory,
-      aggregateFunction.requiresOver)
+      typeFactory)
   }
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {

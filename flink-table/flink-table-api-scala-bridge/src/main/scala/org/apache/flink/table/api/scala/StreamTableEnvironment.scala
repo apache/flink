@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.{TableEnvironment, _}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
 
 /**
   * The [[TableEnvironment]] for a Scala [[StreamExecutionEnvironment]] that works with
@@ -60,6 +60,19 @@ trait StreamTableEnvironment extends TableEnvironment {
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
     name: String,
     f: AggregateFunction[T, ACC]): Unit
+
+  /**
+    * Registers an [[TableAggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can only be referenced in Table API.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The TableAggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+    name: String,
+    f: TableAggregateFunction[T, ACC]): Unit
 
   /**
     * Converts the given [[DataStream]] into a [[Table]].

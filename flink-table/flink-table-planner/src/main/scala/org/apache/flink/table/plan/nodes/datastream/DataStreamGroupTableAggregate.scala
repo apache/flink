@@ -20,8 +20,10 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
+import org.apache.flink.table.plan.nodes.CommonTableAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
@@ -30,26 +32,25 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 
 /**
-  *
-  * Flink RelNode for data stream unbounded group aggregate
+  * Flink RelNode for data stream unbounded table aggregate.
   *
   * @param cluster         Cluster of the RelNode, represent for an environment of related
   *                        relational expressions during the optimization of a query.
   * @param traitSet        Trait set of the RelNode
   * @param inputNode       The input RelNode of aggregation
-  * @param namedAggregates List of calls to aggregate functions and their output field names
-  * @param inputSchema     The type of the rows consumed by this RelNode
   * @param schema          The type of the rows emitted by this RelNode
+  * @param inputSchema     The type of the rows consumed by this RelNode
+  * @param namedAggregates List of calls to aggregate functions and their output field names
   * @param groupings       The position (in the input Row) of the grouping keys
   */
-class DataStreamGroupAggregate(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputNode: RelNode,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    schema: RowSchema,
-    inputSchema: RowSchema,
-    groupings: Array[Int])
+class DataStreamGroupTableAggregate(
+  cluster: RelOptCluster,
+  traitSet: RelTraitSet,
+  inputNode: RelNode,
+  schema: RowSchema,
+  inputSchema: RowSchema,
+  val namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+  val groupings: Array[Int])
   extends DataStreamGroupAggregateBase(
     cluster,
     traitSet,
@@ -58,18 +59,19 @@ class DataStreamGroupAggregate(
     schema,
     inputSchema,
     groupings,
-    "Aggregate")
+    "TableAggregate")
+    with CommonTableAggregate
     with DataStreamRel
     with Logging {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamGroupAggregate(
+    new DataStreamGroupTableAggregate(
       cluster,
       traitSet,
       inputs.get(0),
-      namedAggregates,
       schema,
       inputSchema,
+      namedAggregates,
       groupings)
   }
 
@@ -77,7 +79,11 @@ class DataStreamGroupAggregate(
     tableConfig: TableConfig,
     queryConfig: StreamQueryConfig): KeyedProcessFunction[K, CRow, CRow] = {
 
-    AggregateUtil.createGroupAggregateFunction[K](
+    val tableAggOutputRowType = new RowTypeInfo(
+      schema.fieldTypeInfos.drop(groupings.length).toArray,
+      schema.fieldNames.drop(groupings.length).toArray)
+
+    AggregateUtil.createGroupTableAggregateFunction[K](
       tableConfig,
       false,
       inputSchema.typeInfo,
@@ -85,6 +91,7 @@ class DataStreamGroupAggregate(
       namedAggregates,
       inputSchema.relDataType,
       inputSchema.fieldTypeInfos,
+      tableAggOutputRowType,
       groupings,
       queryConfig,
       DataStreamRetractionRules.isAccRetract(this),

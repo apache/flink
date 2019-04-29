@@ -22,48 +22,23 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 
 /**
- * A table that has been grouped on a set of grouping keys.
+ * A table that performs flatAggregate on a {@link Table} or a {@link GroupedTable}.
  */
 @PublicEvolving
-public interface GroupedTable {
+public interface FlatAggregateTable {
 
 	/**
-	 * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
-	 * The field expressions can contain complex expressions and aggregations.
+	 * Performs a selection operation on a FlatAggregateTable. Similar to an SQL SELECT
+	 * statement. The field expressions can contain complex expressions.
+	 *
+	 * <p><b>Note</b>: You have to close the flatAggregate with a select statement. And the select
+	 * statement does not support aggregate functions.
 	 *
 	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
-	 * }
-	 * </pre>
-	 */
-	Table select(String fields);
-
-	/**
-	 * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
-	 * The field expressions can contain complex expressions and aggregations.
-	 *
-	 * <p>Scala Example:
-	 *
-	 * <pre>
-	 * {@code
-	 *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
-	 * }
-	 * </pre>
-	 */
-	Table select(Expression... fields);
-
-	/**
-	 * Performs a flatAggregate operation on a grouped table. FlatAggregate takes a
-	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
-	 *
-	 * <p>Example:
-	 *
-	 * <pre>
-	 * {@code
-	 *   val tableAggFunc: TableAggregateFunction = new MyTableAggregateFunction
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction
 	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
 	 *   tab.groupBy("key")
 	 *     .flatAggregate("tableAggFunc(a, b) as (x, y, z)")
@@ -71,22 +46,25 @@ public interface GroupedTable {
 	 * }
 	 * </pre>
 	 */
-	FlatAggregateTable flatAggregate(String tableAggFunction);
+	Table select(String fields);
 
 	/**
-	 * Performs a flatAggregate operation on a grouped table. FlatAggregate takes a
-	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
+	 * Performs a selection operation on a FlatAggregateTable table. Similar to an SQL SELECT
+	 * statement. The field expressions can contain complex expressions.
+	 *
+	 * <p><b>Note</b>: You have to close the flatAggregate with a select statement. And the select
+	 * statement does not support aggregate functions.
 	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   val tableAggFunc: TableAggregateFunction = new MyTableAggregateFunction
+	 *   val tableAggFunc = new MyTableAggregateFunction
 	 *   tab.groupBy('key)
 	 *     .flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
 	 *     .select('key, 'x, 'y, 'z)
 	 * }
 	 * </pre>
 	 */
-	FlatAggregateTable flatAggregate(Expression tableAggFunction);
+	Table select(Expression... fields);
 }

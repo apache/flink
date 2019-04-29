@@ -1892,6 +1892,59 @@ Table table = input
 {% endhighlight %}
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        <strong>GroupBy TableAggregation</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+{% highlight java %}
+    public class MyMinMaxAcc {
+        public int min = 0;
+        public int max = 0;
+    }
+
+    public class MyMinMax extends TableAggregateFunction<Row, MyMinMaxAcc> {
+
+        public void accumulate(MyMinMaxAcc acc, int value) {
+            if (value < acc.min) {
+                acc.min = value;
+            }
+            if (value > acc.max) {
+                acc.max = value;
+            }
+        }
+
+        @Override
+        public MyMinMaxAcc createAccumulator() {
+            return new MyMinMaxAcc();
+        }
+
+        public void emitValue(MyMinMaxAcc acc, Collector<Row> out) {
+            out.collect(Row.of(acc.min, acc.min));
+            out.collect(Row.of(acc.max, acc.max));
+        }
+
+        @Override
+        public TypeInformation<Row> getResultType() {
+            return new RowTypeInfo(Types.INT, Types.INT);
+        }
+    }
+    
+TableAggregateFunction tableAggFunc = new MyMinMax();
+tableEnv.registerFunction("myTableAggFunc", tableAggFunc);
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .groupBy("a")
+    .flatAggregate("myTableAggFunc(a) as (x, y)")
+    .select("a, x, y");
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -1958,6 +2011,56 @@ val func = new MyFlatMapFunction
 val table = input
   .flatMap(func('c)).as('a, 'b)
 {% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>GroupBy TableAggregation</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+{% highlight scala %}
+case class MyMinMaxAcc(var min: Int, var max: Int)
+
+class MyMinMax extends TableAggregateFunction[Row, MyMinMaxAcc] {
+
+  def accumulate(acc: MyMinMaxAcc, value: Int): Unit = {
+    if (value < acc.min) {
+      acc.min = value
+    }
+    if (value > acc.max) {
+      acc.max = value
+    }
+  }
+
+  def resetAccumulator(acc: MyMinMaxAcc): Unit = {
+    acc.min = 0
+    acc.max = 0
+  }
+
+  override def createAccumulator(): MyMinMaxAcc = MyMinMaxAcc(0, 0)
+
+  def emitValue(acc: MyMinMaxAcc, out: Collector[Row]): Unit = {
+    out.collect(Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.min)))
+    out.collect(Row.of(Integer.valueOf(acc.max), Integer.valueOf(acc.max)))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.INT, Types.INT)
+  }
+}
+
+val tableAggFunc = new MyMinMax
+val orders: Table = tableEnv.scan("Orders")
+val result = orders
+    .groupBy('a)
+    .flatAggregate(tableAggFunc('a) as ('x, 'y))
+    .select('a, 'x, 'y)
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>

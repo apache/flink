@@ -38,6 +38,7 @@ import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable.ListBuffer
 
 /**
   * Builder for [[[Operation]] tree.
@@ -157,6 +158,53 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val resolvedAggregates = resolver.resolve(aggregates)
 
     aggregateOperationFactory.createAggregate(resolvedGroupings, resolvedAggregates, child)
+  }
+
+  def tableAggregate(
+    groupingExpressions: JList[Expression],
+    tableAggFunction: Expression,
+    child: TableOperation)
+  : TableOperation = {
+
+    // Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+    // groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
+    // table aggregate function in Step4.
+    var attrNameCntr: Int = 0
+    val usedFieldNames = child.getTableSchema.getFieldNames.toBuffer
+    val newGroupingExpressions = groupingExpressions.map {
+      case c: CallExpression
+        if !c.getFunctionDefinition.getName.equals(BuiltInFunctionDefinitions.AS.getName) => {
+          val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
+          usedFieldNames.append(tempName)
+          attrNameCntr += 1
+          new CallExpression(
+            BuiltInFunctionDefinitions.AS,
+            Seq(c, new ValueLiteralExpression(tempName))
+          )
+        }
+      case e => e
+    }
+
+    // Step2: resolve expressions
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build
+    val resolvedGroupings = resolver.resolve(newGroupingExpressions)
+    val resolvedFunctionAndAlias = aggregateOperationFactory.extractTableAggFunctionAndAliases(
+      resolveSingleExpression(tableAggFunction, resolver))
+
+    // Step3: create table agg operation
+    val tableAggOperation = aggregateOperationFactory
+      .createAggregate(resolvedGroupings, Seq(resolvedFunctionAndAlias.f0), child)
+
+    // Step4: add a top project to alias the output fields of the table aggregate.
+    val aliasName = resolvedFunctionAndAlias.f1
+    if (aliasName.nonEmpty) {
+      val namesBeforeAlias = tableAggOperation.getTableSchema.getFieldNames
+      val namesAfterAlias = namesBeforeAlias.dropRight(aliasName.size()) ++ aliasName
+      this.alias(namesAfterAlias.map(e =>
+        new UnresolvedReferenceExpression(e)).toList, tableAggOperation)
+    } else {
+      tableAggOperation
+    }
   }
 
   def windowAggregate(
@@ -342,16 +390,6 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
           UserDefinedFunctionUtils.getFieldInfo(tfd.getResultType)._1
       }
 
-    def getUniqueName(inputName: String, usedFieldNames: Seq[String]): String = {
-      var i = 0
-      var resultName = inputName
-      while (usedFieldNames.contains(resultName)) {
-        resultName = resultName + "_" + i
-        i += 1
-      }
-      resultName
-    }
-
     val usedFieldNames = child.getTableSchema.getFieldNames.toBuffer
     val newFieldNames = originFieldNames.map({ e =>
       val resultName = getUniqueName(e, usedFieldNames)
@@ -367,6 +405,19 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
       joinNode)
     alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
+  }
+
+  /**
+    * Return a unique name that does not exist in usedFieldNames according to the input name.
+    */
+  private def getUniqueName(inputName: String, usedFieldNames: Seq[String]): String = {
+    var i = 0
+    var resultName = inputName
+    while (usedFieldNames.contains(resultName)) {
+      resultName = resultName + "_" + i
+      i += 1
+    }
+    resultName
   }
 
   class NoWindowPropertyChecker(val exceptionMessage: String)
