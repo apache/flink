@@ -31,9 +31,9 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.CheckpointTriggerException;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -1508,13 +1508,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				(String savepointPath, Throwable throwable) -> {
 					if (throwable != null) {
 						final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
-						if (strippedThrowable instanceof CheckpointTriggerException) {
-							final CheckpointTriggerException checkpointTriggerException = (CheckpointTriggerException) strippedThrowable;
+						if (strippedThrowable instanceof CheckpointException) {
+							final CheckpointException checkpointException = (CheckpointException) strippedThrowable;
 
-							if (checkpointTriggerException.getCheckpointDeclineReason() == CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING) {
+							if (checkpointException.getCheckpointFailureReason() == CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING) {
 								return lastInternalSavepoint;
 							} else {
-								throw new CompletionException(checkpointTriggerException);
+								throw new CompletionException(checkpointException);
 							}
 						} else {
 							throw new CompletionException(strippedThrowable);

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -210,7 +212,8 @@ public class FailoverRegion {
 					// we restart the checkpoint scheduler for
 					// i) enable new checkpoint could be triggered without waiting for last checkpoint expired.
 					// ii) ensure the EXACTLY_ONCE semantics if needed.
-					executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(new Exception("FailoverRegion is restarting."));
+					executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+						new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
 						tasks, false, true);

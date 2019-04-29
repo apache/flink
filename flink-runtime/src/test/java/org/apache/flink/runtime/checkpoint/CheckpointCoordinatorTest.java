@@ -3139,25 +3139,29 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			SharedStateRegistry.DEFAULT_FACTORY);
 
 		// Periodic
-		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(
-				System.currentTimeMillis(),
-				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				null,
-				true,
-				false);
-
-		assertTrue(triggerResult.isFailure());
-		assertEquals(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN, triggerResult.getFailureReason());
+		try {
+			coord.triggerCheckpoint(
+					System.currentTimeMillis(),
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+					null,
+					true,
+					false);
+			fail("The triggerCheckpoint call expected an exception");
+		} catch (CheckpointException e) {
+			assertEquals(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN, e.getCheckpointFailureReason());
+		}
 
 		// Not periodic
-		triggerResult = coord.triggerCheckpoint(
-				System.currentTimeMillis(),
-				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				null,
-				false,
-				false);
-
-		assertFalse(triggerResult.isFailure());
+		try {
+			coord.triggerCheckpoint(
+					System.currentTimeMillis(),
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+					null,
+					false,
+					false);
+		} catch (CheckpointException e) {
+			fail("Unexpected exception : " + e.getCheckpointFailureReason().message());
+		}
 	}
 
 	private void testCreateKeyGroupPartitions(int maxParallelism, int parallelism) {

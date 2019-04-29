@@ -27,7 +27,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
-import org.apache.flink.runtime.checkpoint.CheckpointTriggerException;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -198,7 +198,7 @@ public class TimestampITCase extends TestLogger {
 						}
 						catch (Exception e) {
 							if (
-									!(e.getCause() instanceof CheckpointTriggerException) ||
+									!(e.getCause() instanceof CheckpointException) ||
 									!e.getCause().getMessage().contains("Not all required tasks are currently running.")
 							) {
 								throw e;
