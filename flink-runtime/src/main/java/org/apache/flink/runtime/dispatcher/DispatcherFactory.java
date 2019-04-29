@@ -18,17 +18,9 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 import java.util.UUID;
 
@@ -41,17 +33,8 @@ public interface DispatcherFactory<T extends Dispatcher> {
 	 * Create a {@link Dispatcher} of the given type {@link T}.
 	 */
 	T createDispatcher(
-		Configuration configuration,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServiceAddress,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		FatalErrorHandler fatalErrorHandler,
-		HistoryServerArchivist historyServerArchivist) throws Exception;
+		@Nonnull RpcService rpcService,
+		@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception;
 
 	default String generateEndpointIdWithUUID() {
 		return getEndpointId() + UUID.randomUUID();
