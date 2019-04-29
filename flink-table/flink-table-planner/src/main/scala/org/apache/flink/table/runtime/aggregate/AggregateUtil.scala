@@ -235,6 +235,83 @@ object AggregateUtil {
   }
 
   /**
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for group (without
+    * window) aggregate to evaluate final table aggregate value.
+    *
+    * @param config             configuration that determines runtime behavior
+    * @param nullableInput      input(s) can be null.
+    * @param input              type information about the input of the Function
+    * @param constants          constant expressions that act like a second input in the
+    *                           parameter indices.
+    * @param namedAggregates    List of calls to aggregate functions and their output field names
+    * @param inputRowType       Input row type
+    * @param inputFieldTypes    Types of the physical input fields
+    * @param groupings          the position (in the input Row) of the grouping keys
+    * @param queryConfig        The configuration of the query to generate.
+    * @param generateRetraction It is a tag that indicates whether generate retract record.
+    * @param consumeRetraction  It is a tag that indicates whether consume the retract record.
+    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+    */
+  private[flink] def createGroupTableAggregateFunction[K](
+    config: TableConfig,
+    nullableInput: Boolean,
+    input: TypeInformation[_ <: Any],
+    constants: Option[Seq[RexLiteral]],
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputRowType: RelDataType,
+    inputFieldTypes: Seq[TypeInformation[_]],
+    tableAggOutputRowType: RowTypeInfo,
+    groupings: Array[Int],
+    queryConfig: StreamQueryConfig,
+    generateRetraction: Boolean,
+    consumeRetraction: Boolean): KeyedProcessFunction[K, CRow, CRow] = {
+
+    val aggregateMetadata = extractAggregateMetadata(
+      namedAggregates.map(_.getKey),
+      inputRowType,
+      inputFieldTypes.length,
+      consumeRetraction,
+      config,
+      isStateBackedDataViews = true)
+
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
+    val outputArity = groupings.length + tableAggOutputRowType.getTotalFields
+    val tableAggOutputType = namedAggregates
+      .head.left.getAggregation.asInstanceOf[AggSqlFunction].returnType
+
+    val generator = new AggregationCodeGenerator(
+      config,
+      nullableInput,
+      input,
+      constants,
+      "NonWindowedTableAggregationHelper",
+      inputFieldTypes,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
+      aggMapping,
+      aggregateMetadata.getDistinctAccMapping,
+      isStateBackedDataViews = true,
+      partialResults = false,
+      groupings,
+      None,
+      outputArity,
+      consumeRetraction,
+      needMerge = false,
+      needReset = false,
+      accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
+    )
+
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(aggregateMetadata
+      .getAggregatesAccumulatorTypes: _*)
+    new GroupTableAggProcessFunction[K](
+      generator.generateTableAggregations(tableAggOutputRowType, tableAggOutputType),
+      aggregationStateType,
+      generateRetraction,
+      queryConfig)
+
+  }
+
+  /**
     * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for ROWS clause
     * bounded OVER window to evaluate final aggregate value.
     *
