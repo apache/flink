@@ -233,6 +233,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		if (tableExists(tablePath)) {
 			tables.remove(tablePath);
+			tableStats.remove(tablePath);
+			tableColumnStats.remove(tablePath);
 
 			partitions.remove(tablePath);
 			partitionStats.remove(tablePath);
@@ -256,10 +258,6 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 			} else {
 				tables.put(newPath, tables.remove(tablePath));
 
-				if (partitions.containsKey(tablePath)) {
-					partitions.put(newPath, partitions.remove(tablePath));
-				}
-
 				// table statistics
 				if (tableStats.containsKey(tablePath)) {
 					tableStats.put(newPath, tableStats.remove(tablePath));
@@ -268,6 +266,21 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 				// table column statistics
 				if (tableColumnStats.containsKey(tablePath)) {
 					tableColumnStats.put(newPath, tableColumnStats.remove(tablePath));
+				}
+
+				// partitions
+				if (partitions.containsKey(tablePath)) {
+					partitions.put(newPath, partitions.remove(tablePath));
+				}
+
+				// partition statistics
+				if (partitionStats.containsKey(tablePath)) {
+					partitionStats.put(newPath, partitionStats.remove(tablePath));
+				}
+
+				// partition column statistics
+				if (partitionColumnStats.containsKey(tablePath)) {
+					partitionColumnStats.put(newPath, partitionColumnStats.remove(tablePath));
 				}
 			}
 		} else if (!ignoreIfNotExists) {
@@ -434,6 +447,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		if (partitionExists(tablePath, partitionSpec)) {
 			partitions.get(tablePath).remove(partitionSpec);
+			partitionStats.get(tablePath).remove(partitionSpec);
+			partitionColumnStats.get(tablePath).remove(partitionSpec);
 		} else if (!ignoreIfNotExists) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
 		}
