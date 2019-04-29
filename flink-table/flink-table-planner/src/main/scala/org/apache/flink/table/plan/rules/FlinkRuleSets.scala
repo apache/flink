@@ -140,7 +140,8 @@ object FlinkRuleSets {
     FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalNativeTableScan.CONVERTER,
-    FlinkLogicalMatch.CONVERTER
+    FlinkLogicalMatch.CONVERTER,
+    FlinkLogicalTableAggregate.CONVERTER
   )
 
   /**
@@ -231,7 +232,8 @@ object FlinkRuleSets {
     DataStreamJoinRule.INSTANCE,
     DataStreamTemporalTableJoinRule.INSTANCE,
     StreamTableSourceScanRule.INSTANCE,
-    DataStreamMatchRule.INSTANCE
+    DataStreamMatchRule.INSTANCE,
+    DataStreamTableAggregateRule.INSTANCE
   )
 
   /**

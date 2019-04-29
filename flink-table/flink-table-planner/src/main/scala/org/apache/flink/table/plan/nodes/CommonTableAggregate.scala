@@ -24,8 +24,9 @@ import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.calcite.util.{ImmutableBitSet, Pair, Util}
+import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 
 import scala.collection.JavaConversions._
 
@@ -49,5 +50,39 @@ trait CommonTableAggregate extends CommonAggregate {
     // agg fields
     aggCalls.get(0).`type`.getFieldList.foreach(builder.add)
     builder.build()
+  }
+
+  override private[flink] def aggregationToString(
+    inputType: RelDataType,
+    grouping: Array[Int],
+    rowType: RelDataType,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    namedProperties: Seq[FlinkRelBuilder.NamedWindowProperty]): String = {
+
+    val outFields = rowType.getFieldNames
+    val tableAggOutputArity = namedAggregates.head.left.getType.getFieldCount
+    val groupSize = grouping.size
+    val outFieldsOfTableAgg = outFields.subList(groupSize, groupSize + tableAggOutputArity)
+    val tableAggOutputFields = Seq(s"(${outFieldsOfTableAgg.mkString(", ")})")
+
+    val newOutFields = outFields.subList(0, groupSize) ++
+      tableAggOutputFields ++
+      outFields.drop(groupSize + tableAggOutputArity)
+
+    aggregationToString(inputType, grouping, newOutFields, namedAggregates, namedProperties)
+  }
+
+  private[flink] def getNamedAggCalls(
+    aggCalls: util.List[AggregateCall],
+    rowType: RelDataType,
+    indicator: Boolean,
+    groupSet: ImmutableBitSet)
+  : util.List[Pair[AggregateCall, String]] = {
+
+    def getGroupCount: Int = groupSet.cardinality
+    def getIndicatorCount: Int = if (indicator) getGroupCount else 0
+
+    val offset = getGroupCount + getIndicatorCount
+    Pair.zip(aggCalls, Util.skip(rowType.getFieldNames, offset))
   }
 }
