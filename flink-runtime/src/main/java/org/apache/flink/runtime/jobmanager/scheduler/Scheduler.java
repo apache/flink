@@ -186,10 +186,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 		}
 
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
-		
-		final boolean forceExternalLocation = false &&
-									preferredLocations != null && preferredLocations.iterator().hasNext();
-	
+
 		synchronized (globalLock) {
 			
 			SlotSharingGroup sharingUnit = vertex.getJobVertex().getSlotSharingGroup();
@@ -205,13 +202,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				
 				final SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
 				final CoLocationConstraint constraint = task.getCoLocationConstraint();
-				
-				// sanity check that we do not use an externally forced location and a co-location constraint together
-				if (constraint != null && forceExternalLocation) {
-					throw new IllegalArgumentException("The scheduling cannot be constrained simultaneously by a "
-							+ "co-location constraint and an external location constraint.");
-				}
-				
+
 				// get a slot from the group, if the group has one for us (and can fulfill the constraint)
 				final SimpleSlot slotFromGroup;
 				if (constraint == null) {
@@ -253,7 +244,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 					}
 					else {
 						locations = preferredLocations;
-						localOnly = forceExternalLocation;
+						localOnly = false;
 					}
 					
 					newSlot = getNewSlotForSharingGroup(vertex, locations, assignment, constraint, localOnly);
@@ -266,12 +257,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 								// nothing is available on the node where the co-location constraint forces us to
 								throw new NoResourceAvailableException("Could not allocate a slot on instance " +
 										constraint.getLocation() + ", as required by the co-location constraint.");
-							}
-							else if (forceExternalLocation) {
-								// could not satisfy the external location constraint
-								String hosts = getHostnamesFromInstances(preferredLocations);
-								throw new NoResourceAvailableException("Could not schedule task " + vertex
-										+ " to any of the required hosts: " + hosts);
 							}
 							else {
 								// simply nothing is available
@@ -329,7 +314,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				
 				// 2) === schedule without hints and sharing ===
 				
-				SimpleSlot slot = getFreeSlotForTask(vertex, preferredLocations, forceExternalLocation);
+				SimpleSlot slot = getFreeSlotForTask(vertex, preferredLocations, false);
 				if (slot != null) {
 					updateLocalityCounters(slot, vertex);
 					return slot;
@@ -340,11 +325,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 						this.taskQueue.add(new QueuedTask(task, future));
 						return future;
-					}
-					else if (forceExternalLocation) {
-						String hosts = getHostnamesFromInstances(preferredLocations);
-						throw new NoResourceAvailableException("Could not schedule task " + vertex
-								+ " to any of the required hosts: " + hosts);
 					}
 					else {
 						throw new NoResourceAvailableException(getNumberOfAvailableInstances(),
