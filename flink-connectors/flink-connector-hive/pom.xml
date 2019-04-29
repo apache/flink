@@ -400,8 +400,16 @@ under the License.
 							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-							<!-- TODO: [FLINK-12310] shade user facing common libraries in flink-connector-hive -->
 							<filters>
+								<filter>
+									<!-- some dependencies bring their own LICENSE.txt which we don't need -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>META-INF/ASM_LICENSE.txt</exclude>
+										<exclude>META-INF/ASL2.0</exclude>
+									</excludes>
+								</filter>
 							</filters>
 						</configuration>
 					</execution>
