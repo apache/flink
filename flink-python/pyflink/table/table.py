@@ -35,10 +35,12 @@ class Table(object):
         >>> t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
         >>> t_env = TableEnvironment.get_table_environment(t_config)
         >>> ...
+        >>> t_env.register_table_source("source", ...)
         >>> t = t_env.scan("source")
         >>> t.select(...)
         ...
-        >>> t.insert_into("print")
+        >>> t_env.register_table_sink("result", ...)
+        >>> t.insert_into("result")
         >>> t_env.execute()
 
     Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,

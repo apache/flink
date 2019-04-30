@@ -178,7 +178,7 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Python Table API -->
+		<!-- Python API -->
 		<file>
 			<source>../flink-python/target/flink-python-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>

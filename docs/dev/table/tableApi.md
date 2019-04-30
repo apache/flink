@@ -328,7 +328,7 @@ orders = table_env.scan("Orders");
       <td>
         <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
 {% highlight python %}
-orders = tableEnv.scan("Orders");
+orders = table_env.scan("Orders");
 result = orders.select("a, c as d");
 {% endhighlight %}
         <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>

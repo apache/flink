@@ -18,6 +18,7 @@
 import os
 import tempfile
 
+from pyflink.find_flink_home import _find_flink_home
 from pyflink.table import TableEnvironment, TableConfig
 from pyflink.table.table_sink import CsvTableSink
 from pyflink.table.table_source import CsvTableSource
@@ -33,6 +34,8 @@ def test_end_to_end():
         lines = '1,hi,hello\n' + '2,hi,hello\n'
         f.write(lines)
         f.close()
+    _find_flink_home()
+    print("using %s as FLINK_HOME..." % os.environ["FLINK_HOME"])
 
     t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
     t_env = TableEnvironment.get_table_environment(t_config)
@@ -64,7 +67,7 @@ def test_end_to_end():
     with open(tmp_csv, 'r') as f:
         lines = f.read()
         assert lines == '2,hi,hello\n' + '3,hi,hello\n'
-
+    print("test passed, the log file is under this directory: %s/log" % os.environ["FLINK_HOME"])
 
 if __name__ == '__main__':
     test_end_to_end()

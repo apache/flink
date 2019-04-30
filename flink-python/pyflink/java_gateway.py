@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import os
+import platform
 import shutil
 import signal
 import struct
@@ -56,7 +57,10 @@ def launch_gateway():
 
     FLINK_HOME = _find_flink_home()
     # TODO windows support
-    script = "./bin/pyflink2.sh"
+    on_windows = platform.system() == "Windows"
+    if on_windows:
+        raise Exception("Windows system is not supported currently.")
+    script = "./bin/pyflink-gateway-server.sh"
     command = [os.path.join(FLINK_HOME, script)]
     command += ['-c', 'org.apache.flink.api.python.PythonGatewayServer']
 

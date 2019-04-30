@@ -17,6 +17,7 @@
 ################################################################################
 from __future__ import print_function
 
+import io
 import os
 import sys
 from setuptools import setup
@@ -38,7 +39,7 @@ except IOError:
     sys.exit(-1)
 VERSION = __version__  # noqa
 
-with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
     long_description = f.read()
 
 setup(

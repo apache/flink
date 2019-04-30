@@ -43,8 +43,8 @@ class TableEnvironment(object):
         """
         Creates a table from a table source.
 
-        :param table_source: table source used as table
-        :return: result table
+        :param table_source: The table source used as table.
+        :return: The result table.
         """
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source))
 
@@ -71,7 +71,7 @@ class TableEnvironment(object):
     def register_table_sink(self, name, field_names, field_types, table_sink):
         """
         Registers an external :class:`TableSink` with given field names and types in this
-        :class:`TableEnvironment`\ 's catalog.
+        :class:`TableEnvironment`'s catalog.
         Registered sink tables can be referenced in SQL DML statements.
 
         :param name: The name under which the :class:`TableSink` is registered.

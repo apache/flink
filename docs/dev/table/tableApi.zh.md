@@ -303,18 +303,18 @@ val result = orders.where('b === "red")
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Operators</th>
-      <th class="text-center">Description</th>
+      <th class="text-left" style="width: 20%">操作</th>
+      <th class="text-center">描述</th>
     </tr>
   </thead>
   <tbody>
   	<tr>
   		<td>
         <strong>Scan</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
   		<td>
-        <p>Similar to the FROM clause in a SQL query. Performs a scan of a registered table.</p>
+        <p>类似于SQL请求中的FROM子句，将一个环境中已注册的表转换成Table对象。</p>
 {% highlight python %}
 orders = table_env.scan("Orders");
 {% endhighlight %}
@@ -323,15 +323,15 @@ orders = table_env.scan("Orders");
     <tr>
       <td>
         <strong>Select</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
+        <p>类似于SQL请求中的SELECT子句，执行一个select操作。</p>
 {% highlight python %}
-orders = tableEnv.scan("Orders");
+orders = table_env.scan("Orders");
 result = orders.select("a, c as d");
 {% endhighlight %}
-        <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
+        <p>您可以使用星号 (<code>*</code>) 表示选择表中的所有列。</p>
 {% highlight python %}
 result = orders.select("*");
 {% endhighlight %}
@@ -340,10 +340,10 @@ result = orders.select("*");
     <tr>
       <td>
         <strong>Alias</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>Renames fields.</p>
+        <p>重命名字段。</p>
 {% highlight python %}
 orders = table_env.scan("Orders");
 result = orders.alias("x, y, z, t");
@@ -354,10 +354,10 @@ result = orders.alias("x, y, z, t");
     <tr>
       <td>
         <strong>Where / Filter</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
+        <p>类似于SQL请求中的WHERE子句，过滤掉表中不满足条件的行。</p>
 {% highlight python %}
 orders = table_env.scan("Orders");
 result = orders.where("b === 'red'");

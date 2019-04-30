@@ -23,6 +23,10 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
+if [ "$FLINK_IDENT_STRING" = "" ]; then
+        FLINK_IDENT_STRING="$USER"
+fi
+
 FLINK_CLASSPATH=`constructFlinkClassPath`
 
 ARGS=()
@@ -43,6 +47,9 @@ do
     esac
 done
 
+log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-client-$HOSTNAME.log
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
+
 PYTHON_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-python-*.jar`
 TABLE_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-table*.jar`
-exec $JAVA_RUN $JVM_ARGS -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH} ${DRIVER} ${ARGS[@]}
+exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH} ${DRIVER} ${ARGS[@]}
