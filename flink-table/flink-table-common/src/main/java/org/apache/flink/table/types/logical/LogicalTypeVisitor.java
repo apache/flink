@@ -45,5 +45,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(SmallIntType smallIntType);
 
+	R visit(IntType intType);
+
 	R visit(LogicalType other);
 }
