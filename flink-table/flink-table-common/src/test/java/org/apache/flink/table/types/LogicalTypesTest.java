@@ -20,6 +20,7 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
@@ -46,6 +47,18 @@ public class LogicalTypesTest {
 			new Class[]{String.class, byte[].class},
 			new LogicalType[]{},
 			new CharType(12)
+		);
+	}
+
+	@Test
+	public void testVarCharType() {
+		testAll(
+			new VarCharType(33),
+			"VARCHAR(33)",
+			new Class[]{String.class, byte[].class},
+			new Class[]{String.class, byte[].class},
+			new LogicalType[]{},
+			new VarCharType(12)
 		);
 	}
 
