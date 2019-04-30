@@ -23,6 +23,7 @@ import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.InstantiationUtil;
@@ -118,6 +119,19 @@ public class LogicalTypesTest {
 			new Class[]{BigDecimal.class},
 			new LogicalType[]{},
 			new DecimalType()
+		);
+	}
+
+	@Test
+	public void testTinyIntType() {
+		testAll(
+			new TinyIntType(),
+			"TINYINT",
+			"TINYINT",
+			new Class[]{Byte.class, byte.class},
+			new Class[]{Byte.class},
+			new LogicalType[]{},
+			new TinyIntType(false)
 		);
 	}
 
