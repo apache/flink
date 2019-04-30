@@ -1,8 +1,8 @@
 ---
-title: "Aliyun Object Storage Service (OSS)"
+title: "Aliyun 对象存储服务 (OSS)"
 nav-title: Aliyun OSS
-nav-parent_id: deployment
-nav-pos: 9
+nav-parent_id: filesystems
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

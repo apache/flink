@@ -64,81 +64,11 @@ HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/flink run -m yarn-cluster -yn 1 examples/
 
 {% top %}
 
-## S3: Simple Storage Service
-
-[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/ops/state/state_backends.html) or even as a YARN object storage.
-
-You can use S3 objects like regular files by specifying paths in the following format:
-
-{% highlight plain %}
-s3://<your-bucket>/<endpoint>
-{% endhighlight %}
-
-The endpoint can either be a single file or a directory, for example:
-
-{% highlight java %}
-// Read from S3 bucket
-env.readTextFile("s3://<bucket>/<endpoint>");
-
-// Write to S3 bucket
-stream.writeAsText("s3://<bucket>/<endpoint>");
-
-// Use S3 as FsStatebackend
-env.setStateBackend(new FsStateBackend("s3://<your-bucket>/<endpoint>"));
-{% endhighlight %}
-
-Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup](../jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/ops/state/state_backends.html#the-rocksdbstatebackend); everywhere that Flink expects a FileSystem URI.
-
-For most use cases, you may use one of our shaded `flink-s3-fs-hadoop` and `flink-s3-fs-presto` S3
-filesystem wrappers which are fairly easy to set up. For some cases, however, e.g. for using S3 as
-YARN's resource storage dir, it may be necessary to set up a specific Hadoop S3 FileSystem
-implementation. Both ways are described below.
-
-### Shaded Hadoop/Presto S3 file systems (recommended)
+### Hadoop-provided S3 file systems
 
 {% panel **Note:** You don't have to configure this manually if you are running [Flink on EMR](#emr-elastic-mapreduce). %}
 
-To use either `flink-s3-fs-hadoop` or `flink-s3-fs-presto`, copy the respective JAR file from the
-`opt` directory to the `lib` directory of your Flink distribution before starting Flink, e.g.
-
-{% highlight bash %}
-cp ./opt/flink-s3-fs-presto-{{ site.version }}.jar ./lib/
-{% endhighlight %}
-
-Both `flink-s3-fs-hadoop` and `flink-s3-fs-presto` register default FileSystem
-wrappers for URIs with the `s3://` scheme, `flink-s3-fs-hadoop` also registers
-for `s3a://` and `flink-s3-fs-presto` also registers for `s3p://`, so you can
-use this to use both at the same time.
-
-#### Configure Access Credentials
-
-After setting up the S3 FileSystem wrapper, you need to make sure that Flink is allowed to access your S3 buckets.
-
-##### Identity and Access Management (IAM) (Recommended)
-
-The recommended way of setting up credentials on AWS is via [Identity and Access Management (IAM)](http://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html). You can use IAM features to securely give Flink instances the credentials that they need in order to access S3 buckets. Details about how to do this are beyond the scope of this documentation. Please refer to the AWS user guide. What you are looking for are [IAM Roles](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html).
-
-If you set this up correctly, you can manage access to S3 within AWS and don't need to distribute any access keys to Flink.
-
-##### Access Keys (Discouraged)
-
-Access to S3 can be granted via your **access and secret key pair**. Please note that this is discouraged since the [introduction of IAM roles](https://blogs.aws.amazon.com/security/post/Tx1XG3FX6VMU6O5/A-safer-way-to-distribute-AWS-credentials-to-EC2).
-
-You need to configure both `s3.access-key` and `s3.secret-key`  in Flink's  `flink-conf.yaml`:
-
-{% highlight yaml %}
-s3.access-key: your-access-key
-s3.secret-key: your-secret-key
-{% endhighlight %}
-
-{% top %}
-
-### Hadoop-provided S3 file systems - manual setup
-
-{% panel **Note:** You don't have to configure this manually if you are running [Flink on EMR](#emr-elastic-mapreduce). %}
-
-This setup is a bit more complex and we recommend using our shaded Hadoop/Presto file systems
-instead (see above) unless required otherwise, e.g. for using S3 as YARN's resource storage dir
+Apache Flink provides native [S3 FileSystem's](../filesystems/s3.html) out of the box and we recomend using them unless required otherwise, e.g. for using S3 as YARN's resource storage dir
 via the `fs.defaultFS` configuration property in Hadoop's `core-site.xml`.
 
 #### Set S3 FileSystem
