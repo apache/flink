@@ -26,6 +26,11 @@ import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
@@ -583,13 +588,13 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		assertTrue(catalog.getTableStatistics(path1) == null);
-		assertTrue(catalog.getTableColumnStatistics(path1) == null);
+		CatalogTestUtil.checkEquals(catalog.getTableStatistics(path1), CatalogTableStatistics.UNKNOWN);
+		CatalogTestUtil.checkEquals(catalog.getTableColumnStatistics(path1), CatalogColumnStatistics.UNKNOWN);
 
 		CatalogTableStatistics tableStatistics = new CatalogTableStatistics(5, 2, 100, 575);
 		catalog.alterTableStatistics(path1, tableStatistics, false);
 		CatalogTestUtil.checkEquals(tableStatistics, catalog.getTableStatistics(path1));
-		CatalogColumnStatistics columnStatistics = new CatalogColumnStatistics(20L, 2L, 40.5, 17, 45, 15);
+		CatalogColumnStatistics columnStatistics = createColumnStats();
 		catalog.alterTableColumnStatistics(path1, columnStatistics, false);
 		CatalogTestUtil.checkEquals(columnStatistics, catalog.getTableColumnStatistics(path1));
 
@@ -600,8 +605,8 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		catalog.createPartition(path2, partitionSpec, createPartition(), false);
 
-		assertTrue(catalog.getPartitionStatistics(path2, partitionSpec) == null);
-		assertTrue(catalog.getPartitionColumnStatistics(path2, partitionSpec) == null);
+		CatalogTestUtil.checkEquals(catalog.getPartitionStatistics(path2, partitionSpec), CatalogTableStatistics.UNKNOWN);
+		CatalogTestUtil.checkEquals(catalog.getPartitionColumnStatistics(path2, partitionSpec), CatalogColumnStatistics.UNKNOWN);
 
 		catalog.alterPartitionStatistics(path2, partitionSpec, tableStatistics, false);
 		CatalogTestUtil.checkEquals(tableStatistics, catalog.getPartitionStatistics(path2, partitionSpec));
@@ -744,6 +749,15 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			"This is another view");
 	}
 
+	private CatalogColumnStatistics createColumnStats() {
+		CatalogColumnStatisticsDataBoolean booleanColStats = new CatalogColumnStatisticsDataBoolean(55L, 45L, 5L);
+		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 79L);
+		Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(2);
+		colStatsMap.put("b1", booleanColStats);
+		colStatsMap.put("l2", longColStats);
+		return new CatalogColumnStatistics(colStatsMap);
+	}
+
 	protected CatalogFunction createFunction() {
 		return new GenericCatalogFunction(MyScalarFunction.class.getName());
 	}
@@ -769,4 +783,5 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			return String.valueOf(i);
 		}
 	}
+
 }

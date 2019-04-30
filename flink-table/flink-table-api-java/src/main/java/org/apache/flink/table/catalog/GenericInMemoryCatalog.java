@@ -30,6 +30,8 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -592,7 +594,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		}
 
 		CatalogTableStatistics result = tableStats.get(tablePath);
-		return result == null ? null : result.copy();
+		return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
 	}
 
 	@Override
@@ -602,8 +604,9 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		if (!tableExists(tablePath)) {
 			throw new TableNotExistException(catalogName, tablePath);
 		}
+
 		CatalogColumnStatistics result = tableColumnStats.get(tablePath);
-		return result == null ? null : result.copy();
+		return result != null ? result.copy() : CatalogColumnStatistics.UNKNOWN;
 	}
 
 	@Override
@@ -617,7 +620,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		}
 
 		CatalogTableStatistics result = partitionStats.get(tablePath).get(partitionSpec);
-		return result == null ? null : result.copy();
+		return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
 	}
 
 	@Override
@@ -631,7 +634,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		}
 
 		CatalogColumnStatistics result = partitionColumnStats.get(tablePath).get(partitionSpec);
-		return result == null ? null : result.copy();
+		return result != null ? result.copy() : CatalogColumnStatistics.UNKNOWN;
 	}
 
 	@Override
@@ -648,8 +651,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
-			throws TableNotExistException {
+	public void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics,
+			boolean ignoreIfNotExists) throws TableNotExistException {
 		checkNotNull(tablePath);
 		checkNotNull(columnStatistics);
 
@@ -661,9 +664,7 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void alterPartitionStatistics(ObjectPath tablePath,
-			CatalogPartitionSpec partitionSpec,
-			CatalogTableStatistics partitionStatistics,
+	public void alterPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogTableStatistics partitionStatistics,
 			boolean ignoreIfNotExists) throws PartitionNotExistException {
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
@@ -677,11 +678,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	}
 
 	@Override
-	public void alterPartitionColumnStatistics(ObjectPath tablePath,
-			CatalogPartitionSpec partitionSpec,
-			CatalogColumnStatistics columnStatistics,
+	public void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics,
 			boolean ignoreIfNotExists) throws PartitionNotExistException {
-
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
 		checkNotNull(columnStatistics);

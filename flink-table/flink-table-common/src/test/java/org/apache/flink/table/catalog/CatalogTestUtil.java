@@ -18,7 +18,25 @@
 
 package org.apache.flink.table.catalog;
 
+<<<<<<< HEAD:flink-table/flink-table-common/src/test/java/org/apache/flink/table/catalog/CatalogTestUtil.java
+=======
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+>>>>>>> Reworked stats related classes and APIs to address some of the review comments:flink-table/flink-table-api-java/src/test/java/org/apache/flink/table/catalog/CatalogTestUtil.java
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Utility class for catalog testing.
@@ -64,12 +82,40 @@ public class CatalogTestUtil {
 	}
 
 	static void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
-		assertEquals(cs1.getNdv(), cs2.getNdv());
-		assertEquals(cs1.getNullCount(), cs2.getNullCount());
-		assertEquals(cs1.getAvgLen(), cs2.getAvgLen());
-		assertEquals(cs1.getMaxLen(), cs2.getMaxLen());
-		assertEquals(cs1.getMinValue(), cs2.getMinValue());
-		assertEquals(cs2.getMaxValue(), cs2.getMaxValue());
+		checkEquals(cs1.getColumnStatisticsData(), cs2.getColumnStatisticsData());
 		assertEquals(cs1.getProperties(), cs2.getProperties());
 	}
+
+	private static void checkEquals(Map<String, CatalogColumnStatisticsDataBase> m1, Map<String, CatalogColumnStatisticsDataBase> m2) {
+		assertEquals(m1.size(), m2.size());
+		for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : m2.entrySet()) {
+			assertTrue(m1.containsKey(entry.getKey()));
+			checkEquals(m2.get(entry.getKey()), entry.getValue());
+		}
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataBase v1, CatalogColumnStatisticsDataBase v2) {
+		assertEquals(v1.getClass(), v2.getClass());
+		if (v1 instanceof CatalogColumnStatisticsDataBoolean) {
+			checkEquals((CatalogColumnStatisticsDataBoolean) v1, (CatalogColumnStatisticsDataBoolean) v2);
+		} else if (v1 instanceof CatalogColumnStatisticsDataLong) {
+			checkEquals((CatalogColumnStatisticsDataLong) v1, (CatalogColumnStatisticsDataLong) v2);
+		}
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataBoolean v1, CatalogColumnStatisticsDataBoolean v2) {
+		assertEquals(v1.getFalseCount(), v2.getFalseCount());
+		assertEquals(v1.getTrueCount(), v2.getTrueCount());
+		assertEquals(v1.getNullCount(), v2.getNullCount());
+		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataLong v1, CatalogColumnStatisticsDataLong v2) {
+		assertEquals(v1.getMin(), v2.getMin());
+		assertEquals(v1.getMax(), v2.getMax());
+		assertEquals(v1.getNdv(), v2.getNdv());
+		assertEquals(v1.getNullCount(), v2.getNullCount());
+		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
 }

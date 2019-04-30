@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.catalog.stats;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +25,7 @@ import java.util.Map;
  * Statistics for a non-partitioned table or a partition of a partitioned table.
  */
 public class CatalogTableStatistics {
+	public static final CatalogTableStatistics UNKNOWN = new CatalogTableStatistics(0, 0, 0, 0);
 
 	/**
 	 * The number of rows in the table or partition.

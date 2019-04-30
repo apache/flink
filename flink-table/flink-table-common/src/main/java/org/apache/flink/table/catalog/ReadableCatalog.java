@@ -24,6 +24,8 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import java.util.List;
 
@@ -221,13 +223,13 @@ public interface ReadableCatalog {
 	 */
 	boolean functionExists(ObjectPath functionPath) throws CatalogException;
 
-	// ------ Statistics ------
+	// ------ statistics ------
 
 	/**
 	 * Get the statistics of a table.
 	 *
 	 * @param tablePath path of the table
-	 * @return the statistics of the given table
+	 * @return statistics of the given table
 	 *
 	 * @throws TableNotExistException if the table does not exist in the catalog
 	 * @throws CatalogException	in case of any runtime exception
@@ -238,7 +240,7 @@ public interface ReadableCatalog {
 	 * Get the column statistics of a table.
 	 *
 	 * @param tablePath path of the table
-	 * @return the column statistics of the given table
+	 * @return column statistics of the given table
 	 *
 	 * @throws TableNotExistException if the table does not exist in the catalog
 	 * @throws CatalogException	in case of any runtime exception
@@ -250,7 +252,7 @@ public interface ReadableCatalog {
 	 *
 	 * @param tablePath path of the table
 	 * @param partitionSpec partition spec of the partition
-	 * @return the statistics of the given partition
+	 * @return statistics of the given partition
 	 *
 	 * @throws PartitionNotExistException if the partition is not partitioned
 	 * @throws CatalogException	in case of any runtime exception
@@ -263,7 +265,7 @@ public interface ReadableCatalog {
 	 *
 	 * @param tablePath path of the table
 	 * @param partitionSpec partition spec of the partition
-	 * @return the column statistics of the given partition
+	 * @return column statistics of the given partition
 	 *
 	 * @throws PartitionNotExistException if the partition is not partitioned
 	 * @throws CatalogException	in case of any runtime exception
