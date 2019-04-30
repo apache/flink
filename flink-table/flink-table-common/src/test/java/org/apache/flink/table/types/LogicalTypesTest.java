@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
@@ -152,6 +153,18 @@ public class LogicalTypesTest {
 			new Class[]{Integer.class},
 			new LogicalType[]{},
 			new IntType(false)
+		);
+	}
+
+	@Test
+	public void testBigIntType() {
+		testAll(
+			new BigIntType(),
+			"BIGINT",
+			new Class[]{Long.class},
+			new Class[]{Long.class},
+			new LogicalType[]{},
+			new BigIntType(false)
 		);
 	}
 
