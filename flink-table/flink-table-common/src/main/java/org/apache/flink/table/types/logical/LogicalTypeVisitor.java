@@ -29,5 +29,7 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface LogicalTypeVisitor<R> {
 
+	R visit(CharType charType);
+
 	R visit(LogicalType other);
 }
