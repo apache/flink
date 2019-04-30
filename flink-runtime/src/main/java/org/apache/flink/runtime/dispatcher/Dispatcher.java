@@ -323,26 +323,32 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private JobManagerRunner startJobManagerRunner(JobManagerRunner jobManagerRunner) throws Exception {
 		final JobID jobId = jobManagerRunner.getJobGraph().getJobID();
-		jobManagerRunner.getResultFuture().whenCompleteAsync(
-			(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
-				// check if we are still the active JobManagerRunner by checking the identity
-				//noinspection ObjectEquality
-				if (jobManagerRunner == jobManagerRunnerFutures.get(jobId).getNow(null)) {
-					if (archivedExecutionGraph != null) {
-						jobReachedGloballyTerminalState(archivedExecutionGraph);
-					} else {
-						final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
 
-						if (strippedThrowable instanceof JobNotFinishedException) {
-							jobNotFinished(jobId);
+		FutureUtils.assertNoException(
+			jobManagerRunner.getResultFuture().handleAsync(
+				(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
+					// check if we are still the active JobManagerRunner by checking the identity
+					final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = jobManagerRunnerFutures.get(jobId);
+					final JobManagerRunner currentJobManagerRunner = jobManagerRunnerFuture != null ? jobManagerRunnerFuture.getNow(null) : null;
+					//noinspection ObjectEquality
+					if (jobManagerRunner == currentJobManagerRunner) {
+						if (archivedExecutionGraph != null) {
+							jobReachedGloballyTerminalState(archivedExecutionGraph);
 						} else {
-							jobMasterFailed(jobId, strippedThrowable);
+							final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+							if (strippedThrowable instanceof JobNotFinishedException) {
+								jobNotFinished(jobId);
+							} else {
+								jobMasterFailed(jobId, strippedThrowable);
+							}
 						}
+					} else {
+						log.debug("There is a newer JobManagerRunner for the job {}.", jobId);
 					}
-				} else {
-					log.debug("There is a newer JobManagerRunner for the job {}.", jobId);
-				}
-			}, getMainThreadExecutor());
+
+					return null;
+				}, getMainThreadExecutor()));
 
 		jobManagerRunner.start();
 

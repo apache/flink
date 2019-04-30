@@ -571,4 +571,60 @@ public class FutureUtilsTest extends TestLogger {
 
 		assertThat(future.get(), is(Acknowledge.get()));
 	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithCompletedFuture() {
+		final CompletableFuture<String> future = CompletableFuture.completedFuture("foobar");
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithNormalCompletion() {
+		final CompletableFuture<String> future = new CompletableFuture<>();
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		future.complete("barfoo");
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithExceptionallyCompletedFuture() {
+		final CompletableFuture<String> future = FutureUtils.completedExceptionally(new FlinkException("foobar"));
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(true));
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithExceptionallyCompletion() {
+		final CompletableFuture<String> future = new CompletableFuture<>();
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
+		future.completeExceptionally(new FlinkException("barfoo"));
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(true));
+	}
+
+	private static class TestingUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
+
+		private Throwable exception = null;
+
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			exception = e;
+		}
+
+		private boolean hasBeenCalled() {
+			return exception != null;
+		}
+	}
 }
