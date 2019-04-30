@@ -22,6 +22,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -85,6 +86,18 @@ public class LogicalTypesTest {
 			new Class[]{byte[].class},
 			new LogicalType[]{},
 			new BinaryType()
+		);
+	}
+
+	@Test
+	public void testVarBinaryType() {
+		testAll(
+			new VarBinaryType(22),
+			"VARBINARY(22)",
+			new Class[]{byte[].class},
+			new Class[]{byte[].class},
+			new LogicalType[]{},
+			new VarBinaryType()
 		);
 	}
 
