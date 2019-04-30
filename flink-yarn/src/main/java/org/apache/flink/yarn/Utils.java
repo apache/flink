@@ -56,7 +56,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -176,7 +175,7 @@ public final class Utils {
 
 		FileStatus[] fss = null;
 		int iter = 1;
-		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY) {
+		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY + 1) {
 			try {
 				fss = fs.listStatus(dst);
 				break;
@@ -196,7 +195,7 @@ public final class Utils {
 		if (fss != null && fss.length >  0) {
 			dstModificationTime = fss[0].getModificationTime();
 		}
-		LOG.debug("Got modification time {} from remote path {} at time {}", dstModificationTime, dst, Instant.now().toEpochMilli());
+		LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
 
 		// now create the resource instance
 		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime > 0 ? dstModificationTime
