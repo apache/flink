@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
@@ -29,12 +28,11 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Aggregate.Group
-import org.apache.calcite.rel.logical.LogicalAggregate
 
 import scala.collection.JavaConversions._
 
 /**
-  * Rule to convert a [[LogicalAggregate]] into a [[StreamExecGroupAggregate]].
+  * Rule to convert a [[FlinkLogicalAggregate]] into a [[StreamExecGroupAggregate]].
   */
 class StreamExecGroupAggregateRule
   extends ConverterRule(

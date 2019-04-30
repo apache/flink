@@ -40,6 +40,10 @@ import _root_.java.math.BigDecimal
 
 import _root_.scala.collection.JavaConversions._
 
+/**
+  * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
+  * with windowing expression to [[LogicalWindowAggregate]].
+  */
 abstract class LogicalWindowAggregateRuleBase(description: String)
   extends RelOptRule(
     operand(classOf[LogicalAggregate],
@@ -59,13 +63,6 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     !groupSets && !agg.indicator && windowExpressions.nonEmpty
   }
 
-  /**
-    * Transform LogicalAggregate with windowing expression to LogicalProject
-    * + LogicalWindowAggregate + LogicalProject.
-    *
-    * The transformation adds an additional LogicalProject at the top to ensure
-    * that the types are equivalent.
-    */
   override def onMatch(call: RelOptRuleCall): Unit = {
     val agg: LogicalAggregate = call.rel(0)
     val project: LogicalProject = call.rel(1)
@@ -110,6 +107,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       window,
       Seq[NamedWindowProperty](),
       newAgg)
+    // The transformation adds an additional LogicalProject at the top to ensure
+    // that the types are equivalent.
     transformed.push(windowAgg)
       .project(transformed.fields().patch(windowExprIdx, Seq(outAggGroupExpression), 0))
 

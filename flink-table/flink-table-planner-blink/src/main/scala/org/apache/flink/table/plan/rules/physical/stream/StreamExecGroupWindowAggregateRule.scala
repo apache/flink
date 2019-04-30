@@ -34,6 +34,9 @@ import org.apache.calcite.rel.core.Aggregate.Group
 
 import scala.collection.JavaConversions._
 
+/**
+  * Rule to convert a [[FlinkLogicalWindowAggregate]] into a [[StreamExecGroupWindowAggregate]].
+  */
 class StreamExecGroupWindowAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalWindowAggregate],

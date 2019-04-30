@@ -22,10 +22,16 @@ import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromIn
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType
 import org.apache.flink.table.expressions.FieldReferenceExpression
+import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 
+/**
+  * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
+  * with windowing expression to [[LogicalWindowAggregate]] for batch.
+  */
 class BatchLogicalWindowAggregateRule
   extends LogicalWindowAggregateRuleBase("BatchLogicalWindowAggregateRule") {
 

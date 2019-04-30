@@ -23,11 +23,17 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType
 import org.apache.flink.table.expressions.FieldReferenceExpression
+import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 
+/**
+  * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
+  * with windowing expression to [[LogicalWindowAggregate]] for stream.
+  */
 class StreamLogicalWindowAggregateRule
   extends LogicalWindowAggregateRuleBase("StreamLogicalWindowAggregateRule") {
 

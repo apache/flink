@@ -199,7 +199,9 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     averageColumnSizesOfWindowAgg(rel, mq)
   }
 
-  def averageColumnSizes(rel: BatchExecWindowAggregateBase, mq: RelMetadataQuery): JList[JDouble] = {
+  def averageColumnSizes(
+      rel: BatchExecWindowAggregateBase,
+      mq: RelMetadataQuery): JList[JDouble] = {
     averageColumnSizesOfWindowAgg(rel, mq)
   }
 
