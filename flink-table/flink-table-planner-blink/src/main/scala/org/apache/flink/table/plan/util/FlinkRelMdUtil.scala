@@ -30,7 +30,7 @@ import org.apache.flink.table.typeutils.BinaryRowSerializer
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.avatica.util.TimeUnitRange._
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc, JoinInfo, SemiJoin}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc, JoinInfo, JoinRelType, SemiJoin}
 import org.apache.calcite.rel.metadata.{RelMdUtil, RelMetadataQuery}
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
@@ -49,6 +49,20 @@ import scala.collection.mutable
   */
 object FlinkRelMdUtil {
 
+  /** Returns an estimate of the number of rows returned by a [[SemiJoin]].*/
+  def getSemiJoinRowCount(mq: RelMetadataQuery, left: RelNode, right: RelNode,
+      joinType: JoinRelType, condition: RexNode, isAnti: Boolean): JDouble = {
+    val leftCount = mq.getRowCount(left)
+    if (leftCount == null) {
+      return null
+    }
+    var selectivity = RexUtil.getSelectivity(condition)
+    if (isAnti) {
+      selectivity = 1d - selectivity
+    }
+    leftCount * selectivity
+  }
+
   /**
     * Creates a RexNode that stores a selectivity value corresponding to the
     * selectivity of a semi-join/anti-join. This can be added to a filter to simulate the
@@ -65,7 +79,7 @@ object FlinkRelMdUtil {
     val joinInfo = rel.analyzeCondition()
     val rexBuilder = rel.getCluster.getRexBuilder
     makeSemiJoinSelectivityRexNode(
-      mq, joinInfo, rel.getLeft, rel.getRight, isAnti = false, rexBuilder)
+      mq, joinInfo, rel.getLeft, rel.getRight, rel.isAnti, rexBuilder)
   }
 
   private def makeSemiJoinSelectivityRexNode(

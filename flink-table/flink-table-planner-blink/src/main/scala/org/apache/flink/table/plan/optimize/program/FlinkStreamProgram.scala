@@ -46,6 +46,17 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       SUBQUERY_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        // rewrite RelTable before rewriting sub-queries
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.TABLE_REF_RULES)
+          .build(), "convert table references before rewriting sub-queries to semi-join")
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.SEMI_JOIN_RULES)
+          .build(), "rewrite sub-queries to semi-join")
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)

@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.join.FlinkJoinType
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
+import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType, SemiJoin}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
@@ -130,5 +130,26 @@ class StreamExecJoin(
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
     new StreamExecJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+  }
+}
+
+class StreamExecSemiJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    isAntiJoin: Boolean)
+  extends SemiJoin(cluster, traitSet, leftRel, rightRel, condition, isAntiJoin)
+  with StreamExecJoinBase {
+
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): SemiJoin = {
+    new StreamExecSemiJoin(cluster, traitSet, left, right, conditionExpr, isAntiJoin)
   }
 }

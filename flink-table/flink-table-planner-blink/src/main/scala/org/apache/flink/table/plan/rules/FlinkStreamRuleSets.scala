@@ -32,6 +32,12 @@ import scala.collection.JavaConverters._
 
 object FlinkStreamRuleSets {
 
+  val SEMI_JOIN_RULES: RuleSet = RuleSets.ofList(
+    SimplifyFilterConditionRule.EXTENDED,
+    FlinkSubQueryRemoveRule.FILTER,
+    FlinkJoinPushExpressionsRule.INSTANCE
+  )
+
   /**
     * Convert sub-queries before query decorrelation.
     */
@@ -193,6 +199,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
+    FlinkLogicalSemiJoin.CONVERTER,
     FlinkLogicalSort.STREAM_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
@@ -248,6 +255,7 @@ object FlinkStreamRuleSets {
     StreamExecGroupWindowAggregateRule.INSTANCE,
     StreamExecExpandRule.INSTANCE,
     StreamExecJoinRule.INSTANCE,
+    StreamExecSemiJoinRule.INSTANCE,
     StreamExecWindowJoinRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE

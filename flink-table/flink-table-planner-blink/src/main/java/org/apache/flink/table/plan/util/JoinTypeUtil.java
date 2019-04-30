@@ -52,8 +52,7 @@ public class JoinTypeUtil {
 	 */
 	public static FlinkJoinType getFlinkJoinType(Join join) {
 		if (join instanceof SemiJoin) {
-			// TODO supports ANTI
-			return FlinkJoinType.SEMI;
+			return ((SemiJoin) join).isAnti ? FlinkJoinType.ANTI : FlinkJoinType.SEMI;
 		} else {
 			return toFlinkJoinType(join.getJoinType());
 		}

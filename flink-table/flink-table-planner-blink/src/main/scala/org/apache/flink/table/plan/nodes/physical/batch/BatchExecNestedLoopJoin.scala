@@ -130,3 +130,33 @@ class BatchExecNestedLoopJoin(
       singleRowJoin)
 }
 
+class BatchExecNestedLoopSemiJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    joinCondition: RexNode,
+    isAntiJoin: Boolean,
+    val singleRowJoin: Boolean)
+  extends SemiJoin(cluster, traitSet, leftRel, rightRel, joinCondition, isAntiJoin)
+  with BatchExecNestedLoopJoinBase {
+
+  val leftIsBuild: Boolean = false
+
+  override def copy(
+      traitSet: RelTraitSet,
+      condition: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): SemiJoin = {
+    new BatchExecNestedLoopSemiJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      condition,
+      isAnti,
+      singleRowJoin)
+  }
+}

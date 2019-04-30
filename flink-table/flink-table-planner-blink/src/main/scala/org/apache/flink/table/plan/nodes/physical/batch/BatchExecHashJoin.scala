@@ -48,7 +48,6 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
   // true if build side is broadcast, else false
   val isBroadcast: Boolean
   val tryDistinctBuildRow: Boolean
-  var haveInsertRf: Boolean
 
   private val (leftKeys, rightKeys) =
     JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
@@ -132,8 +131,7 @@ class BatchExecHashJoin(
     condition: RexNode,
     joinType: JoinRelType,
     val leftIsBuild: Boolean,
-    val isBroadcast: Boolean,
-    override var haveInsertRf: Boolean = false)
+    val isBroadcast: Boolean)
   extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
   with BatchExecHashJoinBase {
 
@@ -154,6 +152,38 @@ class BatchExecHashJoin(
       conditionExpr,
       joinType,
       leftIsBuild,
+      isBroadcast)
+}
+
+class BatchExecHashSemiJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    val leftIsBuild: Boolean,
+    joinCondition: RexNode,
+    isAntiJoin: Boolean,
+    val isBroadcast: Boolean,
+    val tryDistinctBuildRow: Boolean)
+  extends SemiJoin(cluster, traitSet, leftRel, rightRel, joinCondition, isAntiJoin)
+  with BatchExecHashJoinBase {
+
+  override def copy(
+      traitSet: RelTraitSet,
+      condition: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): SemiJoin = {
+    new BatchExecHashSemiJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      leftIsBuild,
+      condition,
+      isAnti,
       isBroadcast,
-      haveInsertRf)
+      tryDistinctBuildRow)
+  }
 }

@@ -32,6 +32,12 @@ import scala.collection.JavaConverters._
 
 object FlinkBatchRuleSets {
 
+  val SEMI_JOIN_RULES: RuleSet = RuleSets.ofList(
+    SimplifyFilterConditionRule.EXTENDED,
+    FlinkSubQueryRemoveRule.FILTER,
+    FlinkJoinPushExpressionsRule.INSTANCE
+  )
+
   /**
     * Convert sub-queries before query decorrelation.
     */
@@ -156,7 +162,7 @@ object FlinkBatchRuleSets {
     SortProjectTransposeRule.INSTANCE,
 
     // join rules
-    JoinPushExpressionsRule.INSTANCE,
+    FlinkJoinPushExpressionsRule.INSTANCE,
 
     // remove union with only a single child
     UnionEliminatorRule.INSTANCE,
@@ -202,6 +208,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
+    FlinkLogicalSemiJoin.CONVERTER,
     FlinkLogicalSort.BATCH_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
@@ -243,8 +250,11 @@ object FlinkBatchRuleSets {
     BatchExecHashAggRule.INSTANCE,
     BatchExecSortAggRule.INSTANCE,
     BatchExecHashJoinRule.INSTANCE,
+    BatchExecHashJoinRule.SEMI_JOIN,
     BatchExecSortMergeJoinRule.INSTANCE,
+    BatchExecSortMergeJoinRule.SEMI_JOIN,
     BatchExecNestedLoopJoinRule.INSTANCE,
+    BatchExecNestedLoopJoinRule.SEMI_JOIN,
     BatchExecSingleRowJoinRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
     BatchExecOverWindowAggRule.INSTANCE,

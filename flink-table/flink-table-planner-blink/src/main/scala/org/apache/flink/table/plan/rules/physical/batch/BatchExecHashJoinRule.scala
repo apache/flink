@@ -23,8 +23,8 @@ import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions, TableConf
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecHashJoin
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalSemiJoin}
+import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecHashSemiJoin}
 import org.apache.flink.table.runtime.join.FlinkJoinType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -38,7 +38,8 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecHashJoin]]
+  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecHashJoin]] or
+  * converts [[FlinkLogicalSemiJoin]] to [[BatchExecHashSemiJoin]]
   * if there exists at least one equal-join condition and
   * ShuffleHashJoin or BroadcastHashJoin are enabled.
   */
@@ -77,7 +78,18 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val joinType = getFlinkJoinType(join)
 
     val left = join.getLeft
-    val right = join.getRight
+    val (right, tryDistinctBuildRow) = join match {
+      case _: SemiJoin =>
+        // We can do a distinct to buildSide(right) when semi join.
+        val distinctKeys = 0 until join.getRight.getRowType.getFieldCount
+        val useBuildDistinct = chooseSemiBuildDistinct(join.getRight, distinctKeys)
+        if (useBuildDistinct) {
+          (addLocalDistinctAgg(join.getRight, distinctKeys, call.builder()), true)
+        } else {
+          (join.getRight, false)
+        }
+      case _ => (join.getRight, false)
+    }
 
     val leftSize = binaryRowRelNodeSize(left)
     val rightSize = binaryRowRelNodeSize(right)
@@ -99,15 +111,29 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
       val newRight = RelOptRule.convert(right, rightRequiredTrait)
       val providedTraitSet = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
-      val newJoin = new BatchExecHashJoin(
-        join.getCluster,
-        providedTraitSet,
-        newLeft,
-        newRight,
-        join.getCondition,
-        join.getJoinType,
-        leftIsBuild,
-        isBroadcast)
+      val newJoin = join match {
+        case sj: SemiJoin =>
+          new BatchExecHashSemiJoin(
+            sj.getCluster,
+            providedTraitSet,
+            newLeft,
+            newRight,
+            leftIsBuild,
+            join.getCondition,
+            sj.isAnti,
+            isBroadcast,
+            tryDistinctBuildRow)
+        case _ =>
+          new BatchExecHashJoin(
+            join.getCluster,
+            providedTraitSet,
+            newLeft,
+            newRight,
+            join.getCondition,
+            join.getJoinType,
+            leftIsBuild,
+            isBroadcast)
+      }
 
       call.transformTo(newJoin)
     }
@@ -179,4 +205,5 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
 
 object BatchExecHashJoinRule {
   val INSTANCE = new BatchExecHashJoinRule(classOf[FlinkLogicalJoin])
+  val SEMI_JOIN = new BatchExecHashJoinRule(classOf[FlinkLogicalSemiJoin])
 }

@@ -104,7 +104,6 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_AddExchangeAsBatch_BuildLeftSemiHashJoin(): Unit = {
-    // TODO re-check the plan after semi-join is supported
     util.tableEnv.getConfig.getConf.setBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     util.tableEnv.getConfig.getConf.setBoolean(

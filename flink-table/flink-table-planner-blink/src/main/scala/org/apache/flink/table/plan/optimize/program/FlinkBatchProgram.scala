@@ -40,9 +40,20 @@ object FlinkBatchProgram {
     val chainedProgram = new FlinkChainedProgram[BatchOptimizeContext]()
 
     chainedProgram.addLast(
-      // rewrite sub-queries to joins
+       // rewrite sub-queries to joins
       SUBQUERY_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+        // rewrite RelTable before rewriting sub-queries
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkBatchRuleSets.TABLE_REF_RULES)
+          .build(), "convert table references before rewriting sub-queries to semi-join")
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkBatchRuleSets.SEMI_JOIN_RULES)
+          .build(), "rewrite sub-queries to semi-join")
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
@@ -50,10 +61,10 @@ object FlinkBatchProgram {
           .build(), "sub-queries remove")
         // convert RelOptTableImpl (which exists in SubQuery before) to FlinkRelOptTable
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkBatchRuleSets.TABLE_REF_RULES)
-        .build(), "convert table references after sub-queries removed")
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkBatchRuleSets.TABLE_REF_RULES)
+          .build(), "convert table references after sub-queries removed")
         .build()
     )
 

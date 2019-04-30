@@ -24,6 +24,7 @@ import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.Contexts
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.core.SemiJoin
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilderFactory
@@ -38,11 +39,29 @@ object FlinkRelFactories {
 
   val FLINK_REL_BUILDER: RelBuilderFactory = FlinkRelBuilder.proto(Contexts.empty)
 
+  val DEFAULT_SEMIJOIN_FACTORY = new SemiJoinFactoryImpl
+
   val DEFAULT_EXPAND_FACTORY = new ExpandFactoryImpl
 
   val DEFAULT_RANK_FACTORY = new RankFactoryImpl
 
   val DEFAULT_SINK_FACTORY = new SinkFactoryImpl
+
+  trait SemiJoinFactory {
+    def createSemiJoin(left: RelNode, right: RelNode, condition: RexNode): RelNode
+
+    def createAntiJoin(left: RelNode, right: RelNode, condition: RexNode): RelNode
+  }
+
+  class SemiJoinFactoryImpl extends SemiJoinFactory {
+    override def createSemiJoin(left: RelNode, right: RelNode, condition: RexNode): RelNode = {
+      SemiJoin.create(left, right, condition, false)
+    }
+
+    override def createAntiJoin(left: RelNode, right: RelNode, condition: RexNode): RelNode = {
+      SemiJoin.create(left, right, condition, true)
+    }
+  }
 
   /**
     * Can create a [[LogicalExpand]] of the
