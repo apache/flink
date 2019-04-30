@@ -583,7 +583,7 @@ public class StreamingJobGraphGenerator {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
-		if (interval > 0) {
+		if (interval >= 10) {
 			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 			// propagate the expected behaviour for checkpoint errors to task.
 			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
@@ -701,7 +701,8 @@ public class StreamingJobGraphGenerator {
 				cfg.getMaxConcurrentCheckpoints(),
 				retentionAfterTermination,
 				isExactlyOnce,
-				cfg.isPreferCheckpointForRecovery()),
+				cfg.isPreferCheckpointForRecovery(),
+				cfg.getTolerableCheckpointFailureNumber()),
 			serializedStateBackend,
 			serializedHooks);
 

@@ -111,11 +111,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	@Override
 	public long getAndIncrement() throws Exception {
 		while (true) {
-			ConnectionState connState = connStateListener.getLastState();
-
-			if (connState != null) {
-				throw new IllegalStateException("Connection state: " + connState);
-			}
+			checkConnectionState();
 
 			VersionedValue<Integer> current = sharedCount.getVersionedValue();
 			int newCount = current.getValue() + 1;
@@ -133,6 +129,13 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	@Override
+	public long get() {
+		checkConnectionState();
+
+		return sharedCount.getVersionedValue().getValue();
+	}
+
+	@Override
 	public void setCount(long newId) throws Exception {
 		ConnectionState connState = connStateListener.getLastState();
 
@@ -147,6 +150,14 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		}
 
 		sharedCount.setCount((int) newId);
+	}
+
+	private void checkConnectionState() {
+		ConnectionState connState = connStateListener.getLastState();
+
+		if (connState != null) {
+			throw new IllegalStateException("Connection state: " + connState);
+		}
 	}
 
 	/**

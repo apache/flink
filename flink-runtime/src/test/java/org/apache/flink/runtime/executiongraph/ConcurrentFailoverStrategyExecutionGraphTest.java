@@ -363,7 +363,8 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 			3,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
-			false);
+			false,
+			0);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -386,11 +387,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final StandaloneCheckpointIDCounter standaloneCheckpointIDCounter = new StandaloneCheckpointIDCounter();
 
 		graph.enableCheckpointing(
-			checkpointCoordinatorConfiguration.getCheckpointInterval(),
-			checkpointCoordinatorConfiguration.getCheckpointTimeout(),
-			checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
-			checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
-			checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy(),
+			checkpointCoordinatorConfiguration,
 			allVertices,
 			allVertices,
 			allVertices,
@@ -402,8 +399,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 				1,
 				allVertices,
 				checkpointCoordinatorConfiguration,
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()),
-			false);
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()));
 
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
 

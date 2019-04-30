@@ -23,8 +23,6 @@ package org.apache.flink.runtime.checkpoint;
  */
 public enum CheckpointFailureReason {
 
-	COORDINATOR_SHUTDOWN("Checkpoint coordinator is shut down."),
-
 	PERIODIC_SCHEDULER_SHUTDOWN("Periodic checkpoint scheduler is shut down."),
 
 	ALREADY_QUEUED("Another checkpoint request has already been queued."),
@@ -38,13 +36,13 @@ public enum CheckpointFailureReason {
 
 	EXCEPTION("An Exception occurred while triggering the checkpoint."),
 
-	EXPIRED("The checkpoint expired before triggering was complete"),
-
 	CHECKPOINT_EXPIRED("Checkpoint expired before completing."),
 
 	CHECKPOINT_SUBSUMED("Checkpoint has been subsumed."),
 
-	CHECKPOINT_DECLINED("Checkpoint was declined (tasks not ready)."),
+	CHECKPOINT_DECLINED("Checkpoint was declined."),
+
+	CHECKPOINT_DECLINED_TASK_NOT_READY("Checkpoint was declined(task not ready)."),
 
 	CHECKPOINT_COORDINATOR_SHUTDOWN("CheckpointCoordinator shutdown."),
 
