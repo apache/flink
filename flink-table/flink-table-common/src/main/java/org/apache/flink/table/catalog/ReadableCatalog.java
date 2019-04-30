@@ -254,7 +254,7 @@ public interface ReadableCatalog {
 	 * @param partitionSpec partition spec of the partition
 	 * @return statistics of the given partition
 	 *
-	 * @throws PartitionNotExistException if the partition is not partitioned
+	 * @throws PartitionNotExistException if the partition does not exist
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	CatalogTableStatistics getPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
@@ -267,7 +267,7 @@ public interface ReadableCatalog {
 	 * @param partitionSpec partition spec of the partition
 	 * @return column statistics of the given partition
 	 *
-	 * @throws PartitionNotExistException if the partition is not partitioned
+	 * @throws PartitionNotExistException if the partition does not exist
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	CatalogColumnStatistics getPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)

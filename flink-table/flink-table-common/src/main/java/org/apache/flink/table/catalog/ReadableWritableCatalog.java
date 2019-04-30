@@ -294,7 +294,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, nothing happens.
 	 *
-	 * @throws PartitionNotExistException if the partition is not partitioned
+	 * @throws PartitionNotExistException if the partition does not exist
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics,
