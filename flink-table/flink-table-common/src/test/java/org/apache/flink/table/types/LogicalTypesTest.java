@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -59,6 +60,18 @@ public class LogicalTypesTest {
 			new Class[]{String.class, byte[].class},
 			new LogicalType[]{},
 			new VarCharType(12)
+		);
+	}
+
+	@Test
+	public void testBooleanType() {
+		testAll(
+			new BooleanType(),
+			"BOOLEAN",
+			new Class[]{Boolean.class},
+			new Class[]{Boolean.class},
+			new LogicalType[]{},
+			new BooleanType(false)
 		);
 	}
 

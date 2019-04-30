@@ -33,5 +33,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(VarCharType varCharType);
 
+	R visit(BooleanType booleanType);
+
 	R visit(LogicalType other);
 }
