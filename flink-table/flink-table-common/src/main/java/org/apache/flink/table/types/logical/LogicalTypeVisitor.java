@@ -35,5 +35,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(BooleanType booleanType);
 
+	R visit(BinaryType binaryType);
+
 	R visit(LogicalType other);
 }
