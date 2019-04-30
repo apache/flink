@@ -88,8 +88,10 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testCreateTable_Batch_nonPartitionedTable() throws Exception {
+	public void testCreateTable_Batch() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
+
+		// Non-partitioned table
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
@@ -102,17 +104,16 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
-	}
 
-	@Test
-	public void testCreateTable_Batch_partitionedTable() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		CatalogTable table = createPartitionedTable();
+		catalog.dropTable(path1, false);
+
+		// Partitioned table
+		table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
-		List<String> tables = catalog.listTables(db1);
+		tables = catalog.listTables(db1);
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
@@ -226,8 +227,10 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testAlterTable_nonPartitionedTable() throws Exception {
+	public void testAlterTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
+
+		// Non-partitioned table
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
@@ -238,17 +241,16 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 		assertNotEquals(table, catalog.getTable(path1));
 		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
-	}
 
-	@Test
-	public void testAlterTable_partitionedTable() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		CatalogTable table = createPartitionedTable();
+		catalog.dropTable(path1, false);
+
+		// Partitioned table
+		table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
-		CatalogTable newTable = createAnotherPartitionedTable();
+		newTable = createAnotherPartitionedTable();
 		catalog.alterTable(path1, newTable, false);
 
 		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
