@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.Arrays;
 
@@ -34,6 +36,18 @@ import static org.junit.Assert.assertTrue;
  * Test for subclasses of {@link org.apache.flink.table.types.logical.LogicalType}.
  */
 public class LogicalTypesTest {
+
+	@Test
+	public void testCharType() {
+		testAll(
+			new CharType(33),
+			"CHAR(33)",
+			new Class[]{String.class, byte[].class},
+			new Class[]{String.class, byte[].class},
+			new LogicalType[]{},
+			new CharType(12)
+		);
+	}
 
 	// --------------------------------------------------------------------------------------------
 
