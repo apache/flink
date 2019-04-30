@@ -21,6 +21,7 @@ package org.apache.flink.table.types;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -30,6 +31,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+
+import java.math.BigDecimal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -98,6 +101,18 @@ public class LogicalTypesTest {
 			new Class[]{byte[].class},
 			new LogicalType[]{},
 			new VarBinaryType()
+		);
+	}
+
+	@Test
+	public void testDecimalType() {
+		testAll(
+			new DecimalType(10, 2),
+			"DECIMAL(10, 2)",
+			new Class[]{BigDecimal.class},
+			new Class[]{BigDecimal.class},
+			new LogicalType[]{},
+			new DecimalType()
 		);
 	}
 

@@ -39,5 +39,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(VarBinaryType varBinaryType);
 
+	R visit(DecimalType decimalType);
+
 	R visit(LogicalType other);
 }
