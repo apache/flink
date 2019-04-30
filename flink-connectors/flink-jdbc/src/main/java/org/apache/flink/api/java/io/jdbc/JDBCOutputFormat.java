@@ -156,9 +156,9 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 									upload.setLong(index + 1, (long) row.getField(index));
 									break;
 								case java.sql.Types.REAL:
+								case java.sql.Types.FLOAT:
 									upload.setFloat(index + 1, (float) row.getField(index));
 									break;
-								case java.sql.Types.FLOAT:
 								case java.sql.Types.DOUBLE:
 									upload.setDouble(index + 1, (double) row.getField(index));
 									break;
