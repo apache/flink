@@ -27,6 +27,10 @@ import org.apache.calcite.rel.core.{JoinRelType, SemiJoin}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
+/**
+  * Sub-class of [[SemiJoin]] that joins two relational expressions according to join
+  * condition, but outputs only columns from the left input in Flink.
+  */
 class FlinkLogicalSemiJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

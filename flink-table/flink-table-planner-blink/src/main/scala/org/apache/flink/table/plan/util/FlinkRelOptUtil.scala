@@ -187,6 +187,8 @@ object FlinkRelOptUtil {
   /**
     * Pushes down expressions in "equal" join condition.
     *
+    * This method is copied from [[RelOptUtil.pushDownJoinConditions]] to support SemiJoin.
+    *
     * <p>For example, given
     * "emp JOIN dept ON emp.deptno + 1 = dept.deptno", adds a project above
     * "emp" that computes the expression
@@ -250,6 +252,7 @@ object FlinkRelOptUtil {
     relBuilder.push(originalJoin.copy(originalJoin.getTraitSet, joinCond, left, right, joinType,
       originalJoin.isSemiJoinDone))
 
+    // handle SemiJoin here
     var mapping: Mappings.TargetMapping = null
     if (originalJoin.isInstanceOf[SemiJoin]) {
       if (!extraLeftExprs.isEmpty) {
@@ -353,7 +356,7 @@ object FlinkRelOptUtil {
   /**
     * Categorizes whether a bit set contains bits left and right of a line.
     */
-  object Side extends Enumeration {
+  private object Side extends Enumeration {
     type Side = Value
     val LEFT, RIGHT, BOTH, EMPTY = Value
 

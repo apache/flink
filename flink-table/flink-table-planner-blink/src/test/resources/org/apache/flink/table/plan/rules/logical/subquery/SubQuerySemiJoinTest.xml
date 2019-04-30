@@ -426,6 +426,31 @@ LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_ComplexCondition4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (EXISTS (SELECT d FROM y WHERE y.d = x.b)) = true]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[=(EXISTS({
+LogicalFilter(condition=[=($1, $cor0.b)])
+  LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
+}), true)], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($2, $1)], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExistsWithCorrelatedOnWhere_InnerJoin1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 INNER JOIN t ON r1.f = t.k)]]>
@@ -1226,6 +1251,31 @@ LogicalProject(a=[$0])
                +- LogicalProject(j=[$1], k=[$2])
                   +- LogicalFilter(condition=[<($0, 100)])
                      +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelatedOnWhere_ComplexCondition7">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (EXISTS (SELECT d FROM r)) = true]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}), true)])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -2104,6 +2154,32 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalProject(d=[$0], e=[$1])
          +- LogicalFilter(condition=[true])
             +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelatedOnWhere_ComplexCondition5">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE (a IN (SELECT d FROM y WHERE y.d = x.b)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IS TRUE(IN($0, {
+LogicalProject(d=[$1])
+  LogicalFilter(condition=[=($1, $cor0.b)])
+    LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(=($0, $2), =($2, $1))], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
   </TestCase>
