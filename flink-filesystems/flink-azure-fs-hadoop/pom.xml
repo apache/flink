@@ -35,6 +35,8 @@ under the License.
 	<!-- need to use a release which includes this patch: https://github.com/apache/hadoop/commit/02cadbd24bf69925078d044701741e2e3fcb4b2f -->
 	<properties>
 		<fs.azure.version>2.7.0</fs.azure.version>
+		<fs.azure.sdk.version>1.16.0</fs.azure.sdk.version>
+		<fs.jackson.core.version>2.9.4</fs.jackson.core.version>
 	</properties>
 
 	<dependencies>
@@ -63,6 +65,26 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-hdfs</artifactId>
 			<version>${hadoop.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- for Azure IT tests to check if HTTP endpoints are enabled / not -->
+		<dependency>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>azure</artifactId>
+			<version>${fs.azure.sdk.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>${fs.jackson.core.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
 			<scope>test</scope>
 		</dependency>
 

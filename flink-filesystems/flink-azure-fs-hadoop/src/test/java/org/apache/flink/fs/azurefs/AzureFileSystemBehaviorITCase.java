@@ -28,6 +28,9 @@ import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
+import com.microsoft.azure.credentials.ApplicationTokenCredentials;
+import com.microsoft.azure.credentials.AzureTokenCredentials;
+import com.microsoft.azure.management.Azure;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -36,6 +39,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -60,21 +64,43 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 	@Parameterized.Parameter
 	public String scheme;
 
-	@Parameterized.Parameters(name = "Scheme = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList("wasb", "wasbs");
-	}
-
 	private static final String CONTAINER = System.getenv("ARTIFACTS_AZURE_CONTAINER");
 	private static final String ACCOUNT = System.getenv("ARTIFACTS_AZURE_STORAGE_ACCOUNT");
 	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AZURE_ACCESS_KEY");
+	private static final String RESOURCE_GROUP = System.getenv("ARTIFACTS_AZURE_RESOURCE_GROUP");
+	private static final String SUBSCRIPTION_ID = System.getenv("ARTIFACTS_AZURE_SUBSCRIPTION_ID");
+	private static final String TOKEN_CREDENTIALS_FILE = System.getenv("ARTIFACTS_AZURE_TOKEN_CREDENTIALS_FILE");
 
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
+	// Azure Blob Storage defaults to https only storage accounts. We check if http support has been
+	// enabled on a best effort basis and test http if so.
+	@Parameterized.Parameters(name = "Scheme = {0}")
+	public static List<String> parameters() throws IOException {
+		boolean httpsOnly = isHttpsTrafficOnly();
+		return httpsOnly ? Arrays.asList("wasbs") : Arrays.asList("wasb", "wasbs");
+	}
+
+	private static boolean isHttpsTrafficOnly() throws IOException {
+		if (StringUtils.isNullOrWhitespaceOnly(RESOURCE_GROUP) || StringUtils.isNullOrWhitespaceOnly(TOKEN_CREDENTIALS_FILE)) {
+			// default to https only, as some fields are missing
+			return true;
+		}
+
+		Assume.assumeTrue("Azure storage account not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(ACCOUNT));
+
+		AzureTokenCredentials credentials = ApplicationTokenCredentials.fromFile(new File(TOKEN_CREDENTIALS_FILE));
+		Azure azure =
+			StringUtils.isNullOrWhitespaceOnly(SUBSCRIPTION_ID) ?
+				Azure.authenticate(credentials).withDefaultSubscription() :
+				Azure.authenticate(credentials).withSubscription(SUBSCRIPTION_ID);
+
+		return azure.storageAccounts().getByResourceGroup(RESOURCE_GROUP, ACCOUNT).inner().enableHttpsTrafficOnly();
+	}
+
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
-		// check whether credentials and container / account details exist
-		Assume.assumeTrue("Azure storage account not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(ACCOUNT));
+		// check whether credentials and container details exist
 		Assume.assumeTrue("Azure container not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(CONTAINER));
 		Assume.assumeTrue("Azure access key not configured, skipping test...", !StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY));
 
