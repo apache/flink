@@ -94,7 +94,7 @@ public class ModelStateQuery {
 							if (result != null) {
 								return result;
 							} else {
-								System.err.println("exception: " + ex);
+								System.err.println("Exception getting state : " + ex);
 								return null;
 							}
 						});

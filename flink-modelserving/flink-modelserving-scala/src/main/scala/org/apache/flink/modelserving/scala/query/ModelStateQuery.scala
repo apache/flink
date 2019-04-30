@@ -26,6 +26,7 @@ import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.modelserving.scala.model.ModelToServeStats
 import org.apache.flink.queryablestate.client.QueryableStateClient
+import org.apache.flink.queryablestate.client.state.ImmutableValueState
 import org.joda.time.DateTime
 
 /**
@@ -64,10 +65,7 @@ object ModelStateQuery {
         try {
           // Get statistics
           val future = client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
-          client.getKvState(jobId, "currentModelState", key, keyType, descriptor)
-
           val stats = future.join().value()
-
           println(s" ${stats.name} | ${stats.description} | ${new DateTime(stats.since).
             toString("yyyy/MM/dd HH:MM:SS")} | ${stats.duration/stats.usage} |" +
             s"  ${stats.min} | ${stats.max} |")
