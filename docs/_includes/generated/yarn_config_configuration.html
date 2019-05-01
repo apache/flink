@@ -38,6 +38,11 @@
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
         </tr>
         <tr>
+            <td><h5>yarn.heartbeat.container-request-interval</h5></td>
+            <td style="word-wrap: break-word;">500</td>
+            <td>Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.maximum-failed-containers</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Maximum number of containers the system is going to reallocate in case of a failure.</td>
