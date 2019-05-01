@@ -65,7 +65,6 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-hdfs</artifactId>
 			<version>${hadoop.version}</version>
-			<scope>test</scope>
 		</dependency>
 
 		<!-- for Azure IT tests to check if HTTP endpoints are enabled / not -->
@@ -139,6 +138,11 @@ under the License.
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+										<exclude>core-default.xml</exclude>
+										<exclude>hdfs-default.xml</exclude>
 									</excludes>
 								</filter>
 							</filters>
