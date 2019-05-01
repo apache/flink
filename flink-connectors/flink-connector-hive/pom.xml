@@ -197,10 +197,6 @@ under the License.
 					<artifactId>metrics-json</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>com.github.joshelser</groupId>
 					<artifactId>dropwizard-metrics-hadoop-metrics2-reporter</artifactId>
 				</exclusion>
@@ -387,6 +383,7 @@ under the License.
 									<include>commons-dbcp:commons-dbcp</include>
 									<include>commons-pool:commons-pool</include>
 									<include>commons-beanutils:commons-beanutils</include>
+									<include>com.fasterxml.jackson.core:*</include>
 									<include>com.jolbox:bonecp</include>
 									<include>org.apache.hive:*</include>
 									<include>org.apache.thrift:libthrift</include>

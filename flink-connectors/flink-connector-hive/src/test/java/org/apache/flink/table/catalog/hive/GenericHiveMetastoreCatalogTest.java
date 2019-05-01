@@ -18,10 +18,18 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
+import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.GenericCatalogTable;
+import org.apache.flink.table.plan.stats.TableStats;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,14 +48,47 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 		catalog.open();
 	}
 
-	// =====================
-	// GenericHiveMetastoreCatalog doesn't support table operation yet
-	// Thus, overriding the following tests which involve table operation in CatalogTestBase so they won't run against GenericHiveMetastoreCatalog
-	// =====================
+	// ------ data types ------
 
-	// TODO: re-enable this test once GenericHiveMetastoreCatalog support table operations
 	@Test
-	public void testDropDb_DatabaseNotEmptyException() throws Exception {
+	public void testDataTypes() throws Exception {
+		// TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
+		//	  [FLINK-12386] Support complete mapping between Flink and Hive data types
+		TypeInformation[] types = new TypeInformation[] {
+			BasicTypeInfo.BYTE_TYPE_INFO,
+			BasicTypeInfo.SHORT_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.LONG_TYPE_INFO,
+			BasicTypeInfo.FLOAT_TYPE_INFO,
+			BasicTypeInfo.DOUBLE_TYPE_INFO,
+			BasicTypeInfo.BOOLEAN_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO,
+			BasicTypeInfo.DATE_TYPE_INFO,
+			SqlTimeTypeInfo.TIMESTAMP
+		};
+
+		verifyDataTypes(types);
+	}
+
+	private void verifyDataTypes(TypeInformation[] types) throws Exception {
+		String[] colNames = new String[types.length];
+
+		for (int i = 0; i < types.length; i++) {
+			colNames[i] = types[i].toString().toLowerCase() + "_col";
+		}
+
+		CatalogTable table = new GenericCatalogTable(
+			new TableSchema(colNames, types),
+			new TableStats(0),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
+
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, table, false);
+
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
 	// ------ utils ------
@@ -77,13 +118,48 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createTable() {
-		// TODO: implement this once GenericHiveMetastoreCatalog support table operations
-		return null;
+		return new GenericCatalogTable(
+			createTableSchema(),
+			new TableStats(0),
+			getBatchTableProperties(),
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogTable createAnotherTable() {
-		// TODO: implement this once GenericHiveMetastoreCatalog support table operations
-		return null;
+		return new GenericCatalogTable(
+			createAnotherTableSchema(),
+			new TableStats(0),
+			getBatchTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createStreamingTable() {
+		return new GenericCatalogTable(
+			createTableSchema(),
+			new TableStats(0),
+			getStreamingTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createPartitionedTable() {
+		return new GenericCatalogTable(
+			createTableSchema(),
+			new TableStats(0),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createAnotherPartitionedTable() {
+		return new GenericCatalogTable(
+			createAnotherTableSchema(),
+			new TableStats(0),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
 	}
 }

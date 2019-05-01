@@ -33,26 +33,26 @@ public class CatalogTestUtil {
 		assertEquals(t1.getDescription(), t2.getDescription());
 	}
 
-	protected static void checkEquals(TableStats ts1, TableStats ts2) {
+	public static void checkEquals(TableStats ts1, TableStats ts2) {
 		assertEquals(ts1.getRowCount(), ts2.getRowCount());
 		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
 	}
 
-	protected static void checkEquals(CatalogView v1, CatalogView v2) {
+	public static void checkEquals(CatalogView v1, CatalogView v2) {
 		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
 		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
 	}
 
-	protected static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
+	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
 		assertEquals(d1.getProperties(), d2.getProperties());
 	}
 
-	protected static void checkEquals(CatalogFunction f1, CatalogFunction f2) {
+	public static void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());
 		assertEquals(f1.getProperties(), f2.getProperties());
 	}
 
-	protected static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
+	public static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
 		assertEquals(p1.getProperties(), p2.getProperties());
 	}
 }

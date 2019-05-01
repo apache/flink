@@ -102,11 +102,10 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
 	 * @throws TableNotExistException if the table does not exist
-	 * @throws DatabaseNotExistException if the database in tablePath to doesn't exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
-		throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException, CatalogException;
+		throws TableNotExistException, TableAlreadyExistException, CatalogException;
 
 	/**
 	 * Create a new table or view.
@@ -128,7 +127,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 * Note that the new and old CatalogBaseTable must be of the same type. For example, this doesn't
 	 * allow alter a regular table to partitioned table, or alter a view to a table, and vice versa.
 	 *
-	 * @param tableName path of the table or view to be modified
+	 * @param tablePath path of the table or view to be modified
 	 * @param newTable the new table definition
 	 * @param ignoreIfNotExists flag to specify behavior when the table or view does not exist:
 	 *                          if set to false, throw an exception,
@@ -136,7 +135,7 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 * @throws TableNotExistException if the table does not exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists)
+	void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
 		throws TableNotExistException, CatalogException;
 
 	// ------ partitions ------

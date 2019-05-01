@@ -16,20 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.exceptions;
+package org.apache.flink.table.catalog.hive;
 
 /**
- * Exception for trying to drop on a database that is not empty.
- *
+ * Configs for Flink tables stored in Hive metastore.
  */
-public class DatabaseNotEmptyException extends Exception {
-	private static final String MSG = "Database %s in catalog %s is not empty.";
+public class HiveTableConfig {
 
-	public DatabaseNotEmptyException(String catalog, String database, Throwable cause) {
-		super(String.format(MSG, database, catalog), cause);
-	}
+	// Description of the Flink table
+	public static final String TABLE_COMMENT = "comment";
 
-	public DatabaseNotEmptyException(String catalog, String database) {
-		this(catalog, database, null);
-	}
 }

@@ -61,8 +61,8 @@ public class GenericCatalogTable implements CatalogTable {
 			TableSchema tableSchema,
 			TableStats tableStats,
 			Map<String, String> properties,
-			String comment) {
-		this(tableSchema, tableStats, new ArrayList<>(), properties, comment);
+			String description) {
+		this(tableSchema, tableStats, new ArrayList<>(), properties, description);
 	}
 
 	@Override
@@ -91,6 +91,11 @@ public class GenericCatalogTable implements CatalogTable {
 	}
 
 	@Override
+	public String getComment() {
+		return comment;
+	}
+
+	@Override
 	public GenericCatalogTable copy() {
 		return new GenericCatalogTable(
 			this.tableSchema.copy(), this.tableStats.copy(), new ArrayList<>(partitionKeys), new HashMap<>(this.properties), comment);
@@ -104,14 +109,6 @@ public class GenericCatalogTable implements CatalogTable {
 	@Override
 	public Optional<String> getDetailedDescription() {
 		return Optional.of("This is a catalog table in an im-memory catalog");
-	}
-
-	public String getComment() {
-		return this.comment;
-	}
-
-	public void setComment(String comment) {
-		this.comment = comment;
 	}
 
 }
