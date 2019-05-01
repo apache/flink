@@ -86,10 +86,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	/** YARN container map. Package private for unit test purposes. */
 	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
-
-	/** The heartbeat interval while the resource master is waiting for containers. */
-	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
-
 	/** Environment variable name of the final container id used by the YarnResourceManager.
 	 * Container ID generation may vary across Hadoop versions. */
 	private static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
@@ -113,6 +109,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final int defaultTaskManagerMemoryMB;
 
 	private final int defaultCpus;
+
+	/** The heartbeat interval while the resource master is waiting for containers. */
+	private final int containerRequestHeartbeatIntervalMillis;
 
 	/** Client to communicate with the Resource Manager (YARN's master). */
 	private AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient;
@@ -173,6 +172,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					yarnHeartbeatIntervalMS, yarnExpiryIntervalMS);
 		}
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
+		containerRequestHeartbeatIntervalMillis = flinkConfig.getInteger(YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
 		numPendingContainerRequests = 0;
 
 		this.webInterfaceUrl = webInterfaceUrl;
@@ -514,8 +514,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		resourceManagerClient.addContainerRequest(getContainerRequest());
 
 		// make sure we transmit the request fast and receive fast news of granted allocations
-		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
-
+		resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
 		numPendingContainerRequests++;
 
 		log.info("Requesting new TaskExecutor container with resources {}. Number pending requests {}.",
