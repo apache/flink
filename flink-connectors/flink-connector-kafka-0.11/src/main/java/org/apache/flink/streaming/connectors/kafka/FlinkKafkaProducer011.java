@@ -173,7 +173,7 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * Descriptor of the transactional IDs list.
 	 */
-	private static final ListStateDescriptor<NextTransactionalIdHint> NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR =
+	private final ListStateDescriptor<NextTransactionalIdHint> nextTransactionalIdHintDescriptor =
 		new ListStateDescriptor<>("next-transactional-id-hint", TypeInformation.of(NextTransactionalIdHint.class));
 
 	/**
@@ -815,7 +815,7 @@ public class FlinkKafkaProducer011<IN>
 		}
 
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
-			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
+			nextTransactionalIdHintDescriptor);
 		transactionalIdsGenerator = new TransactionalIdsGenerator(
 			getRuntimeContext().getTaskName() + "-" + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID(),
 			getRuntimeContext().getIndexOfThisSubtask(),
