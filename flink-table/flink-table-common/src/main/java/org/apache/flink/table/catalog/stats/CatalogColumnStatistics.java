@@ -24,7 +24,7 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Column statistics a table or partition.
+ * Column statistics of a table or partition.
  */
 public class CatalogColumnStatistics {
 	public static final CatalogColumnStatistics UNKNOWN = new CatalogColumnStatistics(new HashMap<>());

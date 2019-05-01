@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -66,7 +67,7 @@ public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsData
 	}
 
 	public CatalogColumnStatisticsDataLong copy() {
-		return new CatalogColumnStatisticsDataLong(min, max, ndv, getNullCount(), getProperties());
+		return new CatalogColumnStatisticsDataLong(min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
 	}
 
 }

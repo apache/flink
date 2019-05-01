@@ -51,6 +51,7 @@ public abstract class CatalogColumnStatisticsDataBase {
 
 	/**
 	 * Create a deep copy of "this" instance.
+	 *
 	 * @return a deep copy
 	 */
 	public abstract CatalogColumnStatisticsDataBase copy();
