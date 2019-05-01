@@ -24,13 +24,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink uses file system for both ingest and output of data for streaming and batch applications as well as targets for checkpoint storage. 
+Apache Flink uses to consume and persistently store data, both for results of applications and for fault tolerance and recovery.
 These file systems can be local such as *Unix*, distributed like *HDFS*, or even object stores such as *S3*.
 
 The file system used for a particular file is determined by its URI scheme.
 For example, `file:///home/user/text.txt` refers to a file in the local file system, while `hdfs://namenode:50010/data/user/text.txt` is a file in a specific HDFS cluster.
 
-FileSystem instances are instantiated once per process and then cached / pooled, to
+File system instances are instantiated once per process and then cached / pooled, to
 avoid configuration overhead per stream creation and to enforce certain constraints, such as connection/stream limits.
 
 * This will be replaced by the TOC
@@ -72,7 +72,7 @@ This way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-c
 File systems are represented via the `org.apache.flink.core.fs.FileSystem` class, which captures the ways to access and modify files and objects in that file system. 
 Implementations are discovered by Flink through Java's service abstraction, making it easy to add additional file system implementations.
 
-In order to add a new File System, the following steps are needed:
+In order to add a new file system, the following steps are needed:
 
   - Add the File System implementation, which is a subclass of `org.apache.flink.core.fs.FileSystem`.
   - Add a factory that instantiates that file system and declares the scheme under which the FileSystem is registered. This must be a subclass of `org.apache.flink.core.fs.FileSystemFactory`.
