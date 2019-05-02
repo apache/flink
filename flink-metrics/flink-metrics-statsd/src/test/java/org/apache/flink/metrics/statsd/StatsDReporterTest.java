@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
@@ -161,6 +162,28 @@ public class StatsDReporterTest extends TestLogger {
 		expectedLines.add("metric.count:100|g");
 
 		testMetricAndAssert(new TestMeter(), "metric", expectedLines);
+	}
+
+	/**
+	 * Tests that counter are properly reported via the StatsD reporter.
+	 */
+	@Test
+	public void testStatsDCountersReporting() throws Exception {
+		Set<String> expectedLines = new HashSet<>(2);
+		expectedLines.add("metric:100|g");
+
+		Counter counter = new SimpleCounter();
+		counter.inc(100);
+
+		testMetricAndAssert(counter, "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDGaugesReporting() throws Exception {
+		Set<String> expectedLines = new HashSet<>(2);
+		expectedLines.add("metric:75|g");
+
+		testMetricAndAssert((Gauge) () -> 75, "metric", expectedLines);
 	}
 
 	private void testMetricAndAssert(Metric metric, String metricName, Set<String> expectation) throws Exception {
