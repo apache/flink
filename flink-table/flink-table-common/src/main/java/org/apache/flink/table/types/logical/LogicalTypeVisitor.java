@@ -57,5 +57,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(TimeType timeType);
 
+	R visit(TimestampType timestampType);
+
 	R visit(LogicalType other);
 }
