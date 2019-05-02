@@ -93,8 +93,12 @@ public abstract class EncodingUtils {
 		return loadClass(qualifiedName, Thread.currentThread().getContextClassLoader());
 	}
 
+	public static String encodeBytesToBase64(byte[] bytes) {
+		return new String(java.util.Base64.getEncoder().encode(bytes), UTF_8);
+	}
+
 	public static String encodeStringToBase64(String string) {
-		return new String(java.util.Base64.getEncoder().encode(string.getBytes(UTF_8)), UTF_8);
+		return encodeBytesToBase64(string.getBytes(UTF_8));
 	}
 
 	public static String decodeBase64ToString(String base64) {
