@@ -22,6 +22,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -191,6 +192,18 @@ public class LogicalTypesTest {
 			new Class[]{Double.class},
 			new LogicalType[]{},
 			new DoubleType(false)
+		);
+	}
+
+	@Test
+	public void testDateType() {
+		testAll(
+			new DateType(),
+			"DATE",
+			new Class[]{java.sql.Date.class, java.time.LocalDate.class, int.class},
+			new Class[]{java.time.LocalDate.class},
+			new LogicalType[]{},
+			new DateType(false)
 		);
 	}
 
