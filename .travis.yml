@@ -156,33 +156,33 @@ jobs:
     - if: type = cron
       stage: compile
       script: ./tools/travis_controller.sh compile
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: compile - scala 2.12
     - if: type = cron
       stage: test
       script: ./tools/travis_controller.sh core
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: core - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh libraries
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: libraries - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh connectors
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: connectors - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh tests
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: tests - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: misc - scala 2.12
     - if: type = cron
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: cleanup - scala 2.12
     # E2E profile
     - stage: E2E
