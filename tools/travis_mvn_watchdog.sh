@@ -110,7 +110,7 @@ upload_artifacts_s3() {
 
 	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
-	curl --upload-file $ARTIFACTS_FILE https://transfer.sh
+	curl --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
 }
 
 print_stacktraces () {
