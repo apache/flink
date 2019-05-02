@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -41,6 +42,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
@@ -367,6 +369,25 @@ public class LogicalTypesTest {
 			new Class[]{Map.class},
 			new LogicalType[]{new VarCharType(20), new TimestampType()},
 			new MapType(new VarCharType(99), new TimestampType())
+		);
+	}
+
+	@Test
+	public void testRowType() {
+		testAll(
+			new RowType(
+				Arrays.asList(
+					new RowType.RowField("a", new VarCharType(), "Someone's desc."),
+					new RowType.RowField("b`", new TimestampType()))),
+			"ROW<`a` VARCHAR(1) 'Someone''s desc.', `b``` TIMESTAMP(6)>",
+			"ROW<`a` VARCHAR(1) '...', `b``` TIMESTAMP(6)>",
+			new Class[]{Row.class},
+			new Class[]{Row.class},
+			new LogicalType[]{new VarCharType(), new TimestampType()},
+			new RowType(
+				Arrays.asList(
+					new RowType.RowField("a", new VarCharType(), "Different desc."),
+					new RowType.RowField("b`", new TimestampType())))
 		);
 	}
 
