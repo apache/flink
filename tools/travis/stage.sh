@@ -41,9 +41,6 @@ flink-streaming-scala,\
 flink-metrics,\
 flink-metrics/flink-metrics-core"
 
-MODULES_CORE_JDK9_EXCLUSIONS="\
-!flink-runtime"
-
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
@@ -175,7 +172,6 @@ function get_test_modules_for_stage() {
 
     # various modules fail testing on JDK 9; exclude them
     if [[ ${PROFILE} == *"jdk9"* ]]; then
-        modules_core="$modules_core,$MODULES_CORE_JDK9_EXCLUSIONS"
         modules_connectors="$modules_connectors,$MODULES_CONNECTORS_JDK9_EXCLUSIONS"
     fi
 
