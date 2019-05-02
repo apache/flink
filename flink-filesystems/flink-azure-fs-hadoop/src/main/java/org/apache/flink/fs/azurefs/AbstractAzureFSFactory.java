@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.apache.hadoop.fs.azure.NativeAzureFileSystem;
 import org.slf4j.Logger;
@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,18 +39,31 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Abstract factory for AzureFS. Subclasses override to specify
  * the correct scheme (wasb / wasbs). Based on Azure HDFS support in the
  * <a href="https://hadoop.apache.org/docs/current/hadoop-azure/index.html">hadoop-azure</a> module.
- *
  */
 public abstract class AbstractAzureFSFactory implements FileSystemFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(AzureFSFactory.class);
 
-	private static final String[] CONFIG_PREFIXES = { "fs.azure.", "azure." };
+	private static final String[] FLINK_CONFIG_PREFIXES = { "fs.azure.", "azure." };
+	private static final String HADOOP_CONFIG_PREFIX = "fs.azure.";
+
+	private static final String[][] MIRRORED_CONFIG_KEYS = {};
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.emptySet();
+	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.emptySet();
+	private static final String FLINK_SHADING_PREFIX = "";
+
+	private final HadoopConfigLoader configLoader;
 
 	private Configuration flinkConfig;
+
+	public AbstractAzureFSFactory() {
+		this.configLoader = new HadoopConfigLoader(FLINK_CONFIG_PREFIXES, MIRRORED_CONFIG_KEYS,
+			HADOOP_CONFIG_PREFIX, PACKAGE_PREFIXES_TO_SHADE, CONFIG_KEYS_TO_SHADE, FLINK_SHADING_PREFIX);
+	}
 
 	@Override
 	public void configure(Configuration config) {
 		flinkConfig = config;
+		configLoader.setFlinkConfig(config);
 	}
 
 	@Override
@@ -60,28 +75,11 @@ public abstract class AbstractAzureFSFactory implements FileSystemFactory {
 
 	// uri is of the form: wasb(s)://yourcontainer@youraccount.blob.core.windows.net/testDir
 	private org.apache.hadoop.fs.FileSystem createInitializedAzureFS(URI fsUri, Configuration flinkConfig) throws IOException {
-		org.apache.hadoop.conf.Configuration hadoopConfig = HadoopUtils.getHadoopConfiguration(flinkConfig);
-
-		copyFlinkToHadoopConfig(flinkConfig, hadoopConfig);
+		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
 
 		org.apache.hadoop.fs.FileSystem azureFS = new NativeAzureFileSystem();
 		azureFS.initialize(fsUri, hadoopConfig);
 
 		return azureFS;
-	}
-
-	private void copyFlinkToHadoopConfig(Configuration flinkConfig, org.apache.hadoop.conf.Configuration hadoopConfig) {
-		// add additional config entries from the Flink config to the Hadoop config
-		for (String key : flinkConfig.keySet()) {
-			for (String prefix : CONFIG_PREFIXES) {
-				if (key.startsWith(prefix)) {
-					String value = flinkConfig.getString(key, null);
-					String newKey = "fs.azure." + key.substring(prefix.length());
-					hadoopConfig.set(newKey, flinkConfig.getString(key, null));
-
-					LOG.debug("Adding Flink config entry for {} as {}={} to Hadoop config for AzureFS", key, newKey, value);
-				}
-			}
-		}
 	}
 }
