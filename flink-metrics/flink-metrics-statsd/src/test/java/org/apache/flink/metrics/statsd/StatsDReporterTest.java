@@ -152,6 +152,36 @@ public class StatsDReporterTest extends TestLogger {
 		testMetricAndAssert(new TestHistogram(), "metric", expectedLines);
 	}
 
+	@Test
+	public void testStatsDHistogramReportingOfNegativeValues() throws Exception {
+		TestHistogram histogram = new TestHistogram();
+		histogram.setCount(-101);
+		histogram.setMean(-104);
+		histogram.setMin(-107);
+		histogram.setMax(-106);
+		histogram.setStdDev(-105);
+
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric.count:0|g");
+		expectedLines.add("metric.count:-101|g");
+		expectedLines.add("metric.mean:0|g");
+		expectedLines.add("metric.mean:-104.0|g");
+		expectedLines.add("metric.min:0|g");
+		expectedLines.add("metric.min:-107|g");
+		expectedLines.add("metric.max:0|g");
+		expectedLines.add("metric.max:-106|g");
+		expectedLines.add("metric.stddev:0|g");
+		expectedLines.add("metric.stddev:-105.0|g");
+		expectedLines.add("metric.p75:0.75|g");
+		expectedLines.add("metric.p98:0.98|g");
+		expectedLines.add("metric.p99:0.99|g");
+		expectedLines.add("metric.p999:0.999|g");
+		expectedLines.add("metric.p95:0.95|g");
+		expectedLines.add("metric.p50:0.5|g");
+
+		testMetricAndAssert(histogram, "metric", expectedLines);
+	}
+
 	/**
 	 * Tests that meters are properly reported via the StatsD reporter.
 	 */
@@ -162,6 +192,17 @@ public class StatsDReporterTest extends TestLogger {
 		expectedLines.add("metric.count:100|g");
 
 		testMetricAndAssert(new TestMeter(), "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDMetersReportingOfNegativeValues() throws Exception {
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric.rate:0|g");
+		expectedLines.add("metric.rate:-5.3|g");
+		expectedLines.add("metric.count:0|g");
+		expectedLines.add("metric.count:-50|g");
+
+		testMetricAndAssert(new TestMeter(-50, -5.3), "metric", expectedLines);
 	}
 
 	/**
@@ -176,11 +217,29 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	@Test
+	public void testStatsDCountersReportingOfNegativeValues() throws Exception {
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric:0|g");
+		expectedLines.add("metric:-51|g");
+
+		testMetricAndAssert(new TestCounter(-51), "metric", expectedLines);
+	}
+
+	@Test
 	public void testStatsDGaugesReporting() throws Exception {
 		Set<String> expectedLines = new HashSet<>(2);
 		expectedLines.add("metric:75|g");
 
 		testMetricAndAssert((Gauge) () -> 75, "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDGaugesReportingOfNegativeValues() throws Exception {
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric:0|g");
+		expectedLines.add("metric:-12345|g");
+
+		testMetricAndAssert((Gauge) () -> -12345, "metric", expectedLines);
 	}
 
 	private void testMetricAndAssert(Metric metric, String metricName, Set<String> expectation) throws Exception {
