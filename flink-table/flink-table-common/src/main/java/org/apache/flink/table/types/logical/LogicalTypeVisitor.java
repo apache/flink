@@ -59,5 +59,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(TimestampType timestampType);
 
+	R visit(ZonedTimestampType zonedTimestampType);
+
 	R visit(LogicalType other);
 }
