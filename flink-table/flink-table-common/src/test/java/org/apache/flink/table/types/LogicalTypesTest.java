@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -256,6 +257,18 @@ public class LogicalTypesTest {
 			new Class[]{java.time.Instant.class},
 			new LogicalType[]{},
 			new LocalZonedTimestampType(3)
+		);
+	}
+
+	@Test
+	public void testYearMonthIntervalType() {
+		testAll(
+			new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH, 2),
+			"INTERVAL YEAR(2) TO MONTH",
+			new Class[]{java.time.Period.class, int.class},
+			new Class[]{java.time.Period.class},
+			new LogicalType[]{},
+			new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH)
 		);
 	}
 
