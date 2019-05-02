@@ -375,12 +375,12 @@ public class RecoverableMultiPartUploadImplTest {
 
 		@Override
 		public boolean deleteObject(String key) throws IOException {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public long getObject(String key, File targetLocation) throws IOException {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -395,7 +395,7 @@ public class RecoverableMultiPartUploadImplTest {
 
 		@Override
 		public ObjectMetadata getObjectMetadata(String key) throws IOException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		private byte[] getFileContentBytes(File file, int length) throws IOException {
