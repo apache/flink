@@ -18,46 +18,18 @@
 
 package org.apache.flink.table.types.logical;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 /**
- * The visitor definition of {@link LogicalType}. The visitor transforms a logical type into
- * instances of {@code R}.
- *
- * @param <R> result type
+ * Internal timestamp kind for attaching time attribute metadata to timestamps with or without a
+ * time zone.
  */
-@PublicEvolving
-public interface LogicalTypeVisitor<R> {
+@Internal
+public enum TimestampKind {
 
-	R visit(CharType charType);
+	REGULAR,
 
-	R visit(VarCharType varCharType);
+	ROWTIME,
 
-	R visit(BooleanType booleanType);
-
-	R visit(BinaryType binaryType);
-
-	R visit(VarBinaryType varBinaryType);
-
-	R visit(DecimalType decimalType);
-
-	R visit(TinyIntType tinyIntType);
-
-	R visit(SmallIntType smallIntType);
-
-	R visit(IntType intType);
-
-	R visit(BigIntType bigIntType);
-
-	R visit(FloatType floatType);
-
-	R visit(DoubleType doubleType);
-
-	R visit(DateType dateType);
-
-	R visit(TimeType timeType);
-
-	R visit(TimestampType timestampType);
-
-	R visit(LogicalType other);
+	PROCTIME
 }
