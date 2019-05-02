@@ -49,5 +49,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(BigIntType bigIntType);
 
+	R visit(FloatType floatType);
+
 	R visit(LogicalType other);
 }
