@@ -23,6 +23,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -269,6 +270,18 @@ public class LogicalTypesTest {
 			new Class[]{java.time.Period.class},
 			new LogicalType[]{},
 			new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH)
+		);
+	}
+
+	@Test
+	public void testDayTimeIntervalType() {
+		testAll(
+			new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 6),
+			"INTERVAL DAY(2) TO SECOND(6)",
+			new Class[]{java.time.Duration.class, long.class},
+			new Class[]{java.time.Duration.class},
+			new LogicalType[]{},
+			new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 7)
 		);
 	}
 
