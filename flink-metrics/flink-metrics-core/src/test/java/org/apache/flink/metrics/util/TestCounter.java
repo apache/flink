@@ -18,35 +18,40 @@
 
 package org.apache.flink.metrics.util;
 
-import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.Counter;
 
 /**
- * A dummy {@link Meter} implementation.
+ * A dummy {@link Counter} implementation.
  */
-public class TestMeter implements Meter {
-	private final long countValue;
-	private final double rateValue;
+public class TestCounter implements Counter {
+	private long countValue;
 
-	public TestMeter() {
-		this(100, 5);
+	public TestCounter() {
+		this.countValue = 0;
 	}
 
-	public TestMeter(long countValue, double rateValue) {
+	public TestCounter(long countValue) {
 		this.countValue = countValue;
-		this.rateValue = rateValue;
 	}
 
 	@Override
-	public void markEvent() {
+	public void inc() {
+		countValue++;
 	}
 
 	@Override
-	public void markEvent(long n) {
+	public void inc(long n) {
+		countValue += n;
 	}
 
 	@Override
-	public double getRate() {
-		return rateValue;
+	public void dec() {
+		countValue--;
+	}
+
+	@Override
+	public void dec(long n) {
+		countValue -= n;
 	}
 
 	@Override
