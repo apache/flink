@@ -98,6 +98,13 @@ under the License.
 				<configuration>
 					<skipTests>${skipTests}</skipTests>
 				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<!-- Disabling convergence check because there are multiple problems within the used pubsub dependencies -->
 			<plugin>

@@ -27,6 +27,7 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializa
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
 
+import com.google.cloud.NoCredentials;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
@@ -95,6 +96,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 
 		DataStream<String> fromPubSub = env
 			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
+								.withCredentials(NoCredentials.getInstance())
 								.withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(getPubSubHostPort()))
 								.build())
 			.name("PubSub source");

@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
 
+import com.google.cloud.NoCredentials;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
@@ -77,6 +78,7 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 			.addSink(PubSubSink.newBuilder(new SimpleStringSchema(), PROJECT_NAME, TOPIC_NAME)
 							   // Specific for emulator
 							.withHostAndPortForEmulator(getPubSubHostPort())
+							.withCredentials(NoCredentials.getInstance())
 							.build())
 			.name("PubSub sink");
 
