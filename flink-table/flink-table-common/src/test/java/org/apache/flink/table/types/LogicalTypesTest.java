@@ -26,6 +26,7 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -35,9 +36,11 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -50,6 +53,7 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -391,6 +395,43 @@ public class LogicalTypesTest {
 		);
 	}
 
+	@Test
+	public void testDistinctType() {
+		testAll(
+			createDistinctType("Money"),
+			"`cat`.`db`.`Money`",
+			"`cat`.`db`.`Money`",
+			new Class[]{BigDecimal.class},
+			new Class[]{BigDecimal.class},
+			new LogicalType[]{new DecimalType(10, 2)},
+			createDistinctType("Monetary")
+		);
+	}
+
+	@Test
+	public void testStructuredType() {
+		testAll(
+			createUserType(true),
+			"`cat`.`db`.`User`",
+			"`cat`.`db`.`User`",
+			new Class[]{Row.class, User.class},
+			new Class[]{Row.class, Human.class, User.class},
+			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE},
+			createUserType(false)
+		);
+
+		testConversions(
+			createHumanType(false),
+			new Class[]{Row.class, Human.class, User.class}, // every User is Human
+			new Class[]{Row.class, Human.class});
+
+		// not every Human is User
+		assertFalse(createUserType(true).supportsInputConversion(Human.class));
+
+		// User is not implementing SpecialHuman
+		assertFalse(createHumanType(true).supportsInputConversion(User.class));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static void testAll(
@@ -477,5 +518,54 @@ public class LogicalTypesTest {
 
 	private static void testChildren(LogicalType type, LogicalType[] children) {
 		assertEquals(Arrays.asList(children), type.getChildren());
+	}
+
+	private DistinctType createDistinctType(String typeName) {
+		return new DistinctType.Builder(
+				new UserDefinedType.TypeIdentifier("cat", "db", typeName),
+				new DecimalType(10, 2))
+			.setDescription("Money type desc.")
+			.build();
+	}
+
+	private static final LogicalType UDT_NAME_TYPE = new VarCharType();
+
+	private static final LogicalType UDT_SETTING_TYPE = new IntType();
+
+	private StructuredType createHumanType(boolean useDifferentImplementation) {
+		return new StructuredType.Builder(
+				new UserDefinedType.TypeIdentifier("cat", "db", "Human"),
+				Collections.singletonList(
+					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE)))
+			.setDescription("Human type desc.")
+			.setFinal(false)
+			.setInstantiable(false)
+			.setImplementationClass(useDifferentImplementation ? SpecialHuman.class : Human.class)
+			.build();
+	}
+
+	private StructuredType createUserType(boolean isFinal) {
+		return new StructuredType.Builder(
+				new UserDefinedType.TypeIdentifier("cat", "db", "User"),
+				Collections.singletonList(
+					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
+			.setDescription("User type desc.")
+			.setFinal(isFinal)
+			.setInstantiable(true)
+			.setImplementationClass(User.class)
+			.setSuperType(createHumanType(false))
+			.build();
+	}
+
+	private abstract static class SpecialHuman {
+		public String name;
+	}
+
+	private abstract static class Human {
+		public String name;
+	}
+
+	private static final class User extends Human {
+		public int setting;
 	}
 }
