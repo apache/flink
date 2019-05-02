@@ -37,7 +37,7 @@ import java.util.List;
 @PublicEvolving
 public final class NullType extends LogicalType {
 
-	private static final String DEFAULT_FORMAT = "NULL";
+	private static final String FORMAT = "NULL";
 
 	private static final Class<?> INPUT_CONVERSION = Object.class;
 
@@ -59,7 +59,7 @@ public final class NullType extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
-		return DEFAULT_FORMAT;
+		return FORMAT;
 	}
 
 	@Override
