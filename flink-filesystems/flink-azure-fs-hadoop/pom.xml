@@ -121,7 +121,7 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.shaded.hadoop.org.apache.hadoop</shadedPattern>
 								</relocation>
 								<!-- relocate the azure-storage dependencies -->
 								<relocation>
