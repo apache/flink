@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -26,10 +27,14 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
@@ -47,6 +52,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -110,6 +116,20 @@ public class StreamTaskTestHarness<OUT> {
 			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 			TypeInformation<OUT> outputType) {
 
+		this(taskFactory, outputType, TestLocalRecoveryConfig.disabled());
+	}
+
+	public StreamTaskTestHarness(
+		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		TypeInformation<OUT> outputType,
+		File localRootDir) {
+		this(taskFactory, outputType, new LocalRecoveryConfig(true, new LocalRecoveryDirectoryProviderImpl(localRootDir, new JobID(), new JobVertexID(), 0)));
+	}
+
+	public StreamTaskTestHarness(
+		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		TypeInformation<OUT> outputType,
+		LocalRecoveryConfig localRecoveryConfig) {
 		this.taskFactory = checkNotNull(taskFactory);
 		this.memorySize = DEFAULT_MEMORY_MANAGER_SIZE;
 		this.bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;

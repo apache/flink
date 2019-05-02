@@ -102,6 +102,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
+	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+
 	public StreamMockEnvironment(
 		Configuration jobConfig,
 		Configuration taskConfig,
@@ -322,7 +324,11 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TestingTaskManagerRuntimeInfo();
+		return this.taskManagerRuntimeInfo;
+	}
+
+	public void setTaskManagerInfo(TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 	}
 
 	@Override
