@@ -25,8 +25,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -132,73 +135,20 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testStatsDHistogramReporting() throws Exception {
-		MetricRegistryImpl registry = null;
-		DatagramSocketReceiver receiver = null;
-		Thread receiverThread = null;
-		long timeout = 5000;
-		long joinTimeout = 30000;
+		Set<String> expectedLines = new HashSet<>(6);
+		expectedLines.add("metric.count:1|g");
+		expectedLines.add("metric.mean:3.0|g");
+		expectedLines.add("metric.min:6|g");
+		expectedLines.add("metric.max:5|g");
+		expectedLines.add("metric.stddev:4.0|g");
+		expectedLines.add("metric.p75:0.75|g");
+		expectedLines.add("metric.p98:0.98|g");
+		expectedLines.add("metric.p99:0.99|g");
+		expectedLines.add("metric.p999:0.999|g");
+		expectedLines.add("metric.p95:0.95|g");
+		expectedLines.add("metric.p50:0.5|g");
 
-		String histogramName = "histogram";
-
-		try {
-			receiver = new DatagramSocketReceiver();
-
-			receiverThread = new Thread(receiver);
-
-			receiverThread.start();
-
-			int port = receiver.getPort();
-
-			MetricConfig config = new MetricConfig();
-			config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
-			config.setProperty("host", "localhost");
-			config.setProperty("port", String.valueOf(port));
-
-			registry = new MetricRegistryImpl(
-				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-				Collections.singletonList(ReporterSetup.forReporter("test", config, new StatsDReporter())));
-
-			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
-
-			TestingHistogram histogram = new TestingHistogram();
-
-			metricGroup.histogram(histogramName, histogram);
-
-			receiver.waitUntilNumLines(11, timeout);
-
-			Set<String> lines = receiver.getLines();
-
-			String prefix = metricGroup.getMetricIdentifier(histogramName);
-
-			Set<String> expectedLines = new HashSet<>();
-
-			expectedLines.add(prefix + ".count:1|g");
-			expectedLines.add(prefix + ".mean:3.0|g");
-			expectedLines.add(prefix + ".min:6|g");
-			expectedLines.add(prefix + ".max:5|g");
-			expectedLines.add(prefix + ".stddev:4.0|g");
-			expectedLines.add(prefix + ".p75:0.75|g");
-			expectedLines.add(prefix + ".p98:0.98|g");
-			expectedLines.add(prefix + ".p99:0.99|g");
-			expectedLines.add(prefix + ".p999:0.999|g");
-			expectedLines.add(prefix + ".p95:0.95|g");
-			expectedLines.add(prefix + ".p50:0.5|g");
-
-			assertEquals(expectedLines, lines);
-
-		} finally {
-			if (registry != null) {
-				registry.shutdown().get();
-			}
-
-			if (receiver != null) {
-				receiver.stop();
-			}
-
-			if (receiverThread != null) {
-				receiverThread.join(joinTimeout);
-			}
-		}
+		testMetricAndAssert(new TestingHistogram(), "metric", expectedLines);
 	}
 
 	/**
@@ -206,13 +156,19 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testStatsDMetersReporting() throws Exception {
-		MetricRegistryImpl registry = null;
+		Set<String> expectedLines = new HashSet<>(4);
+		expectedLines.add("metric.rate:5.0|g");
+		expectedLines.add("metric.count:100|g");
+
+		testMetricAndAssert(new TestMeter(), "metric", expectedLines);
+	}
+
+	private void testMetricAndAssert(Metric metric, String metricName, Set<String> expectation) throws Exception {
+		StatsDReporter reporter = null;
 		DatagramSocketReceiver receiver = null;
 		Thread receiverThread = null;
 		long timeout = 5000;
 		long joinTimeout = 30000;
-
-		String meterName = "meter";
 
 		try {
 			receiver = new DatagramSocketReceiver();
@@ -224,32 +180,22 @@ public class StatsDReporterTest extends TestLogger {
 			int port = receiver.getPort();
 
 			MetricConfig config = new MetricConfig();
-			config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
 			config.setProperty("host", "localhost");
 			config.setProperty("port", String.valueOf(port));
 
-			registry = new MetricRegistryImpl(
-				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-				Collections.singletonList(ReporterSetup.forReporter("test", config, new StatsDReporter())));
-			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
-			TestMeter meter = new TestMeter();
-			metricGroup.meter(meterName, meter);
-			String prefix = metricGroup.getMetricIdentifier(meterName);
+			reporter = new StatsDReporter();
+			ReporterSetup.forReporter("test", config, reporter);
+			MetricGroup metricGroup = new UnregisteredMetricsGroup();
 
-			Set<String> expectedLines = new HashSet<>();
+			reporter.notifyOfAddedMetric(metric, metricName, metricGroup);
+			reporter.report();
 
-			expectedLines.add(prefix + ".rate:5.0|g");
-			expectedLines.add(prefix + ".count:100|g");
-
-			receiver.waitUntilNumLines(expectedLines.size(), timeout);
-
-			Set<String> lines = receiver.getLines();
-
-			assertEquals(expectedLines, lines);
+			receiver.waitUntilNumLines(expectation.size(), timeout);
+			assertEquals(expectation, receiver.getLines());
 
 		} finally {
-			if (registry != null) {
-				registry.shutdown().get();
+			if (reporter != null) {
+				reporter.close();
 			}
 
 			if (receiver != null) {
