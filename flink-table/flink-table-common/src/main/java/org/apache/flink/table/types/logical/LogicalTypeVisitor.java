@@ -51,5 +51,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(FloatType floatType);
 
+	R visit(DoubleType doubleType);
+
 	R visit(LogicalType other);
 }
