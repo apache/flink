@@ -65,5 +65,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(YearMonthIntervalType yearMonthIntervalType);
 
+	R visit(DayTimeIntervalType dayTimeIntervalType);
+
 	R visit(LogicalType other);
 }
