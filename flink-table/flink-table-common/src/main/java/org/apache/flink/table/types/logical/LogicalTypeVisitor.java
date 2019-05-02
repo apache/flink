@@ -67,5 +67,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(DayTimeIntervalType dayTimeIntervalType);
 
+	R visit(ArrayType arrayType);
+
 	R visit(LogicalType other);
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -282,6 +283,27 @@ public class LogicalTypesTest {
 			new Class[]{java.time.Duration.class},
 			new LogicalType[]{},
 			new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 7)
+		);
+	}
+
+	@Test
+	public void testArrayType() {
+		testAll(
+			new ArrayType(new TimestampType()),
+			"ARRAY<TIMESTAMP(6)>",
+			new Class[]{java.sql.Timestamp[].class, java.time.LocalDateTime[].class},
+			new Class[]{java.sql.Timestamp[].class, java.time.LocalDateTime[].class},
+			new LogicalType[]{new TimestampType()},
+			new ArrayType(new SmallIntType())
+		);
+
+		testAll(
+			new ArrayType(new ArrayType(new TimestampType())),
+			"ARRAY<ARRAY<TIMESTAMP(6)>>",
+			new Class[]{java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class},
+			new Class[]{java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class},
+			new LogicalType[]{new ArrayType(new TimestampType())},
+			new ArrayType(new ArrayType(new SmallIntType()))
 		);
 	}
 
