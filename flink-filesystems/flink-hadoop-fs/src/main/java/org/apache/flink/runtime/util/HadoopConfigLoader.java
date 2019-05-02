@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
 

@@ -19,7 +19,7 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fs.s3.common.HadoopConfigLoader;
+import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.junit.Test;
 
