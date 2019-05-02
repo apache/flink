@@ -53,5 +53,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(DoubleType doubleType);
 
+	R visit(DateType dateType);
+
 	R visit(LogicalType other);
 }
