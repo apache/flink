@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -318,6 +319,18 @@ public class LogicalTypesTest {
 			new Class[]{Map.class},
 			new LogicalType[]{new TimestampType()},
 			new MultisetType(new SmallIntType())
+		);
+	}
+
+	@Test
+	public void testMapType() {
+		testAll(
+			new MapType(new VarCharType(20), new TimestampType()),
+			"MAP<VARCHAR(20), TIMESTAMP(6)>",
+			new Class[]{Map.class},
+			new Class[]{Map.class},
+			new LogicalType[]{new VarCharType(20), new TimestampType()},
+			new MapType(new VarCharType(99), new TimestampType())
 		);
 	}
 

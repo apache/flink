@@ -71,5 +71,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(MultisetType multisetType);
 
+	R visit(MapType mapType);
+
 	R visit(LogicalType other);
 }
