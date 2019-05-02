@@ -73,5 +73,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(MapType mapType);
 
+	R visit(RowType rowType);
+
 	R visit(LogicalType other);
 }
