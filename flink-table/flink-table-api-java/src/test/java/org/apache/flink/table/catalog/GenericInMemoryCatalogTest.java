@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.plan.stats.TableStats;
 
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -80,25 +81,23 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Test
 	public void testCreateTable_Streaming() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		GenericCatalogTable table = createStreamingTable();
+		CatalogTable table = createStreamingTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
 	public void testCreateTable_Batch() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		CatalogDatabase database = catalog.getDatabase(db1);
-		assertTrue(TEST_COMMENT.equals(database.getDescription().get()));
 
 		// Non-partitioned table
-		GenericCatalogTable table = createTable();
+		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogBaseTable tableCreated = catalog.getTable(path1);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) tableCreated);
+		CatalogTestUtil.checkEquals(table, (CatalogTable) tableCreated);
 		assertEquals(TABLE_COMMENT, tableCreated.getDescription().get());
 
 		List<String> tables = catalog.listTables(db1);
@@ -112,7 +111,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		tables = catalog.listTables(db1);
 
@@ -132,7 +131,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Test
 	public void testCreateTable_TableAlreadyExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1,  CatalogTestUtil.createTable(TABLE_COMMENT), false);
+		catalog.createTable(path1,  createTable(), false);
 
 		exception.expect(TableAlreadyExistException.class);
 		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
@@ -143,14 +142,14 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public void testCreateTable_TableAlreadyExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
-		GenericCatalogTable table =  CatalogTestUtil.createTable(TABLE_COMMENT);
+		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		catalog.createTable(path1, createAnotherTable(), true);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -170,10 +169,8 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testDropTable() throws Exception {
+	public void testDropTable_nonPartitionedTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-
-		// Non-partitioned table
 		catalog.createTable(path1, createTable(), false);
 
 		assertTrue(catalog.tableExists(path1));
@@ -181,8 +178,11 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		catalog.dropTable(path1, false);
 
 		assertFalse(catalog.tableExists(path1));
+	}
 
-		// Partitioned table
+	@Test
+	public void testDropTable_partitionedTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, createPartitionedTable(), false);
 		CatalogPartition catalogPartition = createPartition();
 		CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
@@ -231,16 +231,16 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		catalog.createDatabase(db1, createDb(), false);
 
 		// Non-partitioned table
-		GenericCatalogTable table = CatalogTestUtil.createTable(TABLE_COMMENT);
+		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
-		GenericCatalogTable newTable = createAnotherTable();
+		CatalogTable newTable = createAnotherTable();
 		catalog.alterTable(path1, newTable, false);
 
 		assertNotEquals(table, catalog.getTable(path1));
-		CatalogTestUtil.checkEquals(newTable, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 
 		catalog.dropTable(path1, false);
 
@@ -248,12 +248,12 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		newTable = createAnotherPartitionedTable();
 		catalog.alterTable(path1, newTable, false);
 
-		CatalogTestUtil.checkEquals(newTable, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -272,35 +272,34 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testRenameTable() throws Exception {
+	public void testRenameTable_nonPartitionedTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-
-		// Non-partitioned table
-		GenericCatalogTable table = createTable();
+		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		catalog.renameTable(path1, t2, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path3));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
 		assertFalse(catalog.tableExists(path1));
+	}
 
-		catalog.dropTable(path3, false);
-
-		// Partitioned table
-		table = createPartitionedTable();
+	@Test
+	public void testRenameTable_partitionedTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 		CatalogPartition catalogPartition = createPartition();
 		CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 		assertTrue(catalog.partitionExists(path1, catalogPartitionSpec));
 
 		catalog.renameTable(path1, t2, false);
 
-		CatalogTestUtil.checkEquals(table, (GenericCatalogTable) catalog.getTable(path3));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
 		assertTrue(catalog.partitionExists(path3, catalogPartitionSpec));
 		assertFalse(catalog.tableExists(path1));
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
@@ -962,35 +961,44 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	private GenericCatalogTable createStreamingTable() {
-		return CatalogTestUtil.createTable(
+		return new GenericCatalogTable(
 			createTableSchema(),
-			getStreamingTableProperties(), TABLE_COMMENT);
+			new TableStats(0),
+			getStreamingTableProperties(),
+			TABLE_COMMENT);
 	}
 
 	@Override
-	public GenericCatalogTable createTable() {
-		return CatalogTestUtil.createTable(
+	public CatalogTable createTable() {
+		return new GenericCatalogTable(
 			createTableSchema(),
-			getBatchTableProperties(), TABLE_COMMENT);
+			new TableStats(0),
+			getBatchTableProperties(),
+			TABLE_COMMENT);
 	}
 
-	private GenericCatalogTable createAnotherTable() {
-		return CatalogTestUtil.createTable(
+	@Override
+	public CatalogTable createAnotherTable() {
+		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			getBatchTableProperties(), TABLE_COMMENT);
+			new TableStats(0),
+			getBatchTableProperties(),
+			TABLE_COMMENT);
 	}
 
-	protected GenericCatalogTable createPartitionedTable() {
-		return CatalogTestUtil.createPartitionedTable(
+	protected CatalogTable createPartitionedTable() {
+		return new GenericCatalogTable(
 			createTableSchema(),
+			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TABLE_COMMENT);
 	}
 
-	protected GenericCatalogTable createAnotherPartitionedTable() {
-		return CatalogTestUtil.createPartitionedTable(
+	protected CatalogTable createAnotherPartitionedTable() {
+		return new GenericCatalogTable(
 			createAnotherTableSchema(),
+			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TABLE_COMMENT);

@@ -238,4 +238,11 @@ public abstract class CatalogTestBase {
 	 * @return a CatalogTable instance
 	 */
 	public abstract CatalogTable createTable();
+
+	/**
+	 * Create another CatalogTable instance by specific catalog implementation.
+	 *
+	 * @return another CatalogTable instance
+	 */
+	public abstract CatalogTable createAnotherTable();
 }

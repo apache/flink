@@ -80,4 +80,10 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 		// TODO: implement this once GenericHiveMetastoreCatalog support table operations
 		return null;
 	}
+
+	@Override
+	public CatalogTable createAnotherTable() {
+		// TODO: implement this once GenericHiveMetastoreCatalog support table operations
+		return null;
+	}
 }

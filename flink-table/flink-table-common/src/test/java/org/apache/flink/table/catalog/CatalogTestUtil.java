@@ -18,15 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.plan.stats.TableStats;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -35,42 +27,10 @@ import static org.junit.Assert.assertEquals;
  */
 public class CatalogTestUtil {
 
-	public static GenericCatalogTable createTable(String comment) {
-		TableSchema tableSchema = TableSchema.fromTypeInfo(getRowTypeInfo());
-		return new GenericCatalogTable(tableSchema, createTableStats(), new HashMap<>(), comment);
-	}
-
-	public static RowTypeInfo getRowTypeInfo() {
-		return new RowTypeInfo(
-			new TypeInformation[] {BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO},
-			new String[] {"a", "b"});
-	}
-
-	public static TableStats createTableStats() {
-		return new TableStats(2);
-	}
-
-	public static GenericCatalogTable createTable(
-		TableSchema schema,
-		Map<String, String> tableProperties,
-		String comment) {
-
-		return new GenericCatalogTable(schema, new TableStats(0), tableProperties, comment);
-	}
-
-	public static GenericCatalogTable createPartitionedTable(
-		TableSchema schema,
-		List<String> partitionKeys,
-		Map<String, String> tableProperties,
-		String comment) {
-
-		return new GenericCatalogTable(schema, new TableStats(0), partitionKeys, tableProperties, comment);
-	}
-
-	public static void checkEquals(GenericCatalogTable t1, GenericCatalogTable t2) {
+	public static void checkEquals(CatalogTable t1, CatalogTable t2) {
 		assertEquals(t1.getSchema(), t2.getSchema());
 		checkEquals(t1.getStatistics(), t2.getStatistics());
-		assertEquals(t1.getComment(), t2.getComment());
+		assertEquals(t1.getDescription(), t2.getDescription());
 	}
 
 	protected static void checkEquals(TableStats ts1, TableStats ts2) {
