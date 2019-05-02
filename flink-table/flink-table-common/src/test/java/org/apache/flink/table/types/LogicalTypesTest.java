@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -47,6 +48,7 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -304,6 +306,18 @@ public class LogicalTypesTest {
 			new Class[]{java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class},
 			new LogicalType[]{new ArrayType(new TimestampType())},
 			new ArrayType(new ArrayType(new SmallIntType()))
+		);
+	}
+
+	@Test
+	public void testMultisetType() {
+		testAll(
+			new MultisetType(new TimestampType()),
+			"MULTISET<TIMESTAMP(6)>",
+			new Class[]{Map.class},
+			new Class[]{Map.class},
+			new LogicalType[]{new TimestampType()},
+			new MultisetType(new SmallIntType())
 		);
 	}
 
