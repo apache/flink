@@ -113,6 +113,7 @@ flink-queryable-state/flink-queryable-state-client-java"
 MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-filesystems/flink-s3-fs-hadoop,\
 !flink-filesystems/flink-s3-fs-presto,\
+!flink-filesystems/flink-mapr-fs,\
 !flink-connectors/flink-hbase"
 
 MODULES_TESTS="\
