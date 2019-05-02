@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -230,6 +231,19 @@ public class LogicalTypesTest {
 			new Class[]{java.time.LocalTime.class},
 			new LogicalType[]{},
 			new TimeType()
+		);
+	}
+
+	@Test
+	public void testTimestampType() {
+		testAll(
+			new TimestampType(9),
+			"TIMESTAMP(9)",
+			"TIMESTAMP(9)",
+			new Class[]{java.sql.Timestamp.class, java.time.LocalDateTime.class},
+			new Class[]{java.time.LocalDateTime.class},
+			new LogicalType[]{},
+			new TimestampType(3)
 		);
 	}
 
