@@ -79,5 +79,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(StructuredType structuredType);
 
+	R visit(NullType nullType);
+
 	R visit(LogicalType other);
 }

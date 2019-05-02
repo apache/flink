@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -390,6 +391,25 @@ public class LogicalTypesTest {
 
 		// User is not implementing SpecialHuman
 		assertFalse(createHumanType(true).supportsInputConversion(User.class));
+	}
+
+	@Test
+	public void testNullType() {
+		final NullType nullType = new NullType();
+
+		testEquality(nullType, new TimeType());
+
+		testJavaSerializability(nullType);
+
+		testStringSerializability(nullType, "NULL");
+
+		assertTrue(nullType.supportsInputConversion(Object.class));
+
+		assertTrue(nullType.supportsOutputConversion(Object.class));
+
+		assertTrue(nullType.supportsOutputConversion(Integer.class));
+
+		assertFalse(nullType.supportsOutputConversion(int.class));
 	}
 
 	// --------------------------------------------------------------------------------------------
