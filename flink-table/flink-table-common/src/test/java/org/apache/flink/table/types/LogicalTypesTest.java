@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -258,6 +259,19 @@ public class LogicalTypesTest {
 			new Class[]{java.time.OffsetDateTime.class},
 			new LogicalType[]{},
 			new ZonedTimestampType(3)
+		);
+	}
+
+	@Test
+	public void testLocalZonedTimestampType() {
+		testAll(
+			new LocalZonedTimestampType(9),
+			"TIMESTAMP(9) WITH LOCAL TIME ZONE",
+			"TIMESTAMP(9) WITH LOCAL TIME ZONE",
+			new Class[]{java.time.Instant.class, long.class, int.class},
+			new Class[]{java.time.Instant.class},
+			new LogicalType[]{},
+			new LocalZonedTimestampType(3)
 		);
 	}
 
