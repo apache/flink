@@ -74,7 +74,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime) // default
 Processing time
 ---------------
 
-Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time but does not provide determinism. It neither requires timestamp extraction nor watermark generation.
+With processing time, Table API and SQL queries evaluate time-related operations, such as time-windowed aggregations and joins, based on the clock of the processing machine. It is the simplest notion of time but does not provide determinism. It neither requires timestamp extraction nor watermark generation.
 
 There are two ways to define a processing time attribute.
 
@@ -180,13 +180,9 @@ val windowedTable = tEnv
 Event time
 ----------
 
-Event time allows a table program to produce results based on the time that is contained in every record. This allows for consistent results even in case of out-of-order events or late events. It also ensures replayable results of the table program when reading records from persistent storage.
+With event time, Table API and SQL queries evaluate time-related operations, such as time-windowed aggregations and joins, based on actual timestamp values in each record. This allows for consistent results even in case of out-of-order records. It also ensures replayable results of the table program when records are read from persistent storage and ensures a unified syntax for queries in both batch and streaming environments. A time attribute in a streaming environment can be a regular field of a record in a batch environment.
 
-Additionally, event time allows for unified syntax for table programs in both batch and streaming environments. A time attribute in a streaming environment can be a regular field of a record in a batch environment.
-
-In order to handle out-of-order events and distinguish between on-time and late events in streaming, Flink needs to extract timestamps from events and make some kind of progress in time (so-called [watermarks]({{ site.baseurl }}/dev/event_time.html)).
-
-An event time attribute can be defined either during DataStream-to-Table conversion or by using a TableSource.
+In order to enable event time processing, Flink needs to extract timestamps from records and make some kind of progress in time (so-called [watermarks]({{ site.baseurl }}/dev/event_time.html)). An event time attribute can be defined either during DataStream-to-Table conversion or by using a `TableSource`.
 
 ### During DataStream-to-Table Conversion
 
