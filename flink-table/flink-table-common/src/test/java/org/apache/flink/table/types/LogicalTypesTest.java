@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -46,6 +47,7 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -329,6 +331,29 @@ public class LogicalTypesTest {
 		final LogicalType nestedArray = new ArrayType(new ArrayType(new TimestampType()));
 		assertFalse(nestedArray.supportsInputConversion(java.sql.Timestamp[].class));
 		assertFalse(nestedArray.supportsOutputConversion(java.sql.Timestamp[].class));
+	}
+
+	@Test
+	public void testMultisetType() {
+		testAll(
+			new MultisetType(new TimestampType()),
+			"MULTISET<TIMESTAMP(6)>",
+			"MULTISET<TIMESTAMP(6)>",
+			new Class[]{Map.class},
+			new Class[]{Map.class},
+			new LogicalType[]{new TimestampType()},
+			new MultisetType(new SmallIntType())
+		);
+
+		testAll(
+			new MultisetType(new MultisetType(new TimestampType())),
+			"MULTISET<MULTISET<TIMESTAMP(6)>>",
+			"MULTISET<MULTISET<TIMESTAMP(6)>>",
+			new Class[]{Map.class},
+			new Class[]{Map.class},
+			new LogicalType[]{new MultisetType(new TimestampType())},
+			new MultisetType(new MultisetType(new SmallIntType()))
+		);
 	}
 
 	// --------------------------------------------------------------------------------------------

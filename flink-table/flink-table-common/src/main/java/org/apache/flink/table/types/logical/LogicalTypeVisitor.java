@@ -69,5 +69,7 @@ public interface LogicalTypeVisitor<R> {
 
 	R visit(ArrayType arrayType);
 
+	R visit(MultisetType multisetType);
+
 	R visit(LogicalType other);
 }
