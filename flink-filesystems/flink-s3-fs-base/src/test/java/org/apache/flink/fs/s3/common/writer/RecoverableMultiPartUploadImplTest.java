@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -399,7 +400,7 @@ public class RecoverableMultiPartUploadImplTest {
 
 		private byte[] getFileContentBytes(File file, int length) throws IOException {
 			final byte[] content = new byte[length];
-			new FileInputStream(file).read(content, 0, length);
+			IOUtils.readFully(new FileInputStream(file), content, 0, length);
 			return content;
 		}
 
