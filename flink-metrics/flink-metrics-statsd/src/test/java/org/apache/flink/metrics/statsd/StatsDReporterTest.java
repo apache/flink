@@ -24,14 +24,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.util.TestCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -138,10 +138,10 @@ public class StatsDReporterTest extends TestLogger {
 	public void testStatsDHistogramReporting() throws Exception {
 		Set<String> expectedLines = new HashSet<>(6);
 		expectedLines.add("metric.count:1|g");
-		expectedLines.add("metric.mean:3.0|g");
-		expectedLines.add("metric.min:6|g");
-		expectedLines.add("metric.max:5|g");
-		expectedLines.add("metric.stddev:4.0|g");
+		expectedLines.add("metric.mean:4.0|g");
+		expectedLines.add("metric.min:7|g");
+		expectedLines.add("metric.max:6|g");
+		expectedLines.add("metric.stddev:5.0|g");
 		expectedLines.add("metric.p75:0.75|g");
 		expectedLines.add("metric.p98:0.98|g");
 		expectedLines.add("metric.p99:0.99|g");
@@ -149,7 +149,7 @@ public class StatsDReporterTest extends TestLogger {
 		expectedLines.add("metric.p95:0.95|g");
 		expectedLines.add("metric.p50:0.5|g");
 
-		testMetricAndAssert(new TestingHistogram(), "metric", expectedLines);
+		testMetricAndAssert(new TestHistogram(), "metric", expectedLines);
 	}
 
 	/**
@@ -172,10 +172,7 @@ public class StatsDReporterTest extends TestLogger {
 		Set<String> expectedLines = new HashSet<>(2);
 		expectedLines.add("metric:100|g");
 
-		Counter counter = new SimpleCounter();
-		counter.inc(100);
-
-		testMetricAndAssert(counter, "metric", expectedLines);
+		testMetricAndAssert(new TestCounter(100), "metric", expectedLines);
 	}
 
 	@Test
@@ -242,59 +239,6 @@ public class StatsDReporterTest extends TestLogger {
 
 		public Map<Counter, String> getCounters() {
 			return counters;
-		}
-	}
-
-	private static class TestingHistogram implements Histogram {
-
-		@Override
-		public void update(long value) {
-
-		}
-
-		@Override
-		public long getCount() {
-			return 1;
-		}
-
-		@Override
-		public HistogramStatistics getStatistics() {
-			return new HistogramStatistics() {
-				@Override
-				public double getQuantile(double quantile) {
-					return quantile;
-				}
-
-				@Override
-				public long[] getValues() {
-					return new long[0];
-				}
-
-				@Override
-				public int size() {
-					return 2;
-				}
-
-				@Override
-				public double getMean() {
-					return 3;
-				}
-
-				@Override
-				public double getStdDev() {
-					return 4;
-				}
-
-				@Override
-				public long getMax() {
-					return 5;
-				}
-
-				@Override
-				public long getMin() {
-					return 6;
-				}
-			};
 		}
 	}
 
