@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.metrics.util.TestReporter;
@@ -303,6 +304,24 @@ public class ReporterSetupTest extends TestLogger {
 	}
 
 	/**
+	 * Verifies that the factory approach is used if the factory is annotated with {@link InstantiateViaFactory}.
+	 */
+	@Test
+	public void testFactoryAnnotation() {
+		final Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, InstantiationTypeTrackingTestReporter2.class.getName());
+
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+
+		assertEquals(1, reporterSetups.size());
+
+		final ReporterSetup reporterSetup = reporterSetups.get(0);
+		final InstantiationTypeTrackingTestReporter metricReporter = (InstantiationTypeTrackingTestReporter) reporterSetup.getReporter();
+
+		assertTrue(metricReporter.createdByFactory);
+	}
+
+	/**
 	 * Factory that exposed the last provided metric config.
 	 */
 	public static class ConfigExposingReporterFactory implements MetricReporterFactory {
@@ -369,5 +388,12 @@ public class ReporterSetupTest extends TestLogger {
 		public boolean isCreatedByFactory() {
 			return createdByFactory;
 		}
+	}
+
+	/**
+	 * Annotated reporter that exposes which constructor was called.
+	 */
+	@InstantiateViaFactory(factoryClassName = "org.apache.flink.runtime.metrics.ReporterSetupTest$InstantiationTypeTrackingTestReporterFactory")
+	protected static class InstantiationTypeTrackingTestReporter2 extends InstantiationTypeTrackingTestReporter {
 	}
 }

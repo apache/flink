@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
@@ -206,8 +207,7 @@ public final class ReporterSetup {
 		}
 
 		if (reporterClassName != null) {
-			final Class<?> reporterClass = Class.forName(reporterClassName);
-			return Optional.of((MetricReporter) reporterClass.newInstance());
+			return loadViaReflection(reporterClassName, reporterName, reporterConfig, reporterFactories);
 		}
 
 		LOG.warn("No reporter class nor factory set for reporter {}. Metrics might not be exposed/reported.", reporterName);
@@ -231,5 +231,30 @@ public final class ReporterSetup {
 
 			return Optional.of(factory.createMetricReporter(metricConfig));
 		}
+	}
+
+	private static Optional<MetricReporter> loadViaReflection(
+			final String reporterClassName,
+			final String reporterName,
+			final Configuration reporterConfig,
+			final Map<String, MetricReporterFactory> reporterFactories) throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+
+		final Class<?> reporterClass = Class.forName(reporterClassName);
+
+		final InstantiateViaFactory alternativeFactoryAnnotation = reporterClass.getAnnotation(InstantiateViaFactory.class);
+		if (alternativeFactoryAnnotation != null) {
+			final String alternativeFactoryClassName = alternativeFactoryAnnotation.factoryClassName();
+			LOG.info("The reporter configuration of {} is out-dated (but still supported)." +
+					" Please configure a factory class instead: '{}{}.{}: {}' to ensure that the configuration" +
+					" continues to work with future versions.",
+				reporterName,
+				ConfigConstants.METRICS_REPORTER_PREFIX,
+				reporterName,
+				ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+				alternativeFactoryClassName);
+			return loadViaFactory(alternativeFactoryClassName, reporterName, reporterConfig, reporterFactories);
+		}
+
+		return Optional.of((MetricReporter) reporterClass.newInstance());
 	}
 }
