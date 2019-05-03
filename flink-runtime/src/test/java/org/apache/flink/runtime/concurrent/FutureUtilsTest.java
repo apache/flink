@@ -48,6 +48,7 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.emptyArray;
@@ -764,5 +765,49 @@ public class FutureUtilsTest extends TestLogger {
 		private boolean hasBeenCalled() {
 			return exception != null;
 		}
+	}
+
+	@Test
+	public void testForwardNormal() throws Exception {
+		final CompletableFuture<String> source = new CompletableFuture<>();
+		final CompletableFuture<String> target = new CompletableFuture<>();
+
+		FutureUtils.forward(source, target);
+
+		assertThat(target.isDone(), is(source.isDone()));
+
+		source.complete("foobar");
+
+		assertThat(target.isDone(), is(source.isDone()));
+		assertThat(target.get(), is(equalTo(source.get())));
+	}
+
+	@Test
+	public void testForwardExceptionally() {
+		final CompletableFuture<String> source = new CompletableFuture<>();
+		final CompletableFuture<String> target = new CompletableFuture<>();
+
+		FutureUtils.forward(source, target);
+
+		assertThat(target.isDone(), is(source.isDone()));
+
+		source.completeExceptionally(new FlinkException("foobar"));
+
+		assertThat(target.isDone(), is(source.isDone()));
+
+		Throwable targetException = getThrowable(target);
+		Throwable actualException = getThrowable(source);
+
+		assertThat(targetException, is(equalTo(actualException)));
+	}
+
+	private static Throwable getThrowable(CompletableFuture<?> completableFuture) {
+		try {
+			completableFuture.join();
+		} catch (CompletionException e) {
+			return e.getCause();
+		}
+
+		throw new AssertionError("Future has not been completed exceptionally.");
 	}
 }
