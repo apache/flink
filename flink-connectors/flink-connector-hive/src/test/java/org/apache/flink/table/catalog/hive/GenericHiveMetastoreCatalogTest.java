@@ -95,7 +95,7 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 
 	@Override
 	public String getBuiltInDefaultDatabase() {
-		return GenericHiveMetastoreCatalog.DEFAULT_DB;
+		return HiveCatalogBase.DEFAULT_DB;
 	}
 
 	@Override

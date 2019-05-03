@@ -109,11 +109,16 @@ public abstract class CatalogTestBase {
 	@Test
 	public void testSetCurrentDatabase() throws Exception {
 		assertEquals(getBuiltInDefaultDatabase(), catalog.getCurrentDatabase());
+
 		catalog.createDatabase(db2, createDb(), true);
 		catalog.setCurrentDatabase(db2);
+
 		assertEquals(db2, catalog.getCurrentDatabase());
+
 		catalog.setCurrentDatabase(getBuiltInDefaultDatabase());
+
 		assertEquals(getBuiltInDefaultDatabase(), catalog.getCurrentDatabase());
+
 		catalog.dropDatabase(db2, false);
 	}
 

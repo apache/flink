@@ -16,45 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.catalog.hive;
 
-import java.util.Map;
-import java.util.Optional;
+import org.apache.flink.table.catalog.CatalogDatabase;
+
+import org.apache.hadoop.hive.metastore.api.Database;
 
 /**
- * Represents a database object in a catalog.
+ * Utils to convert meta objects between Flink and Hive for HiveCatalog.
  */
-public interface CatalogDatabase {
-	/**
-	 * Get a map of properties associated with the database.
-	 */
-	Map<String, String> getProperties();
+public class HiveCatalogUtil {
+
+	private HiveCatalogUtil() {
+	}
+
+	// ------ Utils ------
 
 	/**
-	 * Get comment of the database.
-	 *
-	 * @return comment of the database
+	 * Creates a Hive database from CatalogDatabase.
 	 */
-	String getComment();
+	public static Database createHiveDatabase(String dbName, CatalogDatabase db) {
+		HiveCatalogDatabase hiveCatalogDatabase = (HiveCatalogDatabase) db;
 
-	/**
-	 * Get a deep copy of the CatalogDatabase instance.
-	 *
-	 * @return a copy of CatalogDatabase instance
-	 */
-	CatalogDatabase copy();
+		return new Database(
+			dbName,
+			db.getComment(),
+			hiveCatalogDatabase.getLocation(),
+			hiveCatalogDatabase.getProperties());
 
-	/**
-	 * Get a brief description of the database.
-	 *
-	 * @return an optional short description of the database
-	 */
-	Optional<String> getDescription();
-
-	/**
-	 * Get a detailed description of the database.
-	 *
-	 * @return an optional long description of the database
-	 */
-	Optional<String> getDetailedDescription();
+	}
 }
