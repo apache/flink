@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
@@ -99,11 +98,8 @@ public class JMXReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testPortConflictHandling() throws Exception {
-		MetricConfig metricConfig = new MetricConfig();
-		metricConfig.setProperty("port", "9020-9035");
-
-		ReporterSetup reporterSetup1 = ReporterSetup.forReporter("test1", metricConfig, new JMXReporter());
-		ReporterSetup reporterSetup2 = ReporterSetup.forReporter("test2", metricConfig, new JMXReporter());
+		ReporterSetup reporterSetup1 = ReporterSetup.forReporter("test1", new JMXReporter("9020-9035"));
+		ReporterSetup reporterSetup2 = ReporterSetup.forReporter("test2", new JMXReporter("9020-9035"));
 
 		MetricRegistryImpl reg = new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
@@ -156,11 +152,8 @@ public class JMXReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testJMXAvailability() throws Exception {
-		MetricConfig metricConfig = new MetricConfig();
-		metricConfig.setProperty("port", "9040-9055");
-
-		ReporterSetup reporterSetup1 = ReporterSetup.forReporter("test1", metricConfig, new JMXReporter());
-		ReporterSetup reporterSetup2 = ReporterSetup.forReporter("test2", metricConfig, new JMXReporter());
+		ReporterSetup reporterSetup1 = ReporterSetup.forReporter("test1", new JMXReporter("9040-9055"));
+		ReporterSetup reporterSetup2 = ReporterSetup.forReporter("test2", new JMXReporter("9040-9055"));
 
 		MetricRegistryImpl reg = new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
@@ -195,7 +188,7 @@ public class JMXReporterTest extends TestLogger {
 		ObjectName objectName1 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep1", JMXReporter.generateJmxTable(mg.getAllVariables()));
 		ObjectName objectName2 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep2", JMXReporter.generateJmxTable(mg.getAllVariables()));
 
-		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter) rep1).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter) rep1).getPort() + "/jmxrmi");
+		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter) rep1).getPort().get() + "/jndi/rmi://localhost:" + ((JMXReporter) rep1).getPort().get() + "/jmxrmi");
 		JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
 		MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
 
@@ -204,7 +197,7 @@ public class JMXReporterTest extends TestLogger {
 
 		jmxCon1.close();
 
-		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter) rep2).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter) rep2).getPort() + "/jmxrmi");
+		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter) rep2).getPort().get() + "/jndi/rmi://localhost:" + ((JMXReporter) rep2).getPort().get() + "/jmxrmi");
 		JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
 		MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();
 
@@ -233,7 +226,7 @@ public class JMXReporterTest extends TestLogger {
 		try {
 			registry = new MetricRegistryImpl(
 				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-				Collections.singletonList(ReporterSetup.forReporter("test", new JMXReporter())));
+				Collections.singletonList(ReporterSetup.forReporter("test", new JMXReporter(null))));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -281,7 +274,7 @@ public class JMXReporterTest extends TestLogger {
 		try {
 			registry = new MetricRegistryImpl(
 				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-				Collections.singletonList(ReporterSetup.forReporter("test", new JMXReporter())));
+				Collections.singletonList(ReporterSetup.forReporter("test", new JMXReporter(null))));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
