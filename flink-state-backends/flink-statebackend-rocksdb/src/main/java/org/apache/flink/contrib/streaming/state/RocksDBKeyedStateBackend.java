@@ -270,6 +270,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Shared wrapper for batch writes to the RocksDB instance. */
 	private RocksDBWriteBatchWrapper writeBatchWrapper;
 
+	/** The local directory name of the current snapshot strategy. */
+	private final String localDirectoryName;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -319,6 +322,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.restoredKvStateMetaInfos = new HashMap<>();
 		this.materializedSstFiles = new TreeMap<>();
 		this.backendUID = UUID.randomUUID();
+		this.localDirectoryName = this.backendUID.toString().replaceAll("[\\-]", "");
 
 		this.snapshotStrategy = enableIncrementalCheckpointing ?
 			new IncrementalSnapshotStrategy() :
@@ -1977,17 +1981,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
 				File directory = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointId);
 
-				if (directory.exists()) {
-					FileUtils.deleteDirectory(directory);
-				}
-
-				if (!directory.mkdirs()) {
+				if (!directory.exists() && !directory.mkdirs()) {
 					throw new IOException("Local state base directory for checkpoint " + checkpointId +
 						" already exists: " + directory);
 				}
 
 				// introduces an extra directory because RocksDB wants a non-existing directory for native checkpoints.
-				File rdbSnapshotDir = new File(directory, "rocks_db");
+				// append localDirectoryName here to solve directory collision problem when two stateful operators chained in one task.
+				File rdbSnapshotDir = new File(directory, localDirectoryName);
+				if (rdbSnapshotDir.exists()) {
+					FileUtils.deleteDirectory(rdbSnapshotDir);
+				}
 				Path path = new Path(rdbSnapshotDir.toURI());
 				// create a "permanent" snapshot directory because local recovery is active.
 				snapshotDirectory = SnapshotDirectory.permanent(path);
