@@ -1050,4 +1050,21 @@ public class FutureUtils {
 			}
 		});
 	}
+
+	/**
+	 * Forwards the value from the source future to the target future.
+	 *
+	 * @param source future to forward the value from
+	 * @param target future to forward the value to
+	 * @param <T> type of the value
+	 */
+	public static <T> void forward(CompletableFuture<T> source, CompletableFuture<T> target) {
+		source.whenComplete((value, throwable) -> {
+			if (throwable != null) {
+				target.completeExceptionally(throwable);
+			} else {
+				target.complete(value);
+			}
+		});
+	}
 }
