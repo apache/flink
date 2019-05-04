@@ -37,7 +37,11 @@ public class HiveCatalogDatabase implements CatalogDatabase {
 	// HDFS path of the database
 	private String location;
 	// Comment of the database
-	private String comment = "This is a generic catalog database.";
+	private String comment = "This is a hive catalog database.";
+
+	public HiveCatalogDatabase() {
+		properties = new HashMap<>();
+	}
 
 	public HiveCatalogDatabase(Map<String, String> properties) {
 		this.properties = checkNotNull(properties, "properties cannot be null");
@@ -58,6 +62,11 @@ public class HiveCatalogDatabase implements CatalogDatabase {
 	@Override
 	public Map<String, String> getProperties() {
 		return properties;
+	}
+
+	@Override
+	public String getComment() {
+		return comment;
 	}
 
 	@Override

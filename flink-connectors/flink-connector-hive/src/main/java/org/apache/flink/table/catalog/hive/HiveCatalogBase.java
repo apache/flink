@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.ReadableWritableCatalog;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -28,6 +30,8 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -155,6 +159,43 @@ public abstract class HiveCatalogBase implements ReadableWritableCatalog {
 			throw new DatabaseNotEmptyException(catalogName, name);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to drop database %s", name), e);
+		}
+	}
+
+	protected Database getHiveDatabase(String databaseName) throws DatabaseNotExistException {
+		try {
+			return client.getDatabase(databaseName);
+		} catch (NoSuchObjectException e) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get database %s from %s", databaseName, catalogName), e);
+		}
+	}
+
+	protected void createHiveDatabase(Database hiveDatabase, boolean ignoreIfExists)
+			throws DatabaseAlreadyExistException, CatalogException {
+		try {
+			client.createDatabase(hiveDatabase);
+		} catch (AlreadyExistsException e) {
+			if (!ignoreIfExists) {
+				throw new DatabaseAlreadyExistException(catalogName, hiveDatabase.getName());
+			}
+		} catch (TException e) {
+			throw new CatalogException(String.format("Failed to create database %s", hiveDatabase.getName()), e);
+		}
+	}
+
+	protected void alterHiveDatabase(String name, Database newHiveDatabase, boolean ignoreIfNotExists)
+			throws DatabaseNotExistException, CatalogException {
+		try {
+			if (databaseExists(name)) {
+				client.alterDatabase(name, newHiveDatabase);
+			} else if (!ignoreIfNotExists) {
+				throw new DatabaseNotExistException(catalogName, name);
+			}
+		} catch (TException e) {
+			throw new CatalogException(String.format("Failed to alter database %s", name), e);
 		}
 	}
 }

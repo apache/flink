@@ -29,8 +29,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class GenericCatalogDatabase implements CatalogDatabase {
 	private final Map<String, String> properties;
-	// Comment of the database
 	private String comment = "This is a generic catalog database.";
+
+	public GenericCatalogDatabase() {
+		this.properties = new HashMap<>();
+	}
 
 	public GenericCatalogDatabase(Map<String, String> properties) {
 		this.properties = checkNotNull(properties, "properties cannot be null");
@@ -41,8 +44,14 @@ public class GenericCatalogDatabase implements CatalogDatabase {
 		this.comment = checkNotNull(comment, "comment cannot be null");
 	}
 
+	@Override
 	public Map<String, String> getProperties() {
 		return properties;
+	}
+
+	@Override
+	public String getComment() {
+		return this.comment;
 	}
 
 	@Override
@@ -59,13 +68,4 @@ public class GenericCatalogDatabase implements CatalogDatabase {
 	public Optional<String> getDetailedDescription() {
 		return Optional.of("This is a generic catalog database stored in memory only");
 	}
-
-	public String getComment() {
-		return this.comment;
-	}
-
-	public void setComment(String comment) {
-		this.comment = comment;
-	}
-
 }

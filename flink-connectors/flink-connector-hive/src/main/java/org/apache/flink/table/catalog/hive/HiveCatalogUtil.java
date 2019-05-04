@@ -40,7 +40,7 @@ public class HiveCatalogUtil {
 
 		return new Database(
 			dbName,
-			db.getDescription().isPresent() ? db.getDescription().get() : null,
+			db.getComment(),
 			hiveCatalogDatabase.getLocation(),
 			hiveCatalogDatabase.getProperties());
 

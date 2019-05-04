@@ -71,45 +71,21 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 	@Override
 	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		Database hiveDb;
-
-		try {
-			hiveDb = client.getDatabase(databaseName);
-		} catch (NoSuchObjectException e) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		} catch (TException e) {
-			throw new CatalogException(
-				String.format("Failed to get database %s from %s", databaseName, catalogName), e);
-		}
+		Database hiveDb = getHiveDatabase(databaseName);
 
 		return new GenericCatalogDatabase(hiveDb.getParameters(), hiveDb.getDescription());
 	}
 
 	@Override
-	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists) throws DatabaseAlreadyExistException, CatalogException {
-
-		try {
-			client.createDatabase(GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, database));
-		} catch (AlreadyExistsException e) {
-			if (!ignoreIfExists) {
-				throw new DatabaseAlreadyExistException(catalogName, name);
-			}
-		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to create database %s", name), e);
-		}
+	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
+			throws DatabaseAlreadyExistException, CatalogException {
+		createHiveDatabase(GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, database), ignoreIfExists);
 	}
 
 	@Override
-	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists) throws DatabaseNotExistException, CatalogException {
-		try {
-			if (databaseExists(name)) {
-				client.alterDatabase(name, GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, newDatabase));
-			} else if (!ignoreIfNotExists) {
-				throw new DatabaseNotExistException(catalogName, name);
-			}
-		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to alter database %s", name), e);
-		}
+	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
+			throws DatabaseNotExistException, CatalogException {
+		alterHiveDatabase(name, GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, newDatabase), ignoreIfNotExists);
 	}
 
 	// ------ tables and views------

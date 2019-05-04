@@ -37,10 +37,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,16 +66,7 @@ public class HiveCatalog extends HiveCatalogBase {
 	@Override
 	public CatalogDatabase getDatabase(String databaseName)
 			throws DatabaseNotExistException, CatalogException {
-		Database hiveDb;
-
-		try {
-			hiveDb = client.getDatabase(databaseName);
-		} catch (NoSuchObjectException e) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		} catch (TException e) {
-			throw new CatalogException(
-				String.format("Failed to get database %s from %s", databaseName, catalogName), e);
-		}
+		Database hiveDb = getHiveDatabase(databaseName);
 
 		return new HiveCatalogDatabase(
 			hiveDb.getParameters(), hiveDb.getLocationUri(), hiveDb.getDescription());
@@ -87,28 +75,12 @@ public class HiveCatalog extends HiveCatalogBase {
 	@Override
 	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
 			throws DatabaseAlreadyExistException, CatalogException {
-		try {
-			client.createDatabase(HiveCatalogUtil.createHiveDatabase(name, database));
-		} catch (AlreadyExistsException e) {
-			if (!ignoreIfExists) {
-				throw new DatabaseAlreadyExistException(catalogName, name);
-			}
-		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to create database %s", name), e);
-		}
+		createHiveDatabase(HiveCatalogUtil.createHiveDatabase(name, database), ignoreIfExists);
 	}
 
 	@Override
 	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists) throws DatabaseNotExistException, CatalogException {
-		try {
-			if (databaseExists(name)) {
-				client.alterDatabase(name, HiveCatalogUtil.createHiveDatabase(name, newDatabase));
-			} else if (!ignoreIfNotExists) {
-				throw new DatabaseNotExistException(catalogName, name);
-			}
-		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to alter database %s", name), e);
-		}
+		alterHiveDatabase(name, HiveCatalogUtil.createHiveDatabase(name, newDatabase), ignoreIfNotExists);
 	}
 
 	// ------ tables and views------
