@@ -1,0 +1,45 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+syntax = "proto3";
+
+option java_package = "org.apache.flink.model";
+
+
+// Description of the trained model.
+message ModelDescriptor {
+    // Model name
+    string name = 1;
+    // Human readable description.
+    string description = 2;
+    // Data type for which this model is applied.
+    string dataType = 3;
+    // Model type
+    enum ModelType {
+        TENSORFLOW  = 0;
+        TENSORFLOWSAVED  = 1;
+        PMML = 2;
+    };
+    ModelType modeltype = 4;
+    oneof MessageContent {
+        // Byte array containing the model
+        bytes data = 5;
+        string location = 6;
+    }
+}

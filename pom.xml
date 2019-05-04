@@ -85,6 +85,7 @@ under the License.
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
+		<module>flink-modelserving</module>
 	</modules>
 
 	<properties>
@@ -1411,6 +1412,11 @@ under the License.
 						<exclude>flink-jepsen/store/**</exclude>
 						<exclude>flink-jepsen/docker/id_rsa*</exclude>
 						<exclude>flink-jepsen/docker/nodes</exclude>
+						<!--data for testing -->
+						<exclude>flink-examples/flink-examples-modelserving/flink-examples-modelserving-shared/data/**</exclude>
+						<!--protobuf files -->
+						<exclude>flink-shaded-hadoop/flink-shaded-hadoop2/src/main/resources/META-INF/**</exclude>
+
 					</excludes>
 				</configuration>
 			</plugin>
