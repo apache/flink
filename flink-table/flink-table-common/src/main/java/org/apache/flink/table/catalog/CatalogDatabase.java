@@ -39,6 +39,7 @@ public interface CatalogDatabase {
 
 	/**
 	 * Get a brief description of the database.
+	 * It is shown to users when they run "DESCRIBE DATABASE" in SQL.
 	 *
 	 * @return an optional short description of the database
 	 */
@@ -46,6 +47,7 @@ public interface CatalogDatabase {
 
 	/**
 	 * Get a detailed description of the database.
+	 * It is shown to users when they run "DESCRIBE DATABASE EXTENDED" in SQL.
 	 *
 	 * @return an optional long description of the database
 	 */

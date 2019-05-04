@@ -49,6 +49,7 @@ public interface CatalogFunction {
 
 	/**
 	 * Get a brief description of the function.
+	 * It is shown to users when they run "DESCRIBE FUNCTION" in SQL.
 	 *
 	 * @return an optional short description of the function
 	 */
@@ -56,6 +57,7 @@ public interface CatalogFunction {
 
 	/**
 	 * Get a detailed description of the function.
+	 * It is shown to users when they run "DESCRIBE FUNCTION EXTENDED" in SQL.
 	 *
 	 * @return an optional long description of the function
 	 */

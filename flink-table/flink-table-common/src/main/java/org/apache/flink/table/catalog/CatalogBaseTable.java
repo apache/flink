@@ -48,6 +48,7 @@ public interface CatalogBaseTable {
 
 	/**
 	 * Get a brief description of the table or view.
+	 * It is shown to users when they run "DESCRIBE" in SQL.
 	 *
 	 * @return an optional short description of the table/view
 	 */
@@ -55,6 +56,7 @@ public interface CatalogBaseTable {
 
 	/**
 	 * Get a detailed description of the table or view.
+	 * It is shown to users when they run "DESCRIBE EXTENDED" in SQL.
 	 *
 	 * @return an optional long description of the table/view
 	 */
