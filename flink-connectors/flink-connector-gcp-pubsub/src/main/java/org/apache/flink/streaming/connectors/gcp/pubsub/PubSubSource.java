@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -248,6 +249,11 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		Preconditions.checkNotNull(projectName);
 		Preconditions.checkNotNull(subscriptionName);
 		return new PubSubSourceBuilder<>(deserializationSchema, projectName, subscriptionName);
+	}
+
+	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+		Preconditions.checkNotNull(deserializationSchema);
+		return newBuilder(new DeserializationSchemaWrapper<>(deserializationSchema), projectName, subscriptionName);
 	}
 
 	@Override
