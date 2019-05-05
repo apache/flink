@@ -529,12 +529,12 @@ class GroupedTableImpl(
 }
 
 /**
-  * The implementation of a [[AggregatedTable]] that has been grouped on a set of grouping keys.
+  * The implementation of an [[AggregatedTable]] that has been performed on an aggregate function.
   */
 class AggregatedTableImpl(
-  private[flink] val table: Table,
-  private[flink] val groupKeys: Seq[Expression],
-  private[flink] val aggregateFunction: Expression)
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val aggregateFunction: Expression)
   extends AggregatedTable {
 
   private val tableImpl = table.asInstanceOf[TableImpl]
@@ -664,4 +664,3 @@ class OverWindowedTableImpl(
     )
   }
 }
-

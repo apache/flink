@@ -160,30 +160,27 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
   }
 
   def rowBasedAggregate(
-    groupingExpressions: JList[Expression],
-    aggregate: Expression,
-    child: TableOperation)
-  : TableOperation = {
+      groupingExpressions: JList[Expression],
+      aggregate: Expression,
+      child: TableOperation)
+    : TableOperation = {
     // resolve for java string case, i.e., turn LookupCallExpression to CallExpression.
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).build
-    val resolvedAggregate = resolveSingleExpression(aggregate, resolver)
+    val resolvedAggregate = this.resolveExpression(aggregate, child)
 
     // extract alias and aggregate function
     var alias: Seq[String] = Seq()
     val aggWithoutAlias = resolvedAggregate match {
       case c: CallExpression
-        if c.getFunctionDefinition.getName == BuiltInFunctionDefinitions.AS.getName => {
+        if c.getFunctionDefinition.getName == BuiltInFunctionDefinitions.AS.getName =>
         alias = c.getChildren
           .drop(1)
           .map(e => e.asInstanceOf[ValueLiteralExpression].getValue.asInstanceOf[String])
         c.getChildren.get(0)
-      }
       case c: CallExpression
-        if c.getFunctionDefinition.isInstanceOf[AggregateFunctionDefinition] => {
+        if c.getFunctionDefinition.isInstanceOf[AggregateFunctionDefinition] =>
         if (alias.isEmpty) alias = UserDefinedFunctionUtils.getFieldInfo(
           c.getFunctionDefinition.asInstanceOf[AggregateFunctionDefinition].getResultTypeInfo)._1
         c
-      }
       case e => e
     }
 
@@ -209,21 +206,14 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val flattenedOperation = this.project(flattenExpressions.toList, aggTableOperation)
 
     // add alias
-    if (alias.nonEmpty) {
-      val namesBeforeAlias = flattenedOperation.getTableSchema.getFieldNames
-      val namesAfterAlias = namesBeforeAlias.dropRight(alias.size()) ++ alias
-      this.alias(namesAfterAlias.map(e =>
-        new UnresolvedReferenceExpression(e)).toList, flattenedOperation)
-    } else {
-      flattenedOperation
-    }
+    aliasBackwardFields(flattenedOperation, alias)
   }
 
   def tableAggregate(
-    groupingExpressions: JList[Expression],
-    tableAggFunction: Expression,
-    child: TableOperation)
-  : TableOperation = {
+      groupingExpressions: JList[Expression],
+      tableAggFunction: Expression,
+      child: TableOperation)
+    : TableOperation = {
 
     // Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
     // groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
@@ -255,15 +245,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       .createAggregate(resolvedGroupings, Seq(resolvedFunctionAndAlias.f0), child)
 
     // Step4: add a top project to alias the output fields of the table aggregate.
-    val aliasName = resolvedFunctionAndAlias.f1
-    if (aliasName.nonEmpty) {
-      val namesBeforeAlias = tableAggOperation.getTableSchema.getFieldNames
-      val namesAfterAlias = namesBeforeAlias.dropRight(aliasName.size()) ++ aliasName
-      this.alias(namesAfterAlias.map(e =>
-        new UnresolvedReferenceExpression(e)).toList, tableAggOperation)
-    } else {
-      tableAggOperation
-    }
+    aliasBackwardFields(tableAggOperation, resolvedFunctionAndAlias.f1)
   }
 
   def windowAggregate(
@@ -477,6 +459,24 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       i += 1
     }
     resultName
+  }
+
+  /**
+    * Rename backward fields of the input [[TableOperation]].
+    */
+  private def aliasBackwardFields(
+    inputOperation: TableOperation,
+    alias: Seq[String])
+  : TableOperation = {
+
+    if (alias.nonEmpty) {
+      val namesBeforeAlias = inputOperation.getTableSchema.getFieldNames
+      val namesAfterAlias = namesBeforeAlias.dropRight(alias.size()) ++ alias
+      this.alias(namesAfterAlias.map(e =>
+        new UnresolvedReferenceExpression(e)).toList, inputOperation)
+    } else {
+      inputOperation
+    }
   }
 
   class NoWindowPropertyChecker(val exceptionMessage: String)

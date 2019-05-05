@@ -48,17 +48,19 @@ class AggregateValidationTest extends TableTestBase {
       .select('c)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[UnsupportedOperationException])
   def testTableFunctionInSelection(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     util.tableEnv.registerFunction("func", new TableFunc0)
-    table
+    val resultTable = table
       .groupBy('a)
       .aggregate('b.sum as 'd)
       // must fail. Cannot use TableFunction in select after aggregate
-      .select("func(a)")
+      .select("func('abc')")
+
+    util.verifyTable(resultTable, "")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -69,7 +71,7 @@ class AggregateValidationTest extends TableTestBase {
     table
       .groupBy('a)
       // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate('b.log as 'd)
+      .aggregate('c.upperCase as 'd)
       .select('a, 'd)
   }
 
@@ -94,7 +96,7 @@ class AggregateValidationTest extends TableTestBase {
     util.tableEnv.registerFunction("func", new TableFunc0)
     table
       .groupBy('a)
-      // must fail. Only AggregateFunction can be used in aggregate
+      // must fail. Only one AggregateFunction can be used in aggregate
       .aggregate("sum(c), count(b)")
   }
 }

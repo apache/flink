@@ -1071,7 +1071,7 @@ public interface Table {
 	 *   AggregateFunction aggFunc = new MyAggregateFunction()
 	 *   tableEnv.registerFunction("aggFunc", aggFunc);
 	 *   table.aggregate("aggFunc(a, b) as (f0, f1, f2)")
-	 *     .select("key, f0, f1")
+	 *     .select("f0, f1")
 	 * }
 	 * </pre>
 	 */
@@ -1088,7 +1088,7 @@ public interface Table {
 	 * {@code
 	 *   val aggFunc = new MyAggregateFunction
 	 *   table.aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
-	 *     .select('key, 'f0, 'f1)
+	 *     .select('f0, 'f1)
 	 * }
 	 * </pre>
 	 */
