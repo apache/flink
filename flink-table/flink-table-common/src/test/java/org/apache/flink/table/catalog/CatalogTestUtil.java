@@ -18,23 +18,14 @@
 
 package org.apache.flink.table.catalog;
 
-<<<<<<< HEAD:flink-table/flink-table-common/src/test/java/org/apache/flink/table/catalog/CatalogTestUtil.java
-=======
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
->>>>>>> Reworked stats related classes and APIs to address some of the review comments:flink-table/flink-table-api-java/src/test/java/org/apache/flink/table/catalog/CatalogTestUtil.java
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
