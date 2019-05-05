@@ -104,7 +104,9 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid arguments")
+    expectedException.expectMessage("Given parameters do not match any signature. \n" +
+      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
+      "(long, int, int, java.lang.String)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -165,7 +167,9 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testSlideUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid arguments")
+    expectedException.expectMessage("Given parameters do not match any signature. \n" +
+      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
+      "(long, int, int, java.lang.String)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -243,7 +247,9 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testSessionUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid arguments")
+    expectedException.expectMessage("Given parameters do not match any signature. \n" +
+      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
+      "(long, int, int, java.lang.String)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge

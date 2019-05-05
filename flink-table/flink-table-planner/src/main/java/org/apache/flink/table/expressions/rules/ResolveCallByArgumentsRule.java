@@ -86,19 +86,29 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		private Expression validateArguments(CallExpression call, PlannerExpression plannerCall) {
 			if (!plannerCall.valid()) {
-				final String errorMessage;
-				ValidationResult validationResult = plannerCall.validateInput();
-				if (validationResult instanceof ValidationFailure) {
-					errorMessage = ((ValidationFailure) validationResult).message();
-				} else {
-					errorMessage = String.format("Invalid arguments %s for function: %s",
-						call.getChildren(),
-						call.getFunctionDefinition().getName());
-				}
-				throw new ValidationException(errorMessage);
+				throw new ValidationException(getValidationErrorMessage(plannerCall));
 			}
-
 			return call;
+		}
+
+		/**
+		 * Return the validation error message of this {@link PlannerExpression} or return the
+		 * validation error message of it's children if it passes the validation. Return an empty
+		 * string if all validation succeeded.
+		 */
+		private String getValidationErrorMessage(PlannerExpression plannerCall) {
+			ValidationResult validationResult = plannerCall.validateInput();
+			if (validationResult instanceof ValidationFailure) {
+				return ((ValidationFailure) validationResult).message();
+			} else {
+				for (Expression plannerExpression: plannerCall.getChildren()) {
+					String errorMessage = getValidationErrorMessage((PlannerExpression) plannerExpression);
+					if (!errorMessage.isEmpty()) {
+						return errorMessage;
+					}
+				}
+			}
+			return "";
 		}
 
 		private Expression castIfNeeded(PlannerExpression childExpression, TypeInformation<?> expectedType) {

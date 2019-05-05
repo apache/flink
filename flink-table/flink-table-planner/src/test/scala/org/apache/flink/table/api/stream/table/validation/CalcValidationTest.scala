@@ -148,4 +148,17 @@ class CalcValidationTest extends TableTestBase {
       "MyTable", 'string)
       .map("func(string) as a") // do not support TableFunction as input
   }
+
+  @Test
+  def testInvalidParameterTypes(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("log('long) fails on input type checking: " +
+      "[expecting Double on 0th input, get Long].\nOperand should be casted to proper type")
+
+    val util = streamTestUtil()
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    util.addTable[(Int, Long, String)]("MyTable", 'int, 'long, 'string)
+      .select('int, 'long.log as 'long, 'string)
+  }
 }
