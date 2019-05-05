@@ -34,6 +34,7 @@ See bundled license files for details.
 - com.esotericsoftware.kryo:kryo:2.24.0
 - com.esotericsoftware.minlog:minlog:1.2
 - org.clapper:grizzled-slf4j_2.11:1.3.2
+- net.sf.py4j:py4j:0.10.8.1
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 

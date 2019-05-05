@@ -32,15 +32,7 @@ under the License.
 	<artifactId>flink-python</artifactId>
 	<name>flink-python</name>
 
-	<packaging>jar</packaging>
-
-	<dependencies>
-		<dependency>
-			<groupId>net.sf.py4j</groupId>
-			<artifactId>py4j</artifactId>
-			<version>0.10.8.1</version>
-		</dependency>
-	</dependencies>
+	<packaging>pom</packaging>
 
 	<build>
 		<plugins>
@@ -115,53 +107,6 @@ under the License.
 											 includes="pyflink/**/*"/>
 								</zip>
 							</target>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<!-- Adding source directories to build path -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>add-resource</id>
-						<phase>generate-resources</phase>
-						<goals>
-							<goal>add-resource</goal>
-						</goals>
-						<configuration>
-							<resources>
-								<resource>
-									<directory>lib/</directory>
-									<includes>
-										<include>**/*.zip</include>
-										<include>**/*.txt</include>
-									</includes>
-									<filtering>false</filtering>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.1.1</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<artifactSet>
-								<includes>
-									<include>net.sf.py4j:py4j</include>
-								</includes>
-							</artifactSet>
 						</configuration>
 					</execution>
 				</executions>
