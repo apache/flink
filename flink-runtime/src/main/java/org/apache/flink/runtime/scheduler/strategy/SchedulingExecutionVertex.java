@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.Collection;
 
@@ -41,6 +42,14 @@ public interface SchedulingExecutionVertex {
 	 * @return state of the execution vertex
 	 */
 	ExecutionState getState();
+
+	/**
+	 * Gets the {@link JobVertexID} identifying the underlying job vertex
+	 * which this scheduling vertex represents.
+	 *
+	 * @return job vertex id representing the underlying operator
+	 */
+	JobVertexID getJobVertexId();
 
 	/**
 	 * Get all consumed result partitions.

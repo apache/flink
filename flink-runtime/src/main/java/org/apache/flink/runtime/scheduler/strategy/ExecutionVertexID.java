@@ -24,6 +24,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Id identifying {@link ExecutionVertex}.
  */
