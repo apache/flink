@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Id identifying {@link ExecutionVertex}.
  */
@@ -32,7 +34,7 @@ public class ExecutionVertexID {
 	private final int subtaskIndex;
 
 	public ExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
-		this.jobVertexId = jobVertexId;
+		this.jobVertexId = checkNotNull(jobVertexId);
 		this.subtaskIndex = subtaskIndex;
 	}
 

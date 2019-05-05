@@ -23,25 +23,25 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import java.util.Optional;
 
 /**
- * Topology of {@link SchedulingVertex SchedulingVertices}.
+ * Topology of {@link SchedulingExecutionVertex}.
  */
 public interface SchedulingTopology {
 
 	/**
-	 * Returns an iterable over all {@link SchedulingVertex SchedulingVertices} in topological
+	 * Returns an iterable over all {@link SchedulingExecutionVertex} in topological
 	 * sorted order.
 	 *
 	 * @return Iterable over all scheduling vertices in topological sorted order
 	 */
-	Iterable<SchedulingVertex> getVertices();
+	Iterable<SchedulingExecutionVertex> getVertices();
 
 	/**
-	 * Looks up the {@link SchedulingVertex} for the given {@link ExecutionVertexID}.
+	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
 	 *
 	 * @param executionVertexId identifying the respective scheduling vertex
 	 * @return Optional containing the respective scheduling vertex or none if the vertex does not exist
 	 */
-	Optional<SchedulingVertex> getVertex(ExecutionVertexID executionVertexId);
+	Optional<SchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId);
 
 	/**
 	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.

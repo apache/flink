@@ -40,23 +40,23 @@ public interface SchedulingStrategy {
 	/**
 	 * Called whenever vertices need to be restarted (due to task failure).
 	 *
-	 * @param verticesNeedingRestart The tasks need to be restarted.
+	 * @param verticesNeedingRestart The tasks need to be restarted
 	 */
 	void restartTasks(Set<ExecutionVertexID> verticesNeedingRestart);
 
 	/**
 	 * Called whenever an {@link Execution} changes its state.
 	 *
-	 * @param executionVertexId The id of the task.
-	 * @param executionState The new state of the execution.
+	 * @param executionVertexId The id of the task
+	 * @param executionState The new state of the execution
 	 */
 	void onExecutionStateChange(ExecutionVertexID executionVertexId, ExecutionState executionState);
 
 	/**
 	 * Called whenever an {@link IntermediateResultPartition} becomes consumable.
 	 *
-	 * @param executionVertexId The id of the task whoes result partition becomes consumable.
-	 * @param resultPartitionId The id of the result partition.
+	 * @param executionVertexId The id of the producer
+	 * @param resultPartitionId The id of the result partition
 	 */
 	void onPartitionConsumable(ExecutionVertexID executionVertexId, ResultPartitionID resultPartitionId);
 }

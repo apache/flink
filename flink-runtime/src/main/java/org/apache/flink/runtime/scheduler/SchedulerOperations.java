@@ -23,14 +23,14 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import java.util.Collection;
 
 /**
- * Component which is use by {@link SchedulingStrategy} to commit scheduling decisions.
+ * Component which is used by {@link SchedulingStrategy} to commit scheduling decisions.
  */
 public interface SchedulerOperations {
 
 	/**
 	 * Allocate slots and deploy the vertex when slots are returned.
 	 *
-	 * @param executionVertexDeploymentOptions The tasks to be deployed and deployment options.
+	 * @param executionVertexDeploymentOptions The tasks to be deployed and deployment options
 	 */
 	void allocateSlotsAndDeploy(Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions);
 }

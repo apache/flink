@@ -63,22 +63,37 @@ public interface SchedulingResultPartition {
 	 *
 	 * @return producer vertex of this result partition
 	 */
-	SchedulingVertex getProducer();
+	SchedulingExecutionVertex getProducer();
 
 	/**
 	 * Gets the consumers of this result partition.
 	 *
 	 * @return Collection of consumer vertices of this result partition
 	 */
-	Collection<SchedulingVertex> getConsumers();
+	Collection<SchedulingExecutionVertex> getConsumers();
 
 	/**
 	 * State of the result partition.
 	 */
 	enum ResultPartitionState {
-		EMPTY, // producer is not yet running
-		PRODUCING, // producer is running
-		DONE, // producer has terminated
-		RELEASED // partition has been released
+		/**
+		 * Producer is not yet running.
+		 */
+		EMPTY,
+
+		/**
+		 * Producer is running.
+		 */
+		PRODUCING,
+
+		/**
+		 * Producer has terminated.
+		 */
+		DONE,
+
+		/**
+		 * Partition has been released.
+		 */
+		RELEASED
 	}
 }

@@ -27,7 +27,7 @@ import java.util.Collection;
 /**
  * Scheduling representation of {@link ExecutionVertex}.
  */
-public interface SchedulingVertex {
+public interface SchedulingExecutionVertex {
 
 	/**
 	 * Gets id of the execution vertex.
