@@ -26,20 +26,20 @@ under the License.
 * 目录
 {:toc}
 
-## Keyed State and Operator State
+## Keyed State 与 Operator State
 
-Flink 中有两种基本的状态：`Keyed State` 和 `Operator State`
+Flink 中有两种基本的状态：`Keyed State` 和 `Operator State`。
 
 ### Keyed State
 
-*Keyed State* 通常和键相关，仅可使用在 `KeyedStream` 的方法和算子中。
+*Keyed State* 通常和 key 相关，仅可使用在 `KeyedStream` 的方法和算子中。
 
-你可以把 Keyed State 看作分区或者共享的 Operator State, 而且每个键仅出现在一个分区内。
-逻辑上每个 keyed-state 和 <算子并发实例, key> 相绑定，由于每个 key 仅"属于"
+你可以把 Keyed State 看作分区或者共享的 Operator State, 而且每个 key 仅出现在一个分区内。
+逻辑上每个 keyed-state 和唯一元组 <算子并发实例, key> 绑定，由于每个 key 仅"属于"
 算子的一个并发，因此简化为 <算子, key>。
 
 Keyed State 会按照 *Key Group* 进行管理。Key Group 是 Flink 分发 Keyed State 的最小单元；
-Key Groups 的数目等于作业的最大并发数。在执行过程中，每个 keyed operator 会对应到一个或多个 Key Group
+Key Group 的数目等于作业的最大并发数。在执行过程中，每个 keyed operator 会对应到一个或多个 Key Group
 
 ### Operator State
 
@@ -53,25 +53,25 @@ Operator State 在 Flink 作业的并发改变后，会重新分发状态，分�
 
 *Keyed State* 和 *Operator State* 分别有两种存在形式：*managed* and *raw*.
 
-*Managed State* 有 Flink runtime 中的数据结构所控制，比如内部的 hash table 或者 RocksDB。
+*Managed State* 由 Flink 运行时控制的数据结构表示，比如内部的 hash table 或者 RocksDB。
 比如 "ValueState", "ListState" 等。Flink runtime 会对这些状态进行编码并写入 checkpoint。
 
 *Raw State* 则保存在算子自己的数据结构中。checkpoint 的时候，Flink 并不知晓具体的内容，仅仅写入一串字节序列到 checkpoint。
 
-所有 datastream 的方法都可以使用 managed state, 但是 raw state 则只能在实现算子的时候使用。
-由于 Flink 可以在修改并发是更好的重新分发状态数据，并且能够更好的管理内存，因此建议使用 managed state（而不是 raw state）。
+所有 datastream 的 function 都可以使用 managed state, 但是 raw state 则只能在实现算子的时候使用。
+由于 Flink 可以在修改并发时更好的分发状态数据，并且能够更好的管理内存，因此建议使用 managed state（而不是 raw state）。
 
 <span class="label label-danger">注意</span> 如果你的 managed state 需要定制化的序列化逻辑，
-为了后续的兼容性请参考 [corresponding guide](custom_serialization.html)，Flink 默认提供的序列化器不需要用户做特殊的处理。
+为了后续的兼容性请参考 [相应指南](custom_serialization.html)，Flink 的默认序列化器不需要用户做特殊的处理。
 
-## Using Managed Keyed State
+## 使用 Managed Keyed State
 
-managed keyed state 接口提供不同类型状态访问的接口，这些状态都限定于当前的输入数据。换句话说，这些状态仅可在 `KeyedStream`
+managed keyed state 接口提供不同类型状态的访问接口，这些状态都作用于当前输入数据的 key 下。换句话说，这些状态仅可在 `KeyedStream`
 上使用，可以通过 `stream.keyBy(...)` 得到 `KeyedStream`.
 
 接下来，我们会介绍不同类型的状态，然后介绍如何使用他们。所有支持的状态类型如下所示：
 
-* `ValueState<T>`: 保存一个可以更新和检索的值（像上面所述，每个值都对应到当前的输入数据，因此可能每个算子接收到的键都可能对应一个值）。
+* `ValueState<T>`: 保存一个可以更新和检索的值（如上所述，每个值都对应到当前的输入数据的 key，因此算子接收到的每个 key 都可能对应一个值）。
 这个值可以通过 `update(T)` 进行更新，通过 `T value()` 进行检索。
 
 
@@ -81,27 +81,27 @@ managed keyed state 接口提供不同类型状态访问的接口，这些状态
 * `ReducingState<T>`: 保存一个单值，表示添加到状态的所有值的聚合。接口与 `ListState` 类似，但使用 `add(T)` 增加元素，会使用提供的 `ReduceFunction` 进行聚合。
 
 * `AggregatingState<IN, OUT>`: 保留一个单值，表示添加到状态的所有值的聚合。和 `ReducingState` 相反的是, 聚合类型可能与 添加到状态的元素的类型不同。
-接口与 `ListState` 类似，但使用 `add(IN)` 添加的元素使用指定的 `AggregateFunction` 聚合。
+接口与 `ListState` 类似，但使用 `add(IN)` 添加的元素会用指定的 `AggregateFunction` 进行聚合。
 
 * `FoldingState<T, ACC>`: 保留一个单值，表示添加到状态的所有值的聚合。 与 `ReducingState` 相反，聚合类型可能与添加到状态的元素类型不同。 
-接口与 `ListState` 类似，但使用`add（T）`添加的元素使用指定的 `FoldFunction` 折叠成聚合。
+接口与 `ListState` 类似，但使用`add（T）`添加的元素会用指定的 `FoldFunction` 折叠成聚合值。
 
-* `MapState<UK, UV>`: 保留一个映射列表。 你可以将键值对放入状态，并在所有当前存储的映射上检索 `Iterable`。 使用 `put(UK，UV)` 或者 `putAll(Map<UK，UV>)` 添加映射。
- 使用 `get(UK)` 检索特定键。 使用 `entries()`，`keys()` 和 `values()` 分别检索映射、键和值的可迭代视图。
+* `MapState<UK, UV>`: 维护了一个映射列表。 你可以添加键值对到状态中，也可以获得反映当前所有映射的迭代器。使用 `put(UK，UV)` 或者 `putAll(Map<UK，UV>)` 添加映射。
+ 使用 `get(UK)` 检索特定 key。 使用 `entries()`，`keys()` 和 `values()` 分别检索映射、键和值的可迭代视图。
 
-所有类型的状态还有一个`clear()` 方法，清除当前输入元素的状态。
+所有类型的状态还有一个`clear()` 方法，清除当前 key 下的状态数据，也就是当前输入元素的 key。
 
-<span class="label label-danger">注意</span> `FoldingState` 和 `FoldingStateDescriptor` 从 Flink 1.4 开始就已经被启用，被会在未来被删除。
-请使用 `AggregatingState` 和 `AggregatingStateDescriptor`。
+<span class="label label-danger">注意</span> `FoldingState` 和 `FoldingStateDescriptor` 从 Flink 1.4 开始就已经被启用，将会在未来被删除。
+作为替代请使用 `AggregatingState` 和 `AggregatingStateDescriptor`。
 
-请牢记，这些状态对象仅用于接口。 状态对象本身不一定存储在内存中，还可能在磁盘或其他位置。
-另外需要牢记的是从状态中获取的值取决于输入元素所代表的键。 因此，在不同键上调用同一个接口，可能得到不同的值。
+请牢记，这些状态对象仅用于与状态交互。状态本身不一定存储在内存中，还可能在磁盘或其他位置。
+另外需要牢记的是从状态中获取的值取决于输入元素所代表的 key。 因此，在不同 key 上调用同一个接口，可能得到不同的值。
 
 你必须创建一个 `StateDescriptor`，才能得到对应的状态句柄。 这保存了状态名称（正如我们稍后将看到的，你可以创建多个状态，并且它们必须具有唯一的名称以便可以引用它们），
 状态所持有值的类型，并且可能包含用户指定的函数，例如`ReduceFunction`。 根据不同的状态类型，可以创建`ValueStateDescriptor`，`ListStateDescriptor`，
 `ReducingStateDescriptor`，`FoldingStateDescriptor` 或 `MapStateDescriptor`。
 
-状态通过 `RuntimeContext` 进行访问，因此只能在 *rich functions* 中使用。请参阅[这里]（{{site.baseurl}} / dev / api_concepts.html＃rich-functions）获取相关信息，
+状态通过 `RuntimeContext` 进行访问，因此只能在 *rich functions* 中使用。请参阅[这里]({{site.baseurl}}/zh/dev/api_concepts.html#rich-functions)获取相关信息，
 但是我们很快也会看到一个例子。`RichFunction` 中 `RuntimeContext` 提供如下方法：
 
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
@@ -225,16 +225,16 @@ object ExampleCountWindowAverage extends App {
 </div>
 </div>
 
-这个例子实现了一个简单的计数窗口。 我们把元组的第一个元素当作键（在示例中都键都是 "1"）。 该函数将出现的次数以及总和存储在 "ValueState" 中。 
-一旦出现次数达到 2，则将平均值发送到下游，并清除状态重新开始。 请注意，我们会为每个不同的键（元组中第一个元素）保存一个单独的值。
+这个例子实现了一个简单的计数窗口。 我们把元组的第一个元素当作 key（在示例中都 key 都是 "1"）。 该函数将出现的次数以及总和存储在 "ValueState" 中。 
+一旦出现次数达到 2，则将平均值发送到下游，并清除状态重新开始。 请注意，我们会为每个不同的 key（元组中第一个元素）保存一个单独的值。
 
 ### 状态有效期 (TTL)
 
-任何类型的 keyed state 都可以有 *有效期* (TTL)。如果配置了 TTL 且状态值已过期，则会里最大可能清除对应的值，这会在后面详述。
+任何类型的 keyed state 都可以有 *有效期* (TTL)。如果配置了 TTL 且状态值已过期，则会尽最大可能清除对应的值，这会在后面详述。
 
 所有状态类型都支持单元素的 TTL。 这意味着列表元素和映射元素将独立到期。
 
-在使用状态 TTL 前，需要先构建一个`StateTtlConfig` 配置对象。 然后把配置传递到状态描述符中启用 TTL 功能：
+在使用状态 TTL 前，需要先构建一个`StateTtlConfig` 配置对象。 然后把配置传递到 state descriptor 中启用 TTL 功能：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -299,7 +299,7 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - TTL 的配置并不会保存在 checkpoint/savepoint 中，仅对当前 Job 有效。
 
-- 当前开启 TTL 的情况下，仅在用户值序列化器支持 null 的情况下，map state 才支持用户值为 null。如果用户值序列化器不支持 null，
+- 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
 
 #### 过期数据的清理
@@ -365,7 +365,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.StateTtlConfig
 val ttlConfig = StateTtlCon fig
     .newBuilder(Time.seconds(1))
-    .cleanupIncrementally
+    .cleanupIncrementally(10, true)
     .build
 {% endhighlight %}
 </div>
@@ -460,7 +460,7 @@ void initializeState(FunctionInitializationContext context) throws Exception;
 进行 checkpoint 时会调用 `snapshotState()`。 用户自定义函数初始化时会调用 `initializeState()`，初始化包括第一次自定义函数初始化和从之前的 checkpoint 恢复。
 因此 `initializeState()` 不仅是定义不同状态类型初始化的地方，也需要包括状态恢复的逻辑。
 
-当前，managed operator state 已 list 的形式存在。这些状态是一个 *可序列* 对象的集合，彼此独立，方便在改变并发后进行状态的重新分派。
+当前，managed operator state 以 list 的形式存在。这些状态是一个 *可序列化* 对象的集合 `List`，彼此独立，方便在改变并发后进行状态的重新分派。
 换句话说，这些对象是重新分配 non-keyed state 的最细粒度。根据状态的不同访问方式，有如下几种重新分配的模式：
 
   - **Even-split redistribution:** 每个算子都保存一个列表形式的状态集合，整个状态由所有的列表拼接而成。当作业恢复或重新分配的时候，整个状态会按照算子的并发度进行均匀分配。
@@ -611,7 +611,7 @@ checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
 当初始化好状态对象后，我们通过 `isRestored()` 方法判断是否从之前的故障中恢复回来，如果该方法返回 `true` 则表示从故障中进行恢复，会执行接下来的恢复逻辑。
 
-正入代码所示，`BufferingSink` 中初始化时，恢复回来的 `ListState` 的所有元素会添加到一个局部变量中，供下次 `snapshotState()` 时使用。
+正如代码所示，`BufferingSink` 中初始化时，恢复回来的 `ListState` 的所有元素会添加到一个局部变量中，供下次 `snapshotState()` 时使用。
 然后清空 `ListState`，再把当前局部变量中的所有元素写入到 checkpoint 中。
 
 另外，我们同样可以在 `initializeState()` 方法中使用 `FunctionInitializationContext` 初始化 keyed state。
@@ -629,7 +629,7 @@ void restoreState(List<T> state) throws Exception;
 `snapshotState()` 需要返回一个将写入到 checkpoint 的对象列表，`restoreState` 则需要处理恢复回来的对象列表。如果状态不可切分，
 则可以在 `snapshotState()` 中返回 `Collections.singletonList(MY_STATE)`。
 
-### 带状态的输入函数
+### 带状态的 Source Function
 
 带状态的数据源比其他的算子需要注意更多东西。为了保证更新状态以及输出的原子性（用于支持 exactly-once 语义），用户需要在发送数据前获取数据源的全局锁。
 
