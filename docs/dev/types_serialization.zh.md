@@ -33,7 +33,7 @@ Apache Flink 以其独特的方式来处理数据类型以及序列化，这种�
 
 ## Flink 中的类型处理
 
-Flink 对分布式计算中发生的数据交换以及排序，试图推断有关数据类型的大量信息。
+Flink 会尽力推断有关数据类型的大量信息，这些数据会在分布式计算期间被网络交换或存储。
 可以把它想象成一个推断表结构的数据库。在大多数情况下，Flink 可以依赖自身透明的推断出所有需要的类型信息。
 掌握这些类型信息可以帮助 Flink 实现很多意想不到的特性：
 
@@ -53,7 +53,7 @@ Flink 对分布式计算中发生的数据交换以及排序，试图推断有�
 
 用户需要与 Flink 数据类型处理进行交互的最常见问题是：
 
-* **注册子类型** 如果函数签只包含超类型，但它们实际上在执行期间使用那些类型的子类型，则使 Flink 感知这些子类型可能会大大提高性能。
+* **注册子类型** 如果函数签名只包含超类型，但它们实际上在执行期间使用那些类型的子类型，则使 Flink 感知这些子类型可能会大大提高性能。
   可以为每一个子类型调用 `StreamExecutionEnvironment` 或者 `ExecutionEnvironment` 的 `.registerType(clazz)` 方法。
 
 * **注册自定义序列化器：** 当 Flink 无法通过自身处理类型时会回退到 [Kryo](https://github.com/EsotericSoftware/kryo) 进行处理。
@@ -71,14 +71,14 @@ Flink 对分布式计算中发生的数据交换以及排序，试图推断有�
 ## Flink 的 TypeInformation 类
 
 类 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/typeinfo/TypeInformation.java "TypeInformation" %}
-是所有类型描述符的基类。该类表示类型的基本属性，并且可以生成序列化器，在一些特殊情况下可以生产类型的比较器。
-(*请注意，Flink 中的比较器不仅仅是定义顺序 - 它们是处理键的的基础工具*)
+是所有类型描述符的基类。该类表示类型的基本属性，并且可以生成序列化器，在一些特殊情况下可以生成类型的比较器。
+(*请注意，Flink 中的比较器不仅仅是定义顺序 - 它们是处理键的基础工具*)
 
 Flink 内部对类型做了如下区分：
 
-* 基础类型：所有的 Java 原生类型以及他们的包装类，再加上 `void`、`String`、`Date`、`BigDecimal` 以及 `BigInteger`。
+* 基础类型：所有的 Java 主类型（primitive）以及他们的包装类，再加上 `void`、`String`、`Date`、`BigDecimal` 以及 `BigInteger`。
 
-* 原生类型数组以及对象数组
+* 主类型数组（primitive array）以及对象数组
 
 * 复合类型
 
@@ -86,7 +86,7 @@ Flink 内部对类型做了如下区分：
 
   * Scala 中的 *case classes* (包括 Scala 元组)：null 是不支持的。
 
-  * Row：具有任意数量字段的元组并且支持空字段。
+  * Row：具有任意数量字段的元组并且支持 null 字段。。
 
   * POJOs: 遵循某种类似 bean 模式的类。
 
@@ -298,7 +298,7 @@ env.getConfig().disableGenericTypes();
 
 类型信息工厂允许将用户定义的类型信息插入 Flink 类型系统。
 你可以通过实现 `org.apache.flink.api.common.typeinfo.TypeInfoFactory` 来返回自定义的类型信息工厂。
-如果相应的类型已使用 `@ org.apache.flink.api.common.typeinfo.TypeInfo` 注释进行注释，则在类型提取阶段调用自定义
+如果相应的类型已指定了 `@org.apache.flink.api.common.typeinfo.TypeInfo` 注解，则在类型提取阶段会调用 TypeInfo 注解指定的
 类型信息工厂。
 
 类型信息工厂可以在 Java 和 Scala API 中使用。
@@ -308,7 +308,7 @@ env.getConfig().disableGenericTypes();
 
 以下示例说明如何使用 Java 中的工厂注释为自定义类型 `MyTuple` 提供自定义类型信息。
 
-带注释的自定义类型：
+带注解的自定义类型：
 {% highlight java %}
 @TypeInfo(MyTupleTypeInfoFactory.class)
 public class MyTuple<T0, T1> {
@@ -332,7 +332,7 @@ public class MyTupleTypeInfoFactory extends TypeInfoFactory<MyTuple> {
 参数提供有关类型本身的额外信息以及类型的泛型类型参数。
 
 如果你的类型包含可能需要从 Flink 函数的输入类型派生的泛型参数，
-请确保还实现了 `org.apache.flink.api.common.typeinfo.TypeInformation＃getGenericParameters`，
+请确保还实现了 `org.apache.flink.api.common.typeinfo.TypeInformation#getGenericParameters`，
 以便将泛型参数与类型信息进行双向映射。
 
 {% top %}
