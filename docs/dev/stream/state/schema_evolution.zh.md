@@ -30,7 +30,7 @@ Apache Flink 流应用通常被设计为永远或者长时间运行。
 应用所处理的数据 schema 也会随着进行变化。
 
 此页面概述了如何升级状态类型的数据 schema 。
-目前对不同类系的状态结构（`ValueState`、`ListState` 等）有不同的限制
+目前对不同类型的状态结构（`ValueState`、`ListState` 等）有不同的限制
 
 请注意，此页面的信息只与 Flink 自己生成的状态序列化器相关 [类型序列化框架]({{ site.baseurl }}/zh/dev/types_serialization.html)。
 也就是说，在声明状态时，状态描述符不可以配置为使用特定的 TypeSerializer 或 TypeInformation ，
@@ -93,6 +93,6 @@ Flink 基于下面的规则来支持 [POJO 类型]({{ site.baseurl }}/zh/dev/typ
 Flink 完全支持 Avro 状态类型的升级，只要数据结构的修改是被
 [Avro 的数据结构解析规则](http://avro.apache.org/docs/current/spec.html#Schema+Resolution)认为兼容的即可。
 
-如果新的 Avro 数据 schema 生产的类无法被重定位或者使用了不同的命名空间，状态是没办法在作业恢复时进行升级的。
+一个例外是如果新的 Avro 数据 schema 生成的类无法被重定位或者使用了不同的命名空间，在作业恢复时状态数据会被认为是不兼容的。
 
 {% top %}
