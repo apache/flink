@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.Counter;
@@ -26,16 +27,16 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -56,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -159,8 +161,9 @@ public class SingleInputGate implements InputGate {
 	 */
 	private BufferPool bufferPool;
 
-	/** Global network buffer pool to request and recycle exclusive buffers (only for credit-based). */
-	private NetworkBufferPool networkBufferPool;
+	private final MemorySegmentProvider memorySegmentProvider;
+
+	private final Supplier<BufferPool> bufferPoolToSetup;
 
 	private final boolean isCreditBased;
 
@@ -179,9 +182,6 @@ public class SingleInputGate implements InputGate {
 
 	private int numberOfUninitializedChannels;
 
-	/** Number of network buffers to use for each remote input channel. */
-	private int networkBuffersPerChannel;
-
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
 
@@ -194,6 +194,8 @@ public class SingleInputGate implements InputGate {
 		final ResultPartitionType consumedPartitionType,
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
+		MemorySegmentProvider memorySegmentProvider,
+		Supplier<BufferPool> bufferPoolToSetup,
 		TaskActions taskActions,
 		Counter numBytesIn,
 		boolean isCreditBased) {
@@ -213,6 +215,10 @@ public class SingleInputGate implements InputGate {
 		this.inputChannels = new HashMap<>(numberOfInputChannels);
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
+
+		this.memorySegmentProvider = checkNotNull(memorySegmentProvider);
+
+		this.bufferPoolToSetup = checkNotNull(bufferPoolToSetup);
 
 		this.taskActions = checkNotNull(taskActions);
 
@@ -290,6 +296,16 @@ public class SingleInputGate implements InputGate {
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
 
+	@Override
+	public void setup() throws IOException {
+		if (isCreditBased) {
+			// assign exclusive buffers to input channels directly and use the rest for floating buffers
+			assignExclusiveSegments();
+		}
+		setBufferPool(bufferPoolToSetup.get());
+	}
+
+	@VisibleForTesting
 	public void setBufferPool(BufferPool bufferPool) {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: buffer pool has" +
 			"already been set for this input gate.");
@@ -299,23 +315,16 @@ public class SingleInputGate implements InputGate {
 
 	/**
 	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
-	 *
-	 * @param networkBufferPool The global pool to request and recycle exclusive buffers
-	 * @param networkBuffersPerChannel The number of exclusive buffers for each channel
 	 */
-	public void assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
+	@VisibleForTesting
+	public void assignExclusiveSegments() throws IOException {
 		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
-		checkState(this.networkBufferPool == null, "Bug in input gate setup logic: global buffer pool has" +
-			"already been set for this input gate.");
-
-		this.networkBufferPool = checkNotNull(networkBufferPool);
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
 
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				if (inputChannel instanceof RemoteInputChannel) {
 					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
-						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+						memorySegmentProvider.requestMemorySegments());
 				}
 			}
 		}
@@ -327,7 +336,7 @@ public class SingleInputGate implements InputGate {
 	 * @param segments The exclusive segments need to be recycled
 	 */
 	public void returnExclusiveSegments(List<MemorySegment> segments) throws IOException {
-		networkBufferPool.recycleMemorySegments(segments);
+		memorySegmentProvider.recycleMemorySegments(segments);
 	}
 
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
@@ -366,10 +375,7 @@ public class SingleInputGate implements InputGate {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
 
 					if (this.isCreditBased) {
-						checkState(this.networkBufferPool != null, "Bug in input gate setup logic: " +
-							"global buffer pool has not been set for this input gate.");
-						((RemoteInputChannel) newChannel).assignExclusiveSegments(
-							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+						((RemoteInputChannel) newChannel).assignExclusiveSegments(memorySegmentProvider.requestMemorySegments());
 					}
 				}
 				else {
@@ -671,7 +677,11 @@ public class SingleInputGate implements InputGate {
 		String owningTaskName,
 		JobID jobId,
 		InputGateDeploymentDescriptor igdd,
-		NetworkEnvironment networkEnvironment,
+		NetworkEnvironmentConfiguration networkConfig,
+		MemorySegmentProvider memorySegmentProvider,
+		Supplier<BufferPool> bufferPoolToSetup,
+		ConnectionManager connectionManager,
+		ResultPartitionManager partitionManager,
 		TaskEventPublisher taskEventPublisher,
 		TaskActions taskActions,
 		InputChannelMetrics metrics,
@@ -685,11 +695,18 @@ public class SingleInputGate implements InputGate {
 
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
-		final NetworkEnvironmentConfiguration networkConfig = networkEnvironment.getConfiguration();
-
 		final SingleInputGate inputGate = new SingleInputGate(
-			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, numBytesInCounter, networkConfig.isCreditBased());
+			owningTaskName,
+			jobId,
+			consumedResultId,
+			consumedPartitionType,
+			consumedSubpartitionIndex,
+			icdd.length,
+			memorySegmentProvider,
+			bufferPoolToSetup,
+			taskActions,
+			numBytesInCounter,
+			networkConfig.isCreditBased());
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -704,7 +721,7 @@ public class SingleInputGate implements InputGate {
 
 			if (partitionLocation.isLocal()) {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
-					networkEnvironment.getResultPartitionManager(),
+					partitionManager,
 					taskEventPublisher,
 					networkConfig.partitionRequestInitialBackoff(),
 					networkConfig.partitionRequestMaxBackoff(),
@@ -716,7 +733,7 @@ public class SingleInputGate implements InputGate {
 			else if (partitionLocation.isRemote()) {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
 					partitionLocation.getConnectionId(),
-					networkEnvironment.getConnectionManager(),
+					connectionManager,
 					networkConfig.partitionRequestInitialBackoff(),
 					networkConfig.partitionRequestMaxBackoff(),
 					metrics
@@ -726,9 +743,9 @@ public class SingleInputGate implements InputGate {
 			}
 			else if (partitionLocation.isUnknown()) {
 				inputChannels[i] = new UnknownInputChannel(inputGate, i, partitionId,
-					networkEnvironment.getResultPartitionManager(),
+					partitionManager,
 					taskEventPublisher,
-					networkEnvironment.getConnectionManager(),
+					connectionManager,
 					networkConfig.partitionRequestInitialBackoff(),
 					networkConfig.partitionRequestMaxBackoff(),
 					metrics
@@ -751,5 +768,15 @@ public class SingleInputGate implements InputGate {
 			numUnknownChannels);
 
 		return inputGate;
+	}
+
+
+	/**
+	 * The provider used for requesting and releasing batch of memory segments.
+	 */
+	public interface MemorySegmentProvider {
+		List<MemorySegment> requestMemorySegments() throws IOException;
+
+		void recycleMemorySegments(List<MemorySegment> segments) throws IOException;
 	}
 }

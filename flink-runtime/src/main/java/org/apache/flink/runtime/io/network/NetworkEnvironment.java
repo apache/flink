@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -43,11 +44,10 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate.MemorySegmentProvider;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -150,90 +151,6 @@ public class NetworkEnvironment {
 		return config;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	//  Task operations
-	// --------------------------------------------------------------------------------------------
-
-	public void registerTask(Task task) throws IOException {
-		final ResultPartition[] producedPartitions = task.getProducedPartitions();
-
-		synchronized (lock) {
-			if (isShutdown) {
-				throw new IllegalStateException("NetworkEnvironment is shut down");
-			}
-
-			for (final ResultPartition partition : producedPartitions) {
-				setupPartition(partition);
-			}
-
-			// Setup the buffer pool for each buffer reader
-			final SingleInputGate[] inputGates = task.getAllInputGates();
-			for (SingleInputGate gate : inputGates) {
-				setupInputGate(gate);
-			}
-		}
-	}
-
-	@VisibleForTesting
-	public void setupPartition(ResultPartition partition) throws IOException {
-		BufferPool bufferPool = null;
-
-		try {
-			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-				partition.getNumberOfSubpartitions() * config.networkBuffersPerChannel() +
-					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
-			// If the partition type is back pressure-free, we register with the buffer pool for
-			// callbacks to release memory.
-			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
-				maxNumberOfMemorySegments,
-				partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition));
-
-			partition.registerBufferPool(bufferPool);
-
-			resultPartitionManager.registerResultPartition(partition);
-		} catch (Throwable t) {
-			if (bufferPool != null) {
-				bufferPool.lazyDestroy();
-			}
-
-			if (t instanceof IOException) {
-				throw (IOException) t;
-			} else {
-				throw new IOException(t.getMessage(), t);
-			}
-		}
-	}
-
-	@VisibleForTesting
-	public void setupInputGate(SingleInputGate gate) throws IOException {
-		BufferPool bufferPool = null;
-		int maxNumberOfMemorySegments;
-		try {
-			if (config.isCreditBased()) {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
-
-				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, config.networkBuffersPerChannel());
-				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
-			} else {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					gate.getNumberOfInputChannels() * config.networkBuffersPerChannel() +
-						config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
-
-				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
-					maxNumberOfMemorySegments);
-			}
-			gate.setBufferPool(bufferPool);
-		} catch (Throwable t) {
-			if (bufferPool != null) {
-				bufferPool.lazyDestroy();
-			}
-
-			ExceptionUtils.rethrowIOException(t);
-		}
-	}
-
 	/**
 	 * Batch release intermediate result partitions.
 	 *
@@ -264,6 +181,7 @@ public class NetworkEnvironment {
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
+				final int index = counter;
 				resultPartitions[counter++] = new ResultPartition(
 					taskName,
 					taskActions,
@@ -272,6 +190,13 @@ public class NetworkEnvironment {
 					rpdd.getPartitionType(),
 					rpdd.getNumberOfSubpartitions(),
 					rpdd.getMaxParallelism(),
+					() -> {
+						try {
+							return setupPartitionPool(resultPartitions[index]);
+						} catch (Throwable t) {
+							throw new RuntimeException(t);
+						}
+					},
 					resultPartitionManager,
 					partitionConsumableNotifier,
 					ioManager,
@@ -296,14 +221,26 @@ public class NetworkEnvironment {
 			Preconditions.checkState(!isShutdown, "The NetworkEnvironment has already been shut down.");
 
 			InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(parentGroup);
+			MemorySegmentProvider segmentProvider = new MemorySegmentProviderImpl(networkBufferPool, config.networkBuffersPerChannel());
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 			int counter = 0;
 			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
+				final int index = counter;
 				inputGates[counter++] = SingleInputGate.create(
 					taskName,
 					jobId,
 					igdd,
-					this,
+					config,
+					segmentProvider,
+					() -> {
+						try {
+							return setupInputGatePool(inputGates[index]);
+						} catch (Throwable t) {
+							throw new RuntimeException(t);
+						}
+					},
+					connectionManager,
+					resultPartitionManager,
 					taskEventPublisher,
 					taskActions,
 					inputChannelMetrics,
@@ -313,6 +250,40 @@ public class NetworkEnvironment {
 			registerInputMetrics(inputGroup, buffersGroup, inputGates);
 			return inputGates;
 		}
+	}
+
+	@VisibleForTesting
+	public BufferPool setupPartitionPool(ResultPartition partition) throws IOException {
+		int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
+			partition.getNumberOfSubpartitions() * config.networkBuffersPerChannel() +
+				config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
+
+		// If the partition type is back pressure-free, we register with the buffer pool for
+		// callbacks to release memory.
+		return networkBufferPool.createBufferPool(
+			partition.getNumberOfSubpartitions(),
+			maxNumberOfMemorySegments,
+			partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition));
+	}
+
+	@VisibleForTesting
+	public BufferPool setupInputGatePool(SingleInputGate gate) throws IOException {
+		BufferPool bufferPool;
+		int maxNumberOfMemorySegments;
+		if (config.isCreditBased()) {
+			maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+				config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
+
+			bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
+		} else {
+			maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+				gate.getNumberOfInputChannels() * config.networkBuffersPerChannel() +
+					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
+
+			bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+				maxNumberOfMemorySegments);
+		}
+		return bufferPool;
 	}
 
 	private void registerOutputMetrics(MetricGroup outputGroup, MetricGroup buffersGroup, ResultPartition[] resultPartitions) {
@@ -393,6 +364,31 @@ public class NetworkEnvironment {
 	public boolean isShutdown() {
 		synchronized (lock) {
 			return isShutdown;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Internal Memory Segment Provider
+	// --------------------------------------------------------------------------------------------
+
+	private static class MemorySegmentProviderImpl implements MemorySegmentProvider {
+
+		private final NetworkBufferPool networkBufferPool;
+		private final int networkBuffersPerChannel;
+
+		MemorySegmentProviderImpl(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) {
+			this.networkBufferPool = checkNotNull(networkBufferPool);
+			this.networkBuffersPerChannel = networkBuffersPerChannel;
+		}
+
+		@Override
+		public List<MemorySegment> requestMemorySegments() throws IOException {
+			return networkBufferPool.requestMemorySegments(networkBuffersPerChannel);
+		}
+
+		@Override
+		public void recycleMemorySegments(List<MemorySegment> segments) throws IOException {
+			networkBufferPool.recycleMemorySegments(segments);
 		}
 	}
 }

@@ -73,6 +73,8 @@ public interface InputGate extends AutoCloseable {
 
 	boolean isFinished();
 
+	void setup() throws IOException;
+
 	void requestPartitions() throws IOException, InterruptedException;
 
 	/**

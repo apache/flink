@@ -103,6 +103,10 @@ public class MockInputGate implements InputGate {
 	}
 
 	@Override
+	public void setup() {
+	}
+
+	@Override
 	public void requestPartitions() {
 	}
 

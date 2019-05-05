@@ -21,10 +21,13 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
+import java.util.function.Supplier;
 
 /**
  * Utility class to encapsulate the logic of building a {@link SingleInputGate} instance.
@@ -42,6 +45,10 @@ public class SingleInputGateBuilder {
 	private int consumedSubpartitionIndex = 0;
 
 	private int numberOfChannels = 1;
+
+	private Supplier<BufferPool> bufferPoolToSetup = () -> null;
+
+	private SingleInputGate.MemorySegmentProvider segmentProvider = null;
 
 	private TaskActions taskActions = new NoOpTaskActions();
 
@@ -64,6 +71,11 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setBufferPoolSupplier(Supplier<BufferPool> bufferPoolToSetup) {
+		this.bufferPoolToSetup = bufferPoolToSetup;
+		return this;
+	}
+
 	public SingleInputGateBuilder setIsCreditBased(boolean isCreditBased) {
 		this.isCreditBased = isCreditBased;
 		return this;
@@ -77,6 +89,8 @@ public class SingleInputGateBuilder {
 			partitionType,
 			consumedSubpartitionIndex,
 			numberOfChannels,
+			segmentProvider,
+			bufferPoolToSetup,
 			taskActions,
 			numBytesInCounter,
 			isCreditBased);

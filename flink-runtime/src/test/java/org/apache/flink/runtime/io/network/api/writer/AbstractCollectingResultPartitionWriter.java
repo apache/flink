@@ -102,6 +102,10 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
+	public void setup() {
+	}
+
+	@Override
 	public void close() {
 	}
 

@@ -37,6 +37,8 @@ public interface ResultPartitionWriter extends AutoCloseable {
 
 	int getNumTargetKeyGroups();
 
+	void setup() throws IOException;
+
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.
 	 *

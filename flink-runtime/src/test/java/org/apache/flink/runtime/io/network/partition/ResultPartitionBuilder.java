@@ -21,8 +21,11 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
+import java.util.function.Supplier;
 
 /**
  * Utility class to encapsulate the logic of building a {@link ResultPartition} instance.
@@ -42,6 +45,8 @@ public class ResultPartitionBuilder {
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
+
+	private Supplier<BufferPool> bufferPoolToSetup = () -> null;
 
 	private ResultPartitionManager partitionManager = new ResultPartitionManager();
 
@@ -76,6 +81,11 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
+	public ResultPartitionBuilder setBufferPoolSupplier(Supplier<BufferPool> bufferPoolToSetup) {
+		this.bufferPoolToSetup = bufferPoolToSetup;
+		return this;
+	}
+
 	public ResultPartitionBuilder setResultPartitionManager(ResultPartitionManager partitionManager) {
 		this.partitionManager = partitionManager;
 		return this;
@@ -105,6 +115,7 @@ public class ResultPartitionBuilder {
 			partitionType,
 			numberOfSubpartitions,
 			numTargetKeyGroups,
+			bufferPoolToSetup,
 			partitionManager,
 			partitionConsumableNotifier,
 			ioManager,

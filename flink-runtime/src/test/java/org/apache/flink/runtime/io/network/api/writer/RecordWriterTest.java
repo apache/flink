@@ -499,6 +499,10 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public void setup() {
+		}
+
+		@Override
 		public void flushAll() {
 		}
 
@@ -557,6 +561,10 @@ public class RecordWriterTest {
 		@Override
 		public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 			bufferConsumer.close();
+		}
+
+		@Override
+		public void setup() {
 		}
 
 		@Override

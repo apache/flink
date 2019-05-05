@@ -252,6 +252,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				"receiving task[" + channel + "]",
 				jobId,
 				gateDescriptor,
+				() -> null,
 				environment,
 				new TaskEventDispatcher(),
 				new NoOpTaskActions(),

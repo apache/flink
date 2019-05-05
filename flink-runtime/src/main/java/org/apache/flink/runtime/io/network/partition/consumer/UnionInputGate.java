@@ -147,6 +147,10 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	}
 
 	@Override
+	public void setup() {
+	}
+
+	@Override
 	public void requestPartitions() throws IOException, InterruptedException {
 		if (!requestedPartitionsFlag) {
 			for (InputGate inputGate : inputGates) {

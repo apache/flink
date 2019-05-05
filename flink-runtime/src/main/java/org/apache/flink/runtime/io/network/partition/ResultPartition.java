@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -41,6 +42,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkElementIndex;
@@ -102,6 +104,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	public final int numTargetKeyGroups;
 
+	private final Supplier<BufferPool> bufferPoolToSetup;
+
 	private final boolean sendScheduleOrUpdateConsumersMessage;
 
 	// - Runtime state --------------------------------------------------------
@@ -131,6 +135,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		ResultPartitionType partitionType,
 		int numberOfSubpartitions,
 		int numTargetKeyGroups,
+		Supplier<BufferPool> bufferPoolToSetup,
 		ResultPartitionManager partitionManager,
 		ResultPartitionConsumableNotifier partitionConsumableNotifier,
 		IOManager ioManager,
@@ -143,6 +148,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.partitionType = checkNotNull(partitionType);
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		this.numTargetKeyGroups = numTargetKeyGroups;
+		this.bufferPoolToSetup = checkNotNull(bufferPoolToSetup);
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
@@ -182,6 +188,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * <p>The pool is registered with the partition *after* it as been constructed in order to conform
 	 * to the life-cycle of task registrations in the {@link TaskExecutor}.
 	 */
+	@VisibleForTesting
 	public void registerBufferPool(BufferPool bufferPool) {
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 				"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
@@ -237,6 +244,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	// ------------------------------------------------------------------------
+
+	@Override
+	public void setup() {
+		registerBufferPool(bufferPoolToSetup.get());
+
+		partitionManager.registerResultPartition(this);
+	}
 
 	@Override
 	public void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {

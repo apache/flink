@@ -216,9 +216,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
 
-	/** The gateway to the network stack, which handles inputs and produced results. */
-	private final NetworkEnvironment network;
-
 	/** The service for kvState registration of this task. */
 	private final KvStateService kvStateService;
 
@@ -352,7 +349,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		this.blobService = Preconditions.checkNotNull(blobService);
 		this.libraryCache = Preconditions.checkNotNull(libraryCache);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
-		this.network = Preconditions.checkNotNull(networkEnvironment);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
@@ -436,14 +432,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
-	}
-
-	public SingleInputGate[] getAllInputGates() {
-		return inputGates;
-	}
-
-	public ResultPartition[] getProducedPartitions() {
-		return producedPartitions;
 	}
 
 	public SingleInputGate getInputGateById(IntermediateDataSetID id) {
@@ -598,20 +586,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				throw new CancelTaskException();
 			}
 
-			// ----------------------------------------------------------------
-			// register the task with the network stack
-			// this operation may fail if the system does not have enough
-			// memory to run the necessary data exchanges
-			// the registration must also strictly be undone
-			// ----------------------------------------------------------------
-
-			LOG.info("Registering task at network: {}.", this);
-
-			network.registerTask(this);
-
-			for (ResultPartition partition : producedPartitions) {
-				taskEventDispatcher.registerPartition(partition.getPartitionId());
-			}
+			setupPartitionsAndGates();
 
 			// next, kick off the background copying of files for the distributed cache
 			try {
@@ -833,6 +808,25 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			catch (Throwable t) {
 				LOG.error("Error during metrics de-registration of task {} ({}).", taskNameWithSubtask, executionId, t);
 			}
+		}
+	}
+
+	/**
+	 * Setup partitions and gates before task running.
+	 *
+	 * <p>This operation may fail if the system does not have enough memory to run
+	 * the necessary data exchanges, so the setup must also strictly be undone.
+	 */
+	private void setupPartitionsAndGates() throws IOException {
+		LOG.info("Setup partitions and gates for task: {}.", this);
+
+		for (ResultPartition partition : producedPartitions) {
+			partition.setup();
+			taskEventDispatcher.registerPartition(partition.getPartitionId());
+		}
+
+		for (SingleInputGate inputGate : inputGates) {
+			inputGate.setup();
 		}
 	}
 
