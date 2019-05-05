@@ -49,7 +49,7 @@ Key Group 的数目等于作业的最大并发数。在执行过程中，每个 
 
 Operator State 在 Flink 作业的并发改变后，会重新分发状态，分发的策略和 Keyed State 不一样。
 
-## Raw and Managed State
+## Raw State 与 Managed State
 
 *Keyed State* 和 *Operator State* 分别有两种存在形式：*managed* and *raw*.
 
