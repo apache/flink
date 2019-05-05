@@ -59,7 +59,7 @@ class Table(object):
 
         Example:
         ::
-            >>> t = tab.select("key, value + 'hello'")
+            >>> tab.select("key, value + 'hello'")
 
         :param fields: Expression string.
         :return: Result table.
@@ -72,7 +72,7 @@ class Table(object):
         joining to operations.
         Example:
         ::
-            >>> t = tab.alias("a, b")
+            >>> tab.alias("a, b")
 
         :param fields: Field list expression string.
         :return: Result table.
@@ -85,7 +85,7 @@ class Table(object):
         clause.
         Example:
         ::
-            >>> t = tab.filter("name = 'Fred'")
+            >>> tab.filter("name = 'Fred'")
 
         :param predicate: Predicate expression string.
         :return: Result table.
@@ -99,7 +99,7 @@ class Table(object):
         Example:
         ::
 
-            >>> t = tab.where("name = 'Fred'")
+            >>> tab.where("name = 'Fred'")
 
         :param predicate: Predicate expression string.
         :return: Result table.
