@@ -60,6 +60,8 @@ public class NetworkEnvironmentConfiguration {
 
 	private final boolean isCreditBased;
 
+	private final boolean isNetworkDetailedMetrics;
+
 	private final NettyConfig nettyConfig;
 
 	public NetworkEnvironmentConfiguration(
@@ -70,6 +72,7 @@ public class NetworkEnvironmentConfiguration {
 			int networkBuffersPerChannel,
 			int floatingNetworkBuffersPerGate,
 			boolean isCreditBased,
+			boolean isNetworkDetailedMetrics,
 			@Nullable NettyConfig nettyConfig) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
@@ -79,6 +82,7 @@ public class NetworkEnvironmentConfiguration {
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.isCreditBased = isCreditBased;
+		this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
 		this.nettyConfig = nettyConfig;
 	}
 
@@ -116,6 +120,10 @@ public class NetworkEnvironmentConfiguration {
 		return isCreditBased;
 	}
 
+	public boolean isNetworkDetailedMetrics() {
+		return isNetworkDetailedMetrics;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -150,6 +158,8 @@ public class NetworkEnvironmentConfiguration {
 
 		boolean isCreditBased = nettyConfig != null && configuration.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
 
+		boolean isNetworkDetailedMetrics = configuration.getBoolean(TaskManagerOptions.NETWORK_DETAILED_METRICS);
+
 		return new NetworkEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -158,6 +168,7 @@ public class NetworkEnvironmentConfiguration {
 			buffersPerChannel,
 			extraBuffersPerGate,
 			isCreditBased,
+			isNetworkDetailedMetrics,
 			nettyConfig);
 	}
 

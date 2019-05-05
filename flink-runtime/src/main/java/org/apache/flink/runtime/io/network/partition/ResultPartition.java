@@ -446,7 +446,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 				this, subpartitionIndex, pendingReferences);
 	}
 
-	ResultSubpartition[] getAllPartitions() {
+	public ResultSubpartition[] getAllPartitions() {
 		return subpartitions;
 	}
 
