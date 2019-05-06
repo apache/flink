@@ -10,15 +10,20 @@ In this initial version only Table API is supported, you can find the documentat
 
 ## Installation
 
-Currently, you can install PyFlink from Flink source code. 
-First, you need build the whole Flink project using `mvn clean install -DskipTests` and set the value of the environment variable FLINK_HOME to the `build-target` directory under the root directory of Flink.
-Then enter the directory where this README.md file is located and execute `python setup.py install` to install PyFlink on your device.
+Currently, we can install PyFlink from Flink source code. Enter the directory where this README.md file is located and install PyFlink on your device by executing 
 
-## Running Tests
+```
+python setup.py install
+```
 
-Currently you can perform an end-to-end test of PyFlink in the directory where this file is located with the following command:
+## Running test cases 
 
-    PYTHONPATH=$PYTHONPATH:./ python ./pyflink/table/tests/test_end_to_end.py
+Currently, we use conda and tox to verify the compatibility of the Flink Python API for multiple versions of Python and will integrate some useful plugins with tox, such as flake8.
+We can enter the directory where this README.md file is located and run test cases by executing
+
+```
+./dev/lint-python.sh
+```
 
 ## Python Requirements
 

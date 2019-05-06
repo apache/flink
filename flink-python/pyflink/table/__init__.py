@@ -34,7 +34,8 @@ Important classes of Flink Table API:
 """
 from pyflink.table.table import Table
 from pyflink.table.table_config import TableConfig
-from pyflink.table.table_environment import TableEnvironment, StreamTableEnvironment, BatchTableEnvironment
+from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
+                                             BatchTableEnvironment)
 from pyflink.table.table_sink import TableSink, CsvTableSink
 from pyflink.table.table_source import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes

@@ -94,7 +94,8 @@ def launch_gateway():
         shutil.rmtree(conn_info_dir)
 
     # Connect to the gateway
-    gateway = JavaGateway(gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True))
+    gateway = JavaGateway(
+        gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True))
 
     # Import the classes used by PyFlink
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
@@ -105,6 +106,7 @@ def launch_gateway():
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.TypeInformation")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.Types")
     java_import(gateway.jvm, "org.apache.flink.api.java.ExecutionEnvironment")
-    java_import(gateway.jvm, "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+    java_import(gateway.jvm,
+                "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
 
     return gateway

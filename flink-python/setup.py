@@ -53,6 +53,7 @@ setup(
     author='Flink Developers',
     author_email='dev@flink.apache.org',
     install_requires=['py4j==0.10.8.1'],
+    tests_require=['pytest==4.4.1'],
     description='Apache Flink Python API',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -60,5 +61,9 @@ setup(
         'Development Status :: 1 - Planning',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7']
 )
