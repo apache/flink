@@ -647,26 +647,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			TEST_COMMENT);
 	}
 
-	@Override
-	public CatalogView createView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t1),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is a view");
-	}
-
-	@Override
-	public CatalogView createAnotherView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t2),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is another view");
-	}
-
 	private CatalogPartitionSpec createPartitionSpec() {
 		return new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
@@ -707,6 +687,26 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	private CatalogPartition createPartition(Map<String, String> props) {
 		return new GenericCatalogPartition(props);
+	}
+
+	@Override
+	public CatalogView createView() {
+		return new GenericCatalogView(
+			String.format("select * from %s", t1),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+			createTableSchema(),
+			new HashMap<>(),
+			"This is a view");
+	}
+
+	@Override
+	public CatalogView createAnotherView() {
+		return new GenericCatalogView(
+			String.format("select * from %s", t2),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+			createAnotherTableSchema(),
+			new HashMap<>(),
+			"This is another view");
 	}
 
 	protected CatalogFunction createFunction() {

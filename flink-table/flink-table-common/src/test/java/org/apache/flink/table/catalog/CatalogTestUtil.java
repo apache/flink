@@ -30,7 +30,8 @@ public class CatalogTestUtil {
 	public static void checkEquals(CatalogTable t1, CatalogTable t2) {
 		assertEquals(t1.getSchema(), t2.getSchema());
 		checkEquals(t1.getStatistics(), t2.getStatistics());
-		assertEquals(t1.getDescription(), t2.getDescription());
+		assertEquals(t1.getComment(), t2.getComment());
+		assertEquals(t1.getProperties(), t2.getProperties());
 	}
 
 	public static void checkEquals(TableStats ts1, TableStats ts2) {
@@ -39,6 +40,9 @@ public class CatalogTestUtil {
 	}
 
 	public static void checkEquals(CatalogView v1, CatalogView v2) {
+		assertEquals(v1.getSchema(), v1.getSchema());
+		assertEquals(v1.getProperties(), v2.getProperties());
+		assertEquals(v1.getComment(), v2.getComment());
 		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
 		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
 	}

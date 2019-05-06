@@ -180,7 +180,7 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 		return new GenericCatalogView(
 			String.format("select * from %s", t2),
 			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createTableSchema(),
+			createAnotherTableSchema(),
 			new HashMap<>(),
 			"This is another view");
 	}

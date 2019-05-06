@@ -36,6 +36,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.hive.util.GenericHiveMetastoreCatalogUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -199,7 +200,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 			throw new DatabaseNotExistException(catalogName, databaseName);
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to list tables in database %s", databaseName), e);
+				String.format("Failed to list views in database %s", databaseName), e);
 		}
 	}
 

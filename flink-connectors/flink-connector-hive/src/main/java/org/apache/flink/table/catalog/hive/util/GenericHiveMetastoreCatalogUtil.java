@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
@@ -27,6 +27,9 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.hive.HiveCatalogBaseUtil;
+import org.apache.flink.table.catalog.hive.HiveTableConfig;
+import org.apache.flink.table.catalog.hive.HiveTypeUtil;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import org.apache.hadoop.hive.metastore.TableType;
