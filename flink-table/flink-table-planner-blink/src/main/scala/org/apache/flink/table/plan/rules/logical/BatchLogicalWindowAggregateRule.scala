@@ -60,7 +60,7 @@ class BatchLogicalWindowAggregateRule
         new FieldReferenceExpression(
           rowType.getFieldList.get(windowExprIdx).getName,
           createExternalTypeInfoFromInternalType(toInternalType(c.getType)),
-          windowExprIdx,
+          0, // only one input, should always be 0
           windowExprIdx)
       case ref: RexInputRef =>
         // resolve field name of window attribute
@@ -69,7 +69,7 @@ class BatchLogicalWindowAggregateRule
         new FieldReferenceExpression(
           fieldName,
           createExternalTypeInfoFromInternalType(toInternalType(fieldType)),
-          ref.getIndex,
+          0, // only one input, should always be 0
           ref.getIndex)
     }
   }

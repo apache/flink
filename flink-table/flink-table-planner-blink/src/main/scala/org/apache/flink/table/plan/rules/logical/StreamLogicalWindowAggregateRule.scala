@@ -71,13 +71,13 @@ class StreamLogicalWindowAggregateRule
         new FieldReferenceExpression(
           rowType.getFieldList.get(windowExprIdx).getName,
           createExternalTypeInfoFromInternalType(toInternalType(c.getType)),
-          windowExprIdx,
+          0, // only one input, should always be 0
           windowExprIdx)
       case v: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(v.getType) =>
         new FieldReferenceExpression(
           rowType.getFieldList.get(v.getIndex).getName,
           createExternalTypeInfoFromInternalType(toInternalType(v.getType)),
-          v.getIndex,
+          0, // only one input, should always be 0
           v.getIndex)
       case _ =>
         throw new ValidationException("Window can only be defined over a time attribute column.")
