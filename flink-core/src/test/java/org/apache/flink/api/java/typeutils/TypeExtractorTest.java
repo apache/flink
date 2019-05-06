@@ -1922,6 +1922,7 @@ public class TypeExtractorTest {
 		inputMap.put("a", "b");
 		TypeInformation<?> inputType = TypeExtractor.createTypeInfo(inputMap.getClass());
 
+
 		MapFunction<?, ?> function = new MapFunction<Map<String, Object>,Map<String, Object>>(){
 
 			@Override
@@ -1931,7 +1932,7 @@ public class TypeExtractorTest {
 		};
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
-		TypeInformation<?> expected = TypeExtractor.createTypeInfo(Map.class);
+		TypeInformation<?> expected = new MapTypeInfo(String.class, Object.class);
 		Assert.assertEquals(expected, ti);
 	}
 

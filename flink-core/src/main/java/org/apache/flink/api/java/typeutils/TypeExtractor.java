@@ -1669,6 +1669,27 @@ public class TypeExtractor {
 			return new GenericTypeInfo<>(clazz);
 		}
 
+		if (clazz.equals(java.util.List.class)) {
+			if (parameterizedType != null
+					&& parameterizedType.getActualTypeArguments().length > 0) {
+				Type type = parameterizedType.getActualTypeArguments()[0];
+				// type must be a Class not can be ParameterizedType
+				if (type instanceof Class) {
+					return new ListTypeInfo(typeToClass(type));
+				}
+			}
+		}
+
+		if (clazz.equals(java.util.Map.class)) {
+			if (parameterizedType != null
+					&& parameterizedType.getActualTypeArguments().length > 1) {
+				Type typeK = parameterizedType.getActualTypeArguments()[0];
+				Type typeV = parameterizedType.getActualTypeArguments()[1];
+				if (typeK instanceof Class && typeV instanceof Class) {
+					return new MapTypeInfo(typeToClass(typeK), typeToClass(typeV));
+				}
+			}
+		}
 		// check for arrays
 		if (clazz.isArray()) {
 

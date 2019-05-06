@@ -20,6 +20,8 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.junit.Test;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link ListTypeInfo}.
@@ -34,4 +36,16 @@ public class ListTypeInfoTest extends TypeInformationTestBase<ListTypeInfo<?>> {
 			new ListTypeInfo<>(Object.class),
 		};
 	}
+
+	@Test
+	public void testPojoWithJavaList() {
+		PojoTypeInfo<PojoWithList> pojoType = (PojoTypeInfo<PojoWithList>) TypeExtractor.createTypeInfo(PojoWithList.class);
+		assertTrue(pojoType.getTypeAt(1) instanceof ListTypeInfo);
+	}
+
+	public static class PojoWithList {
+		public Double id;
+		public java.util.List<String> scores;
+	}
+
 }

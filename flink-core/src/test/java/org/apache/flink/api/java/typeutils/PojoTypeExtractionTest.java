@@ -407,7 +407,7 @@ public class PojoTypeExtractionTest {
 					Assert.fail("already seen");
 				}
 				collectionSeen = true;
-				Assert.assertEquals(new GenericTypeInfo(List.class), field.getTypeInformation());
+				Assert.assertEquals(new ListTypeInfo<>(String.class), field.getTypeInformation());
 
 			} else {
 				Assert.fail("field "+field+" is not expected");

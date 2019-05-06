@@ -20,6 +20,9 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link MapTypeInfo}.
@@ -34,4 +37,16 @@ public class MapTypeInfoTest extends TypeInformationTestBase<MapTypeInfo<?, ?>> 
 			new MapTypeInfo<>(String.class, Boolean.class)
 		};
 	}
+
+	@Test
+	public void testPojoWithJavaMap() {
+		PojoTypeInfo<PojoWithMap> pojoType = (PojoTypeInfo<PojoWithMap>) TypeExtractor.createTypeInfo(PojoWithMap.class);
+		assertTrue(pojoType.getTypeAt(1) instanceof MapTypeInfo);
+	}
+
+	public static class PojoWithMap {
+		public Double id;
+		public java.util.Map<String, Double> scores;
+	}
+
 }
