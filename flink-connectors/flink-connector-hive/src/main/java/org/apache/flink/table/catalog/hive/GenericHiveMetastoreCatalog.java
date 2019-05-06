@@ -281,13 +281,13 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -299,13 +299,13 @@ public class GenericHiveMetastoreCatalog implements ReadableWritableCatalog {
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
