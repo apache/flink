@@ -36,7 +36,7 @@ import java.util.concurrent.BlockingQueue;
 /**
  * Testing implementation of {@link JobManagerRunnerFactory} which returns a {@link TestingJobManagerRunner}.
  */
-class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
+public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
 
 	private final BlockingQueue<TestingJobManagerRunner> createdJobManagerRunner = new ArrayBlockingQueue<>(16);
 
