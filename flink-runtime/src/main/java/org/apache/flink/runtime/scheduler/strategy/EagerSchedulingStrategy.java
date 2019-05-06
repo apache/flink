@@ -28,6 +28,8 @@ import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -44,32 +46,20 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	public EagerSchedulingStrategy(
 			SchedulerOperations schedulerOperations,
-			SchedulingTopology schedulingTopology,
-			JobGraph jobGraph) {
+			SchedulingTopology schedulingTopology) {
 		this.schedulerOperations = checkNotNull(schedulerOperations);
 		this.schedulingTopology = checkNotNull(schedulingTopology);
 	}
 
 	@Override
 	public void startScheduling() {
-		// Schedule all the vertices in scheduling topology at the same time.
-		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>();
-		for (SchedulingVertex schedulingVertex : schedulingTopology.getVertices()) {
-			executionVertexDeploymentOptions.add(
-					new ExecutionVertexDeploymentOption(schedulingVertex.getId(), deploymentOption));
-		}
-		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
+		final Set<ExecutionVertexID> allVertices = getAllVerticesFromTopology();
+		allocateSlotsAndDeploy(allVertices);
 	}
 
 	@Override
 	public void restartTasks(Set<ExecutionVertexID> verticesNeedingRestart) {
-		// Schedule all the vertices needing restarted at the same time.
-		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>(verticesNeedingRestart.size());
-		for (ExecutionVertexID executionVertexID : verticesNeedingRestart) {
-			executionVertexDeploymentOptions.add(
-					new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
-		}
-		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
+		allocateSlotsAndDeploy(verticesNeedingRestart);
 	}
 
 	@Override
@@ -82,6 +72,29 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 		// Will not react to these notifications.
 	}
 
+	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesNeedingStarted) {
+		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
+				createExecutionVertexDeploymentOptions(verticesNeedingStarted);
+		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
+	}
+
+	private Set<ExecutionVertexID> getAllVerticesFromTopology() {
+		return StreamSupport
+				.stream(schedulingTopology.getVertices().spliterator(), false)
+				.map(SchedulingExecutionVertex::getId)
+				.collect(Collectors.toSet());
+	}
+
+	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
+			final Iterable<ExecutionVertexID> verticesNeedingStarted) {
+		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>();
+		for (ExecutionVertexID executionVertexID : verticesNeedingStarted) {
+			executionVertexDeploymentOptions.add(
+					new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
+		}
+		return executionVertexDeploymentOptions;
+	}
+
 	/**
 	 * The factory for creating {@link EagerSchedulingStrategy}.
 	 */
@@ -92,7 +105,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 				SchedulerOperations schedulerOperations,
 				SchedulingTopology schedulingTopology,
 				JobGraph jobGraph) {
-			return new EagerSchedulingStrategy(schedulerOperations, schedulingTopology, jobGraph);
+			return new EagerSchedulingStrategy(schedulerOperations, schedulingTopology);
 		}
 	}
 }

@@ -19,14 +19,21 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link EagerSchedulingStrategy}.
@@ -40,21 +47,26 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 	public void testStartScheduling() {
 		TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 		JobVertexID jobVertexID = new JobVertexID();
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 0));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 1));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 2));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 3));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 4));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 0));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 1));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 2));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 3));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 4));
 
-		TestingSchedulerOperation testingSchedulerOperation = new TestingSchedulerOperation();
+		TestingSchedulerOperations testingSchedulerOperations = new TestingSchedulerOperations();
 		EagerSchedulingStrategy schedulingStrategy = new EagerSchedulingStrategy(
-				testingSchedulerOperation,
-				testingSchedulingTopology,
-				null);
+				testingSchedulerOperations,
+				testingSchedulingTopology);
 
 		schedulingStrategy.startScheduling();
 
-		assertEquals(5, testingSchedulerOperation.getScheduledVertices().size());
+		assertEquals(1, testingSchedulerOperations.getScheduledVertices().size());
+
+		Collection<ExecutionVertexDeploymentOption> scheduledVertices = testingSchedulerOperations.getScheduledVertices().get(0);
+		assertEquals(5, scheduledVertices.size());
+		for (SchedulingExecutionVertex schedulingExecutionVertex : testingSchedulingTopology.getVertices()) {
+			assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices), hasItem(schedulingExecutionVertex.getId()));
+		}
 	}
 
 	/**
@@ -64,31 +76,44 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 	public void testRestartTasks() {
 		TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 		JobVertexID jobVertexID = new JobVertexID();
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 0));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 1));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 2));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 3));
-		testingSchedulingTopology.addSchedulingVertex(new TestingSchedulingVertex(jobVertexID, 4));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 0));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 1));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 2));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 3));
+		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 4));
 
-		TestingSchedulerOperation testingSchedulerOperation = new TestingSchedulerOperation();
+		TestingSchedulerOperations testingSchedulerOperations = new TestingSchedulerOperations();
 		EagerSchedulingStrategy schedulingStrategy = new EagerSchedulingStrategy(
-				testingSchedulerOperation,
-				testingSchedulingTopology,
-				null);
+				testingSchedulerOperations,
+				testingSchedulingTopology);
 
-		Set<ExecutionVertexID> toBeRestartedVertices1 = new HashSet<>(2);
+		Set<ExecutionVertexID> toBeRestartedVertices1 = new HashSet<>();
 		toBeRestartedVertices1.add(new ExecutionVertexID(jobVertexID, 0));
 		toBeRestartedVertices1.add(new ExecutionVertexID(jobVertexID, 4));
 		schedulingStrategy.restartTasks(toBeRestartedVertices1);
 
-		assertEquals(2, testingSchedulerOperation.getScheduledVertices().size());
+		assertEquals(1, testingSchedulerOperations.getScheduledVertices().size());
+		Collection<ExecutionVertexDeploymentOption> scheduledVertices1 = testingSchedulerOperations.getScheduledVertices().get(0);
+		assertEquals(2, scheduledVertices1.size());
+		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices1), containsInAnyOrder(toBeRestartedVertices1.toArray()));
 
-		Set<ExecutionVertexID> toBeRestartedVertices2 = new HashSet<>(2);
+		Set<ExecutionVertexID> toBeRestartedVertices2 = new HashSet<>();
 		toBeRestartedVertices2.add(new ExecutionVertexID(jobVertexID, 1));
 		toBeRestartedVertices2.add(new ExecutionVertexID(jobVertexID, 2));
 		toBeRestartedVertices2.add(new ExecutionVertexID(jobVertexID, 3));
 		schedulingStrategy.restartTasks(toBeRestartedVertices2);
 
-		assertEquals(5, testingSchedulerOperation.getScheduledVertices().size());
+		assertEquals(2, testingSchedulerOperations.getScheduledVertices().size());
+		Collection<ExecutionVertexDeploymentOption> scheduledVertices2 = testingSchedulerOperations.getScheduledVertices().get(1);
+		assertEquals(3, scheduledVertices2.size());
+		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices2), containsInAnyOrder(toBeRestartedVertices2.toArray()));
+	}
+
+	private Collection<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
+			Collection<ExecutionVertexDeploymentOption> deploymentOptions) {
+		return StreamSupport
+				.stream(deploymentOptions.spliterator(), false)
+				.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
+				.collect(Collectors.toList());
 	}
 }

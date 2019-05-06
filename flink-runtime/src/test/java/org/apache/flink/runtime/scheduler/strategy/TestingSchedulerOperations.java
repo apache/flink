@@ -23,21 +23,22 @@ import org.apache.flink.runtime.scheduler.SchedulerOperations;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * A Simple scheduler operation for testing purposes.
  */
-public class TestingSchedulerOperation implements SchedulerOperations {
+public class TestingSchedulerOperations implements SchedulerOperations {
 
-	private final List<ExecutionVertexDeploymentOption> scheduledVertices = new ArrayList<>();
+	private final List<Collection<ExecutionVertexDeploymentOption>> scheduledVertices = new ArrayList<>();
 
 	@Override
 	public void allocateSlotsAndDeploy(Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
-		scheduledVertices.addAll(executionVertexDeploymentOptions);
+		scheduledVertices.add(executionVertexDeploymentOptions);
 	}
 
-	public List<ExecutionVertexDeploymentOption> getScheduledVertices() {
-			return scheduledVertices;
-		}
+	public List<Collection<ExecutionVertexDeploymentOption>> getScheduledVertices() {
+		return Collections.unmodifiableList(scheduledVertices);
+	}
 }

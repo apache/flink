@@ -22,15 +22,16 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.Collection;
+import java.util.Collections;
 
 /**
- * A Simple scheduling vertex for testing purposes.
+ * A simple scheduling execution vertex for testing purposes.
  */
-public class TestingSchedulingVertex implements SchedulingVertex {
+public class TestingSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
 	private final ExecutionVertexID executionVertexId;
 
-	public TestingSchedulingVertex(JobVertexID jobVertexId, int subtaskIndex) {
+	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
 		this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
 	}
 
@@ -51,11 +52,11 @@ public class TestingSchedulingVertex implements SchedulingVertex {
 
 	@Override
 	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
-		return null;
+		return Collections.EMPTY_LIST;
 	}
 
 	@Override
 	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
-			return null;
-		}
+		return Collections.EMPTY_LIST;
+	}
 }

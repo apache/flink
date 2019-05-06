@@ -49,8 +49,6 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.scheduler.DeploymentOption;
-import org.apache.flink.runtime.scheduler.ExecutionVertexSchedulingRequirements;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -278,7 +276,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @return true if the slot could be assigned to the execution, otherwise false
 	 */
 	@VisibleForTesting
-	public boolean tryAssignResource(final LogicalSlot logicalSlot) {
+	boolean tryAssignResource(final LogicalSlot logicalSlot) {
 
 		assertRunningInJobMasterMainThread();
 
@@ -569,40 +567,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	/**
-	 * Turn into SCHEDULED and and return the scheduling requirements.
-	 *
-	 * @return the scheduling requirements for this execution vertex.
-	 * @throws IllegalExecutionStateException if this method is called while not being in the CREATED state.
-	 */
-	public ExecutionVertexSchedulingRequirements startSchedulingAndCreateSchedulingRequirements() {
-		assertRunningInJobMasterMainThread();
-
-		// The execution shoulb be in the state 'CREATED' when scheduled.
-		if (transitionState(CREATED, SCHEDULED)) {
-			return vertex.createSchedulingRequirements();
-		} else {
-			// call race, already deployed, or already done
-			throw new IllegalExecutionStateException(this, CREATED, state);
-		}
-	}
-
-	/**
 	 * Deploys the execution to the previously assigned resource.
-	 * This method is only used for the EAGER and LAZY_FROM_SOURCe scheduling in ExecutionGraph.
 	 *
 	 * @throws JobException if the execution cannot be deployed to the assigned resource
 	 */
-	@Deprecated
 	public void deploy() throws JobException {
-		deploy(null);
-	}
-
-	/**
-	 * Deploys the execution to the previously assigned resource.
-	 *
-	 * @throws JobException if the execution cannot be deployed to the assigned resource
-	 */
-	public void deploy(DeploymentOption deploymentOption) throws JobException {
 		assertRunningInJobMasterMainThread();
 
 		final LogicalSlot slot  = assignedResource;
@@ -653,8 +622,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				attemptId,
 				slot,
 				taskRestore,
-				attemptNumber,
-				deploymentOption);
+				attemptNumber);
 
 			// null taskRestore to let it be GC'ed
 			taskRestore = null;
