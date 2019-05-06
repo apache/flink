@@ -43,9 +43,81 @@ public class HiveCatalogTest extends CatalogTestBase {
 	// Thus, overriding the following tests which involve table operation in CatalogTestBase so they won't run against HiveCatalog
 	// =====================
 
-	// TODO: re-enable this test once HiveCatalog support table operations
+	// TODO: re-enable these tests once HiveCatalog support table operations
 	@Test
 	public void testDropDb_DatabaseNotEmptyException() throws Exception {
+	}
+
+	@Test
+	public void testCreateTable_Streaming() throws Exception {
+	}
+
+	@Test
+	public void testCreateTable_Batch() throws Exception {
+	}
+
+	@Test
+	public void testCreateTable_DatabaseNotExistException() throws Exception {
+	}
+
+	@Test
+	public void testCreateTable_TableAlreadyExistException() throws Exception {
+	}
+
+	@Test
+	public void testCreateTable_TableAlreadyExist_ignored() throws Exception {
+	}
+
+	@Test
+	public void testGetTable_TableNotExistException() throws Exception {
+	}
+
+	@Test
+	public void testGetTable_TableNotExistException_NoDb() throws Exception {
+	}
+
+	@Test
+	public void testDropTable_nonPartitionedTable() throws Exception {
+	}
+
+	@Test
+	public void testDropTable_TableNotExistException() throws Exception {
+	}
+
+	@Test
+	public void testDropTable_TableNotExist_ignored() throws Exception {
+	}
+
+	@Test
+	public void testAlterTable() throws Exception {
+	}
+
+	@Test
+	public void testAlterTable_TableNotExistException() throws Exception {
+	}
+
+	@Test
+	public void testAlterTable_TableNotExist_ignored() throws Exception {
+	}
+
+	@Test
+	public void testRenameTable_nonPartitionedTable() throws Exception {
+	}
+
+	@Test
+	public void testRenameTable_TableNotExistException() throws Exception {
+	}
+
+	@Test
+	public void testRenameTable_TableNotExistException_ignored() throws Exception {
+	}
+
+	@Test
+	public void testRenameTable_TableAlreadyExistException() throws Exception {
+	}
+
+	@Test
+	public void testTableExists() throws Exception {
 	}
 
 	// ------ utils ------
@@ -83,6 +155,24 @@ public class HiveCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createAnotherTable() {
+		// TODO: implement this once HiveCatalog support table operations
+		return null;
+	}
+
+	@Override
+	public CatalogTable createStreamingTable() {
+		// TODO: implement this once HiveCatalog support table operations
+		return null;
+	}
+
+	@Override
+	public CatalogTable createPartitionedTable() {
+		// TODO: implement this once HiveCatalog support table operations
+		return null;
+	}
+
+	@Override
+	public CatalogTable createAnotherPartitionedTable() {
 		// TODO: implement this once HiveCatalog support table operations
 		return null;
 	}

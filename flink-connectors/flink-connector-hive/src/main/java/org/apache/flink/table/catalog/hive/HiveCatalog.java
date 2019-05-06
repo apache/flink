@@ -93,7 +93,7 @@ public class HiveCatalog extends HiveCatalogBase {
 
 	@Override
 	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
-			throws TableNotExistException, TableAlreadyExistException, DatabaseNotExistException, CatalogException {
+			throws TableNotExistException, TableAlreadyExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -140,13 +140,13 @@ public class HiveCatalog extends HiveCatalogBase {
 
 	@Override
 	public void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -158,13 +158,13 @@ public class HiveCatalog extends HiveCatalogBase {
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
