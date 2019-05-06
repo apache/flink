@@ -21,8 +21,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import java.util.Objects;
-
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -36,6 +35,7 @@ public class ExecutionVertexID {
 	public ExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.subtaskIndex = subtaskIndex;
+		checkArgument(subtaskIndex >= 0, "subtaskIndex must be greater than or equal to 0");
 	}
 
 	@Override
@@ -50,17 +50,12 @@ public class ExecutionVertexID {
 
 		ExecutionVertexID that = (ExecutionVertexID) o;
 
-		if (subtaskIndex != that.subtaskIndex) {
-			return false;
-		}
-
-		return Objects.equals(jobVertexId, that.jobVertexId);
-
+		return subtaskIndex == that.subtaskIndex && jobVertexId.equals(that.jobVertexId);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = jobVertexId != null ? jobVertexId.hashCode() : 0;
+		int result = jobVertexId.hashCode();
 		result = 31 * result + subtaskIndex;
 		return result;
 	}

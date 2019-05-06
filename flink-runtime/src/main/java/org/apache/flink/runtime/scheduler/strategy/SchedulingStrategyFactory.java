@@ -21,14 +21,11 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 
-import javax.annotation.Nonnull;
-
 /**
  * Factory interface for {@link SchedulingStrategy}.
  */
 public interface SchedulingStrategyFactory {
 
-	@Nonnull
 	SchedulingStrategy getInstance(
 			SchedulerOperations schedulerOperations,
 			SchedulingTopology schedulingTopology,
