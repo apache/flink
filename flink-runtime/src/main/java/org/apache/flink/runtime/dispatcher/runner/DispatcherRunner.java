@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import java.util.concurrent.CompletableFuture;
@@ -30,11 +31,12 @@ import java.util.concurrent.CompletableFuture;
 public interface DispatcherRunner extends AutoCloseableAsync {
 
 	/**
-	 * Get the currently running {@link Dispatcher}.
+	 * Return a future which is completed once the {@link Dispatcher} gains
+	 * leadership.
 	 *
-	 * @return the currently running dispatcher
+	 * @return Future which is completed with the leader's gateway
 	 */
-	Dispatcher getDispatcher();
+	CompletableFuture<DispatcherGateway> getDispatcherGateway();
 
 	/**
 	 * Return shut down future of this runner. The shut down future is being
