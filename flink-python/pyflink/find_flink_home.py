@@ -47,7 +47,7 @@ def _find_flink_source_root():
     Find the flink source root directory.
     """
     try:
-        flink_source_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../../../../../")
+        flink_source_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../")
         if os.path.isdir(flink_source_root_dir + "/build-target"):
             return flink_source_root_dir
     except Exception:
