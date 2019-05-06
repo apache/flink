@@ -24,7 +24,6 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -36,7 +35,6 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -82,23 +80,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testListTables() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		catalog.createTable(path1, createTable(), false);
-		catalog.createTable(path3, createTable(), false);
-		catalog.createTable(path4, createView(), false);
-
-		assertEquals(3, catalog.listTables(db1).size());
-		assertEquals(1, catalog.listViews(db1).size());
-
-		catalog.dropTable(path1, false);
-		catalog.dropTable(path3, false);
-		catalog.dropTable(path4, false);
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
 	public void testRenameTable_partitionedTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable table = createPartitionedTable();
@@ -116,129 +97,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		assertTrue(catalog.partitionExists(path3, catalogPartitionSpec));
 		assertFalse(catalog.tableExists(path1));
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
-	}
-
-	// ------ views ------
-
-	@Test
-	public void testCreateView() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		assertFalse(catalog.tableExists(path1));
-
-		CatalogView view = createView();
-		catalog.createTable(path1, view, false);
-
-		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
-	}
-
-	@Test
-	public void testCreateView_DatabaseNotExistException() throws Exception {
-		assertFalse(catalog.databaseExists(db1));
-
-		exception.expect(DatabaseNotExistException.class);
-		exception.expectMessage("Database db1 does not exist in Catalog");
-		catalog.createTable(nonExistObjectPath, createView(), false);
-	}
-
-	@Test
-	public void testCreateView_TableAlreadyExistException() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createView(), false);
-
-		exception.expect(TableAlreadyExistException.class);
-		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
-		catalog.createTable(path1, createView(), false);
-	}
-
-	@Test
-	public void testCreateView_TableAlreadyExist_ignored() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		CatalogView view = createView();
-		catalog.createTable(path1, view, false);
-
-		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
-
-		catalog.createTable(path1, createAnotherView(), true);
-
-		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
-	}
-
-	@Test
-	public void testDropView() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createView(), false);
-
-		assertTrue(catalog.tableExists(path1));
-
-		catalog.dropTable(path1, false);
-
-		assertFalse(catalog.tableExists(path1));
-	}
-
-	@Test
-	public void testAlterView() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		CatalogView view = createView();
-		catalog.createTable(path1, view, false);
-
-		CatalogTestUtil.checkEquals(view, (GenericCatalogView) catalog.getTable(path1));
-
-		CatalogView newView = createAnotherView();
-		catalog.alterTable(path1, newView, false);
-
-		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(newView, (GenericCatalogView) catalog.getTable(path1));
-	}
-
-	@Test
-	public void testAlterView_TableNotExistException() throws Exception {
-		exception.expect(TableNotExistException.class);
-		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
-		catalog.alterTable(nonExistDbPath, createTable(), false);
-	}
-
-	@Test
-	public void testAlterView_TableNotExist_ignored() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.alterTable(nonExistObjectPath, createView(), true);
-
-		assertFalse(catalog.tableExists(nonExistObjectPath));
-	}
-
-	@Test
-	public void testListView() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		assertTrue(catalog.listTables(db1).isEmpty());
-
-		catalog.createTable(path1, createView(), false);
-		catalog.createTable(path3, createTable(), false);
-
-		assertEquals(2, catalog.listTables(db1).size());
-		assertEquals(new HashSet<>(Arrays.asList(path1.getObjectName(), path3.getObjectName())),
-			new HashSet<>(catalog.listTables(db1)));
-		assertEquals(Arrays.asList(path1.getObjectName()), catalog.listViews(db1));
-	}
-
-	@Test
-	public void testRenameView() throws Exception {
-		catalog.createDatabase("db1", new GenericCatalogDatabase(new HashMap<>()), false);
-		GenericCatalogView view = new GenericCatalogView("select * from t1",
-			"select * from db1.t1", createTableSchema(), new HashMap<>());
-		ObjectPath viewPath1 = new ObjectPath(db1, "view1");
-		catalog.createTable(viewPath1, view, false);
-		assertTrue(catalog.tableExists(viewPath1));
-		catalog.renameTable(viewPath1, "view2", false);
-		assertFalse(catalog.tableExists(viewPath1));
-		ObjectPath viewPath2 = new ObjectPath(db1, "view2");
-		assertTrue(catalog.tableExists(viewPath2));
-		catalog.dropTable(viewPath2, false);
 	}
 
 	// ------ partitions ------
@@ -789,6 +647,26 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			TEST_COMMENT);
 	}
 
+	@Override
+	public CatalogView createView() {
+		return new GenericCatalogView(
+			String.format("select * from %s", t1),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+			createTableSchema(),
+			new HashMap<>(),
+			"This is a view");
+	}
+
+	@Override
+	public CatalogView createAnotherView() {
+		return new GenericCatalogView(
+			String.format("select * from %s", t2),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+			createTableSchema(),
+			new HashMap<>(),
+			"This is another view");
+	}
+
 	private CatalogPartitionSpec createPartitionSpec() {
 		return new CatalogPartitionSpec(
 			new HashMap<String, String>() {{
@@ -829,24 +707,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	private CatalogPartition createPartition(Map<String, String> props) {
 		return new GenericCatalogPartition(props);
-	}
-
-	private CatalogView createView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t1),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is a view");
-	}
-
-	private CatalogView createAnotherView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t2),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is another view");
 	}
 
 	protected CatalogFunction createFunction() {

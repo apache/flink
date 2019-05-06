@@ -21,9 +21,9 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
+import org.apache.flink.table.catalog.CatalogView;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -44,80 +44,94 @@ public class HiveCatalogTest extends CatalogTestBase {
 	// =====================
 
 	// TODO: re-enable these tests once HiveCatalog support table operations
-	@Test
 	public void testDropDb_DatabaseNotEmptyException() throws Exception {
 	}
 
-	@Test
 	public void testCreateTable_Streaming() throws Exception {
 	}
 
-	@Test
 	public void testCreateTable_Batch() throws Exception {
 	}
 
-	@Test
 	public void testCreateTable_DatabaseNotExistException() throws Exception {
 	}
 
-	@Test
 	public void testCreateTable_TableAlreadyExistException() throws Exception {
 	}
 
-	@Test
 	public void testCreateTable_TableAlreadyExist_ignored() throws Exception {
 	}
 
-	@Test
 	public void testGetTable_TableNotExistException() throws Exception {
 	}
 
-	@Test
 	public void testGetTable_TableNotExistException_NoDb() throws Exception {
 	}
 
-	@Test
 	public void testDropTable_nonPartitionedTable() throws Exception {
 	}
 
-	@Test
 	public void testDropTable_TableNotExistException() throws Exception {
 	}
 
-	@Test
 	public void testDropTable_TableNotExist_ignored() throws Exception {
 	}
 
-	@Test
 	public void testAlterTable() throws Exception {
 	}
 
-	@Test
 	public void testAlterTable_TableNotExistException() throws Exception {
 	}
 
-	@Test
 	public void testAlterTable_TableNotExist_ignored() throws Exception {
 	}
 
-	@Test
 	public void testRenameTable_nonPartitionedTable() throws Exception {
 	}
 
-	@Test
 	public void testRenameTable_TableNotExistException() throws Exception {
 	}
 
-	@Test
 	public void testRenameTable_TableNotExistException_ignored() throws Exception {
 	}
 
-	@Test
 	public void testRenameTable_TableAlreadyExistException() throws Exception {
 	}
 
-	@Test
+	public void testListTables() throws Exception {
+	}
+
 	public void testTableExists() throws Exception {
+	}
+
+	public void testCreateView() throws Exception {
+	}
+
+	public void testCreateView_DatabaseNotExistException() throws Exception {
+	}
+
+	public void testCreateView_TableAlreadyExistException() throws Exception {
+	}
+
+	public void testCreateView_TableAlreadyExist_ignored() throws Exception {
+	}
+
+	public void testDropView() throws Exception {
+	}
+
+	public void testAlterView() throws Exception {
+	}
+
+	public void testAlterView_TableNotExistException() throws Exception {
+	}
+
+	public void testAlterView_TableNotExist_ignored() throws Exception {
+	}
+
+	public void testListView() throws Exception {
+	}
+
+	public void testRenameView() throws Exception {
 	}
 
 	// ------ utils ------
@@ -174,6 +188,18 @@ public class HiveCatalogTest extends CatalogTestBase {
 	@Override
 	public CatalogTable createAnotherPartitionedTable() {
 		// TODO: implement this once HiveCatalog support table operations
+		return null;
+	}
+
+	@Override
+	public CatalogView createView() {
+		// TODO: implement this once HiveCatalog support view operations
+		return null;
+	}
+
+	@Override
+	public CatalogView createAnotherView() {
+		// TODO: implement this once HiveCatalog support view operations
 		return null;
 	}
 }

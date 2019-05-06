@@ -56,10 +56,11 @@ public abstract class CatalogTestBase {
 
 	protected final String t1 = "t1";
 	protected final String t2 = "t2";
+	protected final String t3 = "t3";
 	protected final ObjectPath path1 = new ObjectPath(db1, t1);
 	protected final ObjectPath path2 = new ObjectPath(db2, t2);
 	protected final ObjectPath path3 = new ObjectPath(db1, t2);
-	protected final ObjectPath path4 = new ObjectPath(db1, "t3");
+	protected final ObjectPath path4 = new ObjectPath(db1, t3);
 	protected final ObjectPath nonExistDbPath = ObjectPath.fromString("non.exist");
 	protected final ObjectPath nonExistObjectPath = ObjectPath.fromString("db1.nonexist");
 
@@ -82,6 +83,9 @@ public abstract class CatalogTestBase {
 		}
 		if (catalog.tableExists(path3)) {
 			catalog.dropTable(path3, true);
+		}
+		if (catalog.tableExists(path4)) {
+			catalog.dropTable(path4, true);
 		}
 
 		if (catalog.databaseExists(db1)) {
@@ -436,6 +440,18 @@ public abstract class CatalogTestBase {
 	}
 
 	@Test
+	public void testListTables() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		catalog.createTable(path1, createTable(), false);
+		catalog.createTable(path3, createTable(), false);
+		catalog.createTable(path4, createView(), false);
+
+		assertEquals(3, catalog.listTables(db1).size());
+		assertEquals(1, catalog.listViews(db1).size());
+	}
+
+	@Test
 	public void testTableExists() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
@@ -444,6 +460,127 @@ public abstract class CatalogTestBase {
 		catalog.createTable(path1, createTable(), false);
 
 		assertTrue(catalog.tableExists(path1));
+	}
+
+	// ------ views ------
+
+	@Test
+	public void testCreateView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		assertFalse(catalog.tableExists(path1));
+
+		CatalogView view = createView();
+		catalog.createTable(path1, view, false);
+
+		assertTrue(catalog.getTable(path1) instanceof CatalogView);
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+	}
+
+	@Test
+	public void testCreateView_DatabaseNotExistException() throws Exception {
+		assertFalse(catalog.databaseExists(db1));
+
+		exception.expect(DatabaseNotExistException.class);
+		exception.expectMessage("Database db1 does not exist in Catalog");
+		catalog.createTable(nonExistObjectPath, createView(), false);
+	}
+
+	@Test
+	public void testCreateView_TableAlreadyExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createView(), false);
+
+		exception.expect(TableAlreadyExistException.class);
+		exception.expectMessage("Table (or view) db1.t1 already exists in Catalog");
+		catalog.createTable(path1, createView(), false);
+	}
+
+	@Test
+	public void testCreateView_TableAlreadyExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogView view = createView();
+		catalog.createTable(path1, view, false);
+
+		assertTrue(catalog.getTable(path1) instanceof CatalogView);
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+
+		catalog.createTable(path1, createAnotherView(), true);
+
+		assertTrue(catalog.getTable(path1) instanceof CatalogView);
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+	}
+
+	@Test
+	public void testDropView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createView(), false);
+
+		assertTrue(catalog.tableExists(path1));
+
+		catalog.dropTable(path1, false);
+
+		assertFalse(catalog.tableExists(path1));
+	}
+
+	@Test
+	public void testAlterView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogView view = createView();
+		catalog.createTable(path1, view, false);
+
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+
+		CatalogView newView = createAnotherView();
+		catalog.alterTable(path1, newView, false);
+
+		assertTrue(catalog.getTable(path1) instanceof CatalogView);
+		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path1));
+	}
+
+	@Test
+	public void testAlterView_TableNotExistException() throws Exception {
+		exception.expect(TableNotExistException.class);
+		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
+		catalog.alterTable(nonExistDbPath, createTable(), false);
+	}
+
+	@Test
+	public void testAlterView_TableNotExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.alterTable(nonExistObjectPath, createView(), true);
+
+		assertFalse(catalog.tableExists(nonExistObjectPath));
+	}
+
+	@Test
+	public void testListView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		assertTrue(catalog.listTables(db1).isEmpty());
+
+		catalog.createTable(path1, createView(), false);
+		catalog.createTable(path3, createTable(), false);
+
+		assertEquals(2, catalog.listTables(db1).size());
+		assertEquals(new HashSet<>(Arrays.asList(path1.getObjectName(), path3.getObjectName())),
+			new HashSet<>(catalog.listTables(db1)));
+		assertEquals(Arrays.asList(path1.getObjectName()), catalog.listViews(db1));
+	}
+
+	@Test
+	public void testRenameView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createView(), false);
+
+		assertTrue(catalog.tableExists(path1));
+
+		catalog.renameTable(path1, t2, false);
+
+		assertFalse(catalog.tableExists(path1));
+		assertTrue(catalog.tableExists(path3));
 	}
 
 	// ------ utilities ------
@@ -503,6 +640,20 @@ public abstract class CatalogTestBase {
 	 * @return another partitioned CatalogTable instance
 	 */
 	public abstract CatalogTable createAnotherPartitionedTable();
+
+	/**
+	 * Create a CatalogView instance by specific catalog implementation.
+	 *
+	 * @return a CatalogView instance
+	 */
+	public abstract CatalogView createView();
+
+	/**
+	 * Create another CatalogView instance by specific catalog implementation.
+	 *
+	 * @return another CatalogView instance
+	 */
+	public abstract CatalogView createAnotherView();
 
 	protected TableSchema createTableSchema() {
 		return new TableSchema(
