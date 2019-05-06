@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -133,7 +133,7 @@ abstract class BatchExecSortWindowAggregateBase(
     } else {
       generator.genWithKeys()
     }
-    val operator = new OneInputOperatorWrapper[BaseRow, BaseRow](generatedOperator)
+    val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
     new OneInputTransformation(
       input,
       getOperatorName,
