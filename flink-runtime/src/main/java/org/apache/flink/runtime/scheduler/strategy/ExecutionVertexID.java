@@ -59,4 +59,9 @@ public class ExecutionVertexID {
 		result = 31 * result + subtaskIndex;
 		return result;
 	}
+
+	@Override
+	public String toString() {
+		return jobVertexId + "_" + subtaskIndex;
+	}
 }
