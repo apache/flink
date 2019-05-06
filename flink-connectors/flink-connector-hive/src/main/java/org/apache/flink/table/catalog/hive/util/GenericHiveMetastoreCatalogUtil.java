@@ -16,17 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogTable;
+import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.hive.HiveCatalogBaseUtil;
+import org.apache.flink.table.catalog.hive.HiveTableConfig;
+import org.apache.flink.table.catalog.hive.HiveTypeUtil;
 import org.apache.flink.table.plan.stats.TableStats;
 
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
@@ -75,7 +81,6 @@ public class GenericHiveMetastoreCatalogUtil {
 
 	/**
 	 * Creates a Hive table from a CatalogBaseTable.
-	 * TODO: [FLINK-12240] Support view related operations in GenericHiveMetastoreCatalog
 	 *
 	 * @param tablePath path of the table
 	 * @param table the CatalogBaseTable instance
@@ -118,18 +123,29 @@ public class GenericHiveMetastoreCatalogUtil {
 				hiveTable.setPartitionKeys(new ArrayList<>());
 			}
 
-			hiveTable.setSd(sd);
+			hiveTable.setTableType(TableType.EXTERNAL_TABLE.name());
+		} else if (table instanceof CatalogView) {
+			CatalogView view = (CatalogView) table;
+
+			// TODO: [FLINK-12398] Support partitioned view in catalog API
+			sd.setCols(allColumns);
+			hiveTable.setPartitionKeys(new ArrayList<>());
+
+			hiveTable.setViewOriginalText(view.getOriginalQuery());
+			hiveTable.setViewExpandedText(view.getExpandedQuery());
+			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
 		} else {
-			// TODO: [FLINK-12240] Support view related operations in GenericHiveMetastoreCatalog
-			throw new UnsupportedOperationException();
+			throw new IllegalArgumentException(
+				"GenericHiveMetastoreCatalog only supports CatalogTable and CatalogView");
 		}
+
+		hiveTable.setSd(sd);
 
 		return hiveTable;
 	}
 
 	/**
 	 * Creates a CatalogBaseTable from a Hive table.
-	 * TODO: [FLINK-12240] Support view related operations in GenericHiveMetastoreCatalog
 	 *
 	 * @param hiveTable the Hive table
 	 * @return a CatalogBaseTable
@@ -148,14 +164,24 @@ public class GenericHiveMetastoreCatalogUtil {
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();
 
-		if (hiveTable.getPartitionKeys() != null && hiveTable.getPartitionKeys().isEmpty()) {
+		if (!hiveTable.getPartitionKeys().isEmpty()) {
 			partitionKeys = hiveTable.getPartitionKeys().stream()
 								.map(fs -> fs.getName())
 								.collect(Collectors.toList());
 		}
 
-		return new GenericCatalogTable(
-			tableSchema, new TableStats(0), partitionKeys, properties, comment);
+		if (TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW) {
+			return new GenericCatalogView(
+				hiveTable.getViewOriginalText(),
+				hiveTable.getViewExpandedText(),
+				tableSchema,
+				properties,
+				comment
+			);
+		} else {
+			return new GenericCatalogTable(
+				tableSchema, new TableStats(0), partitionKeys, properties, comment);
+		}
 	}
 
 	/**
