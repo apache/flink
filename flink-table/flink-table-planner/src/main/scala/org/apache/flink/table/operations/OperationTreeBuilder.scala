@@ -31,6 +31,7 @@ import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinTableOperation.JoinType
+import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.operations.SetTableOperation.SetTableOperationType._
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
@@ -38,6 +39,7 @@ import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
+import _root_.java.util.function.Supplier
 
 /**
   * Builder for [[[Operation]] tree.
@@ -96,11 +98,41 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       explicitAlias: Boolean,
       overWindows: JList[OverWindow])
     : TableOperation = {
+
+    validateProjectList(projectList, overWindows)
+
     val resolver = resolverFor(tableCatalog, functionCatalog, child).withOverWindows(overWindows)
       .build
     val projections = resolver.resolve(projectList)
-
     projectionOperationFactory.create(projections, child, explicitAlias)
+  }
+
+  /**
+    * Window properties and aggregate function should not exist in the plain project, i.e., window
+    * properties should exist in the window operators and aggregate functions should exist in
+    * the aggregate operators.
+    */
+  private def validateProjectList(
+      projectList: JList[Expression],
+      overWindows: JList[OverWindow])
+    : Unit = {
+
+    val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
+    val expressionsWithResolvedCalls = projectList.map(_.accept(callResolver)).asJava
+    val extracted = extractAggregationsAndProperties(
+      expressionsWithResolvedCalls,
+      new Supplier[String] {
+        override def get(): String = tableEnv.createUniqueAttributeName()
+      })
+    if (!extracted.getWindowProperties.isEmpty) {
+      throw new ValidationException("Window properties can only be used on windowed tables.")
+    }
+
+    // aggregate functions can't exist in the plain project except for the over window case
+    if (!extracted.getAggregations.isEmpty && overWindows.isEmpty) {
+      throw new ValidationException("Aggregate functions are not supported in the select right" +
+        " after the aggregate or flatAggregate operation.")
+    }
   }
 
   /**
@@ -159,7 +191,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     aggregateOperationFactory.createAggregate(resolvedGroupings, resolvedAggregates, child)
   }
 
-  def rowBasedAggregate(
+  /**
+    * Row based aggregate that will flatten the output if it is a composite type.
+    */
+  def aggregate(
       groupingExpressions: JList[Expression],
       aggregate: Expression,
       child: TableOperation)
@@ -184,12 +219,12 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       case e => e
     }
 
+    // turn agg to a named agg, because it will be verified later.
     var cnt = 0
     val childNames = child.getTableSchema.getFieldNames
     while (childNames.contains("TMP_" + cnt)) {
       cnt += 1
     }
-    // turn agg to a named agg, because it will be verified later.
     val aggWithNamedAlias = new CallExpression(
       BuiltInFunctionDefinitions.AS,
       Seq(aggWithoutAlias, new ValueLiteralExpression("TMP_" + cnt, Types.STRING)))

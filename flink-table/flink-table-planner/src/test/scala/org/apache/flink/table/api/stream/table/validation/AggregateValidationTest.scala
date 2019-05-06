@@ -48,6 +48,30 @@ class AggregateValidationTest extends TableTestBase {
       .select('c)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidAggregationInSelection(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use AggregateFunction in select right after aggregate
+      .select('d.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidWindowPropertiesInSelection(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use window properties in select right after aggregate
+      .select('d.start)
+  }
+
   @Test(expected = classOf[UnsupportedOperationException])
   def testTableFunctionInSelection(): Unit = {
     val util = streamTestUtil()
@@ -64,7 +88,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testInvalidExpressionInAggregate(): Unit = {
+  def testInvalidScalarFunctionInAggregate(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
@@ -76,7 +100,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testInvalidExpressionInAggregate2(): Unit = {
+  def testInvalidTableFunctionInAggregate(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 

@@ -170,7 +170,7 @@ class AggregateStringExpressionTest extends TableTestBase {
     verifyTableEquals(resJava, resScala)
   }
 
-  def testNonGroupedAggregate2(): Unit = {
+  def testNonGroupedRowBasedAggregate(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 
@@ -191,7 +191,7 @@ class AggregateStringExpressionTest extends TableTestBase {
   }
 
   @Test
-  def testGroupedAggregate2(): Unit = {
+  def testGroupedRowBasedAggregate(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 

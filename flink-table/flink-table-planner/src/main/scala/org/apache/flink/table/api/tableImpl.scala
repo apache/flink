@@ -453,12 +453,12 @@ class TableImpl(
     groupBy().aggregate(aggregateFunction)
   }
 
-  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = {
-    groupBy().flatAggregate(tableAggFunction)
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = {
+    groupBy().flatAggregate(tableAggregateFunction)
   }
 
-  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = {
-    groupBy().flatAggregate(tableAggFunction)
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = {
+    groupBy().flatAggregate(tableAggregateFunction)
   }
 
   /**
@@ -519,12 +519,12 @@ class GroupedTableImpl(
     new AggregatedTableImpl(table, groupKeys, aggregateFunction)
   }
 
-  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = {
-    flatAggregate(ExpressionParser.parseExpression(tableAggFunction))
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = {
+    flatAggregate(ExpressionParser.parseExpression(tableAggregateFunction))
   }
 
-  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = {
-    new FlatAggregateTableImpl(table, groupKeys, tableAggFunction)
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = {
+    new FlatAggregateTableImpl(table, groupKeys, tableAggregateFunction)
   }
 }
 
@@ -546,7 +546,7 @@ class AggregatedTableImpl(
   override def select(fields: Expression*): Table = {
     new TableImpl(tableImpl.tableEnv,
       tableImpl.operationTreeBuilder.project(fields,
-        tableImpl.operationTreeBuilder.rowBasedAggregate(
+        tableImpl.operationTreeBuilder.aggregate(
           groupKeys.asJava,
           aggregateFunction,
           tableImpl.operationTree
@@ -555,10 +555,14 @@ class AggregatedTableImpl(
   }
 }
 
+/**
+  * The implementation of an [[FlatAggregateTable]] that has been performed on an table aggregate
+  * function.
+  */
 class FlatAggregateTableImpl(
   private[flink] val table: Table,
   private[flink] val groupKey: Seq[Expression],
-  private[flink] val tableAggFunction: Expression) extends FlatAggregateTable {
+  private[flink] val tableAggregateFunction: Expression) extends FlatAggregateTable {
 
   private val tableImpl = table.asInstanceOf[TableImpl]
 
@@ -567,16 +571,14 @@ class FlatAggregateTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    val resolvedTableAggFunction = tableAggFunction.accept(tableImpl.callResolver)
-
-    val flatAggTable = new TableImpl(tableImpl.tableEnv,
-      tableImpl.operationTreeBuilder.tableAggregate(
-        groupKey.asJava,
-        resolvedTableAggFunction,
-        tableImpl.operationTree
+    new TableImpl(tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder.project(fields,
+        tableImpl.operationTreeBuilder.tableAggregate(
+          groupKey.asJava,
+          tableAggregateFunction.accept(tableImpl.callResolver),
+          tableImpl.operationTree
+        )
       ))
-
-    flatAggTable.select(fields: _*)
   }
 }
 

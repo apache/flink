@@ -56,9 +56,9 @@ public interface GroupedTable {
 	Table select(Expression... fields);
 
 	/**
-	 * Performs an aggregate operation with an aggregate function. Use this before a selection
-	 * to perform the selection operation. The output will be flattened if the output type is a
-	 * composite type.
+	 * Performs an aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
 	 *
 	 * <p>Example:
 	 *
@@ -75,9 +75,9 @@ public interface GroupedTable {
 	AggregatedTable aggregate(String aggregateFunction);
 
 	/**
-	 * Performs an aggregate operation with an aggregate function. Use this before a selection
-	 * to perform the selection operation. The output will be flattened if the output type is a
-	 * composite type.
+	 * Performs an aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
 	 *
 	 * <p>Scala Example:
 	 *

@@ -1060,9 +1060,9 @@ public interface Table {
 	Table flatMap(Expression tableFunction);
 
 	/**
-	 * Performs a global aggregate operation with an aggregate function. Use this before a selection
-	 * to perform the selection operation. The output will be flattened if the output type is a
-	 * composite type.
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
 	 *
 	 * <p>Example:
 	 *
@@ -1078,9 +1078,9 @@ public interface Table {
 	AggregatedTable aggregate(String aggregateFunction);
 
 	/**
-	 * Performs a global aggregate operation with an aggregate function. Use this before a selection
-	 * to perform the selection operation. The output will be flattened if the output type is a
-	 * composite type.
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
 	 *
 	 * <p>Scala Example:
 	 *
@@ -1109,7 +1109,7 @@ public interface Table {
 	 * }
 	 * </pre>
 	 */
-	FlatAggregateTable flatAggregate(String tableAggFunction);
+	FlatAggregateTable flatAggregate(String tableAggregateFunction);
 
 	/**
 	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
@@ -1125,5 +1125,5 @@ public interface Table {
 	 * }
 	 * </pre>
 	 */
-	FlatAggregateTable flatAggregate(Expression tableAggFunction);
+	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 }

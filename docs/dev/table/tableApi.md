@@ -1897,9 +1897,10 @@ Table table = input
       <td>
         <strong>Aggregate</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement. The output of aggregate will be flattened if the output type is a composite type.</p>
+        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.</p>
 {% highlight java %}
 public class MyMinMaxAcc {
     public int min = 0;
@@ -2073,9 +2074,10 @@ val table = input
       <td>
         <strong>Aggregate</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement. The output of aggregate will be flattened if the output type is a composite type.</p>
+        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.</p>
 {% highlight scala %}
 case class MyMinMaxAcc(var min: Int, var max: Int)
 

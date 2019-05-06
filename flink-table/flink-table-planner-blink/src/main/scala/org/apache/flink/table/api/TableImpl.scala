@@ -209,7 +209,7 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
 
   override def aggregate(aggregateFunction: Expression): AggregatedTable = ???
 
-  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = ???
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = ???
 
-  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = ???
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = ???
 }
