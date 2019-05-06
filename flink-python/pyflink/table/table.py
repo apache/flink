@@ -108,7 +108,8 @@ class Table(object):
 
     def insert_into(self, table_name):
         """
-        Writes the :class:`Table` to a :class:`TableSink` that was registered under the specified name.
+        Writes the :class:`Table` to a :class:`TableSink` that was registered under
+        the specified name.
 
         Example:
         ::

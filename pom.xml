@@ -1413,8 +1413,9 @@ under the License.
 						<exclude>flink-jepsen/docker/id_rsa*</exclude>
 						<exclude>flink-jepsen/docker/nodes</exclude>
 
-						<!-- Py4j -->
-						<exclude>flink-python/lib/py4j-LICENSE.txt</exclude>
+						<!-- flink-python -->
+						<exclude>flink-python/lib/**</exclude>
+						<exclude>flink-python/dev/download/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

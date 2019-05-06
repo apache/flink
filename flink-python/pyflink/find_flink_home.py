@@ -37,7 +37,8 @@ def _find_flink_home():
                 return build_target
         except Exception:
             pass
-        print("Could not find valid FLINK_HOME in current environment.", file=sys.stderr)
+        print("Could not find valid FLINK_HOME(Flink distribution directory) "
+              "in current environment.", file=sys.stderr)
         sys.exit(-1)
 
 

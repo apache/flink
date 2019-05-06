@@ -81,8 +81,9 @@ class TableEnvironment(object):
         """
         gateway = get_gateway()
         j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
-        j_field_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                        [type_utils.to_java_type(field_type) for field_type in field_types])
+        j_field_types = utils.to_jarray(
+            gateway.jvm.TypeInformation,
+            [type_utils.to_java_type(field_type) for field_type in field_types])
         self._j_tenv.registerTableSink(name, j_field_names, j_field_types, table_sink._j_table_sink)
 
     def scan(self, *table_path):
