@@ -42,5 +42,19 @@ def _find_flink_home():
         sys.exit(-1)
 
 
+def _find_flink_source_root():
+    """
+    Find the flink source root directory.
+    """
+    try:
+        flink_source_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../../../../../")
+        if os.path.isdir(flink_source_root_dir + "/build-target"):
+            return flink_source_root_dir
+    except Exception:
+        pass
+    print("Could not find valid flink source root directory in current environment.", file=sys.stderr)
+    sys.exit(-1)
+
+
 if __name__ == "__main__":
     print(_find_flink_home())
