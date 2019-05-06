@@ -684,7 +684,7 @@ private[flink] class TestUpsertSink(
         throw new AssertionError("Provided key fields do not match expected keys")
       }
     } else {
-      if (expectedKeys == null) {
+      if (expectedKeys != null) {
         throw new AssertionError("Provided key fields should not be null.")
       }
     }
