@@ -1368,9 +1368,6 @@ under the License.
 						<exclude>flink-jepsen/docker/nodes</exclude>
 						<!--data for testing -->
 						<exclude>flink-examples/flink-examples-modelserving/flink-examples-modelserving-shared/data/**</exclude>
-						<!--protobuf files -->
-						<exclude>flink-shaded-hadoop/flink-shaded-hadoop2/src/main/resources/META-INF/**</exclude>
-
 					</excludes>
 				</configuration>
 			</plugin>
