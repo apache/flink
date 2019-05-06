@@ -31,7 +31,7 @@ import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.aggregate.BytesHashMap
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -141,7 +141,7 @@ abstract class BatchExecHashWindowAggregateBase(
       aggInfos, inputRowType, grouping, auxGrouping, enableAssignPane, isMerge, isFinal).gen(
       inputType, outputType, groupBufferLimitSize, reservedManagedMem, maxManagedMem, 0,
       windowSize, slideSize)
-    val operator = new OneInputOperatorWrapper[BaseRow, BaseRow](generatedOperator)
+    val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
     new OneInputTransformation(
       input,
       getOperatorName,

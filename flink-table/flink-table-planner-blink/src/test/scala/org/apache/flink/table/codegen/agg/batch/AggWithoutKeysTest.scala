@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.codegen.agg.batch
 
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 
 import org.junit.Test
 
@@ -90,7 +89,7 @@ class AggWithoutKeysTest extends BatchAggTestBase {
   }
 
   private def getOperatorWithoutKey(isMerge: Boolean, isFinal: Boolean)
-    : (OneInputStreamOperator[BaseRow, BaseRow], RowType, RowType) = {
+    : (CodeGenOperatorFactory[BaseRow], RowType, RowType) = {
     val (iType, oType) = if (isMerge && isFinal) {
       (localOutputType, globalOutputType)
     } else if (!isMerge && isFinal) {
@@ -100,6 +99,6 @@ class AggWithoutKeysTest extends BatchAggTestBase {
     }
     val genOp = AggWithoutKeysCodeGenerator.genWithoutKeys(
       ctx, relBuilder, aggInfoList, iType, oType, isMerge, isFinal, "Without")
-    (new OneInputOperatorWrapper[BaseRow, BaseRow](genOp), iType, oType)
+    (new CodeGenOperatorFactory[BaseRow](genOp), iType, oType)
   }
 }
