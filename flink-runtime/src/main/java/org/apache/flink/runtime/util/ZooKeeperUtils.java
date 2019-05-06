@@ -172,11 +172,10 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
-		final Configuration configuration) throws Exception {
+		final Configuration configuration) {
 		return createLeaderRetrievalService(client, configuration, "");
 	}
 
