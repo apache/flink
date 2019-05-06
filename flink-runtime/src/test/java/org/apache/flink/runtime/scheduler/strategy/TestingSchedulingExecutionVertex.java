@@ -52,11 +52,11 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	@Override
 	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 	}
 
 	@Override
 	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 	}
 }
