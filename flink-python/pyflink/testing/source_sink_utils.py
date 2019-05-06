@@ -31,16 +31,31 @@ class TestTableSink(TableSink):
     Base class for test table sink.
     """
 
-    def __init__(self, j_table_sink_name, j_table_sink):
+    _inited = False
+
+    def __init__(self, j_table_sink):
+        super(TestTableSink, self).__init__(j_table_sink)
+
+    @classmethod
+    def _ensure_initialized(cls):
+        if TestTableSink._inited:
+            return
+
         FLINK_SOURCE_ROOT_DIR = _find_flink_source_root()
         filename_pattern = (
             "flink-table/flink-table-planner/target/"
             "flink-table-planner*-tests.jar")
         if not glob.glob(os.path.join(FLINK_SOURCE_ROOT_DIR, filename_pattern)):
             raise unittest.SkipTest(
-                "'" + j_table_sink_name + "' is not available. Will skip the related tests.")
+                "'flink-table-planner*-tests.jar' is not available. Will skip the related tests.")
 
-        super(TestTableSink, self).__init__(j_table_sink)
+        gateway = get_gateway()
+        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestAppendSink")
+        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestRetractSink")
+        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestUpsertSink")
+        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.RowCollector")
+
+        TestTableSink._inited = True
 
 
 class TestAppendSink(TestTableSink):
@@ -49,12 +64,10 @@ class TestAppendSink(TestTableSink):
     """
 
     def __init__(self):
-        gateway = get_gateway()
-        j_table_sink_name = "org.apache.flink.table.runtime.stream.table.TestAppendSink"
-        java_import(gateway.jvm, j_table_sink_name)
+        TestTableSink._ensure_initialized()
 
-        j_test_append_sink = gateway.jvm.TestAppendSink()
-        super(TestAppendSink, self).__init__(j_table_sink_name, j_test_append_sink)
+        gateway = get_gateway()
+        super(TestAppendSink, self).__init__(gateway.jvm.TestAppendSink())
 
 
 class TestRetractSink(TestTableSink):
@@ -63,12 +76,10 @@ class TestRetractSink(TestTableSink):
     """
 
     def __init__(self):
-        gateway = get_gateway()
-        j_table_sink_name = "org.apache.flink.table.runtime.stream.table.TestRetractSink"
-        java_import(gateway.jvm, j_table_sink_name)
+        TestTableSink._ensure_initialized()
 
-        j_test_retractsink = gateway.jvm.TestRetractSink()
-        super(TestRetractSink, self).__init__(j_table_sink_name, j_test_retractsink)
+        gateway = get_gateway()
+        super(TestRetractSink, self).__init__(gateway.jvm.TestRetractSink())
 
 
 class TestUpsertSink(TestTableSink):
@@ -77,16 +88,14 @@ class TestUpsertSink(TestTableSink):
     """
 
     def __init__(self, keys, is_append_only):
-        gateway = get_gateway()
-        j_table_sink_name = "org.apache.flink.table.runtime.stream.table.TestUpsertSink"
-        java_import(gateway.jvm, j_table_sink_name)
+        TestTableSink._ensure_initialized()
 
+        gateway = get_gateway()
         j_keys = gateway.new_array(gateway.jvm.String, len(keys))
         for i in xrange(0, len(keys)):
             j_keys[i] = keys[i]
 
-        j_test_upsert_sink = gateway.jvm.TestUpsertSink(j_keys, is_append_only)
-        super(TestUpsertSink, self).__init__(j_table_sink_name, j_test_upsert_sink)
+        super(TestUpsertSink, self).__init__(gateway.jvm.TestUpsertSink(j_keys, is_append_only))
 
 
 def results():
@@ -101,8 +110,6 @@ def retract_results():
     Retrieves the results from a retract table sink.
     """
     gateway = get_gateway()
-    java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.RowCollector")
-
     results = gateway.jvm.RowCollector.getAndClearValues()
     return gateway.jvm.RowCollector.retractResults(results)
 
@@ -112,8 +119,6 @@ def upsert_results(keys):
     Retrieves the results from an upsert table sink.
     """
     gateway = get_gateway()
-    java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.RowCollector")
-
     j_keys = gateway.new_array(gateway.jvm.int, len(keys))
     for i in xrange(0, len(keys)):
         j_keys[i] = keys[i]
