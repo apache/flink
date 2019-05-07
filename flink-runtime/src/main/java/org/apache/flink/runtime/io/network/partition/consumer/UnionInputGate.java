@@ -184,13 +184,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		InputGate inputGate = inputGateWithData.inputGate;
 		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
 
-		if (bufferOrEvent.moreAvailable()) {
-			// this buffer or event was now removed from the non-empty gates queue
-			// we re-add it in case it has more data, because in that case no "non-empty" notification
-			// will come for that gate
-			queueInputGate(inputGate);
-		}
-
 		if (bufferOrEvent.isEvent()
 			&& bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class
 			&& inputGate.isFinished()) {
@@ -213,8 +206,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 
 	private Optional<InputGateWithData> waitAndGetNextInputGate(boolean blocking) throws IOException, InterruptedException {
 		while (true) {
-			InputGate inputGate;
-			boolean moreInputGatesAvailable;
 			synchronized (inputGatesWithData) {
 				while (inputGatesWithData.size() == 0) {
 					if (blocking) {
@@ -223,15 +214,24 @@ public class UnionInputGate implements InputGate, InputGateListener {
 						return Optional.empty();
 					}
 				}
-				inputGate = inputGatesWithData.remove();
-				enqueuedInputGatesWithData.remove(inputGate);
-				moreInputGatesAvailable = enqueuedInputGatesWithData.size() > 0;
-			}
+				final InputGate inputGate = inputGatesWithData.remove();
 
-			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
-			Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
-			if (bufferOrEvent.isPresent()) {
-				return Optional.of(new InputGateWithData(inputGate, bufferOrEvent.get(), moreInputGatesAvailable));
+				// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
+				Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
+
+				if (bufferOrEvent.isPresent() && bufferOrEvent.get().moreAvailable()) {
+					// enqueue the inputGate at the end to avoid starvation
+					inputGatesWithData.add(inputGate);
+				} else {
+					enqueuedInputGatesWithData.remove(inputGate);
+				}
+
+				if (bufferOrEvent.isPresent()) {
+					return Optional.of(new InputGateWithData(
+						inputGate,
+						bufferOrEvent.get(),
+						!enqueuedInputGatesWithData.isEmpty()));
+				}
 			}
 		}
 	}
