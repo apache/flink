@@ -32,6 +32,7 @@ object FlinkBatchProgram {
   val DECORRELATE = "decorrelate"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
+  val WINDOW = "window"
   val LOGICAL = "logical"
   val PHYSICAL = "physical"
 
@@ -84,6 +85,24 @@ object FlinkBatchProgram {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkBatchRuleSets.PRUNE_EMPTY_RULES)
             .build(), "prune empty after predicate push down")
+        .build())
+
+    // window rewrite
+    chainedProgram.addLast(
+      WINDOW,
+      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.PROJECT_RULES)
+            .build(), "project rules")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.WINDOW_RULES)
+            .build(), "window")
         .build())
 
     // optimize the logical plan

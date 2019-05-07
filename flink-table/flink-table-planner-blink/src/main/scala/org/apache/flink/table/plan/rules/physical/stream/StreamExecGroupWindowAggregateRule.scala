@@ -19,10 +19,13 @@
 package org.apache.flink.table.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecGroupAggregate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecGroupWindowAggregate
+import org.apache.flink.table.plan.util.AggregateUtil.{isRowtimeIndicatorType, timeFieldIndex}
+import org.apache.flink.table.plan.util.WindowEmitStrategy
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -32,20 +35,21 @@ import org.apache.calcite.rel.core.Aggregate.Group
 import scala.collection.JavaConversions._
 
 /**
-  * Rule to convert a [[FlinkLogicalAggregate]] into a [[StreamExecGroupAggregate]].
+  * Rule to convert a [[FlinkLogicalWindowAggregate]] into a [[StreamExecGroupWindowAggregate]].
   */
-class StreamExecGroupAggregateRule
+class StreamExecGroupWindowAggregateRule
   extends ConverterRule(
-    classOf[FlinkLogicalAggregate],
+    classOf[FlinkLogicalWindowAggregate],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecGroupAggregateRule") {
+    "StreamExecGroupWindowAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: FlinkLogicalAggregate = call.rel(0)
+    val agg: FlinkLogicalWindowAggregate = call.rel(0)
 
     // check if we have grouping sets
-    if (agg.getGroupType != Group.SIMPLE || agg.indicator) {
+    val groupSets = agg.getGroupType != Group.SIMPLE
+    if (groupSets || agg.indicator) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
@@ -53,29 +57,46 @@ class StreamExecGroupAggregateRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val agg: FlinkLogicalAggregate = rel.asInstanceOf[FlinkLogicalAggregate]
+    val agg = rel.asInstanceOf[FlinkLogicalWindowAggregate]
+    val input = agg.getInput
+    val inputRowType = input.getRowType
+    val cluster = rel.getCluster
     val requiredDistribution = if (agg.getGroupCount != 0) {
       FlinkRelDistribution.hash(agg.getGroupSet.asList)
     } else {
       FlinkRelDistribution.SINGLETON
     }
-    val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
-      .replace(requiredDistribution)
+    val requiredTraitSet = input.getTraitSet
       .replace(FlinkConventions.STREAM_PHYSICAL)
+      .replace(requiredDistribution)
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput: RelNode = RelOptRule.convert(agg.getInput, requiredTraitSet)
+    val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    new StreamExecGroupAggregate(
-      rel.getCluster,
+    val config = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
+
+    val timeField = agg.getWindow.timeAttribute
+    val inputTimestampIndex = if (isRowtimeIndicatorType(timeField.getResultType)) {
+      timeFieldIndex(inputRowType, relBuilderFactory.create(cluster, null), timeField)
+    } else {
+      -1
+    }
+
+    new StreamExecGroupWindowAggregate(
+      cluster,
       providedTraitSet,
       newInput,
       rel.getRowType,
+      inputRowType,
       agg.getGroupSet.toArray,
       agg.getAggCallList,
-      agg.partialFinalType)
+      agg.getWindow,
+      agg.getNamedProperties,
+      inputTimestampIndex,
+      emitStrategy)
   }
 }
 
-object StreamExecGroupAggregateRule {
-  val INSTANCE: RelOptRule = new StreamExecGroupAggregateRule
+object StreamExecGroupWindowAggregateRule {
+  val INSTANCE: RelOptRule = new StreamExecGroupWindowAggregateRule
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
-import org.apache.flink.table.plan.rules.common.WindowPropertiesRules
 import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.batch._
@@ -67,13 +66,9 @@ object FlinkBatchRuleSets {
     REDUCE_EXPRESSION_RULES.asScala ++
       List(
         // Transform window to LogicalWindowAggregate
-        BatchExecLogicalWindowAggregateRule.INSTANCE,
+        BatchLogicalWindowAggregateRule.INSTANCE,
         WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
         WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
-
-        // slices a project into sections which contain window agg functions
-        // and sections which do not.
-        ProjectToWindowRule.PROJECT,
         //ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         //ensure intersect set operator have the same row type
@@ -140,6 +135,15 @@ object FlinkBatchRuleSets {
     AggregateProjectPullUpConstantsRule.INSTANCE
   )
 
+  val WINDOW_RULES: RuleSet = RuleSets.ofList(
+    // slices a project into sections which contain window agg functions and sections which do not.
+    ProjectToWindowRule.PROJECT,
+    // TODO add ExchangeWindowGroupRule
+    // Transform window to LogicalWindowAggregate
+    WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
+    WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE
+  )
+
   /**
     * RuleSet to do logical optimize.
     * This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]].
@@ -170,6 +174,7 @@ object FlinkBatchRuleSets {
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     AggregateReduceFunctionsRule.INSTANCE,
+    WindowAggregateReduceFunctionsRule.INSTANCE,
 
     // expand grouping sets
     DecomposeGroupingSetsRule.INSTANCE,

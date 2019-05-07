@@ -29,9 +29,10 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-las
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
++- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], updateAsRetraction=[false], accMode=[Acc])
+   +- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
+      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -48,9 +49,10 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-las
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
++- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], updateAsRetraction=[false], accMode=[Acc])
+   +- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc])
+      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>

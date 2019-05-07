@@ -30,46 +30,54 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
 abstract class BatchExecWindowAggregateBase(
-    window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    inputNode: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+    inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+    window: LogicalWindow,
+    namedProperties: Seq[NamedWindowProperty],
     enableAssignPane: Boolean = true,
     val isMerge: Boolean,
     val isFinal: Boolean)
-  extends SingleRel(cluster, traitSet, inputNode)
+  extends SingleRel(cluster, traitSet, inputRel)
   with BatchPhysicalRel {
 
   if (grouping.isEmpty && auxGrouping.nonEmpty) {
     throw new TableException("auxGrouping should be empty if grouping is emtpy.")
   }
 
+  def getGrouping: Array[Int] = grouping
+
+  def getAuxGrouping: Array[Int] = auxGrouping
+
+  def getWindow: LogicalWindow = window
+
+  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+
+  def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
+
   override def deriveRowType(): RelDataType = outputRowType
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .itemIf("groupBy",
-        RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .itemIf("auxGrouping",
-        RelExplainUtil.fieldToString(auxGrouping, inputRowType), auxGrouping.nonEmpty)
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
+      .itemIf("auxGrouping", RelExplainUtil.fieldToString(auxGrouping, inputRowType),
+        auxGrouping.nonEmpty)
       .item("window", window)
       .itemIf("properties", namedProperties.map(_.name).mkString(", "), namedProperties.nonEmpty)
-      .item("select",
-        RelExplainUtil.windowAggregationToString(
-          inputRowType,
-          grouping,
-          auxGrouping,
-          outputRowType,
-          aggCallToAggFunction,
-          enableAssignPane,
-          isMerge = isMerge,
-          isGlobal = isFinal))
+      .item("select", RelExplainUtil.windowAggregationToString(
+        inputRowType,
+        grouping,
+        auxGrouping,
+        outputRowType,
+        aggCallToAggFunction,
+        enableAssignPane,
+        isMerge = isMerge,
+        isGlobal = isFinal))
   }
 
 }

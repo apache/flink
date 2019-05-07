@@ -65,9 +65,12 @@ object FlinkStreamRuleSets {
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
     REDUCE_EXPRESSION_RULES.asScala ++
       List(
+        StreamLogicalWindowAggregateRule.INSTANCE,
         // slices a project into sections which contain window agg functions
         // and sections which do not.
         ProjectToWindowRule.PROJECT,
+        WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
+        WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
         //ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         //ensure intersect set operator have the same row type
@@ -164,6 +167,7 @@ object FlinkStreamRuleSets {
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     AggregateReduceFunctionsRule.INSTANCE,
+    WindowAggregateReduceFunctionsRule.INSTANCE,
 
     // expand grouping sets
     DecomposeGroupingSetsRule.INSTANCE,
@@ -241,6 +245,7 @@ object FlinkStreamRuleSets {
     StreamExecDeduplicateRule.RANK_INSTANCE,
     StreamExecGroupAggregateRule.INSTANCE,
     StreamExecOverAggregateRule.INSTANCE,
+    StreamExecGroupWindowAggregateRule.INSTANCE,
     StreamExecExpandRule.INSTANCE,
     StreamExecJoinRule.INSTANCE,
     StreamExecWindowJoinRule.INSTANCE,

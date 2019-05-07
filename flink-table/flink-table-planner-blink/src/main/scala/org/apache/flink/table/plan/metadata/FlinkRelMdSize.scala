@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil
@@ -195,7 +195,40 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     getColumnSizesFromInputOrType(rel, mq, mapInputToOutput)
   }
 
-  // TODO supports window aggregate
+  def averageColumnSizes(rel: WindowAggregate, mq: RelMetadataQuery): JList[JDouble] = {
+    averageColumnSizesOfWindowAgg(rel, mq)
+  }
+
+  def averageColumnSizes(
+      rel: BatchExecWindowAggregateBase,
+      mq: RelMetadataQuery): JList[JDouble] = {
+    averageColumnSizesOfWindowAgg(rel, mq)
+  }
+
+  private def averageColumnSizesOfWindowAgg(
+      windowAgg: SingleRel,
+      mq: RelMetadataQuery): JList[JDouble] = {
+    val mapInputToOutput: Map[Int, Int] = windowAgg match {
+      case agg: WindowAggregate =>
+        AggregateUtil.checkAndGetFullGroupSet(agg).zipWithIndex.toMap
+      case agg: BatchExecLocalHashWindowAggregate =>
+        // local win-agg output type: grouping + assignTs + auxGrouping + aggCalls
+        agg.getGrouping.zipWithIndex.toMap ++
+          agg.getAuxGrouping.zipWithIndex.map {
+            case (k, v) => k -> (agg.getGrouping.length + 1 + v)
+          }.toMap
+      case agg: BatchExecLocalSortWindowAggregate =>
+        // local win-agg output type: grouping + assignTs + auxGrouping + aggCalls
+        agg.getGrouping.zipWithIndex.toMap ++
+          agg.getAuxGrouping.zipWithIndex.map {
+            case (k, v) => k -> (agg.getGrouping.length + 1 + v)
+          }.toMap
+      case agg: BatchExecWindowAggregateBase =>
+        (agg.getGrouping ++ agg.getAuxGrouping).zipWithIndex.toMap
+      case _ => throw new IllegalArgumentException(s"Unknown node type ${windowAgg.getRelTypeName}")
+    }
+    getColumnSizesFromInputOrType(windowAgg, mq, mapInputToOutput)
+  }
 
   def averageColumnSizes(overWindow: Window, mq: RelMetadataQuery): JList[JDouble] =
     averageColumnSizesOfOverWindow(overWindow, mq)
