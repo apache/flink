@@ -552,20 +552,19 @@ public class SingleInputGate implements InputGate {
 				}
 
 				currentChannel = inputChannelsWithData.remove();
-				enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
+
+				result = currentChannel.getNextBuffer();
+
+				if (result.isPresent() && result.get().moreAvailable()) {
+					// enqueue the currentChannel at the end to avoid starvation
+					inputChannelsWithData.add(currentChannel);
+				} else {
+					enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
+				}
+
 				moreAvailable = !inputChannelsWithData.isEmpty();
 			}
-
-			result = currentChannel.getNextBuffer();
 		} while (!result.isPresent());
-
-		// this channel was now removed from the non-empty channels queue
-		// we re-add it in case it has more data, because in that case no "non-empty" notification
-		// will come for that channel
-		if (result.get().moreAvailable()) {
-			queueChannel(currentChannel);
-			moreAvailable = true;
-		}
 
 		final Buffer buffer = result.get().buffer();
 		numBytesIn.inc(buffer.getSizeUnsafe());
