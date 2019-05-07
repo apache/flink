@@ -160,13 +160,13 @@ function install_miniconda() {
         download ${OS_TO_CONDA_URL[$1]} $CONDA_INSTALL_SH
         chmod +x $CONDA_INSTALL_SH
         if [ $? -ne 0 ]; then
-            echo "Please mannually chmod +x $CONDA_INSTALL_SH"
+            echo "Please manually chmod +x $CONDA_INSTALL_SH"
             exit 1
         fi
         if [ -d "$CURRENT_DIR/.conda" ]; then
             rm -rf "$CURRENT_DIR/.conda"
             if [ $? -ne 0 ]; then
-                echo "Please mannually rm -rf $CURRENT_DIR/.conda directory.\
+                echo "Please manually rm -rf $CURRENT_DIR/.conda directory.\
                 Then retry to exec the script."
                 exit 1
             fi
@@ -193,7 +193,7 @@ function install_py_env() {
             rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
             if [ $? -ne 0 ]; then
                 echo "rm -rf $CURRENT_DIR/.conda/envs/${py_env[i]} failed, please \
-                rm -rf $CURRENT_DIR/.conda/envs/${py_env[i]} mannually.\
+                rm -rf $CURRENT_DIR/.conda/envs/${py_env[i]} manually.\
                 Then retry to exec the script."
                 exit 1
             fi
@@ -210,14 +210,14 @@ function install_py_env() {
 }
 
 # Install tox.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python
+# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_tox() {
     if [ -f "$TOX_PATH" ]; then
         ${CONDA_PATH} remove tox -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove tox failed \
             please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python -f"
+            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
         fi
     fi
@@ -226,20 +226,20 @@ function install_tox() {
     if [ $? -ne 0 ]; then
         echo "conda install tox failed \
         please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python -f"
+        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
 }
 
 # Install flake8.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python
+# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_flake8() {
     if [ -f "$FLAKE8_PATH" ]; then
         ${CONDA_PATH} remove flake8 -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove flake8 failed \
             please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python -f"
+            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
         fi
     fi
@@ -248,7 +248,7 @@ function install_flake8() {
     if [ $? -ne 0 ]; then
         echo "conda install flake8 failed \
         please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python -f"
+        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
 }
@@ -324,8 +324,8 @@ function create_dir() {
     if [ ! -d $1 ]; then
         mkdir -p $1
         if [ $? -ne 0 ]; then
-            echo "mkdir -p $1 failed. you can mkdir mannually or exec the script with \
-            the command: sudo ./lint-python"
+            echo "mkdir -p $1 failed. you can mkdir manually or exec the script with \
+            the command: sudo ./lint-python.sh"
             exit 1
         fi
     fi
@@ -389,7 +389,7 @@ function tox_check() {
 function flake8_check {
     local PYTHON_SOURCE="$(find . \( -path ./dev -o -path ./.tox \) -prune -o -type f -name "*.py" -print )"
 
-    print_function "STAGE" "Stage 3:flake8 codestyle check"
+    print_function "STAGE" "Stage 3:flake8 code style check"
     if [ ! -f "$FLAKE8_PATH" ]; then
         echo "For some unkown reasons, the flake8 package is not complete,\
         you should exec the script with the parameter: -f"
@@ -404,9 +404,11 @@ function flake8_check {
 
     PYCODESTYLE_STATUS=$?
     if [ $PYCODESTYLE_STATUS -ne 0 ]; then
-        print_function "STAGE" "pycodestyle checks ... [FAILED]"
+        print_function "STAGE" "python code style checks ... [FAILED]"
+        # Stop the running script.
+        exit 1;
     else
-        print_function "STAGE" "pycodestyle checks ... [SUCCESS]"
+        print_function "STAGE" "python code style checks ... [SUCCESS]"
     fi
 }
 
@@ -448,10 +450,7 @@ fi
 # the log file stores the checking result.
 LOG_FILE=$LOG_DIR/flink-$FLINK_IDENT_STRING-python-$HOSTNAME.log
 create_dir $LOG_DIR
-if [ $? -ne 0 ]; then
-    echo "create file failed."
-    exit 1
-fi
+
 # clean LOG_FILE content
 echo >$LOG_FILE
 

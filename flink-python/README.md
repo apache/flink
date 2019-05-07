@@ -16,14 +16,6 @@ Currently, we can install PyFlink from Flink source code. Enter the directory wh
 python setup.py install
 ```
 
-## Running env verify example
-
-Enter the directory where this README.md file is located and verify the Python API environment is intact by executing
-
-```
-PYTHONPATH=$PYTHONPATH:./ python ./pyflink/table/tests/test_env_verify_example.py
-```
-
 ## Running test cases 
 
 Currently, we use conda and tox to verify the compatibility of the Flink Python API for multiple versions of Python and will integrate some useful plugins with tox, such as flake8.
