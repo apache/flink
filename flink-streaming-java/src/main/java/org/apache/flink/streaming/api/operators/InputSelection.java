@@ -32,7 +32,7 @@ public final class InputSelection implements Serializable {
 	/**
 	 * The {@code InputSelection} instance which indicates to select all inputs.
 	 */
-	public static final InputSelection ALL = new Builder().select(-1).build();
+	public static final InputSelection ALL = new InputSelection(-1, Boolean.TRUE);
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select the first input.
@@ -46,12 +46,53 @@ public final class InputSelection implements Serializable {
 
 	private final long inputMask;
 
-	private InputSelection(long inputMask) {
+	private final boolean isALLMaskOf2;
+
+	private InputSelection(long inputMask, boolean isALLMaskOf2) {
 		this.inputMask = inputMask;
+		this.isALLMaskOf2 = isALLMaskOf2;
 	}
 
 	public long getInputMask() {
 		return inputMask;
+	}
+
+	/**
+	 * Tells whether or not the input mask includes all of two inputs.
+	 *
+	 * @return {@code true} if the input mask includes all of two inputs, false otherwise.
+	 */
+	public boolean isALLMaskOf2() {
+		return isALLMaskOf2;
+	}
+
+	/**
+	 * Fairly select one of the two inputs for reading. When {@code inputMask} includes two inputs and
+	 * both inputs are available, alternately select one of them. Otherwise, select the available one
+	 * of {@code inputMask}, or return -1 to indicate no input is selected.
+	 *
+	 * <p>Note that this supports only two inputs for performance reasons.
+	 *
+	 * @param availableInputsMask The mask of all available inputs.
+	 * @param lastReadInputIndex The index of last read input.
+	 * @return the index of the input for reading or -1, and -1 indicates no input is selected (
+	 *         {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
+	 */
+	public int fairSelectNextIndexOutOf2(int availableInputsMask, int lastReadInputIndex) {
+		int selectionMask = (int) inputMask;
+		int combineMask = availableInputsMask & selectionMask;
+
+		if (combineMask == 3) {
+			return lastReadInputIndex == 0 ? 1 : 0;
+		} else if (combineMask >= 0 && combineMask < 3) {
+			return combineMask - 1;
+		}
+
+		throw new UnsupportedOperationException("Only two inputs are supported.");
+	}
+
+	private static boolean isALLMaskOf2(long inputMask) {
+		return (3 & inputMask) == 3;
 	}
 
 	@Override
@@ -85,7 +126,7 @@ public final class InputSelection implements Serializable {
 		 * @param inputId
 		 *     the input id numbered starting from 1 to 64, and `1` indicates the first input.
 		 *     Specially, `-1` indicates all inputs.
-		 * @return
+		 * @return a reference to this object.
 		 */
 		public Builder select(int inputId) {
 			if (inputId > 0 && inputId <= 64){
@@ -100,7 +141,7 @@ public final class InputSelection implements Serializable {
 		}
 
 		public InputSelection build() {
-			return new InputSelection(inputMask);
+			return new InputSelection(inputMask, isALLMaskOf2(inputMask));
 		}
 	}
 }
