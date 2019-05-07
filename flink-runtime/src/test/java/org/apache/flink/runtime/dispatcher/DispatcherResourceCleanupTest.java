@@ -181,12 +181,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		fatalErrorHandler = new TestingFatalErrorHandler();
 	}
 
-	private TestingJobManagerRunnerFactoryNG startDispatcherAndSubmitJob() throws Exception {
+	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
 		return startDispatcherAndSubmitJob(0);
 	}
 
-	private TestingJobManagerRunnerFactoryNG startDispatcherAndSubmitJob(int numBlockingJobManagerRunners) throws Exception {
-		final TestingJobManagerRunnerFactoryNG testingJobManagerRunnerFactoryNG = new TestingJobManagerRunnerFactoryNG(numBlockingJobManagerRunners);
+	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(int numBlockingJobManagerRunners) throws Exception {
+		final TestingJobManagerRunnerFactory testingJobManagerRunnerFactoryNG = new TestingJobManagerRunnerFactory(numBlockingJobManagerRunners);
 		startDispatcher(testingJobManagerRunnerFactoryNG);
 		submitJob();
 
@@ -236,7 +236,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	@Test
 	public void testBlobServerCleanupWhenJobFinished() throws Exception {
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		// complete the job
 		finishJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
@@ -260,7 +260,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	@Test
 	public void testBlobServerCleanupWhenJobNotFinished() throws Exception {
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		// job not finished
 		final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
@@ -326,7 +326,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	 */
 	@Test
 	public void testRunningJobsRegistryCleanup() throws Exception {
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		runningJobsRegistry.setJobRunning(jobId);
 		assertThat(runningJobsRegistry.contains(jobId), is(true));
@@ -346,7 +346,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	 */
 	@Test
 	public void testJobSubmissionUnderSameJobId() throws Exception {
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob(1);
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob(1);
 
 		runningJobsRegistry.setJobRunning(jobId);
 		final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
@@ -373,7 +373,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	 */
 	@Test
 	public void testDuplicateJobSubmissionDoesNotDeleteJobMetaData() throws Exception {
-		final TestingJobManagerRunnerFactoryNG testingJobManagerRunnerFactoryNG = startDispatcherAndSubmitJob();
+		final TestingJobManagerRunnerFactory testingJobManagerRunnerFactoryNG = startDispatcherAndSubmitJob();
 
 		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
 
@@ -409,7 +409,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	 */
 	@Test
 	public void testJobRecoveryWithPendingTermination() throws Exception {
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob(1);
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob(1);
 		runningJobsRegistry.setJobRunning(jobId);
 
 		dispatcherLeaderElectionService.notLeader();
@@ -485,7 +485,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	@Test
 	public void testHABlobsAreNotRemovedIfHAJobGraphRemovalFails() throws Exception {
 		submittedJobGraphStore.setRemovalFailure(new Exception("Failed to Remove future"));
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder()
 			.setJobID(jobId)
@@ -501,7 +501,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	@Test
 	public void testHABlobsAreRemovedIfHAJobGraphRemovalSucceeds() throws Exception {
-		final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder()
 			.setJobID(jobId)

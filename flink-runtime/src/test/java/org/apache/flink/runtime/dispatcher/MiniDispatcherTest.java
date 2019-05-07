@@ -92,7 +92,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 	private TestingFatalErrorHandler testingFatalErrorHandler;
 
-	private TestingJobManagerRunnerFactoryNG testingJobManagerRunnerFactory;
+	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
 	@BeforeClass
 	public static void setupClass() throws IOException {
@@ -119,7 +119,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
 
-		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactoryNG();
+		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
 	}
 
 	@After
