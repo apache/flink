@@ -32,6 +32,8 @@ public class CatalogTestUtil {
 		checkEquals(t1.getStatistics(), t2.getStatistics());
 		assertEquals(t1.getComment(), t2.getComment());
 		assertEquals(t1.getProperties(), t2.getProperties());
+		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
+		assertEquals(t1.isPartitioned(), t2.isPartitioned());
 	}
 
 	public static void checkEquals(TableStats ts1, TableStats ts2) {

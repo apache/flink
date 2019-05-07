@@ -161,7 +161,7 @@ public class GenericHiveMetastoreCatalogUtil {
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();
 
-		if (hiveTable.getPartitionKeys().isEmpty()) {
+		if (!hiveTable.getPartitionKeys().isEmpty()) {
 			partitionKeys = hiveTable.getPartitionKeys().stream()
 								.map(fs -> fs.getName())
 								.collect(Collectors.toList());
