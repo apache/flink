@@ -29,7 +29,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link UnionInputGate}.
  */
-public class UnionInputGateTest {
+public class UnionInputGateTest extends InputGateTestBase {
 
 	/**
 	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
@@ -41,8 +41,8 @@ public class UnionInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final SingleInputGate ig1 = createSingleInputGate(3);
-		final SingleInputGate ig2 = createSingleInputGate(5);
+		final SingleInputGate ig1 = createInputGate(3);
+		final SingleInputGate ig2 = createInputGate(5);
 
 		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
 
