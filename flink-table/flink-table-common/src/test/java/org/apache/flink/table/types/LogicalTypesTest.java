@@ -602,7 +602,7 @@ public class LogicalTypesTest {
 		return new StructuredType.Builder(
 				new UserDefinedType.TypeIdentifier("cat", "db", "Human"),
 				Collections.singletonList(
-					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE)))
+					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
 			.setDescription("Human type desc.")
 			.setFinal(false)
 			.setInstantiable(false)
