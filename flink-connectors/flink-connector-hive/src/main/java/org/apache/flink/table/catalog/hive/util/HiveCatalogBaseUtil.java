@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
@@ -39,7 +39,7 @@ public class HiveCatalogBaseUtil {
 	 * @param partitionKeys partition keys of the Hive table
 	 * @return a Flink TableSchema
 	 */
-	public static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys) {
+	protected static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys) {
 		List<FieldSchema> allCols = new ArrayList<>(cols);
 		allCols.addAll(partitionKeys);
 
@@ -54,5 +54,22 @@ public class HiveCatalogBaseUtil {
 		}
 
 		return new TableSchema(colNames, colTypes);
+	}
+
+	/**
+	 * Create Hive columns from Flink TableSchema.
+	 */
+	protected static List<FieldSchema> createHiveColumns(TableSchema schema) {
+		String[] fieldNames = schema.getFieldNames();
+		TypeInformation[] fieldTypes = schema.getFieldTypes();
+
+		List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
+
+		for (int i = 0; i < fieldNames.length; i++) {
+			columns.add(
+				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveType(fieldTypes[i]), null));
+		}
+
+		return columns;
 	}
 }

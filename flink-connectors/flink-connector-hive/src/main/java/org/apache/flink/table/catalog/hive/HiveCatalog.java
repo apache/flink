@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.hive.util.HiveCatalogUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
@@ -88,48 +89,38 @@ public class HiveCatalog extends HiveCatalogBase {
 	// ------ tables and views------
 
 	@Override
-	public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists)
-			throws TableNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
-			throws TableNotExistException, TableAlreadyExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
 			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+
+		validateHiveCatalogTable(table);
+
+		createHiveTable(
+			tablePath,
+			HiveCatalogUtil.createHiveTable(tablePath, table),
+			ignoreIfExists);
 	}
 
 	@Override
-	public void alterTable(ObjectPath tableName, CatalogBaseTable newTable, boolean ignoreIfNotExists)
+	public void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
 			throws TableNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		validateHiveCatalogTable(newTable);
+
+		super.alterTable(tablePath, newTable, ignoreIfNotExists);
 	}
 
 	@Override
-	public List<String> listTables(String databaseName)
-			throws DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+	public CatalogBaseTable getTable(ObjectPath tablePath)
+			throws TableNotExistException, CatalogException {
+		return HiveCatalogUtil.createCatalogTable(
+			getHiveTable(tablePath));
 	}
 
-	@Override
-	public List<String> listViews(String databaseName) throws DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public CatalogBaseTable getTable(ObjectPath objectPath) throws TableNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public boolean tableExists(ObjectPath objectPath) throws CatalogException {
-		throw new UnsupportedOperationException();
+	private void validateHiveCatalogTable(CatalogBaseTable table) throws CatalogException {
+		// TODO: validate HiveCatalogView
+		if (!(table instanceof HiveCatalogTable)) {
+			throw new IllegalArgumentException(
+				"HiveCatalog can only operate on HiveCatalogTable and HiveCatalogView.");
+		}
 	}
 
 	// ------ partitions ------

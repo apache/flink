@@ -32,6 +32,7 @@ import java.util.HashMap;
  * Test for HiveCatalog.
  */
 public class HiveCatalogTest extends CatalogTestBase {
+
 	@BeforeClass
 	public static void init() throws IOException {
 		catalog = HiveTestUtils.createGenericHiveMetastoreCatalog();
@@ -39,69 +40,20 @@ public class HiveCatalogTest extends CatalogTestBase {
 	}
 
 	// =====================
-	// HiveCatalog doesn't support table operation yet
-	// Thus, overriding the following tests which involve table operation in CatalogTestBase so they won't run against HiveCatalog
+	// HiveCatalog doesn't support streaming table operation. Ignore this test in CatalogTestBase.
 	// =====================
-
-	// TODO: re-enable these tests once HiveCatalog support table operations
-	public void testDropDb_DatabaseNotEmptyException() throws Exception {
-	}
 
 	public void testCreateTable_Streaming() throws Exception {
 	}
 
-	public void testCreateTable_Batch() throws Exception {
-	}
+	// =====================
+	// HiveCatalog doesn't support view operation yet
+	// Thus, overriding the following tests which involve table operation in CatalogTestBase so they won't run against HiveCatalog
+	// =====================
 
-	public void testCreateTable_DatabaseNotExistException() throws Exception {
-	}
-
-	public void testCreateTable_TableAlreadyExistException() throws Exception {
-	}
-
-	public void testCreateTable_TableAlreadyExist_ignored() throws Exception {
-	}
-
-	public void testGetTable_TableNotExistException() throws Exception {
-	}
-
-	public void testGetTable_TableNotExistException_NoDb() throws Exception {
-	}
-
-	public void testDropTable_nonPartitionedTable() throws Exception {
-	}
-
-	public void testDropTable_TableNotExistException() throws Exception {
-	}
-
-	public void testDropTable_TableNotExist_ignored() throws Exception {
-	}
-
-	public void testAlterTable() throws Exception {
-	}
-
-	public void testAlterTable_TableNotExistException() throws Exception {
-	}
-
-	public void testAlterTable_TableNotExist_ignored() throws Exception {
-	}
-
-	public void testRenameTable_nonPartitionedTable() throws Exception {
-	}
-
-	public void testRenameTable_TableNotExistException() throws Exception {
-	}
-
-	public void testRenameTable_TableNotExistException_ignored() throws Exception {
-	}
-
-	public void testRenameTable_TableAlreadyExistException() throws Exception {
-	}
+	// TODO: re-enable these tests once HiveCatalog support view operations
 
 	public void testListTables() throws Exception {
-	}
-
-	public void testTableExists() throws Exception {
 	}
 
 	public void testCreateView() throws Exception {
@@ -163,32 +115,43 @@ public class HiveCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createTable() {
-		// TODO: implement this once HiveCatalog support table operations
-		return null;
+		return new HiveCatalogTable(
+			createTableSchema(),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
 	}
 
 	@Override
 	public CatalogTable createAnotherTable() {
-		// TODO: implement this once HiveCatalog support table operations
-		return null;
+		return new HiveCatalogTable(
+			createAnotherTableSchema(),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
 	}
 
 	@Override
 	public CatalogTable createStreamingTable() {
-		// TODO: implement this once HiveCatalog support table operations
-		return null;
+		throw new UnsupportedOperationException("HiveCatalog doesn't support streaming tables.");
 	}
 
 	@Override
 	public CatalogTable createPartitionedTable() {
-		// TODO: implement this once HiveCatalog support table operations
-		return null;
+		return new HiveCatalogTable(
+			createTableSchema(),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogTable createAnotherPartitionedTable() {
-		// TODO: implement this once HiveCatalog support table operations
-		return null;
+		return new HiveCatalogTable(
+			createAnotherTableSchema(),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
 	}
 
 	@Override
