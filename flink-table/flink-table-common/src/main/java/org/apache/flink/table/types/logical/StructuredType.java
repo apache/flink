@@ -71,9 +71,16 @@ public final class StructuredType extends UserDefinedType {
 
 		private final LogicalType type;
 
-		public StructuredAttribute(String name, LogicalType type) {
+		private final @Nullable String description;
+
+		public StructuredAttribute(String name, LogicalType type, @Nullable String description) {
 			this.name = Preconditions.checkNotNull(name, "Attribute name must not be null.");
 			this.type = Preconditions.checkNotNull(type, "Attribute type must not be null.");
+			this.description = description;
+		}
+
+		public StructuredAttribute(String name, LogicalType type) {
+			this(name, type, null);
 		}
 
 		public String getName() {
@@ -84,8 +91,12 @@ public final class StructuredType extends UserDefinedType {
 			return type;
 		}
 
+		public Optional<String> getDescription() {
+			return Optional.ofNullable(description);
+		}
+
 		public StructuredAttribute copy() {
-			return new StructuredAttribute(name, type.copy());
+			return new StructuredAttribute(name, type.copy(), description);
 		}
 
 		@Override
@@ -97,12 +108,14 @@ public final class StructuredType extends UserDefinedType {
 				return false;
 			}
 			StructuredAttribute that = (StructuredAttribute) o;
-			return name.equals(that.name) && type.equals(that.type);
+			return name.equals(that.name) &&
+				type.equals(that.type) &&
+				Objects.equals(description, that.description);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(name, type);
+			return Objects.hash(name, type, description);
 		}
 	}
 
