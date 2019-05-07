@@ -30,7 +30,6 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalogBaseUtil;
 import org.apache.flink.table.catalog.hive.HiveTableConfig;
 import org.apache.flink.table.catalog.hive.HiveTypeUtil;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;

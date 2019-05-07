@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -194,6 +196,26 @@ public class HiveCatalog extends HiveCatalogBase {
 	}
 
 	@Override
+	public void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
+
+	}
+
+	@Override
+	public void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
+
+	}
+
+	@Override
+	public void alterPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogTableStatistics partitionStatistics, boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException {
+
+	}
+
+	@Override
+	public void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException {
+
+	}
+
+	@Override
 	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
@@ -207,4 +229,25 @@ public class HiveCatalog extends HiveCatalogBase {
 	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CatalogColumnStatistics getTableColumnStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CatalogTableStatistics getPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws PartitionNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CatalogColumnStatistics getPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws PartitionNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
 }
