@@ -124,7 +124,7 @@ public class GenericHiveMetastoreCatalogUtil {
 			}
 
 			hiveTable.setTableType(TableType.EXTERNAL_TABLE.name());
-		} else {
+		} else if (table instanceof CatalogView) {
 			CatalogView view = (CatalogView) table;
 
 			// TODO: [FLINK-12398] Support partitioned view in catalog API
@@ -134,6 +134,9 @@ public class GenericHiveMetastoreCatalogUtil {
 			hiveTable.setViewOriginalText(view.getOriginalQuery());
 			hiveTable.setViewExpandedText(view.getExpandedQuery());
 			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
+		} else {
+			throw new IllegalArgumentException(
+				"GenericHiveMetastoreCatalog only supports CatalogTable and CatalogView");
 		}
 
 		hiveTable.setSd(sd);

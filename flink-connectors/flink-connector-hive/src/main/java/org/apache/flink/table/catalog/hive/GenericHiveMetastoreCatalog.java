@@ -191,7 +191,6 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	@Override
 	public List<String> listViews(String databaseName) throws DatabaseNotExistException, CatalogException {
 		try {
-
 			return client.getTables(
 				databaseName,
 				null, // table pattern
