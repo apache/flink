@@ -1837,8 +1837,8 @@ public class TypeExtractor {
 		if (parameterizedType != null) {
 			getTypeHierarchy(typeHierarchy, parameterizedType, Object.class);
 		}
-		// create a type hierarchy, if the incoming only contains the most bottom one or none.
-		else if (typeHierarchy.size() <= 1) {
+		// create a type hierarchy, for fields types extraction
+		else {
 			getTypeHierarchy(typeHierarchy, clazz, Object.class);
 		}
 
