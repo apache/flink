@@ -24,9 +24,9 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
-import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.`type`.{InternalType, TypeConverters}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.dataformat.BaseRow
@@ -34,12 +34,15 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
+import org.apache.flink.table.sinks.{AppendStreamTableSink, CollectRowTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.types.Row
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
-import org.apache.flink.table.runtime.utils.BatchTableEnvUtil
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
@@ -183,7 +186,11 @@ abstract class TableTestUtil(test: TableTestBase) {
       function: AggregateFunction[T, ACC]): Unit = getTableEnv.registerFunction(name, function)
 
   def verifyPlan(): Unit = {
-    // TODO implements this method when supporting multi-sinks
+    doVerifyPlan(
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRowType = false,
+      withRetractTraits = false,
+      printPlanBefore = true)
   }
 
   def verifyPlan(sql: String): Unit = {
@@ -226,7 +233,7 @@ abstract class TableTestUtil(test: TableTestBase) {
     require(notExpected.nonEmpty)
     val relNode = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = getOptimizedPlan(
-      relNode,
+      Array(relNode),
       explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRetractTraits = false,
       withRowType = false)
@@ -235,15 +242,21 @@ abstract class TableTestUtil(test: TableTestBase) {
     assertTrue(message, result)
   }
 
-  def verifyExplain(): Unit = doVerifyExplain()
+  def verifyExplain(): Unit = verifyExplain(extended = false)
 
-  def verifyExplain(sql: String): Unit = {
+  def verifyExplain(extended: Boolean): Unit = doVerifyExplain(extended = extended)
+
+  def verifyExplain(sql: String): Unit = verifyExplain(sql, extended = false)
+
+  def verifyExplain(sql: String, extended: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(sql)
-    verifyExplain(table)
+    verifyExplain(table, extended)
   }
 
-  def verifyExplain(table: Table): Unit = {
-    doVerifyExplain(Some(table))
+  def verifyExplain(table: Table): Unit = verifyExplain(table, extended = false)
+
+  def verifyExplain(table: Table, extended: Boolean): Unit = {
+    doVerifyExplain(Some(table), extended = extended)
   }
 
   def doVerifyPlan(
@@ -268,7 +281,7 @@ abstract class TableTestUtil(test: TableTestBase) {
     val table = getTableEnv.sqlQuery(sql)
     val relNode = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = getOptimizedPlan(
-      relNode,
+      Array(relNode),
       explainLevel,
       withRetractTraits = withRetractTraits,
       withRowType = withRowType)
@@ -309,7 +322,7 @@ abstract class TableTestUtil(test: TableTestBase) {
       printPlanBefore: Boolean): Unit = {
     val relNode = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = getOptimizedPlan(
-      relNode,
+      Array(relNode),
       explainLevel,
       withRetractTraits = withRetractTraits,
       withRowType = withRowType)
@@ -327,44 +340,100 @@ abstract class TableTestUtil(test: TableTestBase) {
     assertEqualsOrExpand("planAfter", actual.toString, expand = false)
   }
 
-  private def doVerifyExplain(table: Option[Table] = None): Unit = {
-    val explainResult = table match {
-      case Some(t) => getTableEnv.explain(t)
-      case _ => getTableEnv.explain()
+  def doVerifyPlan(
+      explainLevel: SqlExplainLevel,
+      withRowType: Boolean,
+      withRetractTraits: Boolean,
+      printPlanBefore: Boolean): Unit = {
+    val tableEnv = getTableEnv
+    if (tableEnv.sinkNodes.isEmpty) {
+      throw new TableException("No output table have been created yet. " +
+        "A program needs at least one output table that consumes data.\n" +
+        "Please create output table(s) for your program")
     }
-    assertEqualsOrExpand("explain", replaceStageId(explainResult), expand = false)
+    val relNodes = tableEnv.sinkNodes.toArray
+    val optimizedPlan = getOptimizedPlan(
+      relNodes.toArray,
+      explainLevel,
+      withRetractTraits = withRetractTraits,
+      withRowType = withRowType)
+    tableEnv.sinkNodes.clear()
+
+    if (printPlanBefore) {
+      val planBefore = new StringBuilder
+      relNodes.foreach { sink =>
+        planBefore.append(System.lineSeparator)
+        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
+      }
+      assertEqualsOrExpand("planBefore", planBefore.toString())
+    }
+
+    val actual = SystemUtils.LINE_SEPARATOR + optimizedPlan
+    assertEqualsOrExpand("planAfter", actual.toString, expand = false)
+  }
+
+  private def doVerifyExplain(table: Option[Table] = None, extended: Boolean = false): Unit = {
+    val explainResult = table match {
+      case Some(t) => getTableEnv.explain(t, extended = extended)
+      case _ => getTableEnv.explain(extended = extended)
+    }
+    val actual = if (extended) {
+      replaceEstimatedCost(explainResult)
+    } else {
+      explainResult
+    }
+    assertEqualsOrExpand("explain", replaceStageId(actual), expand = false)
   }
 
   private def getOptimizedPlan(
-      relNode: RelNode,
+      relNodes: Array[RelNode],
       explainLevel: SqlExplainLevel,
       withRetractTraits: Boolean,
       withRowType: Boolean): String = {
+    require(relNodes.nonEmpty)
     val tEnv = getTableEnv
-    val optimized = tEnv.optimize(relNode)
-    optimized match {
-      case execNode: ExecNode[_, _] =>
-        val optimizedNodes = tEnv.translateNodeDag(Seq(execNode))
-        require(optimizedNodes.length == 1)
-        ExecNodePlanDumper.treeToString(
-          optimizedNodes.head,
+    val optimizedRels = tEnv.optimize(relNodes)
+    optimizedRels.head match {
+      case _: ExecNode[_, _] =>
+        val optimizedNodes = tEnv.translateToExecNodeDag(optimizedRels)
+        require(optimizedNodes.length == optimizedRels.length)
+        ExecNodePlanDumper.dagToString(
+          optimizedNodes,
           detailLevel = explainLevel,
           withRetractTraits = withRetractTraits,
           withOutputType = withRowType)
       case _ =>
-        FlinkRelOptUtil.toString(
-          optimized,
-          detailLevel = explainLevel,
-          withRetractTraits = withRetractTraits,
-          withRowType = withRowType)
+        optimizedRels.map { rel =>
+          FlinkRelOptUtil.toString(
+            rel,
+            detailLevel = explainLevel,
+            withRetractTraits = withRetractTraits,
+            withRowType = withRowType)
+        }.mkString("\n")
     }
   }
 
-  /* Stage {id} is ignored, because id keeps incrementing in test class
-     * while StreamExecutionEnvironment is up
-     */
+  /**
+    * Stage {id} is ignored, because id keeps incrementing in test class
+    * while StreamExecutionEnvironment is up
+    */
   protected def replaceStageId(s: String): String = {
     s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+  }
+
+  /**
+    * ignore estimated cost, because it may be unstable.
+    */
+  protected def replaceEstimatedCost(s: String): String = {
+    var str = s.replaceAll("\\r\\n", "\n")
+    val scientificFormRegExpr = "[+-]?[\\d]+([\\.][\\d]*)?([Ee][+-]?[0-9]{0,2})?"
+    str = str.replaceAll(s"rowcount = $scientificFormRegExpr", "rowcount = ")
+    str = str.replaceAll(s"$scientificFormRegExpr rows", "rows")
+    str = str.replaceAll(s"$scientificFormRegExpr cpu", "cpu")
+    str = str.replaceAll(s"$scientificFormRegExpr io", "io")
+    str = str.replaceAll(s"$scientificFormRegExpr network", "network")
+    str = str.replaceAll(s"$scientificFormRegExpr memory", "memory")
+    str
   }
 
   private def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
@@ -397,11 +466,18 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
 
   override def getTableEnv: TableEnvironment = tableEnv
 
-  override def addDataStream[T: TypeInformation](
-      name: String, fields: Symbol*): Table = {
+  override def addDataStream[T: TypeInformation](name: String, fields: Symbol*): Table = {
     val table = env.fromElements[T]().toTable(tableEnv, fields: _*)
     tableEnv.registerTable(name, table)
     tableEnv.scan(name)
+  }
+
+  def verifyPlanWithTrait(): Unit = {
+    doVerifyPlan(
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRetractTraits = true,
+      withRowType = false,
+      printPlanBefore = true)
   }
 
   def verifyPlanWithTrait(sql: String): Unit = {
@@ -444,6 +520,31 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
     tableEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
   }
+
+  def createAppendTableSink(
+      fieldNames: Array[String],
+      fieldTypes: Array[InternalType]): AppendStreamTableSink[Row] = {
+    require(fieldNames.length == fieldTypes.length)
+    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    new TestingAppendTableSink().configure(fieldNames, typeInfos)
+  }
+
+  def createUpsertTableSink(
+      keys: Array[Int],
+      fieldNames: Array[String],
+      fieldTypes: Array[InternalType]): UpsertStreamTableSink[BaseRow] = {
+    require(fieldNames.length == fieldTypes.length)
+    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    new TestingUpsertTableSink(keys).configure(fieldNames, typeInfos)
+  }
+
+  def createRetractTableSink(
+      fieldNames: Array[String],
+      fieldTypes: Array[InternalType]): RetractStreamTableSink[Row] = {
+    require(fieldNames.length == fieldTypes.length)
+    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    new TestingRetractTableSink().configure(fieldNames, typeInfos)
+  }
 }
 
 /**
@@ -459,6 +560,8 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
 
   override def addDataStream[T: TypeInformation](
       name: String, fields: Symbol*): Table = {
+    // TODO use BatchTableEnvironment#fromBoundedStream when it's introduced
+
     val typeInfo = implicitly[TypeInformation[T]]
     BatchTableEnvUtil.registerCollection(
       tableEnv,
@@ -485,6 +588,14 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
       .replaceBatchProgram(program).build()
     tableEnv.getConfig.setCalciteConfig(calciteConfig)
   }
+
+  def createCollectTableSink(
+      fieldNames: Array[String],
+      fieldTypes: Array[InternalType]): TableSink[Row] = {
+    require(fieldNames.length == fieldTypes.length)
+    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    new CollectRowTableSink().configure(fieldNames, typeInfos)
+  }
 }
 
 /**
@@ -495,14 +606,18 @@ class TestTableSource(schema: TableSchema)
   with StreamTableSource[BaseRow] {
 
   override def getBoundedStream(
-      streamEnv: environment.StreamExecutionEnvironment): DataStream[BaseRow] = ???
+      streamEnv: environment.StreamExecutionEnvironment): DataStream[BaseRow] = {
+    streamEnv.fromCollection(List[BaseRow](), getReturnType)
+  }
 
   override def getDataStream(
-      execEnv: environment.StreamExecutionEnvironment): DataStream[BaseRow] = ???
+      execEnv: environment.StreamExecutionEnvironment): DataStream[BaseRow] = {
+    execEnv.fromCollection(List[BaseRow](), getReturnType)
+  }
 
   override def getReturnType: TypeInformation[BaseRow] = {
     val internalTypes = schema.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo)
-    new BaseRowTypeInfo(internalTypes: _*)
+    new BaseRowTypeInfo(internalTypes, schema.getFieldNames)
   }
 
   override def getTableSchema: TableSchema = schema

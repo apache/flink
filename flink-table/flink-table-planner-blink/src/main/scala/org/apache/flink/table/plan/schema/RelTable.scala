@@ -23,8 +23,8 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Schema.TableType
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.schema.TranslatableTable
+import org.apache.calcite.schema.impl.AbstractTable
 
 /**
  * A [[org.apache.calcite.schema.Table]] implementation for registering

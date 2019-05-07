@@ -19,12 +19,15 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.annotation.VisibleForTesting
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
@@ -35,6 +38,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.FlinkCostFactory
+import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
@@ -67,6 +71,7 @@ import _root_.java.util.{Arrays => JArrays}
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -74,6 +79,8 @@ import _root_.scala.collection.JavaConverters._
   * @param config The configuration of the TableEnvironment
   */
 abstract class TableEnvironment(val config: TableConfig) {
+
+  protected val DEFAULT_JOB_NAME = "Flink Exec Table Job"
 
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
@@ -113,6 +120,12 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] val tableNameCntr: AtomicInteger = new AtomicInteger(0)
 
   private[flink] val tableNamePrefix = "_TempTable_"
+
+  // sink nodes collection
+  // TODO use SinkNode(LogicalNode) instead of Sink(RelNode) after we introduce [Expression]
+  private[flink] var sinkNodes = new mutable.ArrayBuffer[Sink]
+
+  private[flink] val transformations = new mutable.ArrayBuffer[StreamTransformation[_]]
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
@@ -174,6 +187,103 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def getOptimizer: Optimizer
 
   /**
+    * Triggers the program execution.
+    */
+  def execute(): JobExecutionResult = execute(DEFAULT_JOB_NAME)
+
+  /**
+    * Triggers the program execution with jobName.
+    */
+  def execute(jobName: String): JobExecutionResult
+
+  /**
+    * Generate a [[StreamGraph]] from this table environment, this will also clear sinkNodes.
+    * @return A [[StreamGraph]] describing the whole job.
+    */
+  def generateStreamGraph(): StreamGraph = generateStreamGraph(DEFAULT_JOB_NAME)
+
+  /**
+    * Generate a [[StreamGraph]] from this table environment, this will also clear sinkNodes.
+    * @return A [[StreamGraph]] describing the whole job.
+    */
+  def generateStreamGraph(jobName: String): StreamGraph = {
+    try {
+      compile()
+      if (transformations.isEmpty) {
+        throw new TableException("No table sinks have been created yet. " +
+          "A program needs at least one sink that consumes data. ")
+      }
+      translateStreamGraph(transformations, Some(jobName))
+    } finally {
+      sinkNodes.clear()
+      transformations.clear()
+    }
+  }
+
+  /**
+    * Translate a [[StreamGraph]] from Given streamingTransformations.
+    * @return A [[StreamGraph]] describing the given job.
+    */
+  protected def translateStreamGraph(
+      streamingTransformations: Seq[StreamTransformation[_]],
+      jobName: Option[String] = None): StreamGraph = ???
+
+  /**
+    * Compile the sinks to [[org.apache.flink.streaming.api.transformations.StreamTransformation]].
+    */
+  protected def compile(): Unit = {
+    if (sinkNodes.isEmpty) {
+      throw new TableException("Internal error in sql compile, SinkNode required here")
+    }
+
+    // translate to ExecNode
+    val nodeDag = compileToExecNodePlan(sinkNodes: _*)
+    // translate to transformation
+    val sinkTransformations = translateToPlan(nodeDag)
+    transformations.addAll(sinkTransformations)
+  }
+
+  /**
+    * Optimize [[RelNode]] tree (or DAG), and translate optimized result to ExecNode tree (or DAG).
+    */
+  @VisibleForTesting
+  private[flink] def compileToExecNodePlan(relNodes: RelNode*): Seq[ExecNode[_, _]] = {
+    if (relNodes.isEmpty) {
+      throw new TableException("Internal error in sql compile, SinkNode required here")
+    }
+
+    // optimize dag
+    val optRelNodes = optimize(relNodes)
+    // translate node dag
+    translateToExecNodeDag(optRelNodes)
+  }
+
+  /**
+    * Translate [[org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel]] DAG
+    * to [[ExecNode]] DAG.
+    */
+  @VisibleForTesting
+  private[flink] def translateToExecNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
+    require(rels.nonEmpty && rels.forall(_.isInstanceOf[FlinkPhysicalRel]))
+    // Rewrite same rel object to different rel objects
+    // in order to get the correct dag (dag reuse is based on object not digest)
+    val shuttle = new SameRelObjectShuttle()
+    val relsWithoutSameObj = rels.map(_.accept(shuttle))
+    // reuse subplan
+    val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
+    // convert FlinkPhysicalRel DAG to ExecNode DAG
+    reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
+  }
+
+  /**
+    * Translates a [[ExecNode]] DAG into a [[StreamTransformation]] DAG.
+    *
+    * @param sinks The node DAG to translate.
+    * @return The [[StreamTransformation]] DAG that corresponds to the node DAG.
+    */
+  protected def translateToPlan(sinks: Seq[ExecNode[_, _]]): Seq[StreamTransformation[_]]
+
+  /**
     * Writes a [[Table]] to a [[TableSink]].
     *
     * @param table The [[Table]] to write.
@@ -183,7 +293,9 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[table] def writeToSink[T](
       table: Table,
       sink: TableSink[T],
-      sinkName: String = null): Unit
+      sinkName: String = null): Unit = {
+    sinkNodes += LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
+  }
 
   /**
     * Generates the optimized [[RelNode]] dag from the original relational nodes.
@@ -204,23 +316,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(root: RelNode): RelNode = optimize(Seq(root)).head
-
-  /**
-    * Convert [[org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel]] DAG
-    * to [[ExecNode]] DAG and translate them.
-    */
-  @VisibleForTesting
-  private[flink] def translateNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
-    require(rels.nonEmpty && rels.forall(_.isInstanceOf[FlinkPhysicalRel]))
-    // Rewrite same rel object to different rel objects
-    // in order to get the correct dag (dag reuse is based on object not digest)
-    val shuttle = new SameRelObjectShuttle()
-    val relsWithoutSameObj = rels.map(_.accept(shuttle))
-    // reuse subplan
-    val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
-    // convert FlinkPhysicalRel DAG to ExecNode DAG
-    reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
-  }
 
   /**
     * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.
