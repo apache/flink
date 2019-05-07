@@ -291,8 +291,8 @@ public class DispatcherHATest extends TestLogger {
 	}
 
 	@Nonnull
-	private TestingJobManagerRunnerFactoryNG createTestingJobManagerRunnerFactory() {
-		return new TestingJobManagerRunnerFactoryNG();
+	private TestingJobManagerRunnerFactory createTestingJobManagerRunnerFactory() {
+		return new TestingJobManagerRunnerFactory();
 	}
 
 	private HATestingDispatcher createDispatcher(HighAvailabilityServices haServices) throws Exception {

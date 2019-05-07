@@ -765,7 +765,7 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.getTerminationFuture().get();
 	}
 
-	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactoryNG {
+	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {
 
 		@Nonnull
 		private final ThrowingRunnable<Exception> jobManagerRunnerCreationLatch;
