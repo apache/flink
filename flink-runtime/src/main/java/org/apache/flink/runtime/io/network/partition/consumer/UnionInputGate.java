@@ -159,6 +159,15 @@ public class UnionInputGate implements InputGate, InputGateListener {
 
 	@Override
 	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(true);
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(false);
+	}
+
+	private Optional<BufferOrEvent> getNextBufferOrEvent(boolean blocking) throws IOException, InterruptedException {
 		if (inputGatesWithRemainingData.isEmpty()) {
 			return Optional.empty();
 		}
@@ -166,7 +175,12 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		// Make sure to request the partitions, if they have not been requested before.
 		requestPartitions();
 
-		InputGateWithData inputGateWithData = waitAndGetNextInputGate();
+		Optional<InputGateWithData> next = waitAndGetNextInputGate(blocking);
+		if (!next.isPresent()) {
+			return Optional.empty();
+		}
+
+		InputGateWithData inputGateWithData = next.get();
 		InputGate inputGate = inputGateWithData.inputGate;
 		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
 
@@ -197,18 +211,17 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		return Optional.of(bufferOrEvent);
 	}
 
-	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	private InputGateWithData waitAndGetNextInputGate() throws IOException, InterruptedException {
+	private Optional<InputGateWithData> waitAndGetNextInputGate(boolean blocking) throws IOException, InterruptedException {
 		while (true) {
 			InputGate inputGate;
 			boolean moreInputGatesAvailable;
 			synchronized (inputGatesWithData) {
 				while (inputGatesWithData.size() == 0) {
-					inputGatesWithData.wait();
+					if (blocking) {
+						inputGatesWithData.wait();
+					} else {
+						return Optional.empty();
+					}
 				}
 				inputGate = inputGatesWithData.remove();
 				enqueuedInputGatesWithData.remove(inputGate);
@@ -218,7 +231,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
 			Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
 			if (bufferOrEvent.isPresent()) {
-				return new InputGateWithData(inputGate, bufferOrEvent.get(), moreInputGatesAvailable);
+				return Optional.of(new InputGateWithData(inputGate, bufferOrEvent.get(), moreInputGatesAvailable));
 			}
 		}
 	}
