@@ -22,12 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import javax.annotation.Nonnull;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -39,8 +40,18 @@ public class TestingJobManagerRunnerFactoryNG implements JobManagerRunnerFactory
 
 	private final BlockingQueue<TestingJobManagerRunner> createdJobManagerRunner = new ArrayBlockingQueue<>(16);
 
+	private int numBlockingJobManagerRunners;
+
+	public TestingJobManagerRunnerFactoryNG() {
+		this(0);
+	}
+
+	public TestingJobManagerRunnerFactoryNG(int numBlockingJobManagerRunners) {
+		this.numBlockingJobManagerRunners = numBlockingJobManagerRunners;
+	}
+
 	@Override
-	public JobManagerRunner createJobManagerRunner(
+	public TestingJobManagerRunner createJobManagerRunner(
 			JobGraph jobGraph,
 			Configuration configuration,
 			RpcService rpcService,
@@ -49,10 +60,24 @@ public class TestingJobManagerRunnerFactoryNG implements JobManagerRunnerFactory
 			JobManagerSharedServices jobManagerServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		final TestingJobManagerRunner testingJobManagerRunner = new TestingJobManagerRunner(jobGraph.getJobID());
+		final TestingJobManagerRunner testingJobManagerRunner = createTestingJobManagerRunner(jobGraph);
 		createdJobManagerRunner.offer(testingJobManagerRunner);
 
 		return testingJobManagerRunner;
+	}
+
+	@Nonnull
+	private TestingJobManagerRunner createTestingJobManagerRunner(JobGraph jobGraph) {
+		final boolean blockingTermination;
+
+		if (numBlockingJobManagerRunners > 0) {
+			numBlockingJobManagerRunners--;
+			blockingTermination = true;
+		} else {
+			blockingTermination = false;
+		}
+
+		return new TestingJobManagerRunner(jobGraph.getJobID(), blockingTermination);
 	}
 
 	public TestingJobManagerRunner takeCreatedJobManagerRunner() throws InterruptedException {

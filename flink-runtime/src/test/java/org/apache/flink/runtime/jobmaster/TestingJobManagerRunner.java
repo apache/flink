@@ -30,6 +30,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
 	private final JobID jobId;
 
+	private final boolean blockingTermination;
+
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 
 	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
@@ -37,7 +39,12 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	private final CompletableFuture<Void> terminationFuture;
 
 	public TestingJobManagerRunner(JobID jobId) {
+		this(jobId, false);
+	}
+
+	public TestingJobManagerRunner(JobID jobId, boolean blockingTermination) {
 		this.jobId = jobId;
+		this.blockingTermination = blockingTermination;
 		this.resultFuture = new CompletableFuture<>();
 		this.jobMasterGatewayFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -65,12 +72,22 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
 	@Override
 	public CompletableFuture<Void> closeAsync() {
-		terminationFuture.complete(null);
+		if (!blockingTermination) {
+			terminationFuture.complete(null);
+		}
 
 		return terminationFuture;
 	}
 
 	public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
 		resultFuture.complete(archivedExecutionGraph);
+	}
+
+	public void completeResultFutureExceptionally(Exception e) {
+		resultFuture.completeExceptionally(e);
+	}
+
+	public void completeTerminationFuture() {
+		terminationFuture.complete(null);
 	}
 }
