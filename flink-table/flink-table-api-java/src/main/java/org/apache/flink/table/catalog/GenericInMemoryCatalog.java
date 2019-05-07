@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A generic catalog implementation that holds all meta objects in memory.
  */
-public class GenericInMemoryCatalog implements ReadableWritableCatalog {
+public class GenericInMemoryCatalog implements Catalog {
 
 	public static final String DEFAULT_DB = "default";
 
