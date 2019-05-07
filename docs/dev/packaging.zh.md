@@ -1,6 +1,6 @@
 ---
-title: "Program Packaging and Distributed Execution"
-nav-title: Program Packaging
+title: "程序打包和分布式运行"
+nav-title: 程序打包
 nav-parent_id: execution
 nav-pos: 20
 ---
