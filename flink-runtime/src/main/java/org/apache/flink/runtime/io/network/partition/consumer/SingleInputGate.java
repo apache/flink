@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -101,7 +102,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
-public class SingleInputGate implements InputGate {
+public class SingleInputGate extends InputGate {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGate.class);
 
@@ -171,9 +172,6 @@ public class SingleInputGate implements InputGate {
 
 	/** Flag indicating whether all resources have been released. */
 	private volatile boolean isReleased;
-
-	/** Registered listener to forward buffer notifications to. */
-	private volatile InputGateListener inputGateListener;
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<>();
 
@@ -547,6 +545,7 @@ public class SingleInputGate implements InputGate {
 						inputChannelsWithData.wait();
 					}
 					else {
+						resetIsAvailable();
 						return Optional.empty();
 					}
 				}
@@ -563,6 +562,10 @@ public class SingleInputGate implements InputGate {
 				}
 
 				moreAvailable = !inputChannelsWithData.isEmpty();
+
+				if (!moreAvailable) {
+					resetIsAvailable();
+				}
 			}
 		} while (!result.isPresent());
 
@@ -613,15 +616,6 @@ public class SingleInputGate implements InputGate {
 	// Channel notifications
 	// ------------------------------------------------------------------------
 
-	@Override
-	public void registerListener(InputGateListener inputGateListener) {
-		if (this.inputGateListener == null) {
-			this.inputGateListener = inputGateListener;
-		} else {
-			throw new IllegalStateException("Multiple listeners");
-		}
-	}
-
 	void notifyChannelNonEmpty(InputChannel channel) {
 		queueChannel(checkNotNull(channel));
 	}
@@ -632,6 +626,8 @@ public class SingleInputGate implements InputGate {
 
 	private void queueChannel(InputChannel channel) {
 		int availableChannels;
+
+		CompletableFuture<?> toNotify = null;
 
 		synchronized (inputChannelsWithData) {
 			if (enqueuedInputChannelsWithData.get(channel.getChannelIndex())) {
@@ -644,14 +640,13 @@ public class SingleInputGate implements InputGate {
 
 			if (availableChannels == 0) {
 				inputChannelsWithData.notifyAll();
+				toNotify = isAvailable;
+				isAvailable = AVAILABLE;
 			}
 		}
 
-		if (availableChannels == 0) {
-			InputGateListener listener = inputGateListener;
-			if (listener != null) {
-				listener.notifyInputGateNonEmpty(this);
-			}
+		if (toNotify != null) {
+			toNotify.complete(null);
 		}
 	}
 

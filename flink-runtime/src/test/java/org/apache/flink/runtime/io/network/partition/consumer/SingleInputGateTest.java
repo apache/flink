@@ -116,6 +116,15 @@ public class SingleInputGateTest extends InputGateTestBase {
 		assertTrue(inputGate.isFinished());
 	}
 
+	@Test
+	public void testIsAvailable() throws Exception {
+		final SingleInputGate inputGate = createInputGate(1);
+		TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
+		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+
+		testIsAvailable(inputGate, inputGate, inputChannel);
+	}
+
 	@Test(timeout = 120 * 1000)
 	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
 		// Setup

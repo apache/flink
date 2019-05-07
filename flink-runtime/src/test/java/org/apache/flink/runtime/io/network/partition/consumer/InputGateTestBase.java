@@ -27,9 +27,12 @@ import org.junit.runners.Parameterized.Parameters;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test base for {@link InputGate}.
@@ -43,6 +46,28 @@ public abstract class InputGateTestBase {
 	@Parameters(name = "Credit-based = {0}")
 	public static List<Boolean> parameters() {
 		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
+	}
+
+	protected void testIsAvailable(
+			InputGate inputGateToTest,
+			SingleInputGate inputGateToNotify,
+			TestInputChannel inputChannelWithNewData) throws Exception {
+
+		assertFalse(inputGateToTest.isAvailable().isDone());
+		assertFalse(inputGateToTest.pollNextBufferOrEvent().isPresent());
+
+		CompletableFuture<?> isAvailable = inputGateToTest.isAvailable();
+
+		assertFalse(inputGateToTest.isAvailable().isDone());
+		assertFalse(inputGateToTest.pollNextBufferOrEvent().isPresent());
+
+		assertEquals(isAvailable, inputGateToTest.isAvailable());
+
+		inputChannelWithNewData.readBuffer();
+		inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
+
+		assertTrue(isAvailable.isDone());
+		assertTrue(inputGateToTest.isAvailable().isDone());
 	}
 
 	protected SingleInputGate createInputGate() {
