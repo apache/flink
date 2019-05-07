@@ -2902,7 +2902,7 @@ concat_ws(STRING1, STRING2, STRING3, ...)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p> 
+        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p>
         <p>E.g., <code>concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC')</code> returns "AA~BB~~CC".</p>
       </td>
     </tr>
@@ -2914,7 +2914,7 @@ STRING1.lpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
+        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
         <p>E.g., <code>'hi'.lpad(4, '??')</code> returns "??hi";  <code>'hi'.lpad(1, '??')</code> returns "h".</p>
       </td>
     </tr>
@@ -2926,11 +2926,11 @@ STRING1.rpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
+        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
         <p>E.g., <code>'hi'.rpad(4, '??')</code> returns "hi??";  <code>'hi'.rpad(1, '??')</code> returns "h".</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -2938,11 +2938,11 @@ STRING.fromBase64()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the base64-decoded result from <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p> 
+        <p>Returns the base64-decoded result from <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p>
         <p>E.g., <code>'aGVsbG8gd29ybGQ='.fromBase64()</code> returns "hello world".</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -2989,7 +2989,7 @@ STRING.charLength()
       <td>
         <p>Returns the number of characters in <i>STRING</i>.</p>
       </td>
-    </tr> 
+    </tr>
 
     <tr>
       <td>
@@ -3045,7 +3045,7 @@ STRING.ltrim()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p>
         <p>E.g., <code>" This is a test String.".ltrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -3057,7 +3057,7 @@ STRING.rtrim()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p>
         <p>E.g., <code>"This is a test String. ".rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -3069,10 +3069,10 @@ STRING.repeat(INT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p>
         <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
       </td>
-    </tr> 
+    </tr>
 
     <tr>
       <td>
@@ -3081,7 +3081,7 @@ STRING1.regexpReplace(STRING2, STRING3)
 {% endhighlight %}
       </td>
        <td>
-         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p>
          <p>E.g. <code>"foobar".regexpReplace("oo|ar", "")</code> returns "fb".</p>
       </td>
     </tr>
@@ -3146,7 +3146,7 @@ STRING.initCap()
         <p>Returns a new form of <i>STRING</i> with the first character of each word converted to uppercase and the rest characters to lowercase. Here a word means a sequences of alphanumeric characters.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -3166,11 +3166,11 @@ concat_ws(STRING1, STRING2, STRING3, ...)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p> 
+        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p>
         <p>E.g., <code>concat_ws("~", "AA", Null(Types.STRING), "BB", "", "CC")</code> returns "AA~BB~~CC".</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -3178,7 +3178,7 @@ STRING1.lpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
+        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
         <p>E.g., <code>"hi".lpad(4, "??")</code> returns "??hi";  <code>"hi".lpad(1, "??")</code> returns "h".</p>
       </td>
     </tr>
@@ -3190,11 +3190,11 @@ STRING1.rpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
+        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
         <p>E.g., <code>"hi".rpad(4, "??")</code> returns "hi??";  <code>"hi".rpad(1, "??")</code> returns "h".</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -3202,11 +3202,11 @@ STRING.fromBase64()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the base64-decoded result from <i>STRING</i>; returns null If <i>STRING</i> is NULL.</p> 
+        <p>Returns the base64-decoded result from <i>STRING</i>; returns null If <i>STRING</i> is NULL.</p>
         <p>E.g., <code>"aGVsbG8gd29ybGQ=".fromBase64()</code> returns "hello world".</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -3278,7 +3278,7 @@ INTERVAL string range
 {% endhighlight %}
       </td>
       <td>
-        <p>Parses an interval <i>string</i> in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months. An interval range might be <code>DAY</code>, <code>MINUTE</code>, <code>DAY TO HOUR</code>, or <code>DAY TO SECOND</code> for intervals of milliseconds; <code>YEAR</code> or <code>YEAR TO MONTH</code> for intervals of months.</p> 
+        <p>Parses an interval <i>string</i> in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months. An interval range might be <code>DAY</code>, <code>MINUTE</code>, <code>DAY TO HOUR</code>, or <code>DAY TO SECOND</code> for intervals of milliseconds; <code>YEAR</code> or <code>YEAR TO MONTH</code> for intervals of months.</p>
         <p>E.g., <code>INTERVAL '10 00:00:00.004' DAY TO SECOND</code>, <code>INTERVAL '10' DAY</code>, or <code>INTERVAL '2-10' YEAR TO MONTH</code> return intervals.</p>
       </td>
     </tr>
@@ -3357,11 +3357,11 @@ YEAR(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the year from SQL date <i>date</i>. Equivalent to EXTRACT(YEAR FROM date).</p> 
+        <p>Returns the year from SQL date <i>date</i>. Equivalent to EXTRACT(YEAR FROM date).</p>
         <p>E.g., <code>YEAR(DATE '1994-09-27')</code> returns 1994.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight text %}
@@ -3369,7 +3369,7 @@ QUARTER(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the quarter of a year (an integer between 1 and 4) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(QUARTER FROM date)</code>.</p> 
+        <p>Returns the quarter of a year (an integer between 1 and 4) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(QUARTER FROM date)</code>.</p>
         <p>E.g., <code>QUARTER(DATE '1994-09-27')</code> returns 3.</p>
       </td>
     </tr>
@@ -3381,7 +3381,7 @@ MONTH(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the month of a year (an integer between 1 and 12) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(MONTH FROM date)</code>.</p> 
+        <p>Returns the month of a year (an integer between 1 and 12) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(MONTH FROM date)</code>.</p>
         <p>E.g., <code>MONTH(DATE '1994-09-27')</code> returns 9.</p>
       </td>
     </tr>
@@ -3477,7 +3477,7 @@ FLOOR(timepoint TO timeintervalunit)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a value that rounds <i>timepoint</i> down to the time unit <i>timeintervalunit</i>.</p> 
+        <p>Returns a value that rounds <i>timepoint</i> down to the time unit <i>timeintervalunit</i>.</p>
         <p>E.g., <code>FLOOR(TIME '12:44:31' TO MINUTE)</code> returns 12:44:00.</p>
       </td>
     </tr>
@@ -3524,7 +3524,7 @@ TIMESTAMPADD(timeintervalunit, interval, timepoint)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new time value that adds a (signed) integer interval to <i>timepoint</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p> 
+        <p>Returns a new time value that adds a (signed) integer interval to <i>timepoint</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p>
         <p>E.g., <code>TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')</code> returns <code>2003-01-09</code>.</p>
       </td>
     </tr>
@@ -3553,7 +3553,7 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
    <tr>
       <td>
@@ -3635,7 +3635,7 @@ NUMERIC.weeks
         <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -3770,7 +3770,7 @@ TIMEPOINT.floor(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p> 
+        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p>
         <p>E.g., <code>'12:44:31'.toDate.floor(MINUTE)</code> returns 12:44:00.</p>
       </td>
     </tr>
@@ -3918,7 +3918,7 @@ NUMERIC.weeks
         <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -4053,7 +4053,7 @@ TIMEPOINT.floor(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p> 
+        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p>
         <p>E.g., <code>"12:44:31".toDate.floor(TimeIntervalUnit.MINUTE)</code> returns 12:44:00.</p>
       </td>
     </tr>
@@ -4153,7 +4153,7 @@ END
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns <i>resultX</i> when the first <i>conditionX</i> is met. 
+        <p>Returns <i>resultX</i> when the first <i>conditionX</i> is met.
         When no condition is met, returns <i>resultZ</i> if it is provided and returns NULL otherwise.</p>
       </td>
     </tr>
@@ -4193,7 +4193,7 @@ COALESCE(value1, value2 [, value3 ]* )
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -4202,7 +4202,7 @@ BOOLEAN.?(VALUE1, VALUE2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
+        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p>
         <p>E.g., <code>(42 > 5).?('A', 'B')</code> returns "A".</p>
       </td>
     </tr>
@@ -4218,7 +4218,7 @@ BOOLEAN.?(VALUE1, VALUE2)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -4227,7 +4227,7 @@ BOOLEAN.?(VALUE1, VALUE2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
+        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p>
         <p>E.g., <code>(42 > 5).?("A", "B")</code> returns "A".</p>
       </td>
     </tr>
@@ -4275,7 +4275,7 @@ CAST(value AS type)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -4435,7 +4435,7 @@ ARRAY.element()
         <p>Returns the sole element of <i>ARRAY</i> (whose cardinality should be one); returns NULL if <i>ARRAY</i> is empty. Throws an exception if <i>ARRAY</i> has more than one element.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -4503,7 +4503,7 @@ ARRAY.element()
         <p>Returns the sole element of <i>ARRAY</i> (whose cardinality should be one); returns NULL if <i>ARRAY</i> is empty. Throws an exception if <i>ARRAY</i> has more than one element.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -4589,7 +4589,7 @@ MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -4601,7 +4601,7 @@ row(ANY1, ANY2, ...)
         <p>Returns a row created from a list of object values (<i>ANY1, ANY2</i>, ...). Row is composite type that can be access via <a href="#value-access-functions">value access functions</a>.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -4623,7 +4623,7 @@ map(ANY1, ANY2, ANY3, ANY4, ...)
         <p>Returns a map created from a list of key-value pairs ((<i>ANY1, ANY2</i>), <i>(ANY3, ANY4)</i>, ...).</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -4658,7 +4658,7 @@ row(ANY1, ANY2, ...)
         <p>Returns a row created from a list of object values (<i>ANY1, ANY2</i>, ...). Row is composite type that can be access via <a href="#value-access-functions">value access functions</a>.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -4669,7 +4669,7 @@ array(ANY1, ANY2, ...)
         <p>Returns an array created from a list of object values (<i>ANY1, ANY2</i>, ...).</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -4680,7 +4680,7 @@ map(ANY1, ANY2, ANY3, ANY4, ...)
         <p>Returns a map created from a list of key-value pairs ((<i>ANY1, ANY2</i>), <i>(ANY3, ANY4)</i>, ...).</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -4917,7 +4917,7 @@ SHA1(string)
         <p>Returns the SHA-1 hash of <i>string</i> as a string of 40 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight text %}
@@ -4927,8 +4927,8 @@ SHA224(string)
       <td>
         <p>Returns the SHA-224 hash of <i>string</i> as a string of 56 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
-    </tr>    
-    
+    </tr>
+
     <tr>
       <td>
         {% highlight text %}
@@ -4939,7 +4939,7 @@ SHA256(string)
         <p>Returns the SHA-256 hash of <i>string</i> as a string of 64 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight text %}
@@ -4949,7 +4949,7 @@ SHA384(string)
       <td>
         <p>Returns the SHA-384 hash of <i>string</i> as a string of 96 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
-    </tr>  
+    </tr>
 
     <tr>
       <td>
@@ -4985,7 +4985,7 @@ SHA2(string, hashLength)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -5076,7 +5076,7 @@ STRING.sha2(INT)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -5121,7 +5121,7 @@ STRING.sha256()
         <p>Returns the SHA-256 hash of <i>STRING</i> as a string of 64 hexadecimal digits; returns NULL if <i>STRING</i> is NULL.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -5131,7 +5131,7 @@ STRING.sha384()
       <td>
         <p>Returns the SHA-384 hash of <i>STRING</i> as a string of 96 hexadecimal digits; returns NULL if <i>STRING</i> is NULL.</p>
       </td>
-    </tr>    
+    </tr>
 
     <tr>
       <td>
@@ -5234,7 +5234,7 @@ ANY.as(NAME1, NAME2, ...)
 Aggregate Functions
 -------------------
 
-The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result. 
+The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -5380,7 +5380,7 @@ COLLECT([ ALL | DISTINCT ] expression)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-  
+
   <tbody>
     <tr>
       <td>
@@ -5458,7 +5458,7 @@ FIELD.stddevPop
         <p>Returns the population standard deviation of numeric field <i>FIELD</i> across all input rows.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight java %}
@@ -5592,7 +5592,7 @@ FIELD.stddevPop
         <p>Returns the population standard deviation of numeric field <i>FIELD</i> across all input rows.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight scala %}
@@ -5763,7 +5763,7 @@ The following table lists specifiers for date format functions.
 Time Interval and Point Unit Specifiers
 ---------------------------------------
 
-The following table lists specifiers for time interval and time point units. 
+The following table lists specifiers for time interval and time point units.
 
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 
@@ -5798,5 +5798,287 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 |                          | `SQL_TSI_HOUR` _(SQL-only)_    |
 |                          | `SQL_TSI_MINUTE` _(SQL-only)_  |
 |                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
+
+{% top %}
+
+Column Functions
+---------------------------------------
+
+The column functions are used to select or deselect table columns.
+
+| SYNTAX              | DESC                         |
+| :--------------------- | :-------------------------- |
+| withColumns(...)         | select the specified columns                  |
+| withoutColumns(...)        | deselect the columns specified                  |
+
+The detailed syntax is as follows:
+
+{% highlight text %}
+columnFunction:
+    withColumns(columnExprs)
+    withoutColumns(columnExprs)
+
+columnExprs:
+    columnExpr [, columnExpr]*
+
+columnExpr:
+    columnRef | columnIndex to columnIndex | columnName to columnName
+
+columnRef:
+    columnName(The field name that exists in the table) | columnIndex(a positive integer starting from 1)
+{% endhighlight %}
+
+The usage of the column function is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Api</th>
+      <th class="text-center">Usage</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        withColumns(*)|*
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(*)") | select("*") = select("a, b, c, d, e")
+{% endhighlight %}
+      </td>
+      <td>
+        all the columns
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m to n)
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(2 to 4)") = select("b, c, d")
+{% endhighlight %}
+      </td>
+      <td>
+        columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m, n, k)
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(1, 3, e)") = select("a, c, e")
+{% endhighlight %}
+      </td>
+      <td>
+        columns m, n, k
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m, n to k)
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(1, 3 to 5)") = select("a, c, d ,e")
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m to n)
+      </td>
+      <td>
+{% highlight java %}
+select("withoutColumns(2 to 4)") = select("a, e")
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m, n, k)
+      </td>
+      <td>
+{% highlight java %}
+select("withoutColumns(1, 3, 5)") = select("b, d")
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns m, n, k
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m, n to k)
+      </td>
+      <td>
+{% highlight java %}
+select("withoutColumns(1, 3 to 5)") = select("b")
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<div data-lang="scala" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Api</th>
+      <th class="text-center">Usage</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        withColumns(*)|*
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        all the columns
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m to n)
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns(2 to 4)) = select('b, 'c, 'd)
+{% endhighlight %}
+      </td>
+      <td>
+        columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m, n, k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns(1, 3, 'e)) = select('a, 'c, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        columns m, n, k
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m, n to k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns(1, 3 to 5)) = select('a, 'c, 'd, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m to n)
+      </td>
+      <td>
+{% highlight scala %}
+select(withoutColumns(2 to 4)) = select('a, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m, n, k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withoutColumns(1, 3, 5)) = select('b, 'd)
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns m, n, k
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m, n to k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withoutColumns(1, 3 to 5)) = select('b)
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+</div>
+
+The column functions can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDFs etc.` e.g.:
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+table
+   .groupBy("withColumns(1 to 3)")
+   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+table
+   .groupBy(withColumns(1 to 3))
+   .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
+{% endhighlight %}
+</div>
+</div>
+
+<span class="label label-info">Note</span> Column functions are only used in Table API.
 
 {% top %}

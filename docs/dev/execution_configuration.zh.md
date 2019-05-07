@@ -1,5 +1,5 @@
 ---
-title: "Execution Configuration"
+title: "执行配置"
 nav-parent_id: execution
 nav-pos: 10
 ---
