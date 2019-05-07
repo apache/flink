@@ -20,9 +20,14 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.Date;
 
 import java.util.Map;
 
@@ -91,6 +96,14 @@ public class CatalogTestUtil {
 			checkEquals((CatalogColumnStatisticsDataBoolean) v1, (CatalogColumnStatisticsDataBoolean) v2);
 		} else if (v1 instanceof CatalogColumnStatisticsDataLong) {
 			checkEquals((CatalogColumnStatisticsDataLong) v1, (CatalogColumnStatisticsDataLong) v2);
+		} else if (v1 instanceof CatalogColumnStatisticsDataBinary) {
+			checkEquals((CatalogColumnStatisticsDataBinary) v1, (CatalogColumnStatisticsDataBinary) v2);
+		} else if (v1 instanceof CatalogColumnStatisticsDataDate) {
+			checkEquals((CatalogColumnStatisticsDataDate) v1, (CatalogColumnStatisticsDataDate) v2);
+		} else if (v1 instanceof CatalogColumnStatisticsDataString) {
+			checkEquals((CatalogColumnStatisticsDataString) v1, (CatalogColumnStatisticsDataString) v2);
+		} else if (v1 instanceof CatalogColumnStatisticsDataDouble) {
+			checkEquals((CatalogColumnStatisticsDataDouble) v1, (CatalogColumnStatisticsDataDouble) v2);
 		}
 	}
 
@@ -107,6 +120,41 @@ public class CatalogTestUtil {
 		assertEquals(v1.getNdv(), v2.getNdv());
 		assertEquals(v1.getNullCount(), v2.getNullCount());
 		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataDouble v1, CatalogColumnStatisticsDataDouble v2) {
+		assertEquals(v1.getMin(), v2.getMin());
+		assertEquals(v1.getMax(), v2.getMax());
+		assertEquals(v1.getNdv(), v2.getNdv());
+		assertEquals(v1.getNullCount(), v2.getNullCount());
+		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataString v1, CatalogColumnStatisticsDataString v2) {
+		assertEquals(v1.getMaxLength(), v2.getMaxLength());
+		assertEquals(v1.getAvgLength(), v2.getAvgLength());
+		assertEquals(v1.getNdv(), v2.getNdv());
+		assertEquals(v1.getNullCount(), v2.getNullCount());
+		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataBinary v1, CatalogColumnStatisticsDataBinary v2) {
+		assertEquals(v1.getMaxLength(), v2.getMaxLength());
+		assertEquals(v1.getAvgLength(), v2.getAvgLength());
+		assertEquals(v1.getNullCount(), v2.getNullCount());
+		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
+	private static void checkEquals(CatalogColumnStatisticsDataDate v1, CatalogColumnStatisticsDataDate v2) {
+		checkEquals(v1.getMin(), v2.getMin());
+		checkEquals(v1.getMax(), v2.getMax());
+		assertEquals(v1.getNdv(), v2.getNdv());
+		assertEquals(v1.getNullCount(), v2.getNullCount());
+		assertEquals(v1.getProperties(), v2.getProperties());
+	}
+
+	private static void checkEquals(Date v1, Date v2) {
+		assertEquals(v1.getDaysSinceEpoch(), v2.getDaysSinceEpoch());
 	}
 
 }
