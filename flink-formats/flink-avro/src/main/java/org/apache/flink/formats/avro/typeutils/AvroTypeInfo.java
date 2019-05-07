@@ -29,7 +29,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.apache.avro.specific.SpecificRecordBase;
 
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +65,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 			PojoTypeExtractor pte = new PojoTypeExtractor();
 			List<Type> typeHierarchy = new ArrayList<>();
 			typeHierarchy.add(typeClass);
-			TypeInformation<T> ti = pte.analyzePojo(typeClass, typeHierarchy, null, null, null);
+			TypeInformation<T> ti = pte.analyzePojo(typeClass, typeHierarchy, null, null);
 
 			if (!(ti instanceof PojoTypeInfo)) {
 				throw new IllegalStateException("Expecting type to be a PojoTypeInfo");
@@ -96,9 +95,12 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 		}
 
 		@Override
-		public <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, List<Type> typeHierarchy,
-				ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-			return super.analyzePojo(clazz, typeHierarchy, parameterizedType, in1Type, in2Type);
+		public <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(
+				Type type,
+				List<Type> typeHierarchy,
+				TypeInformation<IN1> in1Type,
+				TypeInformation<IN2> in2Type) {
+			return super.analyzePojo(type, typeHierarchy, in1Type, in2Type);
 		}
 	}
 }
