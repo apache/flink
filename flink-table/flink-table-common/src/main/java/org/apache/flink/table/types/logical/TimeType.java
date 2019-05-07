@@ -43,11 +43,11 @@ import java.util.Set;
 @PublicEvolving
 public final class TimeType extends LogicalType {
 
-	private static final int MIN_PRECISION = 0;
+	public static final int MIN_PRECISION = 0;
 
-	private static final int MAX_PRECISION = 9;
+	public static final int MAX_PRECISION = 9;
 
-	private static final int DEFAULT_PRECISION = 0;
+	public static final int DEFAULT_PRECISION = 0;
 
 	private static final String FORMAT = "TIME(%d)";
 

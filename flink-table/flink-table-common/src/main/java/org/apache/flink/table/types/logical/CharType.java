@@ -38,11 +38,11 @@ import java.util.Set;
 @PublicEvolving
 public final class CharType extends LogicalType {
 
-	private static final int MIN_LENGTH = 1;
+	public static final int MIN_LENGTH = 1;
 
-	private static final int MAX_LENGTH = 255;
+	public static final int MAX_LENGTH = 255;
 
-	private static final int DEFAULT_LENGTH = 1;
+	public static final int DEFAULT_LENGTH = 1;
 
 	private static final String FORMAT = "CHAR(%d)";
 

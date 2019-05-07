@@ -54,17 +54,17 @@ import java.util.Set;
 @PublicEvolving
 public final class DayTimeIntervalType extends LogicalType {
 
-	private static final int MIN_DAY_PRECISION = 1;
+	public static final int MIN_DAY_PRECISION = 1;
 
-	private static final int MAX_DAY_PRECISION = 6;
+	public static final int MAX_DAY_PRECISION = 6;
 
-	private static final int DEFAULT_DAY_PRECISION = 2;
+	public static final int DEFAULT_DAY_PRECISION = 2;
 
-	private static final int MIN_FRACTIONAL_PRECISION = 0;
+	public static final int MIN_FRACTIONAL_PRECISION = 0;
 
-	private static final int MAX_FRACTIONAL_PRECISION = 9;
+	public static final int MAX_FRACTIONAL_PRECISION = 9;
 
-	private static final int DEFAULT_FRACTIONAL_PRECISION = 6;
+	public static final int DEFAULT_FRACTIONAL_PRECISION = 6;
 
 	private static final String DAY_FORMAT = "INTERVAL DAY(%1$d)";
 
