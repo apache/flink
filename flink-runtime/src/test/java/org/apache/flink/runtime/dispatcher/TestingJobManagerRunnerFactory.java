@@ -24,6 +24,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerRunnerImpl;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -82,10 +83,10 @@ class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
 		} else {
 			jobGraphFuture.complete(jobGraph);
 
-			final JobManagerRunner mock = mock(JobManagerRunner.class);
+			final JobManagerRunnerImpl mock = mock(JobManagerRunnerImpl.class);
 			when(mock.getResultFuture()).thenReturn(resultFuture);
 			when(mock.closeAsync()).thenReturn(terminationFuture);
-			when(mock.getJobGraph()).thenReturn(jobGraph);
+			when(mock.getJobID()).thenReturn(jobGraph.getJobID());
 
 			return mock;
 		}

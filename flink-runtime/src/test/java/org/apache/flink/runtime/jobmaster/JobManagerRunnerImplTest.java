@@ -64,9 +64,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link JobManagerRunner}.
+ * Tests for the {@link JobManagerRunnerImpl}.
  */
-public class JobManagerRunnerTest extends TestLogger {
+public class JobManagerRunnerImplTest extends TestLogger {
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -129,7 +129,7 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	@Test
 	public void testJobCompletion() throws Exception {
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
+		final JobManagerRunnerImpl jobManagerRunner = createJobManagerRunner();
 
 		try {
 			jobManagerRunner.start();
@@ -148,7 +148,7 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	@Test
 	public void testJobFinishedByOther() throws Exception {
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
+		final JobManagerRunnerImpl jobManagerRunner = createJobManagerRunner();
 
 		try {
 			jobManagerRunner.start();
@@ -217,7 +217,7 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link JobManagerRunner} always waits for the previous leadership operation
+	 * Tests that the {@link JobManagerRunnerImpl} always waits for the previous leadership operation
 	 * (granting or revoking leadership) to finish before starting a new leadership operation.
 	 */
 	@Test
@@ -254,7 +254,7 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link JobManagerRunner} always waits for the previous leadership operation
+	 * Tests that the {@link JobManagerRunnerImpl} always waits for the previous leadership operation
 	 * (granting or revoking leadership) to finish before starting a new leadership operation.
 	 */
 	@Test
@@ -299,7 +299,7 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	@Nonnull
-	private JobManagerRunner createJobManagerRunner() throws Exception {
+	private JobManagerRunnerImpl createJobManagerRunner() throws Exception {
 		return createJobManagerRunner(defaultJobMasterServiceFactory, libraryCacheManager);
 	}
 
@@ -309,8 +309,8 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	@Nonnull
-	private JobManagerRunner createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory, LibraryCacheManager libraryCacheManager) throws Exception{
-		return new JobManagerRunner(
+	private JobManagerRunnerImpl createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory, LibraryCacheManager libraryCacheManager) throws Exception{
+		return new JobManagerRunnerImpl(
 			jobGraph,
 			jobMasterServiceFactory,
 			haServices,
