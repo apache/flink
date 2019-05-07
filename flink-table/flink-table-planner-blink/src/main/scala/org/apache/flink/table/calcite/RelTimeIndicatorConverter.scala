@@ -51,25 +51,20 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
   val materializerUtils = new RexTimeIndicatorMaterializerUtils(rexBuilder)
 
-  override def visit(intersect: LogicalIntersect): RelNode =
-    visitSetOp(intersect)
+  override def visit(intersect: LogicalIntersect): RelNode = visitSetOp(intersect)
 
-  override def visit(union: LogicalUnion): RelNode =
-    visitSetOp(union)
+  override def visit(union: LogicalUnion): RelNode = visitSetOp(union)
 
   override def visit(aggregate: LogicalAggregate): RelNode = convertAggregate(aggregate)
 
-  override def visit(minus: LogicalMinus): RelNode =
-    visitSetOp(minus)
+  override def visit(minus: LogicalMinus): RelNode = visitSetOp(minus)
 
   override def visit(sort: LogicalSort): RelNode = {
-
     val input = sort.getInput.accept(this)
     LogicalSort.create(input, sort.collation, sort.offset, sort.fetch)
   }
 
-  override def visit(`match`: LogicalMatch): RelNode =
-    convertMatch(`match`)
+  override def visit(`match`: LogicalMatch): RelNode = convertMatch(`match`)
 
   override def visit(other: RelNode): RelNode = other match {
     case collect: Collect =>
@@ -107,7 +102,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       val projects = newInput.getRowType.getFieldList.map { field =>
         if (isProctimeIndicatorType(field.getType)) {
           needsConversion = true
-          rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME,
+          rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
             new RexInputRef(field.getIndex, field.getType))
         } else {
           new RexInputRef(field.getIndex, field.getType)
@@ -366,7 +361,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
                 rexBuilder.makeAbstractCast(timestamp(expr.getType.isNullable), expr)
               } else {
                 // generate proctime access
-                rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME, expr)
+                rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE, expr)
               }
             } else {
               expr
@@ -390,7 +385,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
               } else {
                 // generate proctime access
                 rexBuilder.makeCall(
-                  FlinkSqlOperatorTable.PROCTIME,
+                  FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
                   new RexInputRef(field.getIndex, field.getType))
               }
             } else {
@@ -454,7 +449,7 @@ object RelTimeIndicatorConverter {
       if (isProctimeIndicatorType(field.getType)) {
         needsConversion = true
         rexBuilder.makeCall(
-          FlinkSqlOperatorTable.PROCTIME,
+          FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
           new RexInputRef(field.getIndex, field.getType))
       } else {
         new RexInputRef(field.getIndex, field.getType)
@@ -493,7 +488,7 @@ object RelTimeIndicatorConverter {
     */
   def isMaterializationCall(call: RexCall): Boolean = {
     val isProctimeCall: Boolean = {
-      call.getOperator == FlinkSqlOperatorTable.PROCTIME &&
+      call.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE &&
         call.getOperands.size() == 1 &&
         isProctimeIndicatorType(call.getOperands.get(0).getType)
     }
@@ -557,7 +552,7 @@ class RexTimeIndicatorMaterializer(
               rexBuilder.makeAbstractCast(timestamp(o.getType.isNullable), o)
             } else {
               // generate proctime access
-              rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME, o)
+              rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE, o)
             }
           } else {
             o
@@ -586,7 +581,7 @@ class RexTimeIndicatorMaterializer(
 
       // materialize function's result and operands
       case _ if isTimeIndicatorType(updatedCall.getType) =>
-        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME) {
+        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE) {
           updatedCall
         } else {
           updatedCall.clone(timestamp(updatedCall.getType.isNullable), materializedOperands)
@@ -645,8 +640,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
   def materializeIfContains(expr: RexNode, index: Int, indicesToMaterialize: Set[Int]): RexNode = {
     if (indicesToMaterialize.contains(index)) {
       materialize(expr)
-    }
-    else {
+    } else {
       expr
     }
   }
@@ -658,7 +652,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
         rexBuilder.makeAbstractCast(timestamp(expr.getType.isNullable), expr)
       } else {
         // generate proctime access
-        rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME, expr)
+        rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE, expr)
       }
     } else {
       expr

@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.logical._
@@ -38,17 +38,6 @@ import scala.collection.JavaConversions._
 
 /**
   * Streaming group window aggregate physical node which will be translate to window operator.
-  *
-  * If requirements satisfied, it will be translated into minibatch window operator, otherwise,
-  * will be translated into general window operator.
-  *
-  * The requirements including:
-  * 1. [[TableConfigOptions.SQL_EXEC_MINI_BATCH_WINDOW_ENABLED]] is enabled
-  * 2. It's an aligned window, e.g. tumbling windows, sliding windows with size is an integral
-  *     multiple of slide. So that session window is not supported.
-  * 3. Only support event time windows, not processing time windows or count windows.
-  * 4. No early/late fire is configured.
-  * 5. All the aggregate function should support merge.
   */
 class StreamExecGroupWindowAggregate(
     cluster: RelOptCluster,

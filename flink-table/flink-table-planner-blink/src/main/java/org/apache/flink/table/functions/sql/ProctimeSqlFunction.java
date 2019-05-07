@@ -18,18 +18,16 @@
 
 package org.apache.flink.table.functions.sql;
 
+import org.apache.flink.table.calcite.FlinkTypeFactory;
+
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.type.SqlTypeTransforms;
-import org.apache.calcite.sql.validate.SqlMonotonicity;
 
 /**
  * Function used to access a proctime attribute.
@@ -37,26 +35,18 @@ import org.apache.calcite.sql.validate.SqlMonotonicity;
 public class ProctimeSqlFunction extends SqlFunction {
 	public ProctimeSqlFunction() {
 		super(
-			"PROCTIME",
-			SqlKind.OTHER_FUNCTION,
-			ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.TO_NULLABLE),
-			InferTypes.RETURN_TYPE,
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP),
-			SqlFunctionCategory.SYSTEM);
+				"PROCTIME",
+				SqlKind.OTHER_FUNCTION,
+				ReturnTypes.explicit(new ProctimeRelProtoDataType()),
+				null,
+				OperandTypes.NILADIC,
+				SqlFunctionCategory.TIMEDATE);
 	}
 
-	@Override
-	public SqlSyntax getSyntax() {
-		return SqlSyntax.FUNCTION;
-	}
-
-	@Override
-	public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-		return SqlMonotonicity.INCREASING;
-	}
-
-	@Override
-	public boolean isDeterministic() {
-		return false;
+	private static class ProctimeRelProtoDataType implements RelProtoDataType {
+		@Override
+		public RelDataType apply(RelDataTypeFactory factory) {
+			return ((FlinkTypeFactory) factory).createRowtimeIndicatorType();
+		}
 	}
 }

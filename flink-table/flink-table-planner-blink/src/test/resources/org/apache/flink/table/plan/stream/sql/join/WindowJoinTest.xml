@@ -35,7 +35,7 @@ LogicalProject(a=[$0], b=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=0, leftUpperBound=0, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), =(PROCTIME(proctime), PROCTIME(proctime0)))], select=[a, proctime, a0, b, proctime0])
++- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=0, leftUpperBound=0, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), =(PROCTIME_MATERIALIZE(proctime), PROCTIME_MATERIALIZE(proctime0)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
    :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -184,7 +184,7 @@ LogicalProject(a=[$0], b=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000:INTERVAL HOUR)), <=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
++- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(PROCTIME_MATERIALIZE(proctime), -(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)), <=(PROCTIME_MATERIALIZE(proctime), +(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
    :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])

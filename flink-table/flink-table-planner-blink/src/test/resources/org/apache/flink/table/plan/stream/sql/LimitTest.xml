@@ -129,7 +129,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME(proctime) AS proctime, rowtime])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime])
 +- Limit(offset=[0], fetch=[0])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -149,7 +149,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PROCTIME(proctime) AS proctime, c])
+Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, c])
 +- Limit(offset=[0], fetch=[0])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -169,7 +169,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PROCTIME(proctime) AS desc, c])
+Calc(select=[PROCTIME_MATERIALIZE(proctime) AS desc, c])
 +- Limit(offset=[0], fetch=[0])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -189,7 +189,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, PROCTIME(proctime) AS desc])
+Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS desc])
 +- Limit(offset=[0], fetch=[0])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -209,7 +209,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, PROCTIME(proctime) AS proctime])
+Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- Limit(offset=[0], fetch=[0])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -349,7 +349,7 @@ LogicalSort(fetch=[5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME(proctime) AS proctime, rowtime])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime])
 +- Limit(offset=[0], fetch=[5])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -369,7 +369,7 @@ LogicalSort(fetch=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PROCTIME(proctime) AS proctime, c])
+Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, c])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -389,7 +389,7 @@ LogicalSort(fetch=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PROCTIME(proctime) AS desc, c])
+Calc(select=[PROCTIME_MATERIALIZE(proctime) AS desc, c])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -409,7 +409,7 @@ LogicalSort(fetch=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, PROCTIME(proctime) AS desc])
+Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS desc])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -429,7 +429,7 @@ LogicalSort(fetch=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, PROCTIME(proctime) AS proctime])
+Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -529,7 +529,7 @@ LogicalSort(offset=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PROCTIME(proctime) AS proctime, c])
+Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, c])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -569,7 +569,7 @@ LogicalSort(offset=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PROCTIME(proctime) AS desc, c])
+Calc(select=[PROCTIME_MATERIALIZE(proctime) AS desc, c])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -589,7 +589,7 @@ LogicalSort(offset=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, PROCTIME(proctime) AS desc])
+Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS desc])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -609,7 +609,7 @@ LogicalSort(offset=[2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[c, PROCTIME(proctime) AS proctime])
+Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])

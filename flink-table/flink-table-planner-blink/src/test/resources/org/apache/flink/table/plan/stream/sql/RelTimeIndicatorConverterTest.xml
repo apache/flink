@@ -33,7 +33,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[long], select=[long, MIN(proctime) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
-      +- Calc(select=[long, PROCTIME(proctime) AS proctime])
+      +- Calc(select=[long, PROCTIME_MATERIALIZE(proctime) AS proctime])
          +- DataStreamScan(table=[[_DataStreamTable_2]], fields=[long, int, proctime])
 ]]>
     </Resource>
@@ -95,7 +95,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[proctime], select=[proctime, COUNT(long) AS EXPR$0])
    +- Exchange(distribution=[hash[proctime]])
-      +- Calc(select=[PROCTIME(proctime) AS proctime, long])
+      +- Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, long])
          +- DataStreamScan(table=[[_DataStreamTable_2]], fields=[long, int, proctime])
 ]]>
     </Resource>
@@ -169,7 +169,7 @@ LogicalProject(rowtime=[$0], long=[$1], int=[$2], proctime=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[rowtime, long, int, PROCTIME(proctime) AS proctime])
+Calc(select=[rowtime, long, int, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
@@ -212,8 +212,8 @@ LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[rowtime, PROCTIME(proctime) AS proctime, f0 AS s])
-+- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3) NOT NULL, PROCTIME($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) f0)], joinType=[INNER])
+Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
++- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3) NOT NULL, PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) f0)], joinType=[INNER])
    +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
