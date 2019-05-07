@@ -68,7 +68,7 @@ public abstract class CatalogTestBase {
 
 	protected static final String TEST_COMMENT = "test comment";
 
-	protected static ReadableWritableCatalog catalog;
+	protected static Catalog catalog;
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
