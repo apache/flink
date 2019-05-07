@@ -39,15 +39,15 @@ import java.util.Set;
 @PublicEvolving
 public final class DecimalType extends LogicalType {
 
-	private static final int MIN_PRECISION = 1;
+	public static final int MIN_PRECISION = 1;
 
-	private static final int MAX_PRECISION = 38;
+	public static final int MAX_PRECISION = 38;
 
-	private static final int DEFAULT_PRECISION = 10;
+	public static final int DEFAULT_PRECISION = 10;
 
-	private static final int MIN_SCALE = 0;
+	public static final int MIN_SCALE = 0;
 
-	private static final int DEFAULT_SCALE = 0;
+	public static final int DEFAULT_SCALE = 0;
 
 	private static final String FORMAT = "DECIMAL(%d, %d)";
 

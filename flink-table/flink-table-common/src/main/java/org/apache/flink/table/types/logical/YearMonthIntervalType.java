@@ -47,11 +47,11 @@ import java.util.Set;
 @PublicEvolving
 public final class YearMonthIntervalType extends LogicalType {
 
-	private static final int MIN_PRECISION = 1;
+	public static final int MIN_PRECISION = 1;
 
-	private static final int MAX_PRECISION = 4;
+	public static final int MAX_PRECISION = 4;
 
-	private static final int DEFAULT_PRECISION = 2;
+	public static final int DEFAULT_PRECISION = 2;
 
 	private static final String YEAR_FORMAT = "INTERVAL YEAR(%d)";
 
