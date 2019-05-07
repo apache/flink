@@ -805,8 +805,9 @@ public class TypeExtractor {
 
 			// go up the hierarchy until we reach immediate child of Tuple (with or without generics)
 			// collect the types while moving up for a later top-down
+			List<Type> typeHierarchyForSubtypes = new ArrayList<>(typeHierarchy);
 			while (!(isClassType(curT) && typeToClass(curT).getSuperclass().equals(Tuple.class))) {
-				typeHierarchy.add(curT);
+				typeHierarchyForSubtypes.add(curT);
 				curT = typeToClass(curT).getGenericSuperclass();
 			}
 
@@ -819,24 +820,19 @@ public class TypeExtractor {
 				throw new InvalidTypesException("Tuple needs to be parameterized by using generics.");
 			}
 
-			typeHierarchy.add(curT);
+			typeHierarchyForSubtypes.add(curT);
 
 			// create the type information for the subtypes
 			final TypeInformation<?>[] subTypesInfo = createSubTypesInfo(
 				t,
 				(ParameterizedType) curT,
-				typeHierarchy,
+				typeHierarchyForSubtypes,
 				in1Type,
 				in2Type,
 				false);
 			// type needs to be treated a pojo due to additional fields
 			if (subTypesInfo == null) {
-				if (t instanceof ParameterizedType) {
-					return analyzePojo(typeToClass(t), new ArrayList<>(typeHierarchy), (ParameterizedType) t, in1Type, in2Type);
-				}
-				else {
-					return analyzePojo(typeToClass(t), new ArrayList<>(typeHierarchy), null, in1Type, in2Type);
-				}
+				return analyzePojo(t, new ArrayList<>(typeHierarchy), in1Type, in2Type);
 			}
 			// return tuple info
 			return new TupleTypeInfo(typeToClass(t), subTypesInfo);
@@ -1692,7 +1688,8 @@ public class TypeExtractor {
 		}
 
 		try {
-			TypeInformation<OUT> pojoType = analyzePojo(clazz, new ArrayList<>(typeHierarchy), parameterizedType, in1Type, in2Type);
+			Type t = parameterizedType != null ? parameterizedType : clazz;
+			TypeInformation<OUT> pojoType = analyzePojo(t, new ArrayList<>(typeHierarchy), in1Type, in2Type);
 			if (pojoType != null) {
 				return pojoType;
 			}
@@ -1772,9 +1769,13 @@ public class TypeExtractor {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, List<Type> typeHierarchy,
-			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+	protected <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(
+			Type type,
+			List<Type> typeHierarchy,
+			TypeInformation<IN1> in1Type,
+			TypeInformation<IN2> in2Type) {
 
+		Class<OUT> clazz = typeToClass(type);
 		if (!Modifier.isPublic(clazz.getModifiers())) {
 			LOG.info("Class " + clazz.getName() + " is not public so it cannot be used as a POJO type " +
 				"and must be processed as GenericType. Please read the Flink documentation " +
@@ -1782,14 +1783,8 @@ public class TypeExtractor {
 			return new GenericTypeInfo<>(clazz);
 		}
 
-		// add the hierarchy of the POJO itself if it is generic
-		if (parameterizedType != null) {
-			getTypeHierarchy(typeHierarchy, parameterizedType, Object.class);
-		}
-		// create a type hierarchy, if the incoming only contains the most bottom one or none.
-		else if (typeHierarchy.size() <= 1) {
-			getTypeHierarchy(typeHierarchy, clazz, Object.class);
-		}
+		// add the hierarchy of the POJO
+		getTypeHierarchy(typeHierarchy, type, Object.class);
 
 		List<Field> fields = getAllDeclaredFields(clazz, false);
 		if (fields.size() == 0) {
@@ -1950,7 +1945,7 @@ public class TypeExtractor {
 			int numFields = t.getArity();
 			if(numFields != countFieldsInClass(value.getClass())) {
 				// not a tuple since it has more fields.
-				return analyzePojo((Class<X>) value.getClass(), new ArrayList<Type>(), null, null, null); // we immediately call analyze Pojo here, because
+				return analyzePojo(value.getClass(), new ArrayList<>(), null, null); // we immediately call analyze Pojo here, because
 				// there is currently no other type that can handle such a class.
 			}
 
