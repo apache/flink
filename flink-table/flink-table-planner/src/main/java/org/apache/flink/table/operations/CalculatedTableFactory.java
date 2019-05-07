@@ -21,7 +21,6 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.api.TableEnvImpl$;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
@@ -30,6 +29,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.TableFunctionDefinition;
+import org.apache.flink.table.typeutils.FieldInfoUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -103,7 +103,7 @@ public class CalculatedTableFactory {
 
 			String[] fieldNames;
 			if (aliasesSize == 0) {
-				fieldNames = TableEnvImpl$.MODULE$.getFieldNames(resultType);
+				fieldNames = FieldInfoUtils.getFieldNames(resultType);
 			} else if (aliasesSize != callArity) {
 				throw new ValidationException(String.format(
 					"List of column aliases must have same degree as table; " +
@@ -116,7 +116,7 @@ public class CalculatedTableFactory {
 				fieldNames = aliases.toArray(new String[aliasesSize]);
 			}
 
-			TypeInformation<?>[] fieldTypes = TableEnvImpl$.MODULE$.getFieldTypes(resultType);
+			TypeInformation<?>[] fieldTypes = FieldInfoUtils.getFieldTypes(resultType);
 
 			return new CalculatedTableOperation(
 				tableFunctionDefinition.getTableFunction(),

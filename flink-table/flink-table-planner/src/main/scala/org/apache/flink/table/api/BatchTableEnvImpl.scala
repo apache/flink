@@ -32,7 +32,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{Expression, TimeAttribute}
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
+import org.apache.flink.table.expressions.{CallExpression, Expression}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -40,6 +41,7 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
+import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldInfo, validateType}
 import org.apache.flink.types.Row
 
 /**
@@ -317,11 +319,11 @@ abstract class BatchTableEnvImpl(
     */
   protected def registerDataSetInternal[T](name: String, dataSet: DataSet[T]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType)
+    val fieldInfo = getFieldInfo[T](dataSet.getType)
     val dataSetTable = new DataSetTable[T](
       dataSet,
-      fieldIndexes,
-      fieldNames
+      fieldInfo.getIndices,
+      fieldInfo.getFieldNames
     )
     registerTableInternal(name, dataSetTable)
   }
@@ -339,18 +341,19 @@ abstract class BatchTableEnvImpl(
       name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
 
     val inputType = dataSet.getType
-    val bridgedFields = fields.map(expressionBridge.bridge).toArray[Expression]
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](
+    val fieldsInfo = getFieldInfo[T](
       inputType,
-      bridgedFields)
+      fields)
 
-    if (bridgedFields.exists(_.isInstanceOf[TimeAttribute])) {
+    if (fields.exists(f =>
+      f.isInstanceOf[CallExpression] &&
+        TIME_ATTRIBUTES.contains(f.asInstanceOf[CallExpression].getFunctionDefinition))) {
       throw new ValidationException(
         ".rowtime and .proctime time indicators are not allowed in a batch environment.")
     }
 
-    val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
+    val dataSetTable = new DataSetTable[T](dataSet, fieldsInfo.getIndices, fieldsInfo.getFieldNames)
     registerTableInternal(name, dataSetTable)
   }
 
@@ -414,7 +417,7 @@ abstract class BatchTableEnvImpl(
       logicalPlan: RelNode,
       logicalType: RelDataType,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    TableEnvImpl.validateType(tpe)
+    validateType(tpe)
 
     logicalPlan match {
       case node: DataSetRel =>

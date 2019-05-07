@@ -51,6 +51,7 @@ import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFuncti
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldInfo, isReferenceByPosition}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -441,11 +442,11 @@ abstract class StreamTableEnvImpl(
     name: String,
     dataStream: DataStream[T]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
+    val fieldInfo = getFieldInfo[T](dataStream.getType)
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
-      fieldIndexes,
-      fieldNames
+      fieldInfo.getIndices,
+      fieldInfo.getFieldNames
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -466,13 +467,12 @@ abstract class StreamTableEnvImpl(
     : Unit = {
 
     val streamType = dataStream.getType
-    val bridgedFields = fields.map(expressionBridge.bridge).toArray[Expression]
 
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, bridgedFields)
+    val fieldsInfo = getFieldInfo[T](streamType, fields)
 
     // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, bridgedFields)
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
@@ -482,8 +482,8 @@ abstract class StreamTableEnvImpl(
     }
 
     // adjust field indexes and field names
-    val indexesWithIndicatorFields = adjustFieldIndexes(fieldIndexes, rowtime, proctime)
-    val namesWithIndicatorFields = adjustFieldNames(fieldNames, rowtime, proctime)
+    val indexesWithIndicatorFields = adjustFieldIndexes(fieldsInfo.getIndices, rowtime, proctime)
+    val namesWithIndicatorFields = adjustFieldNames(fieldsInfo.getFieldNames, rowtime, proctime)
 
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
@@ -591,7 +591,8 @@ abstract class StreamTableEnvImpl(
       }
     }
 
-    exprs.zipWithIndex.foreach {
+    val bridgedFields = exprs.map(expressionBridge.bridge).toArray[Expression]
+    bridgedFields.zipWithIndex.foreach {
       case (RowtimeAttribute(UnresolvedFieldReference(name)), idx) =>
         extractRowtime(idx, name, None)
 
