@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.Map;
 
@@ -36,16 +37,12 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Utility class for catalog testing.
+ * TODO: Move util methods to CatalogTestBase and remove this class
  */
 public class CatalogTestUtil {
-
-	public static void checkEquals(CatalogTable t1, CatalogTable t2) {
-		assertEquals(t1.getSchema(), t2.getSchema());
-		assertEquals(t1.getComment(), t2.getComment());
-		assertEquals(t1.getProperties(), t2.getProperties());
-		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
-		assertEquals(t1.isPartitioned(), t2.isPartitioned());
-		assertEquals(t1.getDescription(), t2.getDescription());
+	public static void checkEquals(TableStats ts1, TableStats ts2) {
+		assertEquals(ts1.getRowCount(), ts2.getRowCount());
+		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
 	}
 
 	public static void checkEquals(CatalogView v1, CatalogView v2) {

@@ -97,12 +97,12 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 		assertTrue(catalog.partitionExists(path1, catalogPartitionSpec));
 
 		catalog.renameTable(path1, t2, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
+		checkEquals(table, (CatalogTable) catalog.getTable(path3));
 		assertTrue(catalog.partitionExists(path3, catalogPartitionSpec));
 		assertFalse(catalog.tableExists(path1));
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));

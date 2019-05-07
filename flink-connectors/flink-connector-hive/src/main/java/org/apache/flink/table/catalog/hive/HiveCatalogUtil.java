@@ -43,6 +43,5 @@ public class HiveCatalogUtil {
 			db.getComment(),
 			hiveCatalogDatabase.getLocation(),
 			hiveCatalogDatabase.getProperties());
-
 	}
 }

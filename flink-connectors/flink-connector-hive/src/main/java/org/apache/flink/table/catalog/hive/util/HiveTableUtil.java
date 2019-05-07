@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.hive.HiveTypeUtil;
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -28,16 +29,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shared util for catalogs backed by Hive-metastore.
+ * Utils to for Hive-backed table.
  */
-public class HiveCatalogBaseUtil {
+public class HiveTableUtil {
+
+	private HiveTableUtil() {
+	}
 
 	/**
 	 * Create a Flink's TableSchema from Hive table's columns and partition keys.
-	 *
-	 * @param cols columns of the Hive table
-	 * @param partitionKeys partition keys of the Hive table
-	 * @return a Flink TableSchema
 	 */
 	public static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys) {
 		List<FieldSchema> allCols = new ArrayList<>(cols);
@@ -54,5 +54,22 @@ public class HiveCatalogBaseUtil {
 		}
 
 		return new TableSchema(colNames, colTypes);
+	}
+
+	/**
+	 * Create Hive columns from Flink TableSchema.
+	 */
+	public static List<FieldSchema> createHiveColumns(TableSchema schema) {
+		String[] fieldNames = schema.getFieldNames();
+		TypeInformation[] fieldTypes = schema.getFieldTypes();
+
+		List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
+
+		for (int i = 0; i < fieldNames.length; i++) {
+			columns.add(
+				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveType(fieldTypes[i]), null));
+		}
+
+		return columns;
 	}
 }

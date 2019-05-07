@@ -19,21 +19,28 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +95,34 @@ public abstract class HiveCatalogBase implements Catalog {
 			throw new CatalogException("Failed to create Hive metastore client", e);
 		}
 	}
+
+	// ------ APIs ------
+
+	/**
+	 * Validate input base table.
+	 *
+	 * @param catalogBaseTable the base table to be validated
+	 * @throws CatalogException thrown if the input base table is invalid.
+	 */
+	protected abstract void validateCatalogBaseTable(CatalogBaseTable catalogBaseTable)
+		throws CatalogException;
+
+	/**
+	 * Create a CatalogBaseTable from a Hive table.
+	 *
+	 * @param hiveTable a Hive table
+	 * @return a CatalogBaseTable
+	 */
+	protected abstract CatalogBaseTable createCatalogBaseTable(Table hiveTable);
+
+	/**
+	 * Create a Hive table from a CatalogBaseTable.
+	 *
+	 * @param tablePath path of the table
+	 * @param table a CatalogBaseTable
+	 * @return a Hive table
+	 */
+	protected abstract Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table);
 
 	@Override
 	public void open() throws CatalogException {
@@ -195,6 +230,161 @@ public abstract class HiveCatalogBase implements Catalog {
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", name), e);
+		}
+	}
+
+	// ------ tables ------
+
+	@Override
+	public CatalogBaseTable getTable(ObjectPath tablePath)
+			throws TableNotExistException, CatalogException {
+		return createCatalogBaseTable(getHiveTable(tablePath));
+	}
+
+	@Override
+	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
+			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
+		validateCatalogBaseTable(table);
+
+		if (!databaseExists(tablePath.getDatabaseName())) {
+			throw new DatabaseNotExistException(catalogName, tablePath.getDatabaseName());
+		} else {
+			try {
+				client.createTable(createHiveTable(tablePath, table));
+			} catch (AlreadyExistsException e) {
+				if (!ignoreIfExists) {
+					throw new TableAlreadyExistException(catalogName, tablePath);
+				}
+			} catch (TException e) {
+				throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
+			}
+		}
+	}
+
+	@Override
+	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
+			throws TableNotExistException, TableAlreadyExistException, CatalogException {
+		try {
+			// alter_table() doesn't throw a clear exception when target table doesn't exist.
+			// Thus, check the table existence explicitly
+			if (tableExists(tablePath)) {
+				ObjectPath newPath = new ObjectPath(tablePath.getDatabaseName(), newTableName);
+				// alter_table() doesn't throw a clear exception when new table already exists.
+				// Thus, check the table existence explicitly
+				if (tableExists(newPath)) {
+					throw new TableAlreadyExistException(catalogName, newPath);
+				} else {
+					Table table = getHiveTable(tablePath);
+					table.setTableName(newTableName);
+					client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), table);
+				}
+			} else if (!ignoreIfNotExists) {
+				throw new TableNotExistException(catalogName, tablePath);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to rename table %s", tablePath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public void alterTable(ObjectPath tablePath, CatalogBaseTable newCatalogTable, boolean ignoreIfNotExists)
+			throws TableNotExistException, CatalogException {
+		validateCatalogBaseTable(newCatalogTable);
+
+		try {
+			if (!tableExists(tablePath)) {
+				if (!ignoreIfNotExists) {
+					throw new TableNotExistException(catalogName, tablePath);
+				}
+			} else {
+				// TODO: [FLINK-12452] alterTable() in all catalogs should ensure existing base table and the new one are of the same type
+				Table newTable = createHiveTable(tablePath, newCatalogTable);
+
+				// client.alter_table() requires a valid location
+				// thus, if new table doesn't have that, it reuses location of the old table
+				if (!newTable.getSd().isSetLocation()) {
+					Table oldTable = getHiveTable(tablePath);
+					newTable.getSd().setLocation(oldTable.getSd().getLocation());
+				}
+
+				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), newTable);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to rename table %s", tablePath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists)
+			throws TableNotExistException, CatalogException {
+		try {
+			client.dropTable(
+				tablePath.getDatabaseName(),
+				tablePath.getObjectName(),
+				// Indicate whether associated data should be deleted.
+				// Set to 'true' for now because Flink tables shouldn't have data in Hive. Can be changed later if necessary
+				true,
+				ignoreIfNotExists);
+		} catch (NoSuchObjectException e) {
+			if (!ignoreIfNotExists) {
+				throw new TableNotExistException(catalogName, tablePath);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to drop table %s", tablePath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public List<String> listTables(String databaseName)
+			throws DatabaseNotExistException, CatalogException {
+		try {
+			return client.getAllTables(databaseName);
+		} catch (UnknownDBException e) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to list tables in database %s", databaseName), e);
+		}
+	}
+
+	@Override
+	public List<String> listViews(String databaseName) throws DatabaseNotExistException, CatalogException {
+		try {
+			return client.getTables(
+				databaseName,
+				null, // table pattern
+				TableType.VIRTUAL_VIEW);
+		} catch (UnknownDBException e) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to list views in database %s", databaseName), e);
+		}
+	}
+
+	@Override
+	public boolean tableExists(ObjectPath tablePath) throws CatalogException {
+		try {
+			return client.tableExists(tablePath.getDatabaseName(), tablePath.getObjectName());
+		} catch (UnknownDBException e) {
+			return false;
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to check whether table %s exists or not.", tablePath.getFullName()), e);
+		}
+	}
+
+	private Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
+		try {
+			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
+		} catch (NoSuchObjectException e) {
+			throw new TableNotExistException(catalogName, tablePath);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
 		}
 	}
 }
