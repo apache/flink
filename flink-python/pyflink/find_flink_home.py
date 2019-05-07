@@ -15,7 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
 from __future__ import print_function
+import logging
 import os
 import sys
 
@@ -37,8 +39,8 @@ def _find_flink_home():
                 return build_target
         except Exception:
             pass
-        print("Could not find valid FLINK_HOME(Flink distribution directory) "
-              "in current environment.", file=sys.stderr)
+        logging.error("Could not find valid FLINK_HOME(Flink distribution directory) "
+              "in current environment.")
         sys.exit(-1)
 
 
@@ -47,12 +49,10 @@ def _find_flink_source_root():
     Find the flink source root directory.
     """
     try:
-        flink_source_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../")
-        if os.path.isdir(flink_source_root_dir + "/build-target"):
-            return flink_source_root_dir
+        return os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../")
     except Exception:
         pass
-    print("Could not find valid flink source root directory in current environment.", file=sys.stderr)
+    logging.error("Could not find valid flink source root directory in current environment.")
     sys.exit(-1)
 
 

@@ -16,8 +16,11 @@
 # limitations under the License.
 #################################################################################
 
+import logging
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 from pyflink.find_flink_home import _find_flink_home
@@ -26,17 +29,31 @@ from pyflink.table import TableEnvironment, TableConfig
 if sys.version_info[0] >= 3:
     xrange = range
 
+if os.getenv("VERBOSE"):
+    log_level = logging.DEBUG
+else:
+    log_level = logging.INFO
+logging.basicConfig(stream=sys.stdout, level=log_level,
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 class PyFlinkTestCase(unittest.TestCase):
     """
     Base class for unit tests.
     """
 
-    def setUp(self):
-        os.environ["FLINK_TESTING"] = "1"
+    @classmethod
+    def setUpClass(cls):
+        cls.tempdir = tempfile.mkdtemp()
 
+        os.environ["FLINK_TESTING"] = "1"
         _find_flink_home()
-        print("using %s as FLINK_HOME..." % os.environ["FLINK_HOME"])
+
+        logging.info("Using %s as FLINK_HOME...", os.environ["FLINK_HOME"])
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tempdir, ignore_errors=True)
 
     @classmethod
     def assert_equals(cls, actual, expected):
@@ -61,4 +78,15 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
         self.t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(4).build()
+        self.t_env = TableEnvironment.get_table_environment(self.t_config)
+
+
+class PyFlinkBatchTableTestCase(PyFlinkTestCase):
+    """
+    Base class for batch unit tests.
+    """
+
+    def setUp(self):
+        super(PyFlinkBatchTableTestCase, self).setUp()
+        self.t_config = TableConfig.Builder().as_batch_execution().set_parallelism(4).build()
         self.t_env = TableEnvironment.get_table_environment(self.t_config)

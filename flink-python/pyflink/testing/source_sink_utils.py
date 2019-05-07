@@ -18,12 +18,16 @@
 
 import glob
 import os
+import sys
 import unittest
 from py4j.java_gateway import java_import
 
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import TableSink
+
+if sys.version_info[0] >= 3:
+    xrange = range
 
 
 class TestTableSink(TableSink):

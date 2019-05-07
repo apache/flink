@@ -17,7 +17,6 @@
 ################################################################################
 
 import os
-import tempfile
 
 from pyflink.table.table_source import CsvTableSource
 from pyflink.table.types import DataTypes
@@ -28,10 +27,7 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 class TableTests(PyFlinkStreamTableTestCase):
 
     def test_select(self):
-        tmp_dir = tempfile.gettempdir()
-        source_path = tmp_dir + '/streaming.csv'
-        if os.path.isfile(source_path):
-            os.remove(source_path)
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
         with open(source_path, 'w') as f:
             lines = '1,hi,hello\n' + '2,hi,hello\n'
             f.write(lines)
