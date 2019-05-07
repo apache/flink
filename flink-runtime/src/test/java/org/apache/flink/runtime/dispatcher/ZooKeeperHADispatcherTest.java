@@ -154,7 +154,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 
 			final TestingDispatcher dispatcher = createDispatcher(
 				testingHighAvailabilityServices,
-				new TestingJobManagerRunnerFactoryNG());
+				new TestingJobManagerRunnerFactory());
 
 			dispatcher.start();
 
@@ -219,14 +219,14 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			final TestingLeaderElectionService leaderElectionService2 = new TestingLeaderElectionService();
 			haServices2.setDispatcherLeaderElectionService(leaderElectionService2);
 
-			final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = new TestingJobManagerRunnerFactoryNG();
+			final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
 			final TestingDispatcher dispatcher1 = createDispatcher(
 				haServices1,
 				jobManagerRunnerFactory);
 
 			final TestingDispatcher dispatcher2 = createDispatcher(
 				haServices2,
-				new TestingJobManagerRunnerFactoryNG());
+				new TestingJobManagerRunnerFactory());
 
 			try {
 				dispatcher1.start();
@@ -281,7 +281,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			try {
 				haServices = new ZooKeeperHaServices(curatorFramework, rpcService.getExecutor(), configuration, new VoidBlobStore());
 
-				final TestingJobManagerRunnerFactoryNG jobManagerRunnerFactory = new TestingJobManagerRunnerFactoryNG();
+				final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
 				dispatcher1 = createDispatcher(
 					haServices,
 					jobManagerRunnerFactory);
