@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -74,9 +75,22 @@ public class GenericHiveMetastoreCatalogUtil {
 	public static Database createHiveDatabase(String databaseName, CatalogDatabase catalogDatabase) {
 		return new Database(
 			databaseName,
-			catalogDatabase.getDescription().isPresent() ? catalogDatabase.getDescription().get() : null,
+			catalogDatabase.getComment(),
 			null,
-			catalogDatabase.getProperties());
+			buildFlinkProperties(catalogDatabase.getProperties()));
+	}
+
+	/**
+	 * Creates a CatalogDatabase from a Hive database.
+	 *
+	 * @param hiveDatabase the Hive database
+	 * @return a CatalogDatabase
+	 */
+	public static CatalogDatabase createCatalogDatabase(Database hiveDatabase) {
+		return new GenericCatalogDatabase(
+			retrieveFlinkProperties(hiveDatabase.getParameters()),
+			hiveDatabase.getDescription()
+		);
 	}
 
 	/**

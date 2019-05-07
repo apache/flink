@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -41,7 +40,6 @@ import org.apache.flink.table.catalog.hive.util.GenericHiveMetastoreCatalogUtil;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
-import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
@@ -73,9 +71,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 	@Override
 	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		Database hiveDb = getHiveDatabase(databaseName);
-
-		return new GenericCatalogDatabase(hiveDb.getParameters(), hiveDb.getDescription());
+		return GenericHiveMetastoreCatalogUtil.createCatalogDatabase(getHiveDatabase(databaseName));
 	}
 
 	@Override

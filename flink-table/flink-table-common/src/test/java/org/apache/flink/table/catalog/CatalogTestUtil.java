@@ -50,6 +50,7 @@ public class CatalogTestUtil {
 	}
 
 	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
+		assertEquals(d1.getComment(), d2.getComment());
 		assertEquals(d1.getProperties(), d2.getProperties());
 	}
 
