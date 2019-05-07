@@ -48,7 +48,7 @@ public class TestingJobManagerRunnerFactoryNG implements JobManagerRunnerFactory
 			HeartbeatServices heartbeatServices,
 			JobManagerSharedServices jobManagerServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) {
+			FatalErrorHandler fatalErrorHandler) throws Exception {
 		final TestingJobManagerRunner testingJobManagerRunner = new TestingJobManagerRunner(jobGraph.getJobID());
 		createdJobManagerRunner.offer(testingJobManagerRunner);
 

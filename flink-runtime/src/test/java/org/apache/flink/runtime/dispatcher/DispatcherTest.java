@@ -764,14 +764,12 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.getTerminationFuture().get();
 	}
 
-	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {
+	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactoryNG {
 
 		@Nonnull
 		private final ThrowingRunnable<Exception> jobManagerRunnerCreationLatch;
 
 		BlockingJobManagerRunnerFactory(@Nonnull ThrowingRunnable<Exception> jobManagerRunnerCreationLatch) {
-			super(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null));
-
 			this.jobManagerRunnerCreationLatch = jobManagerRunnerCreationLatch;
 		}
 
