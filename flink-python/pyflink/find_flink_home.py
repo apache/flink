@@ -40,7 +40,7 @@ def _find_flink_home():
         except Exception:
             pass
         logging.error("Could not find valid FLINK_HOME(Flink distribution directory) "
-              "in current environment.")
+                      "in current environment.")
         sys.exit(-1)
 
 

@@ -61,7 +61,6 @@ class TableTests(PyFlinkStreamTableTestCase):
 
 if __name__ == '__main__':
     import unittest
-    from pyflink.table.tests.test_table import *
 
     try:
         import xmlrunner
