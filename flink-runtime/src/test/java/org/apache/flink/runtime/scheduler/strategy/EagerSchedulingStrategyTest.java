@@ -73,10 +73,10 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 		assertThat(testingSchedulerOperations.getScheduledVertices(), hasSize(1));
 
 		Collection<ExecutionVertexDeploymentOption> scheduledVertices = testingSchedulerOperations.getScheduledVertices().get(0);
-		assertThat(scheduledVertices, hasSize(5));
-		Collection<ExecutionVertexID> vertices = getExecutionVertexIdsFromDeployOptions(scheduledVertices);
+		Collection<ExecutionVertexID> scheduledVertexIDs = getExecutionVertexIdsFromDeployOptions(scheduledVertices);
+		assertThat(scheduledVertexIDs, hasSize(5));
 		for (SchedulingExecutionVertex schedulingExecutionVertex : testingSchedulingTopology.getVertices()) {
-			assertThat(vertices, hasItem(schedulingExecutionVertex.getId()));
+			assertThat(scheduledVertexIDs, hasItem(schedulingExecutionVertex.getId()));
 		}
 	}
 
@@ -92,24 +92,24 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 3));
 		testingSchedulingTopology.addSchedulingExecutionVertex(new TestingSchedulingExecutionVertex(jobVertexID, 4));
 
-		Set<ExecutionVertexID> toBeRestartedVertices1 = new HashSet<>(Arrays.asList(
+		Set<ExecutionVertexID> verticesToRestart1 = new HashSet<>(Arrays.asList(
 				new ExecutionVertexID(jobVertexID, 0),
 				new ExecutionVertexID(jobVertexID, 4)));
-		schedulingStrategy.restartTasks(toBeRestartedVertices1);
+		schedulingStrategy.restartTasks(verticesToRestart1);
 
-		Set<ExecutionVertexID> toBeRestartedVertices2 = new HashSet<>(Arrays.asList(
+		Set<ExecutionVertexID> verticesToRestart2 = new HashSet<>(Arrays.asList(
 				new ExecutionVertexID(jobVertexID, 1),
 				new ExecutionVertexID(jobVertexID, 2),
 				new ExecutionVertexID(jobVertexID, 3)));
-		schedulingStrategy.restartTasks(toBeRestartedVertices2);
+		schedulingStrategy.restartTasks(verticesToRestart2);
 
 		assertThat(testingSchedulerOperations.getScheduledVertices(), hasSize(2));
 
 		Collection<ExecutionVertexDeploymentOption> scheduledVertices1 = testingSchedulerOperations.getScheduledVertices().get(0);
-		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices1), containsInAnyOrder(toBeRestartedVertices1.toArray()));
+		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices1), containsInAnyOrder(verticesToRestart1.toArray()));
 
 		Collection<ExecutionVertexDeploymentOption> scheduledVertices2 = testingSchedulerOperations.getScheduledVertices().get(1);
-		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices2), containsInAnyOrder(toBeRestartedVertices2.toArray()));
+		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices2), containsInAnyOrder(verticesToRestart2.toArray()));
 	}
 
 	private static Collection<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
