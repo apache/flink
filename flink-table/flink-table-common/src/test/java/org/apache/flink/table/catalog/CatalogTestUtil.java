@@ -123,8 +123,8 @@ public class CatalogTestUtil {
 	}
 
 	private static void checkEquals(CatalogColumnStatisticsDataDouble v1, CatalogColumnStatisticsDataDouble v2) {
-		assertEquals(v1.getMin(), v2.getMin());
-		assertEquals(v1.getMax(), v2.getMax());
+		assertEquals(v1.getMin(), v2.getMin(), 0.05D);
+		assertEquals(v1.getMax(), v2.getMax(), 0.05D);
 		assertEquals(v1.getNdv(), v2.getNdv());
 		assertEquals(v1.getNullCount(), v2.getNullCount());
 		assertEquals(v1.getProperties(), v2.getProperties());
@@ -132,7 +132,7 @@ public class CatalogTestUtil {
 
 	private static void checkEquals(CatalogColumnStatisticsDataString v1, CatalogColumnStatisticsDataString v2) {
 		assertEquals(v1.getMaxLength(), v2.getMaxLength());
-		assertEquals(v1.getAvgLength(), v2.getAvgLength());
+		assertEquals(v1.getAvgLength(), v2.getAvgLength(), 0.05D);
 		assertEquals(v1.getNdv(), v2.getNdv());
 		assertEquals(v1.getNullCount(), v2.getNullCount());
 		assertEquals(v1.getProperties(), v2.getProperties());
@@ -140,7 +140,7 @@ public class CatalogTestUtil {
 
 	private static void checkEquals(CatalogColumnStatisticsDataBinary v1, CatalogColumnStatisticsDataBinary v2) {
 		assertEquals(v1.getMaxLength(), v2.getMaxLength());
-		assertEquals(v1.getAvgLength(), v2.getAvgLength());
+		assertEquals(v1.getAvgLength(), v2.getAvgLength(), 0.05D);
 		assertEquals(v1.getNullCount(), v2.getNullCount());
 		assertEquals(v1.getProperties(), v2.getProperties());
 	}
