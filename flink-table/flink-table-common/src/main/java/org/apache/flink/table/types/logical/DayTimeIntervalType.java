@@ -50,6 +50,8 @@ import java.util.Set;
  * default. If no {@code p2} is specified, it is equal to 6 by default.
  *
  * <p>A conversion from and to {@code long} describes the number of milliseconds.
+ *
+ * @see YearMonthIntervalType
  */
 @PublicEvolving
 public final class DayTimeIntervalType extends LogicalType {
@@ -87,10 +89,12 @@ public final class DayTimeIntervalType extends LogicalType {
 	private static final String SECOND_FORMAT = "INTERVAL SECOND(%2$d)";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
-		java.time.Duration.class.getName());
+		java.time.Duration.class.getName(),
+		Long.class.getName());
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.time.Duration.class.getName(),
+		Long.class.getName(),
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.Duration.class;
