@@ -70,11 +70,6 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	private static final String FLINK_PROPERTY_PREFIX = "flink.";
 
-	// Flink tables should be stored as 'external' tables in Hive metastore
-	private static final Map<String, String> EXTERNAL_TABLE_PROPERTY = new HashMap<String, String>() {{
-		put("EXTERNAL", "TRUE");
-	}};
-
 	public GenericHiveMetastoreCatalog(String catalogName, String hivemetastoreURI) {
 		super(catalogName, hivemetastoreURI);
 
@@ -168,7 +163,6 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 		// Table properties
 		hiveTable.setParameters(buildFlinkProperties(properties));
-		hiveTable.getParameters().putAll(EXTERNAL_TABLE_PROPERTY);
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = new StorageDescriptor();
@@ -191,8 +185,6 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 				sd.setCols(allColumns);
 				hiveTable.setPartitionKeys(new ArrayList<>());
 			}
-
-			hiveTable.setTableType(TableType.EXTERNAL_TABLE.name());
 		} else if (table instanceof CatalogView) {
 			CatalogView view = (CatalogView) table;
 
