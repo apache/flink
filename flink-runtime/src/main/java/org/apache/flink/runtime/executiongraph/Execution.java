@@ -1039,12 +1039,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	private void finishCancellation() {
-		try {
-			releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
-			vertex.getExecutionGraph().deregisterExecution(this);
-		} finally {
-			vertex.executionCanceled(this);
-		}
+		releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
+		vertex.getExecutionGraph().deregisterExecution(this);
 	}
 
 	void cachePartitionInfo(PartitionInfo partitionInfo) {
@@ -1101,13 +1097,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
-				try {
-					releaseAssignedResource(t);
-					vertex.getExecutionGraph().deregisterExecution(this);
-				}
-				finally {
-					vertex.executionFailed(this, t);
-				}
+				releaseAssignedResource(t);
+				vertex.getExecutionGraph().deregisterExecution(this);
 
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
 					if (LOG.isDebugEnabled()) {

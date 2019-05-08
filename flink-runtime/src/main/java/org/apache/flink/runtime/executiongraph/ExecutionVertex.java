@@ -795,14 +795,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		getExecutionGraph().vertexFinished();
 	}
 
-	void executionCanceled(Execution execution) {
-		// nothing to do
-	}
-
-	void executionFailed(Execution execution, Throwable cause) {
-		// nothing to do
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//   Miscellaneous
 	// --------------------------------------------------------------------------------------------
