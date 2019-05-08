@@ -62,11 +62,15 @@ public final class LocalZonedTimestampType extends LogicalType {
 	private static final String FORMAT = "TIMESTAMP(%d) WITH LOCAL TIME ZONE";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
-		java.time.Instant.class.getName());
+		java.time.Instant.class.getName(),
+		Integer.class.getName(),
+		Long.class.getName());
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.time.Instant.class.getName(),
+		Integer.class.getName(),
 		int.class.getName(),
+		Long.class.getName(),
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.Instant.class;
