@@ -785,7 +785,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	private static Scheduler setupScheduler(
 		SlotPool slotPool,
 		ComponentMainThreadExecutor mainThreadExecutable) {
-		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		final Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
 		scheduler.start(mainThreadExecutable);
 		return scheduler;
 	}
