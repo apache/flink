@@ -300,6 +300,6 @@ object ScalarFunctions {
     * Returns the string with the order of characters reversed.
     */
   def reverse(base: String): String = {
-    new StringBuffer(base).reverse().toString
+    new StringBuilder(base).reverse().toString
   }
 }
