@@ -294,6 +294,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
     SqlStdOperatorTable.TRUNCATE,
+    ScalarSqlFunctions.REVERSE,
 
     // MATCH_RECOGNIZE
     SqlStdOperatorTable.FIRST,

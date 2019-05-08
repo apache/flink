@@ -896,6 +896,39 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "")
   }
 
+  @Test
+  def testReverse(): Unit = {
+    testAllApis(
+      'f37.reverse(),
+      "f37.reverse()",
+      "REVERSE(f37)",
+      "")
+
+    testAllApis(
+      'f33.reverse(),
+      "f33.reverse()",
+      "REVERSE(f33)",
+      "null")
+
+    testAllApis(
+      'f0.reverse(),
+      "f0.reverse()",
+      "REVERSE(f0)",
+      ".gnirtS tset a si sihT")
+
+    testAllApis(
+      'f24.reverse(),
+      "f24.reverse()",
+      "REVERSE(f24)",
+      ".gnirtS tset a si sihT_*")
+
+    testAllApis(
+      'f38.reverse(),
+      "f38.reverse()",
+      "REVERSE(f38)",
+      "knilF ehcapA，好你")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------

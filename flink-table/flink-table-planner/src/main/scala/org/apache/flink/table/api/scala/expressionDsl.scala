@@ -678,6 +678,11 @@ trait ImplicitExpressionOperations {
     */
   def repeat(n: Expression): Expression = call(REPEAT, expr, n)
 
+  /**
+    * Returns the string with the order of the characters reversed.
+    */
+  def reverse(): Expression = call(REVERSE, expr)
+
   // Temporal operations
 
   /**

@@ -296,4 +296,10 @@ object ScalarFunctions {
     */
   def repeat(base: String, n: Int): String = EncodingUtils.repeat(base, n)
 
+  /**
+    * Returns the string with the order of characters reversed.
+    */
+  def reverse(base: String): String = {
+    new StringBuffer(base).reverse().toString
+  }
 }

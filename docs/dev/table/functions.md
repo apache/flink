@@ -2689,6 +2689,18 @@ TO_BASE64(string)
         <p>E.g., <code>TO_BASE64('hello world')</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
+     
+    <tr>
+        <td>
+          {% highlight text %}
+REVERSE(string)
+{% endhighlight %}
+        </td>
+        <td>
+          <p>Returns the string with the order of characters reversed; returns NULL if <i>string</i> is NULL. </p>
+          <p>E.g.,<code>REVERSE('hello world')</code> returns "dlrow olleh".</p>
+        </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -2954,6 +2966,18 @@ STRING.toBase64()
          <p>E.g., <code>'hello world'.toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
+     
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.reverse()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string with the order of characters reversed; returns NULL if <i>string</i> is NULL. </p>
+        <p>E.g., <code>"hello world".reverse()</code> returns "dlrow olleh".</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -3217,6 +3241,18 @@ STRING.toBase64()
         <p>Returns the base64-encoded result from <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p>
          <p>E.g., <code>"hello world".toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
+    </tr>
+    
+    <tr>
+        <td>
+          {% highlight scala %}
+STRING.reverse()
+{% endhighlight %}
+        </td>
+        <td>
+          <p>Returns the string with the order of characters reversed; returns NULL if <i>string</i> is NULL. </p>
+          <p>E.g., <code>"hello world".reverse()</code> returns "dlrow olleh".</p>
+        </td>
     </tr>
   </tbody>
 </table>

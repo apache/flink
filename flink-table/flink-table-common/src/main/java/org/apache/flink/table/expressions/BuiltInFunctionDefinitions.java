@@ -152,6 +152,8 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("repeat", SCALAR_FUNCTION);
 	public static final FunctionDefinition REGEXP_REPLACE =
 		new FunctionDefinition("regexpReplace", SCALAR_FUNCTION);
+	public static final FunctionDefinition REVERSE =
+		new FunctionDefinition("reverse", SCALAR_FUNCTION);
 
 	// math functions
 	public static final FunctionDefinition PLUS =

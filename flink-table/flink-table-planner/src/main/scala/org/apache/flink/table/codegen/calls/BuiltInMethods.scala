@@ -177,6 +177,8 @@ object BuiltInMethods {
     classOf[String],
     classOf[Int])
 
+  val REVERSE = Types.lookupMethod(classOf[ScalarFunctions], "reverse", classOf[String])
+
   val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
     classOf[Double])
   val TRUNCATE_INT_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",

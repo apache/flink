@@ -207,6 +207,13 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.REPEAT)
 
+  addSqlFunctionMethod(
+    REVERSE,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REVERSE
+  )
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------

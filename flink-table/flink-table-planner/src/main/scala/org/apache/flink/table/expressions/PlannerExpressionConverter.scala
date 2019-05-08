@@ -358,6 +358,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 3)
             RegexpReplace(args.head, args(1), args.last)
 
+          case REVERSE =>
+            assert(args.size == 1)
+            Reverse(args.head)
+
           case PLUS =>
             assert(args.size == 2)
             Plus(args.head, args.last)
