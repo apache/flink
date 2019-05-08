@@ -31,7 +31,6 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -82,7 +81,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 
 		CatalogTable table = new GenericCatalogTable(
 			new TableSchema(colNames, types),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT
 		);
@@ -122,7 +120,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 	public CatalogTable createTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
@@ -131,7 +128,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 	public CatalogTable createAnotherTable() {
 		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
@@ -140,7 +136,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 	public CatalogTable createStreamingTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			getStreamingTableProperties(),
 			TEST_COMMENT);
 	}
@@ -149,7 +144,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 	public CatalogTable createPartitionedTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
@@ -159,7 +153,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 	public CatalogTable createAnotherPartitionedTable() {
 		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TEST_COMMENT);

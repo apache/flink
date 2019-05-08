@@ -16,25 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
-
-import java.util.List;
+package org.apache.flink.table.catalog.stats;
 
 /**
- * Represents a table in a catalog.
+ * Class representing a date value in statistics.
  */
-public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Check if the table is partitioned or not.
-	 *
-	 * @return true if the table is partitioned; otherwise, false
-	 */
-	boolean isPartitioned();
+public class Date {
+	private long daysSinceEpoch;
 
-	/**
-	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
-	 *
-	 * @return partition keys of the table
-	 */
-	List<String> getPartitionKeys();
+	public Date(long daysSinceEpoch) {
+		this.daysSinceEpoch = daysSinceEpoch;
+	}
+
+	public long getDaysSinceEpoch() {
+		return daysSinceEpoch;
+	}
+
+	public Date copy() {
+		return new Date(daysSinceEpoch);
+	}
+
 }

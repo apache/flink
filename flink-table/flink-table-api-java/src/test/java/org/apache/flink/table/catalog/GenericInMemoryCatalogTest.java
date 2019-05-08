@@ -26,8 +26,17 @@ import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -575,6 +584,47 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		catalog.dropDatabase(db1, false);
 	}
 
+	// ------ statistics ------
+
+	@Test
+	public void testStatistics() throws Exception {
+		// Table related
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogTestUtil.checkEquals(catalog.getTableStatistics(path1), CatalogTableStatistics.UNKNOWN);
+		CatalogTestUtil.checkEquals(catalog.getTableColumnStatistics(path1), CatalogColumnStatistics.UNKNOWN);
+
+		CatalogTableStatistics tableStatistics = new CatalogTableStatistics(5, 2, 100, 575);
+		catalog.alterTableStatistics(path1, tableStatistics, false);
+		CatalogTestUtil.checkEquals(tableStatistics, catalog.getTableStatistics(path1));
+		CatalogColumnStatistics columnStatistics = createColumnStats();
+		catalog.alterTableColumnStatistics(path1, columnStatistics, false);
+		CatalogTestUtil.checkEquals(columnStatistics, catalog.getTableColumnStatistics(path1));
+
+		// Partition related
+		catalog.createDatabase(db2, createDb(), false);
+		CatalogTable table2 = createPartitionedTable();
+		catalog.createTable(path2, table2, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path2, partitionSpec, createPartition(), false);
+
+		CatalogTestUtil.checkEquals(catalog.getPartitionStatistics(path2, partitionSpec), CatalogTableStatistics.UNKNOWN);
+		CatalogTestUtil.checkEquals(catalog.getPartitionColumnStatistics(path2, partitionSpec), CatalogColumnStatistics.UNKNOWN);
+
+		catalog.alterPartitionStatistics(path2, partitionSpec, tableStatistics, false);
+		CatalogTestUtil.checkEquals(tableStatistics, catalog.getPartitionStatistics(path2, partitionSpec));
+		catalog.alterPartitionColumnStatistics(path2, partitionSpec, columnStatistics, false);
+		CatalogTestUtil.checkEquals(columnStatistics, catalog.getPartitionColumnStatistics(path2, partitionSpec));
+
+		// Clean up
+		catalog.dropTable(path1, false);
+		catalog.dropDatabase(db1, false);
+		catalog.dropTable(path2, false);
+		catalog.dropDatabase(db2, false);
+	}
+
 	// ------ utilities ------
 
 	@Override
@@ -604,7 +654,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public GenericCatalogTable createStreamingTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			getStreamingTableProperties(),
 			TEST_COMMENT);
 	}
@@ -613,7 +662,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
@@ -622,7 +670,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createAnotherTable() {
 		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			new TableStats(0),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
@@ -631,7 +678,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createPartitionedTable() {
 		return new GenericCatalogTable(
 			createTableSchema(),
-			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
@@ -641,7 +687,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public CatalogTable createAnotherPartitionedTable() {
 		return new GenericCatalogTable(
 			createAnotherTableSchema(),
-			new TableStats(0),
 			createPartitionKeys(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
@@ -709,6 +754,24 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			"This is another view");
 	}
 
+	private CatalogColumnStatistics createColumnStats() {
+		CatalogColumnStatisticsDataBoolean booleanColStats = new CatalogColumnStatisticsDataBoolean(55L, 45L, 5L);
+		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 79L);
+		CatalogColumnStatisticsDataString stringColStats = new CatalogColumnStatisticsDataString(152L, 43.5D, 20L, 0L);
+		CatalogColumnStatisticsDataDate dateColStats = new CatalogColumnStatisticsDataDate(new Date(71L),
+			new Date(17923L), 1321, 0L);
+		CatalogColumnStatisticsDataDouble doubleColStats = new CatalogColumnStatisticsDataDouble(-123.35D, 7633.22D, 23L, 79L);
+		CatalogColumnStatisticsDataBinary binaryColStats = new CatalogColumnStatisticsDataBinary(755L, 43.5D, 20L);
+		Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(6);
+		colStatsMap.put("b1", booleanColStats);
+		colStatsMap.put("l2", longColStats);
+		colStatsMap.put("s3", stringColStats);
+		colStatsMap.put("d4", dateColStats);
+		colStatsMap.put("dd5", doubleColStats);
+		colStatsMap.put("bb6", binaryColStats);
+		return new CatalogColumnStatistics(colStatsMap);
+	}
+
 	protected CatalogFunction createFunction() {
 		return new GenericCatalogFunction(MyScalarFunction.class.getName());
 	}
@@ -734,4 +797,5 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			return String.valueOf(i);
 		}
 	}
+
 }

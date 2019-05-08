@@ -30,6 +30,8 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 /**
  * An interface responsible for manipulating catalog metadata.
@@ -233,4 +235,69 @@ public interface ReadableWritableCatalog extends ReadableCatalog {
 	 */
 	void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
 		throws FunctionNotExistException, CatalogException;
+
+	// ------ statistics ------
+
+	/**
+	 * Update the statistics of a table.
+	 *
+	 * @param tablePath path of the table
+	 * @param tableStatistics new statistics to update
+	 * @param ignoreIfNotExists flag to specify behavior if the table does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException if the table does not exist in the catalog
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists)
+		throws TableNotExistException, CatalogException;
+
+	/**
+	 * Update the column statistics of a table.
+	 *
+	 * @param tablePath path of the table
+	 * @param columnStatistics new column statistics to update
+	 * @param ignoreIfNotExists flag to specify behavior if the table does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws TableNotExistException if the table does not exist in the catalog
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
+		throws TableNotExistException, CatalogException;
+
+	/**
+	 * Update the statistics of a table partition.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @param partitionStatistics new statistics to update
+	 * @param ignoreIfNotExists flag to specify behavior if the partition does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws PartitionNotExistException if the partition does not exist
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogTableStatistics partitionStatistics,
+		boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException;
+
+	/**
+	 * Update the column statistics of a table partition.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @@param columnStatistics new column statistics to update
+	 * @param ignoreIfNotExists flag to specify behavior if the partition does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, nothing happens.
+	 *
+	 * @throws PartitionNotExistException if the partition does not exist
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics,
+		boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException;
+
 }

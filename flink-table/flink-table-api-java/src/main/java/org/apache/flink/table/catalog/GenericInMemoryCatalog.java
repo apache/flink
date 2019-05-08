@@ -30,6 +30,8 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -57,6 +59,11 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 	private final Map<ObjectPath, CatalogFunction> functions;
 	private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogPartition>> partitions;
 
+	private final Map<ObjectPath, CatalogTableStatistics> tableStats;
+	private final Map<ObjectPath, CatalogColumnStatistics> tableColumnStats;
+	private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogTableStatistics>> partitionStats;
+	private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogColumnStatistics>> partitionColumnStats;
+
 	public GenericInMemoryCatalog(String name) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
 
@@ -66,6 +73,10 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		this.tables = new LinkedHashMap<>();
 		this.functions = new LinkedHashMap<>();
 		this.partitions = new LinkedHashMap<>();
+		this.tableStats = new LinkedHashMap<>();
+		this.tableColumnStats = new LinkedHashMap<>();
+		this.partitionStats = new LinkedHashMap<>();
+		this.partitionColumnStats = new LinkedHashMap<>();
 	}
 
 	@Override
@@ -193,6 +204,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 			if (isPartitionedTable(tablePath)) {
 				partitions.put(tablePath, new LinkedHashMap<>());
+				partitionStats.put(tablePath, new LinkedHashMap<>());
+				partitionColumnStats.put(tablePath, new LinkedHashMap<>());
 			}
 		}
 	}
@@ -222,8 +235,12 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		if (tableExists(tablePath)) {
 			tables.remove(tablePath);
+			tableStats.remove(tablePath);
+			tableColumnStats.remove(tablePath);
 
 			partitions.remove(tablePath);
+			partitionStats.remove(tablePath);
+			partitionColumnStats.remove(tablePath);
 		} else if (!ignoreIfNotExists) {
 			throw new TableNotExistException(catalogName, tablePath);
 		}
@@ -243,8 +260,29 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 			} else {
 				tables.put(newPath, tables.remove(tablePath));
 
+				// table statistics
+				if (tableStats.containsKey(tablePath)) {
+					tableStats.put(newPath, tableStats.remove(tablePath));
+				}
+
+				// table column statistics
+				if (tableColumnStats.containsKey(tablePath)) {
+					tableColumnStats.put(newPath, tableColumnStats.remove(tablePath));
+				}
+
+				// partitions
 				if (partitions.containsKey(tablePath)) {
 					partitions.put(newPath, partitions.remove(tablePath));
+				}
+
+				// partition statistics
+				if (partitionStats.containsKey(tablePath)) {
+					partitionStats.put(newPath, partitionStats.remove(tablePath));
+				}
+
+				// partition column statistics
+				if (partitionColumnStats.containsKey(tablePath)) {
+					partitionColumnStats.put(newPath, partitionColumnStats.remove(tablePath));
 				}
 			}
 		} else if (!ignoreIfNotExists) {
@@ -411,6 +449,8 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 
 		if (partitionExists(tablePath, partitionSpec)) {
 			partitions.get(tablePath).remove(partitionSpec);
+			partitionStats.get(tablePath).remove(partitionSpec);
+			partitionColumnStats.get(tablePath).remove(partitionSpec);
 		} else if (!ignoreIfNotExists) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
 		}
@@ -541,6 +581,114 @@ public class GenericInMemoryCatalog implements ReadableWritableCatalog {
 		}
 
 		return (table instanceof CatalogTable) && ((CatalogTable) table).isPartitioned();
+	}
+
+	// ------ statistics ------
+
+	@Override
+	public CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException {
+		checkNotNull(tablePath);
+
+		if (!tableExists(tablePath)) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+
+		CatalogTableStatistics result = tableStats.get(tablePath);
+		return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
+	}
+
+	@Override
+	public CatalogColumnStatistics getTableColumnStatistics(ObjectPath tablePath) throws TableNotExistException {
+		checkNotNull(tablePath);
+
+		if (!tableExists(tablePath)) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+
+		CatalogColumnStatistics result = tableColumnStats.get(tablePath);
+		return result != null ? result.copy() : CatalogColumnStatistics.UNKNOWN;
+	}
+
+	@Override
+	public CatalogTableStatistics getPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+			throws PartitionNotExistException {
+		checkNotNull(tablePath);
+		checkNotNull(partitionSpec);
+
+		if (!partitionExists(tablePath, partitionSpec)) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
+
+		CatalogTableStatistics result = partitionStats.get(tablePath).get(partitionSpec);
+		return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
+	}
+
+	@Override
+	public CatalogColumnStatistics getPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+			throws PartitionNotExistException {
+		checkNotNull(tablePath);
+		checkNotNull(partitionSpec);
+
+		if (!partitionExists(tablePath, partitionSpec)) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
+
+		CatalogColumnStatistics result = partitionColumnStats.get(tablePath).get(partitionSpec);
+		return result != null ? result.copy() : CatalogColumnStatistics.UNKNOWN;
+	}
+
+	@Override
+	public void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists)
+			throws TableNotExistException {
+		checkNotNull(tablePath);
+		checkNotNull(tableStatistics);
+
+		if (tableExists(tablePath)) {
+			tableStats.put(tablePath, tableStatistics.copy());
+		} else if (!ignoreIfNotExists) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+	}
+
+	@Override
+	public void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics,
+			boolean ignoreIfNotExists) throws TableNotExistException {
+		checkNotNull(tablePath);
+		checkNotNull(columnStatistics);
+
+		if (tableExists(tablePath)) {
+			tableColumnStats.put(tablePath, columnStatistics.copy());
+		} else if (!ignoreIfNotExists) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+	}
+
+	@Override
+	public void alterPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogTableStatistics partitionStatistics,
+			boolean ignoreIfNotExists) throws PartitionNotExistException {
+		checkNotNull(tablePath);
+		checkNotNull(partitionSpec);
+		checkNotNull(partitionStatistics);
+
+		if (partitionExists(tablePath, partitionSpec)) {
+			partitionStats.get(tablePath).put(partitionSpec, partitionStatistics.copy());
+		} else if (!ignoreIfNotExists) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
+	}
+
+	@Override
+	public void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics,
+			boolean ignoreIfNotExists) throws PartitionNotExistException {
+		checkNotNull(tablePath);
+		checkNotNull(partitionSpec);
+		checkNotNull(columnStatistics);
+
+		if (partitionExists(tablePath, partitionSpec)) {
+			partitionColumnStats.get(tablePath).put(partitionSpec, columnStatistics.copy());
+		} else if (!ignoreIfNotExists) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		}
 	}
 
 }

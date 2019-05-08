@@ -24,6 +24,8 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import java.util.List;
 
@@ -194,12 +196,12 @@ public interface ReadableCatalog {
 	/**
 	 * List the names of all functions in the given database. An empty list is returned if none is registered.
 	 *
-	 * @param dbName name of the database.
+	 * @param databaseName name of the database.
 	 * @return a list of the names of the functions in this database
 	 * @throws DatabaseNotExistException if the database does not exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException;
+	List<String> listFunctions(String databaseName) throws DatabaseNotExistException, CatalogException;
 
 	/**
 	 * Get the function.
@@ -220,5 +222,55 @@ public interface ReadableCatalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	boolean functionExists(ObjectPath functionPath) throws CatalogException;
+
+	// ------ statistics ------
+
+	/**
+	 * Get the statistics of a table.
+	 *
+	 * @param tablePath path of the table
+	 * @return statistics of the given table
+	 *
+	 * @throws TableNotExistException if the table does not exist in the catalog
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException;
+
+	/**
+	 * Get the column statistics of a table.
+	 *
+	 * @param tablePath path of the table
+	 * @return column statistics of the given table
+	 *
+	 * @throws TableNotExistException if the table does not exist in the catalog
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	CatalogColumnStatistics getTableColumnStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException;
+
+	/**
+	 * Get the statistics of a partition.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @return statistics of the given partition
+	 *
+	 * @throws PartitionNotExistException if the partition does not exist
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	CatalogTableStatistics getPartitionStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws PartitionNotExistException, CatalogException;
+
+	/**
+	 * Get the column statistics of a partition.
+	 *
+	 * @param tablePath path of the table
+	 * @param partitionSpec partition spec of the partition
+	 * @return column statistics of the given partition
+	 *
+	 * @throws PartitionNotExistException if the partition does not exist
+	 * @throws CatalogException	in case of any runtime exception
+	 */
+	CatalogColumnStatistics getPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws PartitionNotExistException, CatalogException;
 
 }

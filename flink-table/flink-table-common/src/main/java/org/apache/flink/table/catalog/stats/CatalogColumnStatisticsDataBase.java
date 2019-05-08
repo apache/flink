@@ -16,25 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.catalog.stats;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Represents a table in a catalog.
+ * Column statistics value base class.
  */
-public interface CatalogTable extends CatalogBaseTable {
+public abstract class CatalogColumnStatisticsDataBase {
 	/**
-	 * Check if the table is partitioned or not.
-	 *
-	 * @return true if the table is partitioned; otherwise, false
+	 * number of null values.
 	 */
-	boolean isPartitioned();
+	private final long nullCount;
+
+	private final Map<String, String> properties;
+
+	public CatalogColumnStatisticsDataBase(long nullCount) {
+		this(nullCount, new HashMap<>());
+	}
+
+	public CatalogColumnStatisticsDataBase(long nullCount, Map<String, String> properties) {
+		this.nullCount = nullCount;
+		this.properties = properties;
+	}
+
+	public long getNullCount() {
+		return nullCount;
+	}
+
+	public Map<String, String> getProperties() {
+		return this.properties;
+	}
 
 	/**
-	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
+	 * Create a deep copy of "this" instance.
 	 *
-	 * @return partition keys of the table
+	 * @return a deep copy
 	 */
-	List<String> getPartitionKeys();
+	public abstract CatalogColumnStatisticsDataBase copy();
+
 }
