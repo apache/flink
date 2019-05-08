@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,11 +59,6 @@ public class HiveCatalogTable implements CatalogTable {
 			Map<String, String> properties,
 			String comment) {
 		this(tableSchema, new ArrayList<>(), properties, comment);
-	}
-
-	@Override
-	public TableStats getStatistics() {
-		return new TableStats(0);
 	}
 
 	@Override
