@@ -26,6 +26,7 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,8 +59,8 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	@Override
-	public void restartTasks(Set<ExecutionVertexID> verticesNeedingRestart) {
-		allocateSlotsAndDeploy(verticesNeedingRestart);
+	public void restartTasks(Set<ExecutionVertexID> verticesToRestart) {
+		allocateSlotsAndDeploy(verticesToRestart);
 	}
 
 	@Override
@@ -72,9 +73,9 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 		// Will not react to these notifications.
 	}
 
-	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesNeedingStarted) {
+	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
-				createExecutionVertexDeploymentOptions(verticesNeedingStarted);
+				createExecutionVertexDeploymentOptions(verticesToDeploy);
 		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
 	}
 
@@ -86,9 +87,9 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
-			final Iterable<ExecutionVertexID> verticesNeedingStarted) {
-		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>();
-		for (ExecutionVertexID executionVertexID : verticesNeedingStarted) {
+			final Collection<ExecutionVertexID> vertices) {
+		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>(vertices.size());
+		for (ExecutionVertexID executionVertexID : vertices) {
 			executionVertexDeploymentOptions.add(
 					new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
 		}
@@ -101,7 +102,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 	public static class Factory implements SchedulingStrategyFactory {
 
 		@Override
-		public SchedulingStrategy getInstance(
+		public SchedulingStrategy createInstance(
 				SchedulerOperations schedulerOperations,
 				SchedulingTopology schedulingTopology,
 				JobGraph jobGraph) {

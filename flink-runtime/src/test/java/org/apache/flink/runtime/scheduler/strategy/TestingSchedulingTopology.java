@@ -57,7 +57,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 		addSchedulingResultPartitions(schedulingExecutionVertex.getProducedResultPartitions());
 	}
 
-	public void addSchedulingResultPartitions(final Collection<SchedulingResultPartition> resultPartitions) {
+	private void addSchedulingResultPartitions(final Collection<SchedulingResultPartition> resultPartitions) {
 		for (SchedulingResultPartition schedulingResultPartition : resultPartitions) {
 			schedulingResultPartitions.put(schedulingResultPartition.getId(), schedulingResultPartition);
 		}

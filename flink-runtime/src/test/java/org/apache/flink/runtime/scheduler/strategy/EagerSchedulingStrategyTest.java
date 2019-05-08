@@ -73,8 +73,9 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 
 		Collection<ExecutionVertexDeploymentOption> scheduledVertices = testingSchedulerOperations.getScheduledVertices().get(0);
 		assertThat(scheduledVertices, hasSize(5));
+		Collection<ExecutionVertexID> vertices = getExecutionVertexIdsFromDeployOptions(scheduledVertices);
 		for (SchedulingExecutionVertex schedulingExecutionVertex : testingSchedulingTopology.getVertices()) {
-			assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices), hasItem(schedulingExecutionVertex.getId()));
+			assertThat(vertices, hasItem(schedulingExecutionVertex.getId()));
 		}
 	}
 
