@@ -38,8 +38,6 @@ import java.util.List;
 @Internal
 public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
-	protected volatile boolean running = true;
-
 	protected final WatermarkGauge input1WatermarkGauge;
 	protected final WatermarkGauge input2WatermarkGauge;
 	protected final MinWatermarkGauge minInputWatermarkGauge;
@@ -66,8 +64,8 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+		ArrayList<InputGate> inputList1 = new ArrayList<>();
+		ArrayList<InputGate> inputList2 = new ArrayList<>();
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 
@@ -86,7 +84,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 			}
 		}
 
-		init(inputList1, inputList2, inputDeserializer1, inputDeserializer2);
+		initInputProcessor(inputList1, inputList2, inputDeserializer1, inputDeserializer2);
 
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
@@ -95,12 +93,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
 	}
 
-	@Override
-	protected void cancelTask() {
-		running = false;
-	}
-
-	protected abstract void init(
+	protected abstract void initInputProcessor(
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,

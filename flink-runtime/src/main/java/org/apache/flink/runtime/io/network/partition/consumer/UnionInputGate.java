@@ -93,9 +93,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	/** Flag indicating whether partitions have been requested. */
 	private boolean requestedPartitionsFlag;
 
-	/** Flag indicating whether there is available data. */
-	private volatile boolean moreDataAvailable = false;
-
 	public UnionInputGate(InputGate... inputGates) {
 		this.inputGates = checkNotNull(inputGates);
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
@@ -136,11 +133,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	public String getOwningTaskName() {
 		// all input gates have the same owning task
 		return inputGates[0].getOwningTaskName();
-	}
-
-	@Override
-	public boolean moreAvailable() {
-		return moreDataAvailable;
 	}
 
 	@Override
@@ -235,8 +227,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 				inputGate = inputGatesWithData.remove();
 				enqueuedInputGatesWithData.remove(inputGate);
 				moreInputGatesAvailable = enqueuedInputGatesWithData.size() > 0;
-
-				moreDataAvailable = moreInputGatesAvailable;
 			}
 
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
@@ -268,13 +258,17 @@ public class UnionInputGate implements InputGate, InputGateListener {
 
 	@Override
 	public void registerListener(InputGateListener listener) {
-		if (this.inputGateListener == null) {
-			this.inputGateListener = listener;
+		if (inputGateListener == null) {
+			inputGateListener = listener;
 
 			// fire immediately if this gate has become available before then,
 			// because no "non-empty" notification will be sent before that the
 			// gate changes from "empty" to "non-empty" again.
-			if (moreDataAvailable) {
+			int availableInputGates;
+			synchronized (inputGatesWithData) {
+				availableInputGates = inputGatesWithData.size();
+			}
+			if (availableInputGates > 0) {
 				inputGateListener.notifyInputGateNonEmpty(this);
 			}
 		} else {
@@ -318,7 +312,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			enqueuedInputGatesWithData.add(inputGate);
 
 			if (availableInputGates == 0) {
-				moreDataAvailable = true;
 				inputGatesWithData.notifyAll();
 			}
 		}

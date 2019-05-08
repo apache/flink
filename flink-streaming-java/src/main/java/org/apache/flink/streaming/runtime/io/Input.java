@@ -27,9 +27,9 @@ import java.util.concurrent.CompletableFuture;
  * Basic interface for inputs of stream operators.
  */
 @Internal
-public interface Input {
+public interface Input extends AutoCloseable {
 
-	int getId();
+	int getInputIndex();
 
 	/**
 	 * Poll the next {@link StreamElement}.
@@ -52,16 +52,4 @@ public interface Input {
 	 * Register a listener that forward input notifications to.
 	 */
 	CompletableFuture<?> listen();
-
-	/**
-	 * Cancel the listener registered previously.
-	 *
-	 * <p>Note that it must be guaranteed to be thread-safe.
-	 */
-	void unlisten();
-
-	/**
-	 * Closes this input and releases any resources associated with the input.
-	 */
-	void close() throws Exception;
 }

@@ -45,7 +45,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -62,52 +63,56 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputSelectableProcessor.class);
 
-	private volatile boolean continuousProcessing = true;
-
-	private final NetworkInput input1;
-	private final NetworkInput input2;
-
 	private final Object lock;
 
-	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
+	// -------------------------------------------------------
+	//  Immutable members after initialization
+	// -------------------------------------------------------
 
-	private final InputSelectable inputSelector;
+	private NetworkInput input1;
+	private NetworkInput input2;
 
-	private final AuxiliaryHandler auxiliaryHandler;
+	private TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
 
-	private final CompletableFuture<Integer>[] listenFutures;
+	private InputSelectable inputSelector;
 
-	private final boolean[] isFinished;
+	private AuxiliaryHandler auxiliaryHandler;
+
+	// -------------------------------------------------------
+	//  State variables
+	// -------------------------------------------------------
+
+	private volatile boolean running = true;
+
+	private CompletableFuture<Integer>[] listenFutures;
+
+	private boolean[] isFinished;
 
 	private InputSelection inputSelection;
 
-	private AtomicInteger availableInputsMask = new AtomicInteger();
-
-	private int lastReadingInputMask;
-
-	private static final int TWO_INPUT_ANY_MASK = (int) new InputSelection.Builder()
+	private int availableInputsMask = (int) new InputSelection.Builder()
 		.select(1)
 		.select(2)
 		.build()
 		.getInputMask();
 
-	private static final int INPUT1_ID = 1;
-	private static final int INPUT2_ID = 2;
-
 	// ---------------- Metrics ------------------
 
-	private final WatermarkGauge input1WatermarkGauge;
-	private final WatermarkGauge input2WatermarkGauge;
+	private WatermarkGauge input1WatermarkGauge;
+	private WatermarkGauge input2WatermarkGauge;
 
 	private Counter numRecordsIn;
 
+	public StreamTwoInputSelectableProcessor(Object lock) {
+		this.lock = checkNotNull(lock);
+	}
+
 	@SuppressWarnings("unchecked")
-	public StreamTwoInputSelectableProcessor(
+	public void init(
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputSerializer1,
 		TypeSerializer<IN2> inputSerializer2,
-		Object lock,
 		IOManager ioManager,
 		StreamStatusMaintainer streamStatusMaintainer,
 		TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
@@ -119,10 +124,8 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		// create a NetworkInput instance for each input
 		StreamTwoInputStreamStatusHandler streamStatusHandler = new StreamTwoInputStreamStatusHandler(
 			streamStatusMaintainer, lock);
-		this.input1 = new NetworkInput(INPUT1_ID, inputGates1, inputSerializer1, streamStatusHandler, ioManager);
-		this.input2 = new NetworkInput(INPUT2_ID, inputGates2, inputSerializer2, streamStatusHandler, ioManager);
-
-		this.lock = checkNotNull(lock);
+		this.input1 = new NetworkInput(0, inputGates1, inputSerializer1, streamStatusHandler, ioManager);
+		this.input2 = new NetworkInput(1, inputGates2, inputSerializer2, streamStatusHandler, ioManager);
 
 		this.streamOperator = checkNotNull(streamOperator);
 		this.inputSelector = (InputSelectable) streamOperator;
@@ -140,12 +143,8 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 	 * Notes that it must be called after calling all operator's open(). This ensures that
 	 * the first input selection determined by the operator at and before opening is effective.
 	 */
-	public void init() {
+	public void prepareProcess() {
 		inputSelection = inputSelector.nextSelection();
-
-		availableInputsMask.set(TWO_INPUT_ANY_MASK);
-
-		lastReadingInputMask = (int) InputSelection.SECOND.getInputMask();
 
 		if (numRecordsIn == null) {
 			try {
@@ -158,27 +157,37 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		}
 	}
 
-	public boolean processInput() throws Exception {
+	public void loopProcessingInput() throws Exception {
 		// cache inputs reference on the stack, to make the code more JIT friendly
 		final NetworkInput input1 = this.input1;
 		final NetworkInput input2 = this.input2;
 
-		while (continuousProcessing) {
-			final int selectionMask = (int) inputSelection.getInputMask();
-			final int availableMask = availableInputsMask.get();
+		// always try to read from the first input
+		int lastReadInputIndex = 1;
 
-			int readingInputMask = selectionMask & availableMask;
-			if (readingInputMask == TWO_INPUT_ANY_MASK) {
-				// the input selection is `ALL` and both inputs are available, we read two inputs in turn
-				readingInputMask -= lastReadingInputMask;
-			} else if (readingInputMask == 0) {
+		while (running) {
+			int readingInputIndex = inputSelection.fairSelectNextIndexOutOf2(availableInputsMask, lastReadInputIndex);
+			if (readingInputIndex > -1) {
+				// if the input selection is `ALL`, always try to check and
+				// set the availability of another input
+				if (inputSelection.isALLMaskOf2() && availableInputsMask < 3) {
+					int anotherInputIndex = 1 - readingInputIndex;
+					if (!isFinished[anotherInputIndex]) {
+						checkAndSetAvailableInput(listenFutures[anotherInputIndex], 0);
+					}
+				}
+			} else {
 				// block to wait for a available target input
-				waitForAvailableInput(selectionMask);
+				try {
+					// set timeout so that the task can be canceled properly
+					waitForAvailableInput(inputSelection, 2000);
+				} catch (TimeoutException te) {
+					// do nothing
+				}
 				continue;
 			}
 
-			lastReadingInputMask = readingInputMask;
-			int readingInputIndex = readingInputMask - 1;
+			lastReadInputIndex = readingInputIndex;
 
 			final StreamElement element;
 			if (readingInputIndex == 0) {
@@ -238,69 +247,52 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 				// if the input is no longer listenable, then it is finished
 				if (finishInput(readingInputIndex)) {
 					// all inputs have been finished, exit
-					return false;
+					return;
 				}
 			}
 		}
-
-		return true;
 	}
 
 	@VisibleForTesting
-	public final boolean isContinuousProcessing() {
-		return continuousProcessing;
+	public void start() {
+		running = true;
 	}
 
-	@VisibleForTesting
-	public final void setContinuousProcessing(boolean continuousProcessing) {
-		this.continuousProcessing = continuousProcessing;
-	}
-
-	/**
-	 * It is called by another thread, so it must be thread-safe.
-	 */
 	public void stop() {
-		continuousProcessing = false;
-
-		// cancel all inputs and activate the main loop if it is blocked
-		for (Input input : new Input[]{input1, input2}) {
-			input.unlisten();
-		}
+		running = false;
 	}
 
 	public void cleanup() {
 		// close all inputs
 		for (Input input : new Input[]{input1, input2}) {
 			try {
-				input.close();
+				if (input != null) {
+					input.close();
+				}
 			} catch (Throwable t) {
-				LOG.warn("An exception occurred when closing input" + input.getId() + ".", t);
+				LOG.warn("An exception occurred when closing input" + (input.getInputIndex() + 1) + ".", t);
 			}
 		}
 	}
 
 	private boolean setUnavailableAndListenInput(int inputIndex) {
-		int bitMask = 1 << inputIndex;
-
 		// set `unavailable` flag
-		availableInputsMask.getAndUpdate(mask -> mask & (~bitMask));
+		setUnavailableInput(inputIndex);
 
 		// listen the input
 		Input input = inputIndex == 0 ? input1 : input2;
 		if (!input.isFinished()) {
-			listenFutures[inputIndex] = input.listen().thenApply(v -> {
-				availableInputsMask.getAndUpdate(mask -> mask | bitMask);
-				return inputIndex;
-			});
-
+			listenFutures[inputIndex] = input.listen().thenApply(v -> inputIndex);
 			return true;
 		}
 
 		return false;
 	}
 
-	private void waitForAvailableInput(int selectionMask) throws IOException, ExecutionException, InterruptedException {
-		if (selectionMask == InputSelection.ALL.getInputMask() || selectionMask == TWO_INPUT_ANY_MASK) {
+	private void waitForAvailableInput(InputSelection inputSelection, long maxWaitMillis)
+		throws IOException, ExecutionException, InterruptedException, TimeoutException {
+
+		if (inputSelection.isALLMaskOf2()) {
 			List<CompletableFuture<Integer>> futures = new ArrayList<>();
 			for (CompletableFuture<Integer> future : listenFutures) {
 				if (future != null) {
@@ -310,26 +302,44 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 			checkState(futures.size() > 0, "No input in listening.");
 
 			// block to wait for a available input
-			CompletableFuture.anyOf(futures.toArray(new CompletableFuture<?>[0])).get();
+			CompletableFuture.anyOf(futures.toArray(new CompletableFuture<?>[0]))
+				.get(maxWaitMillis, TimeUnit.MILLISECONDS);
 
 			// clear all completed futures
 			for (CompletableFuture<Integer> future : futures) {
-				if (future != null && future.isDone()) {
-					listenFutures[future.get()] = null;
-				}
+				checkAndSetAvailableInput(future, 0);
 			}
 		} else {
-			int inputIndex = (selectionMask == InputSelection.FIRST.getInputMask()) ? 0 : 1;
+			int inputIndex = (inputSelection.getInputMask() == InputSelection.FIRST.getInputMask()) ? 0 : 1;
 			if (isFinished[inputIndex]) {
 				throw new IOException("Could not read the finished input: input" + (inputIndex + 1) + ".");
 			}
 
 			CompletableFuture<Integer> future = listenFutures[inputIndex];
-			checkState(future != null, "No input in listening.");
+			checkState(future != null, "The input is not in listening.");
 
 			// block to wait the input being available
-			listenFutures[future.get()] = null;
+			checkAndSetAvailableInput(future, maxWaitMillis);
 		}
+	}
+
+	private void checkAndSetAvailableInput(CompletableFuture<Integer> future, long maxWaitMillis)
+		throws ExecutionException, InterruptedException, TimeoutException {
+
+		int availableIndex = (maxWaitMillis == 0) ?
+			future.getNow(-1) : future.get(maxWaitMillis, TimeUnit.MILLISECONDS);
+		if (availableIndex > -1) {
+			setAvailableInput(availableIndex);
+			listenFutures[availableIndex] = null;
+		}
+	}
+
+	private void setAvailableInput(int inputIndex) {
+		availableInputsMask |= 1 << inputIndex;
+	}
+
+	private void setUnavailableInput(int inputIndex) {
+		availableInputsMask &= ~(1 << inputIndex);
 	}
 
 	private boolean finishInput(int inputIndex) throws Exception {
@@ -401,13 +411,13 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		}
 
 		@Override
-		public void handleStreamStatus(int inputId, StreamStatus streamStatus) {
-			checkState(inputId >= 1 && inputId <= 2);
+		public void handleStreamStatus(int inputIndex, StreamStatus streamStatus) {
+			checkState(inputIndex >= 0 && inputIndex < 2);
 
 			try {
 				synchronized (lock) {
 					final StreamStatus anotherStreamStatus;
-					if (inputId == INPUT1_ID) {
+					if (inputIndex == 0) {
 						streamStatus1 = streamStatus;
 						anotherStreamStatus = streamStatus2;
 					} else {

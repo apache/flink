@@ -34,12 +34,14 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 
+	private volatile boolean running = true;
+
 	public TwoInputStreamTask(Environment env) {
 		super(env);
 	}
 
 	@Override
-	protected void init(
+	protected void initInputProcessor(
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
@@ -75,5 +77,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		if (inputProcessor != null) {
 			inputProcessor.cleanup();
 		}
+	}
+
+	@Override
+	protected void cancelTask() {
+		running = false;
 	}
 }

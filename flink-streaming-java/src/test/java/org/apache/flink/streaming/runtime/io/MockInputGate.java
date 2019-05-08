@@ -74,11 +74,6 @@ public class MockInputGate implements InputGate {
 	}
 
 	@Override
-	public boolean moreAvailable() {
-		return bufferOrEvents.size() > 0;
-	}
-
-	@Override
 	public boolean isFinished() {
 		return bufferOrEvents.isEmpty();
 	}

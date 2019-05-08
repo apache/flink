@@ -34,23 +34,24 @@ import java.util.Collection;
 @Internal
 public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	private volatile StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor;
+	private final StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor;
 
 	public TwoInputSelectableStreamTask(Environment env) {
 		super(env);
+
+		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(this);
 	}
 
 	@Override
-	protected void init(
+	protected void initInputProcessor(
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) {
 
-		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
+		inputProcessor.init(
 			inputGates1, inputGates2,
 			inputDeserializer1, inputDeserializer2,
-			this,
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
 			this.headOperator,
@@ -60,27 +61,20 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 
 	@Override
 	protected void run() throws Exception {
-		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
+		// prepare for processing
+		inputProcessor.prepareProcess();
 
-		inputProcessor.init();
-		while (running && inputProcessor.processInput()) {
-			// all the work happens in the "processInput" method
-		}
-	}
-
-	@Override
-	protected void cleanup() {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
+		// enter the input processing loop
+		inputProcessor.loopProcessingInput();
 	}
 
 	@Override
 	protected void cancelTask() {
-		running = false;
-		if (inputProcessor != null) {
-			inputProcessor.stop();
-		}
+		inputProcessor.stop();
+	}
+
+	@Override
+	protected void cleanup() {
+		inputProcessor.cleanup();
 	}
 }
