@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -32,7 +34,6 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.util.HiveCatalogUtil;
@@ -41,10 +42,18 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.SerDeInfo;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A catalog implementation for Hive.
@@ -89,38 +98,83 @@ public class HiveCatalog extends HiveCatalogBase {
 	// ------ tables and views------
 
 	@Override
-	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
-			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-
-		validateHiveCatalogTable(table);
-
-		createHiveTable(
-			tablePath,
-			HiveCatalogUtil.createHiveTable(tablePath, table),
-			ignoreIfExists);
-	}
-
-	@Override
-	public void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
-			throws TableNotExistException, CatalogException {
-		validateHiveCatalogTable(newTable);
-
-		super.alterTable(tablePath, newTable, ignoreIfNotExists);
-	}
-
-	@Override
-	public CatalogBaseTable getTable(ObjectPath tablePath)
-			throws TableNotExistException, CatalogException {
-		return HiveCatalogUtil.createCatalogTable(
-			getHiveTable(tablePath));
-	}
-
-	private void validateHiveCatalogTable(CatalogBaseTable table) throws CatalogException {
+	public void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
 		// TODO: validate HiveCatalogView
 		if (!(table instanceof HiveCatalogTable)) {
 			throw new IllegalArgumentException(
 				"HiveCatalog can only operate on HiveCatalogTable and HiveCatalogView.");
 		}
+	}
+
+	@Override
+	public CatalogBaseTable createCatalogTable(Table hiveTable) {
+		// Table schema
+		TableSchema tableSchema =
+			createTableSchema(hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
+
+		// Table properties
+		Map<String, String> properties = hiveTable.getParameters();
+
+		// Table comment
+		String comment = properties.remove(HiveTableConfig.TABLE_COMMENT);
+
+		// Partition keys
+		List<String> partitionKeys = new ArrayList<>();
+
+		if (!hiveTable.getPartitionKeys().isEmpty()) {
+			partitionKeys = hiveTable.getPartitionKeys().stream()
+				.map(fs -> fs.getName())
+				.collect(Collectors.toList());
+		}
+
+		return new HiveCatalogTable(tableSchema, partitionKeys, properties, comment);
+	}
+
+	@Override
+	public Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+		Map<String, String> properties = new HashMap<>(table.getProperties());
+
+		// Table comment
+		properties.put(HiveTableConfig.TABLE_COMMENT, table.getComment());
+
+		Table hiveTable = new Table();
+		hiveTable.setDbName(tablePath.getDatabaseName());
+		hiveTable.setTableName(tablePath.getObjectName());
+		hiveTable.setCreateTime((int) (System.currentTimeMillis() / 1000));
+
+		// Table properties
+		hiveTable.setParameters(properties);
+
+		// Hive table's StorageDescriptor
+		// TODO: This is very basic Hive table.
+		//  [FLINK-11479] Add input/output format and SerDeLib information for Hive tables in HiveCatalogUtil#createHiveTable
+		StorageDescriptor sd = new StorageDescriptor();
+		sd.setSerdeInfo(new SerDeInfo(null, null, new HashMap<>()));
+
+		List<FieldSchema> allColumns = createHiveColumns(table.getSchema());
+
+		// Table columns and partition keys
+		if (table instanceof CatalogTable) {
+			HiveCatalogTable catalogTable = (HiveCatalogTable) table;
+
+			if (catalogTable.isPartitioned()) {
+				int partitionKeySize = catalogTable.getPartitionKeys().size();
+				List<FieldSchema> regularColumns = allColumns.subList(0, allColumns.size() - partitionKeySize);
+				List<FieldSchema> partitionColumns = allColumns.subList(allColumns.size() - partitionKeySize, allColumns.size());
+
+				sd.setCols(regularColumns);
+				hiveTable.setPartitionKeys(partitionColumns);
+			} else {
+				sd.setCols(allColumns);
+				hiveTable.setPartitionKeys(new ArrayList<>());
+			}
+		} else {
+			throw new UnsupportedOperationException("HiveCatalog doesn't support view yet");
+		}
+
+		hiveTable.setSd(sd);
+
+		return hiveTable;
 	}
 
 	// ------ partitions ------

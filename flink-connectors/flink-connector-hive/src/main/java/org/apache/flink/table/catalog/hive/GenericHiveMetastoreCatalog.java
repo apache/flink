@@ -18,12 +18,17 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.GenericCatalogTable;
+import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -33,7 +38,6 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.util.GenericHiveMetastoreCatalogUtil;
@@ -41,17 +45,35 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.SerDeInfo;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A catalog that persists all Flink streaming and batch metadata by using Hive metastore as a persistent storage.
  */
 public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	private static final Logger LOG = LoggerFactory.getLogger(GenericHiveMetastoreCatalog.class);
+
+	// Prefix used to distinguish properties created by Hive and Flink,
+	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
+	private static final String FLINK_PROPERTY_PREFIX = "flink.";
+
+	// Flink tables should be stored as 'external' tables in Hive metastore
+	private static final Map<String, String> EXTERNAL_TABLE_PROPERTY = new HashMap<String, String>() {{
+		put("EXTERNAL", "TRUE");
+	}};
 
 	public GenericHiveMetastoreCatalog(String catalogName, String hivemetastoreURI) {
 		super(catalogName, hivemetastoreURI);
@@ -63,6 +85,109 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 		super(catalogName, hiveConf);
 
 		LOG.info("Created GenericHiveMetastoreCatalog '{}'", catalogName);
+	}
+
+	@Override
+	public void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
+		// TODO: invalidate HiveCatalogView
+		if (table instanceof HiveCatalogTable) {
+			throw new IllegalArgumentException(
+				"Please use HiveCatalog to operate on HiveCatalogTable and HiveCatalogView.");
+		}
+	}
+
+	@Override
+	public CatalogBaseTable createCatalogTable(Table hiveTable) {
+		// Table schema
+		TableSchema tableSchema = createTableSchema(
+			hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
+
+		// Table properties
+		Map<String, String> properties = retrieveFlinkProperties(hiveTable.getParameters());
+
+		// Table comment
+		String comment = properties.remove(HiveTableConfig.TABLE_COMMENT);
+
+		// Partition keys
+		List<String> partitionKeys = new ArrayList<>();
+
+		if (!hiveTable.getPartitionKeys().isEmpty()) {
+			partitionKeys = hiveTable.getPartitionKeys().stream()
+				.map(fs -> fs.getName())
+				.collect(Collectors.toList());
+		}
+
+		if (TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW) {
+			return new GenericCatalogView(
+				hiveTable.getViewOriginalText(),
+				hiveTable.getViewExpandedText(),
+				tableSchema,
+				properties,
+				comment
+			);
+		} else {
+			return new GenericCatalogTable(
+				tableSchema, partitionKeys, properties, comment);
+		}
+	}
+
+	@Override
+	public Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+		Map<String, String> properties = new HashMap<>(table.getProperties());
+
+		// Table comment
+		properties.put(HiveTableConfig.TABLE_COMMENT, table.getComment());
+
+		Table hiveTable = new Table();
+		hiveTable.setDbName(tablePath.getDatabaseName());
+		hiveTable.setTableName(tablePath.getObjectName());
+		hiveTable.setCreateTime((int) (System.currentTimeMillis() / 1000));
+
+		// Table properties
+		hiveTable.setParameters(buildFlinkProperties(properties));
+		hiveTable.getParameters().putAll(EXTERNAL_TABLE_PROPERTY);
+
+		// Hive table's StorageDescriptor
+		StorageDescriptor sd = new StorageDescriptor();
+		sd.setSerdeInfo(new SerDeInfo(null, null, new HashMap<>()));
+
+		List<FieldSchema> allColumns = createHiveColumns(table.getSchema());
+
+		// Table columns and partition keys
+		if (table instanceof CatalogTable) {
+			CatalogTable catalogTable = (CatalogTable) table;
+
+			if (catalogTable.isPartitioned()) {
+				int partitionKeySize = catalogTable.getPartitionKeys().size();
+				List<FieldSchema> regularColumns = allColumns.subList(0, allColumns.size() - partitionKeySize);
+				List<FieldSchema> partitionColumns = allColumns.subList(allColumns.size() - partitionKeySize, allColumns.size());
+
+				sd.setCols(regularColumns);
+				hiveTable.setPartitionKeys(partitionColumns);
+			} else {
+				sd.setCols(allColumns);
+				hiveTable.setPartitionKeys(new ArrayList<>());
+			}
+
+			hiveTable.setTableType(TableType.EXTERNAL_TABLE.name());
+		} else if (table instanceof CatalogView) {
+			CatalogView view = (CatalogView) table;
+
+			// TODO: [FLINK-12398] Support partitioned view in catalog API
+			sd.setCols(allColumns);
+			hiveTable.setPartitionKeys(new ArrayList<>());
+
+			hiveTable.setViewOriginalText(view.getOriginalQuery());
+			hiveTable.setViewExpandedText(view.getExpandedQuery());
+			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
+		} else {
+			throw new IllegalArgumentException(
+				"GenericHiveMetastoreCatalog only supports CatalogTable and CatalogView");
+		}
+
+		hiveTable.setSd(sd);
+
+		return hiveTable;
 	}
 
 	// ------ databases ------
@@ -88,21 +213,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 	// ------ tables and views------
 
-	@Override
-	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
-			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-		createHiveTable(
-			tablePath,
-			GenericHiveMetastoreCatalogUtil.createHiveTable(tablePath, table),
-			ignoreIfExists);
-	}
 
-	@Override
-	public CatalogBaseTable getTable(ObjectPath tablePath)
-			throws TableNotExistException, CatalogException {
-		return GenericHiveMetastoreCatalogUtil.createCatalogTable(
-			getHiveTable(tablePath));
-	}
 
 	// ------ partitions ------
 
@@ -232,4 +343,21 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 		throw new UnsupportedOperationException();
 	}
 
+	/**
+	 * Filter out Hive-created properties, and return Flink-created properties.
+	 */
+	private static Map<String, String> retrieveFlinkProperties(Map<String, String> hiveTableParams) {
+		return hiveTableParams.entrySet().stream()
+			.filter(e -> e.getKey().startsWith(FLINK_PROPERTY_PREFIX))
+			.collect(Collectors.toMap(e -> e.getKey().replace(FLINK_PROPERTY_PREFIX, ""), e -> e.getValue()));
+	}
+
+	/**
+	 * Add a prefix to Flink-created properties to distinguish them from Hive-created properties.
+	 */
+	private static Map<String, String> buildFlinkProperties(Map<String, String> properties) {
+		return properties.entrySet().stream()
+			.filter(e -> e.getKey() != null && e.getValue() != null)
+			.collect(Collectors.toMap(e -> FLINK_PROPERTY_PREFIX + e.getKey(), e -> e.getValue()));
+	}
 }

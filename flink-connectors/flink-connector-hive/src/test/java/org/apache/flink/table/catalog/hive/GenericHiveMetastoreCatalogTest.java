@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
-import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogTable;
@@ -88,7 +87,7 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
 	// ------ utils ------

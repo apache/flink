@@ -244,7 +244,7 @@ public abstract class CatalogTestBase {
 		CatalogTable table = createStreamingTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -257,7 +257,7 @@ public abstract class CatalogTestBase {
 
 		CatalogBaseTable tableCreated = catalog.getTable(path1);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) tableCreated);
+		checkEquals(table, (CatalogTable) tableCreated);
 		assertEquals(TEST_COMMENT, tableCreated.getDescription().get());
 
 		List<String> tables = catalog.listTables(db1);
@@ -271,7 +271,7 @@ public abstract class CatalogTestBase {
 		table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		tables = catalog.listTables(db1);
 
@@ -305,11 +305,11 @@ public abstract class CatalogTestBase {
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		catalog.createTable(path1, createAnotherTable(), true);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -361,13 +361,13 @@ public abstract class CatalogTestBase {
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		CatalogTable newTable = createAnotherTable();
 		catalog.alterTable(path1, newTable, false);
 
 		assertNotEquals(table, catalog.getTable(path1));
-		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
+		checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 
 		catalog.dropTable(path1, false);
 
@@ -375,12 +375,12 @@ public abstract class CatalogTestBase {
 		table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		newTable = createAnotherPartitionedTable();
 		catalog.alterTable(path1, newTable, false);
 
-		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
+		checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -404,11 +404,11 @@ public abstract class CatalogTestBase {
 		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
 		catalog.renameTable(path1, t2, false);
 
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
+		checkEquals(table, (CatalogTable) catalog.getTable(path3));
 		assertFalse(catalog.tableExists(path1));
 	}
 
@@ -691,5 +691,16 @@ public abstract class CatalogTestBase {
 		return new HashMap<String, String>() {{
 			put(IS_STREAMING, "true");
 		}};
+	}
+
+	// ------ equality check utils ------
+	// Can be overriden by sub test class
+
+	protected void checkEquals(CatalogTable t1, CatalogTable t2) {
+		assertEquals(t1.getSchema(), t2.getSchema());
+		assertEquals(t1.getProperties(), t2.getProperties());
+		assertEquals(t1.getComment(), t2.getComment());
+		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
+		assertEquals(t1.isPartitioned(), t2.isPartitioned());
 	}
 }

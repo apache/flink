@@ -28,6 +28,9 @@ import org.junit.BeforeClass;
 import java.io.IOException;
 import java.util.HashMap;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 /**
  * Test for HiveCatalog.
  */
@@ -35,7 +38,7 @@ public class HiveCatalogTest extends CatalogTestBase {
 
 	@BeforeClass
 	public static void init() throws IOException {
-		catalog = HiveTestUtils.createGenericHiveMetastoreCatalog();
+		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
 	}
 
@@ -164,5 +167,17 @@ public class HiveCatalogTest extends CatalogTestBase {
 	public CatalogView createAnotherView() {
 		// TODO: implement this once HiveCatalog support view operations
 		return null;
+	}
+
+	@Override
+	public void checkEquals(CatalogTable t1, CatalogTable t2) {
+		assertEquals(t1.getSchema(), t2.getSchema());
+		assertEquals(t1.getComment(), t2.getComment());
+		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
+		assertEquals(t1.isPartitioned(), t2.isPartitioned());
+
+		// Hive tables may have properties created by itself
+		// thus properties of Hive table is a super set of those in its corresponding Flink table
+		assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
 	}
 }

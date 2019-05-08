@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -27,6 +29,7 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -36,15 +39,18 @@ import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -95,6 +101,34 @@ public abstract class HiveCatalogBase implements Catalog {
 			throw new CatalogException("Failed to create Hive metastore client", e);
 		}
 	}
+
+	// ------ APIs ------
+
+	/**
+	 * Validate input base table.
+	 *
+	 * @param catalogBaseTable the base table to be validated
+	 * @throws IllegalArgumentException thrown if the input base table is invalid.
+	 */
+	public abstract void validateCatalogBaseTable(CatalogBaseTable catalogBaseTable)
+		throws IllegalArgumentException;
+
+	/**
+	 * Create a CatalogBaseTable from a Hive table.
+	 *
+	 * @param hiveTable a Hive table
+	 * @return a CatalogBaseTable
+	 */
+	public abstract CatalogBaseTable createCatalogTable(Table hiveTable);
+
+	/**
+	 * Create a Hive table from a CatalogBaseTable.
+	 *
+	 * @param tablePath path of the table
+	 * @param table a CatalogBaseTable
+	 * @return a Hive table
+	 */
+	public abstract Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table);
 
 	@Override
 	public void open() throws CatalogException {
@@ -207,13 +241,22 @@ public abstract class HiveCatalogBase implements Catalog {
 
 	// ------ tables ------
 
-	protected void createHiveTable(ObjectPath tablePath, Table table, boolean ignoreIfExists)
+	@Override
+	public CatalogBaseTable getTable(ObjectPath tablePath)
+			throws TableNotExistException, CatalogException {
+		return createCatalogTable(getHiveTable(tablePath));
+	}
+
+	@Override
+	public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
 			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
+		validateCatalogBaseTable(table);
+
 		if (!databaseExists(tablePath.getDatabaseName())) {
 			throw new DatabaseNotExistException(catalogName, tablePath.getDatabaseName());
 		} else {
 			try {
-				client.createTable(table);
+				client.createTable(createHiveTable(tablePath, table));
 			} catch (AlreadyExistsException e) {
 				if (!ignoreIfExists) {
 					throw new TableAlreadyExistException(catalogName, tablePath);
@@ -228,10 +271,12 @@ public abstract class HiveCatalogBase implements Catalog {
 	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
 			throws TableNotExistException, TableAlreadyExistException, CatalogException {
 		try {
-			// alter_table() doesn't throw a clear exception when target table doesn't exist. Thus, check the table existence explicitly
+			// alter_table() doesn't throw a clear exception when target table doesn't exist.
+			// Thus, check the table existence explicitly
 			if (tableExists(tablePath)) {
 				ObjectPath newPath = new ObjectPath(tablePath.getDatabaseName(), newTableName);
-				// alter_table() doesn't throw a clear exception when new table already exists. Thus, check the table existence explicitly
+				// alter_table() doesn't throw a clear exception when new table already exists.
+				// Thus, check the table existence explicitly
 				if (tableExists(newPath)) {
 					throw new TableAlreadyExistException(catalogName, newPath);
 				} else {
@@ -248,35 +293,29 @@ public abstract class HiveCatalogBase implements Catalog {
 		}
 	}
 
-	protected Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
+	@Override
+	public void alterTable(ObjectPath tablePath, CatalogBaseTable newCatalogTable, boolean ignoreIfNotExists)
+			throws TableNotExistException, CatalogException {
 		try {
-			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
-		} catch (NoSuchObjectException e) {
-			throw new TableNotExistException(catalogName, tablePath);
+			if (!tableExists(tablePath)) {
+				if (!ignoreIfNotExists) {
+					throw new TableNotExistException(catalogName, tablePath);
+				}
+			} else {
+				Table newTable = createHiveTable(tablePath, newCatalogTable);
+
+				// client.alter_table() requires a valid location
+				// thus, if new table doesn't have that, it reuses location of the old table
+				if (!newTable.getSd().isSetLocation()) {
+					Table oldTable = getHiveTable(tablePath);
+					newTable.getSd().setLocation(oldTable.getSd().getLocation());
+				}
+
+				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), newTable);
+			}
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
-		}
-	}
-
-	@Override
-	public void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
-			throws TableNotExistException, CatalogException {
-		if (!tableExists(tablePath)) {
-			if (!ignoreIfNotExists) {
-				throw new TableNotExistException(catalogName, tablePath);
-			}
-		} else {
-			// IMetastoreClient.alter_table() requires the table to have a valid location, which it doesn't in this case
-			// Thus we have to translate alterTable() into (dropTable() + createTable())
-			dropTable(tablePath, false);
-			try {
-				createTable(tablePath, newTable, false);
-			} catch (TableAlreadyExistException | DatabaseNotExistException e) {
-				// These exceptions wouldn't be thrown, unless a concurrent operation is triggered in Hive
-				throw new CatalogException(
-					String.format("Failed to alter table %s", tablePath), e);
-			}
+				String.format("Failed to rename table %s", tablePath.getFullName()), e);
 		}
 	}
 
@@ -339,5 +378,53 @@ public abstract class HiveCatalogBase implements Catalog {
 			throw new CatalogException(
 				String.format("Failed to check whether table %s exists or not.", tablePath.getFullName()), e);
 		}
+	}
+
+	private Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
+		try {
+			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
+		} catch (NoSuchObjectException e) {
+			throw new TableNotExistException(catalogName, tablePath);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
+		}
+	}
+
+	/**
+	 * Create a Flink's TableSchema from Hive table's columns and partition keys.
+	 */
+	protected TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys) {
+		List<FieldSchema> allCols = new ArrayList<>(cols);
+		allCols.addAll(partitionKeys);
+
+		String[] colNames = new String[allCols.size()];
+		TypeInformation[] colTypes = new TypeInformation[allCols.size()];
+
+		for (int i = 0; i < allCols.size(); i++) {
+			FieldSchema fs = allCols.get(i);
+
+			colNames[i] = fs.getName();
+			colTypes[i] = HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(fs.getType()));
+		}
+
+		return new TableSchema(colNames, colTypes);
+	}
+
+	/**
+	 * Create Hive columns from Flink TableSchema.
+	 */
+	protected List<FieldSchema> createHiveColumns(TableSchema schema) {
+		String[] fieldNames = schema.getFieldNames();
+		TypeInformation[] fieldTypes = schema.getFieldTypes();
+
+		List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
+
+		for (int i = 0; i < fieldNames.length; i++) {
+			columns.add(
+				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveType(fieldTypes[i]), null));
+		}
+
+		return columns;
 	}
 }
