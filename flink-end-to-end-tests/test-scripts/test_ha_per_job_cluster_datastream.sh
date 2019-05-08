@@ -64,12 +64,11 @@ function run_job() {
 }
 
 function verify_logs_per_job() {
-    local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
     local EXIT_CODE=0
 
     # verify that we have no alerts
-    if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
+    if ! check_logs_for_non_empty_out_files; then
         echo "FAILURE: Alerts found at the general purpose job."
         EXIT_CODE=1
     fi
