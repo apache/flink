@@ -46,11 +46,6 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 	}
 
 	@Override
-	public JobVertexID getJobVertexId() {
-		return executionVertexId.getJobVertexId();
-	}
-
-	@Override
 	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
 		return Collections.emptyList();
 	}
