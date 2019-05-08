@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive.util;
+package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogDatabase;
-import org.apache.flink.table.catalog.hive.HiveCatalogDatabase;
 
 import org.apache.hadoop.hive.metastore.api.Database;
 

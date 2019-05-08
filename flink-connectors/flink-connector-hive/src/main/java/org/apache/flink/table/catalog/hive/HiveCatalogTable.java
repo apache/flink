@@ -95,7 +95,7 @@ public class HiveCatalogTable implements CatalogTable {
 	@Override
 	public CatalogBaseTable copy() {
 		return new HiveCatalogTable(
-			tableSchema, new ArrayList<>(partitionKeys), new HashMap<>(properties), comment);
+			tableSchema.copy(), new ArrayList<>(partitionKeys), new HashMap<>(properties), comment);
 	}
 
 	@Override

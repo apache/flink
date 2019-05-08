@@ -40,10 +40,9 @@ import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.hive.util.GenericHiveMetastoreCatalogUtil;
+
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -86,6 +85,29 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 		LOG.info("Created GenericHiveMetastoreCatalog '{}'", catalogName);
 	}
+
+	// ------ databases ------
+
+	@Override
+	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
+		Database hiveDb = getHiveDatabase(databaseName);
+
+		return new GenericCatalogDatabase(hiveDb.getParameters(), hiveDb.getDescription());
+	}
+
+	@Override
+	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
+			throws DatabaseAlreadyExistException, CatalogException {
+		createHiveDatabase(GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, database), ignoreIfExists);
+	}
+
+	@Override
+	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
+			throws DatabaseNotExistException, CatalogException {
+		alterHiveDatabase(name, GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, newDatabase), ignoreIfNotExists);
+	}
+
+	// ------ tables and views------
 
 	@Override
 	public void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
@@ -189,31 +211,6 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 		return hiveTable;
 	}
-
-	// ------ databases ------
-
-	@Override
-	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		Database hiveDb = getHiveDatabase(databaseName);
-
-		return new GenericCatalogDatabase(hiveDb.getParameters(), hiveDb.getDescription());
-	}
-
-	@Override
-	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
-			throws DatabaseAlreadyExistException, CatalogException {
-		createHiveDatabase(GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, database), ignoreIfExists);
-	}
-
-	@Override
-	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
-			throws DatabaseNotExistException, CatalogException {
-		alterHiveDatabase(name, GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, newDatabase), ignoreIfNotExists);
-	}
-
-	// ------ tables and views------
-
-
 
 	// ------ partitions ------
 
@@ -343,10 +340,12 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 		throw new UnsupportedOperationException();
 	}
 
+	// ------ utils ------
+
 	/**
 	 * Filter out Hive-created properties, and return Flink-created properties.
 	 */
-	private static Map<String, String> retrieveFlinkProperties(Map<String, String> hiveTableParams) {
+	private Map<String, String> retrieveFlinkProperties(Map<String, String> hiveTableParams) {
 		return hiveTableParams.entrySet().stream()
 			.filter(e -> e.getKey().startsWith(FLINK_PROPERTY_PREFIX))
 			.collect(Collectors.toMap(e -> e.getKey().replace(FLINK_PROPERTY_PREFIX, ""), e -> e.getValue()));
@@ -355,7 +354,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	/**
 	 * Add a prefix to Flink-created properties to distinguish them from Hive-created properties.
 	 */
-	private static Map<String, String> buildFlinkProperties(Map<String, String> properties) {
+	private Map<String, String> buildFlinkProperties(Map<String, String> properties) {
 		return properties.entrySet().stream()
 			.filter(e -> e.getKey() != null && e.getValue() != null)
 			.collect(Collectors.toMap(e -> FLINK_PROPERTY_PREFIX + e.getKey(), e -> e.getValue()));

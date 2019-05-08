@@ -23,10 +23,6 @@ package org.apache.flink.table.catalog.hive;
  */
 public class HiveTableConfig {
 
-	// -------------------
-	// Hive table configs
-	// -------------------
-
 	// Comment of the Flink table
 	public static final String TABLE_COMMENT = "comment";
 
