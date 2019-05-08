@@ -55,6 +55,7 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 				testingSchedulerOperations,
 				testingSchedulingTopology);
 	}
+
 	/**
 	 * Tests that when start scheduling eager scheduling strategy will start all vertices in scheduling topology.
 	 */
