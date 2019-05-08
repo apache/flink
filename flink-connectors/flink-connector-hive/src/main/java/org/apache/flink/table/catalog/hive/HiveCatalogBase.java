@@ -109,7 +109,7 @@ public abstract class HiveCatalogBase implements Catalog {
 	 * @param catalogBaseTable the base table to be validated
 	 * @throws IllegalArgumentException thrown if the input base table is invalid.
 	 */
-	public abstract void validateCatalogBaseTable(CatalogBaseTable catalogBaseTable)
+	protected abstract void validateCatalogBaseTable(CatalogBaseTable catalogBaseTable)
 		throws IllegalArgumentException;
 
 	/**
@@ -118,7 +118,7 @@ public abstract class HiveCatalogBase implements Catalog {
 	 * @param hiveTable a Hive table
 	 * @return a CatalogBaseTable
 	 */
-	public abstract CatalogBaseTable createCatalogTable(Table hiveTable);
+	protected abstract CatalogBaseTable createCatalogBaseTable(Table hiveTable);
 
 	/**
 	 * Create a Hive table from a CatalogBaseTable.
@@ -127,7 +127,7 @@ public abstract class HiveCatalogBase implements Catalog {
 	 * @param table a CatalogBaseTable
 	 * @return a Hive table
 	 */
-	public abstract Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table);
+	protected abstract Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table);
 
 	@Override
 	public void open() throws CatalogException {
@@ -243,7 +243,7 @@ public abstract class HiveCatalogBase implements Catalog {
 	@Override
 	public CatalogBaseTable getTable(ObjectPath tablePath)
 			throws TableNotExistException, CatalogException {
-		return createCatalogTable(getHiveTable(tablePath));
+		return createCatalogBaseTable(getHiveTable(tablePath));
 	}
 
 	@Override
@@ -295,12 +295,15 @@ public abstract class HiveCatalogBase implements Catalog {
 	@Override
 	public void alterTable(ObjectPath tablePath, CatalogBaseTable newCatalogTable, boolean ignoreIfNotExists)
 			throws TableNotExistException, CatalogException {
+		validateCatalogBaseTable(newCatalogTable);
+
 		try {
 			if (!tableExists(tablePath)) {
 				if (!ignoreIfNotExists) {
 					throw new TableNotExistException(catalogName, tablePath);
 				}
 			} else {
+				// TODO: [FLINK-12452] alterTable() in all catalogs should ensure existing base table and the new one are of the same type
 				Table newTable = createHiveTable(tablePath, newCatalogTable);
 
 				// client.alter_table() requires a valid location

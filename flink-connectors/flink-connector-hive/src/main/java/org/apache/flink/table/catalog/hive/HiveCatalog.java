@@ -97,7 +97,7 @@ public class HiveCatalog extends HiveCatalogBase {
 	// ------ tables and views------
 
 	@Override
-	public void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
+	protected void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
 		// TODO: validate HiveCatalogView
 		if (!(table instanceof HiveCatalogTable)) {
 			throw new IllegalArgumentException(
@@ -106,7 +106,7 @@ public class HiveCatalog extends HiveCatalogBase {
 	}
 
 	@Override
-	public CatalogBaseTable createCatalogTable(Table hiveTable) {
+	protected CatalogBaseTable createCatalogBaseTable(Table hiveTable) {
 		// Table schema
 		TableSchema tableSchema =
 			createTableSchema(hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
@@ -130,7 +130,7 @@ public class HiveCatalog extends HiveCatalogBase {
 	}
 
 	@Override
-	public Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	protected Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 
 		// Table comment

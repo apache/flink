@@ -106,16 +106,15 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	// ------ tables and views------
 
 	@Override
-	public void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
-		// TODO: invalidate HiveCatalogView
-		if (table instanceof HiveCatalogTable) {
+	protected void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
+		if (!(table instanceof GenericCatalogTable) && !(table instanceof GenericCatalogView)) {
 			throw new IllegalArgumentException(
-				"Please use HiveCatalog to operate on HiveCatalogTable and HiveCatalogView.");
+				"GenericHiveMetastoreCatalog can only operate on GenericCatalogTable and GenericCatalogView.");
 		}
 	}
 
 	@Override
-	public CatalogBaseTable createCatalogTable(Table hiveTable) {
+	protected CatalogBaseTable createCatalogBaseTable(Table hiveTable) {
 		// Table schema
 		TableSchema tableSchema = createTableSchema(
 			hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
@@ -150,7 +149,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	}
 
 	@Override
-	public Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	protected Table createHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 
 		// Table comment
@@ -162,7 +161,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 		hiveTable.setCreateTime((int) (System.currentTimeMillis() / 1000));
 
 		// Table properties
-		hiveTable.setParameters(buildFlinkProperties(properties));
+		hiveTable.setParameters(maskFlinkProperties(properties));
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = new StorageDescriptor();
@@ -347,7 +346,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	/**
 	 * Add a prefix to Flink-created properties to distinguish them from Hive-created properties.
 	 */
-	private Map<String, String> buildFlinkProperties(Map<String, String> properties) {
+	private Map<String, String> maskFlinkProperties(Map<String, String> properties) {
 		return properties.entrySet().stream()
 			.filter(e -> e.getKey() != null && e.getValue() != null)
 			.collect(Collectors.toMap(e -> FLINK_PROPERTY_PREFIX + e.getKey(), e -> e.getValue()));
