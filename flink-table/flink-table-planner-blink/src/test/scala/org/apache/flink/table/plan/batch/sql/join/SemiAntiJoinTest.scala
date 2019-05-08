@@ -18,15 +18,9 @@
 
 package org.apache.flink.table.plan.batch.sql.join
 
-import org.apache.flink.table.api.TableConfigOptions
+/**
+  * Test SEMI/ANTI Join, the join operators are chose based on cost.
+  */
+class SemiAntiJoinTest extends SemiAntiJoinTestBase {
 
-import org.junit.Before
-
-class NestedLoopSemiJoinTest extends SemiJoinTestBase {
-
-  @Before
-  def before(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin, HashJoin")
-  }
 }

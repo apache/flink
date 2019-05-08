@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SemiJoinFactory, SinkFactory}
+import org.apache.flink.table.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
 import org.apache.flink.table.expressions.WindowProperty
 import org.apache.flink.table.runtime.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
@@ -33,8 +33,8 @@ import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
+import java.util
 import java.util.{Collections, Properties}
-import java.{lang, util}
 
 import scala.collection.JavaConversions._
 
@@ -51,10 +51,6 @@ class FlinkRelBuilder(
     relOptSchema) {
 
   require(context != null)
-
-  private val semiJoinFactory: SemiJoinFactory = {
-    Util.first(context.unwrap(classOf[SemiJoinFactory]), FlinkRelFactories.DEFAULT_SEMIJOIN_FACTORY)
-  }
 
   private val expandFactory: ExpandFactory = {
     Util.first(context.unwrap(classOf[ExpandFactory]), FlinkRelFactories.DEFAULT_EXPAND_FACTORY)
@@ -76,28 +72,6 @@ class FlinkRelBuilder(
 
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-
-  override def semiJoin(conditions: lang.Iterable[_ <: RexNode]): RelBuilder = {
-    val right = build
-    val semiJoin = semiJoinFactory.createSemiJoin(peek, right, and(conditions))
-    push(semiJoin)
-    this
-  }
-
-  override def semiJoin(conditions: RexNode*): RelBuilder = {
-    this.semiJoin(conditions)
-  }
-
-  def antiJoin(conditions: lang.Iterable[_ <: RexNode]): RelBuilder = {
-    val right = build
-    val antiJoin = semiJoinFactory.createAntiJoin(peek, right, and(conditions))
-    push(antiJoin)
-    this
-  }
-
-  def antiJoin(conditions: RexNode*): RelBuilder = {
-    this.antiJoin(conditions)
-  }
 
   def expand(
       outputRowType: RelDataType,

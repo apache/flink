@@ -88,9 +88,9 @@ object FlinkBatchRuleSets {
     */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
-    FilterJoinRule.FILTER_ON_JOIN,
+    FlinkFilterJoinRule.FILTER_ON_JOIN,
     // push filter into the children of a join
-    FilterJoinRule.JOIN,
+    FlinkFilterJoinRule.JOIN,
     // push filter through an aggregation
     FilterAggregateTransposeRule.INSTANCE,
     // push a filter past a project
@@ -130,7 +130,8 @@ object FlinkBatchRuleSets {
     ProjectFilterTransposeRule.INSTANCE,
     // push a projection to the children of a join
     // push all expressions to handle the time indicator correctly
-    new ProjectJoinTransposeRule(PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
+    new FlinkProjectJoinTransposeRule(
+      PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
     // merge projections
     ProjectMergeRule.INSTANCE,
     // remove identity project
@@ -208,7 +209,6 @@ object FlinkBatchRuleSets {
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
-    FlinkLogicalSemiJoin.CONVERTER,
     FlinkLogicalSort.BATCH_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
@@ -250,11 +250,8 @@ object FlinkBatchRuleSets {
     BatchExecHashAggRule.INSTANCE,
     BatchExecSortAggRule.INSTANCE,
     BatchExecHashJoinRule.INSTANCE,
-    BatchExecHashJoinRule.SEMI_JOIN,
     BatchExecSortMergeJoinRule.INSTANCE,
-    BatchExecSortMergeJoinRule.SEMI_JOIN,
     BatchExecNestedLoopJoinRule.INSTANCE,
-    BatchExecNestedLoopJoinRule.SEMI_JOIN,
     BatchExecSingleRowJoinRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
     BatchExecOverWindowAggRule.INSTANCE,

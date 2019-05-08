@@ -91,9 +91,9 @@ object FlinkStreamRuleSets {
     */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
-    FilterJoinRule.FILTER_ON_JOIN,
+    FlinkFilterJoinRule.FILTER_ON_JOIN,
     // push filter into the children of a join
-    FilterJoinRule.JOIN,
+    FlinkFilterJoinRule.JOIN,
     // push filter through an aggregation
     FilterAggregateTransposeRule.INSTANCE,
     // push a filter past a project
@@ -133,7 +133,8 @@ object FlinkStreamRuleSets {
     ProjectFilterTransposeRule.INSTANCE,
     // push a projection to the children of a join
     // push all expressions to handle the time indicator correctly
-    new ProjectJoinTransposeRule(PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
+    new FlinkProjectJoinTransposeRule(
+      PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
     // merge projections
     ProjectMergeRule.INSTANCE,
     // remove identity project
@@ -199,7 +200,6 @@ object FlinkStreamRuleSets {
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
-    FlinkLogicalSemiJoin.CONVERTER,
     FlinkLogicalSort.STREAM_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
@@ -255,7 +255,6 @@ object FlinkStreamRuleSets {
     StreamExecGroupWindowAggregateRule.INSTANCE,
     StreamExecExpandRule.INSTANCE,
     StreamExecJoinRule.INSTANCE,
-    StreamExecSemiJoinRule.INSTANCE,
     StreamExecWindowJoinRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     StreamExecSinkRule.INSTANCE

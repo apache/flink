@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.RelOptUtil.Logic
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
-import org.apache.calcite.rel.core.Filter
+import org.apache.calcite.rel.core.{Filter, JoinRelType}
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalJoin, LogicalProject}
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rex._
@@ -45,7 +45,8 @@ import scala.collection.mutable
   *
   * <p>A sub-query may or may not be correlated. If a sub-query is correlated,
   * the wrapped [[RelNode]] will contain a [[RexCorrelVariable]] before the rewrite,
-  * and the product of the rewrite will be a [[org.apache.calcite.rel.core.SemiJoin]].
+  * and the product of the rewrite will be a [[org.apache.calcite.rel.core.Join]]
+  * with SEMI or ANTI join type.
   */
 class FlinkSubQueryRemoveRule(
     operand: RelOptRuleOperand,
@@ -198,9 +199,9 @@ class FlinkSubQueryRemoveRule(
         newJoinCondition.foreach(joinConditions += _)
 
         if (withNot) {
-          relBuilder.antiJoin(joinConditions: _*)
+          relBuilder.join(JoinRelType.ANTI, joinConditions)
         } else {
-          relBuilder.semiJoin(joinConditions: _*)
+          relBuilder.join(JoinRelType.SEMI, joinConditions)
         }
         Some(relBuilder.literal(true))
 
@@ -219,7 +220,7 @@ class FlinkSubQueryRemoveRule(
           // which can be converted to:
           //
           // LogicalProject(a=[$0], b=[$1])
-          //  SemiJoin(condition=[$2], joinType=[inner], isAnti=[false])
+          //  LogicalJoin(condition=[$2], joinType=[semi])
           //    LogicalTableScan(table=[[builtin, default, l]])
           //    LogicalProject($f0=[IS NOT NULL($0)])
           //     LogicalAggregate(group=[{}], m=[MIN($0)])
@@ -242,9 +243,9 @@ class FlinkSubQueryRemoveRule(
         }
 
         if (withNot) {
-          relBuilder.antiJoin(joinCondition)
+          relBuilder.join(JoinRelType.ANTI, joinCondition)
         } else {
-          relBuilder.semiJoin(joinCondition)
+          relBuilder.join(JoinRelType.SEMI, joinCondition)
         }
         Some(relBuilder.literal(true))
 
@@ -313,7 +314,7 @@ class FlinkSubQueryRemoveRule(
     * and returns SubQuery's new operands and new join condition with new index.
     *
     * e.g. SELECT * FROM l WHERE a + 1 IN (SELECT c FROM r)
-    * We will add projection as SemiJoin left input, the added projection will pass along fields
+    * We will add projection as SEMI join left input, the added projection will pass along fields
     * from the input, and add `a + 1` as new field.
     */
   private def handleSubQueryOperands(

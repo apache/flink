@@ -16,6 +16,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testExistsAndNotExists">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:           +- Exchange(distribution=[single])
+:              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:                 +- Calc(select=[true AS i])
+:                    +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[i], where=[<(j, 100)])
+      +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExistsWithCorrelated_AggInSubQuery">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, 1)]]>
@@ -34,7 +68,7 @@ LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(c, f))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[f, e])
@@ -64,12 +98,63 @@ LogicalFilter(condition=[=($cor1.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
       +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(65536) f, VARCHAR(65536) f0)], joinType=[INNER])
          +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelated_NonEquiCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a < r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[<($cor0.a, $0)])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[<(a, d)], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelated_NonEquiCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a < 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[<($cor0.a, 10)])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, CAST(IS NOT NULL(a)) AS $f3], where=[<(a, 10)])
+   :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- LocalHashAggregate(select=[])
+         +- Calc(select=[])
+            +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -91,7 +176,7 @@ LogicalAggregate(group=[{0}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(c, f)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(c, f)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[f])
@@ -119,11 +204,215 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_ComplexCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), NOT(OR(LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})))))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(a, 10) AS EXPR$0, c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+   :- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+   :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                  +- Calc(select=[true AS i])
+                     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_JoinInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE EXISTS (SELECT d, j + 1 FROM r FULL JOIN (SELECT j FROM t WHERE i > 10) t2 ON r.e = t2.j)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalJoin(condition=[=($1, $3)], joinType=[full])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+  LogicalProject(j=[$1])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+   :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                  +- Calc(select=[true AS i])
+                     +- NestedLoopJoin(joinType=[FullOuterJoin], where=[=(e, j)], select=[e, j], build=[right])
+                        :- Exchange(distribution=[single])
+                        :  +- Calc(select=[e])
+                        :     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                        +- Exchange(distribution=[single])
+                           +- Calc(select=[j], where=[>(i, 10)])
+                              +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_LateralTableInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE EXISTS (SELECT * FROM t))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+})])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d, e, f, f0], build=[right], singleRowJoin=[true])
+                     :- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(65536) f, VARCHAR(65536) f0)], joinType=[INNER])
+                     :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     +- Exchange(distribution=[broadcast])
+                        +- Calc(select=[IS NOT NULL(m) AS $f0])
+                           +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+                              +- Exchange(distribution=[single])
+                                 +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                                    +- Calc(select=[true AS i])
+                                       +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}), >($1, 10))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithUncorrelated_UnionInSubQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE EXISTS (SELECT e, f FROM r WHERE d > 10 UNION SELECT j, k FROM t WHERE i < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1], f=[$2])
+    LogicalFilter(condition=[>($0, 10)])
+      LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+  LogicalProject(j=[$1], k=[$2])
+    LogicalFilter(condition=[<($0, 100)])
+      LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+   :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                  +- Calc(select=[true AS i])
+                     +- HashAggregate(isMerge=[true], groupBy=[e, f], select=[e, f])
+                        +- Exchange(distribution=[hash[e, f]])
+                           +- LocalHashAggregate(groupBy=[e, f], select=[e, f])
+                              +- Union(all=[true], union=[e, f])
+                                 :- Calc(select=[e, f], where=[>(d, 10)])
+                                 :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                                 +- Calc(select=[j, k], where=[<(i, 100)])
+                                    +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -147,8 +436,8 @@ LogicalProject(i=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, i), =(b, j))], select=[a, b, c], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, i), =(b, j))], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[broadcast])
 :     +- Calc(select=[d])
@@ -178,8 +467,8 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], build=[right])
 :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[broadcast])
 :     +- Calc(select=[j])
@@ -187,6 +476,62 @@ HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroad
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInNotInExistsNotExists">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)  AND b NOT IN (SELECT i FROM t WHERE l.c = t.k AND i > 10)  AND EXISTS (SELECT COUNT(l) FROM t2 where n like 'Test' GROUP BY l) AND NOT EXISTS (SELECT * FROM r WHERE l.b <> r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}), NOT(IN($1, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
+    LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})), EXISTS({
+LogicalAggregate(group=[{0}], EXPR$0=[COUNT($0)])
+  LogicalProject(l=[$0])
+    LogicalFilter(condition=[LIKE($2, _UTF-16LE'Test')])
+      LogicalTableScan(table=[[t2, source: [TestTableSource(l, m, n)]]])
+}), NOT(EXISTS({
+LogicalFilter(condition=[<>($cor0.b, $1)])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[<>(b, e)], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(b, i), IS NULL(b), IS NULL(i)), =(c, k))], select=[a, b, c], build=[right])
+:  :- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:  :  :- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:  :  :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  :  +- Exchange(distribution=[broadcast])
+:  :  :     +- Calc(select=[d])
+:  :  :        +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], reuse_id=[1])
+:  :  +- Exchange(distribution=[broadcast])
+:  :     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:  :        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:  :           +- Exchange(distribution=[single])
+:  :              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:  :                 +- Calc(select=[true AS i])
+:  :                    +- HashAggregate(isMerge=[true], groupBy=[l], select=[l, Final_COUNT(count$0) AS EXPR$0])
+:  :                       +- Exchange(distribution=[hash[l]])
+:  :                          +- LocalHashAggregate(groupBy=[l], select=[l, Partial_COUNT(l) AS count$0])
+:  :                             +- Calc(select=[l], where=[LIKE(n, _UTF-16LE'Test')])
+:  :                                +- TableSourceScan(table=[[t2, source: [TestTableSource(l, m, n)]]], fields=[l, m, n])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[i, k], where=[>(i, 10)])
+:        +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[e])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -209,7 +554,7 @@ LogicalProject(EXPR$0=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(c, f))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[EXPR$0, f])
@@ -240,7 +585,7 @@ LogicalProject(EXPR$0=[$4], d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(a, d), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(a, d), =(c, f))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[EXPR$0, d, f])
@@ -269,7 +614,7 @@ LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[+(a, 10) AS EXPR$0, c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, e))], select=[a, b, c, $f3, $f4], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, e))], select=[a, b, c, $f3, $f4], build=[right])
    :- Calc(select=[a, b, c, SUBSTRING(c, 1, 5) AS $f3, +(b, 1) AS $f4])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -295,12 +640,58 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
 :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelated_ComplexCondition3">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE  (CASE WHEN a IN (SELECT 1 FROM t) THEN 1 ELSE 2 END) IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[IN(CASE(IN($0, {
+LogicalProject(EXPR$0=[1])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+}), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, d), =(c, f))], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, CASE(AND(<>(c0, 0), IS NOT NULL(i), IS NOT NULL(a)), 1, 2) AS $f3])
+   :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a, 1)], select=[a, b, c, c0, i], build=[right])
+   :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0], build=[right], singleRowJoin=[true])
+   :     :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     :  +- Exchange(distribution=[broadcast])
+   :     :     +- Calc(select=[c])
+   :     :        +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
+   :     :           +- Exchange(distribution=[single])
+   :     :              +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(EXPR$0) AS count$1])
+   :     :                 +- Calc(select=[1 AS EXPR$0])
+   :     :                    +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
+   :     +- Exchange(distribution=[broadcast])
+   :        +- Calc(select=[true AS i])
+   :           +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])
+   :              +- Exchange(distribution=[hash[EXPR$0]])
+   :                 +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
+   :                    +- Calc(select=[1 AS EXPR$0, true AS i])
+   :                       +- Reused(reference_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d, f])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -327,11 +718,11 @@ LogicalProject(e=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(a, d), =(c, k))], select=[a, b, c], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(a, d), =(c, k))], select=[a, b, c], build=[right])
    :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[e, d, k])
-         +- HashJoin(joinType=[InnerJoin], where=[=(e, j)], select=[e, d, j, k], isBroadcast=[true], build=[left])
+         +- NestedLoopJoin(joinType=[InnerJoin], where=[=(e, j)], select=[e, d, j, k], build=[left])
             :- Exchange(distribution=[broadcast])
             :  +- Calc(select=[e, d], where=[<(e, 50)])
             :     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -361,11 +752,11 @@ LogicalProject(j=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, d))], select=[a, b, c], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, d))], select=[a, b, c], build=[right])
    :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[j, d])
-         +- HashJoin(joinType=[LeftOuterJoin], where=[=(f, k)], select=[f, d, j, k], isBroadcast=[true], build=[right])
+         +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(f, k)], select=[f, d, j, k], build=[right])
             :- Calc(select=[f, d], where=[<(e, 50)])
             :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
             +- Exchange(distribution=[broadcast])
@@ -395,11 +786,11 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, k))], select=[a, b, c], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, k))], select=[a, b, c], build=[right])
    :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[d, k])
-         +- HashJoin(joinType=[RightOuterJoin], where=[=(d, i)], select=[d, i, k], isBroadcast=[true], build=[left])
+         +- NestedLoopJoin(joinType=[RightOuterJoin], where=[=(d, i)], select=[d, i, k], build=[left])
             :- Exchange(distribution=[broadcast])
             :  +- Calc(select=[d])
             :     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -427,7 +818,7 @@ LogicalProject(f1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(c, f1), =(a, d))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(c, f1), =(a, d))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[f0 AS f1, d])
@@ -454,7 +845,7 @@ LogicalProject(d=[$0], EXPR$1=[SUBSTRING($2, 1, 5)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =($f3, EXPR$1), =(b, e))], select=[a, b, c, $f3], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =($f3, EXPR$1), =(b, e))], select=[a, b, c, $f3], build=[right])
    :- Calc(select=[a, b, c, SUBSTRING(c, 1, 5) AS $f3])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -480,7 +871,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), >(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), >(b, e))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e])
@@ -506,7 +897,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c, $f3], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c, $f3], build=[right])
    :- Calc(select=[a, b, c, CAST(IS NOT NULL(b)) AS $f3], where=[>(b, 10)])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -533,7 +924,7 @@ LogicalProject(rk=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, rk), <>(a, d))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, rk), <>(a, d))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[w0$o0 AS rk, d])
@@ -570,7 +961,7 @@ LogicalProject(i=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(EXPR$0, i), =(k, c))], select=[a, b, c, EXPR$0], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(EXPR$0, i), =(k, c))], select=[a, b, c, EXPR$0], build=[right])
    :- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, c, EXPR$0], build=[right], singleRowJoin=[true])
    :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    :  +- Exchange(distribution=[broadcast])
@@ -578,7 +969,7 @@ Calc(select=[a])
    :        +- Exchange(distribution=[single])
    :           +- LocalSortAggregate(select=[Partial_MAX(d) AS max$0])
    :              +- Calc(select=[d])
-   :                 +- HashJoin(joinType=[InnerJoin], where=[=(e, j)], select=[d, e, j], isBroadcast=[true], build=[right])
+   :                 +- NestedLoopJoin(joinType=[InnerJoin], where=[=(e, j)], select=[d, e, j], build=[right])
    :                    :- Calc(select=[d, e])
    :                    :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
    :                    +- Exchange(distribution=[broadcast])
@@ -610,7 +1001,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e])
@@ -635,7 +1026,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[>(b, 1)])
 :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
@@ -662,7 +1053,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b0, d))], select=[a, b, c, b0], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b0, d))], select=[a, b, c, b0], build=[right])
    :- Calc(select=[a, b, c, CAST(b) AS b0])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -691,7 +1082,7 @@ LogicalProject(EXPR$0=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(b, EXPR$0)], select=[a, b, c], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(b, EXPR$0)], select=[a, b, c], build=[right])
    :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[EXPR$0])
@@ -720,7 +1111,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, EXPR$1))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, EXPR$1))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS EXPR$1])
@@ -747,7 +1138,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
 :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
@@ -772,11 +1163,59 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_ComplexCondition3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b FROM l WHERE (CASE WHEN a IN
+    (SELECT 1 FROM t) THEN 1 ELSE 2 END) IN (SELECT d FROM r)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[IN(CASE(IN($0, {
+LogicalProject(EXPR$0=[1])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+}), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=($f3, d)], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, CASE(AND(<>(c0, 0), IS NOT NULL(i), IS NOT NULL(a)), 1, 2) AS $f3])
+   :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a, 1)], select=[a, b, c, c0, i], build=[right])
+   :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0], build=[right], singleRowJoin=[true])
+   :     :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     :  +- Exchange(distribution=[broadcast])
+   :     :     +- Calc(select=[c])
+   :     :        +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
+   :     :           +- Exchange(distribution=[single])
+   :     :              +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(EXPR$0) AS count$1])
+   :     :                 +- Calc(select=[1 AS EXPR$0])
+   :     :                    +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
+   :     +- Exchange(distribution=[broadcast])
+   :        +- Calc(select=[true AS i])
+   :           +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])
+   :              +- Exchange(distribution=[hash[EXPR$0]])
+   :                 +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
+   :                    +- Calc(select=[1 AS EXPR$0, true AS i])
+   :                       +- Reused(reference_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -802,7 +1241,7 @@ LogicalProject(j=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(EXPR$0, j)], select=[a, b, c, EXPR$0], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(EXPR$0, j)], select=[a, b, c, EXPR$0], build=[right])
    :- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, c, EXPR$0], build=[right], singleRowJoin=[true])
    :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    :  +- Exchange(distribution=[broadcast])
@@ -843,7 +1282,7 @@ LogicalProject(EXPR$0=[*(0.5:DECIMAL(2, 1), $0)])
 Calc(select=[b])
 +- NestedLoopJoin(joinType=[InnerJoin], where=[>(b, $f0)], select=[b, $f0], build=[right], singleRowJoin=[true])
    :- Calc(select=[b])
-   :  +- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+   :  +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
    :     :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    :     +- Exchange(distribution=[broadcast])
    :        +- Calc(select=[d], where=[>(e, 10)])
@@ -879,7 +1318,7 @@ LogicalProject(e=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[s])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[=($f3, e)], select=[b, s, $f2, $f3], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=($f3, e)], select=[b, s, $f2, $f3], build=[right])
    :- Calc(select=[b, s, $f2, $f3], where=[>($f2, 2)])
    :  +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS s, Final_COUNT(count1$1) AS $f2, Final_MAX(max$2) AS $f3])
    :     +- Exchange(distribution=[hash[b]])
@@ -889,6 +1328,44 @@ Calc(select=[s])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[e])
          +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelated_JoinInSubQuery">
+    <Resource name="sql">
+      <![CDATA[
+SELECT c FROM l WHERE a IN
+    (SELECT d FROM r FULL JOIN (SELECT i FROM t WHERE i > 10) t2 ON r.e = t2.i)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalJoin(condition=[=($1, $4)], joinType=[full])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+    LogicalProject(i=[$0], i0=[CAST($0):BIGINT])
+      LogicalFilter(condition=[>($0, 10)])
+        LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+   :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d])
+         +- NestedLoopJoin(joinType=[FullOuterJoin], where=[=(e, i0)], select=[d, e, i0], build=[right])
+            :- Exchange(distribution=[single])
+            :  +- Calc(select=[d, e])
+            :     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- Exchange(distribution=[single])
+               +- Calc(select=[CAST(i) AS i0], where=[>(i, 10)])
+                  +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -910,7 +1387,7 @@ LogicalProject(f1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(c, f1)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(c, f1)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[f0 AS f1])
@@ -939,7 +1416,7 @@ LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, EXPR$1))], select=[a, b, c, $f3, $f4], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, EXPR$1))], select=[a, b, c, $f3, $f4], build=[right])
    :- Calc(select=[a, b, c, +(a, 10) AS $f3, SUBSTRING(c, 1, 5) AS $f4])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -967,7 +1444,7 @@ LogicalProject(EXPR$0=[MAX($0) OVER (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOU
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, $0), =(b, $1))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, $0), =(b, $1))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
@@ -996,7 +1473,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
@@ -1021,7 +1498,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[>(b, 10)])
 :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
@@ -1047,7 +1524,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[=($f3, d)], select=[a, b, c, $f3], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=($f3, d)], select=[a, b, c, $f3], build=[right])
    :- Calc(select=[a, b, c, +(a, 1) AS $f3])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -1081,7 +1558,7 @@ LogicalUnion(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(b, e)], select=[a, b, c], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(b, e)], select=[a, b, c], build=[right])
    :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], groupBy=[e], select=[e])
@@ -1095,20 +1572,89 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultiNotExistsWithCorrelate">
+  <TestCase name="testMultiExistsWithCorrelate1">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a <> r.d) AND EXISTS (SELECT * FROM t WHERE j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(EXISTS({
+LogicalFilter(condition=[<>($cor0.a, $0)])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}), EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[<>(a, d)], select=[a, b, c], build=[right])
+:  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[d])
+:        +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i], where=[<(j, 100)])
+                  +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiExistsWithCorrelate2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE EXISTS (SELECT * FROM t) AND l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(EXISTS({
+LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+}), =($cor0.a, $0))])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d, e, f], build=[right], singleRowJoin=[true])
+         :- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[IS NOT NULL(m) AS $f0])
+               +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+                  +- Exchange(distribution=[single])
+                     +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                        +- Calc(select=[true AS i])
+                           +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiExistsWithUncorrelated">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND EXISTS (SELECT * FROM t t1 WHERE t1.i > 50) AND b >= 1 AND EXISTS (SELECT * FROM t t2 WHERE t2.j < 100)]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
-LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
++- LogicalFilter(condition=[AND(=($0, $3), EXISTS({
+LogicalFilter(condition=[>($0, 50)])
   LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
-})), >=(CAST($2):BIGINT, 1), NOT(EXISTS({
-LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+}), >=($1, 1), EXISTS({
+LogicalFilter(condition=[<($1, 100)])
   LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
-})))], variablesSet=[[$cor0]])
+}))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
       +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
@@ -1116,19 +1662,27 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c, d, e, f], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftAntiJoin], where=[=(b, j)], select=[a, b, c, d, e, f], isBroadcast=[true], build=[right])
-:  :- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], isBroadcast=[true], build=[left])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:  :- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])
 :  :  :- Exchange(distribution=[broadcast])
-:  :  :  +- Calc(select=[a, b, c], where=[>=(CAST(c), 1:BIGINT)])
+:  :  :  +- Calc(select=[a, b, c], where=[>=(b, 1)])
 :  :  :     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 :  +- Exchange(distribution=[broadcast])
-:     +- Calc(select=[j], where=[>(CAST(k), 50:BIGINT)])
-:        +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
+:     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:           +- Exchange(distribution=[single])
+:              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:                 +- Calc(select=[true AS i], where=[>(i, 50)])
+:                    +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[i], where=[<(j, 100)])
-      +- Reused(reference_id=[1])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i], where=[<(j, 100)])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1153,8 +1707,8 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, i))], select=[a, b, c], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, f))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, i))], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, f))], select=[a, b, c], build=[right])
 :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[broadcast])
 :     +- Calc(select=[d, f])
@@ -1186,11 +1740,11 @@ LogicalProject(k=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e])
-      +- HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(f, k), =(e, j))], select=[d, e, f], isBroadcast=[true], build=[right])
+      +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(f, k), =(e, j))], select=[d, e, f], build=[right])
          :- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
          +- Exchange(distribution=[broadcast])
             +- Calc(select=[k, j])
@@ -1218,8 +1772,8 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(k, c))], select=[a, b, c], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(k, c))], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[broadcast])
 :     +- Calc(select=[d])
@@ -1249,8 +1803,8 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[broadcast])
 :     +- Calc(select=[d])
@@ -1281,15 +1835,181 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- HashSemiJoin(joinType=[LeftSemiJoin], where=[=(e, j)], select=[d, e, f], isBroadcast=[true], build=[right])
+      +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[=(e, j)], select=[d, e, f], build=[right])
          :- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
          +- Exchange(distribution=[broadcast])
             +- Calc(select=[j])
                +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})), >=(CAST($2):BIGINT, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c, d, e, f], build=[right])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[=(b, j)], select=[a, b, c, d, e, f], build=[right])
+:  :- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])
+:  :  :- Exchange(distribution=[broadcast])
+:  :  :  +- Calc(select=[a, b, c], where=[>=(CAST(c), 1:BIGINT)])
+:  :  :     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[j], where=[>(CAST(k), 50:BIGINT)])
+:        +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[i], where=[<(j, 100)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelated">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE t1.i > 50) AND b >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[>($0, 50)])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})), >=($1, 1), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])
+:  :- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])
+:  :  :- Exchange(distribution=[broadcast])
+:  :  :  +- Calc(select=[a, b, c], where=[>=(b, 1)])
+:  :  :     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[broadcast])
+:     +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+:           +- Exchange(distribution=[single])
+:              +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+:                 +- Calc(select=[true AS i], where=[>(i, 50)])
+:                    +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i], where=[<(j, 100)])
+                  +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotInWithCorrelated">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE e NOT IN (SELECT j FROM t WHERE t.i = r.d))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[NOT(IN($1, {
+LogicalProject(j=[$1])
+  LogicalFilter(condition=[=($0, $cor0.d)])
+    LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(e, j), IS NULL(e), IS NULL(j)), =(i, d))], select=[d, e, f], build=[right])
+         :- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[j, i])
+               +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelated_NonEquiCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[<($cor0.a, $0)])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[<(a, d)], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelated_NonEquiCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[<($cor0.a, 10)])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[true], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, CAST(IS NOT NULL(a)) AS $f3], where=[<(a, 10)])
+   :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- LocalHashAggregate(select=[])
+         +- Calc(select=[])
+            +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1309,11 +2029,95 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelated_ComplexCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE NOT( b > 10 OR (c like 'abc' OR NOT EXISTS (SELECT d FROM r)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[NOT(OR(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(a, 10) AS EXPR$0, c])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+   :- Calc(select=[a, b, c], where=[AND(<=(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+   :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+                  +- Calc(select=[true AS i])
+                     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})), >($1, 10))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
+               +- Calc(select=[true AS i])
+                  +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1335,7 +2139,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[=(a, c)], select=[a, b], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[=(a, c)], select=[a, b], build=[right])
 :- TableSourceScan(table=[[leftT, source: [TestTableSource(a, b)]]], fields=[a, b])
 +- Exchange(distribution=[broadcast])
    +- HashAggregate(isMerge=[true], groupBy=[c], select=[c])
@@ -1366,8 +2170,8 @@ LogicalProject(i=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, i), IS NULL(a), IS NULL(i)), =(b, j))], select=[a, b, c], isBroadcast=[true], build=[right])
-:- HashSemiJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, i), IS NULL(a), IS NULL(i)), =(b, j))], select=[a, b, c], build=[right])
+:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
 :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[broadcast])
 :     +- Calc(select=[d])
@@ -1396,7 +2200,7 @@ LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[+(a, 10) AS EXPR$0, c])
-+- HashSemiJoin(joinType=[LeftAntiJoin], where=[AND(OR(=($f3, EXPR$0), IS NULL($f3), IS NULL(EXPR$0)), =($f4, e))], select=[a, b, c, $f3, $f4], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=($f3, EXPR$0), IS NULL($f3), IS NULL(EXPR$0)), =($f4, e))], select=[a, b, c, $f3, $f4], build=[right])
    :- Calc(select=[a, b, c, SUBSTRING(c, 1, 5) AS $f3, +(b, 1) AS $f4])
    :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -1429,12 +2233,12 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b])
-+- HashSemiJoin(joinType=[LeftAntiJoin], where=[AND(OR(=($f3, d), IS NULL(d)), =(c, f))], select=[a, b, c, $f3], isBroadcast=[true], build=[right])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=($f3, d), IS NULL(d)), =(c, f))], select=[a, b, c, $f3], build=[right])
    :- Calc(select=[a, b, c, CASE(OR(=(c0, 0), AND(<>(c0, 0), IS NULL(i0), >=(ck, c0), IS NOT NULL(a))), 1, OR(=(c1, 0), AND(<>(c1, 0), IS NULL(i), >=(ck0, c1), IS NOT NULL(a))), 2, 3) AS $f3])
-   :  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, EXPR$0)], select=[a, b, c, c0, ck, i0, c1, ck0, EXPR$0, i], isBroadcast=[true], build=[right])
+   :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a, EXPR$0)], select=[a, b, c, c0, ck, i0, c1, ck0, EXPR$0, i], build=[right])
    :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck, i0, c1, ck0], build=[right], singleRowJoin=[true])
    :     :  :- Calc(select=[a, b, c, c0, ck, i0])
-   :     :  :  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, i)], select=[a, b, c, c0, ck, i, i0], isBroadcast=[true], build=[right])
+   :     :  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a, i)], select=[a, b, c, c0, ck, i, i0], build=[right])
    :     :  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck], build=[right], singleRowJoin=[true])
    :     :  :     :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    :     :  :     :  +- Exchange(distribution=[broadcast])
@@ -1444,11 +2248,12 @@ Calc(select=[b])
    :     :  :     :              +- Calc(select=[i])
    :     :  :     :                 +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k], reuse_id=[1])
    :     :  :     +- Exchange(distribution=[broadcast])
-   :     :  :        +- HashAggregate(isMerge=[true], groupBy=[i, i0], select=[i, i0])
-   :     :  :           +- Exchange(distribution=[hash[i, i0]])
-   :     :  :              +- LocalHashAggregate(groupBy=[i, i0], select=[i, i0])
-   :     :  :                 +- Calc(select=[i, true AS i0])
-   :     :  :                    +- Reused(reference_id=[1])
+   :     :  :        +- Calc(select=[i, true AS i0])
+   :     :  :           +- HashAggregate(isMerge=[true], groupBy=[i], select=[i])
+   :     :  :              +- Exchange(distribution=[hash[i]])
+   :     :  :                 +- LocalHashAggregate(groupBy=[i], select=[i])
+   :     :  :                    +- Calc(select=[i, true AS i0])
+   :     :  :                       +- Reused(reference_id=[1])
    :     :  +- Exchange(distribution=[broadcast])
    :     :     +- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
    :     :        +- Exchange(distribution=[single])
@@ -1456,11 +2261,12 @@ Calc(select=[b])
    :     :              +- Calc(select=[CAST(j) AS EXPR$0])
    :     :                 +- Reused(reference_id=[1])
    :     +- Exchange(distribution=[broadcast])
-   :        +- HashAggregate(isMerge=[true], groupBy=[EXPR$0, i], select=[EXPR$0, i])
-   :           +- Exchange(distribution=[hash[EXPR$0, i]])
-   :              +- LocalHashAggregate(groupBy=[EXPR$0, i], select=[EXPR$0, i])
-   :                 +- Calc(select=[CAST(j) AS EXPR$0, true AS i])
-   :                    +- Reused(reference_id=[1])
+   :        +- Calc(select=[EXPR$0, true AS i])
+   :           +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])
+   :              +- Exchange(distribution=[hash[EXPR$0]])
+   :                 +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
+   :                    +- Calc(select=[CAST(j) AS EXPR$0, true AS i])
+   :                       +- Reused(reference_id=[1])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[d, f])
          +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -1484,11 +2290,63 @@ LogicalProject(d=[$0], f=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), OR(=(c, f), IS NULL(c), IS NULL(f)), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), OR(=(c, f), IS NULL(c), IS NULL(f)), =(b, e))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, f, e])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_NonEquiCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b > r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[>($cor0.b, $1)])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), >(b, e))], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, e])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelated_NonEquiCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[>($cor0.b, 10)])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, CAST(IS NOT NULL(b)) AS $f3], where=[>(b, 10)])
+   :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1509,7 +2367,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), =(b, e))], select=[a, b, c], build=[right])
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e])
@@ -1534,12 +2392,220 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashSemiJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), =(b, e))], select=[a, b, c], isBroadcast=[true], build=[right])
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), =(b, e))], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[>(b, 1)])
 :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e], where=[>(d, 10)])
       +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_ComplexCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT ( NOT ( a NOT IN (SELECT d FROM r)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_ComplexCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c], build=[right])
+:- Calc(select=[a, b, c], where=[AND(>(b, 10), LIKE(c, _UTF-16LE'abc'))])
+:  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_ComplexCondition3">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[t1, source: [TestTableSource(i)]]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[t2, source: [TestTableSource(j)]]])
+})), 2, 3), {
+LogicalProject(e=[$1], d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(b, e), IS NULL(b), IS NULL(e)), OR(=($f3, d), IS NULL(d)))], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, CASE(OR(=(c0, 0), AND(<>(c0, 0), IS NULL(i0), >=(ck, c0), IS NOT NULL(a))), 1, OR(=(c1, 0), AND(<>(c1, 0), IS NULL(i), >=(ck0, c1), IS NOT NULL(a))), 2, 3) AS $f3])
+   :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a, j)], select=[a, b, c, c0, ck, i0, c1, ck0, j, i], build=[right])
+   :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck, i0, c1, ck0], build=[right], singleRowJoin=[true])
+   :     :  :- Calc(select=[a, b, c, c0, ck, i0])
+   :     :  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a, i)], select=[a, b, c, c0, ck, i, i0], build=[right])
+   :     :  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck], build=[right], singleRowJoin=[true])
+   :     :  :     :  :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     :  :     :  +- Exchange(distribution=[broadcast])
+   :     :  :     :     +- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
+   :     :  :     :        +- Exchange(distribution=[single])
+   :     :  :     :           +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(i) AS count$1])
+   :     :  :     :              +- TableSourceScan(table=[[t1, source: [TestTableSource(i)]]], fields=[i], reuse_id=[1])
+   :     :  :     +- Exchange(distribution=[broadcast])
+   :     :  :        +- Calc(select=[i, true AS i0])
+   :     :  :           +- HashAggregate(isMerge=[true], groupBy=[i], select=[i])
+   :     :  :              +- Exchange(distribution=[hash[i]])
+   :     :  :                 +- LocalHashAggregate(groupBy=[i], select=[i])
+   :     :  :                    +- Reused(reference_id=[1])
+   :     :  +- Exchange(distribution=[broadcast])
+   :     :     +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
+   :     :        +- Exchange(distribution=[single])
+   :     :           +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(j) AS count$1])
+   :     :              +- TableSourceScan(table=[[t2, source: [TestTableSource(j)]]], fields=[j], reuse_id=[2])
+   :     +- Exchange(distribution=[broadcast])
+   :        +- Calc(select=[j, true AS i])
+   :           +- HashAggregate(isMerge=[true], groupBy=[j], select=[j])
+   :              +- Exchange(distribution=[hash[j]])
+   :                 +- LocalHashAggregate(groupBy=[j], select=[j])
+   :                    +- Reused(reference_id=[2])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[e, d])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_MultiFields">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), OR(=(c, f), IS NULL(c), IS NULL(f)))], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d, f])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_SimpleCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c], build=[right])
+:- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_SimpleCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE e < 100) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[<($1, 100)])
+    LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+})), >($1, 10))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c], build=[right])
+:- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[d], where=[<(e, 100)])
+      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelated_SimpleCondition3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a * b NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(*($0, $1), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c])
++- NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(=($f3, d), IS NULL($f3), IS NULL(d))], select=[a, b, c, $f3], build=[right])
+   :- Calc(select=[a, b, c, *(a, b) AS $f3])
+   :  +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

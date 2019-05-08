@@ -47,11 +47,15 @@ class StreamExecJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    val joinRowType = join.getRowType
+    if (!join.getJoinType.projectsRight) {
+      // SEMI/ANTI join always converts to StreamExecJoin now
+      return true
+    }
 
     // TODO check LHS or RHS are FlinkLogicalSnapshot
 
+    val joinRowType = join.getRowType
+    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,

@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.join.FlinkJoinType
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType, SemiJoin}
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
@@ -42,8 +42,14 @@ import scala.collection.JavaConversions._
   * Regular joins are the most generic type of join in which any new records or changes to
   * either side of the join input are visible and are affecting the whole join result.
   */
-trait StreamExecJoinBase
-  extends CommonPhysicalJoin
+class StreamExecJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType)
+  extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
@@ -88,6 +94,16 @@ trait StreamExecJoinBase
 
   override def requireWatermark: Boolean = false
 
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
+    new StreamExecJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+  }
+
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val elementRate = 100.0d * 2 // two input stream
     planner.getCostFactory.makeCost(elementRate, elementRate, 0)
@@ -110,46 +126,4 @@ trait StreamExecJoinBase
     throw new TableException("Implements this")
   }
 
-}
-
-class StreamExecJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    joinType: JoinRelType)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
-  with StreamExecJoinBase {
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): Join = {
-    new StreamExecJoin(cluster, traitSet, left, right, conditionExpr, joinType)
-  }
-}
-
-class StreamExecSemiJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    isAntiJoin: Boolean)
-  extends SemiJoin(cluster, traitSet, leftRel, rightRel, condition, isAntiJoin)
-  with StreamExecJoinBase {
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): SemiJoin = {
-    new StreamExecSemiJoin(cluster, traitSet, left, right, conditionExpr, isAntiJoin)
-  }
 }

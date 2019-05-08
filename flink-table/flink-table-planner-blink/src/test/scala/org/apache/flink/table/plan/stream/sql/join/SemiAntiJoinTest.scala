@@ -23,7 +23,7 @@ import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
 
-class SemiJoinTest extends TableTestBase {
+class SemiAntiJoinTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addTableSource[(Int, Long, String)]("l", 'a, 'b, 'c)

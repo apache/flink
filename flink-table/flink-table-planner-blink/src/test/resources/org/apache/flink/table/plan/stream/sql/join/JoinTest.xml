@@ -186,7 +186,7 @@ LogicalProject(a1=[$1], b1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -194,8 +194,7 @@ Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
    :           +- Calc(select=[a1, a2], updateAsRetraction=[true], accMode=[Acc])
    :              +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
    +- Exchange(distribution=[hash[b1]], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[b1, b2], updateAsRetraction=[true], accMode=[Acc])
-         +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
+      +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -666,7 +665,7 @@ LogicalProject(a1=[$1], b1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -674,8 +673,7 @@ Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
    :           +- Calc(select=[a1, a2], updateAsRetraction=[true], accMode=[Acc])
    :              +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
    +- Exchange(distribution=[hash[b1]], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[b1, b2], updateAsRetraction=[true], accMode=[Acc])
-         +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
+      +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -986,7 +984,7 @@ LogicalProject(a1=[$1], b1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -994,8 +992,7 @@ Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
    :           +- Calc(select=[a1, a2], updateAsRetraction=[true], accMode=[Acc])
    :              +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
    +- Exchange(distribution=[hash[b1]], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[b1, b2], updateAsRetraction=[true], accMode=[Acc])
-         +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
+      +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>

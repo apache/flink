@@ -19,24 +19,23 @@ package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.table.api.OperatorType
 import org.apache.flink.table.calcite.FlinkContext
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalSemiJoin}
-import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecNestedLoopJoin, BatchExecNestedLoopSemiJoin}
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecNestedLoopJoin
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Join, JoinRelType, SemiJoin}
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecNestedLoopJoin]] or
-  * converts [[FlinkLogicalSemiJoin]] to [[BatchExecNestedLoopSemiJoin]]
+  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecNestedLoopJoin]]
   * if NestedLoopJoin is enabled.
   */
-class BatchExecNestedLoopJoinRule(joinClass: Class[_ <: Join])
+class BatchExecNestedLoopJoinRule
   extends RelOptRule(
-    operand(joinClass,
+    operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    s"BatchExecNestedLoopJoinRule_${joinClass.getSimpleName}")
+    "BatchExecNestedLoopJoinRule")
   with BatchExecJoinRuleBase
   with BatchExecNestedLoopJoinRuleBase {
 
@@ -48,8 +47,8 @@ class BatchExecNestedLoopJoinRule(joinClass: Class[_ <: Join])
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join: Join = call.rel(0)
     val left = join.getLeft
-    val right = join match {
-      case _: SemiJoin =>
+    val right = join.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
         // We can do a distinct to buildSide(right) when semi join.
         val distinctKeys = 0 until join.getRight.getRowType.getFieldCount
         val useBuildDistinct = chooseSemiBuildDistinct(join.getRight, distinctKeys)
@@ -66,9 +65,6 @@ class BatchExecNestedLoopJoinRule(joinClass: Class[_ <: Join])
   }
 
   private def isLeftBuild(join: Join, left: RelNode, right: RelNode): Boolean = {
-    if (join.isInstanceOf[SemiJoin]) {
-      return false
-    }
     join.getJoinType match {
       case JoinRelType.LEFT => false
       case JoinRelType.RIGHT => true
@@ -81,12 +77,11 @@ class BatchExecNestedLoopJoinRule(joinClass: Class[_ <: Join])
         } else {
           leftSize <= rightSize
         }
+      case JoinRelType.SEMI | JoinRelType.ANTI => false
     }
   }
 }
 
 object BatchExecNestedLoopJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecNestedLoopJoinRule(classOf[FlinkLogicalJoin])
-  val SEMI_JOIN: RelOptRule = new BatchExecNestedLoopJoinRule(classOf[FlinkLogicalSemiJoin])
-
+  val INSTANCE: RelOptRule = new BatchExecNestedLoopJoinRule
 }

@@ -20,11 +20,11 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution.BROADCAST_DISTRIBUTED
 import org.apache.flink.table.plan.nodes.FlinkConventions.BATCH_PHYSICAL
-import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecNestedLoopJoin, BatchExecNestedLoopSemiJoin}
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecNestedLoopJoin
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Join, JoinRelType, SemiJoin}
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 
 trait BatchExecNestedLoopJoinRuleBase {
 
@@ -52,26 +52,14 @@ trait BatchExecNestedLoopJoinRuleBase {
     val newRight = RelOptRule.convert(right, rightRequiredTrait)
     val providedTraitSet = join.getTraitSet.replace(BATCH_PHYSICAL)
 
-    join match {
-      case sj: SemiJoin =>
-        new BatchExecNestedLoopSemiJoin(
-          sj.getCluster,
-          providedTraitSet,
-          newLeft,
-          newRight,
-          sj.getCondition,
-          sj.isAnti,
-          singleRowJoin)
-      case _ =>
-        new BatchExecNestedLoopJoin(
-          join.getCluster,
-          providedTraitSet,
-          newLeft,
-          newRight,
-          join.getCondition,
-          join.getJoinType,
-          leftIsBuild,
-          singleRowJoin)
-    }
+    new BatchExecNestedLoopJoin(
+      join.getCluster,
+      providedTraitSet,
+      newLeft,
+      newRight,
+      join.getCondition,
+      join.getJoinType,
+      leftIsBuild,
+      singleRowJoin)
   }
 }

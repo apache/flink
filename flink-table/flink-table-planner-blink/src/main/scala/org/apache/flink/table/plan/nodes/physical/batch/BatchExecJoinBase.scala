@@ -25,13 +25,22 @@ import org.apache.flink.table.generated.GeneratedJoinCondition
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.BatchExecNode
 
-import org.apache.calcite.rel.core.Join
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{Join, JoinRelType}
+import org.apache.calcite.rex.RexNode
 
 /**
   * Batch physical RelNode for [[Join]]
   */
-trait BatchExecJoinBase
-  extends CommonPhysicalJoin
+abstract class BatchExecJoinBase(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType)
+  extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with BatchPhysicalRel
   with BatchExecNode[BaseRow] {
 

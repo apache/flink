@@ -21,12 +21,13 @@ import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl}
 import org.apache.flink.table.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
 
-import com.google.common.collect.Lists
+import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.config.NullCollation
-import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.plan.RelOptUtil.InputFinder
+import org.apache.calcite.plan.{RelOptUtil, Strong}
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.`type`.RelDataTypeField
-import org.apache.calcite.rel.core.{Join, JoinRelType, SemiJoin}
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
 import org.apache.calcite.sql.SqlExplainLevel
@@ -185,9 +186,196 @@ object FlinkRelOptUtil {
   }
 
   /**
+    * Simplifies outer joins if filter above would reject nulls.
+    *
+    * NOTES: This method should be deleted when upgrading to a new calcite version
+    * which contains CALCITE-2969.
+    *
+    * @param joinRel Join
+    * @param aboveFilters Filters from above
+    * @param joinType Join type, can not be inner join
+    */
+  def simplifyJoin(
+      joinRel: RelNode,
+      aboveFilters: ImmutableList[RexNode],
+      joinType: JoinRelType): JoinRelType = {
+    // No need to simplify if only first input output.
+    if (!joinType.projectsRight()) {
+      return joinType
+    }
+    val nTotalFields = joinRel.getRowType.getFieldCount
+    val nSysFields = 0
+    val nFieldsLeft = joinRel.getInputs.get(0).getRowType.getFieldCount
+    val nFieldsRight = joinRel.getInputs.get(1).getRowType.getFieldCount
+    assert(nTotalFields == nSysFields + nFieldsLeft + nFieldsRight)
+
+    // set the reference bitmaps for the left and right children
+    val leftBitmap = ImmutableBitSet.range(nSysFields, nSysFields + nFieldsLeft)
+    val rightBitmap = ImmutableBitSet.range(nSysFields + nFieldsLeft, nTotalFields)
+
+    var result = joinType
+    for (filter <- aboveFilters) {
+      if (joinType.generatesNullsOnLeft && Strong.isNotTrue(filter, leftBitmap)) {
+        result = result.cancelNullsOnLeft
+      }
+      if (joinType.generatesNullsOnRight && Strong.isNotTrue(filter, rightBitmap)) {
+        result = result.cancelNullsOnRight
+      }
+      if (joinType eq JoinRelType.INNER) {
+        return result
+      }
+    }
+    result
+  }
+
+  /**
+    * Classifies filters according to where they should be processed. They
+    * either stay where they are, are pushed to the join (if they originated
+    * from above the join), or are pushed to one of the children. Filters that
+    * are pushed are added to list passed in as input parameters.
+    *
+    * NOTES: This method should be deleted when upgrading to a new calcite version
+    * which contains CALCITE-2969.
+    *
+    * @param joinRel      join node
+    * @param filters      filters to be classified
+    * @param joinType     join type
+    * @param pushInto     whether filters can be pushed into the ON clause
+    * @param pushLeft     true if filters can be pushed to the left
+    * @param pushRight    true if filters can be pushed to the right
+    * @param joinFilters  list of filters to push to the join
+    * @param leftFilters  list of filters to push to the left child
+    * @param rightFilters list of filters to push to the right child
+    * @return whether at least one filter was pushed
+    */
+  def classifyFilters(
+      joinRel: RelNode,
+      filters: util.List[RexNode],
+      joinType: JoinRelType,
+      pushInto: Boolean,
+      pushLeft: Boolean,
+      pushRight: Boolean,
+      joinFilters: util.List[RexNode],
+      leftFilters: util.List[RexNode],
+      rightFilters: util.List[RexNode]): Boolean = {
+    val rexBuilder = joinRel.getCluster.getRexBuilder
+    val joinFields = joinRel.getRowType.getFieldList
+    val nTotalFields = joinFields.size
+    val nSysFields = 0 // joinRel.getSystemFieldList().size();
+    val leftFields = joinRel.getInputs.get(0).getRowType.getFieldList
+    val nFieldsLeft = leftFields.size
+    val rightFields = joinRel.getInputs.get(1).getRowType.getFieldList
+    val nFieldsRight = rightFields.size
+
+    assert(nTotalFields == (if (joinType.projectsRight()) {
+      nSysFields + nFieldsLeft + nFieldsRight
+    } else {
+      // SEMI/ANTI
+      nSysFields + nFieldsLeft
+    }))
+
+    // set the reference bitmaps for the left and right children
+    val leftBitmap = ImmutableBitSet.range(nSysFields, nSysFields + nFieldsLeft)
+    val rightBitmap = ImmutableBitSet.range(nSysFields + nFieldsLeft, nTotalFields)
+
+    val filtersToRemove = new util.ArrayList[RexNode]
+
+    filters.foreach { filter =>
+      val inputFinder = InputFinder.analyze(filter)
+      val inputBits = inputFinder.inputBitSet.build
+      // REVIEW - are there any expressions that need special handling
+      // and therefore cannot be pushed?
+      // filters can be pushed to the left child if the left child
+      // does not generate NULLs and the only columns referenced in
+      // the filter originate from the left child
+      if (pushLeft && leftBitmap.contains(inputBits)) {
+        // ignore filters that always evaluate to true
+        if (!filter.isAlwaysTrue) {
+          // adjust the field references in the filter to reflect
+          // that fields in the left now shift over by the number
+          // of system fields
+          val shiftedFilter = shiftFilter(
+            nSysFields,
+            nSysFields + nFieldsLeft,
+            -nSysFields,
+            rexBuilder,
+            joinFields,
+            nTotalFields,
+            leftFields,
+            filter)
+          leftFilters.add(shiftedFilter)
+        }
+        filtersToRemove.add(filter)
+
+        // filters can be pushed to the right child if the right child
+        // does not generate NULLs and the only columns referenced in
+        // the filter originate from the right child
+      } else if (pushRight && rightBitmap.contains(inputBits)) {
+        if (!filter.isAlwaysTrue) {
+          // that fields in the right now shift over to the left;
+          // since we never push filters to a NULL generating
+          // child, the types of the source should match the dest
+          // so we don't need to explicitly pass the destination
+          // fields to RexInputConverter
+          val shiftedFilter = shiftFilter(
+            nSysFields + nFieldsLeft,
+            nTotalFields,
+            -(nSysFields + nFieldsLeft),
+            rexBuilder,
+            joinFields,
+            nTotalFields,
+            rightFields,
+            filter)
+          rightFilters.add(shiftedFilter)
+        }
+        filtersToRemove.add(filter)
+      } else {
+        // If the filter can't be pushed to either child and the join
+        // is an inner join, push them to the join if they originated
+        // from above the join
+        if ((joinType eq JoinRelType.INNER) && pushInto) {
+          if (!joinFilters.contains(filter)) {
+            joinFilters.add(filter)
+          }
+          filtersToRemove.add(filter)
+        }
+      }
+    }
+    // Remove filters after the loop, to prevent concurrent modification.
+    if (!filtersToRemove.isEmpty) {
+      filters.removeAll(filtersToRemove)
+    }
+    // Did anything change?
+    !filtersToRemove.isEmpty
+  }
+
+  private def shiftFilter(
+      start: Int,
+      end: Int,
+      offset: Int,
+      rexBuilder: RexBuilder,
+      joinFields: util.List[RelDataTypeField],
+      nTotalFields: Int,
+      rightFields: util.List[RelDataTypeField],
+      filter: RexNode): RexNode = {
+    val adjustments = new Array[Int](nTotalFields)
+    (start until end).foreach {
+      i => adjustments(i) = offset
+    }
+    filter.accept(
+      new RelOptUtil.RexInputConverter(
+        rexBuilder,
+        joinFields,
+        rightFields,
+        adjustments)
+    )
+  }
+
+  /**
     * Pushes down expressions in "equal" join condition.
     *
-    * This method is copied from [[RelOptUtil.pushDownJoinConditions]] to support SemiJoin.
+    * NOTES: This method should be deleted when upgrading to a new calcite version
+    * which contains CALCITE-2969.
     *
     * <p>For example, given
     * "emp JOIN dept ON emp.deptno + 1 = dept.deptno", adds a project above
@@ -252,9 +440,9 @@ object FlinkRelOptUtil {
     relBuilder.push(originalJoin.copy(originalJoin.getTraitSet, joinCond, left, right, joinType,
       originalJoin.isSemiJoinDone))
 
-    // handle SemiJoin here
+    // handle SEMI/ANTI join here
     var mapping: Mappings.TargetMapping = null
-    if (originalJoin.isInstanceOf[SemiJoin]) {
+    if (!originalJoin.getJoinType.projectsRight()) {
       if (!extraLeftExprs.isEmpty) {
         mapping = Mappings.createShiftMapping(leftCount + extraLeftExprs.size, 0, 0, leftCount)
       }

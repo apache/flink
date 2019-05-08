@@ -23,7 +23,7 @@ import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
 import org.junit.Test
 
-abstract class SemiJoinTestBase extends TableTestBase {
+abstract class SemiAntiJoinTestBase extends TableTestBase {
 
   protected val util: BatchTableTestUtil = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("l", 'a, 'b, 'c)

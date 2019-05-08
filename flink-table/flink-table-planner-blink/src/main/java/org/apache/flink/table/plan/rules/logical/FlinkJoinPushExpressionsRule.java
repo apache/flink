@@ -31,7 +31,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 /**
  * This rules is copied from Calcite's {@link org.apache.calcite.rel.rules.JoinPushExpressionsRule}.
  * Modification:
- * - Supports SemiJoin using {@link org.apache.flink.table.plan.util.FlinkRelOptUtil#pushDownJoinConditions}
+ * - Supports SEMI/ANTI join using {@link org.apache.flink.table.plan.util.FlinkRelOptUtil#pushDownJoinConditions}
  */
 
 /**

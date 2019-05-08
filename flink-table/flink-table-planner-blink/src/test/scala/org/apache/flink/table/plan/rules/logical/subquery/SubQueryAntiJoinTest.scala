@@ -41,7 +41,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   @Test
   def testNotInOnWhere_NotSubQuery(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE a NOT IN (1, 2, 3, 4)"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -82,7 +82,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   @Test
   def testNotInWithUncorrelatedOnWhere_ComplexCondition1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b > 10 AND NOT (c like 'abc' AND a IN (SELECT d FROM r))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -119,24 +119,24 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
 
   @Test
   def testNotInWithUncorrelatedOnWhere_UnsupportedCondition(): Unit = {
-    // these queries will not be converted to SemiJoin
+    // these queries will not be converted to joinType=[anti]
     val sqlQuery1 = "SELECT * FROM x WHERE a NOT IN (SELECT c FROM y) OR b = 10"
-    util.verifyPlanNotExpected(sqlQuery1, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery1, "joinType=[anti]")
 
     val sqlQuery2 = "SELECT * FROM x WHERE a NOT IN " +
       "(SELECT c FROM y WHERE x.b NOT IN (SELECT e FROM z))"
-    util.verifyPlanNotExpected(sqlQuery2, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery2, "joinType=[anti]")
 
     val sqlQuery3 = "SELECT * FROM x, y WHERE " +
       "x.a = y.c AND (y.d NOT IN (SELECT d FROM y) OR x.a >= 1)"
-    util.verifyPlanNotExpected(sqlQuery3, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery3, "joinType=[anti]")
 
     val sqlQuery4 = "SELECT * FROM x WHERE " +
       "a NOT IN (SELECT c FROM y) OR b NOT IN (SELECT e FROM z)"
-    util.verifyPlanNotExpected(sqlQuery4, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery4, "joinType=[anti]")
 
     val sqlQuery5 = "SELECT * FROM x WHERE a NOT IN (SELECT x.b FROM y)"
-    util.verifyPlanNotExpected(sqlQuery5, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery5, "joinType=[anti]")
   }
 
   @Test
@@ -219,7 +219,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE " +
       "(CASE WHEN a NOT IN (SELECT i FROM t1 WHERE l.a = t1.i) THEN 1 ELSE 2 END) " +
       "NOT IN (SELECT d FROM r)"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -244,7 +244,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     // NOT IN in OR condition
     val sqlQuery = "SELECT * FROM x WHERE " +
       "a NOT IN (SELECT c FROM y) OR b NOT IN (SELECT f FROM z WHERE f IS NOT NULL)"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -353,7 +353,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE " +
       "(CASE WHEN a NOT IN (SELECT i FROM t1 WHERE l.a = t1.i) THEN 1 ELSE 2 END)" +
       " NOT IN (SELECT d FROM r WHERE l.c = r.f)"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -379,7 +379,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   def testNotInWithCorrelatedOnWhere_ComplexCondition4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' AND a IN (SELECT d FROM r where l.b = r.e))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -398,22 +398,22 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
 
   @Test
   def testNotInWithCorrelatedOnWhere_UnsupportedCondition(): Unit = {
-    // these queries will not be converted to SemiJoin
+    // these queries will not be converted to joinType=[anti]
     val sqlQuery1 = "SELECT * FROM x WHERE b NOT IN (SELECT d FROM y WHERE x.a = y.c OR y.c = 10)"
-    util.verifyPlanNotExpected(sqlQuery1, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery1, "joinType=[anti]")
 
     val sqlQuery2 = "SELECT * FROM x WHERE b NOT IN (SELECT d FROM y WHERE x.a = y.c OR x.b = 10)"
-    util.verifyPlanNotExpected(sqlQuery2, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery2, "joinType=[anti]")
 
     val sqlQuery3 = "SELECT * FROM x WHERE b NOT IN (SELECT d FROM y WHERE x.a = y.c) OR x.a = 10"
-    util.verifyPlanNotExpected(sqlQuery3, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery3, "joinType=[anti]")
 
     val sqlQuery4 = "SELECT * FROM x WHERE a NOT IN (SELECT x.b FROM y WHERE x.a = y.c)"
-    util.verifyPlanNotExpected(sqlQuery4, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery4, "joinType=[anti]")
 
     val sqlQuery5 = "SELECT * FROM l WHERE a NOT IN " +
       "(SELECT d FROM r WHERE l.b NOT IN (SELECT j FROM t) AND l.c = r.f)"
-    util.verifyPlanNotExpected(sqlQuery5, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery5, "joinType=[anti]")
   }
 
   @Test
@@ -490,7 +490,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   @Test
   def testNotExistsWithUncorrelatedOnWhere4(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y) OR x.b = 10"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -512,7 +512,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   @Test
   def testNotExistsWithUncorrelatedOnWhere_UnsupportedCondition(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (NOT EXISTS (SELECT d FROM r)) IS NOT NULL"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -530,7 +530,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       "AND NOT EXISTS (SELECT * FROM z z1 WHERE z1.e > 50) " +
       "AND NOT (b >= 1 " +
       "AND NOT EXISTS (SELECT * FROM z z2 WHERE z2.f < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -538,7 +538,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l, r WHERE l.a = r.d " +
       "AND (NOT EXISTS (SELECT * FROM t t1 WHERE t1.k > 50) " +
       "OR NOT EXISTS (SELECT * FROM t t2 WHERE t2.j < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -600,17 +600,17 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   @Test
   def testNotExistsWithCorrelatedOnWhere_UnsupportedCondition(): Unit = {
     val sqlQuery1 = "SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a = y.c OR y.c = 10)"
-    util.verifyPlanNotExpected(sqlQuery1, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery1, "joinType=[anti]")
 
     val sqlQuery2 = "SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a = y.c OR x.b = 10)"
-    util.verifyPlanNotExpected(sqlQuery2, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery2, "joinType=[anti]")
 
     val sqlQuery3 = "SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a = y.c) OR x.b = 10"
-    util.verifyPlanNotExpected(sqlQuery3, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery3, "joinType=[anti]")
 
     val sqlQuery4 = "SELECT * FROM x WHERE" +
       " (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS NOT NULL"
-    util.verifyPlanNotExpected(sqlQuery4, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery4, "joinType=[anti]")
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -631,7 +631,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       " WHERE d1 = e.d2 AND NOT EXISTS (SELECT 2 FROM " +
       "(SELECT i + 4 d4, i + 5 d5, i + 6 d6 FROM t)" +
       " WHERE d4 = d.d1 AND d5 = d.d1 AND d6 = e.d3))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -658,7 +658,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       "AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) " +
       "AND NOT (c >= 1 " +
       "AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -666,7 +666,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l, r WHERE l.a = r.d " +
       "AND (NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) " +
       "OR NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -732,7 +732,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       " (CASE WHEN NOT EXISTS (SELECT * FROM t WHERE l.a = t.i) THEN 1 ELSE 2 END), " +
       " (CASE WHEN b NOT IN (SELECT m FROM t2) THEN 3 ELSE 4 END)) " +
       "  NOT IN (SELECT d, e FROM r)"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
   @Test
@@ -760,7 +760,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       " (CASE WHEN NOT EXISTS (SELECT m FROM t2) THEN 3 " +
       "       WHEN EXISTS (select i FROM t) THEN 4 ELSE 5 END)) " +
       "  NOT IN (SELECT d, e FROM r)"
-    util.verifyPlanNotExpected(sqlQuery, "SemiJoin")
+    util.verifyPlanNotExpected(sqlQuery, "joinType=[anti]")
   }
 
 }

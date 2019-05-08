@@ -197,6 +197,15 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     mq.getRowCount(overWindow.getInput)
 
   def getRowCount(join: Join, mq: RelMetadataQuery): JDouble = {
+    join.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        val semiJoinSelectivity = FlinkRelMdUtil.makeSemiAntiJoinSelectivityRexNode(mq, join)
+        val selectivity = mq.getSelectivity(join.getLeft, semiJoinSelectivity)
+        val leftRowCount = mq.getRowCount(join.getLeft)
+        return NumberUtil.multiply(leftRowCount, selectivity)
+      case _ => // do nothing
+    }
+
     val leftChild = join.getLeft
     val rightChild = join.getRight
     val leftRowCount = mq.getRowCount(leftChild)
@@ -311,13 +320,6 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       join.getRight,
       join.getJoinType,
       join.isSemiJoinDone)
-  }
-
-  def getRowCount(rel: SemiJoin, mq: RelMetadataQuery): JDouble = {
-    val semiJoinSelectivity = FlinkRelMdUtil.makeSemiJoinSelectivityRexNode(mq, rel)
-    val selectivity = mq.getSelectivity(rel.getLeft, semiJoinSelectivity)
-    val leftRowCount = mq.getRowCount(rel.getLeft)
-    NumberUtil.multiply(leftRowCount, selectivity)
   }
 
   def getRowCount(rel: Union, mq: RelMetadataQuery): JDouble = {

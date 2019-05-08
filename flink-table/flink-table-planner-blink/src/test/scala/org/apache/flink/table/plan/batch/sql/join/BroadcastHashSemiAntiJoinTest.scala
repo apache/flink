@@ -18,19 +18,25 @@
 
 package org.apache.flink.table.plan.batch.sql.join
 
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
+import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, TableException}
 
 import org.junit.{Before, Test}
 
-class SortMergeSemiJoinTest extends SemiJoinTestBase {
+class BroadcastHashSemiAntiJoinTest extends SemiAntiJoinTestBase {
 
   @Before
   def before(): Unit = {
+    util.tableEnv.getConfig.getConf.setLong(
+      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, Long.MaxValue)
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS,
+      "SortMergeJoin, NestedLoopJoin, ShuffleHashJoin")
+    // the result plan may contains NestedLoopJoin (singleRowJoin)
+    // which is converted by BatchExecSingleRowJoinRule
   }
 
-  // the following test cases will throw exception because NestedLoopJoin is disabled.
+  // the following test cases will throw exception
+  // because NestedLoopJoin(non-singleRowJoin) is disabled.
   @Test
   override def testNotInWithCorrelated_NonEquiCondition1(): Unit = {
     thrown.expect(classOf[TableException])
@@ -46,31 +52,10 @@ class SortMergeSemiJoinTest extends SemiJoinTestBase {
   }
 
   @Test
-  override def testExistsWithUncorrelated_SimpleCondition1(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithUncorrelated_SimpleCondition1()
-  }
-
-  @Test
-  override def testExistsWithUncorrelated_SimpleCondition2(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithUncorrelated_SimpleCondition2()
-  }
-
-  @Test
   override def testInNotInExistsNotExists(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testInNotInExistsNotExists()
-  }
-
-  @Test
-  override def testExistsWithUncorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithUncorrelated_LateralTableInSubQuery()
   }
 
   @Test
@@ -81,31 +66,10 @@ class SortMergeSemiJoinTest extends SemiJoinTestBase {
   }
 
   @Test
-  override def testNotExistsWithUncorrelated_ComplexCondition(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testNotExistsWithUncorrelated_ComplexCondition()
-  }
-
-  @Test
   override def testExistsWithUncorrelated_JoinInSubQuery(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testExistsWithUncorrelated_JoinInSubQuery()
-  }
-
-  @Test
-  override def testMultiNotExistsWithUncorrelated(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testMultiNotExistsWithUncorrelated()
-  }
-
-  @Test
-  override def testExistsWithUncorrelated_ComplexCondition(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithUncorrelated_ComplexCondition()
   }
 
   @Test
@@ -165,13 +129,6 @@ class SortMergeSemiJoinTest extends SemiJoinTestBase {
   }
 
   @Test
-  override def testMultiExistsWithCorrelate2(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testMultiExistsWithCorrelate2()
-  }
-
-  @Test
   override def testNotInWithUncorrelated_MultiFields(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
@@ -186,45 +143,10 @@ class SortMergeSemiJoinTest extends SemiJoinTestBase {
   }
 
   @Test
-  override def testNotExistsWithUncorrelated_SimpleCondition1(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testNotExistsWithUncorrelated_SimpleCondition1()
-  }
-
-  @Test
-  override def testNotExistsWithUncorrelated_SimpleCondition2(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testNotExistsWithUncorrelated_SimpleCondition2()
-  }
-
-  @Test
-  override def testMultiExistsWithUncorrelated(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testMultiExistsWithUncorrelated()
-  }
-
-  @Test
-  override def testExistsAndNotExists(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsAndNotExists()
-  }
-
-  @Test
   override def testInWithCorrelated_ComplexCondition3(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testInWithCorrelated_ComplexCondition3()
-  }
-
-  @Test
-  override def testExistsWithUncorrelated_UnionInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithUncorrelated_UnionInSubQuery()
   }
 
   @Test
@@ -246,5 +168,12 @@ class SortMergeSemiJoinTest extends SemiJoinTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testNotInWithUncorrelated_SimpleCondition3()
+  }
+
+  @Test
+  override def testInWithUncorrelated_JoinInSubQuery(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
+    super.testInWithUncorrelated_JoinInSubQuery()
   }
 }

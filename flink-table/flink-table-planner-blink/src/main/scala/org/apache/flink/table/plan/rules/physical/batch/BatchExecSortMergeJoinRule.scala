@@ -22,28 +22,27 @@ import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalSemiJoin}
-import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecSortMergeJoin, BatchExecSortMergeSemiJoin}
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSortMergeJoin
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
-import org.apache.calcite.rel.core.{Join, SemiJoin}
+import org.apache.calcite.rel.core.Join
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.util.ImmutableIntList
 
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecSortMergeJoin]] or
-  * converts [[FlinkLogicalSemiJoin]] to [[BatchExecSortMergeSemiJoin]]
+  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecSortMergeJoin]]
   * if there exists at least one equal-join condition and SortMergeJoin is enabled.
   */
-class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
+class BatchExecSortMergeJoinRule
   extends RelOptRule(
-    operand(joinClass,
+    operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    s"BatchExecSortMergeJoinRule_${joinClass.getSimpleName}")
+    "BatchExecSortMergeJoinRule")
   with BatchExecJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -92,29 +91,15 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
       val providedTraitSet = call.getPlanner
         .emptyTraitSet()
         .replace(FlinkConventions.BATCH_PHYSICAL)
-      val newJoin = join match {
-        case sj: SemiJoin =>
-          new BatchExecSortMergeSemiJoin(
-            sj.getCluster,
-            providedTraitSet,
-            newLeft,
-            newRight,
-            sj.getCondition,
-            sj.isAnti,
-            requireLeftSorted,
-            requireRightSorted)
-        case _ =>
-          new BatchExecSortMergeJoin(
-            join.getCluster,
-            providedTraitSet,
-            newLeft,
-            newRight,
-            join.getCondition,
-            join.getJoinType,
-            requireLeftSorted,
-            requireRightSorted)
-
-      }
+      val newJoin = new BatchExecSortMergeJoin(
+        join.getCluster,
+        providedTraitSet,
+        newLeft,
+        newRight,
+        join.getCondition,
+        join.getJoinType,
+        requireLeftSorted,
+        requireRightSorted)
       call.transformTo(newJoin)
     }
 
@@ -154,6 +139,5 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
 }
 
 object BatchExecSortMergeJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule(classOf[FlinkLogicalJoin])
-  val SEMI_JOIN: RelOptRule = new BatchExecSortMergeJoinRule(classOf[FlinkLogicalSemiJoin])
+  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule
 }

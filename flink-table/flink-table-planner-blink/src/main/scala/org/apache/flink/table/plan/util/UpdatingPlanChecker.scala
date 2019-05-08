@@ -160,9 +160,9 @@ object UpdatingPlanChecker {
               .zip(joinNames.subList(lInNames.size, joinNames.length))
               .toMap
 
-            val lJoinKeys: Seq[String] = j.joinInfo.leftKeys
+            val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
               .map(lInNames.get(_))
-            val rJoinKeys: Seq[String] = j.joinInfo.rightKeys
+            val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
               .map(rInNames.get(_))
               .map(rInNamesToJoinNamesMap(_))
 

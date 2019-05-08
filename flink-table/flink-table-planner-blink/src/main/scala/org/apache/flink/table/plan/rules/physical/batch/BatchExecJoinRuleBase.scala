@@ -21,14 +21,11 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.JDouble
 import org.apache.flink.table.api.PlannerConfigOptions
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalSemiJoin}
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecLocalHashAggregate
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, JoinTypeUtil}
-import org.apache.flink.table.runtime.join.FlinkJoinType
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.Join
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -69,12 +66,6 @@ trait BatchExecJoinRuleBase {
     } else {
       ndvOfGroupKey / inputRows < ratioConf
     }
-  }
-
-  def getFlinkJoinType(join: Join): FlinkJoinType = join match {
-    case j: FlinkLogicalJoin => JoinTypeUtil.getFlinkJoinType(j)
-    case sj: FlinkLogicalSemiJoin => JoinTypeUtil.getFlinkJoinType(sj)
-    case _ => throw new IllegalArgumentException(s"Illegal join node: ${join.getRelTypeName}")
   }
 
   private[flink] def binaryRowRelNodeSize(relNode: RelNode): JDouble = {
