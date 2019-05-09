@@ -35,7 +35,7 @@ or
 If you want to build the container for a specific version of flink/hadoop/scala
 you can configure it in the respective args:
 
-    docker build --build-arg FLINK_VERSION=1.0.3 --build-arg HADOOP_VERSION=26 --build-arg SCALA_VERSION=2.10 -t "flink:1.0.3-hadoop2.6-scala_2.10" flink
+    build.sh --from-release --flink-version 1.8.0 --hadoop-version 2.8 --scala-version 2.11 --image-name <IMAGE_NAME>
 
 # Deploy
 
