@@ -32,6 +32,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.function.Supplier;
 
+import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
@@ -60,7 +61,8 @@ public class DefaultSchedulingResultPartitionTest extends TestLogger {
 		DefaultSchedulingExecutionVertex producerVertex = new DefaultSchedulingExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(resultPartition),
-			stateProvider);
+			stateProvider,
+			ANY);
 		resultPartition.setProducer(producerVertex);
 	}
 

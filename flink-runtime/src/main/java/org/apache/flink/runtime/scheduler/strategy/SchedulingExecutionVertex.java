@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
@@ -55,4 +56,11 @@ public interface SchedulingExecutionVertex {
 	 * @return collection of output edges
 	 */
 	Collection<SchedulingResultPartition> getProducedResultPartitions();
+
+	/**
+	 * Get {@link InputDependencyConstraint}.
+	 *
+	 * @return input dependency constraint
+	 */
+	InputDependencyConstraint getInputDependencyConstraint();
 }

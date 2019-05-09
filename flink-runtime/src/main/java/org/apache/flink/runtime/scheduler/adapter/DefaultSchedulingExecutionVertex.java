@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -44,14 +45,18 @@ class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
 	private final Supplier<ExecutionState> stateSupplier;
 
+	private final InputDependencyConstraint inputDependencyConstraint;
+
 	DefaultSchedulingExecutionVertex(
 			ExecutionVertexID executionVertexId,
 			List<? extends SchedulingResultPartition> producedPartitions,
-			Supplier<ExecutionState> stateSupplier) {
+			Supplier<ExecutionState> stateSupplier,
+			InputDependencyConstraint constraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.consumedPartitions = new ArrayList<>();
 		this.stateSupplier = checkNotNull(stateSupplier);
 		this.producedPartitions = checkNotNull(producedPartitions);
+		this.inputDependencyConstraint = checkNotNull(constraint);
 	}
 
 	@Override
@@ -72,6 +77,11 @@ class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
 	@Override
 	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
 		return Collections.unmodifiableCollection(producedPartitions);
+	}
+
+	@Override
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return inputDependencyConstraint;
 	}
 
 	<X extends SchedulingResultPartition> void addConsumedPartition(X partition) {
