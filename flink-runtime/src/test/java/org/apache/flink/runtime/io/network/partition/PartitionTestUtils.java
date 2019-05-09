@@ -36,17 +36,6 @@ public class PartitionTestUtils {
 	}
 
 	public static ResultPartition createPartition(
-			ResultPartitionConsumableNotifier notifier,
-			ResultPartitionType type,
-			boolean sendScheduleOrUpdateConsumersMessage) {
-		return new ResultPartitionBuilder()
-			.setResultPartitionConsumableNotifier(notifier)
-			.setResultPartitionType(type)
-			.setSendScheduleOrUpdateConsumersMessage(sendScheduleOrUpdateConsumersMessage)
-			.build();
-	}
-
-	public static ResultPartition createPartition(
 			NetworkEnvironment environment,
 			ResultPartitionType partitionType,
 			int numChannels) {

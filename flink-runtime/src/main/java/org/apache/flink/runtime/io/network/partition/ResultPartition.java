@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -67,13 +65,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <li><strong>Release</strong>: </li>
  * </ol>
  *
- * <h2>Lazy deployment and updates of consuming tasks</h2>
- *
- * <p>Before a consuming task can request the result, it has to be deployed. The time of deployment
- * depends on the PIPELINED vs. BLOCKING characteristic of the result partition. With pipelined
- * results, receivers are deployed as soon as the first buffer is added to the result partition.
- * With blocking results on the other hand, receivers are deployed after the partition is finished.
- *
  * <h2>Buffer management</h2>
  *
  * <h2>State management</h2>
@@ -83,10 +74,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 
 	private final String owningTaskName;
-
-	private final TaskActions taskActions;
-
-	private final JobID jobId;
 
 	private final ResultPartitionID partitionId;
 
@@ -98,11 +85,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private final ResultPartitionManager partitionManager;
 
-	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
-
 	public final int numTargetKeyGroups;
-
-	private final boolean sendScheduleOrUpdateConsumersMessage;
 
 	// - Runtime state --------------------------------------------------------
 
@@ -117,8 +100,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private BufferPool bufferPool;
 
-	private boolean hasNotifiedPipelinedConsumers;
-
 	private boolean isFinished;
 
 	private volatile Throwable cause;
@@ -127,27 +108,19 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	public ResultPartition(
 		String owningTaskName,
-		TaskActions taskActions, // actions on the owning task
-		JobID jobId,
 		ResultPartitionID partitionId,
 		ResultPartitionType partitionType,
 		ResultSubpartition[] subpartitions,
 		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
-		ResultPartitionConsumableNotifier partitionConsumableNotifier,
-		boolean sendScheduleOrUpdateConsumersMessage,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
-		this.taskActions = checkNotNull(taskActions);
-		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
 		this.subpartitions = checkNotNull(subpartitions);
 		this.numTargetKeyGroups = numTargetKeyGroups;
 		this.partitionManager = checkNotNull(partitionManager);
-		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
-		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
 		this.bufferPoolFactory = bufferPoolFactory;
 	}
 
@@ -169,10 +142,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 		this.bufferPool = bufferPool;
 		partitionManager.registerResultPartition(this);
-	}
-
-	public JobID getJobId() {
-		return jobId;
 	}
 
 	public String getOwningTaskName() {
@@ -221,7 +190,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
-	public void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
 		checkNotNull(bufferConsumer);
 
 		ResultSubpartition subpartition;
@@ -234,9 +203,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			throw ex;
 		}
 
-		if (subpartition.add(bufferConsumer)) {
-			notifyPipelinedConsumers();
-		}
+		return subpartition.add(bufferConsumer);
 	}
 
 	@Override
@@ -260,24 +227,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 */
 	@Override
 	public void finish() throws IOException {
-		boolean success = false;
+		checkInProduceState();
 
-		try {
-			checkInProduceState();
-
-			for (ResultSubpartition subpartition : subpartitions) {
-				subpartition.finish();
-			}
-
-			success = true;
+		for (ResultSubpartition subpartition : subpartitions) {
+			subpartition.finish();
 		}
-		finally {
-			if (success) {
-				isFinished = true;
 
-				notifyPipelinedConsumers();
-			}
-		}
+		isFinished = true;
 	}
 
 	public void release() {
@@ -438,16 +394,5 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
-	}
-
-	/**
-	 * Notifies pipelined consumers of this result partition once.
-	 */
-	private void notifyPipelinedConsumers() {
-		if (sendScheduleOrUpdateConsumersMessage && !hasNotifiedPipelinedConsumers && partitionType.isPipelined()) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
-
-			hasNotifiedPipelinedConsumers = true;
-		}
 	}
 }

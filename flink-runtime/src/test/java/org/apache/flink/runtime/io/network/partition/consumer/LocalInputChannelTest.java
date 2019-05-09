@@ -117,7 +117,6 @@ public class LocalInputChannelTest {
 				.setNumberOfSubpartitions(parallelism)
 				.setNumTargetKeyGroups(parallelism)
 				.setResultPartitionManager(partitionManager)
-				.setSendScheduleOrUpdateConsumersMessage(true)
 				.setBufferPoolFactory(p ->
 					networkBuffers.createBufferPool(producerBufferPoolSize, producerBufferPoolSize))
 				.build();

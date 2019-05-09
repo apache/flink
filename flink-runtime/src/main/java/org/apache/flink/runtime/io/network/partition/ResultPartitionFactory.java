@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -74,51 +72,36 @@ public class ResultPartitionFactory {
 
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
-		@Nonnull TaskActions taskActions,
-		@Nonnull JobID jobId,
 		@Nonnull ExecutionAttemptID executionAttemptID,
-		@Nonnull ResultPartitionDeploymentDescriptor desc,
-		@Nonnull ResultPartitionConsumableNotifier partitionConsumableNotifier) {
+		@Nonnull ResultPartitionDeploymentDescriptor desc) {
 
 		return create(
 			taskNameWithSubtaskAndId,
-			taskActions,
-			jobId,
 			new ResultPartitionID(desc.getPartitionId(), executionAttemptID),
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
-			partitionConsumableNotifier,
-			desc.sendScheduleOrUpdateConsumersMessage(),
 			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
 	}
 
 	@VisibleForTesting
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
-		@Nonnull TaskActions taskActions,
-		@Nonnull JobID jobId,
 		@Nonnull ResultPartitionID id,
 		@Nonnull ResultPartitionType type,
 		int numberOfSubpartitions,
 		int maxParallelism,
-		@Nonnull ResultPartitionConsumableNotifier partitionConsumableNotifier,
-		boolean sendScheduleOrUpdateConsumersMessage,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
 		ResultPartition partition = new ResultPartition(
 			taskNameWithSubtaskAndId,
-			taskActions,
-			jobId,
 			id,
 			type,
 			subpartitions,
 			maxParallelism,
 			partitionManager,
-			partitionConsumableNotifier,
-			sendScheduleOrUpdateConsumersMessage,
 			bufferPoolFactory);
 
 		createSubpartitions(partition, type, subpartitions);
