@@ -202,7 +202,7 @@ public class JobMasterTest extends TestLogger {
 	private static final Time testingTimeout = Time.seconds(10L);
 
 	private static final long fastHeartbeatInterval = 1L;
-	private static final long fastHeartbeatTimeout = 5L;
+	private static final long fastHeartbeatTimeout = 10L;
 
 	private static final long heartbeatInterval = 1000L;
 	private static final long heartbeatTimeout = 5_000_000L;
