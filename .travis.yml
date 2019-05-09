@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
+# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/reference/xenial/
 sudo: required
-dist: trusty
+dist: xenial
 
 cache:
   # default timeout is too low
@@ -51,7 +51,7 @@ before_script:
    - "export -f travis_time_start"
    - "export -f travis_time_finish"
 
-# Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
+# Install maven 3.2.5 since xenial uses 3.3.9 for which shading is broken
 before_install:
    - source ./tools/travis/setup_maven.sh
 
@@ -69,7 +69,7 @@ stages:
     if: type = cron
   - name: cleanup
 
-jdk: "oraclejdk8"
+jdk: "openjdk8"
 jobs:
   include:
     # main profile
