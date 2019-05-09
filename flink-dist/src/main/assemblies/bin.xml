@@ -95,14 +95,14 @@ under the License.
 
 		<!-- copy SQL client -->
 		<fileSet>
-			<directory>../flink-libraries/flink-sql-client/bin/</directory>
+			<directory>../flink-table/flink-sql-client/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 
 		<!-- copy SQL client configuration files -->
 		<fileSet>
-			<directory>../flink-libraries/flink-sql-client/conf/</directory>
+			<directory>../flink-table/flink-sql-client/conf/</directory>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>
@@ -194,6 +194,30 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy jar files of the streaming examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-twitter/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-state-machine/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
 		<!-- copy jar files of the gelly examples -->
 		<fileSet>
 			<directory>../flink-libraries/flink-gelly-examples/target</directory>
@@ -203,17 +227,7 @@ under the License.
 				<include>flink-gelly-examples_${scala.binary.version}-${project.version}.jar</include>
 			</includes>
 		</fileSet>
-
-		<!-- copy python jar -->
-		<fileSet>
-			<directory>../flink-libraries/flink-python/target</directory>
-			<outputDirectory>lib</outputDirectory>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>flink-python_${scala.binary.version}-${project.version}.jar</include>
-			</includes>
-		</fileSet>
-
+		
 		<!-- copy python example to examples of dist -->
 		<fileSet>
 			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api/flink/example</directory>

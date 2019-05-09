@@ -60,24 +60,7 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 
 	@Override
 	public void putNormalizedKey(Byte value, MemorySegment target, int offset, int numBytes) {
-		if (numBytes == 1) {
-			// default case, full normalized key. need to explicitly convert to int to
-			// avoid false results due to implicit type conversion to int when subtracting
-			// the min byte value
-			int highByte = value & 0xff;
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-		}
-		else if (numBytes <= 0) {
-		}
-		else {
-			int highByte = value & 0xff;
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			for (int i = 1; i < numBytes; i++) {
-				target.put(offset + i, (byte) 0);
-			}
-		}
+		NormalizedKeyUtil.putByteNormalizedKey(value, target, offset, numBytes);
 	}
 
 	@Override

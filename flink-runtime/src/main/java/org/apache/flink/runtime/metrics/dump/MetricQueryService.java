@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
@@ -27,19 +28,16 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.MetricDumpSerializer;
 
@@ -47,14 +45,15 @@ import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.Metr
  * The MetricQueryService creates a key-value representation of all metrics currently registered with Flink when queried.
  *
  * <p>It is realized as an actor and can be notified of
- * - an added metric by calling {@link MetricQueryService#notifyOfAddedMetric(ActorRef, Metric, String, AbstractMetricGroup)}
- * - a removed metric by calling {@link MetricQueryService#notifyOfRemovedMetric(ActorRef, Metric)}
- * - a metric dump request by sending the return value of {@link MetricQueryService#getCreateDump()}
+ * - an added metric by calling {@link #addMetric(String, Metric, AbstractMetricGroup)}
+ * - a removed metric by calling {@link #removeMetric(Metric)}
+ * - a metric dump request by calling {@link #queryMetrics(Time)}
  */
-public class MetricQueryService extends UntypedActor {
+public class MetricQueryService extends RpcEndpoint implements MetricQueryServiceGateway {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricQueryService.class);
 
 	public static final String METRIC_QUERY_SERVICE_NAME = "MetricQueryService";
+	private static final String SIZE_EXCEEDED_LOG_TEMPLATE =  "{} will not be reported as the metric dump would exceed the maximum size of {} bytes.";
 
 	private static final CharacterFilter FILTER = new CharacterFilter() {
 		@Override
@@ -70,52 +69,128 @@ public class MetricQueryService extends UntypedActor {
 	private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 	private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
 
-	@Override
-	public void postStop() {
-		serializer.close();
+	private final long messageSizeLimit;
+
+	public MetricQueryService(RpcService rpcService, String endpointId, long messageSizeLimit) {
+		super(rpcService, endpointId);
+		this.messageSizeLimit = messageSizeLimit;
 	}
 
 	@Override
-	public void onReceive(Object message) {
-		try {
-			if (message instanceof AddMetric) {
-				AddMetric added = (AddMetric) message;
+	public CompletableFuture<Void> onStop() {
+		serializer.close();
+		return CompletableFuture.completedFuture(null);
+	}
 
-				String metricName = added.metricName;
-				Metric metric = added.metric;
-				AbstractMetricGroup group = added.group;
+	public void addMetric(String metricName, Metric metric, AbstractMetricGroup group) {
+		runAsync(() -> {
+			QueryScopeInfo info = group.getQueryServiceMetricInfo(FILTER);
 
-				QueryScopeInfo info = group.getQueryServiceMetricInfo(FILTER);
-
-				if (metric instanceof Counter) {
-					counters.put((Counter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Gauge) {
-					gauges.put((Gauge<?>) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Histogram) {
-					histograms.put((Histogram) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Meter) {
-					meters.put((Meter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				}
-			} else if (message instanceof RemoveMetric) {
-				Metric metric = (((RemoveMetric) message).metric);
-				if (metric instanceof Counter) {
-					this.counters.remove(metric);
-				} else if (metric instanceof Gauge) {
-					this.gauges.remove(metric);
-				} else if (metric instanceof Histogram) {
-					this.histograms.remove(metric);
-				} else if (metric instanceof Meter) {
-					this.meters.remove(metric);
-				}
-			} else if (message instanceof CreateDump) {
-				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
-				getSender().tell(dump, getSelf());
-			} else {
-				LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());
-				getSender().tell(new Status.Failure(new IOException("MetricQueryServiceActor received an invalid message. " + message.toString())), getSelf());
+			if (metric instanceof Counter) {
+				counters.put((Counter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+			} else if (metric instanceof Gauge) {
+				gauges.put((Gauge<?>) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+			} else if (metric instanceof Histogram) {
+				histograms.put((Histogram) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+			} else if (metric instanceof Meter) {
+				meters.put((Meter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
 			}
-		} catch (Exception e) {
-			LOG.warn("An exception occurred while processing a message.", e);
+		});
+	}
+
+	public void removeMetric(Metric metric) {
+		runAsync(() -> {
+			if (metric instanceof Counter) {
+				this.counters.remove(metric);
+			} else if (metric instanceof Gauge) {
+				this.gauges.remove(metric);
+			} else if (metric instanceof Histogram) {
+				this.histograms.remove(metric);
+			} else if (metric instanceof Meter) {
+				this.meters.remove(metric);
+			}
+		});
+	}
+
+	@Override
+	public CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(Time timeout) {
+		return callAsync(() -> enforceSizeLimit(serializer.serialize(counters, gauges, histograms, meters)), timeout);
+	}
+
+	private MetricDumpSerialization.MetricSerializationResult enforceSizeLimit(
+		MetricDumpSerialization.MetricSerializationResult serializationResult) {
+
+		int currentLength = 0;
+		boolean hasExceededBefore = false;
+
+		byte[] serializedCounters = serializationResult.serializedCounters;
+		int numCounters = serializationResult.numCounters;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedCounters.length)) {
+			logDumpSizeWouldExceedLimit("Counters", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedCounters = new byte[0];
+			numCounters = 0;
+		} else {
+			currentLength += serializedCounters.length;
+		}
+
+		byte[] serializedMeters = serializationResult.serializedMeters;
+		int numMeters = serializationResult.numMeters;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedMeters.length)) {
+			logDumpSizeWouldExceedLimit("Meters", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedMeters = new byte[0];
+			numMeters = 0;
+		} else {
+			currentLength += serializedMeters.length;
+		}
+
+		byte[] serializedGauges = serializationResult.serializedGauges;
+		int numGauges = serializationResult.numGauges;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedGauges.length)) {
+			logDumpSizeWouldExceedLimit("Gauges", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedGauges = new byte[0];
+			numGauges = 0;
+		} else {
+			currentLength += serializedGauges.length;
+		}
+
+		byte[] serializedHistograms = serializationResult.serializedHistograms;
+		int numHistograms = serializationResult.numHistograms;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedHistograms.length)) {
+			logDumpSizeWouldExceedLimit("Histograms", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedHistograms = new byte[0];
+			numHistograms = 0;
+		}
+
+		return new MetricDumpSerialization.MetricSerializationResult(
+			serializedCounters,
+			serializedGauges,
+			serializedMeters,
+			serializedHistograms,
+			numCounters,
+			numGauges,
+			numMeters,
+			numHistograms);
+	}
+
+	private boolean exceedsMessageSizeLimit(final int currentSize) {
+		return currentSize > messageSizeLimit;
+	}
+
+	private void logDumpSizeWouldExceedLimit(final String metricType, boolean hasExceededBefore) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(SIZE_EXCEEDED_LOG_TEMPLATE, metricType, messageSizeLimit);
+		} else {
+			if (!hasExceededBefore) {
+				LOG.info(SIZE_EXCEEDED_LOG_TEMPLATE, "Some metrics", messageSizeLimit);
+			}
 		}
 	}
 
@@ -127,10 +202,10 @@ public class MetricQueryService extends UntypedActor {
 	 * <p>Replacements:
 	 *
 	 * <ul>
-	 *     <li>{@code space : . ,} are replaced by {@code _} (underscore)</li>
+	 * 	   <li>{@code space : . ,} are replaced by {@code _} (underscore)</li>
 	 * </ul>
 	 */
-	static String replaceInvalidChars(String str) {
+	private static String replaceInvalidChars(String str) {
 		char[] chars = null;
 		final int strLen = str.length();
 		int pos = 0;
@@ -161,64 +236,19 @@ public class MetricQueryService extends UntypedActor {
 	/**
 	 * Starts the MetricQueryService actor in the given actor system.
 	 *
-	 * @param actorSystem The actor system running the MetricQueryService
+	 * @param rpcService The rpcService running the MetricQueryService
 	 * @param resourceID resource ID to disambiguate the actor name
 	 * @return actor reference to the MetricQueryService
 	 */
-	public static ActorRef startMetricQueryService(ActorSystem actorSystem, ResourceID resourceID) {
-		String actorName = resourceID == null
+	public static MetricQueryService createMetricQueryService(
+		RpcService rpcService,
+		ResourceID resourceID,
+		long maximumFrameSize) {
+
+		String endpointId = resourceID == null
 			? METRIC_QUERY_SERVICE_NAME
 			: METRIC_QUERY_SERVICE_NAME + "_" + resourceID.getResourceIdString();
-		return actorSystem.actorOf(Props.create(MetricQueryService.class), actorName);
-	}
 
-	/**
-	 * Utility method to notify a MetricQueryService of an added metric.
-	 *
-	 * @param service    MetricQueryService to notify
-	 * @param metric     added metric
-	 * @param metricName metric name
-	 * @param group      group the metric was added on
-	 */
-	public static void notifyOfAddedMetric(ActorRef service, Metric metric, String metricName, AbstractMetricGroup group) {
-		service.tell(new AddMetric(metricName, metric, group), null);
-	}
-
-	/**
-	 * Utility method to notify a MetricQueryService of a removed metric.
-	 *
-	 * @param service MetricQueryService to notify
-	 * @param metric  removed metric
-	 */
-	public static void notifyOfRemovedMetric(ActorRef service, Metric metric) {
-		service.tell(new RemoveMetric(metric), null);
-	}
-
-	private static class AddMetric {
-		private final String metricName;
-		private final Metric metric;
-		private final AbstractMetricGroup group;
-
-		private AddMetric(String metricName, Metric metric, AbstractMetricGroup group) {
-			this.metricName = metricName;
-			this.metric = metric;
-			this.group = group;
-		}
-	}
-
-	private static class RemoveMetric {
-		private final Metric metric;
-
-		private RemoveMetric(Metric metric) {
-			this.metric = metric;
-		}
-	}
-
-	public static Object getCreateDump() {
-		return CreateDump.INSTANCE;
-	}
-
-	private static class CreateDump implements Serializable {
-		private static final CreateDump INSTANCE = new CreateDump();
+		return new MetricQueryService(rpcService, endpointId, maximumFrameSize);
 	}
 }

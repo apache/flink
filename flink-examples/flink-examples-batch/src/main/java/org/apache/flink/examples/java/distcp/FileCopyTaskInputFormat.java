@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,15 @@ public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCo
 		public InputSplit getNextInputSplit(String host, int taskId) {
 			LOGGER.info("Getting copy task for task: " + taskId);
 			return splits.poll();
+		}
+
+		@Override
+		public void returnInputSplit(List<InputSplit> splits, int taskId) {
+			synchronized (this.splits) {
+				for (InputSplit split : splits) {
+					Preconditions.checkState(this.splits.add((FileCopyTaskInputSplit) split));
+				}
+			}
 		}
 	}
 

@@ -75,7 +75,7 @@ public class InterpreterUtils {
 					path,
 					scriptName);
 			} catch (Exception e) {
-				LOG.error("Initialization of jython failed.");
+
 				try {
 					LOG.error("Initialization of jython failed.", e);
 					throw new FlinkRuntimeException("Initialization of jython failed.", e);

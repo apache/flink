@@ -123,6 +123,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<String>("Hello", initialTime + 1));
 		expectedOutput.add(new StreamRecord<String>("Ciao", initialTime + 2));
 
+		testHarness.waitForInputProcessing();
+
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
@@ -524,7 +526,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation())) {}
+		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false)) {}
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
@@ -564,6 +566,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		assertEquals(numberChainedTasks, TestingStreamOperator.numberRestoreCalls);
 
 		TestingStreamOperator.numberRestoreCalls = 0;
+		TestingStreamOperator.numberSnapshotCalls = 0;
 	}
 
 	@Test
@@ -654,6 +657,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		assertEquals(numRecords, numRecordsInCounter.getCount());
 		assertEquals(numRecords * 2 * 2 * 2, numRecordsOutCounter.getCount());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 	}
 
 	static class DuplicatingOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
@@ -888,6 +894,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		public static boolean openCalled = false;
 		public static boolean closeCalled = false;
+
+		TestOpenCloseMapFunction() {
+			openCalled = false;
+			closeCalled = false;
+		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {

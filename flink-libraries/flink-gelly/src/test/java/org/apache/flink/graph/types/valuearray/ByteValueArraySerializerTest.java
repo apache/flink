@@ -19,7 +19,6 @@
 
 package org.apache.flink.graph.types.valuearray;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.ByteValue;
 
@@ -28,7 +27,7 @@ import java.util.Random;
 /**
  * A test for the {@link ByteValueArraySerializer}.
  */
-public class ByteValueArraySerializerTest extends SerializerTestBase<ByteValueArray> {
+public class ByteValueArraySerializerTest extends ValueArraySerializerTestBase<ByteValueArray> {
 
 	@Override
 	protected TypeSerializer<ByteValueArray> createSerializer() {

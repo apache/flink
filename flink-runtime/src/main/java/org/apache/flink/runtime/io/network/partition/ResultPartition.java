@@ -30,11 +30,13 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -178,7 +180,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * <p>There is one pool for each result partition, which is shared by all its sub partitions.
 	 *
 	 * <p>The pool is registered with the partition *after* it as been constructed in order to conform
-	 * to the life-cycle of task registrations in the {@link TaskManager}.
+	 * to the life-cycle of task registrations in the {@link TaskExecutor}.
 	 */
 	public void registerBufferPool(BufferPool bufferPool) {
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
@@ -324,10 +326,15 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
-	public void destroyBufferPool() {
+	@Override
+	public void close() {
 		if (bufferPool != null) {
 			bufferPool.lazyDestroy();
 		}
+	}
+
+	public void fail(@Nullable Throwable throwable) {
+		partitionManager.releasePartition(partitionId, throwable);
 	}
 
 	/**
@@ -375,6 +382,16 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 				break;
 			}
 		}
+	}
+
+	/**
+	 * Whether this partition is released.
+	 *
+	 * <p>A partition is released when each subpartition is either consumed and communication is closed by consumer
+	 * or failed. A partition is also released if task is cancelled.
+	 */
+	public boolean isReleased() {
+		return isReleased.get();
 	}
 
 	@Override
@@ -429,7 +446,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 				this, subpartitionIndex, pendingReferences);
 	}
 
-	ResultSubpartition[] getAllPartitions() {
+	public ResultSubpartition[] getAllPartitions() {
 		return subpartitions;
 	}
 

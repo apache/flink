@@ -21,34 +21,27 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
-import javax.annotation.Nullable;
-
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A recoverable {@link JobGraph} and {@link JobInfo}.
+ * A recoverable {@link JobGraph}.
  */
 public class SubmittedJobGraph implements Serializable {
 
 	private static final long serialVersionUID = 2836099271734771825L;
 
-	/** The submitted {@link JobGraph} */
+	/** The submitted {@link JobGraph}. */
 	private final JobGraph jobGraph;
-
-	/** The {@link JobInfo}. */
-	private final JobInfo jobInfo;
 
 	/**
 	 * Creates a {@link SubmittedJobGraph}.
 	 *
 	 * @param jobGraph The submitted {@link JobGraph}
-	 * @param jobInfo  The {@link JobInfo}
 	 */
-	public SubmittedJobGraph(JobGraph jobGraph, @Nullable JobInfo jobInfo) {
+	public SubmittedJobGraph(JobGraph jobGraph) {
 		this.jobGraph = checkNotNull(jobGraph, "Job graph");
-		this.jobInfo = jobInfo;
 	}
 
 	/**
@@ -65,15 +58,8 @@ public class SubmittedJobGraph implements Serializable {
 		return jobGraph.getJobID();
 	}
 
-	/**
-	 * Returns the {@link JobInfo} of the client who submitted the {@link JobGraph}.
-	 */
-	public JobInfo getJobInfo() throws Exception {
-		return jobInfo;
-	}
-
 	@Override
 	public String toString() {
-		return String.format("SubmittedJobGraph(%s, %s)", jobGraph.getJobID(), jobInfo);
+		return String.format("SubmittedJobGraph(%s)", jobGraph.getJobID());
 	}
 }

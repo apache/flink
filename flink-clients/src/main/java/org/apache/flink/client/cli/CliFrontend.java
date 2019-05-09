@@ -39,6 +39,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -51,7 +52,6 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -67,7 +67,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -81,15 +80,12 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import scala.concurrent.duration.FiniteDuration;
-
-import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.MODIFY_PARALLELISM_OPTION;
-import static org.apache.flink.client.program.ClusterClient.MAX_SLOTS_UNKNOWN;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -105,7 +101,6 @@ public class CliFrontend {
 	private static final String ACTION_CANCEL = "cancel";
 	private static final String ACTION_STOP = "stop";
 	private static final String ACTION_SAVEPOINT = "savepoint";
-	private static final String ACTION_MODIFY = "modify";
 
 	// configuration dir parameters
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
@@ -125,16 +120,12 @@ public class CliFrontend {
 
 	public CliFrontend(
 			Configuration configuration,
-			List<CustomCommandLine<?>> customCommandLines) throws Exception {
+			List<CustomCommandLine<?>> customCommandLines) {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
 
-		try {
-			FileSystem.initialize(this.configuration);
-		} catch (IOException e) {
-			throw new Exception("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
+		//TODO provide plugin path.
+		FileSystem.initialize(this.configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 
 		this.customCommandLineOptions = new Options();
 
@@ -269,18 +260,12 @@ public class CliFrontend {
 				try {
 					client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
 					client.setDetached(runOptions.getDetachedMode());
-					LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
 					LOG.debug("{}", runOptions.getSavepointRestoreSettings());
 
 					int userParallelism = runOptions.getParallelism();
 					LOG.debug("User parallelism is set to {}", userParallelism);
-					if (client.getMaxSlots() != MAX_SLOTS_UNKNOWN && userParallelism == -1) {
-						logAndSysout("Using the parallelism provided by the remote cluster ("
-							+ client.getMaxSlots() + "). "
-							+ "To use another parallelism, set it at the ./bin/flink client.");
-						userParallelism = client.getMaxSlots();
-					} else if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
+					if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
 						userParallelism = defaultParallelism;
 					}
 
@@ -514,48 +499,45 @@ public class CliFrontend {
 	 * @param args Command line arguments for the stop action.
 	 */
 	protected void stop(String[] args) throws Exception {
-		LOG.info("Running 'stop' command.");
+		LOG.info("Running 'stop-with-savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-
 		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
 		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
-		StopOptions stopOptions = new StopOptions(commandLine);
-
-		// evaluate help flag
+		final StopOptions stopOptions = new StopOptions(commandLine);
 		if (stopOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForStop(customCommandLines);
 			return;
 		}
 
-		String[] stopArgs = stopOptions.getArgs();
-		JobID jobId;
+		final String[] cleanedArgs = stopOptions.getArgs();
 
-		if (stopArgs.length > 0) {
-			String jobIdString = stopArgs[0];
-			jobId = parseJobId(jobIdString);
-		} else {
-			throw new CliArgsException("Missing JobID");
-		}
+		final String targetDirectory = stopOptions.hasSavepointFlag() && cleanedArgs.length > 0
+				? stopOptions.getTargetDirectory()
+				: null; // the default savepoint location is going to be used in this case.
+
+		final JobID jobId = cleanedArgs.length != 0
+				? parseJobId(cleanedArgs[0])
+				: parseJobId(stopOptions.getTargetDirectory());
+
+		final boolean advanceToEndOfEventTime = stopOptions.shouldAdvanceToEndOfEventTime();
+
+		logAndSysout((advanceToEndOfEventTime ? "Draining job " : "Suspending job ") + "\"" + jobId + "\" with a savepoint.");
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-
-		logAndSysout("Stopping job " + jobId + '.');
-
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
 			clusterClient -> {
 				try {
-					clusterClient.stop(jobId);
+					clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
 				} catch (Exception e) {
-					throw new FlinkException("Could not stop the job " + jobId + '.', e);
+					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
 				}
 			});
 
-		logAndSysout("Stopped job " + jobId + '.');
+		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a savepoint.");
 	}
 
 	/**
@@ -704,8 +686,7 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
-	 * message to the job manager.
+	 * Sends a SavepointTriggerMessage to the job manager.
 	 */
 	private String triggerSavepoint(ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory) throws FlinkException {
 		logAndSysout("Triggering savepoint for job " + jobId + '.');
@@ -730,7 +711,7 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Sends a {@link JobManagerMessages.DisposeSavepoint} message to the job manager.
+	 * Sends a SavepointDisposalRequest to the job manager.
 	 */
 	private void disposeSavepoint(ClusterClient<?> clusterClient, String savepointPath) throws FlinkException {
 		Preconditions.checkNotNull(savepointPath, "Missing required argument: savepoint path. " +
@@ -749,58 +730,6 @@ public class CliFrontend {
 		}
 
 		logAndSysout("Savepoint '" + savepointPath + "' disposed.");
-	}
-
-	protected void modify(String[] args) throws CliArgsException, FlinkException {
-		LOG.info("Running 'modify' command.");
-
-		final Options commandOptions = CliFrontendParser.getModifyOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
-
-		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
-			CliFrontendParser.printHelpForModify(customCommandLines);
-		}
-
-		final JobID jobId;
-		final String[] modifyArgs = commandLine.getArgs();
-
-		if (modifyArgs.length > 0) {
-			jobId = parseJobId(modifyArgs[0]);
-		} else {
-			throw new CliArgsException("Missing JobId");
-		}
-
-		final int newParallelism;
-		if (commandLine.hasOption(MODIFY_PARALLELISM_OPTION.getOpt())) {
-			try {
-				newParallelism = Integer.parseInt(commandLine.getOptionValue(MODIFY_PARALLELISM_OPTION.getOpt()));
-			} catch (NumberFormatException e) {
-				throw new CliArgsException("Could not parse the parallelism which is supposed to be an integer.", e);
-			}
-		} else {
-			throw new CliArgsException("Missing new parallelism.");
-		}
-
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-
-		logAndSysout("Modify job " + jobId + '.');
-		runClusterAction(
-			activeCommandLine,
-			commandLine,
-			clusterClient -> {
-				CompletableFuture<Acknowledge> rescaleFuture = clusterClient.rescaleJob(jobId, newParallelism);
-
-				try {
-					rescaleFuture.get();
-				} catch (Exception e) {
-					throw new FlinkException("Could not rescale job " + jobId + '.', ExceptionUtils.stripExecutionException(e));
-				}
-				logAndSysout("Rescaled job " + jobId + ". Its new parallelism is " + newParallelism + '.');
-			}
-		);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -950,7 +879,11 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	private JobID parseJobId(String jobIdString) throws CliArgsException {
-		JobID jobId;
+		if (jobIdString == null) {
+			throw new CliArgsException("Missing JobId");
+		}
+
+		final JobID jobId;
 		try {
 			jobId = JobID.fromHexString(jobIdString);
 		} catch (IllegalArgumentException e) {
@@ -1063,9 +996,6 @@ public class CliFrontend {
 					return 0;
 				case ACTION_SAVEPOINT:
 					savepoint(params);
-					return 0;
-				case ACTION_MODIFY:
-					modify(params);
 					return 0;
 				case "-h":
 				case "--help":

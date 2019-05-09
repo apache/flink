@@ -27,7 +27,7 @@ Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 * Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 
-* Compatibility layers for Apache Hadoop MapReduce and Apache Storm
+* Compatibility layers for Apache Hadoop MapReduce
 
 * Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem
 

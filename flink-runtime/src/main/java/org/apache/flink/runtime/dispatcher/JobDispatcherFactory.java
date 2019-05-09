@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
 
@@ -50,14 +51,13 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
-			ResourceManagerGateway resourceManagerGateway,
+			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			JobManagerMetricGroup jobManagerMetricGroup,
-			@Nullable String metricQueryServicePath,
+			@Nullable String metricQueryServiceAddress,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress,
 			HistoryServerArchivist historyServerArchivist) throws Exception {
 		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);
 
@@ -67,18 +67,17 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 
 		return new MiniDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME,
+			getEndpointId(),
 			configuration,
 			highAvailabilityServices,
-			resourceManagerGateway,
+			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
-			metricQueryServicePath,
+			metricQueryServiceAddress,
 			archivedExecutionGraphStore,
-			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
+			DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
-			restAddress,
 			historyServerArchivist,
 			jobGraph,
 			executionMode);

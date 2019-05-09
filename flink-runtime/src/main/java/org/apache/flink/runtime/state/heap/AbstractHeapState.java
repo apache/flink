@@ -124,4 +124,9 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 			return null;
 		}
 	}
+
+	@Override
+	public StateIncrementalVisitor<K, N, SV> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		return stateTable.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+	}
 }

@@ -35,6 +35,8 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Types;
 
+import static org.hamcrest.core.StringContains.containsString;
+
 /**
  * Tests using both {@link JDBCInputFormat} and {@link JDBCOutputFormat}.
  */
@@ -48,6 +50,24 @@ public class JDBCFullTest extends JDBCTestBase {
 	@Test
 	public void testWithParallelism() throws Exception {
 		runTest(true);
+	}
+
+	@Test
+	public void testEnrichedClassCastException() throws Exception {
+		exception.expect(ClassCastException.class);
+		exception.expectMessage(containsString("field index: 3, field value: 11.11."));
+
+		JDBCOutputFormat jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(JDBCTestBase.DRIVER_CLASS)
+			.setDBUrl(JDBCTestBase.DB_URL)
+			.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
+			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
+			.finish();
+
+		jdbcOutputFormat.open(1, 1);
+		Row inputRow = Row.of(1001, "Java public for dummies", "Tan Ah Teck", "11.11", 11);
+		jdbcOutputFormat.writeRecord(inputRow);
+		jdbcOutputFormat.close();
 	}
 
 	private void runTest(boolean exploitParallelism) throws Exception {

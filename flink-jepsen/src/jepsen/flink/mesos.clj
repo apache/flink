@@ -37,7 +37,8 @@
 
 ;;; Marathon
 
-(def marathon-bin "/usr/bin/marathon")
+(def marathon-install-dir "/opt/marathon")
+(def marathon-bin (str marathon-install-dir "/bin/marathon"))
 (def zk-marathon-namespace "marathon")
 (def marathon-rest-port 8080)
 
@@ -69,6 +70,7 @@
                         (str "--master=" (zookeeper-uri test zk-namespace))
                         (str "--recovery_timeout=30secs")
                         (str "--work_dir=" slave-dir)
+                        (str "--no-systemd_enable_support")
                         (str "--resources='cpus:8'")]))
 
 (defn create-mesos-master-supervised-service!
@@ -118,20 +120,23 @@
                  (c/lit (str log-dir "/*"))
                  (c/lit (str slave-dir "/*"))))))
 
-;;; Marathon functions
-
-(defn install!
-  [test node mesos-version marathon-version]
+(defn install-mesos!
+  [mesos-version]
   (c/su
     (debian/add-repo! :mesosphere
-                      "deb http://repos.mesosphere.com/debian jessie main"
+                      "deb http://repos.mesosphere.com/debian stretch main"
                       "keyserver.ubuntu.com"
                       "E56151BF")
-    (debian/install {:mesos    mesos-version
-                     :marathon marathon-version})
-    (c/exec :mkdir :-p "/var/run/mesos")
+    (debian/install {:mesos mesos-version})
     (c/exec :mkdir :-p master-dir)
     (c/exec :mkdir :-p slave-dir)))
+
+;;; Marathon functions
+
+(defn install-marathon!
+  [marathon-dist-url]
+  (c/su
+    (cu/install-archive! marathon-dist-url marathon-install-dir)))
 
 (defn marathon-cmd
   "Returns the command to run the marathon."
@@ -168,11 +173,19 @@
   [test]
   (str "http://" (first (sort (:nodes test))) ":" marathon-rest-port))
 
+;;; Mesos & Marathon DB
+
+(defn install!
+  [mesos-version marathon-dist-url]
+  (c/su
+    (install-mesos! mesos-version)
+    (install-marathon! marathon-dist-url)))
+
 (defn db
-  [mesos-version marathon-version]
+  [mesos-version marathon-dist-url]
   (reify db/DB
     (setup! [this test node]
-      (install! test node mesos-version marathon-version)
+      (install! mesos-version marathon-dist-url)
       (start-master! test node)
       (start-slave! test node)
       (start-marathon! test node))

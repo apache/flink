@@ -37,7 +37,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 
@@ -56,7 +55,6 @@ public abstract class AbstractSubtaskHandler<R extends ResponseBody, M extends S
 	/**
 	 * Instantiates a new Abstract job vertex handler.
 	 *
-	 * @param localRestAddress    the local rest address
 	 * @param leaderRetriever     the leader retriever
 	 * @param timeout             the timeout
 	 * @param responseHeaders     the response headers
@@ -65,14 +63,13 @@ public abstract class AbstractSubtaskHandler<R extends ResponseBody, M extends S
 	 * @param executor            the executor
 	 */
 	protected AbstractSubtaskHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout, Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
 
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 	}
 
 	@Override

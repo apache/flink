@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.185</presto.version>
+		<presto.version>0.187</presto.version>
 	</properties>
 
 	<dependencies>
@@ -135,6 +135,10 @@ under the License.
 					<artifactId>aircompressor</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>io.airlift</groupId>
+					<artifactId>log-manager</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>javax.inject</groupId>
 					<artifactId>javax.inject</artifactId>
 				</exclusion>
@@ -190,10 +194,41 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>ban-openjdk.jol</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<!-- Incompatible license -->
+										<exclude>org.openjdk.jol:*</exclude>
+									</excludes>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -210,9 +245,6 @@ under the License.
 								<includes>
 									<include>*:*</include>
 								</includes>
-								<excludes>
-									<exclude>org.openjdk.jol</exclude>
-								</excludes>
 							</artifactSet>
 							<relocations>
 								<!-- relocate the references to Hadoop to match the pre-shaded hadoop artifact -->

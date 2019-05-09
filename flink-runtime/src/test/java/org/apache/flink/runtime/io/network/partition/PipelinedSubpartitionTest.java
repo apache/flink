@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -30,18 +31,20 @@ import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
+import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
-import static org.apache.flink.util.FutureUtil.waitForAll;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -199,15 +202,18 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		final PipelinedSubpartition subpartition = createSubpartition();
 
+		TestSubpartitionProducer producer = new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource);
 		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
 		final PipelinedSubpartitionView view = subpartition.createReadView(consumer);
 		consumer.setSubpartitionView(view);
 
-		Future<Boolean> producerResult = executorService.submit(
-			new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource));
-		Future<Boolean> consumerResult = executorService.submit(consumer);
+		CompletableFuture<Boolean> producerResult = CompletableFuture.supplyAsync(
+			CheckedSupplier.unchecked(producer::call), executorService);
+		CompletableFuture<Boolean> consumerResult = CompletableFuture.supplyAsync(
+			CheckedSupplier.unchecked(consumer::call), executorService);
 
-		waitForAll(60_000L, producerResult, consumerResult);
+		FutureUtils.waitForAll(Arrays.asList(producerResult, consumerResult))
+			.get(60_000L, TimeUnit.MILLISECONDS);
 	}
 
 	/**

@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,6 +36,7 @@ under the License.
 		<aws.sdk.version>1.11.319</aws.sdk.version>
 		<aws.kinesis-kcl.version>1.9.0</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.12.9</aws.kinesis-kpl.version>
+		<aws.dynamodbstreams-kinesis-adapter.version>1.4.0</aws.dynamodbstreams-kinesis-adapter.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -86,6 +87,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Note:
 			The below dependencies are licenced under the Amazon Software License.
 			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.
@@ -119,11 +128,23 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
-					<artifactId>aws-java-sdk-dynamodb</artifactId>
+					<artifactId>aws-java-sdk-cloudwatch</artifactId>
 				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>dynamodb-streams-kinesis-adapter</artifactId>
+			<version>${aws.dynamodbstreams-kinesis-adapter.version}</version>
+			<exclusions>
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-cloudwatch</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

@@ -20,22 +20,27 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
@@ -53,13 +58,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -68,6 +72,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -81,11 +86,14 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -96,11 +104,14 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
@@ -110,6 +121,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -117,13 +129,15 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.SupplierWithException;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import akka.actor.ActorSystem;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -139,6 +153,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URLClassLoader;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -150,9 +165,18 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -162,7 +186,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -182,7 +205,7 @@ public class JobMasterTest extends TestLogger {
 	private static final long fastHeartbeatTimeout = 5L;
 
 	private static final long heartbeatInterval = 1000L;
-	private static final long heartbeatTimeout = 5000L;
+	private static final long heartbeatTimeout = 5_000_000L;
 
 	private static final JobGraph jobGraph = new JobGraph();
 
@@ -191,8 +214,6 @@ public class JobMasterTest extends TestLogger {
 	private static HeartbeatServices fastHeartbeatServices;
 
 	private static HeartbeatServices heartbeatServices;
-
-	private BlobServer blobServer;
 
 	private Configuration configuration;
 
@@ -231,19 +252,12 @@ public class JobMasterTest extends TestLogger {
 		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		blobServer = new BlobServer(configuration, new VoidBlobStore());
-
-		blobServer.start();
 	}
 
 	@After
 	public void teardown() throws Exception {
 		if (testingFatalErrorHandler != null) {
 			testingFatalErrorHandler.rethrowError();
-		}
-
-		if (blobServer != null) {
-			blobServer.close();
 		}
 
 		rpcService.clearGateways();
@@ -265,34 +279,40 @@ public class JobMasterTest extends TestLogger {
 			final ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
 			final ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
 
-			rpcService1 = new AkkaRpcService(actorSystem1, testingTimeout);
-			rpcService2 = new AkkaRpcService(actorSystem2, testingTimeout);
+			AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+			rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+			rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
 
 			final CompletableFuture<Throwable> declineCheckpointMessageFuture = new CompletableFuture<>();
 
 			final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+			final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+				jobManagerSharedServices.getRestartStrategyFactory());
+
 			final JobMaster jobMaster = new JobMaster(
 				rpcService1,
 				jobMasterConfiguration,
 				jmResourceId,
 				jobGraph,
 				haServices,
-				DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService1),
+				DefaultSlotPoolFactory.fromConfiguration(configuration),
+				DefaultSchedulerFactory.fromConfiguration(configuration),
 				jobManagerSharedServices,
 				heartbeatServices,
-				blobServer,
 				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-				new NoOpOnCompletionActions(),
+				new TestingOnCompletionActions(),
 				testingFatalErrorHandler,
-				JobMasterTest.class.getClassLoader()) {
+				JobMasterTest.class.getClassLoader(),
+				schedulerNGFactory) {
 				@Override
 				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
 					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
 				}
 			};
 
-			jobMaster.start(jobMasterId, testingTimeout).get();
+			jobMaster.start(jobMasterId).get();
 
 			final String className = "UserException";
 			final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
@@ -344,7 +364,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			jobManagerSharedServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -411,7 +431,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			jobManagerSharedServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start operation to complete
@@ -542,42 +562,6 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that in a streaming use case where checkpointing is enabled, a
-	 * fixed delay with Integer.MAX_VALUE retries is instantiated if no other restart
-	 * strategy has been specified.
-	 */
-	@Test
-	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
-		// create savepoint data
-		final long savepointId = 42L;
-		final File savepointFile = createSavepoint(savepointId);
-
-		// set savepoint settings
-		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath(
-			savepointFile.getAbsolutePath(),
-			true);
-		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
-
-		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
-		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(
-			completedCheckpointStore,
-			new StandaloneCheckpointIDCounter());
-		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
-		final JobMaster jobMaster = createJobMaster(
-			new Configuration(),
-			jobGraph,
-			haServices,
-			new TestingJobManagerSharedServicesBuilder()
-				.setRestartStrategyFactory(RestartStrategyFactory.createRestartStrategyFactory(configuration))
-				.build());
-
-		RestartStrategy restartStrategy = jobMaster.getRestartStrategy();
-
-		assertNotNull(restartStrategy);
-		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
-	}
-
-	/**
 	 * Tests that an existing checkpoint will have precedence over an savepoint.
 	 */
 	@Test
@@ -650,14 +634,13 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			final long start = System.nanoTime();
-			jobMaster.start(JobMasterId.generate(), testingTimeout).get();
+			jobMaster.start(JobMasterId.generate()).get();
 
-			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+			final TestingResourceManagerGateway resourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 			final ArrayBlockingQueue<SlotRequest> blockingQueue = new ArrayBlockingQueue<>(2);
 			resourceManagerGateway.setRequestSlotConsumer(blockingQueue::offer);
 
-			rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-			rmLeaderRetrievalService.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+			notifyResourceManagerLeaderListeners(resourceManagerGateway);
 
 			// wait for the first slot request
 			blockingQueue.take();
@@ -716,16 +699,10 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build());
 
 		try {
-			jobMaster.start(JobMasterId.generate(), testingTimeout).get();
-			final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-			final String firstResourceManagerAddress = "address1";
-			final String secondResourceManagerAddress = "address2";
+			jobMaster.start(JobMasterId.generate()).get();
 
-			final TestingResourceManagerGateway firstResourceManagerGateway = new TestingResourceManagerGateway();
-			final TestingResourceManagerGateway secondResourceManagerGateway = new TestingResourceManagerGateway();
-
-			rpcService.registerGateway(firstResourceManagerAddress, firstResourceManagerGateway);
-			rpcService.registerGateway(secondResourceManagerAddress, secondResourceManagerGateway);
+			final TestingResourceManagerGateway firstResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
+			final TestingResourceManagerGateway secondResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 
 			final OneShotLatch firstJobManagerRegistration = new OneShotLatch();
 			final OneShotLatch secondJobManagerRegistration = new OneShotLatch();
@@ -736,13 +713,13 @@ public class JobMasterTest extends TestLogger {
 			secondResourceManagerGateway.setRegisterJobManagerConsumer(
 				jobMasterIdResourceIDStringJobIDTuple4 -> secondJobManagerRegistration.trigger());
 
-			rmLeaderRetrievalService.notifyListener(firstResourceManagerAddress, resourceManagerId.toUUID());
+			notifyResourceManagerLeaderListeners(firstResourceManagerGateway);
 
 			// wait until we have seen the first registration attempt
 			firstJobManagerRegistration.await();
 
 			// this should stop the connection attempts towards the first RM
-			rmLeaderRetrievalService.notifyListener(secondResourceManagerAddress, resourceManagerId.toUUID());
+			notifyResourceManagerLeaderListeners(secondResourceManagerGateway);
 
 			// check that we start registering at the second RM
 			secondJobManagerRegistration.await();
@@ -765,23 +742,19 @@ public class JobMasterTest extends TestLogger {
 
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 			final BlockingQueue<JobMasterId> registrationsQueue = new ArrayBlockingQueue<>(1);
 
 			testingResourceManagerGateway.setRegisterJobManagerConsumer(
 				jobMasterIdResourceIDStringJobIDTuple4 -> registrationsQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
 
-			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
-
 			final ResourceManagerId resourceManagerId = testingResourceManagerGateway.getFencingToken();
-			rmLeaderRetrievalService.notifyListener(
-				testingResourceManagerGateway.getAddress(),
-				resourceManagerId.toUUID());
+			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
 			// wait for first registration attempt
 			final JobMasterId firstRegistrationAttempt = registrationsQueue.take();
@@ -809,7 +782,76 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
+
+			final BlockingQueue<JobMasterId> registrationQueue = new ArrayBlockingQueue<>(1);
+			testingResourceManagerGateway.setRegisterJobManagerConsumer(
+				jobMasterIdResourceIDStringJobIDTuple4 -> registrationQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
+
+			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
+
+			final JobMasterId firstRegistrationAttempt = registrationQueue.take();
+
+			assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
+
+			jobMaster.suspend(new FlinkException("Test exception.")).get();
+
+			final JobMasterId jobMasterId2 = JobMasterId.generate();
+
+			jobMaster.start(jobMasterId2).get();
+
+			final JobMasterId secondRegistrationAttempt = registrationQueue.take();
+
+			assertThat(secondRegistrationAttempt, equalTo(jobMasterId2));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	private JobGraph createDataSourceJobGraph() throws Exception {
+		final TextInputFormat inputFormat = new TextInputFormat(new Path("."));
+		final InputFormatVertex producer = new InputFormatVertex("Producer");
+		new TaskConfig(producer.getConfiguration()).setStubWrapper(new UserCodeObjectWrapper<InputFormat<?, ?>>(inputFormat));
+		producer.setInvokableClass(DataSourceTask.class);
+
+		final JobVertex consumer = new JobVertex("Consumer");
+		consumer.setInvokableClass(NoOpInvokable.class);
+		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+		final JobGraph jobGraph = new JobGraph(producer, consumer);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
+		jobGraph.setExecutionConfig(executionConfig);
+
+		return jobGraph;
+	}
+
+	/**
+	 * Tests the {@link JobMaster#requestNextInputSplit(JobVertexID, ExecutionAttemptID)}
+	 * validate that it will get same result for a different retry
+	 */
+	@Test
+	public void testRequestNextInputSplitWithDataSourceFailover() throws Exception {
+
+		final JobGraph dataSourceJobGraph = createDataSourceJobGraph();
+		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
+			FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			dataSourceJobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -817,28 +859,71 @@ public class JobMasterTest extends TestLogger {
 
 			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
 
-			final BlockingQueue<JobMasterId> registrationQueue = new ArrayBlockingQueue<>(1);
-			testingResourceManagerGateway.setRegisterJobManagerConsumer(
-				jobMasterIdResourceIDStringJobIDTuple4 -> registrationQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
+			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+			testingResourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
-			final String resourceManagerAddress = testingResourceManagerGateway.getAddress();
-			rpcService.registerGateway(resourceManagerAddress, testingResourceManagerGateway);
+			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 
-			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, testingResourceManagerGateway.getFencingToken().toUUID());
+			final BlockingQueue<TaskDeploymentDescriptor> taskDeploymentDescriptors = new LinkedBlockingDeque<>();
+			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+				.setSubmitTaskConsumer((taskDeploymentDescriptor, jobMasterId) -> {
+					taskDeploymentDescriptors.add(taskDeploymentDescriptor);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+				.createTestingTaskExecutorGateway();
+			rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
 
-			final JobMasterId firstRegistrationAttempt = registrationQueue.take();
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-			assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
+			rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
 
-			jobMaster.suspend(new FlinkException("Test exception."), testingTimeout).get();
+			final AllocationID allocationId = allocationIdFuture.get();
 
-			final JobMasterId jobMasterId2 = JobMasterId.generate();
+			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+			jobMasterGateway.registerTaskManager(testingTaskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
 
-			jobMaster.start(jobMasterId2, testingTimeout).get();
+			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
-			final JobMasterId secondRegistrationAttempt = registrationQueue.take();
+			final Collection<SlotOffer> slotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
 
-			assertThat(secondRegistrationAttempt, equalTo(jobMasterId2));
+			assertThat(slotOffers, hasSize(1));
+			assertThat(slotOffers, contains(slotOffer));
+
+			// obtain tdd for the result partition ids
+			final TaskDeploymentDescriptor tdd = checkNotNull(taskDeploymentDescriptors.poll(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+
+			final JobMasterGateway gateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			final TaskInformation taskInformation = tdd.getSerializedTaskInformation()
+				.deserializeValue(getClass().getClassLoader());
+			JobVertexID vertexID = taskInformation.getJobVertexId();
+
+			//get the previous split
+			SerializedInputSplit split1 = gateway.requestNextInputSplit(vertexID, tdd.getExecutionAttemptId()).get();
+
+			//start a new version of this execution
+			gateway.updateTaskExecutionState(new TaskExecutionState(dataSourceJobGraph.getJobID(), tdd.getExecutionAttemptId(), ExecutionState.FAILED)).get();
+			final TaskDeploymentDescriptor newTdd = checkNotNull(taskDeploymentDescriptors.poll(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+			final ExecutionAttemptID newExecutionAttemptId = newTdd.getExecutionAttemptId();
+
+			//get the new split
+			SerializedInputSplit split2 = gateway.requestNextInputSplit(vertexID, newExecutionAttemptId).get();
+
+			Assert.assertArrayEquals(split1.getInputSplitData(), split2.getInputSplitData());
+
+			//get the new split3
+			SerializedInputSplit split3 = gateway.requestNextInputSplit(vertexID, newExecutionAttemptId).get();
+
+			Assert.assertNotEquals(split1.getInputSplitData().length, split3.getInputSplitData().length);
+			gateway.requestNextInputSplit(vertexID, newExecutionAttemptId).get();
+			InputSplit nullSplit = InstantiationUtil.deserializeObject(
+				gateway.requestNextInputSplit(vertexID, newExecutionAttemptId).get().getInputSplitData(), ClassLoader.getSystemClassLoader());
+			Assert.assertNull(nullSplit);
+
+			InputSplit nullSplit1 = InstantiationUtil.deserializeObject(
+				gateway.requestNextInputSplit(vertexID, newExecutionAttemptId).get().getInputSplitData(), ClassLoader.getSystemClassLoader());
+			Assert.assertNull(nullSplit1);
+
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
@@ -876,7 +961,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			jobManagerSharedServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -884,30 +969,21 @@ public class JobMasterTest extends TestLogger {
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-			ExecutionGraph eg = jobMaster.getExecutionGraph();
-			ExecutionVertex ev = eg.getAllExecutionVertices().iterator().next();
+			final ExecutionAttemptID initialAttemptId = getOnlyExecution(jobMasterGateway).getAttemptId();
 
-			final SupplierWithException<SerializedInputSplit, Exception> inputSplitSupplier = () -> jobMasterGateway.requestNextInputSplit(
-				source.getID(),
-				ev.getCurrentExecutionAttempt().getAttemptId()).get();
+			final Supplier<SerializedInputSplit> inputSplitSupplier = () -> getInputSplit(jobMasterGateway, source.getID());
 
-			List<InputSplit> actualInputSplits = getInputSplits(
-				expectedInputSplits.size(),
-				inputSplitSupplier);
+			List<InputSplit> actualInputSplits;
+			actualInputSplits = getInputSplits(expectedInputSplits.size(), inputSplitSupplier);
 
 			final Matcher<Iterable<? extends InputSplit>> expectedInputSplitsMatcher = containsInAnyOrder(expectedInputSplits.toArray(EMPTY_TESTING_INPUT_SPLITS));
 			assertThat(actualInputSplits, expectedInputSplitsMatcher);
 
-			final long maxWaitMillis = 2000L;
-			ExecutionGraphTestUtils.waitUntilExecutionVertexState(ev, ExecutionState.SCHEDULED, maxWaitMillis);
+			waitUntilOnlyExecutionIsScheduled(jobMasterGateway);
+			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(testJobGraph.getJobID(), initialAttemptId, ExecutionState.FAILED)).get();
+			waitUntilOnlyExecutionIsScheduled(jobMasterGateway);
 
-			eg.failGlobal(new Exception("Testing exception"));
-
-			ExecutionGraphTestUtils.waitUntilExecutionVertexState(ev, ExecutionState.SCHEDULED, maxWaitMillis);
-
-			actualInputSplits = getInputSplits(
-				expectedInputSplits.size(),
-				inputSplitSupplier);
+			actualInputSplits = getInputSplits(expectedInputSplits.size(), inputSplitSupplier);
 
 			assertThat(actualInputSplits, expectedInputSplitsMatcher);
 		} finally {
@@ -915,8 +991,49 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	private void waitUntilOnlyExecutionIsScheduled(final JobMasterGateway jobMasterGateway) throws Exception {
+		final Duration duration = Duration.ofMillis(testingTimeout.toMilliseconds());
+		final Deadline deadline = Deadline.fromNow(duration);
+
+		CommonTestUtils.waitUntilCondition(
+			() -> getOnlyExecution(jobMasterGateway).getState() == ExecutionState.SCHEDULED,
+			deadline);
+	}
+
+	private static SerializedInputSplit getInputSplit(
+			final JobMasterGateway jobMasterGateway,
+			final JobVertexID jobVertexId) {
+
+		final ArchivedExecution onlyExecution = getOnlyExecution(jobMasterGateway);
+		final ExecutionAttemptID attemptId = onlyExecution.getAttemptId();
+		try {
+			return jobMasterGateway
+				.requestNextInputSplit(jobVertexId, attemptId)
+				.get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static ArchivedExecution getOnlyExecution(final JobMasterGateway jobMasterGateway) {
+		final ArchivedExecutionGraph archivedExecutionGraph = requestExecutionGraph(jobMasterGateway);
+
+		final Iterable<ArchivedExecutionVertex> allExecutionVertices = archivedExecutionGraph.getAllExecutionVertices();
+		final ArchivedExecutionVertex executionVertex = Iterables.getOnlyElement(allExecutionVertices);
+
+		return executionVertex.getCurrentExecutionAttempt();
+	}
+
+	private static ArchivedExecutionGraph requestExecutionGraph(final JobMasterGateway jobMasterGateway) {
+		try {
+			return jobMasterGateway.requestJob(testingTimeout).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	@Nonnull
-	private static List<InputSplit> getInputSplits(int numberInputSplits, SupplierWithException<SerializedInputSplit, Exception> nextInputSplit) throws Exception {
+	private static List<InputSplit> getInputSplits(int numberInputSplits, Supplier<SerializedInputSplit> nextInputSplit) throws Exception {
 		final List<InputSplit> actualInputSplits = new ArrayList<>(numberInputSplits);
 
 		for (int i = 0; i < numberInputSplits; i++) {
@@ -1001,7 +1118,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1031,7 +1148,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1076,7 +1193,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1114,7 +1231,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1177,7 +1294,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1211,7 +1328,7 @@ public class JobMasterTest extends TestLogger {
 				fail("Expected to fail because of clashing registration message.");
 			} catch (Exception e) {
 				assertTrue(ExceptionUtils.findThrowableWithMessage(e, "Registration name clash").isPresent());
-				assertEquals(JobStatus.FAILED, jobMaster.getExecutionGraph().getState());
+				assertEquals(JobStatus.FAILED, jobMasterGateway.requestJobStatus(testingTimeout).get());
 			}
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
@@ -1232,18 +1349,11 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
-
-			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-			testingResourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
-
-			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 
 			final CompletableFuture<TaskDeploymentDescriptor> tddFuture = new CompletableFuture<>();
 			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
@@ -1252,23 +1362,12 @@ public class JobMasterTest extends TestLogger {
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				})
 				.createTestingTaskExecutorGateway();
-			rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-			rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
-
-			final AllocationID allocationId = allocationIdFuture.get();
-
-			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-			jobMasterGateway.registerTaskManager(testingTaskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
-
-			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
-
-			final Collection<SlotOffer> slotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
+			final Collection<SlotOffer> slotOffers = registerSlotsAtJobMaster(1, jobMasterGateway, testingTaskExecutorGateway);
 
 			assertThat(slotOffers, hasSize(1));
-			assertThat(slotOffers, contains(slotOffer));
 
 			// obtain tdd for the result partition ids
 			final TaskDeploymentDescriptor tdd = tddFuture.get();
@@ -1322,38 +1421,49 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	private void notifyResourceManagerLeaderListeners(TestingResourceManagerGateway testingResourceManagerGateway) {
+		rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+	}
+
 	/**
 	 * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean, Time)}
 	 * is respected.
 	 */
 	@Test
 	public void testTriggerSavepointTimeout() throws Exception {
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+		final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+			jobManagerSharedServices.getRestartStrategyFactory());
+
 		final JobMaster jobMaster = new JobMaster(
 			rpcService,
-			JobMasterConfiguration.fromConfiguration(configuration),
+			jobMasterConfiguration,
 			jmResourceId,
 			jobGraph,
 			haServices,
-			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
-			new TestingJobManagerSharedServicesBuilder().build(),
+			DefaultSlotPoolFactory.fromConfiguration(configuration),
+			DefaultSchedulerFactory.fromConfiguration(configuration),
+			jobManagerSharedServices,
 			heartbeatServices,
-			blobServer,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			new NoOpOnCompletionActions(),
+			new TestingOnCompletionActions(),
 			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader()) {
+			JobMasterTest.class.getClassLoader(),
+			schedulerNGFactory) {
 
 			@Override
 			public CompletableFuture<String> triggerSavepoint(
-					@Nullable final String targetDirectory,
-					final boolean cancelJob,
-					final Time timeout) {
+				@Nullable final String targetDirectory,
+				final boolean cancelJob,
+				final Time timeout) {
 				return new CompletableFuture<>();
 			}
 		};
 
 		try {
-			final CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+			final CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
@@ -1390,15 +1500,6 @@ public class JobMasterTest extends TestLogger {
 			jobManagerSharedServices,
 			heartbeatServices);
 
-		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
-		rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
-		rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
-
-		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-
-		testingResourceManagerGateway.setRequestSlotConsumer(
-			slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
-
 		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
 		final CompletableFuture<AllocationID> freedSlotFuture = new CompletableFuture<>();
 		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
@@ -1409,25 +1510,17 @@ public class JobMasterTest extends TestLogger {
 				})
 			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
 			.createTestingTaskExecutorGateway();
-		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-		rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
 
 		try {
-			jobMaster.start(jobMasterId, testingTimeout).get();
+			jobMaster.start(jobMasterId).get();
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-			final AllocationID allocationId = allocationIdFuture.get();
-
-			jobMasterGateway.registerTaskManager(testingTaskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
-
-			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
-			final CompletableFuture<Collection<SlotOffer>> acceptedSlotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout);
-
-			final Collection<SlotOffer> slotOffers = acceptedSlotOffers.get();
+			final Collection<SlotOffer> slotOffers = registerSlotsAtJobMaster(1, jobMasterGateway, testingTaskExecutorGateway);
 
 			// check that we accepted the offered slot
 			assertThat(slotOffers, hasSize(1));
+			final AllocationID allocationId = slotOffers.iterator().next().getAllocationId();
 
 			// now fail the allocation and check that we close the connection to the TaskExecutor
 			jobMasterGateway.notifyAllocationFailure(allocationId, new FlinkException("Fail alloction test exception"));
@@ -1437,6 +1530,245 @@ public class JobMasterTest extends TestLogger {
 			assertThat(disconnectTaskExecutorFuture.get(), equalTo(jobGraph.getJobID()));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	/**
+	 * Tests the updateGlobalAggregate functionality
+	 */
+	@Test
+	public void testJobMasterAggregatesValuesCorrectly() throws Exception {
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			CompletableFuture<Object> updateAggregateFuture;
+
+			AggregateFunction<Integer, Integer, Integer> aggregateFunction = createAggregateFunction();
+
+			ClosureCleaner.clean(aggregateFunction, true);
+			byte[] serializedAggregateFunction = InstantiationUtil.serializeObject(aggregateFunction);
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 1, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(1));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 2, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(3));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 3, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(6));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 4, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(10));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg2", 10, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(10));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg2", 23, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(33));
+
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	private AggregateFunction<Integer, Integer, Integer> createAggregateFunction() {
+		return new AggregateFunction<Integer, Integer, Integer>() {
+
+			@Override
+			public Integer createAccumulator() {
+				return 0;
+			}
+
+			@Override
+			public Integer add(Integer value, Integer accumulator) {
+				Integer _acc = (Integer) accumulator;
+				Integer _value = (Integer) value;
+				return _acc + _value;
+			}
+
+			@Override
+			public Integer getResult(Integer accumulator) {
+				return accumulator;
+			}
+
+			@Override
+			public Integer merge(Integer a, Integer b) {
+				return add(a, b);
+			}
+		};
+	}
+
+	@Nonnull
+	private TestingResourceManagerGateway createAndRegisterTestingResourceManagerGateway() {
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+		return testingResourceManagerGateway;
+	}
+
+	/**
+	 * Tests that the job execution is failed if the TaskExecutor disconnects from the
+	 * JobMaster.
+	 */
+	@Test
+	public void testJobFailureWhenGracefulTaskExecutorTermination() throws Exception {
+		runJobFailureWhenTaskExecutorTerminatesTest(
+			heartbeatServices,
+			(localTaskManagerLocation, jobMasterGateway) -> jobMasterGateway.disconnectTaskManager(
+				localTaskManagerLocation.getResourceID(),
+				new FlinkException("Test disconnectTaskManager exception.")),
+			(jobMasterGateway, resourceID) -> ignored -> {});
+	}
+
+	@Test
+	public void testJobFailureWhenTaskExecutorHeartbeatTimeout() throws Exception {
+		final AtomicBoolean respondToHeartbeats = new AtomicBoolean(true);
+		runJobFailureWhenTaskExecutorTerminatesTest(
+			fastHeartbeatServices,
+			(localTaskManagerLocation, jobMasterGateway) -> respondToHeartbeats.set(false),
+			(jobMasterGateway, taskManagerResourceId) -> resourceId -> {
+				if (respondToHeartbeats.get()) {
+					jobMasterGateway.heartbeatFromTaskManager(taskManagerResourceId, new AccumulatorReport(Collections.emptyList()));
+				}
+			}
+		);
+	}
+
+	private void runJobFailureWhenTaskExecutorTerminatesTest(
+			HeartbeatServices heartbeatServices,
+			BiConsumer<LocalTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
+			BiFunction<JobMasterGateway, ResourceID, Consumer<ResourceID>> heartbeatConsumerFunction) throws Exception {
+		final JobGraph jobGraph = createSingleVertexJobGraph();
+		final TestingOnCompletionActions onCompletionActions = new TestingOnCompletionActions();
+		final JobMaster jobMaster = createJobMaster(
+			new Configuration(),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices,
+			onCompletionActions);
+
+		try {
+			jobMaster.start(jobMasterId).get();
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+			final CompletableFuture<ExecutionAttemptID> taskDeploymentFuture = new CompletableFuture<>();
+			final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+				.setSubmitTaskConsumer((taskDeploymentDescriptor, jobMasterId) -> {
+					taskDeploymentFuture.complete(taskDeploymentDescriptor.getExecutionAttemptId());
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+				.setHeartbeatJobManagerConsumer(heartbeatConsumerFunction.apply(jobMasterGateway, taskManagerLocation.getResourceID()))
+				.createTestingTaskExecutorGateway();
+
+			final Collection<SlotOffer> slotOffers = registerSlotsAtJobMaster(1, jobMasterGateway, taskExecutorGateway, taskManagerLocation);
+			assertThat(slotOffers, hasSize(1));
+
+			final ExecutionAttemptID executionAttemptId = taskDeploymentFuture.get();
+
+			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), executionAttemptId, ExecutionState.RUNNING)).get();
+
+			jobReachedRunningState.accept(taskManagerLocation, jobMasterGateway);
+
+			final ArchivedExecutionGraph archivedExecutionGraph = onCompletionActions.getJobReachedGloballyTerminalStateFuture().get();
+
+			assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	private static final class TestingOnCompletionActions implements OnCompletionActions {
+
+		private final CompletableFuture<ArchivedExecutionGraph> jobReachedGloballyTerminalStateFuture = new CompletableFuture<>();
+		private final CompletableFuture<Void> jobFinishedByOtherFuture = new CompletableFuture<>();
+		private final CompletableFuture<Throwable> jobMasterFailedFuture = new CompletableFuture<>();
+
+		@Override
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+			jobReachedGloballyTerminalStateFuture.complete(executionGraph);
+		}
+
+		@Override
+		public void jobFinishedByOther() {
+			jobFinishedByOtherFuture.complete(null);
+		}
+
+		@Override
+		public void jobMasterFailed(Throwable cause) {
+			jobMasterFailedFuture.complete(cause);
+		}
+
+		public CompletableFuture<ArchivedExecutionGraph> getJobReachedGloballyTerminalStateFuture() {
+			return jobReachedGloballyTerminalStateFuture;
+		}
+	}
+
+	private Collection<SlotOffer> registerSlotsAtJobMaster(
+		int numberSlots,
+		JobMasterGateway jobMasterGateway,
+		TaskExecutorGateway taskExecutorGateway) throws ExecutionException, InterruptedException {
+		return registerSlotsAtJobMaster(
+			numberSlots,
+			jobMasterGateway,
+			taskExecutorGateway,
+			new LocalTaskManagerLocation());
+	}
+
+	private Collection<SlotOffer> registerSlotsAtJobMaster(
+			int numberSlots,
+			JobMasterGateway jobMasterGateway,
+			TaskExecutorGateway taskExecutorGateway,
+			TaskManagerLocation taskManagerLocation) throws ExecutionException, InterruptedException {
+		final AllocationIdsResourceManagerGateway allocationIdsResourceManagerGateway = new AllocationIdsResourceManagerGateway();
+		rpcService.registerGateway(allocationIdsResourceManagerGateway.getAddress(), allocationIdsResourceManagerGateway);
+		notifyResourceManagerLeaderListeners(allocationIdsResourceManagerGateway);
+
+		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+		jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
+
+		Collection<SlotOffer> slotOffers = IntStream
+			.range(0, numberSlots)
+			.mapToObj(
+				index -> {
+					final AllocationID allocationId = allocationIdsResourceManagerGateway.takeAllocationId();
+					return new SlotOffer(allocationId, index, ResourceProfile.UNKNOWN);
+				})
+			.collect(Collectors.toList());
+
+		return jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), slotOffers, testingTimeout).get();
+	}
+
+	private static final class AllocationIdsResourceManagerGateway extends TestingResourceManagerGateway {
+		private final BlockingQueue<AllocationID> allocationIds;
+
+		private AllocationIdsResourceManagerGateway() {
+			this.allocationIds = new ArrayBlockingQueue<>(10);
+			setRequestSlotConsumer(
+				slotRequest -> allocationIds.offer(slotRequest.getAllocationId())
+			);
+		}
+
+		AllocationID takeAllocationId() {
+			try {
+				return allocationIds.take();
+			} catch (InterruptedException e) {
+				ExceptionUtils.rethrow(e);
+				return null;
+			}
 		}
 	}
 
@@ -1540,7 +1872,26 @@ public class JobMasterTest extends TestLogger {
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices) throws Exception {
 
+		return createJobMaster(
+			configuration,
+			jobGraph,
+			highAvailabilityServices,
+			jobManagerSharedServices,
+			heartbeatServices,
+			new TestingOnCompletionActions());
+	}
+
+	@Nonnull
+	private JobMaster createJobMaster(
+			Configuration configuration,
+			JobGraph jobGraph,
+			HighAvailabilityServices highAvailabilityServices,
+			JobManagerSharedServices jobManagerSharedServices,
+			HeartbeatServices heartbeatServices,
+			OnCompletionActions onCompletionActions) throws Exception {
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+		final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+			jobManagerSharedServices.getRestartStrategyFactory());
 
 		return new JobMaster(
 			rpcService,
@@ -1548,49 +1899,35 @@ public class JobMasterTest extends TestLogger {
 			jmResourceId,
 			jobGraph,
 			highAvailabilityServices,
-			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
+			DefaultSlotPoolFactory.fromConfiguration(configuration),
+			DefaultSchedulerFactory.fromConfiguration(configuration),
 			jobManagerSharedServices,
 			heartbeatServices,
-			blobServer,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			new NoOpOnCompletionActions(),
+			onCompletionActions,
 			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader());
+			JobMasterTest.class.getClassLoader(),
+			schedulerNGFactory);
 	}
 
 	private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
-		final JobVertex jobVertex = new JobVertex("Test vertex");
-		jobVertex.setInvokableClass(NoOpInvokable.class);
+		final JobGraph jobGraph = createSingleVertexJobGraph();
 
 		final ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
-
-		final JobGraph jobGraph = new JobGraph(jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
 		jobGraph.setExecutionConfig(executionConfig);
 
 		return jobGraph;
 	}
 
-	/**
-	 * No op implementation of {@link OnCompletionActions}.
-	 */
-	private static final class NoOpOnCompletionActions implements OnCompletionActions {
+	@Nonnull
+	private JobGraph createSingleVertexJobGraph() {
+		final JobVertex jobVertex = new JobVertex("Test vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		@Override
-		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-
-		}
-
-		@Override
-		public void jobFinishedByOther() {
-
-		}
-
-		@Override
-		public void jobMasterFailed(Throwable cause) {
-
-		}
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		return jobGraph;
 	}
 
 	private static final class DummyCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
@@ -1612,5 +1949,4 @@ public class JobMasterTest extends TestLogger {
 
 		}
 	}
-
 }

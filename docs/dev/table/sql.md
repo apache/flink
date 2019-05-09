@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
+SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
 In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
 
@@ -42,7 +42,7 @@ The following examples show how to specify a SQL queries on registered and inlin
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
@@ -74,7 +74,7 @@ tableEnv.sqlUpdate(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
@@ -93,7 +93,7 @@ val result2 = tableEnv.sqlQuery(
 
 // SQL update with a registered table
 // create and register a TableSink
-TableSink csvSink = new CsvTableSink("/path/to/file", ...)
+val csvSink: CsvTableSink = new CsvTableSink("/path/to/file", ...)
 val fieldNames: Array[String] = Array("product", "amount")
 val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT)
 tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink)
@@ -722,9 +722,11 @@ ORDER BY orderTime
         <span class="label label-primary">Batch</span>
       </td>
       <td>
+<b>Note:</b> The LIMIT clause requires an ORDER BY clause. 
 {% highlight sql %}
 SELECT *
 FROM Orders
+ORDER BY orderTime
 LIMIT 3
 {% endhighlight %}
       </td>
@@ -861,7 +863,7 @@ The following examples show how to specify SQL queries with group windows on str
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
@@ -898,7 +900,7 @@ Table result4 = tableEnv.sqlQuery(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)

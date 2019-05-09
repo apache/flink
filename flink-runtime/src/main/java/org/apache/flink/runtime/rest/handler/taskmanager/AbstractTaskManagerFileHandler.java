@@ -24,12 +24,11 @@ import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
+import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
@@ -75,7 +74,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -90,7 +88,6 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	private final LoadingCache<ResourceID, CompletableFuture<TransientBlobKey>> fileBlobKeys;
 
 	protected AbstractTaskManagerFileHandler(
-			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
@@ -98,7 +95,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			@Nonnull TransientBlobService transientBlobService,
 			@Nonnull Time cacheEntryDuration) {
-		super(localAddressFuture, leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
 
 		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
 
@@ -126,11 +123,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			blobKeyFuture = fileBlobKeys.get(taskManagerId);
 		} catch (ExecutionException e) {
 			final Throwable cause = ExceptionUtils.stripExecutionException(e);
-			if (cause instanceof RestHandlerException) {
-				throw (RestHandlerException) cause;
-			} else {
-				throw new RestHandlerException("Could not retrieve file blob key future.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-			}
+			throw new RestHandlerException("Could not retrieve file blob key future.", HttpResponseStatus.INTERNAL_SERVER_ERROR, cause);
 		}
 
 		final CompletableFuture<Void> resultFuture = blobKeyFuture.thenAcceptAsync(
@@ -160,23 +153,18 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 					fileBlobKeys.invalidate(taskManagerId);
 
 					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
-					final ErrorResponseBody errorResponseBody;
-					final HttpResponseStatus httpResponseStatus;
 
 					if (strippedThrowable instanceof UnknownTaskExecutorException) {
-						errorResponseBody = new ErrorResponseBody("Unknown TaskExecutor " + taskManagerId + '.');
-						httpResponseStatus = HttpResponseStatus.NOT_FOUND;
+						throw new CompletionException(
+							new NotFoundException(
+								String.format("Failed to transfer file from TaskExecutor %s because it was unknown.", taskManagerId),
+								strippedThrowable));
 					} else {
-						errorResponseBody = new ErrorResponseBody("Internal server error: " + throwable.getMessage() + '.');
-						httpResponseStatus = INTERNAL_SERVER_ERROR;
+						throw new CompletionException(
+							new FlinkException(
+								String.format("Failed to transfer file from TaskExecutor %s.", taskManagerId),
+								strippedThrowable));
 					}
-
-					HandlerUtils.sendErrorResponse(
-						ctx,
-						httpRequest,
-						errorResponseBody,
-						httpResponseStatus,
-						responseHeaders);
 				}
 			});
 	}

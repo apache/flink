@@ -31,7 +31,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -40,6 +39,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -143,6 +143,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	@Deprecated
 	private final Option streaming;
 	private final Option name;
+	private final Option applicationType;
 
 	private final Options allOptions;
 
@@ -201,6 +202,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			.build();
 		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
+		applicationType = new Option(shortPrefix + "at", longPrefix + "applicationType", true, "Set a custom application type for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
 		nodeLabel = new Option(shortPrefix + "nl", longPrefix + "nodeLabel", true, "Specify YARN node label for the YARN application");
 		help = new Option(shortPrefix + "h", longPrefix + "help", false, "Help for the Yarn session CLI.");
@@ -221,6 +223,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(streaming);
 		allOptions.addOption(name);
 		allOptions.addOption(applicationId);
+		allOptions.addOption(applicationType);
 		allOptions.addOption(zookeeperNamespace);
 		allOptions.addOption(nodeLabel);
 		allOptions.addOption(help);
@@ -253,7 +256,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 				yarnApplicationIdFromYarnProperties = ConverterUtils.toApplicationId(yarnApplicationIdString);
 			}
 			catch (Exception e) {
-				throw new FlinkException("YARN properties contains an invalid entry for " +
+				throw new FlinkException("YARN properties contain an invalid entry for " +
 					"application id: " + yarnApplicationIdString + ". Please delete the file at " +
 					yarnPropertiesLocation.getAbsolutePath(), e);
 			}
@@ -311,14 +314,16 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		}
 
 		List<File> shipFiles = new ArrayList<>();
-		// path to directory to ship
+		// path to directories to ship
 		if (cmd.hasOption(shipPath.getOpt())) {
-			String shipPath = cmd.getOptionValue(this.shipPath.getOpt());
-			File shipDir = new File(shipPath);
-			if (shipDir.isDirectory()) {
-				shipFiles.add(shipDir);
-			} else {
-				LOG.warn("Ship directory is not a directory. Ignoring it.");
+			String[] shipPaths = cmd.getOptionValues(this.shipPath.getOpt());
+			for (String shipPath : shipPaths) {
+				File shipDir = new File(shipPath);
+				if (shipDir.isDirectory()) {
+					shipFiles.add(shipDir);
+				} else {
+					LOG.warn("Ship directory {} is not a directory. Ignoring it.", shipDir.getAbsolutePath());
+				}
 			}
 		}
 
@@ -354,6 +359,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		if (cmd.hasOption(name.getOpt())) {
 			yarnClusterDescriptor.setName(cmd.getOptionValue(name.getOpt()));
+		}
+
+		if (cmd.hasOption(applicationType.getOpt())) {
+			yarnClusterDescriptor.setApplicationType(cmd.getOptionValue(applicationType.getOpt()));
 		}
 
 		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
@@ -648,49 +657,32 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 						yarnClusterDescriptor.getYarnClient(),
 						yarnApplicationId,
 						new ScheduledExecutorServiceAdapter(scheduledExecutorService));
-
+					Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> shutdownCluster(
+							clusterClient,
+							scheduledExecutorService,
+							yarnApplicationStatusMonitor),
+						getClass().getSimpleName(),
+						LOG);
 					try {
 						runInteractiveCli(
 							clusterClient,
 							yarnApplicationStatusMonitor,
 							acceptInteractiveInput);
 					} finally {
-						try {
-							yarnApplicationStatusMonitor.close();
-						} catch (Exception e) {
-							LOG.info("Could not properly close the Yarn application status monitor.", e);
+						shutdownCluster(
+							clusterClient,
+							scheduledExecutorService,
+							yarnApplicationStatusMonitor);
+
+						if (shutdownHook != null) {
+							// we do not need the hook anymore as we have just tried to shutdown the cluster.
+							ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 						}
 
-						clusterClient.shutDownCluster();
-
-						try {
-							clusterClient.shutdown();
-						} catch (Exception e) {
-							LOG.info("Could not properly shutdown cluster client.", e);
-						}
-
-						// shut down the scheduled executor service
-						ExecutorUtils.gracefulShutdown(
-							1000L,
-							TimeUnit.MILLISECONDS,
-							scheduledExecutorService);
-
-						deleteYarnPropertiesFile();
-
-						ApplicationReport applicationReport;
-
-						try {
-							applicationReport = yarnClusterDescriptor
-								.getYarnClient()
-								.getApplicationReport(yarnApplicationId);
-						} catch (YarnException | IOException e) {
-							LOG.info("Could not log the final application report.", e);
-							applicationReport = null;
-						}
-
-						if (applicationReport != null) {
-							logFinalApplicationReport(applicationReport);
-						}
+						tryRetrieveAndLogApplicationReport(
+							yarnClusterDescriptor.getYarnClient(),
+							yarnApplicationId);
 					}
 				}
 			}
@@ -705,7 +697,49 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return 0;
 	}
 
-	private void logFinalApplicationReport(ApplicationReport appReport) {
+	private void shutdownCluster(
+			ClusterClient clusterClient,
+			ScheduledExecutorService scheduledExecutorService,
+			YarnApplicationStatusMonitor yarnApplicationStatusMonitor) {
+		try {
+			yarnApplicationStatusMonitor.close();
+		} catch (Exception e) {
+			LOG.info("Could not properly close the Yarn application status monitor.", e);
+		}
+
+		clusterClient.shutDownCluster();
+
+		try {
+			clusterClient.shutdown();
+		} catch (Exception e) {
+			LOG.info("Could not properly shutdown cluster client.", e);
+		}
+
+		// shut down the scheduled executor service
+		ExecutorUtils.gracefulShutdown(
+			1000L,
+			TimeUnit.MILLISECONDS,
+			scheduledExecutorService);
+
+		deleteYarnPropertiesFile();
+	}
+
+	private void tryRetrieveAndLogApplicationReport(YarnClient yarnClient, ApplicationId yarnApplicationId) {
+		ApplicationReport applicationReport;
+
+		try {
+			applicationReport = yarnClient.getApplicationReport(yarnApplicationId);
+		} catch (YarnException | IOException e) {
+			LOG.info("Could not log the final application report.", e);
+			applicationReport = null;
+		}
+
+		if (applicationReport != null) {
+			logApplicationReport(applicationReport);
+		}
+	}
+
+	private void logApplicationReport(ApplicationReport appReport) {
 		LOG.info("Application " + appReport.getApplicationId() + " finished with state " + appReport
 			.getYarnApplicationState() + " and final state " + appReport
 			.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
@@ -856,37 +890,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							isLastStatusUnknown = false;
 						}
 
-						// ------------------ check if there are updates by the cluster -----------
-						try {
-							final GetClusterStatusResponse status = clusterClient.getClusterStatus();
-
-							if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-								System.err.println("Number of connected TaskManagers changed to " +
-									status.numRegisteredTaskManagers() + ". " +
-									"Slots available: " + status.totalNumberOfSlots());
-								numTaskmanagers = status.numRegisteredTaskManagers();
-							}
-						} catch (Exception e) {
-							LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
-						}
-
-						printClusterMessages(clusterClient);
-
 						continueRepl = repStep(in, readConsoleInput);
 				}
 			}
 		} catch (Exception e) {
 			LOG.warn("Exception while running the interactive command line interface.", e);
-		}
-	}
-
-	private static void printClusterMessages(ClusterClient clusterClient) {
-		final List<String> messages = clusterClient.getNewMessages();
-		if (!messages.isEmpty()) {
-			System.err.println("New messages from the YARN cluster: ");
-			for (String msg : messages) {
-				System.err.println(msg);
-			}
 		}
 	}
 

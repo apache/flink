@@ -155,6 +155,41 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
+	public void testDefaultAutoCommitIsUsedIfNotConfiguredOtherwise() throws SQLException, ClassNotFoundException {
+
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.finish();
+		jdbcInputFormat.openInputFormat();
+
+		Class.forName(DRIVER_CLASS);
+		final boolean defaultAutoCommit = DriverManager.getConnection(DB_URL).getAutoCommit();
+
+		Assert.assertEquals(defaultAutoCommit, jdbcInputFormat.getDbConn().getAutoCommit());
+
+	}
+
+	@Test
+	public void testAutoCommitCanBeConfigured() throws SQLException {
+
+		final boolean desiredAutoCommit = false;
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setAutoCommit(desiredAutoCommit)
+			.finish();
+
+		jdbcInputFormat.openInputFormat();
+		Assert.assertEquals(desiredAutoCommit, jdbcInputFormat.getDbConn().getAutoCommit());
+
+	}
+
+	@Test
 	public void testJDBCInputFormatWithoutParallelism() throws IOException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)

@@ -205,7 +205,7 @@ DefinedRowtimeAttributes {
 
 * `getRowtimeAttributeDescriptors()`: Returns a list of `RowtimeAttributeDescriptor`. A `RowtimeAttributeDescriptor` describes a rowtime attribute with the following properties:
   * `attributeName`: The name of the rowtime attribute in the table schema. The field must be defined with type `Types.SQL_TIMESTAMP`.
-  * `timestampExtractor`: The timestamp extractor extracts the timestamp from a record with the return type. For example, it can convert convert a Long field into a timestamp or parse a String-encoded timestamp. Flink comes with a set of built-in `TimestampExtractor` implementation for common use cases. It is also possible to provide a custom implementation.
+  * `timestampExtractor`: The timestamp extractor extracts the timestamp from a record with the return type. For example, it can convert a Long field into a timestamp or parse a String-encoded timestamp. Flink comes with a set of built-in `TimestampExtractor` implementation for common use cases. It is also possible to provide a custom implementation.
   * `watermarkStrategy`: The watermark strategy defines how watermarks are generated for the rowtime attribute. Flink comes with a set of built-in `WatermarkStrategy` implementations for common use cases. It is also possible to provide a custom implementation.
 
 <span class="label label-danger">Attention</span> Although the `getRowtimeAttributeDescriptors()` method returns a list of descriptors, only a single rowtime attribute is support at the moment. We plan to remove this restriction in the future and support tables with more than one rowtime attribute.
@@ -413,7 +413,7 @@ AppendStreamTableSink<T> implements TableSink<T> {
 {% highlight scala %}
 AppendStreamTableSink[T] extends TableSink[T] {
 
-  def emitDataStream(dataStream: DataStream<T>): Unit
+  def emitDataStream(dataStream: DataStream[T]): Unit
 }
 {% endhighlight %}
 </div>

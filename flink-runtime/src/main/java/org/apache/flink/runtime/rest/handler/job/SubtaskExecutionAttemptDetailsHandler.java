@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -62,12 +61,11 @@ public class SubtaskExecutionAttemptDetailsHandler
 	extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters>
 	implements JsonArchivist {
 
-	private final MetricFetcher<?> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	/**
 	 * Instantiates a new subtask execution attempt details handler.
 	 *
-	 * @param localRestAddress    the local rest address
 	 * @param leaderRetriever     the leader retriever
 	 * @param timeout             the timeout
 	 * @param responseHeaders     the response headers
@@ -76,16 +74,15 @@ public class SubtaskExecutionAttemptDetailsHandler
 	 * @param executor            the executor
 	 */
 	public SubtaskExecutionAttemptDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
@@ -117,13 +114,15 @@ public class SubtaskExecutionAttemptDetailsHandler
 
 				for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
 					AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
-					ResponseBody json = createDetailsInfo(attempt, graph.getJobID(), task.getJobVertexId(), null);
-					String path = getMessageHeaders().getTargetRestEndpointURL()
-						.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-						.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
-						.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
-						.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
-					archive.add(new ArchivedJson(path, json));
+					if (attempt != null) {
+						ResponseBody json = createDetailsInfo(attempt, graph.getJobID(), task.getJobVertexId(), null);
+						String path = getMessageHeaders().getTargetRestEndpointURL()
+							.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+							.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
+							.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
+							.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
+						archive.add(new ArchivedJson(path, json));
+					}
 				}
 			}
 		}
@@ -134,7 +133,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 			AccessExecution execution,
 			JobID jobID,
 			JobVertexID jobVertexID,
-			@Nullable MetricFetcher<?> metricFetcher) {
+			@Nullable MetricFetcher metricFetcher) {
 		final MutableIOMetrics ioMetrics = new MutableIOMetrics();
 
 		ioMetrics.addIOMetrics(

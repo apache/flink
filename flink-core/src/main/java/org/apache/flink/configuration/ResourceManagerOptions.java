@@ -35,10 +35,19 @@ public class ResourceManagerOptions {
 		.defaultValue("5 minutes")
 		.withDescription("Timeout for jobs which don't have a job manager as leader assigned.");
 
+	/**
+	 * The number of resource managers start.
+	 */
 	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
 		.key("local.number-resourcemanager")
-		.defaultValue(1);
+		.defaultValue(1)
+		.withDescription("The number of resource managers start.");
 
+	/**
+	 * Defines the network port to connect to for communication with the resource manager.
+	 * By default, the port of the JobManager, because the same ActorSystem is used. Its not
+	 * possible to use this configuration key to define port ranges.
+	 */
 	public static final ConfigOption<Integer> IPC_PORT = ConfigOptions
 		.key("resourcemanager.rpc.port")
 		.defaultValue(0)
@@ -95,6 +104,28 @@ public class ResourceManagerOptions {
 		.withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
 		.withDescription(Description.builder()
 			.text("The timeout for an idle task manager to be released.")
+			.build());
+
+	/**
+	 * Release task executor only when each produced result partition is either consumed or failed.
+	 *
+	 * <p>Currently, produced result partition is released when it fails or consumer sends close request
+	 * to confirm successful end of consumption and to close the communication channel.
+	 *
+	 * @deprecated The default value should be reasonable enough in all cases, this option is to fallback to older behaviour
+	 * which will be removed or refactored in future.
+	 */
+	@Deprecated
+	public static final ConfigOption<Boolean> TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED = ConfigOptions
+		.key("resourcemanager.taskmanager-release.wait.result.consumed")
+		.defaultValue(true)
+		.withDescription(Description.builder()
+			.text("Release task executor only when each produced result partition is either consumed or failed. " +
+				"'True' is default. 'False' means that idle task executor release is not blocked " +
+				"by receiver confirming consumption of result partition " +
+				"and can happen right away after 'resourcemanager.taskmanager-timeout' has elapsed. " +
+				"Setting this option to 'false' can speed up task executor release but can lead to unexpected failures " +
+				"if end of consumption is slower than 'resourcemanager.taskmanager-timeout'.")
 			.build());
 
 	/**

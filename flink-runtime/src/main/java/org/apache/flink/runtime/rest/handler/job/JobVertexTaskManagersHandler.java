@@ -55,7 +55,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -63,18 +62,17 @@ import java.util.concurrent.Executor;
  * runtime and metrics of all its subtasks aggregated by TaskManager.
  */
 public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters> implements JsonArchivist {
-	private MetricFetcher<?> metricFetcher;
+	private MetricFetcher metricFetcher;
 
 	public JobVertexTaskManagersHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+			MetricFetcher metricFetcher) {
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
 
@@ -107,7 +105,7 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 		return archive;
 	}
 
-	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
+	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		// Build a map that groups tasks by TaskManager
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
@@ -175,8 +173,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				taskVertices.size());
 
 			final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-				counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-				counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+				counts.getNumBytesIn(),
+				counts.isNumBytesInComplete(),
 				counts.getNumBytesOut(),
 				counts.isNumBytesOutComplete(),
 				counts.getNumRecordsIn(),

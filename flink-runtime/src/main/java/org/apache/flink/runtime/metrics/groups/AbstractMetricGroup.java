@@ -111,17 +111,13 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	}
 
 	public Map<String, String> getAllVariables() {
-		if (variables == null) { // avoid synchronization for common case
-			synchronized (this) {
-				if (variables == null) {
-					Map<String, String> tmpVariables = new HashMap<>();
-					putVariables(tmpVariables);
-					if (parent != null) { // not true for Job-/TaskManagerMetricGroup
-						tmpVariables.putAll(parent.getAllVariables());
-					}
-					variables = tmpVariables;
-				}
+		if (variables == null) {
+			Map<String, String> tmpVariables = new HashMap<>();
+			putVariables(tmpVariables);
+			if (parent != null) { // not true for Job-/TaskManagerMetricGroup
+				tmpVariables.putAll(parent.getAllVariables());
 			}
+			variables = tmpVariables;
 		}
 		return variables;
 	}
@@ -176,7 +172,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		}
 	}
 
-	private String createLogicalScope(CharacterFilter filter, char delimiter) {
+	protected String createLogicalScope(CharacterFilter filter, char delimiter) {
 		final String groupName = getGroupName(filter);
 		return parent == null
 			? groupName

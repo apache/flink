@@ -69,10 +69,12 @@ response back to the client.
 
 ## Activating Queryable State
 
-To enable queryable state on your Flink cluster, you just have to copy the 
-`flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
+To enable queryable state on your Flink cluster, you need to do the following:
+
+ 1. copy the `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
 from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"), 
-to the `lib/` folder. Otherwise, the queryable state feature is not enabled. 
+to the `lib/` folder.
+ 2. set the property `queryable-state.enable` to `true`. See the [Configuration]({{ site.baseurl }}/ops/config.html#queryable-state) documentation for details and additional parameters.
 
 To verify that your cluster is running with queryable state enabled, check the logs of any 
 task manager for the line: `"Started the Queryable State Proxy Server @ ..."`.
@@ -290,19 +292,19 @@ The following configuration parameters influence the behaviour of the queryable 
 They are defined in `QueryableStateOptions`.
 
 ### State Server
-* `query.server.ports`: the server port range of the queryable state server. This is useful to avoid port clashes if more 
+* `queryable-state.server.ports`: the server port range of the queryable state server. This is useful to avoid port clashes if more 
    than 1 task managers run on the same machine. The specified range can be: a port: "9123", a range of ports: "50100-50200",
    or a list of ranges and or points: "50100-50200,50300-50400,51234". The default port is 9067.
-* `query.server.network-threads`: number of network (event loop) threads receiving incoming requests for the state server (0 => #slots)
-* `query.server.query-threads`: number of threads handling/serving incoming requests for the state server (0 => #slots).
+* `queryable-state.server.network-threads`: number of network (event loop) threads receiving incoming requests for the state server (0 => #slots)
+* `queryable-state.server.query-threads`: number of threads handling/serving incoming requests for the state server (0 => #slots).
 
 
 ### Proxy
-* `query.proxy.ports`: the server port range of the queryable state proxy. This is useful to avoid port clashes if more 
+* `queryable-state.proxy.ports`: the server port range of the queryable state proxy. This is useful to avoid port clashes if more 
   than 1 task managers run on the same machine. The specified range can be: a port: "9123", a range of ports: "50100-50200",
   or a list of ranges and or points: "50100-50200,50300-50400,51234". The default port is 9069.
-* `query.proxy.network-threads`: number of network (event loop) threads receiving incoming requests for the client proxy (0 => #slots)
-* `query.proxy.query-threads`: number of threads handling/serving incoming requests for the client proxy (0 => #slots).
+* `queryable-state.proxy.network-threads`: number of network (event loop) threads receiving incoming requests for the client proxy (0 => #slots)
+* `queryable-state.proxy.query-threads`: number of threads handling/serving incoming requests for the client proxy (0 => #slots).
 
 ## Limitations
 

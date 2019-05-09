@@ -23,6 +23,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.rules.ExpectedException;
 
 import java.io.OutputStream;
 import java.sql.Connection;
@@ -34,6 +36,9 @@ import java.sql.Statement;
  * Base test class for JDBC Input and Output formats.
  */
 public class JDBCTestBase {
+
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
 	public static final String DRIVER_CLASS = "org.apache.derby.jdbc.EmbeddedDriver";
 	public static final String DB_URL = "jdbc:derby:memory:ebookshop";

@@ -18,12 +18,14 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -41,8 +43,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 /**
@@ -86,57 +90,19 @@ public class YarnTaskExecutorRunner {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
 
-			final String yarnClientUsername = ENV.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-			final String localDirs = ENV.get(Environment.LOCAL_DIRS.key());
-			LOG.info("Current working/local Directory: {}", localDirs);
-
 			final String currDir = ENV.get(Environment.PWD.key());
 			LOG.info("Current working Directory: {}", currDir);
 
-			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-			LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
-
-			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-			LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
-
 			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
-			FileSystem.initialize(configuration);
 
-			BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
+			//TODO provide path.
+			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 
-			// tell akka to die in case of an error
-			configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
+			setupConfigurationAndInstallSecurityContext(configuration, currDir, ENV);
 
-			String keytabPath = null;
-			if (remoteKeytabPath != null) {
-				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-				keytabPath = f.getAbsolutePath();
-				LOG.info("keytab path: {}", keytabPath);
-			}
-
-			UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-
-			LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
-					currentUser.getShortUserName(), yarnClientUsername);
-
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
-			}
-
-			SecurityConfiguration sc = new SecurityConfiguration(configuration);
-
-			final String containerId = ENV.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
+			final String containerId = ENV.get(YarnResourceManager.ENV_FLINK_CONTAINER_ID);
 			Preconditions.checkArgument(containerId != null,
-				"ContainerId variable %s not set", YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
-
-			// use the hostname passed by job manager
-			final String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);
-			if (taskExecutorHostname != null) {
-				configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
-			}
-
-			SecurityUtils.install(sc);
+				"ContainerId variable %s not set", YarnResourceManager.ENV_FLINK_CONTAINER_ID);
 
 			SecurityUtils.getInstalledContext().runSecured((Callable<Void>) () -> {
 				TaskManagerRunner.runTaskManager(configuration, new ResourceID(containerId));
@@ -149,5 +115,58 @@ public class YarnTaskExecutorRunner {
 			LOG.error("YARN TaskManager initialization failed.", strippedThrowable);
 			System.exit(INIT_ERROR_EXIT_CODE);
 		}
+	}
+
+	@VisibleForTesting
+	static void setupConfigurationAndInstallSecurityContext(Configuration configuration, String currDir, Map<String, String> variables) throws Exception {
+		final String localDirs = variables.get(Environment.LOCAL_DIRS.key());
+		LOG.info("Current working/local Directory: {}", localDirs);
+
+		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
+
+		setupConfigurationFromVariables(configuration, currDir, variables);
+
+		installSecurityContext(configuration);
+	}
+
+	private static void setupConfigurationFromVariables(Configuration configuration, String currDir, Map<String, String> variables) throws IOException {
+		final String yarnClientUsername = variables.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
+
+		final String remoteKeytabPath = variables.get(YarnConfigKeys.KEYTAB_PATH);
+		LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
+
+		final String remoteKeytabPrincipal = variables.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
+
+		// tell akka to die in case of an error
+		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
+
+		String keytabPath = null;
+		if (remoteKeytabPath != null) {
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			keytabPath = f.getAbsolutePath();
+			LOG.info("keytab path: {}", keytabPath);
+		}
+
+		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
+
+		LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
+				currentUser.getShortUserName(), yarnClientUsername);
+
+		if (keytabPath != null && remoteKeytabPrincipal != null) {
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+		}
+
+		// use the hostname passed by job manager
+		final String taskExecutorHostname = variables.get(YarnResourceManager.ENV_FLINK_NODE_ID);
+		if (taskExecutorHostname != null) {
+			configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
+		}
+	}
+
+	private static void installSecurityContext(Configuration configuration) throws Exception {
+		SecurityConfiguration sc = new SecurityConfiguration(configuration);
+		SecurityUtils.install(sc);
 	}
 }

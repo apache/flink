@@ -31,7 +31,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -44,6 +43,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
@@ -119,7 +119,7 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -167,10 +167,10 @@ public class ExecutionGraphConstructionTest {
 			jobId, 
 			jobName, 
 			cfg,
-				new SerializedValue<>(new ExecutionConfig()),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -246,7 +246,7 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -317,7 +317,7 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -383,7 +383,7 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 		try {
 			eg.attachJobGraph(ordered);
 			fail("Attached wrong jobgraph");
@@ -453,7 +453,7 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 			try {
 				eg.attachJobGraph(ordered);
 			}
@@ -501,7 +501,7 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 
 			try {
 				eg.attachJobGraph(ordered);
@@ -584,7 +584,7 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 			
 			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 			

@@ -112,7 +112,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	/**
-	 * Start the task slot table with the given slot actions and slot timeout value.
+	 * Start the task slot table with the given slot actions.
 	 *
 	 * @param initialSlotActions to use for slot actions
 	 */
@@ -182,7 +182,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	/**
 	 * Allocate the slot with the given index for the given job and allocation id. Returns true if
-	 * the slot could be allocated. Otherwise it returns false;
+	 * the slot could be allocated. Otherwise it returns false.
 	 *
 	 * @param index of the task slot to allocate
 	 * @param jobId to allocate the task slot for
@@ -616,7 +616,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		private final Iterator<TaskSlot> iterator;
 
 		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
-				iterator = new TaskSlotIterator(jobId, state);
+			iterator = new TaskSlotIterator(jobId, state);
 		}
 
 		@Override

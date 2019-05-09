@@ -31,6 +31,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
 
+import java.util.UUID;
+
 /**
  * {@link ResourceManager} factory.
  *
@@ -49,4 +51,12 @@ public interface ResourceManagerFactory<T extends ResourceIDRetrievable> {
 		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl,
 		JobManagerMetricGroup jobManagerMetricGroup) throws Exception;
+
+	default String generateEndpointIdWithUUID() {
+		return getEndpointId() + UUID.randomUUID();
+	}
+
+	default String getEndpointId() {
+		return ResourceManager.RESOURCE_MANAGER_NAME;
+	}
 }

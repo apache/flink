@@ -57,9 +57,13 @@ public class TestingLogicalSlot implements LogicalSlot {
 	private final SlotSharingGroupId slotSharingGroupId;
 
 	public TestingLogicalSlot() {
+		this(new SimpleAckingTaskManagerGateway());
+	}
+
+	public TestingLogicalSlot(TaskManagerGateway taskManagerGateway) {
 		this(
 			new LocalTaskManagerLocation(),
-			new SimpleAckingTaskManagerGateway(),
+			taskManagerGateway,
 			0,
 			new AllocationID(),
 			new SlotRequestId(),

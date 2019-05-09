@@ -1,0 +1,29 @@
+flink-connector-hive
+Copyright 2014-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- commons-dbcp:commons-dbcp:1.4
+- commons-pool:commons-pool:1.5.4
+- com.fasterxml.jackson.core:jackson-annotations:2.6.0
+- com.fasterxml.jackson.core:jackson-core:2.6.5
+- com.fasterxml.jackson.core:jackson-databind:2.6.5
+- com.jolbox:bonecp:0.8.0.RELEASE
+- org.apache.hive:hive-common:2.3.4
+- org.apache.hive:hive-metastore:2.3.4
+- org.apache.hive:hive-serde:2.3.4
+- org.apache.hive:hive-service-rpc:2.3.4
+- org.apache.hive:hive-storage-api:2.4.0
+- org.apache.thrift:libthrift:0.9.3
+- org.datanucleus:datanucleus-api-jdo:4.2.4
+- org.datanucleus:datanucleus-core:4.1.17
+- org.datanucleus:datanucleus-rdbms:4.1.19
+- org.datanucleus:javax.jdo:3.2.0-m3
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- org.antlr:antlr-runtime:3.5.2

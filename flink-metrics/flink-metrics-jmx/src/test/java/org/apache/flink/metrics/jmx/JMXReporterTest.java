@@ -18,17 +18,16 @@
 
 package org.apache.flink.metrics.jmx;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -43,6 +42,8 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import java.lang.management.ManagementFactory;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -98,15 +99,15 @@ public class JMXReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testPortConflictHandling() throws Exception {
-		Configuration cfg = new Configuration();
+		MetricConfig metricConfig = new MetricConfig();
+		metricConfig.setProperty("port", "9020-9035");
 
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.port", "9020-9035");
+		ReporterSetup reporterSetup1 = ReporterSetup.forReporter("test1", metricConfig, new JMXReporter());
+		ReporterSetup reporterSetup2 = ReporterSetup.forReporter("test2", metricConfig, new JMXReporter());
 
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.port", "9020-9035");
-
-		MetricRegistryImpl reg = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl reg = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Arrays.asList(reporterSetup1, reporterSetup2));
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
 
@@ -155,16 +156,15 @@ public class JMXReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testJMXAvailability() throws Exception {
-		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+		MetricConfig metricConfig = new MetricConfig();
+		metricConfig.setProperty("port", "9040-9055");
 
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.port", "9040-9055");
+		ReporterSetup reporterSetup1 = ReporterSetup.forReporter("test1", metricConfig, new JMXReporter());
+		ReporterSetup reporterSetup2 = ReporterSetup.forReporter("test2", metricConfig, new JMXReporter());
 
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.port", "9040-9055");
-
-		MetricRegistryImpl reg = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl reg = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Arrays.asList(reporterSetup1, reporterSetup2));
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
 
@@ -231,10 +231,9 @@ public class JMXReporterTest extends TestLogger {
 		String histogramName = "histogram";
 
 		try {
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-
-			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+				Collections.singletonList(ReporterSetup.forReporter("test", new JMXReporter())));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -280,10 +279,9 @@ public class JMXReporterTest extends TestLogger {
 		String meterName = "meter";
 
 		try {
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-
-			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+				Collections.singletonList(ReporterSetup.forReporter("test", new JMXReporter())));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 

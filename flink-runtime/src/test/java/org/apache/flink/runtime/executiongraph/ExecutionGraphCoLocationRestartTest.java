@@ -19,10 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -51,6 +48,7 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
+
 		final long timeout = 5000L;
 
 		//setting up
@@ -68,21 +66,21 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
 			new JobID(),
 			testingSlotProvider,
-			new OneTimeDirectRestartStrategy(),
+			new TestRestartStrategy(
+				1,
+				false),
 			groupVertex,
 			groupVertex2);
 
-
 		// enable the queued scheduling for the slot pool
 		eg.setQueuedSchedulingAllowed(true);
-
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		assertEquals(JobStatus.CREATED, eg.getState());
 
 		eg.scheduleForExecution();
 
-		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
-
+		Predicate<AccessExecution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
 			isDeploying,
@@ -93,7 +91,13 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 		//sanity checks
 		validateConstraints(eg);
 
-		ExecutionGraphTestUtils.failExecutionGraph(eg, new FlinkException("Test exception"));
+		eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
+
+		assertEquals(JobStatus.FAILING, eg.getState());
+
+		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+			vertex.getCurrentExecutionAttempt().completeCancelling();
+		}
 
 		// wait until we have restarted
 		ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
@@ -120,22 +124,6 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			CoLocationConstraint constr2 = tasks[1].getTaskVertices()[i].getLocationConstraint();
 			assertThat(constr1.isAssigned(), is(true));
 			assertThat(constr1.getLocation(), equalTo(constr2.getLocation()));
-		}
-
-	}
-
-	private static final class OneTimeDirectRestartStrategy implements RestartStrategy {
-		private boolean hasRestarted = false;
-
-		@Override
-		public boolean canRestart() {
-			return !hasRestarted;
-		}
-
-		@Override
-		public void restart(RestartCallback restarter, ScheduledExecutor executor) {
-			hasRestarted = true;
-			restarter.triggerFullRecovery();
 		}
 	}
 }

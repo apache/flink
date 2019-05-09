@@ -24,7 +24,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -79,8 +78,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -142,9 +139,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
-	/** All registered listeners for status updates of the ResourceManager. */
-	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
-
 	/**
 	 * Represents asynchronous state clearing work.
 	 *
@@ -192,7 +186,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.jmResourceIdRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
-		infoMessageListeners = new ConcurrentHashMap<>(8);
 	}
 
 
@@ -202,31 +195,54 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void start() throws Exception {
-		// start a leader
-		super.start();
-
-		leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
-
-		initialize();
-
+	public void onStart() throws Exception {
 		try {
+			startResourceManagerServices();
+		} catch (Exception e) {
+			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), e);
+			onFatalError(exception);
+			throw exception;
+		}
+	}
+
+	private void startResourceManagerServices() throws Exception {
+		try {
+			leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
+
+			initialize();
+
 			leaderElectionService.start(this);
-		} catch (Exception e) {
-			throw new ResourceManagerException("Could not start the leader election service.", e);
-		}
-
-		try {
 			jobLeaderIdService.start(new JobLeaderIdActionsImpl());
+
+			registerSlotAndTaskExecutorMetrics();
 		} catch (Exception e) {
-			throw new ResourceManagerException("Could not start the job leader id service.", e);
+			handleStartResourceManagerServicesException(e);
+		}
+	}
+
+	private void handleStartResourceManagerServicesException(Exception e) throws Exception {
+		try {
+			stopResourceManagerServices();
+		} catch (Exception inner) {
+			e.addSuppressed(inner);
 		}
 
-		registerSlotAndTaskExecutorMetrics();
+		throw e;
 	}
 
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
+		try {
+			stopResourceManagerServices();
+		} catch (Exception exception) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException("Could not properly shut down the ResourceManager.", exception));
+		}
+
+		return CompletableFuture.completedFuture(null);
+	}
+
+	private void stopResourceManagerServices() throws Exception {
 		Exception exception = null;
 
 		taskManagerHeartbeatManager.stop();
@@ -253,12 +269,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		clearStateInternal();
 
-		if (exception != null) {
-			return FutureUtils.completedExceptionally(
-				new FlinkException("Could not properly shut down the ResourceManager.", exception));
-		} else {
-			return CompletableFuture.completedFuture(null);
-		}
+		ExceptionUtils.tryRethrowException(exception);
 	}
 
 	// ------------------------------------------------------------------------
@@ -314,17 +325,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		CompletableFuture<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(
 			jobMasterIdFuture,
-			(JobMasterGateway jobMasterGateway, JobMasterId currentJobMasterId) -> {
-				if (Objects.equals(currentJobMasterId, jobMasterId)) {
+			(JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
+				if (Objects.equals(leadingJobMasterId, jobMasterId)) {
 					return registerJobMasterInternal(
 						jobMasterGateway,
 						jobId,
 						jobManagerAddress,
 						jobManagerResourceId);
 				} else {
-					log.debug("The current JobMaster leader id {} did not match the received " +
-						"JobMaster id {}.", jobMasterId, currentJobMasterId);
-					return new RegistrationResponse.Decline("Job manager leader id did not match.");
+					final String declineMessage = String.format(
+						"The leading JobMaster id %s did not match the received JobMaster id %s. " +
+						"This indicates that a JobMaster leader change has happened.",
+						leadingJobMasterId,
+						jobMasterId);
+					log.debug(declineMessage);
+					return new RegistrationResponse.Decline(declineMessage);
 				}
 			},
 			getMainThreadExecutor());
@@ -469,43 +484,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	/**
-	 * Registers an info message listener.
-	 *
-	 * @param address address of infoMessage listener to register to this resource manager
-	 */
-	@Override
-	public void registerInfoMessageListener(final String address) {
-		if (infoMessageListeners.containsKey(address)) {
-			log.warn("Receive a duplicate registration from info message listener on ({})", address);
-		} else {
-			CompletableFuture<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService()
-				.connect(address, InfoMessageListenerRpcGateway.class);
-
-			infoMessageListenerRpcGatewayFuture.whenCompleteAsync(
-				(InfoMessageListenerRpcGateway gateway, Throwable failure) -> {
-					if (failure != null) {
-						log.warn("Receive a registration from unreachable info message listener on ({})", address);
-					} else {
-						log.info("Receive a registration from info message listener on ({})", address);
-						infoMessageListeners.put(address, gateway);
-					}
-				},
-				getMainThreadExecutor());
-		}
-	}
-
-	/**
-	 * Unregisters an info message listener.
-	 *
-	 * @param address of the  info message listener to unregister from this resource manager
-	 *
-	 */
-	@Override
-	public void unRegisterInfoMessageListener(final String address) {
-		infoMessageListeners.remove(address);
-	}
-
-	/**
 	 * Cleanup application and shut down cluster.
 	 *
 	 * @param finalStatus of the Flink application
@@ -589,22 +567,22 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>> metricQueryServicePathFutures = new ArrayList<>(taskExecutors.size());
+	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+		final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>> metricQueryServiceAddressFutures = new ArrayList<>(taskExecutors.size());
 
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerRegistrationEntry : taskExecutors.entrySet()) {
 			final ResourceID tmResourceId = workerRegistrationEntry.getKey();
 			final WorkerRegistration<WorkerType> workerRegistration = workerRegistrationEntry.getValue();
 			final TaskExecutorGateway taskExecutorGateway = workerRegistration.getTaskExecutorGateway();
 
-			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServicePathFuture = taskExecutorGateway
+			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServiceAddressFuture = taskExecutorGateway
 				.requestMetricQueryServiceAddress(timeout)
 				.thenApply(optional -> optional.map(path -> Tuple2.of(tmResourceId, path)));
 
-			metricQueryServicePathFutures.add(metricQueryServicePathFuture);
+			metricQueryServiceAddressFutures.add(metricQueryServiceAddressFuture);
 		}
 
-		return FutureUtils.combineAll(metricQueryServicePathFutures).thenApply(
+		return FutureUtils.combineAll(metricQueryServiceAddressFutures).thenApply(
 			collection -> collection
 				.stream()
 				.filter(Optional::isPresent)
@@ -883,23 +861,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	// ------------------------------------------------------------------------
-	//  Info messaging
-	// ------------------------------------------------------------------------
-
-	public void sendInfoMessage(final String message) {
-		getRpcService().execute(new Runnable() {
-			@Override
-			public void run() {
-				InfoMessage infoMessage = new InfoMessage(message);
-				for (InfoMessageListenerRpcGateway listenerRpcGateway : infoMessageListeners.values()) {
-					listenerRpcGateway
-						.notifyInfoMessage(infoMessage);
-				}
-			}
-		});
-	}
-
-	// ------------------------------------------------------------------------
 	//  Error Handling
 	// ------------------------------------------------------------------------
 
@@ -1168,19 +1129,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
+			runAsync(() -> {
+				log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
 
-					if (jmResourceIdRegistrations.containsKey(resourceID)) {
-						JobManagerRegistration jobManagerRegistration = jmResourceIdRegistrations.get(resourceID);
+				if (jmResourceIdRegistrations.containsKey(resourceID)) {
+					JobManagerRegistration jobManagerRegistration = jmResourceIdRegistrations.get(resourceID);
 
-						if (jobManagerRegistration != null) {
-							closeJobManagerConnection(
-								jobManagerRegistration.getJobID(),
-								new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
-						}
+					if (jobManagerRegistration != null) {
+						closeJobManagerConnection(
+							jobManagerRegistration.getJobID(),
+							new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
 					}
 				}
 			});

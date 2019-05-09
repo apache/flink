@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
@@ -26,15 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.webmonitor.WebMonitor;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -274,52 +265,6 @@ public class BootstrapTools {
 				}
 			}
 			throw new Exception("Could not create actor system", t);
-		}
-	}
-
-	/**
-	 * Starts the web frontend.
-	 *
-	 * @param config The Flink config.
-	 * @param highAvailabilityServices Service factory for high availability services
-	 * @param jobManagerRetriever to retrieve the leading JobManagerGateway
-	 * @param queryServiceRetriever to resolve a query service
-	 * @param timeout for asynchronous operations
-	 * @param scheduledExecutor to run asynchronous operations
-	 * @param logger Logger for log output
-	 * @return WebMonitor instance.
-	 * @throws Exception
-	 */
-	public static WebMonitor startWebMonitorIfConfigured(
-			Configuration config,
-			HighAvailabilityServices highAvailabilityServices,
-			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
-			MetricQueryServiceRetriever queryServiceRetriever,
-			Time timeout,
-			ScheduledExecutor scheduledExecutor,
-			Logger logger) throws Exception {
-
-		if (config.getInteger(WebOptions.PORT, 0) >= 0) {
-			logger.info("Starting JobManager Web Frontend");
-
-			// start the web frontend. we need to load this dynamically
-			// because it is not in the same project/dependencies
-			WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
-				config,
-				highAvailabilityServices,
-				jobManagerRetriever,
-				queryServiceRetriever,
-				timeout,
-				scheduledExecutor);
-
-			// start the web monitor
-			if (monitor != null) {
-				monitor.start();
-			}
-			return monitor;
-		}
-		else {
-			return null;
 		}
 	}
 
@@ -608,7 +553,7 @@ public class BootstrapTools {
 	/**
 	 * Configuration interface for {@link ActorSystem} underlying executor.
 	 */
-	interface ActorSystemExecutorConfiguration {
+	public interface ActorSystemExecutorConfiguration {
 
 		/**
 		 * Create the executor {@link Config} for the respective executor.

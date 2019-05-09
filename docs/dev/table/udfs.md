@@ -63,7 +63,7 @@ public class HashCode extends ScalarFunction {
   }
 }
 
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 
 // register the function
 tableEnv.registerFunction("hashCode", new HashCode(10));
@@ -72,7 +72,7 @@ tableEnv.registerFunction("hashCode", new HashCode(10));
 myTable.select("string, string.hashCode(), hashCode(string)");
 
 // use the function in SQL API
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
 {% endhighlight %}
 </div>
 
@@ -85,7 +85,7 @@ class HashCode(factor: Int) extends ScalarFunction {
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 
 // use the function in Scala Table API
 val hashCode = new HashCode(10)
@@ -93,7 +93,7 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", new HashCode(10))
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 {% endhighlight %}
 </div>
 </div>
@@ -110,8 +110,8 @@ public static class TimestampModifier extends ScalarFunction {
     return t % 1000;
   }
 
-  public TypeInformation<?> getResultType(signature: Class<?>[]) {
-    return Types.TIMESTAMP;
+  public TypeInformation<?> getResultType(Class<?>[] signature) {
+    return Types.SQL_TIMESTAMP;
   }
 }
 {% endhighlight %}
@@ -141,7 +141,7 @@ Similar to a user-defined scalar function, a user-defined table function takes z
 
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
-In the Table API, a table function is used with `.join(Table)` or `.leftOuterJoin(Table)`. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
 The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
 
@@ -164,16 +164,16 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 Table myTable = ...         // table schema: [a: String]
 
 // Register the function.
 tableEnv.registerFunction("split", new Split("#"));
 
 // Use the table function in the Java Table API. "as" specifies the field names of the table.
-myTable.join(new Table(tableEnv, "split(a) as (word, length)"))
+myTable.joinLateral("split(a) as (word, length)")
     .select("a, word, length");
-myTable.leftOuterJoin(new Table(tableEnv, "split(a) as (word, length)"))
+myTable.leftOuterJoinLateral("split(a) as (word, length)")
     .select("a, word, length");
 
 // Use the table function in SQL with LATERAL and TABLE keywords.
@@ -190,18 +190,18 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 class Split(separator: String) extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
     // use collect(...) to emit a row.
-    str.split(separator).foreach(x -> collect((x, x.length))
+    str.split(separator).foreach(x => collect((x, x.length)))
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 val myTable = ...         // table schema: [a: String]
 
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
 val split = new Split("#")
 // "as" specifies the field names of the generated table.
-myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length)
-myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length)
+myTable.joinLateral(split('a) as ('word, 'length)).select('a, 'word, 'length)
+myTable.leftOuterJoinLateral(split('a) as ('word, 'length)).select('a, 'word, 'length)
 
 // Register the table function to use it in SQL queries.
 tableEnv.registerFunction("split", new Split("#"))
@@ -210,7 +210,7 @@ tableEnv.registerFunction("split", new Split("#"))
 // CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE")
+tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 **IMPORTANT:** Do not implement TableFunction as a Scala object. Scala object is a singleton and will cause concurrency issues.
 </div>
@@ -230,7 +230,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
         for (String s : str.split(" ")) {
             Row row = new Row(2);
             row.setField(0, s);
-            row.setField(1, s.length);
+            row.setField(1, s.length());
             collect(row);
         }
     }
@@ -466,7 +466,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     */
   def getValue(accumulator: ACC): T // MANDATORY
 
-  h/**
+  /**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
     * dataset grouping aggregate.
     *
@@ -703,7 +703,7 @@ public class HashCode extends ScalarFunction {
 }
 
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 
 // set job parameter
 Configuration conf = new Configuration();
@@ -738,7 +738,7 @@ object hashCode extends ScalarFunction {
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 
 // use the function in Scala Table API
 myTable.select('string, hashCode('string))

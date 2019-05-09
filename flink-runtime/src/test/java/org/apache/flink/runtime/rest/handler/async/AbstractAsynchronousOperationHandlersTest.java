@@ -65,8 +65,6 @@ import static org.junit.Assert.fail;
  */
 public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
-	private static final CompletableFuture<String> localRestAddress = CompletableFuture.completedFuture("localhost");
-
 	private static final Time TIMEOUT = Time.seconds(10L);
 
 	private TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers;
@@ -80,14 +78,12 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers();
 
 		testingTriggerHandler = testingAsynchronousOperationHandlers.new TestingTriggerHandler(
-			localRestAddress,
 			() -> null,
 			TIMEOUT,
 			Collections.emptyMap(),
 			TestingTriggerMessageHeaders.INSTANCE);
 
 		testingStatusHandler = testingAsynchronousOperationHandlers.new TestingStatusHandler(
-			localRestAddress,
 			() -> null,
 			TIMEOUT,
 			Collections.emptyMap(),
@@ -269,6 +265,11 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		}
 
 		@Override
+		protected String getAsyncOperationDescription() {
+			return "";
+		}
+
+		@Override
 		public Class<EmptyRequestBody> getRequestClass() {
 			return EmptyRequestBody.class;
 		}
@@ -335,8 +336,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
 		class TestingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
 
-			protected TestingTriggerHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters> messageHeaders) {
-				super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+			protected TestingTriggerHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters> messageHeaders) {
+				super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 			}
 
 			@Override
@@ -352,8 +353,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
 		class TestingStatusHandler extends StatusHandler<RestfulGateway, OperationResult, TriggerMessageParameters> {
 
-			protected TestingStatusHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<OperationResult>, TriggerMessageParameters> messageHeaders) {
-				super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+			protected TestingStatusHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<OperationResult>, TriggerMessageParameters> messageHeaders) {
+				super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 			}
 
 			@Override

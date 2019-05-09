@@ -21,13 +21,13 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -194,15 +194,13 @@ public class TimestampITCase extends TestLogger {
 					// send stop until the job is stopped
 					do {
 						try {
-							clusterClient.stop(id);
+							clusterClient.stopWithSavepoint(id, false, "test");
 						}
 						catch (Exception e) {
-							if (e.getCause() instanceof IllegalStateException) {
-								// this means the job is not yet ready to be stopped,
-								// for example because it is still in CREATED state
-								// we ignore the exception
-							} else {
-								// other problem
+							if (
+									!(e.getCause() instanceof CheckpointException) ||
+									!e.getCause().getMessage().contains("Not all required tasks are currently running.")
+							) {
 								throw e;
 							}
 						}
@@ -798,7 +796,7 @@ public class TimestampITCase extends TestLogger {
 		public void cancel() {}
 	}
 
-	private static class MyTimestampSourceInfinite implements SourceFunction<Integer>, StoppableFunction {
+	private static class MyTimestampSourceInfinite implements SourceFunction<Integer> {
 
 		private final long initialTime;
 		private final int numWatermarks;
@@ -824,11 +822,6 @@ public class TimestampITCase extends TestLogger {
 
 		@Override
 		public void cancel() {
-			running = false;
-		}
-
-		@Override
-		public void stop() {
 			running = false;
 		}
 	}

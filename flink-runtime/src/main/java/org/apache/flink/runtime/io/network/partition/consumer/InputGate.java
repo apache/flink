@@ -65,7 +65,7 @@ import java.util.Optional;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public interface InputGate {
+public interface InputGate extends AutoCloseable {
 
 	int getNumberOfInputChannels();
 

@@ -25,43 +25,32 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
-import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.SerializedValue;
 
-import akka.actor.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,19 +60,15 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 
 /**
  * A collection of utility methods for testing the ExecutionGraph and its related classes.
@@ -198,23 +183,14 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void waitForAllExecutionsPredicate(
 			ExecutionGraph executionGraph,
-			Predicate<Execution> executionPredicate,
+			Predicate<AccessExecution> executionPredicate,
 			long maxWaitMillis) throws TimeoutException {
-		final Iterable<ExecutionVertex> allExecutionVertices = executionGraph.getAllExecutionVertices();
-
+		final Predicate<AccessExecutionGraph> allExecutionsPredicate = allExecutionsPredicate(executionPredicate);
 		final Deadline deadline = Deadline.fromNow(Duration.ofMillis(maxWaitMillis));
 		boolean predicateResult;
 
 		do {
-			predicateResult = true;
-			for (ExecutionVertex executionVertex : allExecutionVertices) {
-				final Execution currentExecution = executionVertex.getCurrentExecutionAttempt();
-
-				if (currentExecution == null || !executionPredicate.test(currentExecution)) {
-					predicateResult = false;
-					break;
-				}
-			}
+			predicateResult = allExecutionsPredicate.test(executionGraph);
 
 			if (!predicateResult) {
 				try {
@@ -230,13 +206,24 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
-	/**
-	 * Predicate which is true if the given {@link Execution} has a resource assigned.
-	 */
-	static final Predicate<Execution> hasResourceAssigned = (Execution execution) -> execution.getAssignedResource() != null;
+	public static Predicate<AccessExecutionGraph> allExecutionsPredicate(final Predicate<AccessExecution> executionPredicate) {
+		return accessExecutionGraph -> {
+			final Iterable<? extends AccessExecutionVertex> allExecutionVertices = accessExecutionGraph.getAllExecutionVertices();
 
-	static Predicate<Execution> isInExecutionState(ExecutionState executionState) {
-		return (Execution execution) -> execution.getState() == executionState;
+			for (AccessExecutionVertex executionVertex : allExecutionVertices) {
+				final AccessExecution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
+
+				if (currentExecutionAttempt == null || !executionPredicate.test(currentExecutionAttempt)) {
+					return false;
+				}
+			}
+
+			return true;
+		};
+	}
+
+	public static Predicate<AccessExecution> isInExecutionState(ExecutionState executionState) {
+		return (AccessExecution execution) -> execution.getState() == executionState;
 	}
 
 	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
@@ -259,15 +246,6 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
-	public static void failExecutionGraph(ExecutionGraph executionGraph, Exception cause) {
-		executionGraph.getAllExecutionVertices().iterator().next().fail(cause);
-		assertEquals(JobStatus.FAILING, executionGraph.getState());
-
-		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
-		}
-	}
-
 	/**
 	 * Takes all vertices in the given ExecutionGraph and switches their current
 	 * execution to RUNNING.
@@ -284,7 +262,7 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void completeCancellingForAllVertices(ExecutionGraph eg) {
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 
@@ -334,32 +312,12 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 	
-	public static void setVertexResource(ExecutionVertex vertex, SimpleSlot slot) {
+	public static void setVertexResource(ExecutionVertex vertex, LogicalSlot slot) {
 		Execution exec = vertex.getCurrentExecutionAttempt();
 
 		if(!exec.tryAssignResource(slot)) {
 			throw new RuntimeException("Could not assign resource.");
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Mocking Slots
-	// ------------------------------------------------------------------------
-
-	public static SimpleSlot createMockSimpleSlot(TaskManagerGateway gateway) {
-		final TaskManagerLocation location = new TaskManagerLocation(
-				ResourceID.generate(), InetAddress.getLoopbackAddress(), 6572);
-
-		final SimpleSlotContext allocatedSlot = new SimpleSlotContext(
-			new AllocationID(),
-			location,
-			0,
-			gateway);
-
-		return new SimpleSlot(
-			allocatedSlot,
-			mock(SlotOwner.class),
-			0);
 	}
 
 	// ------------------------------------------------------------------------
@@ -455,7 +413,6 @@ public class ExecutionGraphTestUtils {
 			timeout,
 			restartStrategy,
 			new UnregisteredMetricsGroup(),
-			1,
 			VoidBlobWriter.getInstance(),
 			timeout,
 			TEST_LOGGER);
@@ -492,87 +449,12 @@ public class ExecutionGraphTestUtils {
 		return groupVertex;
 	}
 
-	@SuppressWarnings("serial")
-	public static class SimpleActorGateway extends BaseTestingActorGateway {
-
-
-		public SimpleActorGateway(ExecutionContext executionContext){
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if (message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				return Acknowledge.get();
-			} else if(message instanceof CancelTask) {
-				return Acknowledge.get();
-			} else if(message instanceof FailIntermediateResultPartitions) {
-				return new Object();
-			} else {
-				return null;
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleActorGatewayWithTDD extends SimpleActorGateway {
-
-		public TaskDeploymentDescriptor lastTDD;
-		private final PermanentBlobService blobCache;
-
-		public SimpleActorGatewayWithTDD(ExecutionContext executionContext, PermanentBlobService blobCache) {
-			super(executionContext);
-			this.blobCache = blobCache;
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if(message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				lastTDD = submitTask.tasks();
-				try {
-					lastTDD.loadBigData(blobCache);
-					return Acknowledge.get();
-				} catch (Exception e) {
-					e.printStackTrace();
-					return new Status.Failure(e);
-				}
-			} else {
-				return super.handleMessage(message);
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleFailingActorGateway extends BaseTestingActorGateway {
-
-		public SimpleFailingActorGateway(ExecutionContext executionContext) {
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) throws Exception {
-			if(message instanceof SubmitTask) {
-				throw new Exception(ERROR_MESSAGE);
-			} else if (message instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) message;
-
-				return Acknowledge.get();
-			} else {
-				return null;
-			}
-		}
-	}
-
-	public static final String ERROR_MESSAGE = "test_failure_error_message";
-
 	public static ExecutionJobVertex getExecutionVertex(
 			JobVertexID id, ScheduledExecutorService executor) 
 		throws Exception {
 
 		JobVertex ajv = new JobVertex("TestVertex", id);
-		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
+		ajv.setInvokableClass(AbstractInvokable.class);
 
 		ExecutionGraph graph = new ExecutionGraph(
 			executor,
@@ -583,13 +465,15 @@ public class ExecutionGraphTestUtils {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(ExecutionContext$.MODULE$.fromExecutor(executor)));
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 
-		return spy(new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout()));
+		graph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}
 	
 	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
-		return getExecutionVertex(id, TestingUtils.defaultExecutor());
+		return getExecutionVertex(id, new DirectScheduledExecutorService());
 	}
 
 	// ------------------------------------------------------------------------

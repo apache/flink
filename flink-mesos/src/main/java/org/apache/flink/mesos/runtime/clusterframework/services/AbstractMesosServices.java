@@ -55,7 +55,7 @@ public abstract class AbstractMesosServices implements MesosServices {
 		Throwable exception = null;
 
 		try {
-			actorSystem.shutdown();
+			actorSystem.terminate();
 		} catch (Throwable t) {
 			exception = ExceptionUtils.firstOrSuppressed(t, exception);
 		}

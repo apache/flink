@@ -24,90 +24,41 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.net.InetAddress;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Unit test for {@link TaskManagerServicesConfiguration}.
  */
 public class TaskManagerServicesConfigurationTest extends TestLogger {
-	/**
-	 * Verifies that {@link TaskManagerServicesConfiguration#hasNewNetworkBufConf(Configuration)}
-	 * returns the correct result for old configurations via
-	 * {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}.
-	 */
-	@SuppressWarnings("deprecation")
-	@Test
-	public void hasNewNetworkBufConfOld() throws Exception {
-		Configuration config = new Configuration();
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1);
 
-		assertFalse(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-	}
+	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
 
 	/**
-	 * Verifies that {@link TaskManagerServicesConfiguration#hasNewNetworkBufConf(Configuration)}
+	 * Verifies that {@link TaskManagerServicesConfiguration#fromConfiguration(Configuration, long, InetAddress, boolean)}
 	 * returns the correct result for new configurations via
-	 * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION},
-	 * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN} and {@link
-	 * TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}.
+	 * {@link TaskManagerOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
+	 * {@link TaskManagerOptions#NETWORK_REQUEST_BACKOFF_MAX},
+	 * {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL} and
+	 * {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
 	 */
 	@Test
-	public void hasNewNetworkBufConfNew() throws Exception {
-		Configuration config = new Configuration();
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
+	public void testNetworkRequestBackoffAndBuffers() throws Exception {
 
-		// fully defined:
-		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "2048");
+		// set some non-default values
+		final Configuration config = new Configuration();
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
+		TaskManagerServicesConfiguration tmConfig =
+			TaskManagerServicesConfiguration.fromConfiguration(config, MEM_SIZE_PARAM, InetAddress.getLoopbackAddress(), true);
 
-		// partly defined:
-		config = new Configuration();
-		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-
-		config = new Configuration();
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-
-		config = new Configuration();
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
+		assertEquals(tmConfig.getNetworkConfig().networkBuffersPerChannel(), 10);
+		assertEquals(tmConfig.getNetworkConfig().floatingNetworkBuffersPerGate(), 100);
 	}
-
-	/**
-	 * Verifies that {@link TaskManagerServicesConfiguration#hasNewNetworkBufConf(Configuration)}
-	 * returns the correct result for mixed old/new configurations.
-	 */
-	@SuppressWarnings("deprecation")
-	@Test
-	public void hasNewNetworkBufConfMixed() throws Exception {
-		Configuration config = new Configuration();
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1);
-		assertFalse(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-
-		// old + 1 new parameter = new:
-		Configuration config1 = config.clone();
-		config1.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
-
-		config1 = config.clone();
-		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
-
-		config1 = config.clone();
-		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
-		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
-	}
-
 }
