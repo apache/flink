@@ -183,5 +183,6 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 		assertEquals(
 			new ExecutionVertexID(originalVertex.getJobvertexId(), originalVertex.getParallelSubtaskIndex()),
 			adaptedVertex.getId());
+		assertEquals(originalVertex.getInputDependencyConstraint(), adaptedVertex.getInputDependencyConstraint());
 	}
 }
