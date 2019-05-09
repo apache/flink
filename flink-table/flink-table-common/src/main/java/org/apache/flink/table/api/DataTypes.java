@@ -22,7 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -81,8 +85,8 @@ public final class DataTypes {
 	 *
 	 * @see CharType
 	 */
-	public static DataType.AtomicDataType CHAR(int n) {
-		return new DataType.AtomicDataType(new CharType(n));
+	public static DataType CHAR(int n) {
+		return new AtomicDataType(new CharType(n));
 	}
 
 	/**
@@ -92,8 +96,8 @@ public final class DataTypes {
 	 *
 	 * @see VarCharType
 	 */
-	public static DataType.AtomicDataType VARCHAR(int n) {
-		return new DataType.AtomicDataType(new VarCharType(n));
+	public static DataType VARCHAR(int n) {
+		return new AtomicDataType(new VarCharType(n));
 	}
 
 	/**
@@ -102,7 +106,7 @@ public final class DataTypes {
 	 *
 	 * @see VarCharType
 	 */
-	public static DataType.AtomicDataType STRING() {
+	public static DataType STRING() {
 		return VARCHAR(Integer.MAX_VALUE);
 	}
 
@@ -111,8 +115,8 @@ public final class DataTypes {
 	 *
 	 * @see BooleanType
 	 */
-	public static DataType.AtomicDataType BOOLEAN() {
-		return new DataType.AtomicDataType(new BooleanType());
+	public static DataType BOOLEAN() {
+		return new AtomicDataType(new BooleanType());
 	}
 
 	/**
@@ -122,8 +126,8 @@ public final class DataTypes {
 	 *
 	 * @see BinaryType
 	 */
-	public static DataType.AtomicDataType BINARY(int n) {
-		return new DataType.AtomicDataType(new BinaryType(n));
+	public static DataType BINARY(int n) {
+		return new AtomicDataType(new BinaryType(n));
 	}
 
 	/**
@@ -133,8 +137,8 @@ public final class DataTypes {
 	 *
 	 * @see VarBinaryType
 	 */
-	public static DataType.AtomicDataType VARBINARY(int n) {
-		return new DataType.AtomicDataType(new VarBinaryType(n));
+	public static DataType VARBINARY(int n) {
+		return new AtomicDataType(new VarBinaryType(n));
 	}
 
 	/**
@@ -143,7 +147,7 @@ public final class DataTypes {
 	 *
 	 * @see VarBinaryType
 	 */
-	public static DataType.AtomicDataType BYTES() {
+	public static DataType BYTES() {
 		return VARBINARY(Integer.MAX_VALUE);
 	}
 
@@ -155,8 +159,8 @@ public final class DataTypes {
 	 *
 	 * @see DecimalType
 	 */
-	public static DataType.AtomicDataType DECIMAL(int precision, int scale) {
-		return new DataType.AtomicDataType(new DecimalType(precision, scale));
+	public static DataType DECIMAL(int precision, int scale) {
+		return new AtomicDataType(new DecimalType(precision, scale));
 	}
 
 	/**
@@ -164,8 +168,8 @@ public final class DataTypes {
 	 *
 	 * @see TinyIntType
 	 */
-	public static DataType.AtomicDataType TINYINT() {
-		return new DataType.AtomicDataType(new TinyIntType());
+	public static DataType TINYINT() {
+		return new AtomicDataType(new TinyIntType());
 	}
 
 	/**
@@ -173,8 +177,8 @@ public final class DataTypes {
 	 *
 	 * @see SmallIntType
 	 */
-	public static DataType.AtomicDataType SMALLINT() {
-		return new DataType.AtomicDataType(new SmallIntType());
+	public static DataType SMALLINT() {
+		return new AtomicDataType(new SmallIntType());
 	}
 
 	/**
@@ -182,8 +186,8 @@ public final class DataTypes {
 	 *
 	 * @see IntType
 	 */
-	public static DataType.AtomicDataType INT() {
-		return new DataType.AtomicDataType(new IntType());
+	public static DataType INT() {
+		return new AtomicDataType(new IntType());
 	}
 
 	/**
@@ -192,8 +196,8 @@ public final class DataTypes {
 	 *
 	 * @see BigIntType
 	 */
-	public static DataType.AtomicDataType BIGINT() {
-		return new DataType.AtomicDataType(new BigIntType());
+	public static DataType BIGINT() {
+		return new AtomicDataType(new BigIntType());
 	}
 
 	/**
@@ -201,8 +205,8 @@ public final class DataTypes {
 	 *
 	 * @see FloatType
 	 */
-	public static DataType.AtomicDataType FLOAT() {
-		return new DataType.AtomicDataType(new FloatType());
+	public static DataType FLOAT() {
+		return new AtomicDataType(new FloatType());
 	}
 
 	/**
@@ -210,8 +214,8 @@ public final class DataTypes {
 	 *
 	 * @see DoubleType
 	 */
-	public static DataType.AtomicDataType DOUBLE() {
-		return new DataType.AtomicDataType(new DoubleType());
+	public static DataType DOUBLE() {
+		return new AtomicDataType(new DoubleType());
 	}
 
 	/**
@@ -222,8 +226,8 @@ public final class DataTypes {
 	 *
 	 * @see DataType
 	 */
-	public static DataType.AtomicDataType DATE() {
-		return new DataType.AtomicDataType(new DateType());
+	public static DataType DATE() {
+		return new AtomicDataType(new DateType());
 	}
 
 	/**
@@ -238,8 +242,8 @@ public final class DataTypes {
 	 *
 	 * @see TimeType
 	 */
-	public static DataType.AtomicDataType TIME(int precision) {
-		return new DataType.AtomicDataType(new TimeType(precision));
+	public static DataType TIME(int precision) {
+		return new AtomicDataType(new TimeType(precision));
 	}
 
 	/**
@@ -258,8 +262,8 @@ public final class DataTypes {
 	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
 	 * @see TimestampType
 	 */
-	public static DataType.AtomicDataType TIMESTAMP(int precision) {
-		return new DataType.AtomicDataType(new TimestampType(precision));
+	public static DataType TIMESTAMP(int precision) {
+		return new AtomicDataType(new TimestampType(precision));
 	}
 
 	/**
@@ -278,8 +282,8 @@ public final class DataTypes {
 	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
 	 * @see ZonedTimestampType
 	 */
-	public static DataType.AtomicDataType TIMESTAMP_WITH_TIME_ZONE(int precision) {
-		return new DataType.AtomicDataType(new ZonedTimestampType(precision));
+	public static DataType TIMESTAMP_WITH_TIME_ZONE(int precision) {
+		return new AtomicDataType(new ZonedTimestampType(precision));
 	}
 
 	/**
@@ -304,8 +308,8 @@ public final class DataTypes {
 	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
 	 * @see LocalZonedTimestampType
 	 */
-	public static DataType.AtomicDataType TIMESTAMP_WITH_LOCAL_TIME_ZONE(int precision) {
-		return new DataType.AtomicDataType(new LocalZonedTimestampType(precision));
+	public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE(int precision) {
+		return new AtomicDataType(new LocalZonedTimestampType(precision));
 	}
 
 	/**
@@ -333,9 +337,9 @@ public final class DataTypes {
 	 * @see DayTimeIntervalType
 	 * @see YearMonthIntervalType
 	 */
-	public static DataType.AtomicDataType INTERVAL(Resolution resolution) {
+	public static DataType INTERVAL(Resolution resolution) {
 		Preconditions.checkNotNull(resolution, "Interval resolution must not be null.");
-		return new DataType.AtomicDataType(Resolution.resolveInterval(resolution, null));
+		return new AtomicDataType(Resolution.resolveInterval(resolution, null));
 	}
 
 	/**
@@ -363,10 +367,10 @@ public final class DataTypes {
 	 * @see DayTimeIntervalType
 	 * @see YearMonthIntervalType
 	 */
-	public static DataType.AtomicDataType INTERVAL(Resolution upperResolution, Resolution lowerResolution) {
+	public static DataType INTERVAL(Resolution upperResolution, Resolution lowerResolution) {
 		Preconditions.checkNotNull(upperResolution, "Upper interval resolution must not be null.");
 		Preconditions.checkNotNull(lowerResolution, "Lower interval resolution must not be null.");
-		return new DataType.AtomicDataType(Resolution.resolveInterval(upperResolution, lowerResolution));
+		return new AtomicDataType(Resolution.resolveInterval(upperResolution, lowerResolution));
 	}
 
 	/**
@@ -377,9 +381,9 @@ public final class DataTypes {
 	 *
 	 * @see ArrayType
 	 */
-	public static DataType.ElementDataType ARRAY(DataType elementDataType) {
+	public static DataType ARRAY(DataType elementDataType) {
 		Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
-		return new DataType.ElementDataType(new ArrayType(elementDataType.getLogicalType()), elementDataType);
+		return new CollectionDataType(new ArrayType(elementDataType.getLogicalType()), elementDataType);
 	}
 
 	/**
@@ -392,9 +396,9 @@ public final class DataTypes {
 	 *
 	 * @see MultisetType
 	 */
-	public static DataType.ElementDataType MULTISET(DataType elementDataType) {
+	public static DataType MULTISET(DataType elementDataType) {
 		Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
-		return new DataType.ElementDataType(new MultisetType(elementDataType.getLogicalType()), elementDataType);
+		return new CollectionDataType(new MultisetType(elementDataType.getLogicalType()), elementDataType);
 	}
 
 	/**
@@ -406,10 +410,10 @@ public final class DataTypes {
 	 *
 	 * @see MapType
 	 */
-	public static DataType.KeyValueDataType MAP(DataType keyDataType, DataType valueDataType) {
+	public static DataType MAP(DataType keyDataType, DataType valueDataType) {
 		Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
 		Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
-		return new DataType.KeyValueDataType(
+		return new KeyValueDataType(
 			new MapType(keyDataType.getLogicalType(), valueDataType.getLogicalType()),
 			keyDataType,
 			valueDataType);
@@ -426,14 +430,14 @@ public final class DataTypes {
 	 *
 	 * @see RowType
 	 */
-	public static DataType.FieldsDataType ROW(Field... fields) {
+	public static DataType ROW(Field... fields) {
 		final List<RowType.RowField> logicalFields = Stream.of(fields)
 			.map(f -> Preconditions.checkNotNull(f, "Field definition must not be null."))
 			.map(f -> new RowType.RowField(f.name, f.dataType.getLogicalType(), f.description))
 			.collect(Collectors.toList());
 		final Map<String, DataType> fieldDataTypes = Stream.of(fields)
 			.collect(Collectors.toMap(f -> f.name, f -> f.dataType));
-		return new DataType.FieldsDataType(new RowType(logicalFields), fieldDataTypes);
+		return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
 	}
 
 	/**
@@ -447,8 +451,8 @@ public final class DataTypes {
 	 *
 	 * @see NullType
 	 */
-	public static DataType.AtomicDataType NULL() {
-		return new DataType.AtomicDataType(new NullType());
+	public static DataType NULL() {
+		return new AtomicDataType(new NullType());
 	}
 
 	/**
@@ -465,8 +469,8 @@ public final class DataTypes {
 	 *
 	 * @see AnyType
 	 */
-	public static <T> DataType.AtomicDataType ANY(Class<T> clazz, TypeSerializer<T> serializer) {
-		return new DataType.AtomicDataType(new AnyType<>(clazz, serializer));
+	public static <T> DataType ANY(Class<T> clazz, TypeSerializer<T> serializer) {
+		return new AtomicDataType(new AnyType<>(clazz, serializer));
 	}
 
 	/**
@@ -482,8 +486,8 @@ public final class DataTypes {
 	 *
 	 * @see TypeInformationAnyType
 	 */
-	public static <T> DataType.AtomicDataType ANY(TypeInformation<T> typeInformation) {
-		return new DataType.AtomicDataType(new TypeInformationAnyType<>(typeInformation));
+	public static <T> DataType ANY(TypeInformation<T> typeInformation) {
+		return new AtomicDataType(new TypeInformationAnyType<>(typeInformation));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -491,9 +495,20 @@ public final class DataTypes {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Resolution in seconds with 6 digits for fractional seconds by default.
+	 *
+	 * @see #SECOND(int)
+	 */
+	public static Resolution SECOND() {
+		return new Resolution(Resolution.IntervalUnit.SECOND, DayTimeIntervalType.DEFAULT_FRACTIONAL_PRECISION);
+	}
+
+	/**
 	 * Resolution in seconds and (possibly) fractional seconds. The precision is the number of
 	 * digits of fractional seconds. It must have a value between 0 and 9 (both inclusive). If
 	 * no fractional is specified, it is equal to 6 by default.
+	 *
+	 * @see #SECOND()
 	 */
 	public static Resolution SECOND(int precision) {
 		return new Resolution(Resolution.IntervalUnit.SECOND, precision);
@@ -516,24 +531,46 @@ public final class DataTypes {
 	/**
 	 * Resolution in days. The precision is the number of digits of days. It must have a value
 	 * between 1 and 6 (both inclusive). If no precision is specified, it is equal to 2 by default.
+	 *
+	 * @see #DAY()
 	 */
 	public static Resolution DAY(int precision) {
 		return new Resolution(Resolution.IntervalUnit.DAY, precision);
 	}
 
 	/**
-	 * Resolution of months.
+	 * Resolution in days with 2 digits for the number of days by default.
+	 *
+	 * @see #DAY(int)
+	 */
+	public static Resolution DAY() {
+		return new Resolution(Resolution.IntervalUnit.DAY, DayTimeIntervalType.DEFAULT_DAY_PRECISION);
+	}
+
+	/**
+	 * Resolution in months.
 	 */
 	public static Resolution MONTH() {
 		return new Resolution(Resolution.IntervalUnit.MONTH);
 	}
 
 	/**
-	 * Resolution of years. The precision is the number of digits of years. It must have a value
+	 * Resolution in years. The precision is the number of digits of years. It must have a value
 	 * between 1 and 4 (both inclusive). If no precision is specified, it is equal to 2.
+	 *
+	 * @see #YEAR()
 	 */
 	public static Resolution YEAR(int precision) {
 		return new Resolution(Resolution.IntervalUnit.YEAR, precision);
+	}
+
+	/**
+	 * Resolution in years with 2 digits for the number of years by default.
+	 *
+	 * @see #YEAR(int)
+	 */
+	public static Resolution YEAR() {
+		return new Resolution(Resolution.IntervalUnit.YEAR, YearMonthIntervalType.DEFAULT_PRECISION);
 	}
 
 	/**

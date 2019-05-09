@@ -27,9 +27,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -59,7 +56,7 @@ public abstract class DataType implements Serializable {
 
 	protected @Nullable Class<?> conversionClass;
 
-	private DataType(LogicalType logicalType, @Nullable Class<?> conversionClass) {
+	DataType(LogicalType logicalType, @Nullable Class<?> conversionClass) {
 		this.logicalType = Preconditions.checkNotNull(logicalType, "Logical type must not be null.");
 		this.conversionClass = performEarlyClassValidation(logicalType, conversionClass);
 	}
@@ -103,11 +100,17 @@ public abstract class DataType implements Serializable {
 	 *
 	 * @return a new, reconfigured data type instance
 	 */
-	public abstract DataType andNull();
+	public abstract DataType nullable();
 
 	/**
 	 * Adds a hint that data should be represented using the given class when entering or leaving
 	 * the table ecosystem.
+	 *
+	 * <p>A supported conversion class depends on the logical type and its nullability property.
+	 *
+	 * <p>Please see the implementation of {@link LogicalType#supportsInputConversion(Class)},
+	 * {@link LogicalType#supportsOutputConversion(Class)}, or the documentation for more information
+	 * about supported conversions.
 	 *
 	 * @return a new, reconfigured data type instance
 	 */
@@ -136,6 +139,8 @@ public abstract class DataType implements Serializable {
 		return Objects.hash(logicalType, conversionClass);
 	}
 
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * This method should catch the most common errors. However, another validation is required in
 	 * deeper layers as we don't know whether the data type is used for input or output declaration.
@@ -154,274 +159,5 @@ public abstract class DataType implements Serializable {
 					candidate.getName()));
 		}
 		return candidate;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * A data type that does not contain further data types (e.g. {@code INT} or {@code BOOLEAN}).
-	 *
-	 * @see DataTypes for a list of supported data types
-	 */
-	public static final class AtomicDataType extends DataType {
-
-		public AtomicDataType(LogicalType logicalType, @Nullable Class<?> conversionClass) {
-			super(logicalType, conversionClass);
-		}
-
-		public AtomicDataType(LogicalType logicalType) {
-			super(logicalType, null);
-		}
-
-		@Override
-		public DataType notNull() {
-			return new AtomicDataType(
-				logicalType.copy(false),
-				conversionClass);
-		}
-
-		@Override
-		public DataType andNull() {
-			return new AtomicDataType(
-				logicalType.copy(true),
-				conversionClass);
-		}
-
-		@Override
-		public DataType bridgedTo(Class<?> newConversionClass) {
-			return new AtomicDataType(
-				logicalType,
-				Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."));
-		}
-	}
-
-	/**
-	 * A data type that contains an element type (e.g. {@code ARRAY} or {@code MULTISET}).
-	 *
-	 * @see DataTypes for a list of supported data types
-	 */
-	public static final class ElementDataType extends DataType {
-
-		private final DataType elementDataType;
-
-		public ElementDataType(
-				LogicalType logicalType,
-				@Nullable Class<?> conversionClass,
-				DataType elementDataType) {
-			super(logicalType, conversionClass);
-			this.elementDataType = Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
-		}
-
-		public ElementDataType(
-				LogicalType logicalType,
-				DataType elementDataType) {
-			this(logicalType, null, elementDataType);
-		}
-
-		public DataType getElementDataType() {
-			return elementDataType;
-		}
-
-		@Override
-		public DataType notNull() {
-			return new ElementDataType(
-				logicalType.copy(false),
-				conversionClass,
-				elementDataType);
-		}
-
-		@Override
-		public DataType andNull() {
-			return new ElementDataType(
-				logicalType.copy(true),
-				conversionClass,
-				elementDataType);
-		}
-
-		@Override
-		public DataType bridgedTo(Class<?> newConversionClass) {
-			return new ElementDataType(
-				logicalType,
-				Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
-				elementDataType);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			if (!super.equals(o)) {
-				return false;
-			}
-			ElementDataType that = (ElementDataType) o;
-			return elementDataType.equals(that.elementDataType);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(super.hashCode(), elementDataType);
-		}
-	}
-
-	/**
-	 * A data type that contains a key and value data type (e.g. {@code MAP}).
-	 *
-	 * @see DataTypes for a list of supported data types
-	 */
-	public static final class KeyValueDataType extends DataType {
-
-		private final DataType keyDataType;
-
-		private final DataType valueDataType;
-
-		public KeyValueDataType(
-				LogicalType logicalType,
-				@Nullable Class<?> conversionClass,
-				DataType keyDataType,
-				DataType valueDataType) {
-			super(logicalType, conversionClass);
-			this.keyDataType = Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
-			this.valueDataType = Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
-		}
-
-		public KeyValueDataType(
-				LogicalType logicalType,
-				DataType keyDataType,
-				DataType valueDataType) {
-			this(logicalType, null, keyDataType, valueDataType);
-		}
-
-		public DataType getKeyDataType() {
-			return keyDataType;
-		}
-
-		public DataType getValueDataType() {
-			return valueDataType;
-		}
-
-		@Override
-		public DataType notNull() {
-			return new KeyValueDataType(
-				logicalType.copy(false),
-				conversionClass,
-				keyDataType,
-				valueDataType);
-		}
-
-		@Override
-		public DataType andNull() {
-			return new KeyValueDataType(
-				logicalType.copy(true),
-				conversionClass,
-				keyDataType,
-				valueDataType);
-		}
-
-		@Override
-		public DataType bridgedTo(Class<?> newConversionClass) {
-			return new KeyValueDataType(
-				logicalType,
-				Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
-				keyDataType,
-				valueDataType);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			if (!super.equals(o)) {
-				return false;
-			}
-			KeyValueDataType that = (KeyValueDataType) o;
-			return keyDataType.equals(that.keyDataType) && valueDataType.equals(that.valueDataType);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(super.hashCode(), keyDataType, valueDataType);
-		}
-	}
-
-	/**
-	 * A data type that contains field data types (e.g. {@code ROW} or structured types).
-	 *
-	 * @see DataTypes for a list of supported data types
-	 */
-	public static final class FieldsDataType extends DataType {
-
-		private final Map<String, DataType> fieldDataTypes;
-
-		public FieldsDataType(
-				LogicalType logicalType,
-				@Nullable Class<?> conversionClass,
-				Map<String, DataType> fieldDataTypes) {
-			super(logicalType, conversionClass);
-			this.fieldDataTypes = Collections.unmodifiableMap(
-				new HashMap<>(
-					Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.")));
-		}
-
-		public FieldsDataType(
-				LogicalType logicalType,
-				Map<String, DataType> fieldDataTypes) {
-			this(logicalType, null, fieldDataTypes);
-		}
-
-		public Map<String, DataType> getFieldDataTypes() {
-			return fieldDataTypes;
-		}
-
-		@Override
-		public DataType notNull() {
-			return new FieldsDataType(
-				logicalType.copy(false),
-				conversionClass,
-				fieldDataTypes);
-		}
-
-		@Override
-		public DataType andNull() {
-			return new FieldsDataType(
-				logicalType.copy(true),
-				conversionClass,
-				fieldDataTypes);
-		}
-
-		@Override
-		public DataType bridgedTo(Class<?> newConversionClass) {
-			return new FieldsDataType(
-				logicalType,
-				Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
-				fieldDataTypes);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			if (!super.equals(o)) {
-				return false;
-			}
-			FieldsDataType that = (FieldsDataType) o;
-			return fieldDataTypes.equals(that.fieldDataTypes);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(super.hashCode(), fieldDataTypes);
-		}
 	}
 }

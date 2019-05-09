@@ -57,7 +57,7 @@ public class DataTypesTest {
 		assertEquals(java.sql.Timestamp.class, dataType.getConversionClass());
 		testLogicalType(new TimestampType(false, 9), dataType);
 
-		testLogicalType(new TimestampType(true, 9), dataType.andNull());
+		testLogicalType(new TimestampType(true, 9), dataType.nullable());
 
 		try {
 			DataTypes.TIMESTAMP(3).bridgedTo(DataTypesTest.class);
