@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.functions.aggfunctions.{ConcatWithRetractAggFunction, ConcatWsWithRetractAggFunction}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
@@ -33,7 +32,7 @@ import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.MiniB
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingWithAggTestBase, TestingRetractSink}
-import org.apache.flink.table.typeutils.{BigDecimalTypeInfo, DecimalTypeInfo}
+import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -741,7 +740,6 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  @Ignore("[FLINK-12208] LIMIT is not supported")
   @Test
   def testDifferentTypesSumWithRetract(): Unit = {
     val data = List(
@@ -1203,7 +1201,6 @@ class AggregateITCase(
 
   @Test
   def testCountDistinctWithBinaryRowSource(): Unit = {
-    System.setProperty("org.codehaus.janino.source_debugging.enable", "true")
     // this case is failed before, because of object reuse problem
     val data = (0 until 100).map {i => ("1", "1", s"${i%50}", "1")}.toList
     // use BinaryRow source here for BinaryString reuse
