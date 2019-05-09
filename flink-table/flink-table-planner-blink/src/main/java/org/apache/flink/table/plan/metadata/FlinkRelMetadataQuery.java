@@ -28,6 +28,10 @@ import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 
+/**
+ * A RelMetadataQuery that defines extended metadata handler in Flink,
+ * e.g ColumnInterval, ColumnNullCount.
+ */
 public class FlinkRelMetadataQuery extends RelMetadataQuery {
 
 	protected static final FlinkRelMetadataQuery PROTOTYPE = new FlinkRelMetadataQuery(false);
@@ -86,14 +90,18 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 	 */
 	private FlinkRelMetadataQuery(boolean dummy) {
 		super(RelMetadataQuery.THREAD_PROVIDERS.get(), RelMetadataQuery.EMPTY);
-		this.columnIntervalHandler = RelMetadataQuery.initialHandler(FlinkMetadata.ColumnInterval.Handler.class);
+		this.columnIntervalHandler =
+				RelMetadataQuery.initialHandler(FlinkMetadata.ColumnInterval.Handler.class);
 		this.filteredColumnInterval =
 				RelMetadataQuery.initialHandler(FlinkMetadata.FilteredColumnInterval.Handler.class);
-		this.columnNullCountHandler = RelMetadataQuery.initialHandler(FlinkMetadata.ColumnNullCount.Handler.class);
+		this.columnNullCountHandler =
+				RelMetadataQuery.initialHandler(FlinkMetadata.ColumnNullCount.Handler.class);
 		this.columnOriginNullCountHandler =
 				RelMetadataQuery.initialHandler(FlinkMetadata.ColumnOriginNullCount.Handler.class);
-		this.uniqueGroupsHandler = RelMetadataQuery.initialHandler(FlinkMetadata.UniqueGroups.Handler.class);
-		this.distributionHandler = RelMetadataQuery.initialHandler(FlinkMetadata.FlinkDistribution.Handler.class);
+		this.uniqueGroupsHandler =
+				RelMetadataQuery.initialHandler(FlinkMetadata.UniqueGroups.Handler.class);
+		this.distributionHandler =
+				RelMetadataQuery.initialHandler(FlinkMetadata.FlinkDistribution.Handler.class);
 		this.modifiedMonotonicityHandler =
 				RelMetadataQuery.initialHandler(FlinkMetadata.ModifiedMonotonicity.Handler.class);
 	}
@@ -119,7 +127,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 	}
 
 	/**
-	 * Returns the {@link FlinkMetadata.ColumnInterval} of the given column under the given filter argument.
+	 * Returns the {@link FlinkMetadata.ColumnInterval} of the given column
+	 * under the given filter argument.
 	 *
 	 * @param rel the relational expression
 	 * @param columnIndex the index of the given column
@@ -132,9 +141,11 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 	public ValueInterval getFilteredColumnInterval(RelNode rel, int columnIndex, int filterArg) {
 		for (; ; ) {
 			try {
-				return filteredColumnInterval.getFilteredColumnInterval(rel, this, columnIndex, filterArg);
+				return filteredColumnInterval.getFilteredColumnInterval(
+						rel, this, columnIndex, filterArg);
 			} catch (JaninoRelMetadataProvider.NoHandler e) {
-				filteredColumnInterval = revise(e.relClass, FlinkMetadata.FilteredColumnInterval.DEF);
+				filteredColumnInterval =
+						revise(e.relClass, FlinkMetadata.FilteredColumnInterval.DEF);
 			}
 		}
 	}
@@ -168,7 +179,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 			try {
 				return columnOriginNullCountHandler.getColumnOriginNullCount(rel, this, index);
 			} catch (JaninoRelMetadataProvider.NoHandler e) {
-				columnOriginNullCountHandler = revise(e.relClass, FlinkMetadata.ColumnOriginNullCount.DEF);
+				columnOriginNullCountHandler =
+						revise(e.relClass, FlinkMetadata.ColumnOriginNullCount.DEF);
 			}
 		}
 	}
@@ -190,7 +202,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 				if (columns.isEmpty()) {
 					return columns;
 				}
-				ImmutableBitSet uniqueGroups = uniqueGroupsHandler.getUniqueGroups(rel, this, columns);
+				ImmutableBitSet uniqueGroups =
+						uniqueGroupsHandler.getUniqueGroups(rel, this, columns);
 				Preconditions.checkArgument(uniqueGroups != null && !uniqueGroups.isEmpty());
 				Preconditions.checkArgument(columns.contains(uniqueGroups));
 				return uniqueGroups;
@@ -228,7 +241,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 			try {
 				return modifiedMonotonicityHandler.getRelModifiedMonotonicity(rel, this);
 			} catch (JaninoRelMetadataProvider.NoHandler e) {
-				modifiedMonotonicityHandler = revise(e.relClass, FlinkMetadata.ModifiedMonotonicity.DEF);
+				modifiedMonotonicityHandler =
+						revise(e.relClass, FlinkMetadata.ModifiedMonotonicity.DEF);
 			}
 		}
 	}
