@@ -21,10 +21,12 @@ package org.apache.flink.table.types;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Array;
 import java.util.Objects;
 
 /**
@@ -77,6 +79,16 @@ public final class CollectionDataType extends DataType {
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
 			elementDataType);
+	}
+
+	@Override
+	public Class<?> getConversionClass() {
+		// arrays are a special case because their default conversion class depends on the
+		// conversion class of the element type
+		if (logicalType.getTypeRoot() == LogicalTypeRoot.ARRAY && conversionClass == null) {
+			return Array.newInstance(elementDataType.getConversionClass(), 0).getClass();
+		}
+		return super.getConversionClass();
 	}
 
 	@Override
