@@ -182,36 +182,22 @@ public class UnionInputGate extends InputGate {
 		// Make sure to request the partitions, if they have not been requested before.
 		requestPartitions();
 
-		Optional<InputGateWithData> next = waitAndGetNextInputGate(blocking);
+		Optional<InputWithData<InputGate, BufferOrEvent>> next = waitAndGetNextData(blocking);
 		if (!next.isPresent()) {
 			return Optional.empty();
 		}
 
-		InputGateWithData inputGateWithData = next.get();
-		InputGate inputGate = inputGateWithData.inputGate;
-		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
+		InputWithData<InputGate, BufferOrEvent> inputWithData = next.get();
 
-		if (bufferOrEvent.isEvent()
-			&& bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class
-			&& inputGate.isFinished()) {
-
-			checkState(!bufferOrEvent.moreAvailable());
-			if (!inputGatesWithRemainingData.remove(inputGate)) {
-				throw new IllegalStateException("Couldn't find input gate in set of remaining " +
-					"input gates.");
-			}
-		}
-
-		// Set the channel index to identify the input channel (across all unioned input gates)
-		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
-
-		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
-		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || inputGateWithData.moreInputGatesAvailable);
-
-		return Optional.of(bufferOrEvent);
+		handleEndOfPartitionEvent(inputWithData.data, inputWithData.input);
+		return Optional.of(adjustForUnionInputGate(
+			inputWithData.data,
+			inputWithData.input,
+			inputWithData.moreAvailable));
 	}
 
-	private Optional<InputGateWithData> waitAndGetNextInputGate(boolean blocking) throws IOException, InterruptedException {
+	private Optional<InputWithData<InputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
+			throws IOException, InterruptedException {
 		while (true) {
 			synchronized (inputGatesWithData) {
 				while (inputGatesWithData.size() == 0) {
@@ -242,7 +228,7 @@ public class UnionInputGate extends InputGate {
 				}
 
 				if (bufferOrEvent.isPresent()) {
-					return Optional.of(new InputGateWithData(
+					return Optional.of(new InputWithData<>(
 						inputGate,
 						bufferOrEvent.get(),
 						!inputGatesWithData.isEmpty()));
@@ -251,15 +237,29 @@ public class UnionInputGate extends InputGate {
 		}
 	}
 
-	private static class InputGateWithData {
-		private final InputGate inputGate;
-		private final BufferOrEvent bufferOrEvent;
-		private final boolean moreInputGatesAvailable;
+	private BufferOrEvent adjustForUnionInputGate(
+		BufferOrEvent bufferOrEvent,
+		InputGate inputGate,
+		boolean moreInputGatesAvailable) {
+		// Set the channel index to identify the input channel (across all unioned input gates)
+		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
 
-		InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent, boolean moreInputGatesAvailable) {
-			this.inputGate = checkNotNull(inputGate);
-			this.bufferOrEvent = checkNotNull(bufferOrEvent);
-			this.moreInputGatesAvailable = moreInputGatesAvailable;
+		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
+		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || moreInputGatesAvailable);
+
+		return bufferOrEvent;
+	}
+
+	private void handleEndOfPartitionEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {
+		if (bufferOrEvent.isEvent()
+			&& bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class
+			&& inputGate.isFinished()) {
+
+			checkState(!bufferOrEvent.moreAvailable());
+			if (!inputGatesWithRemainingData.remove(inputGate)) {
+				throw new IllegalStateException("Couldn't find input gate in set of remaining " +
+					"input gates.");
+			}
 		}
 	}
 

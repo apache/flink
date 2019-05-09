@@ -529,12 +529,21 @@ public class SingleInputGate extends InputGate {
 		}
 
 		requestPartitions();
+		Optional<InputWithData<InputChannel, BufferAndAvailability>> next = waitAndGetNextData(blocking);
+		if (!next.isPresent()) {
+			return Optional.empty();
+		}
 
-		InputChannel currentChannel;
-		boolean moreAvailable;
-		Optional<BufferAndAvailability> result = Optional.empty();
+		InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
+		return Optional.of(transformToBufferOrEvent(
+			inputWithData.data.buffer(),
+			inputWithData.moreAvailable,
+			inputWithData.input));
+	}
 
-		do {
+	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
+			throws IOException, InterruptedException {
+		while (true) {
 			synchronized (inputChannelsWithData) {
 				while (inputChannelsWithData.size() == 0) {
 					if (isReleased) {
@@ -550,29 +559,38 @@ public class SingleInputGate extends InputGate {
 					}
 				}
 
-				currentChannel = inputChannelsWithData.remove();
+				InputChannel inputChannel = inputChannelsWithData.remove();
 
-				result = currentChannel.getNextBuffer();
+				Optional<BufferAndAvailability> result = inputChannel.getNextBuffer();
 
 				if (result.isPresent() && result.get().moreAvailable()) {
-					// enqueue the currentChannel at the end to avoid starvation
-					inputChannelsWithData.add(currentChannel);
+					// enqueue the inputChannel at the end to avoid starvation
+					inputChannelsWithData.add(inputChannel);
 				} else {
-					enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
+					enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
 				}
 
-				moreAvailable = !inputChannelsWithData.isEmpty();
-
-				if (!moreAvailable) {
+				if (inputChannelsWithData.isEmpty()) {
 					resetIsAvailable();
 				}
-			}
-		} while (!result.isPresent());
 
-		final Buffer buffer = result.get().buffer();
+				if (result.isPresent()) {
+					return Optional.of(new InputWithData<>(
+						inputChannel,
+						result.get(),
+						!inputChannelsWithData.isEmpty()));
+				}
+			}
+		}
+	}
+
+	private BufferOrEvent transformToBufferOrEvent(
+			Buffer buffer,
+			boolean moreAvailable,
+			InputChannel currentChannel) throws IOException, InterruptedException {
 		numBytesIn.inc(buffer.getSizeUnsafe());
 		if (buffer.isBuffer()) {
-			return Optional.of(new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable));
+			return new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable);
 		}
 		else {
 			final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
@@ -591,11 +609,10 @@ public class SingleInputGate extends InputGate {
 				}
 
 				currentChannel.notifySubpartitionConsumed();
-
 				currentChannel.releaseAllResources();
 			}
 
-			return Optional.of(new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable));
+			return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable);
 		}
 	}
 

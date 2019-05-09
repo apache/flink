@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
  *
@@ -110,6 +112,21 @@ public abstract class InputGate implements AutoCloseable {
 		// try to avoid volatile access in isDone()}
 		if (isAvailable == AVAILABLE || isAvailable.isDone()) {
 			isAvailable = new CompletableFuture<>();
+		}
+	}
+
+	/**
+	 * Simple pojo for INPUT, DATA and moreAvailable.
+	 */
+	protected static class InputWithData<INPUT, DATA> {
+		protected final INPUT input;
+		protected final DATA data;
+		protected final boolean moreAvailable;
+
+		InputWithData(INPUT input, DATA data, boolean moreAvailable) {
+			this.input = checkNotNull(input);
+			this.data = checkNotNull(data);
+			this.moreAvailable = moreAvailable;
 		}
 	}
 }
