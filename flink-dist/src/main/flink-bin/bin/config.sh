@@ -431,7 +431,7 @@ if [ -z "${FLINK_TM_NET_BUF_MAX}" -o "${FLINK_TM_NET_BUF_MAX}" = "-1" ]; then
 fi
 
 # Define FLINK_TM_MAX_OFFHEAP_SIZE if it is not already set
-if [ -z "${FLINK_TM_MAX_OFFHEAP_SIZE}" ]; then
+if [ -z "${FLINK_TM_MAX_OFFHEAP_SIZE}" -o "${FLINK_TM_MAX_OFFHEAP_SIZE}" = "-1" ]; then
     # default: Long.MAX_VALUE in TB
     FLINK_TM_MAX_OFFHEAP_SIZE=$(readFromConfig ${KEY_TASKM_MAX_OFFHEAP_SIZE} "8388607T" "${YAML_CONF}")
 fi
