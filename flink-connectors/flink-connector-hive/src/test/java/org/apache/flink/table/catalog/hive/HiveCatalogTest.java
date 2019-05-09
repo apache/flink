@@ -137,11 +137,6 @@ public class HiveCatalogTest extends CatalogTestBase {
 	// ------ utils ------
 
 	@Override
-	public String getBuiltInDefaultDatabase() {
-		return HiveCatalogBase.DEFAULT_DB;
-	}
-
-	@Override
 	public CatalogDatabase createDb() {
 		return new HiveCatalogDatabase(
 			new HashMap<String, String>() {{

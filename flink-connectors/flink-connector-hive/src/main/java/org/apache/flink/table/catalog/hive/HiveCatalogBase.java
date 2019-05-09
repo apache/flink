@@ -48,23 +48,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class HiveCatalogBase implements Catalog {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogBase.class);
-
-	public static final String DEFAULT_DB = "default";
+	private static final String DEFAULT_DB = "default";
 
 	protected final String catalogName;
 	protected final HiveConf hiveConf;
 
-	protected String currentDatabase = DEFAULT_DB;
+	private final String defaultDatabase;
 	protected IMetaStoreClient client;
 
 	public HiveCatalogBase(String catalogName, String hivemetastoreURI) {
-		this(catalogName, getHiveConf(hivemetastoreURI));
+		this(catalogName, DEFAULT_DB, getHiveConf(hivemetastoreURI));
 	}
 
 	public HiveCatalogBase(String catalogName, HiveConf hiveConf) {
+		this(catalogName, DEFAULT_DB, hiveConf);
+	}
+
+	public HiveCatalogBase(String catalogName, String defaultDatabase, HiveConf hiveConf) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
 		this.catalogName = catalogName;
-
+		this.defaultDatabase = checkNotNull(defaultDatabase, "defaultDatabase cannot be null");
 		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
 	}
 
@@ -109,19 +112,8 @@ public abstract class HiveCatalogBase implements Catalog {
 	// ------ databases ------
 
 	@Override
-	public String getCurrentDatabase() throws CatalogException {
-		return currentDatabase;
-	}
-
-	@Override
-	public void setCurrentDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
-
-		if (!databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		}
-
-		currentDatabase = databaseName;
+	public String getDefaultDatabase() throws CatalogException {
+		return defaultDatabase;
 	}
 
 	@Override

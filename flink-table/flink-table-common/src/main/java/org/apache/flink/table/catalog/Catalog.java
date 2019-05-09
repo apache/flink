@@ -60,23 +60,14 @@ public interface Catalog {
 	// ------ databases ------
 
 	/**
-	 * Get the name of the current database of this type of catalog. This is used when users refers an object in the catalog
-	 * without specifying a database. For example, the current db in a Hive Metastore is 'default' by default.
+	 * Get the name of the default database for this catalog. The default database will be the current database for
+	 * the catalog when user's session doesn't specify a current database. The value probably comes from configuration,
+	 * will not change for the life time of the catalog instance.
 	 *
 	 * @return the name of the current database
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	String getCurrentDatabase() throws CatalogException;
-
-	/**
-	 * Set the database with the given name as the current database. A current database is used when users refers an object
-	 * in the catalog without specifying a database.
-	 *
-	 * @param databaseName	the name of the database
-	 * @throws DatabaseNotExistException if the given database doesn't exist in the catalog
-	 * @throws CatalogException in case of any runtime exception
-	 */
-	void setCurrentDatabase(String databaseName) throws DatabaseNotExistException, CatalogException;
+	String getDefaultDatabase() throws CatalogException;
 
 	/**
 	 * Get the names of all databases in this catalog.

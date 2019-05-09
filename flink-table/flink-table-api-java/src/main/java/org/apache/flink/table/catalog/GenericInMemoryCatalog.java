@@ -48,10 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A generic catalog implementation that holds all meta objects in memory.
  */
 public class GenericInMemoryCatalog implements Catalog {
+	private static final String DEFAULT_DB = "default";
 
-	public static final String DEFAULT_DB = "default";
-
-	private String currentDatabase = DEFAULT_DB;
+	private final String defaultDatabase;
 
 	private final String catalogName;
 	private final Map<String, CatalogDatabase> databases;
@@ -65,9 +64,14 @@ public class GenericInMemoryCatalog implements Catalog {
 	private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogColumnStatistics>> partitionColumnStats;
 
 	public GenericInMemoryCatalog(String name) {
+		this(name, DEFAULT_DB);
+	}
+
+	public GenericInMemoryCatalog(String name, String defaultDatabase) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
 
 		this.catalogName = name;
+		this.defaultDatabase = defaultDatabase;
 		this.databases = new LinkedHashMap<>();
 		this.databases.put(DEFAULT_DB, new GenericCatalogDatabase(new HashMap<>()));
 		this.tables = new LinkedHashMap<>();
@@ -92,19 +96,8 @@ public class GenericInMemoryCatalog implements Catalog {
 	// ------ databases ------
 
 	@Override
-	public String getCurrentDatabase() {
-		return currentDatabase;
-	}
-
-	@Override
-	public void setCurrentDatabase(String databaseName) throws DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
-
-		if (!databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		}
-
-		currentDatabase = databaseName;
+	public String getDefaultDatabase() {
+		return defaultDatabase;
 	}
 
 	@Override
