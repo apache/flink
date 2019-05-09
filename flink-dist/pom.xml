@@ -589,6 +589,31 @@ under the License.
 			</plugin>
 
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>package</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<delete>
+									<fileset dir="${project.basedir}/../flink-python/pyflink" includes="**/*.pyc"/>
+								</delete>
+								<delete file="${project.basedir}/../flink-python/lib/pyflink.zip"/>
+								<zip destfile="${project.basedir}/../flink-python/lib/pyflink.zip">
+									<fileset dir="${project.basedir}/../flink-python/" includes="pyflink/**/*"/>
+								</zip>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
