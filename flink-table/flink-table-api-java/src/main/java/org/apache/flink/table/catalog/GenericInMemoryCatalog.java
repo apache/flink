@@ -69,6 +69,7 @@ public class GenericInMemoryCatalog implements Catalog {
 
 	public GenericInMemoryCatalog(String name, String defaultDatabase) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase), "defaultDatabase cannot be null or empty");
 
 		this.catalogName = name;
 		this.defaultDatabase = defaultDatabase;
