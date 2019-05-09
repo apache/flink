@@ -27,7 +27,7 @@ import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
+import org.apache.flink.table.utils.{TableTestBase, TestBasicFilterableTableSource, TestFilterableTableSource}
 import org.apache.flink.types.Row
 import org.junit.{Assert, Test}
 
@@ -215,6 +215,26 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
+  def testBatchFilterableFullyPushedDownWithoutCustomExplainSource(): Unit = {
+    val (tableSource, tableName) = basicFilterableTableSource
+    val util = batchTestUtil()
+    val tableEnv = util.tableEnv
+
+    tableEnv.registerTableSource(tableName, tableSource)
+
+    val result = tableEnv
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where("amount > 2 && amount < 32")
+
+    val expected = batchBasicFilterableSourceTableNode(
+      tableName,
+      Array("price", "id", "amount"),
+      "name, id, amount, price")
+    util.verifyTable(result, expected)
+  }
+
+  @Test
   def testBatchFilterableWithUnconvertedExpression(): Unit = {
     val (tableSource, tableName) = filterableTableSource
     val util = batchTestUtil()
@@ -351,6 +371,32 @@ class TableSourceTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
+  @Test
+  def testStreamFilterableSourceScanPlanTableApiWithoutCustomExplainSource(): Unit = {
+    val (tableSource, tableName) = basicFilterableTableSource
+    val util = streamTestUtil()
+    val tableEnv = util.tableEnv
+
+    tableEnv.registerTableSource(tableName, tableSource)
+
+    val result = tableEnv
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where("amount > 2 && price * 2 < 32")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamBasicFilterableSourceTableNode(
+        tableName,
+        Array("price", "id", "amount"),
+        "name, id, amount, price"),
+      term("select", "price", "id", "amount"),
+      term("where", "<(*(price, 2), 32)")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
   // csv builder
 
   @Test
@@ -457,6 +503,11 @@ class TableSourceTest extends TableTestBase {
     (tableSource, "filterableTable")
   }
 
+  def basicFilterableTableSource:(TableSource[_], String) = {
+    val tableSource = TestBasicFilterableTableSource()
+    (tableSource, "basicFilterableTable")
+  }
+
   def filterableTableSourceTimeTypes:(TableSource[_], String) = {
     val rowTypeInfo = new RowTypeInfo(
       Array[TypeInformation[_]](
@@ -505,12 +556,30 @@ class TableSourceTest extends TableTestBase {
       s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
   }
 
+  def batchBasicFilterableSourceTableNode(
+      sourceName: String,
+      fields: Array[String],
+      exp: String): String = {
+    "BatchTableSourceScan(" +
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], " +
+      s"source=[TestBasicFilterableTableSource($exp)])"
+  }
+
   def streamFilterableSourceTableNode(
       sourceName: String,
       fields: Array[String],
       exp: String): String = {
     "StreamTableSourceScan(" +
       s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
+  }
+
+  def streamBasicFilterableSourceTableNode(
+      sourceName: String,
+      fields: Array[String],
+      exp: String): String = {
+    "StreamTableSourceScan(" +
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], " +
+      s"source=[TestBasicFilterableTableSource($exp)])"
   }
 
 }

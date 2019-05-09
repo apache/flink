@@ -34,12 +34,12 @@ import org.apache.flink.types.Row
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-object TestFilterableTableSource {
+object TestBasicFilterableTableSource {
 
   /**
     * @return The default filterable table source.
     */
-  def apply(): TestFilterableTableSource = {
+  def apply(): TestBasicFilterableTableSource = {
     apply(defaultTypeInfo, defaultRows, defaultFilterableFields)
   }
 
@@ -55,8 +55,8 @@ object TestFilterableTableSource {
       rowTypeInfo: RowTypeInfo,
       rows: Seq[Row],
       filterableFields: Set[String])
-    : TestFilterableTableSource = {
-    new TestFilterableTableSource(rowTypeInfo, rows, filterableFields)
+    : TestBasicFilterableTableSource = {
+    new TestBasicFilterableTableSource(rowTypeInfo, rows, filterableFields)
   }
 
   private lazy val defaultFilterableFields = Set("amount")
@@ -90,12 +90,12 @@ object TestFilterableTableSource {
   * @param filterPredicates The predicates that should be used to filter.
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
-class TestFilterableTableSource(
+class TestBasicFilterableTableSource(
     rowTypeInfo: RowTypeInfo,
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
     filterPredicates: Seq[Expression] = Seq(),
-    val filterPushedDown: Boolean = false)
+    filterPushedDown: Boolean = false)
   extends BatchTableSource[Row]
     with StreamTableSource[Row]
     with FilterableTableSource[Row] {
@@ -115,16 +115,6 @@ class TestFilterableTableSource(
     execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
   }
 
-  override def explainSource(): String = {
-    if (filterPredicates.nonEmpty) {
-      // TODO we cast to planner expression as a temporary solution to keep the old interfaces
-      s"filter=[${filterPredicates.reduce((l, r) =>
-        And(l.asInstanceOf[PlannerExpression], r.asInstanceOf[PlannerExpression])).toString}]"
-    } else {
-      ""
-    }
-  }
-
   override def getReturnType: TypeInformation[Row] = rowTypeInfo
 
   override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
@@ -138,7 +128,7 @@ class TestFilterableTableSource(
       }
     }
 
-    new TestFilterableTableSource(
+    new TestBasicFilterableTableSource(
       rowTypeInfo,
       data,
       filterableFields,
@@ -148,18 +138,18 @@ class TestFilterableTableSource(
 
   override def isFilterPushedDown: Boolean = filterPushedDown
 
-  private def applyPredicatesToRows(rows: Seq[Row]): Seq[Row] = {
+  private[flink] def applyPredicatesToRows(rows: Seq[Row]): Seq[Row] = {
     rows.filter(shouldKeep)
   }
 
-  private def shouldPushDown(expr: Expression): Boolean = {
+  private[flink] def shouldPushDown(expr: Expression): Boolean = {
     expr match {
       case binExpr: BinaryComparison => shouldPushDown(binExpr)
       case _ => false
     }
   }
 
-  private def shouldPushDown(expr: BinaryComparison): Boolean = {
+  private[flink] def shouldPushDown(expr: BinaryComparison): Boolean = {
     (expr.left, expr.right) match {
       case (f: ResolvedFieldReference, v: Literal) =>
         filterableFields.contains(f.name)
@@ -171,14 +161,14 @@ class TestFilterableTableSource(
     }
   }
 
-  private def shouldKeep(row: Row): Boolean = {
+  private[flink] def shouldKeep(row: Row): Boolean = {
     filterPredicates.isEmpty || filterPredicates.forall {
       case expr: BinaryComparison => binaryFilterApplies(expr, row)
       case expr => throw new RuntimeException(expr + " not supported!")
     }
   }
 
-  private def binaryFilterApplies(expr: BinaryComparison, row: Row): Boolean = {
+  private[flink] def binaryFilterApplies(expr: BinaryComparison, row: Row): Boolean = {
     val (lhsValue, rhsValue) = extractValues(expr, row)
 
     expr match {
@@ -197,7 +187,7 @@ class TestFilterableTableSource(
     }
   }
 
-  private def extractValues(expr: BinaryComparison, row: Row)
+  private[flink] def extractValues(expr: BinaryComparison, row: Row)
     : (Comparable[Any], Comparable[Any]) = {
 
     (expr.left, expr.right) match {
@@ -226,4 +216,93 @@ class TestFilterableTableSource(
   }
 
   override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+}
+
+object TestFilterableTableSource {
+
+  /**
+    * @return The default filterable table source.
+    */
+  def apply(): TestFilterableTableSource = {
+    apply(defaultTypeInfo, defaultRows, defaultFilterableFields)
+  }
+
+  /**
+    * A filterable data source with custom data.
+    * @param rowTypeInfo The type of the data. Its expected that both types and field
+    *                    names are provided.
+    * @param rows The data as a sequence of rows.
+    * @param filterableFields The fields that are allowed to be filtered on.
+    * @return The table source.
+    */
+  def apply(
+      rowTypeInfo: RowTypeInfo,
+      rows: Seq[Row],
+      filterableFields: Set[String])
+  : TestFilterableTableSource = {
+    new TestFilterableTableSource(rowTypeInfo, rows, filterableFields)
+  }
+
+  private lazy val defaultFilterableFields = Set("amount")
+
+  private lazy val defaultTypeInfo: RowTypeInfo = {
+    val fieldNames: Array[String] = Array("name", "id", "amount", "price")
+    val fieldTypes: Array[TypeInformation[_]] = Array(STRING, LONG, INT, DOUBLE)
+    new RowTypeInfo(fieldTypes, fieldNames)
+  }
+
+  private lazy val defaultRows: Seq[Row] = {
+    for {
+      cnt <- 0 until 33
+    } yield {
+      Row.of(
+        s"Record_$cnt",
+        cnt.toLong.asInstanceOf[AnyRef],
+        cnt.toInt.asInstanceOf[AnyRef],
+        cnt.toDouble.asInstanceOf[AnyRef])
+    }
+  }
+}
+
+class TestFilterableTableSource(
+    rowTypeInfo: RowTypeInfo,
+    data: Seq[Row],
+    filterableFields: Set[String] = Set(),
+    filterPredicates: Seq[Expression] = Seq(),
+    val filterPushedDown: Boolean = false)
+  extends TestBasicFilterableTableSource(
+    rowTypeInfo: RowTypeInfo,
+    data: Seq[Row],
+    filterableFields: Set[String],
+    filterPredicates: Seq[Expression],
+    filterPushedDown: Boolean) {
+
+  override def explainSource(): String = {
+    if (filterPredicates.nonEmpty) {
+      // TODO we cast to planner expression as a temporary solution to keep the old interfaces
+      s"filter=[${filterPredicates.reduce((l, r) =>
+        And(l.asInstanceOf[PlannerExpression], r.asInstanceOf[PlannerExpression])).toString}]"
+    } else {
+      ""
+    }
+  }
+
+  override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
+    val predicatesToUse = new mutable.ListBuffer[Expression]()
+    val iterator = predicates.iterator()
+    while (iterator.hasNext) {
+      val expr = iterator.next()
+      if (shouldPushDown(expr)) {
+        predicatesToUse += expr
+        iterator.remove()
+      }
+    }
+
+    new TestFilterableTableSource(
+      rowTypeInfo,
+      data,
+      filterableFields,
+      predicatesToUse,
+      filterPushedDown = true)
+  }
 }

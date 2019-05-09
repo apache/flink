@@ -29,7 +29,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.TableSourceSinkTable
-import org.apache.flink.table.sources.{FilterableTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{FilterableTableSource, ProjectableTableSource, TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
 
@@ -81,7 +81,13 @@ class FlinkLogicalTableSourceScan(
     val terms = super.explainTerms(pw)
         .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
 
-    val sourceDesc = tableSource.explainSource()
+    val auxiliarySourceDesc = tableSource match {
+      case fts: FilterableTableSource[_] =>
+        s"FilterPushDown=${fts.isFilterPushedDown.toString}"
+      case _ => ""
+    }
+
+    val sourceDesc = tableSource.explainSource() + auxiliarySourceDesc
     if (sourceDesc.nonEmpty) {
       terms.item("source", sourceDesc)
     } else {
