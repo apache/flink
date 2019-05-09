@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.type.InternalTypes.BYTE;
-import static org.apache.flink.table.type.InternalTypes.CHAR;
 import static org.apache.flink.table.type.InternalTypes.DOUBLE;
 import static org.apache.flink.table.type.InternalTypes.FLOAT;
 import static org.apache.flink.table.type.InternalTypes.INT;
@@ -39,10 +38,10 @@ public class InternalTypeUtils {
 
 	static {
 		Map<InternalType, InternalType[]> autoCastMap = new HashMap<>();
-		autoCastMap.put(BYTE, new InternalType[]{SHORT, INT, LONG, FLOAT, DOUBLE, CHAR});
-		autoCastMap.put(SHORT, new InternalType[]{INT, LONG, FLOAT, DOUBLE, CHAR});
-		autoCastMap.put(INT, new InternalType[]{LONG, FLOAT, DOUBLE, CHAR});
-		autoCastMap.put(LONG, new InternalType[]{FLOAT, DOUBLE, CHAR});
+		autoCastMap.put(BYTE, new InternalType[]{SHORT, INT, LONG, FLOAT, DOUBLE});
+		autoCastMap.put(SHORT, new InternalType[]{INT, LONG, FLOAT, DOUBLE});
+		autoCastMap.put(INT, new InternalType[]{LONG, FLOAT, DOUBLE});
+		autoCastMap.put(LONG, new InternalType[]{FLOAT, DOUBLE});
 		autoCastMap.put(FLOAT, new InternalType[]{DOUBLE});
 		POSSIBLE_CAST_MAP = Collections.unmodifiableMap(autoCastMap);
 	}

@@ -64,7 +64,6 @@ public class TypeConverters {
 		tiToType.put(BasicTypeInfo.INT_TYPE_INFO, InternalTypes.INT);
 		tiToType.put(BasicTypeInfo.LONG_TYPE_INFO, InternalTypes.LONG);
 		tiToType.put(BasicTypeInfo.SHORT_TYPE_INFO, InternalTypes.SHORT);
-		tiToType.put(BasicTypeInfo.CHAR_TYPE_INFO, InternalTypes.CHAR);
 		tiToType.put(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, InternalTypes.BINARY);
 		tiToType.put(SqlTimeTypeInfo.DATE, InternalTypes.DATE);
 		tiToType.put(SqlTimeTypeInfo.TIMESTAMP, InternalTypes.TIMESTAMP);
@@ -91,7 +90,6 @@ public class TypeConverters {
 		internalTypeToInfo.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
-		internalTypeToInfo.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.DATE, BasicTypeInfo.INT_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.TIMESTAMP, BasicTypeInfo.LONG_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.PROCTIME_INDICATOR, BasicTypeInfo.LONG_TYPE_INFO);
@@ -111,7 +109,6 @@ public class TypeConverters {
 		itToEti.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO);
 		itToEti.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO);
 		itToEti.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
-		itToEti.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO);
 		itToEti.put(InternalTypes.DATE, SqlTimeTypeInfo.DATE);
 		itToEti.put(InternalTypes.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP);
 		itToEti.put(InternalTypes.PROCTIME_INDICATOR, SqlTimeTypeInfo.TIMESTAMP);

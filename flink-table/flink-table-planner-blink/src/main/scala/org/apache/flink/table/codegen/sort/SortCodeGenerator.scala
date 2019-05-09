@@ -408,7 +408,6 @@ class SortCodeGenerator(
     case InternalTypes.FLOAT => "Float"
     case InternalTypes.DOUBLE => "Double"
     case InternalTypes.BOOLEAN => "Boolean"
-    case InternalTypes.CHAR => "Char"
     case InternalTypes.STRING => "String"
     case InternalTypes.BINARY => "Binary"
     case _: DecimalType => "Decimal"
@@ -444,7 +443,6 @@ class SortCodeGenerator(
       case InternalTypes.BOOLEAN => 1
       case InternalTypes.BYTE => 1
       case InternalTypes.SHORT => 2
-      case InternalTypes.CHAR => 2
       case InternalTypes.INT => 4
       case InternalTypes.FLOAT => 4
       case InternalTypes.DOUBLE => 8

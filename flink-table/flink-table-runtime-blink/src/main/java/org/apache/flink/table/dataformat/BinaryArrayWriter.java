@@ -129,8 +129,6 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 			setNullInt(pos);
 		} else if (type.equals(InternalTypes.TIMESTAMP)) {
 			setNullLong(pos);
-		} else if (type.equals(InternalTypes.CHAR)) {
-			setNullShort(pos);
 		} else {
 			setNullAt(pos);
 		}
@@ -190,11 +188,6 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 			value = Double.NaN;
 		}
 		segment.putDouble(getElementOffset(pos, 8), value);
-	}
-
-	@Override
-	public void writeChar(int pos, char value) {
-		segment.putChar(getElementOffset(pos, 2), value);
 	}
 
 	@Override

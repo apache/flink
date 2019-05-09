@@ -83,7 +83,6 @@ public class SortCodeGeneratorTest {
 			InternalTypes.LONG,
 			InternalTypes.FLOAT,
 			InternalTypes.DOUBLE,
-			InternalTypes.CHAR,
 			InternalTypes.STRING,
 			new DecimalType(18, 2),
 			new DecimalType(38, 18),
@@ -211,8 +210,6 @@ public class SortCodeGeneratorTest {
 				seeds[i] = rnd.nextFloat() * rnd.nextLong();
 			} else if (type.equals(InternalTypes.DOUBLE)) {
 				seeds[i] = rnd.nextDouble() * rnd.nextLong();
-			} else if (type.equals(InternalTypes.CHAR)) {
-				seeds[i] = (char) rnd.nextInt();
 			} else if (type.equals(InternalTypes.STRING)) {
 				seeds[i] = BinaryString.fromString(RandomStringUtils.random(rnd.nextInt(20)));
 			} else if (type instanceof DecimalType) {
@@ -263,8 +260,6 @@ public class SortCodeGeneratorTest {
 			return Float.MIN_VALUE;
 		} else if (type.equals(InternalTypes.DOUBLE)) {
 			return Double.MIN_VALUE;
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return '1';
 		} else if (type.equals(InternalTypes.STRING)) {
 			return BinaryString.fromString("");
 		} else if (type instanceof DecimalType) {
@@ -307,8 +302,6 @@ public class SortCodeGeneratorTest {
 			return 0f;
 		} else if (type.equals(InternalTypes.DOUBLE)) {
 			return 0d;
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return '0';
 		} else if (type.equals(InternalTypes.STRING)) {
 			return BinaryString.fromString("0");
 		} else if (type instanceof DecimalType) {
@@ -348,8 +341,6 @@ public class SortCodeGeneratorTest {
 			return Float.MAX_VALUE;
 		} else if (type.equals(InternalTypes.DOUBLE)) {
 			return Double.MAX_VALUE;
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return '鼎';
 		} else if (type.equals(InternalTypes.STRING)) {
 			return BinaryString.fromString(RandomStringUtils.random(100));
 		} else if (type instanceof DecimalType) {

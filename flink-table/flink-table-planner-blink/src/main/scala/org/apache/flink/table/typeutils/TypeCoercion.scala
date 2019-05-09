@@ -86,8 +86,6 @@ object TypeCoercion {
 
     case (_, InternalTypes.STRING) => true
 
-    case (_, InternalTypes.CHAR) => false // Character type not supported.
-
     case (InternalTypes.STRING, b) if isNumeric(b) => true
     case (InternalTypes.STRING, InternalTypes.BOOLEAN) => true
     case (InternalTypes.STRING, _: DecimalType) => true

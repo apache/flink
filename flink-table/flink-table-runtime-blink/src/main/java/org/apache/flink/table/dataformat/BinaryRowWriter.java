@@ -108,11 +108,6 @@ public final class BinaryRowWriter extends AbstractBinaryWriter {
 	}
 
 	@Override
-	public void writeChar(int pos, char value) {
-		segment.putChar(getFieldOffset(pos), value);
-	}
-
-	@Override
 	public void complete() {
 		row.setTotalSize(cursor);
 	}

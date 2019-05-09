@@ -69,11 +69,6 @@ public final class GenericRow extends ObjectArrayRow {
 	}
 
 	@Override
-	public char getChar(int ordinal) {
-		return (char) this.fields[ordinal];
-	}
-
-	@Override
 	public void setBoolean(int ordinal, boolean value) {
 		this.fields[ordinal] = value;
 	}
@@ -105,11 +100,6 @@ public final class GenericRow extends ObjectArrayRow {
 
 	@Override
 	public void setDouble(int ordinal, double value) {
-		this.fields[ordinal] = value;
-	}
-
-	@Override
-	public void setChar(int ordinal, char value) {
 		this.fields[ordinal] = value;
 	}
 
