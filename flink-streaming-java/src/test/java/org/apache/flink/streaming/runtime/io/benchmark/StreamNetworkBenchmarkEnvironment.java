@@ -37,7 +37,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -47,8 +47,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
@@ -216,8 +218,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			NetworkEnvironment environment,
 			int channels) throws Exception {
 
-		ResultPartition resultPartition = new ResultPartitionBuilder()
-			.setJobId(jobId)
+		ResultPartitionWriter resultPartitionWriter = new ResultPartitionBuilder()
 			.setResultPartitionId(partitionId)
 			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
 			.setNumberOfSubpartitions(channels)
@@ -226,9 +227,15 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			.setupBufferPoolFactoryFromNetworkEnvironment(environment)
 			.build();
 
-		resultPartition.setup();
+		ResultPartitionWriter consumableNotifyingPartitionWriter = new ConsumableNotifyingResultPartitionWriterDecorator(
+			new NoOpTaskActions(),
+			jobId,
+			resultPartitionWriter,
+			new NoOpResultPartitionConsumableNotifier());
 
-		return resultPartition;
+		consumableNotifyingPartitionWriter.setup();
+
+		return consumableNotifyingPartitionWriter;
 	}
 
 	private InputGate createInputGate(TaskManagerLocation senderLocation) throws IOException {

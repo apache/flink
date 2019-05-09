@@ -50,16 +50,15 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.
 	 *
-	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
-	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
-	 *
 	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
 	 * it's resources.
 	 *
 	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
 	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
+	 *
+	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 */
-	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.

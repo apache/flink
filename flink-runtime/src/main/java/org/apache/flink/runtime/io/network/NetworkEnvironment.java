@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -39,7 +38,6 @@ import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -50,7 +48,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFac
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -218,10 +215,7 @@ public class NetworkEnvironment {
 
 	public ResultPartition[] createResultPartitionWriters(
 			String taskName,
-			JobID jobId,
 			ExecutionAttemptID executionId,
-			TaskActions taskActions,
-			ResultPartitionConsumableNotifier partitionConsumableNotifier,
 			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 			MetricGroup outputGroup,
 			MetricGroup buffersGroup) {
@@ -231,8 +225,7 @@ public class NetworkEnvironment {
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter++] = resultPartitionFactory.create(
-					taskName, taskActions, jobId, executionId, rpdd, partitionConsumableNotifier);
+				resultPartitions[counter++] = resultPartitionFactory.create(taskName, executionId, rpdd);
 			}
 
 			registerOutputMetrics(outputGroup, buffersGroup, resultPartitions);

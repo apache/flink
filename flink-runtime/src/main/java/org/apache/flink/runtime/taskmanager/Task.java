@@ -189,7 +189,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	private final ResultPartitionWriter[] producedPartitions;
+	private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
 
 	private final InputGate[] inputGates;
 
@@ -368,15 +368,19 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		final MetricGroup inputGroup = networkGroup.addGroup("Input");
 
 		// produced intermediate result partitions
-		this.producedPartitions = networkEnvironment.createResultPartitionWriters(
+		final ResultPartitionWriter[] resultPartitionWriters = networkEnvironment.createResultPartitionWriters(
 			taskNameWithSubtaskAndId,
-			jobId,
 			executionId,
-			this,
-			resultPartitionConsumableNotifier,
 			resultPartitionDeploymentDescriptors,
 			outputGroup,
 			buffersGroup);
+
+		this.consumableNotifyingPartitionWriters = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
+			resultPartitionDeploymentDescriptors,
+			resultPartitionWriters,
+			this,
+			jobId,
+			resultPartitionConsumableNotifier);
 
 		// consumed intermediate result partitions
 		InputGate[] gates = networkEnvironment.createInputGates(
@@ -589,10 +593,10 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 			LOG.info("Registering task at network: {}.", this);
 
-			setupPartionsAndGates(producedPartitions, inputGates);
+			setupPartionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
-			for (ResultPartitionWriter partition : producedPartitions) {
-				taskEventDispatcher.registerPartition(partition.getPartitionId());
+			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+				taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
 			}
 
 			// next, kick off the background copying of files for the distributed cache
@@ -637,7 +641,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				kvStateRegistry,
 				inputSplitProvider,
 				distributedCacheEntries,
-				producedPartitions,
+				consumableNotifyingPartitionWriters,
 				inputGates,
 				taskEventDispatcher,
 				checkpointResponder,
@@ -681,9 +685,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			// ----------------------------------------------------------------
 
 			// finish the produced partitions. if this fails, we consider the execution failed.
-			for (ResultPartitionWriter partition : producedPartitions) {
-				if (partition != null) {
-					partition.finish();
+			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+				if (partitionWriter != null) {
+					partitionWriter.finish();
 				}
 			}
 
@@ -838,10 +842,10 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	private void releaseNetworkResources() {
 		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
 
-		for (ResultPartitionWriter partition : producedPartitions) {
-			taskEventDispatcher.unregisterPartition(partition.getPartitionId());
+		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+			taskEventDispatcher.unregisterPartition(partitionWriter.getPartitionId());
 			if (isCanceledOrFailed()) {
-				partition.fail(getFailureCause());
+				partitionWriter.fail(getFailureCause());
 			}
 		}
 
@@ -853,9 +857,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	 * release partitions and gates. Another is from task thread during task exiting.
 	 */
 	private void closeNetworkResources() {
-		for (ResultPartitionWriter partition : producedPartitions) {
+		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
 			try {
-				partition.close();
+				partitionWriter.close();
 			} catch (Throwable t) {
 				ExceptionUtils.rethrowIfFatalError(t);
 				LOG.error("Failed to release result partition for task {}.", taskNameWithSubtask, t);

@@ -500,8 +500,8 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
-			queues[targetChannel].add(buffer);
+		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
+			return queues[targetChannel].add(buffer);
 		}
 
 		@Override
@@ -575,8 +575,9 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 			bufferConsumer.close();
+			return true;
 		}
 
 		@Override

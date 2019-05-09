@@ -70,10 +70,11 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public synchronized void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	public synchronized boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		checkState(targetChannel < getNumberOfSubpartitions());
 		bufferConsumers.add(bufferConsumer);
 		processBufferConsumers();
+		return true;
 	}
 
 	private void processBufferConsumers() throws IOException {
