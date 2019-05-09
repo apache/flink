@@ -79,6 +79,10 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 
 	public GenericHiveMetastoreCatalog(String catalogName, HiveConf hiveConf) {
 		super(catalogName, hiveConf);
+	}
+
+	public GenericHiveMetastoreCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
+		super(catalogName, defaultDatabase, hiveConf);
 
 		LOG.info("Created GenericHiveMetastoreCatalog '{}'", catalogName);
 	}

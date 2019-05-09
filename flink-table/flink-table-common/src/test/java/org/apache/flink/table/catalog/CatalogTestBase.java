@@ -111,29 +111,6 @@ public abstract class CatalogTestBase {
 	}
 
 	@Test
-	public void testSetCurrentDatabase() throws Exception {
-		assertEquals(getBuiltInDefaultDatabase(), catalog.getCurrentDatabase());
-
-		catalog.createDatabase(db2, createDb(), true);
-		catalog.setCurrentDatabase(db2);
-
-		assertEquals(db2, catalog.getCurrentDatabase());
-
-		catalog.setCurrentDatabase(getBuiltInDefaultDatabase());
-
-		assertEquals(getBuiltInDefaultDatabase(), catalog.getCurrentDatabase());
-
-		catalog.dropDatabase(db2, false);
-	}
-
-	@Test
-	public void testSetCurrentDatabaseNegative() throws Exception {
-		exception.expect(DatabaseNotExistException.class);
-		exception.expectMessage("Database " + this.nonExistentDatabase + " does not exist in Catalog");
-		catalog.setCurrentDatabase(this.nonExistentDatabase);
-	}
-
-	@Test
 	public void testCreateDb_DatabaseAlreadyExistException() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
@@ -150,13 +127,13 @@ public abstract class CatalogTestBase {
 
 		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(cd1.getProperties().entrySet()));
 		assertEquals(2, dbs.size());
-		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getCurrentDatabase())), new HashSet<>(dbs));
+		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabase())), new HashSet<>(dbs));
 
 		catalog.createDatabase(db1, createAnotherDb(), true);
 
 		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(cd1.getProperties().entrySet()));
 		assertEquals(2, dbs.size());
-		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getCurrentDatabase())), new HashSet<>(dbs));
+		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabase())), new HashSet<>(dbs));
 	}
 
 	@Test
@@ -584,13 +561,6 @@ public abstract class CatalogTestBase {
 	}
 
 	// ------ utilities ------
-
-	/**
-	 * Get the built-in default database of the specific catalog implementation.
-	 *
-	 * @return The built-in default database name
-	 */
-	public abstract String getBuiltInDefaultDatabase();
 
 	/**
 	 * Create a CatalogDatabase instance by specific catalog implementation.

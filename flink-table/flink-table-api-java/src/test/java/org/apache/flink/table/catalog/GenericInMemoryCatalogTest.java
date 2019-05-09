@@ -628,11 +628,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	// ------ utilities ------
 
 	@Override
-	public String getBuiltInDefaultDatabase() {
-		return GenericInMemoryCatalog.DEFAULT_DB;
-	}
-
-	@Override
 	public CatalogDatabase createDb() {
 		return new GenericCatalogDatabase(
 			new HashMap<String, String>() {{

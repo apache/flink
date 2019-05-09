@@ -90,13 +90,6 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
 
-	// ------ utils ------
-
-	@Override
-	public String getBuiltInDefaultDatabase() {
-		return HiveCatalogBase.DEFAULT_DB;
-	}
-
 	@Override
 	public CatalogDatabase createDb() {
 		return new GenericCatalogDatabase(

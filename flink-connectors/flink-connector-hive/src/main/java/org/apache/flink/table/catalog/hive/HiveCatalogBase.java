@@ -55,23 +55,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class HiveCatalogBase implements Catalog {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogBase.class);
-
-	public static final String DEFAULT_DB = "default";
+	private static final String DEFAULT_DB = "default";
 
 	protected final String catalogName;
 	protected final HiveConf hiveConf;
 
-	protected String currentDatabase = DEFAULT_DB;
+	private final String defaultDatabase;
 	protected IMetaStoreClient client;
 
 	public HiveCatalogBase(String catalogName, String hivemetastoreURI) {
-		this(catalogName, getHiveConf(hivemetastoreURI));
+		this(catalogName, DEFAULT_DB, getHiveConf(hivemetastoreURI));
 	}
 
 	public HiveCatalogBase(String catalogName, HiveConf hiveConf) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
-		this.catalogName = catalogName;
+		this(catalogName, DEFAULT_DB, hiveConf);
+	}
 
+	public HiveCatalogBase(String catalogName, String defaultDatabase, HiveConf hiveConf) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase), "defaultDatabase cannot be null or empty");
+		this.catalogName = catalogName;
+		this.defaultDatabase = defaultDatabase;
 		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
 	}
 
@@ -130,6 +134,11 @@ public abstract class HiveCatalogBase implements Catalog {
 			client = getMetastoreClient(hiveConf);
 			LOG.info("Connected to Hive metastore");
 		}
+
+		if (!databaseExists(defaultDatabase)) {
+			throw new CatalogException(String.format("Configured default database %s doesn't exist in catalog %s.",
+				defaultDatabase, catalogName));
+		}
 	}
 
 	@Override
@@ -144,19 +153,8 @@ public abstract class HiveCatalogBase implements Catalog {
 	// ------ databases ------
 
 	@Override
-	public String getCurrentDatabase() throws CatalogException {
-		return currentDatabase;
-	}
-
-	@Override
-	public void setCurrentDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
-
-		if (!databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
-		}
-
-		currentDatabase = databaseName;
+	public String getDefaultDatabase() throws CatalogException {
+		return defaultDatabase;
 	}
 
 	@Override
