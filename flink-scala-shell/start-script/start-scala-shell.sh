@@ -97,9 +97,9 @@ log_setting="-Dlog.file="$LOG" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/$LOG
 
 if ${EXTERNAL_LIB_FOUND}
 then
-    java -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
+    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
 else
-    java -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
+    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
 fi
 
 #restore echo
