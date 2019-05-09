@@ -171,6 +171,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
 			// kill one of the previous TaskManagers, triggering a failure and recovery
 			taskManagerProcess1.destroy();
+			waitForShutdown("TaskManager 1", taskManagerProcess1);
 
 			// we create the marker file which signals the program functions tasks that they can complete
 			touchFile(new File(coordinateTempDir, PROCEED_MARKER_FILE));
