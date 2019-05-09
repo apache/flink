@@ -82,12 +82,17 @@ class AggsHandlerCodeGeneratorTest extends AggTestBase {
   }
 
   private def getHandler(needRetract: Boolean, needMerge: Boolean): AggsHandleFunction = {
-    val generator = new AggsHandlerCodeGenerator(ctx, relBuilder, inputTypes, needRetract, true)
+    val generator = new AggsHandlerCodeGenerator(ctx, relBuilder, inputTypes, true)
+    if (needRetract) {
+      generator.needRetract()
+    }
     if (needMerge) {
-      generator.withMerging(1, mergedAccOnHeap = true, Array(Types.LONG, Types.LONG,
+      generator.needMerge(1, mergedAccOnHeap = true, Array(Types.LONG, Types.LONG,
         Types.DOUBLE, Types.LONG, imperativeAggFunc.getAccumulatorType))
     }
-    val handler = generator.generateAggsHandler("Test", aggInfoList).newInstance(classLoader)
+    val handler = generator
+      .needAccumulate()
+      .generateAggsHandler("Test", aggInfoList).newInstance(classLoader)
     handler.open(new PerKeyStateDataViewStore(context.getRuntimeContext))
     handler
   }
