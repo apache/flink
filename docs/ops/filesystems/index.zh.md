@@ -1,5 +1,5 @@
 ---
-title: "文件系统"
+title: "File Systems"
 nav-id: filesystems
 nav-parent_id: ops
 nav-show_overview: true
@@ -25,7 +25,7 @@ under the License.
 -->
 
 Apache Flink uses file systems to consume and persistently store data, both for the results of applications and for fault tolerance and recovery.
-These are some of most of the popular file systems, including *local*, *hadoop-compatible*, *S3*, *MapR FS*, *OpenStack Swift FS* and *Aliyum OSS*.
+These are some of most of the popular file systems, including *local*, *hadoop-compatible*, *S3*, *MapR FS*, *OpenStack Swift FS* and *Aliyun OSS*.
 
 The file system used for a particular file is determined by its URI scheme.
 For example, `file:///home/user/text.txt` refers to a file in the local file system, while `hdfs://namenode:50010/data/user/text.txt` is a file in a specific HDFS cluster.
@@ -35,7 +35,7 @@ File system instances are instantiated once per process and then cached/pooled, 
 * This will be replaced by the TOC
 {:toc}
 
-### Built-in File Systems
+## Built-in File Systems
 
 Flink ships with implementations for the following file systems:
 
@@ -50,7 +50,7 @@ Flink ships with implementations for the following file systems:
   To use it when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-swift-fs-hadoop:{{ site.version }}`
   When starting a Flink application from the Flink binaries, copy or move the respective jar file from the `opt` folder to the `lib` folder.
 
-#### HDFS and Hadoop File System support 
+## HDFS and Hadoop File System support 
 
 For all schemes where Flink cannot find a directly supported file system, it falls back to Hadoop.
 All Hadoop file systems are automatically available when `flink-runtime` and the Hadoop libraries are on the classpath.
@@ -64,11 +64,12 @@ This way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-c
   - **har**
   - ...
 
-##### Hadoop Configuration
+### Hadoop Configuration
 
-We recommend using Flink's built-in file systems them unless required otherwise, e.g., for using that file system as YARN's resource storage dir via the `fs.defaultFS` configuration property in Hadoop's `core-site.xml`.
+We recommend using Flink's built-in file systems unless required otherwise. Using a Hadoop File System directly may be required, for example, when using that file system for YARN's resource storage, via the `fs.defaultFS` configuration property in Hadoop's `core-site.xml`.
 
-If using a Hadoop file system, you can specify the [configuration](../config.html#hdfs) by setting the environment variable `HADOOP_CONF_DIR`, or by setting the `fs.hdfs.hadoopconf` configuration option in `flink-conf.yaml`. 
+Putting the Hadoop configuration in the same class path as the Hadoop libraries makes the Hadoop File Systems pick up that configuration.
+You can reference another Hadoop configuration by setting the environment variable `HADOOP_CONF_DIR`, or by referencing it via the [Flink configuration](../config.html#hdfs).
 
 {% highlight yaml %}
 fs.hdfs.hadoopconf: /path/to/etc/hadoop
