@@ -39,4 +39,15 @@ public final class GeneratedOperator<C extends StreamOperator<?>> extends Genera
 	public GeneratedOperator(String className, String code, Object[] references) {
 		super(className, code, references);
 	}
+
+	/**
+	 * Creates a GeneratedOperator.
+	 * @param className class name of the generated StreamOperator.
+	 * @param code code of the generated StreamOperator.
+	 * @param references referenced objects of the generated StreamOperator.
+	 * @param compilationOption the option for compiling the generated code.
+	 */
+	public GeneratedOperator(String className, String code, Object[] references, String compilationOption) {
+		super(className, code, references, compilationOption);
+	}
 }

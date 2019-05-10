@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.generated;
 
+import org.apache.flink.table.util.JCACompilationUtil;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -34,13 +36,21 @@ public abstract class GeneratedClass<T> implements Serializable {
 
 	private transient Class<T> compiledClass;
 
+	private CompilationOption compilationOption;
+
 	protected GeneratedClass(String className, String code, Object[] references) {
+		this(className, code, references, CompilationOption.JANINO.toString());
+	}
+
+	protected GeneratedClass(String className, String code, Object[] references, String compilationOption) {
 		checkNotNull(className, "name must not be null");
 		checkNotNull(code, "code must not be null");
 		checkNotNull(references, "references must not be null");
+		checkNotNull(compilationOption, "compilation option must not be null");
 		this.className = className;
 		this.code = code;
 		this.references = references;
+		this.compilationOption = CompilationOption.valueOf(compilationOption.toUpperCase());
 	}
 
 	/**
@@ -62,7 +72,13 @@ public abstract class GeneratedClass<T> implements Serializable {
 	private Class<?> compile(ClassLoader classLoader) {
 		if (compiledClass == null) {
 			// cache the compiled class
-			compiledClass = CompileUtils.compile(classLoader, className, code);
+			if (compilationOption == CompilationOption.JANINO) {
+				compiledClass = CompileUtils.compile(classLoader, className, code);
+			} else if (compilationOption == CompilationOption.JCA) {
+				compiledClass = (Class<T>) JCACompilationUtil.getInstance().getCodeClass(className, code);
+			} else {
+				throw new IllegalArgumentException("Invalid compilation option " + compilationOption);
+			}
 		}
 		return compiledClass;
 	}
@@ -77,5 +93,9 @@ public abstract class GeneratedClass<T> implements Serializable {
 
 	public Object[] getReferences() {
 		return references;
+	}
+
+	public CompilationOption getCompilationOption() {
+		return compilationOption;
 	}
 }

@@ -688,6 +688,13 @@ public final class ConfigConstants {
 	// ---------------------------- Compiler -------------------------------
 
 	/**
+	 * Key to specify the compiler used for compiling generated Java code.
+	 */
+	@PublicEvolving
+	public static final ConfigOption<String> CODE_GEN_COMPILATION_OPTION =
+		key("compiler.code-gen.compilation.option").defaultValue("janino");
+
+	/**
 	 * The maximum number of line samples to be taken by the delimited input format, if no
 	 * other value is specified for the data source.
 	 *

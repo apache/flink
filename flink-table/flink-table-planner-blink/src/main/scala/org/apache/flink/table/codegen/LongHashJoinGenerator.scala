@@ -334,7 +334,8 @@ object LongHashJoinGenerator {
          |LOG.info("Finish rebuild phase.");
        """.stripMargin,
       buildType,
-      probeType)
+      probeType,
+      conf)
 
     new TwoInputOperatorWrapper[BaseRow, BaseRow, BaseRow](genOp)
   }

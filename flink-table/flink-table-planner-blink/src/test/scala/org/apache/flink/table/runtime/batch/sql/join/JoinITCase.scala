@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo.STRING_ARRAY_TYPE
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.table.api.{TableConfigOptions, Types}
 import org.apache.flink.table.runtime.TwoInputOperatorWrapper
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -31,14 +32,15 @@ import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.sinks.CollectRowTableSink
 import org.apache.flink.types.Row
-
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Ignore, Test}
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
-// @RunWith(classOf[Parameterized]) TODO
-class JoinITCase() extends BatchTestBase {
+@RunWith(classOf[Parameterized])
+class JoinITCase(val compilationOption: String) extends BatchTestBase {
 
   val expectedJoinType: JoinType = SortMergeJoin
 
@@ -53,6 +55,8 @@ class JoinITCase() extends BatchTestBase {
     registerCollection("r", data2_2, INT_DOUBLE, "c, d")
     registerCollection("t", data2_3, INT_DOUBLE, nullablesOfData2_3, "c, d")
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
+
+    conf.getConf.setString(ConfigConstants.CODE_GEN_COMPILATION_OPTION, compilationOption)
   }
 
   @Test
@@ -833,5 +837,13 @@ class GenericTypeInfoWithoutComparator[T](clazz: Class[T]) extends GenericTypeIn
       sortOrderAscending: Boolean,
       executionConfig: ExecutionConfig): TypeComparator[T] = {
     throw new RuntimeException("Not expected!")
+  }
+}
+
+object JoinITCase {
+
+  @Parameterized.Parameters(name = "compilation option = {0}")
+  def getParameters(): Array[String] = {
+    Array("janino", "jca")
   }
 }
