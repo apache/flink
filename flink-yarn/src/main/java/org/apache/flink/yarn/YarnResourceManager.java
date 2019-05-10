@@ -292,8 +292,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
 		log.info("Unregister application from the YARN Resource Manager with final status {}.", yarnStatus);
 
+		String historyServerAddress = flinkConfig.getString(YarnConfigOptions.APPLICATION_HISTORY_SERVER_ADDRESS);
 		try {
-			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, "");
+			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, historyServerAddress);
 		} catch (Throwable t) {
 			log.error("Could not unregister the application master.", t);
 		}
