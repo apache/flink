@@ -44,6 +44,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
@@ -248,15 +249,18 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				channel,
 				channelDescriptors);
 
-			SingleInputGate gate = SingleInputGate.create(
-				"receiving task[" + channel + "]",
-				jobId,
-				gateDescriptor,
-				environment,
-				new TaskEventDispatcher(),
-				new NoOpTaskActions(),
-				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
-				new SimpleCounter());
+			SingleInputGate gate = new SingleInputGateFactory(
+				environment.getConfiguration(),
+				environment.getConnectionManager(),
+				environment.getResultPartitionManager(),
+				new TaskEventDispatcher())
+				.create(
+					"receiving task[" + channel + "]",
+					jobId,
+					gateDescriptor,
+					new NoOpTaskActions(),
+					InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
+					new SimpleCounter());
 
 			environment.setupInputGate(gate);
 			gates[channel] = gate;

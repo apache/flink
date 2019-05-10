@@ -44,6 +44,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -91,6 +92,8 @@ public class NetworkEnvironment {
 
 	private final ResultPartitionFactory resultPartitionFactory;
 
+	private final SingleInputGateFactory singleInputGateFactory;
+
 	private boolean isShutdown;
 
 	private NetworkEnvironment(
@@ -99,14 +102,16 @@ public class NetworkEnvironment {
 			ConnectionManager connectionManager,
 			ResultPartitionManager resultPartitionManager,
 			TaskEventPublisher taskEventPublisher,
-			ResultPartitionFactory resultPartitionFactory) {
+			ResultPartitionFactory resultPartitionFactory,
+			SingleInputGateFactory singleInputGateFactory) {
 		this.config = config;
 		this.networkBufferPool = networkBufferPool;
 		this.connectionManager = connectionManager;
 		this.resultPartitionManager = resultPartitionManager;
 		this.taskEventPublisher = taskEventPublisher;
-		this.isShutdown = false;
 		this.resultPartitionFactory = resultPartitionFactory;
+		this.singleInputGateFactory = singleInputGateFactory;
+		this.isShutdown = false;
 	}
 
 	public static NetworkEnvironment create(
@@ -132,13 +137,17 @@ public class NetworkEnvironment {
 		ResultPartitionFactory resultPartitionFactory =
 			new ResultPartitionFactory(resultPartitionManager, ioManager);
 
+		SingleInputGateFactory singleInputGateFactory =
+			new SingleInputGateFactory(config, connectionManager, resultPartitionManager, taskEventPublisher);
+
 		return new NetworkEnvironment(
 			config,
 			networkBufferPool,
 			connectionManager,
 			resultPartitionManager,
 			taskEventPublisher,
-			resultPartitionFactory);
+			resultPartitionFactory,
+			singleInputGateFactory);
 	}
 
 	private static void registerNetworkMetrics(MetricGroup metricGroup, NetworkBufferPool networkBufferPool) {
@@ -168,6 +177,7 @@ public class NetworkEnvironment {
 		return networkBufferPool;
 	}
 
+	@VisibleForTesting
 	public NetworkEnvironmentConfiguration getConfiguration() {
 		return config;
 	}
@@ -311,12 +321,10 @@ public class NetworkEnvironment {
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 			int counter = 0;
 			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
-				inputGates[counter++] = SingleInputGate.create(
+				inputGates[counter++] = singleInputGateFactory.create(
 					taskName,
 					jobId,
 					igdd,
-					this,
-					taskEventPublisher,
 					taskActions,
 					inputChannelMetrics,
 					numBytesInCounter);
