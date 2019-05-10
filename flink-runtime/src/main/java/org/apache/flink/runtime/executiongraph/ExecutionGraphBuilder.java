@@ -301,7 +301,8 @@ public class ExecutionGraphBuilder {
 				checkpointIdCounter,
 				completedCheckpoints,
 				rootBackend,
-				checkpointStatsTracker);
+				checkpointStatsTracker,
+				chkConfig.isPreferCheckpointForRecovery());
 		}
 
 		// create all the metrics for the Execution Graph
