@@ -80,7 +80,8 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new FailingCompletedCheckpointStore(),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
 
@@ -142,7 +143,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		}
 
 		@Override
-		public CompletedCheckpoint getLatestCheckpoint() throws Exception {
+		public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) throws Exception {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 

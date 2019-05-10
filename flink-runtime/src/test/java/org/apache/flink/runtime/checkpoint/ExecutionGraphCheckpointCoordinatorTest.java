@@ -166,7 +166,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 				counter,
 				store,
 				new MemoryStateBackend(),
-				CheckpointStatsTrackerTest.createTestTracker());
+				CheckpointStatsTrackerTest.createTestTracker(),
+				false);
 
 		JobVertex jobVertex = new JobVertex("MockVertex");
 		jobVertex.setInvokableClass(AbstractInvokable.class);
@@ -222,7 +223,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		}
 
 		@Override
-		public CompletedCheckpoint getLatestCheckpoint() {
+		public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 

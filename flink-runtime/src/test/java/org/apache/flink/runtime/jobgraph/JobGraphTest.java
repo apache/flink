@@ -346,7 +346,8 @@ public class JobGraphTest extends TestLogger {
 			Long.MAX_VALUE,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true);
+			true,
+			false);
 
 		return new JobCheckpointingSettings(
 			Collections.emptyList(),

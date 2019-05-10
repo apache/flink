@@ -490,7 +490,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -551,7 +551,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -602,7 +602,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -1837,7 +1837,8 @@ public class JobMasterTest extends TestLogger {
 			1000L,
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true);
+			true,
+			false);
 		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
 			Collections.emptyList(),
 			Collections.emptyList(),
