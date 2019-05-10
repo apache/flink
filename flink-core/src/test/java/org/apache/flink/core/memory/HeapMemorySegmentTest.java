@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -66,5 +67,14 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 		assertEquals(3, buf1.limit());
 		assertEquals(3, buf2.position());
 		assertEquals(7, buf2.limit());
+	}
+
+	@Test
+	public void testGetArrayAfterFree() {
+		final byte[] buffer = new byte[100];
+		HeapMemorySegment seg = new HeapMemorySegment(buffer);
+
+		seg.free();
+		assertNull(seg.getArray());
 	}
 }
