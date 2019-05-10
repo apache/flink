@@ -99,6 +99,11 @@ public abstract class HiveCatalogBase implements Catalog {
 			client = getMetastoreClient(hiveConf);
 			LOG.info("Connected to Hive metastore");
 		}
+
+		if (!databaseExists(defaultDatabase)) {
+			throw new CatalogException(String.format("Configured default database %s doesn't exist in catalog %s.",
+				defaultDatabase, catalogName));
+		}
 	}
 
 	@Override

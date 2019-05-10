@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
@@ -71,6 +72,17 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	// ------ tables ------
+
+	@Test
+	public void testDefaultDatabase_notExist() {
+		String catName = "inMemoryCatalog";
+		String dbName = "non-existing-db";
+		Catalog inMemoryCatalog = new GenericInMemoryCatalog(catName, dbName);
+		exception.expect(CatalogException.class);
+		exception.expectMessage(
+			String.format("Configured default database %s doesn't exist in catalog %s.", dbName, catName));
+		inMemoryCatalog.open();
+	}
 
 	@Test
 	public void testDropTable_partitionedTable() throws Exception {

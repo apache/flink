@@ -85,8 +85,11 @@ public class GenericInMemoryCatalog implements Catalog {
 	}
 
 	@Override
-	public void open() {
-
+	public void open() throws CatalogException {
+		if (!databaseExists(defaultDatabase)) {
+			throw new CatalogException(String.format("Configured default database %s doesn't exist in catalog %s.",
+				defaultDatabase, catalogName));
+		}
 	}
 
 	@Override
