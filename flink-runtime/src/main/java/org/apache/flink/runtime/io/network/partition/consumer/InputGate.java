@@ -22,9 +22,6 @@ import org.apache.flink.runtime.event.TaskEvent;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
@@ -68,65 +65,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public abstract class InputGate implements AutoCloseable {
+public interface InputGate extends AutoCloseable {
 
-	public static final CompletableFuture<?> AVAILABLE = CompletableFuture.completedFuture(null);
+	int getNumberOfInputChannels();
 
-	protected CompletableFuture<?> isAvailable = new CompletableFuture<>();
+	String getOwningTaskName();
 
-	public abstract int getNumberOfInputChannels();
+	boolean isFinished();
 
-	public abstract String getOwningTaskName();
-
-	public abstract boolean isFinished();
-
-	public abstract void requestPartitions() throws IOException, InterruptedException;
+	void requestPartitions() throws IOException, InterruptedException;
 
 	/**
 	 * Blocking call waiting for next {@link BufferOrEvent}.
 	 *
 	 * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
 	 */
-	public abstract Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException;
+	Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException;
 
 	/**
 	 * Poll the {@link BufferOrEvent}.
 	 *
 	 * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()} returns true.
 	 */
-	public abstract Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException;
+	Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException;
 
-	public abstract void sendTaskEvent(TaskEvent event) throws IOException;
+	void sendTaskEvent(TaskEvent event) throws IOException;
 
-	public abstract int getPageSize();
+	void registerListener(InputGateListener listener);
 
-	/**
-	 * @return a future that is completed if there are more records available. If there more records
-	 * available immediately, {@link #AVAILABLE} should be returned.
-	 */
-	public CompletableFuture<?> isAvailable() {
-		return isAvailable;
-	}
-
-	protected void resetIsAvailable() {
-		// try to avoid volatile access in isDone()}
-		if (isAvailable == AVAILABLE || isAvailable.isDone()) {
-			isAvailable = new CompletableFuture<>();
-		}
-	}
-
-	/**
-	 * Simple pojo for INPUT, DATA and moreAvailable.
-	 */
-	protected static class InputWithData<INPUT, DATA> {
-		protected final INPUT input;
-		protected final DATA data;
-		protected final boolean moreAvailable;
-
-		InputWithData(INPUT input, DATA data, boolean moreAvailable) {
-			this.input = checkNotNull(input);
-			this.data = checkNotNull(data);
-			this.moreAvailable = moreAvailable;
-		}
-	}
+	int getPageSize();
 }

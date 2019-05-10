@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -102,7 +101,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
-public class SingleInputGate extends InputGate {
+public class SingleInputGate implements InputGate {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGate.class);
 
@@ -172,6 +171,9 @@ public class SingleInputGate extends InputGate {
 
 	/** Flag indicating whether all resources have been released. */
 	private volatile boolean isReleased;
+
+	/** Registered listener to forward buffer notifications to. */
+	private volatile InputGateListener inputGateListener;
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<>();
 
@@ -529,21 +531,12 @@ public class SingleInputGate extends InputGate {
 		}
 
 		requestPartitions();
-		Optional<InputWithData<InputChannel, BufferAndAvailability>> next = waitAndGetNextData(blocking);
-		if (!next.isPresent()) {
-			return Optional.empty();
-		}
 
-		InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
-		return Optional.of(transformToBufferOrEvent(
-			inputWithData.data.buffer(),
-			inputWithData.moreAvailable,
-			inputWithData.input));
-	}
+		InputChannel currentChannel;
+		boolean moreAvailable;
+		Optional<BufferAndAvailability> result = Optional.empty();
 
-	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
-			throws IOException, InterruptedException {
-		while (true) {
+		do {
 			synchronized (inputChannelsWithData) {
 				while (inputChannelsWithData.size() == 0) {
 					if (isReleased) {
@@ -554,43 +547,30 @@ public class SingleInputGate extends InputGate {
 						inputChannelsWithData.wait();
 					}
 					else {
-						resetIsAvailable();
 						return Optional.empty();
 					}
 				}
 
-				InputChannel inputChannel = inputChannelsWithData.remove();
-
-				Optional<BufferAndAvailability> result = inputChannel.getNextBuffer();
-
-				if (result.isPresent() && result.get().moreAvailable()) {
-					// enqueue the inputChannel at the end to avoid starvation
-					inputChannelsWithData.add(inputChannel);
-				} else {
-					enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
-				}
-
-				if (inputChannelsWithData.isEmpty()) {
-					resetIsAvailable();
-				}
-
-				if (result.isPresent()) {
-					return Optional.of(new InputWithData<>(
-						inputChannel,
-						result.get(),
-						!inputChannelsWithData.isEmpty()));
-				}
+				currentChannel = inputChannelsWithData.remove();
+				enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
+				moreAvailable = !inputChannelsWithData.isEmpty();
 			}
-		}
-	}
 
-	private BufferOrEvent transformToBufferOrEvent(
-			Buffer buffer,
-			boolean moreAvailable,
-			InputChannel currentChannel) throws IOException, InterruptedException {
+			result = currentChannel.getNextBuffer();
+		} while (!result.isPresent());
+
+		// this channel was now removed from the non-empty channels queue
+		// we re-add it in case it has more data, because in that case no "non-empty" notification
+		// will come for that channel
+		if (result.get().moreAvailable()) {
+			queueChannel(currentChannel);
+			moreAvailable = true;
+		}
+
+		final Buffer buffer = result.get().buffer();
 		numBytesIn.inc(buffer.getSizeUnsafe());
 		if (buffer.isBuffer()) {
-			return new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable);
+			return Optional.of(new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable));
 		}
 		else {
 			final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
@@ -609,10 +589,11 @@ public class SingleInputGate extends InputGate {
 				}
 
 				currentChannel.notifySubpartitionConsumed();
+
 				currentChannel.releaseAllResources();
 			}
 
-			return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable);
+			return Optional.of(new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable));
 		}
 	}
 
@@ -633,6 +614,15 @@ public class SingleInputGate extends InputGate {
 	// Channel notifications
 	// ------------------------------------------------------------------------
 
+	@Override
+	public void registerListener(InputGateListener inputGateListener) {
+		if (this.inputGateListener == null) {
+			this.inputGateListener = inputGateListener;
+		} else {
+			throw new IllegalStateException("Multiple listeners");
+		}
+	}
+
 	void notifyChannelNonEmpty(InputChannel channel) {
 		queueChannel(checkNotNull(channel));
 	}
@@ -643,8 +633,6 @@ public class SingleInputGate extends InputGate {
 
 	private void queueChannel(InputChannel channel) {
 		int availableChannels;
-
-		CompletableFuture<?> toNotify = null;
 
 		synchronized (inputChannelsWithData) {
 			if (enqueuedInputChannelsWithData.get(channel.getChannelIndex())) {
@@ -657,13 +645,14 @@ public class SingleInputGate extends InputGate {
 
 			if (availableChannels == 0) {
 				inputChannelsWithData.notifyAll();
-				toNotify = isAvailable;
-				isAvailable = AVAILABLE;
 			}
 		}
 
-		if (toNotify != null) {
-			toNotify.complete(null);
+		if (availableChannels == 0) {
+			InputGateListener listener = inputGateListener;
+			if (listener != null) {
+				listener.notifyInputGateNonEmpty(this);
+			}
 		}
 	}
 

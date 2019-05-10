@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-
 import org.junit.Test;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -30,7 +29,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link UnionInputGate}.
  */
-public class UnionInputGateTest extends InputGateTestBase {
+public class UnionInputGateTest {
 
 	/**
 	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
@@ -42,8 +41,8 @@ public class UnionInputGateTest extends InputGateTestBase {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final SingleInputGate ig1 = createInputGate(3);
-		final SingleInputGate ig2 = createInputGate(5);
+		final SingleInputGate ig1 = createSingleInputGate(3);
+		final SingleInputGate ig2 = createSingleInputGate(5);
 
 		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
 
@@ -101,18 +100,5 @@ public class UnionInputGateTest extends InputGateTestBase {
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(union.isFinished());
 		assertFalse(union.getNextBufferOrEvent().isPresent());
-	}
-
-	@Test
-	public void testIsAvailable() throws Exception {
-		final SingleInputGate inputGate1 = createInputGate(1);
-		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
-		inputGate1.setInputChannel(new IntermediateResultPartitionID(), inputChannel1);
-
-		final SingleInputGate inputGate2 = createInputGate(1);
-		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
-		inputGate2.setInputChannel(new IntermediateResultPartitionID(), inputChannel2);
-
-		testIsAvailable(new UnionInputGate(inputGate1, inputGate2), inputGate1, inputChannel1);
 	}
 }
