@@ -22,6 +22,7 @@ import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
 /**
@@ -33,6 +34,12 @@ public class OutputFormatVertex extends JobVertex {
 	private static final long serialVersionUID = 1L;
 	
 	private String formatDescription;
+
+	/**
+	 * If this field is not null, this value will be used for generating IntermediateDataSetID
+	 * and this vertex will be excluded from JobGraph.
+	 */
+	private IntermediateDataSetID intermediateDataSetID;
 	
 	/**
 	 * Creates a new task vertex with the specified name.
@@ -135,5 +142,24 @@ public class OutputFormatVertex extends JobVertex {
 			// restore previous classloader
 			Thread.currentThread().setContextClassLoader(prevContextCl);
 		}
+	}
+
+	public void setIntermediateDataSetID(IntermediateDataSetID intermediateDataSetID) {
+		this.intermediateDataSetID = intermediateDataSetID;
+	}
+
+	public boolean isBlockingShuffle() {
+		return this.intermediateDataSetID != null;
+	}
+
+	@Override
+	public JobEdge connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
+		if (this.intermediateDataSetID == null) {
+			return super.connectNewDataSetAsInput(input, distPattern, partitionType);
+		}
+		IntermediateDataSet dataSet = input.createAndAddResultDataSet(intermediateDataSetID, ResultPartitionType.BLOCKING_PERSISTENT);
+		JobEdge edge = new JobEdge(dataSet, this, distPattern);
+		// do not add consumer for input vertex.
+		return edge;
 	}
 }

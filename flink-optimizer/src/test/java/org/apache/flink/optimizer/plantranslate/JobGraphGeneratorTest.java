@@ -23,10 +23,13 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
@@ -35,9 +38,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 
+import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -49,6 +57,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -263,6 +272,55 @@ public class JobGraphGeneratorTest {
 
 		DistributedCache.DistributedCacheEntry nonExecutableDirEntry = submittedArtifacts.get(nonExecutableDirName);
 		assertState(nonExecutableDirEntry, false, true);
+	}
+
+	@Test
+	public void testGeneratingJobGraphWithUnconsumedResultPartition() {
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple2<Long, Long>> input = env.fromElements(new Tuple2<>(1L, 2L))
+			.setParallelism(1);
+
+		DataSet ds = input.map((MapFunction<Tuple2<Long, Long>, Object>) value -> new Tuple2<>(value.f0 + 1, value.f1))
+			.setParallelism(3);
+
+		UUID uuid = UUID.randomUUID();
+
+		// this output branch will be excluded.
+		ds.output(BlockingShuffleOutputFormat.createOutputFormat(uuid))
+			.setParallelism(1);
+
+		// this is the normal output branch.
+		ds.output(new DiscardingOutputFormat())
+			.setParallelism(1);
+
+		Plan plan = env.createProgramPlan();
+		Optimizer pc = new Optimizer(new Configuration());
+		OptimizedPlan op = pc.compile(plan);
+
+		JobGraphGenerator jgg = new JobGraphGenerator();
+		JobGraph jobGraph = jgg.compileJobGraph(op);
+
+		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+
+		JobVertex inputVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		JobVertex mapVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+		JobVertex outputVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
+
+		Assert.assertTrue(outputVertex instanceof OutputFormatVertex);
+		TaskConfig cfg = new TaskConfig(outputVertex.getConfiguration());
+		UserCodeWrapper<OutputFormat<?>> wrapper = cfg.getStubWrapper(this.getClass().getClassLoader());
+		OutputFormat<?> outputFormat = wrapper.getUserCodeObject(OutputFormat.class, this.getClass().getClassLoader());
+		Assert.assertTrue(outputFormat instanceof DiscardingOutputFormat);
+
+		// there are 2 output result with one of them is ResultPartitionType.BLOCKING_PERSISTENT
+		Assert.assertEquals(2, mapVertex.getProducedDataSets().size());
+
+		Assert.assertTrue(mapVertex.getProducedDataSets().stream()
+			.anyMatch(dataSet -> dataSet.getId().equals(new IntermediateDataSetID(uuid)) &&
+				dataSet.getResultType() == ResultPartitionType.BLOCKING_PERSISTENT));
+
 	}
 
 	private static void assertState(DistributedCache.DistributedCacheEntry entry, boolean isExecutable, boolean isZipped) throws IOException {

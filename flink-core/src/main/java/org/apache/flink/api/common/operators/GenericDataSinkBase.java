@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators;
 import java.util.List;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.UUID;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -52,6 +53,11 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	protected Operator<IN> input = null;
 
 	private Ordering localOrdering;
+
+	/**
+	 * This value will be used to generate IntermediateDataSetID for JobGraph if this field is not null.
+	 */
+	private UUID intermediateDataSetID;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -275,5 +281,13 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	@Override
 	public String toString() {
 		return this.name;
+	}
+
+	public UUID getIntermediateDataSetID() {
+		return intermediateDataSetID;
+	}
+
+	public void setIntermediateDataSetID(UUID intermediateDataSetID) {
+		this.intermediateDataSetID = intermediateDataSetID;
 	}
 }

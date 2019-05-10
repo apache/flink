@@ -47,11 +47,13 @@ import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
+import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.operators.AggregateOperator;
+import org.apache.flink.api.java.operators.BlockingShuffleSink;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
@@ -1784,8 +1786,12 @@ public abstract class DataSet<T> {
 		if (outputFormat instanceof InputTypeConfigurable) {
 			((InputTypeConfigurable) outputFormat).setInputType(getType(), context.getConfig());
 		}
-
-		DataSink<T> sink = new DataSink<>(this, outputFormat, getType());
+		DataSink<T> sink;
+		if (outputFormat instanceof BlockingShuffleOutputFormat) {
+			sink = new BlockingShuffleSink<>(this, (BlockingShuffleOutputFormat) outputFormat, getType());
+		} else {
+			sink = new DataSink<>(this, outputFormat, getType());
+		}
 		this.context.registerDataSink(sink);
 		return sink;
 	}
