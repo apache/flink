@@ -20,3 +20,4 @@ org.apache.flink.table.factories.utils.TestTableSourceFactory
 org.apache.flink.table.factories.utils.TestTableFormatFactory
 org.apache.flink.table.factories.utils.TestAmbiguousTableFormatFactory
 org.apache.flink.table.factories.utils.TestExternalCatalogFactory
+org.apache.flink.table.catalog.TestExternalTableSourceFactory

@@ -35,12 +35,11 @@ import scala.collection.JavaConverters._
   * The external catalog and all included sub-catalogs and tables is registered as
   * sub-schemas and tables in Calcite.
   *
-  * @param tableEnv the environment for this schema
   * @param catalogIdentifier external catalog name
   * @param catalog           external catalog
   */
 class ExternalCatalogSchema(
-    tableEnv: TableEnvironment,
+    isBatch: Boolean,
     catalogIdentifier: String,
     catalog: ExternalCatalog) extends Schema with Logging {
 
@@ -54,7 +53,7 @@ class ExternalCatalogSchema(
   override def getSubSchema(name: String): Schema = {
     try {
       val db = catalog.getSubCatalog(name)
-      new ExternalCatalogSchema(tableEnv, name, db)
+      new ExternalCatalogSchema(isBatch, name, db)
     } catch {
       case _: CatalogNotExistException =>
         LOG.warn(s"Sub-catalog $name does not exist in externalCatalog $catalogIdentifier")
@@ -79,7 +78,7 @@ class ExternalCatalogSchema(
     */
   override def getTable(name: String): Table = try {
     val externalCatalogTable = catalog.getTable(name)
-    ExternalTableUtil.fromExternalCatalogTable(tableEnv, externalCatalogTable)
+    ExternalTableUtil.fromExternalCatalogTable(isBatch, externalCatalogTable)
   } catch {
     case _: TableNotExistException => {
       LOG.warn(s"Table $name does not exist in externalCatalog $catalogIdentifier")
@@ -119,17 +118,16 @@ object ExternalCatalogSchema {
   /**
     * Registers an external catalog in a Calcite schema.
     *
-    * @param tableEnv                  The environment the catalog will be part of.
     * @param parentSchema              Parent schema into which the catalog is registered
     * @param externalCatalogIdentifier Identifier of the external catalog
     * @param externalCatalog           The external catalog to register
     */
   def registerCatalog(
-      tableEnv: TableEnvironment,
+      isBatch: Boolean,
       parentSchema: SchemaPlus,
       externalCatalogIdentifier: String,
       externalCatalog: ExternalCatalog): Unit = {
-    val newSchema = new ExternalCatalogSchema(tableEnv, externalCatalogIdentifier, externalCatalog)
+    val newSchema = new ExternalCatalogSchema(isBatch, externalCatalogIdentifier, externalCatalog)
     val schemaPlusOfNewSchema = parentSchema.add(externalCatalogIdentifier, newSchema)
     newSchema.registerSubSchemas(schemaPlusOfNewSchema)
   }

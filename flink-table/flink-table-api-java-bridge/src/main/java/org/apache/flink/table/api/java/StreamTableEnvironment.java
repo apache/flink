@@ -28,6 +28,8 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -400,9 +402,15 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 */
 	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
 		try {
-			Class clazz = Class.forName("org.apache.flink.table.api.java.StreamTableEnvImpl");
-			Constructor con = clazz.getConstructor(StreamExecutionEnvironment.class, TableConfig.class);
-			return (StreamTableEnvironment) con.newInstance(executionEnvironment, tableConfig);
+			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.StreamTableEnvImpl");
+			Constructor con = clazz.getConstructor(
+				StreamExecutionEnvironment.class,
+				TableConfig.class,
+				CatalogManager.class);
+			CatalogManager catalogManager = new CatalogManager(
+				tableConfig.getBuiltInCatalogName(),
+				new GenericInMemoryCatalog(tableConfig.getBuiltInCatalogName(), tableConfig.getBuiltInDatabaseName()));
+			return (StreamTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager);
 		} catch (Throwable t) {
 			throw new TableException("Create StreamTableEnvironment failed.", t);
 		}

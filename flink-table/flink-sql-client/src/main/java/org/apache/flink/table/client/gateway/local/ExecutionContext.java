@@ -74,7 +74,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
 import java.net.URL;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -115,8 +115,8 @@ public class ExecutionContext<T> {
 			this.getClass().getClassLoader());
 
 		// create table sources & sinks.
-		tableSources = new HashMap<>();
-		tableSinks = new HashMap<>();
+		tableSources = new LinkedHashMap<>();
+		tableSinks = new LinkedHashMap<>();
 		mergedEnv.getTables().forEach((name, entry) -> {
 			if (entry instanceof SourceTableEntry || entry instanceof SourceSinkTableEntry) {
 				tableSources.put(name, createTableSource(mergedEnv.getExecution(), entry.asMap(), classLoader));
@@ -127,7 +127,7 @@ public class ExecutionContext<T> {
 		});
 
 		// create user-defined functions
-		functions = new HashMap<>();
+		functions = new LinkedHashMap<>();
 		mergedEnv.getFunctions().forEach((name, entry) -> {
 			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
 			functions.put(name, function);

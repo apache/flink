@@ -113,7 +113,7 @@ class DataSetWindowAggregate(
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
 
     // whether identifiers are matched case-sensitively
-    val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
+    val caseSensitive = tableEnv.getParserConfig.caseSensitive()
 
     window match {
       case TumblingGroupWindow(_, timeField, size)
