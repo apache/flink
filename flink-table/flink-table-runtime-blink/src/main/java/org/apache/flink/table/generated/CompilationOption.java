@@ -27,13 +27,11 @@ public enum CompilationOption {
 
 	/**
 	 * Compiling Java code by Janino.
-	 * The compilation is fast, but the generated binary code is of low quality.
 	 */
 	JANINO,
 
 	/**
 	 * Compiling Java code by Java Compiler API (JCA)
-	 * The compilation is slow, but the generated binary code is of high quality.
 	 */
 	JCA,
 
