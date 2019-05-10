@@ -80,7 +80,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
 	 * value after receiving all end-of-partition events.
 	 */
-	@Test(timeout = 120 * 1000)
+	@Test
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = createInputGate();
@@ -129,7 +129,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		testIsAvailable(inputGate, inputGate, inputChannel);
 	}
 
-	@Test(timeout = 120 * 1000)
+	@Test
 	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = createInputGate();
