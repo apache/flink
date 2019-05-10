@@ -70,7 +70,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
-	protected static final String FINISH_MARKER_FILE_PREFIX = "finish_";
 
 	protected static final int PARALLELISM = 4;
 
