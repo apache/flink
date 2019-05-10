@@ -129,7 +129,8 @@ public class NetworkEnvironment {
 
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			config.numNetworkBuffers(),
-			config.networkBufferSize());
+			config.networkBufferSize(),
+			config.networkBuffersPerChannel());
 
 		registerNetworkMetrics(metricGroup, networkBufferPool);
 
@@ -246,7 +247,7 @@ public class NetworkEnvironment {
 					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 
 				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, config.networkBuffersPerChannel());
+				gate.assignExclusiveSegments(networkBufferPool);
 				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
 			} else {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?

@@ -53,8 +53,8 @@ public class BarrierBufferMassiveRandomTest {
 		try {
 			ioMan = new IOManagerAsync();
 
-			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE);
-			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE);
+			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE, 1);
+			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
 			BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100);
 

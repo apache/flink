@@ -60,7 +60,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			final int bufferSize = 128;
 			final int numBuffers = 10;
 
-			NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, bufferSize);
+			NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, bufferSize, 1);
 			assertEquals(bufferSize, globalPool.getMemorySegmentSize());
 			assertEquals(numBuffers, globalPool.getTotalNumberOfMemorySegments());
 			assertEquals(numBuffers, globalPool.getNumberOfAvailableMemorySegments());
@@ -104,7 +104,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	@Test
 	public void testDestroyAll() {
 		try {
-			NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
+			NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 1);
 
 			BufferPool fixedPool = globalPool.createBufferPool(2, 2);
 			BufferPool boundedPool = globalPool.createBufferPool(0, 1);
@@ -192,18 +192,18 @@ public class NetworkBufferPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the {@link NetworkBufferPool}
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()} with the {@link NetworkBufferPool}
 	 * currently containing the number of required free segments.
 	 */
 	@Test
 	public void testRequestMemorySegmentsLessThanTotalBuffers() throws Exception {
 		final int numBuffers = 10;
 
-		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, numBuffers / 2);
 
 		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
-			memorySegments = globalPool.requestMemorySegments(numBuffers / 2);
+			memorySegments = globalPool.requestMemorySegments();
 			assertEquals(memorySegments.size(), numBuffers / 2);
 
 			globalPool.recycleMemorySegments(memorySegments);
@@ -216,17 +216,17 @@ public class NetworkBufferPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the number of required
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()} with the number of required
 	 * buffers exceeding the capacity of {@link NetworkBufferPool}.
 	 */
 	@Test
 	public void testRequestMemorySegmentsMoreThanTotalBuffers() throws Exception {
 		final int numBuffers = 10;
 
-		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, numBuffers + 1);
 
 		try {
-			globalPool.requestMemorySegments(numBuffers + 1);
+			globalPool.requestMemorySegments();
 			fail("Should throw an IOException");
 		} catch (IOException e) {
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
@@ -236,35 +236,26 @@ public class NetworkBufferPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the invalid argument to
+	 * Tests {@link NetworkBufferPool} constructor with the invalid argument to
 	 * cause exception.
 	 */
-	@Test
-	public void testRequestMemorySegmentsWithInvalidArgument() throws Exception {
-		final int numBuffers = 10;
-
-		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
-
-		try {
-			// the number of requested buffers should be larger than zero
-			globalPool.requestMemorySegments(0);
-			fail("Should throw an IllegalArgumentException");
-		} catch (IllegalArgumentException e) {
-			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
-		} finally {
-			globalPool.destroy();
-		}
+	@Test(expected = IllegalArgumentException.class)
+	public void testRequestMemorySegmentsWithInvalidArgument() {
+		// the number of requested buffers should be larger than zero
+		NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 0);
+		globalPool.destroy();
+		fail("Should throw an IllegalArgumentException");
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the {@link NetworkBufferPool}
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()} with the {@link NetworkBufferPool}
 	 * currently not containing the number of required free segments (currently occupied by a buffer pool).
 	 */
 	@Test
 	public void testRequestMemorySegmentsWithBuffersTaken() throws IOException, InterruptedException {
 		final int numBuffers = 10;
 
-		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128, numBuffers / 2);
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
 		List<MemorySegment> memorySegments = Collections.emptyList();
@@ -298,7 +289,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 			// take more buffers than are freely available at the moment via requestMemorySegments()
 			isRunning.await();
-			memorySegments = networkBufferPool.requestMemorySegments(numBuffers / 2);
+			memorySegments = networkBufferPool.requestMemorySegments();
 			assertThat(memorySegments, not(hasItem(nullValue())));
 		} finally {
 			if (bufferRecycler != null) {
@@ -313,14 +304,14 @@ public class NetworkBufferPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with an exception occurring during
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()} with an exception occurring during
 	 * the call to {@link NetworkBufferPool#redistributeBuffers()}.
 	 */
 	@Test
 	public void testRequestMemorySegmentsExceptionDuringBufferRedistribution() throws IOException {
 		final int numBuffers = 3;
 
-		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128, 2);
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
 		List<MemorySegment> memorySegments = Collections.emptyList();
@@ -339,7 +330,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			}
 
 			// this will ask the buffer pool to release its excess buffers which should fail
-			memorySegments = networkBufferPool.requestMemorySegments(2);
+			memorySegments = networkBufferPool.requestMemorySegments();
 			fail("Requesting memory segments should have thrown during buffer pool redistribution.");
 		} catch (TestIOException e) {
 			// test indirectly for NetworkBufferPool#numTotalRequiredBuffers being correct:
@@ -361,7 +352,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	@Test
 	public void testCreateBufferPoolExceptionDuringBufferRedistribution() throws IOException {
 		final int numBuffers = 3;
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128, 1);
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
 		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
@@ -406,14 +397,14 @@ public class NetworkBufferPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)}, verifying it may be aborted in
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()}, verifying it may be aborted in
 	 * case of a concurrent {@link NetworkBufferPool#destroy()} call.
 	 */
 	@Test
 	public void testRequestMemorySegmentsInterruptable() throws Exception {
 		final int numBuffers = 10;
 
-		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, 10);
 		MemorySegment segment = globalPool.requestMemorySegment();
 		assertNotNull(segment);
 
@@ -422,7 +413,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			@Override
 			public void go() throws Exception {
 				isRunning.trigger();
-				globalPool.requestMemorySegments(10);
+				globalPool.requestMemorySegments();
 			}
 		};
 		asyncRequest.start();
@@ -445,14 +436,14 @@ public class NetworkBufferPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)}, verifying it may be aborted and
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()}, verifying it may be aborted and
 	 * remains in a defined state even if the waiting is interrupted.
 	 */
 	@Test
 	public void testRequestMemorySegmentsInterruptable2() throws Exception {
 		final int numBuffers = 10;
 
-		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, 10);
 		MemorySegment segment = globalPool.requestMemorySegment();
 		assertNotNull(segment);
 
@@ -461,7 +452,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			@Override
 			public void go() throws Exception {
 				isRunning.trigger();
-				globalPool.requestMemorySegments(10);
+				globalPool.requestMemorySegments();
 			}
 		};
 		asyncRequest.start();
