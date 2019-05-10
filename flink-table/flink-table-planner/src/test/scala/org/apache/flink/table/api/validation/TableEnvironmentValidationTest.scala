@@ -26,6 +26,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironmentTest.{CClass, PojoClass}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException
 import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
@@ -110,7 +111,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     util.addTable('first)(genericRowType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[TableAlreadyExistException])
   def testRegisterExistingDataSet(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -130,7 +131,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     tEnv.scan("someTable")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[TableAlreadyExistException])
   def testRegisterExistingTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)

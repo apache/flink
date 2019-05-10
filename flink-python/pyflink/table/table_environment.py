@@ -185,6 +185,120 @@ class TableEnvironment(object):
         else:
             self._j_tenv.sqlUpdate(stmt)
 
+    def get_current_catalog(self):
+        """
+        Gets the current default catalog name of the current session.
+
+        :return The current default catalog name that is used for the path resolution.
+        .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
+        """
+        self._j_tenv.getCurrentCatalog()
+
+    def use_catalog(self, catalog_name):
+        """
+        Sets the current catalog to the given value. It also sets the default
+        database to the catalog's default one.
+        See also :func:`~TableEnvironment.use_database`.
+
+        This is used during the resolution of object paths. Both the catalog and database are
+        optional when referencing catalog objects such as tables, views etc. The algorithm looks for
+        requested objects in following paths in that order:
+
+        * ``[current-catalog].[current-database].[requested-path]``
+        * ``[current-catalog].[requested-path]``
+        * ``[requested-path]``
+
+        Example:
+
+        Given structure with default catalog set to ``default_catalog`` and default database set to
+        ``default_database``. ::
+
+            root:
+              |- default_catalog
+                  |- default_database
+                      |- tab1
+                  |- db1
+                      |- tab1
+              |- cat1
+                  |- db1
+                      |- tab1
+
+        The following table describes resolved paths:
+
+        +----------------+-----------------------------------------+
+        | Requested path |             Resolved path               |
+        +================+=========================================+
+        | tab1           | default_catalog.default_database.tab1   |
+        +----------------+-----------------------------------------+
+        | db1.tab1       | default_catalog.db1.tab1                |
+        +----------------+-----------------------------------------+
+        | cat1.db1.tab1  | cat1.db1.tab1                           |
+        +----------------+-----------------------------------------+
+
+        :param: catalog_name: The name of the catalog to set as the current default catalog.
+        :throws: CatalogException thrown if a catalog with given name could not be set as the
+                 default one
+        .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
+        """
+        self._j_tenv.useCatalog(catalog_name)
+
+    def get_current_database(self):
+        """
+        Gets the current default database name of the running session.
+
+        :return The name of the current database of the current catalog.
+        .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
+        """
+        self._j_tenv.getCurrentCatalog()
+
+    def use_database(self, database_name):
+        """
+        Sets the current default database. It has to exist in the current catalog. That path will
+        be used as the default one when looking for unqualified object names.
+
+        This is used during the resolution of object paths. Both the catalog and database are
+        optional when referencing catalog objects such as tables, views etc. The algorithm looks for
+        requested objects in following paths in that order:
+
+        * ``[current-catalog].[current-database].[requested-path]``
+        * ``[current-catalog].[requested-path]``
+        * ``[requested-path]``
+
+        Example:
+
+        Given structure with default catalog set to ``default_catalog`` and default database set to
+        ``default_database``. ::
+
+            root:
+              |- default_catalog
+                  |- default_database
+                      |- tab1
+                  |- db1
+                      |- tab1
+              |- cat1
+                  |- db1
+                      |- tab1
+
+        The following table describes resolved paths:
+
+        +----------------+-----------------------------------------+
+        | Requested path |             Resolved path               |
+        +================+=========================================+
+        | tab1           | default_catalog.default_database.tab1   |
+        +----------------+-----------------------------------------+
+        | db1.tab1       | default_catalog.db1.tab1                |
+        +----------------+-----------------------------------------+
+        | cat1.db1.tab1  | cat1.db1.tab1                           |
+        +----------------+-----------------------------------------+
+
+        :throws: CatalogException thrown if the given catalog and database could not be set as
+                the default ones
+        .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
+
+        :param: database_name: The name of the database to set as the current database.
+        """
+        self._j_tenv.useDatabase(database_name)
+
     def execute(self, job_name=None):
         """
         Triggers the program execution.

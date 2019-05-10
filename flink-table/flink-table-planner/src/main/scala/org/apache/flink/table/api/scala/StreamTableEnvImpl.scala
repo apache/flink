@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.asScalaStream
+import org.apache.flink.table.catalog.CatalogManager
 
 /**
   * The implementation for a Scala [[StreamTableEnvironment]].
@@ -33,11 +34,13 @@ import org.apache.flink.streaming.api.scala.asScalaStream
   */
 class StreamTableEnvImpl(
     execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
+    config: TableConfig,
+    catalogManager: CatalogManager)
   extends org.apache.flink.table.api.StreamTableEnvImpl(
     execEnv.getWrappedStreamExecutionEnvironment,
-    config)
-    with org.apache.flink.table.api.scala.StreamTableEnvironment {
+    config,
+    catalogManager)
+  with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
 

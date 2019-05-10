@@ -16,18 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.calcite.jdbc;
+
+import org.apache.calcite.schema.Schema;
 
 /**
- * Exception for adding an already existent catalog.
+ * This class is used to create a {@link CalciteSchema} with a given {@link Schema} as the root.
  */
-public class CatalogAlreadyExistsException extends Exception {
+public class CalciteSchemaBuilder {
 
-	public CatalogAlreadyExistsException(String catalogName) {
-		this(catalogName, null);
+	/**
+	 * Creates a {@link CalciteSchema} with a given {@link Schema} as the root.
+	 *
+	 * @param root schema to use as a root schema
+	 * @return calcite schema with given schema as the root
+	 */
+	public static CalciteSchema asRootSchema(Schema root) {
+		return new SimpleCalciteSchema(null, root, "");
 	}
 
-	public CatalogAlreadyExistsException(String catalogName, Throwable cause) {
-		super(String.format("Catalog %s already exists.", catalogName), cause);
+	private CalciteSchemaBuilder() {
 	}
 }

@@ -512,18 +512,25 @@ class Table(object):
         """
         return Table(self._j_table.dropColumns(fields))
 
-    def insert_into(self, table_name):
+    def insert_into(self, table_path, *table_path_continued):
         """
         Writes the :class:`Table` to a :class:`TableSink` that was registered under
-        the specified name.
+        the specified name. For the path resolution algorithm see
+        :func:`~TableEnvironment.useDatabase`.
 
         Example:
         ::
             >>> tab.insert_into("print")
 
-        :param table_name: Name of the :class:`TableSink` to which the :class:`Table` is written.
+        :param table_path: The first part of the path of the registered :class:`TableSink` to which
+               the :class:`Table` is written. This is to ensure at least the name of the
+               :class:`Table` is provided.
+        :param table_path_continued: The remaining part of the path of the registered
+                :class:`TableSink` to which the :class:`Table`  is written.
         """
-        self._j_table.insertInto(table_name)
+        gateway = get_gateway()
+        j_table_path = to_jarray(gateway.jvm.String, table_path_continued)
+        self._j_table.insertInto(table_path, j_table_path)
 
     def print_schema(self):
         """

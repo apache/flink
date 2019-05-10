@@ -355,12 +355,20 @@ class TableImpl(
     wrap(operationTreeBuilder.limitWithFetch(fetch, operationTree))
   }
 
-  override def insertInto(tableName: String): Unit = {
-    insertInto(tableName, tableEnv.queryConfig)
+  override def insertInto(tablePath: String, tablePathContinued: String*): Unit = {
+    insertInto(tableEnv.queryConfig, tablePath, tablePathContinued: _*)
   }
 
   override def insertInto(tableName: String, conf: QueryConfig): Unit = {
-    tableEnv.insertInto(this, tableName, conf)
+    insertInto(conf, tableName)
+  }
+
+  override def insertInto(
+      conf: QueryConfig,
+      tablePath: String,
+      tablePathContinued: String*)
+    : Unit = {
+    tableEnv.insertInto(this, conf, tablePath +: tablePathContinued:_*)
   }
 
   override def window(window: GroupWindow): GroupWindowedTable = {

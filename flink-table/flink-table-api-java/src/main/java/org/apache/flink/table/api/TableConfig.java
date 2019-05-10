@@ -58,6 +58,18 @@ public class TableConfig {
 	private Integer maxGeneratedCodeLength = 64000; // just an estimate
 
 	/**
+	 * Specifies the name of the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	private String builtInCatalogName = "default_catalog";
+
+	/**
+	 * Specifies the name of the default database in the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	private String builtInDatabaseName = "default_database";
+
+	/**
 	 * Returns the timezone for date/time/timestamp conversions.
 	 */
 	public TimeZone getTimeZone() {
@@ -132,6 +144,38 @@ public class TableConfig {
 	 */
 	public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
 		this.maxGeneratedCodeLength = Preconditions.checkNotNull(maxGeneratedCodeLength);
+	}
+
+	/**
+	 * Gets the specified name of the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}.
+	 */
+	public String getBuiltInCatalogName() {
+		return builtInCatalogName;
+	}
+
+	/**
+	 * Specifies the name of the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}. This method has no effect if called on the {@link TableEnvironment#getConfig()}.
+	 */
+	public void setBuiltInCatalogName(String builtInCatalogName) {
+		this.builtInCatalogName = builtInCatalogName;
+	}
+
+	/**
+	 * Gets the specified name of the default database in the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}.
+	 */
+	public String getBuiltInDatabaseName() {
+		return builtInDatabaseName;
+	}
+
+	/**
+	 * Specifies the name of the default database in the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}. This method has no effect if called on the {@link TableEnvironment#getConfig()}.
+	 */
+	public void setBuiltInDatabaseName(String builtInDatabaseName) {
+		this.builtInDatabaseName = builtInDatabaseName;
 	}
 
 	public static TableConfig getDefault() {

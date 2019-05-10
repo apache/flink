@@ -38,11 +38,12 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
     @classmethod
     def excluded_methods(cls):
         # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
-        # registerExternalCatalog, getRegisteredExternalCatalog and listTables
-        # should be supported when catalog supported in python.
+        # registerExternalCatalog, getRegisteredExternalCatalog, registerCatalog, getCatalog and
+        # listTables should be supported when catalog supported in python.
         # getCompletionHints has been deprecated. It will be removed in the next release.
-        return {'registerExternalCatalog', 'getRegisteredExternalCatalog',
-                'registerFunction', 'listUserDefinedFunctions', 'listTables', 'getCompletionHints'}
+        return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'registerCatalog',
+                'getCatalog', 'registerFunction', 'listUserDefinedFunctions', 'listTables',
+                'getCompletionHints'}
 
 
 if __name__ == '__main__':
