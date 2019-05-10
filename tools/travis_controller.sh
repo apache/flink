@@ -200,6 +200,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	find . -type f -name '*.timestamp' | xargs touch
 	travis_time_finish
 	end_fold "adjust_timestamps"
+
 	if [ $STAGE == "$STAGE_PYTHON" ]; then
 		"./tools/travis_python_watchdog.sh" 300
 	else
