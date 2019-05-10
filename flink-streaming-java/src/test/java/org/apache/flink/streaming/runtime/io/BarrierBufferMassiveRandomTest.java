@@ -204,6 +204,10 @@ public class BarrierBufferMassiveRandomTest {
 		}
 
 		@Override
+		public void setup() {
+		}
+
+		@Override
 		public void close() {
 		}
 	}

@@ -129,4 +129,9 @@ public abstract class InputGate implements AutoCloseable {
 			this.moreAvailable = moreAvailable;
 		}
 	}
+
+	/**
+	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
+	 */
+	public abstract void setup() throws IOException;
 }
