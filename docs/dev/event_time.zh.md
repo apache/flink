@@ -27,13 +27,13 @@ under the License.
 * toc
 {:toc}
 
-# Event Time / Processing Time / Ingestion Time
+# 事件时间 / 处理时间 / Ingestion Time
 
-Flink supports different notions of *time* in streaming programs.
-
-- **Processing time:** Processing time refers to the system time of the machine that is executing the
-    respective operation.
-
+FLink支持流处理程序中以下的时间处理概念:
+ 
+- **处理时间：** 处理时间指的是机器执行每个操作的时间
+      
+    在一个流式处理的程序在运行过程中,所有基于时间的操作都将使用每台机器各自的系统时间去运行的各自的操作。一个整小时运行的时间
     When a streaming program runs on processing time, all time-based operations (like time windows) will
     use the system clock of the machines that run the respective operator. An hourly
     processing time window will include all records that arrived at a specific operator between the
