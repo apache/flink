@@ -29,6 +29,11 @@ import java.io.IOException;
  */
 public interface ResultPartitionWriter extends AutoCloseable {
 
+	/**
+	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
+	 */
+	void setup() throws IOException;
+
 	BufferProvider getBufferProvider();
 
 	ResultPartitionID getPartitionId();

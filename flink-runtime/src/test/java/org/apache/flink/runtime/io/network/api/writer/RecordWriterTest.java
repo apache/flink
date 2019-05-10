@@ -474,6 +474,10 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public void setup() {
+		}
+
+		@Override
 		public BufferProvider getBufferProvider() {
 			return bufferProvider;
 		}
@@ -532,6 +536,10 @@ public class RecordWriterTest {
 
 		private RecyclingPartitionWriter(BufferProvider bufferProvider) {
 			this.bufferProvider = bufferProvider;
+		}
+
+		@Override
+		public void setup() {
 		}
 
 		@Override

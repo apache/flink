@@ -57,7 +57,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -135,11 +134,19 @@ public class NetworkEnvironment {
 		registerNetworkMetrics(metricGroup, networkBufferPool);
 
 		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
-		ResultPartitionFactory resultPartitionFactory =
-			new ResultPartitionFactory(resultPartitionManager, ioManager);
+		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
+			resultPartitionManager,
+			ioManager,
+			networkBufferPool,
+			config.networkBuffersPerChannel(),
+			config.floatingNetworkBuffersPerGate());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
-			config, connectionManager, resultPartitionManager, taskEventPublisher, networkBufferPool);
+			config,
+			connectionManager,
+			resultPartitionManager,
+			taskEventPublisher,
+			networkBufferPool);
 
 		return new NetworkEnvironment(
 			config,
@@ -196,43 +203,13 @@ public class NetworkEnvironment {
 			}
 
 			for (final ResultPartition partition : producedPartitions) {
-				setupPartition(partition);
+				partition.setup();
 			}
 
 			// Setup the buffer pool for each buffer reader
 			final SingleInputGate[] inputGates = task.getAllInputGates();
 			for (SingleInputGate gate : inputGates) {
 				setupInputGate(gate);
-			}
-		}
-	}
-
-	@VisibleForTesting
-	public void setupPartition(ResultPartition partition) throws IOException {
-		BufferPool bufferPool = null;
-
-		try {
-			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-				partition.getNumberOfSubpartitions() * config.networkBuffersPerChannel() +
-					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
-			// If the partition type is back pressure-free, we register with the buffer pool for
-			// callbacks to release memory.
-			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
-				maxNumberOfMemorySegments,
-				partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition));
-
-			partition.registerBufferPool(bufferPool);
-
-			resultPartitionManager.registerResultPartition(partition);
-		} catch (Throwable t) {
-			if (bufferPool != null) {
-				bufferPool.lazyDestroy();
-			}
-
-			if (t instanceof IOException) {
-				throw (IOException) t;
-			} else {
-				throw new IOException(t.getMessage(), t);
 			}
 		}
 	}

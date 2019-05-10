@@ -21,8 +21,16 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.function.FunctionWithException;
+
+import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Utility class to encapsulate the logic of building a {@link ResultPartition} instance.
@@ -47,6 +55,15 @@ public class ResultPartitionBuilder {
 	private IOManager ioManager = new IOManagerAsync();
 
 	private boolean sendScheduleOrUpdateConsumersMessage = false;
+
+	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 1,1);
+
+	private int networkBuffersPerChannel = 1;
+
+	private int floatingNetworkBuffersPerGate = 1;
+
+	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
 	public ResultPartitionBuilder setJobId(JobID jobId) {
 		this.jobId = jobId;
@@ -88,13 +105,52 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setSendScheduleOrUpdateConsumersMessage(boolean sendScheduleOrUpdateConsumersMessage) {
+	public ResultPartitionBuilder setSendScheduleOrUpdateConsumersMessage(
+		boolean sendScheduleOrUpdateConsumersMessage) {
+
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
 		return this;
 	}
 
+	public ResultPartitionBuilder setupBufferPoolFactoryFromNetworkEnvironment(NetworkEnvironment environment) {
+		return setNetworkBuffersPerChannel(environment.getConfiguration().networkBuffersPerChannel())
+			.setFloatingNetworkBuffersPerGate(environment.getConfiguration().floatingNetworkBuffersPerGate())
+			.setNetworkBufferPool(environment.getNetworkBufferPool());
+	}
+
+	public ResultPartitionBuilder setNetworkBufferPool(NetworkBufferPool networkBufferPool) {
+		this.networkBufferPool = networkBufferPool;
+		return this;
+	}
+
+	private ResultPartitionBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		return this;
+	}
+
+	private ResultPartitionBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
+		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		return this;
+	}
+
+	public ResultPartitionBuilder setBufferPoolFactory(
+			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+		this.bufferPoolFactory = Optional.of(bufferPoolFactory);
+		return this;
+	}
+
 	public ResultPartition build() {
-		return new ResultPartitionFactory(partitionManager, ioManager).create(
+		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
+			partitionManager,
+			ioManager,
+			networkBufferPool,
+			networkBuffersPerChannel,
+			floatingNetworkBuffersPerGate);
+
+		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
+			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
+
+		return resultPartitionFactory.create(
 			"Result Partition task",
 			taskActions,
 			jobId,
@@ -103,6 +159,7 @@ public class ResultPartitionBuilder {
 			numberOfSubpartitions,
 			numTargetKeyGroups,
 			partitionConsumableNotifier,
-			sendScheduleOrUpdateConsumersMessage);
+			sendScheduleOrUpdateConsumersMessage,
+			factory);
 	}
 }
