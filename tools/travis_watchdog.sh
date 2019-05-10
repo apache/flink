@@ -45,6 +45,11 @@ SLEEP_TIME=20
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
+PYTHON_TEST="./flink-python/dev/lint-python.sh"
+PYTHON_PID="${ARTIFACTS_DIR}/watchdog.python.pid"
+PYTHON_EXIT="${ARTIFACTS_DIR}/watchdog.python.exit"
+PYTHON_OUT="${ARTIFACTS_DIR}/python.out"
+
 MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${TEST})
 MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 
@@ -77,6 +82,20 @@ UPLOAD_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
 UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
 
 ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
+
+if [ $TEST == $STAGE_PYTHON ]; then
+	CMD=$PYTHON_TEST
+	CMD_PID=$PYTHON_PID
+	CMD_OUT=$PYTHON_OUT
+	CMD_EXIT=$PYTHON_EXIT
+	CMD_TYPE="PYTHON"
+else
+	CMD=$MVN_COMPILE
+	CMD_PID=$MVN_PID
+	CMD_OUT=$MVN_OUT
+	CMD_EXIT=$MVN_EXIT
+	CMD_TYPE="MVN"
+fi
 
 # =============================================================================
 # FUNCTIONS
@@ -145,10 +164,10 @@ put_yarn_logs_to_artifacts() {
 
 mod_time () {
 	if [[ `uname` == 'Darwin' ]]; then
-		eval $(stat -s $MVN_OUT)
+		eval $(stat -s $CMD_OUT)
 		echo $st_mtime
 	else
-		echo `stat -c "%Y" $MVN_OUT`
+		echo `stat -c "%Y" $CMD_OUT`
 	fi
 }
 
@@ -157,7 +176,7 @@ the_time() {
 }
 
 watchdog () {
-	touch $MVN_OUT
+	touch $CMD_OUT
 
 	while true; do
 		sleep $SLEEP_TIME
@@ -171,7 +190,7 @@ watchdog () {
 
 			print_stacktraces | tee $TRACE_OUT
 
-			kill $(<$MVN_PID)
+			kill $(<$CMD_PID)
 
 			exit 1
 		fi
@@ -194,54 +213,56 @@ cd $HERE/../
 
 # Compile modules
 
-echo "RUNNING '${MVN_COMPILE}'."
+echo "RUNNING '${CMD}'."
 
-# Run $MVN_COMPILE and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
-# allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
+# Run $CMD and pipe output to $CMD_OUT for the watchdog. The PID is written to $CMD_PID to
+# allow the watchdog to kill $CMD if it is not producing any output anymore. $CMD_EXIT contains
 # the exit code. This is important for Travis' build life-cycle (success/failure).
-( $MVN_COMPILE & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
+( $CMD & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$CMD_PID 4>$CMD_EXIT | tee $CMD_OUT
 
-EXIT_CODE=$(<$MVN_EXIT)
+EXIT_CODE=$(<$CMD_EXIT)
 
-echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
+echo "${CMD_TYPE} exited with EXIT CODE: ${EXIT_CODE}."
 
-# Make sure to kill the watchdog in any case after $MVN_COMPILE has completed
+# Make sure to kill the watchdog in any case after $CMD has completed
 echo "Trying to KILL watchdog (${WD_PID})."
 ( kill $WD_PID 2>&1 ) > /dev/null
 
-rm $MVN_PID
-rm $MVN_EXIT
+rm $CMD_PID
+rm $CMD_EXIT
 
 # Run tests if compilation was successful
-if [ $EXIT_CODE == 0 ]; then
+if [ $CMD_TYPE == "MVN" ]; then
+	if [ $EXIT_CODE == 0 ]; then
 
-	# Start watching $MVN_OUT
-	watchdog &
-	echo "STARTED watchdog (${WD_PID})."
+		# Start watching $MVN_OUT
+		watchdog &
+		echo "STARTED watchdog (${WD_PID})."
 
-	WD_PID=$!
+		WD_PID=$!
 
-	echo "RUNNING '${MVN_TEST}'."
+		echo "RUNNING '${MVN_TEST}'."
 
-	# Run $MVN_TEST and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
-	# allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
-	# the exit code. This is important for Travis' build life-cycle (success/failure).
-	( $MVN_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
+		# Run $MVN_TEST and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
+		# allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
+		# the exit code. This is important for Travis' build life-cycle (success/failure).
+		( $MVN_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
 
-	EXIT_CODE=$(<$MVN_EXIT)
+		EXIT_CODE=$(<$MVN_EXIT)
 
-	echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
+		echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
-	# Make sure to kill the watchdog in any case after $MVN_TEST has completed
-	echo "Trying to KILL watchdog (${WD_PID})."
-	( kill $WD_PID 2>&1 ) > /dev/null
+		# Make sure to kill the watchdog in any case after $MVN_TEST has completed
+		echo "Trying to KILL watchdog (${WD_PID})."
+		( kill $WD_PID 2>&1 ) > /dev/null
 
-	rm $MVN_PID
-	rm $MVN_EXIT
-else
-	echo "=============================================================================="
-	echo "Compilation failure detected, skipping test execution."
-	echo "=============================================================================="
+		rm $MVN_PID
+		rm $MVN_EXIT
+	else
+		echo "=============================================================================="
+		echo "Compilation failure detected, skipping test execution."
+		echo "=============================================================================="
+	fi
 fi
 
 # Post
