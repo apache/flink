@@ -156,9 +156,10 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		protected void run() throws Exception {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			executionLatch.trigger();
 			cancellationLatch.await();
+			context.allActionsCompleted();
 		}
 
 		@Override
