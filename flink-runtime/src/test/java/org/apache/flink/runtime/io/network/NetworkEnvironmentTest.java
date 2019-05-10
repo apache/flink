@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -117,10 +118,10 @@ public class NetworkEnvironmentTest {
 		assertEquals(enableCreditBasedFlowControl ? 8 : 8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig1, times(invokations)).assignExclusiveSegments();
+		verify(ig2, times(invokations)).assignExclusiveSegments();
+		verify(ig3, times(invokations)).assignExclusiveSegments();
+		verify(ig4, times(invokations)).assignExclusiveSegments();
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();
@@ -197,19 +198,19 @@ public class NetworkEnvironmentTest {
 		// set up remote input channels for the exclusive buffers of the credit-based flow control
 		// (note that this does not obey the partition types which is ok for the scope of the test)
 		if (enableCreditBasedFlowControl) {
-			createRemoteInputChannel(ig4, 0, rp1, connManager);
-			createRemoteInputChannel(ig4, 0, rp2, connManager);
-			createRemoteInputChannel(ig4, 0, rp3, connManager);
-			createRemoteInputChannel(ig4, 0, rp4, connManager);
+			createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
+			createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
+			createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
+			createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig1, 1, rp1, connManager);
-			createRemoteInputChannel(ig1, 1, rp4, connManager);
+			createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
+			createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig2, 1, rp2, connManager);
-			createRemoteInputChannel(ig2, 2, rp4, connManager);
+			createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
+			createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig3, 1, rp3, connManager);
-			createRemoteInputChannel(ig3, 3, rp4, connManager);
+			createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
+			createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
 		}
 
 		// overall task to register
@@ -243,10 +244,10 @@ public class NetworkEnvironmentTest {
 		assertEquals(enableCreditBasedFlowControl ? 8 : 4 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig1, times(invokations)).assignExclusiveSegments();
+		verify(ig2, times(invokations)).assignExclusiveSegments();
+		verify(ig3, times(invokations)).assignExclusiveSegments();
+		verify(ig4, times(invokations)).assignExclusiveSegments();
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();
@@ -301,11 +302,13 @@ public class NetworkEnvironmentTest {
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartition resultPartition,
-			ConnectionManager connManager) {
+			ConnectionManager connManager,
+			MemorySegmentProvider memorySegmentProvider) {
 		InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionId(resultPartition.getPartitionId())
 			.setConnectionManager(connManager)
+			.setMemorySegmentProvider(memorySegmentProvider)
 			.buildRemoteAndSetToGate(inputGate);
 	}
 }

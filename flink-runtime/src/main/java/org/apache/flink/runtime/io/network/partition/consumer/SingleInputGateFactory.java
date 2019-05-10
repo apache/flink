@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -62,17 +63,22 @@ public class SingleInputGateFactory {
 	@Nonnull
 	private final TaskEventPublisher taskEventPublisher;
 
+	@Nonnull
+	private final MemorySegmentProvider memorySegmentProvider;
+
 	public SingleInputGateFactory(
 			@Nonnull NetworkEnvironmentConfiguration networkConfig,
 			@Nonnull ConnectionManager connectionManager,
 			@Nonnull ResultPartitionManager partitionManager,
-			@Nonnull TaskEventPublisher taskEventPublisher) {
+			@Nonnull TaskEventPublisher taskEventPublisher,
+			@Nonnull MemorySegmentProvider memorySegmentProvider) {
 		this.isCreditBased = networkConfig.isCreditBased();
 		this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
 		this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
 		this.connectionManager = connectionManager;
 		this.partitionManager = partitionManager;
 		this.taskEventPublisher = taskEventPublisher;
+		this.memorySegmentProvider = memorySegmentProvider;
 	}
 
 	/**
@@ -124,7 +130,8 @@ public class SingleInputGateFactory {
 					connectionManager,
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
-					metrics);
+					metrics,
+					memorySegmentProvider);
 
 				numRemoteChannels++;
 			}
@@ -135,7 +142,8 @@ public class SingleInputGateFactory {
 					connectionManager,
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
-					metrics);
+					metrics,
+					memorySegmentProvider);
 
 				numUnknownChannels++;
 			}

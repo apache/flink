@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -129,11 +127,13 @@ public class PartitionRequestClientHandlerTest {
 	public void testReceiveBuffer() throws Exception {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
+			.setMemorySegmentProvider(networkBufferPool)
+			.buildRemoteAndSetToGate(inputGate);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 
 			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
@@ -202,52 +202,6 @@ public class PartitionRequestClientHandlerTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
-		return createRemoteInputChannel(inputGate, null);
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @param client The client is used to send partition request.
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
-		return createRemoteInputChannel(inputGate, client, 0, 0);
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @param client The client is used to send partition request.
-	 * @param initialBackoff initial back off (in ms) for retriggering subpartition requests (must be <tt>&gt; 0</tt> to activate)
-	 * @param maxBackoff after which delay (in ms) to stop retriggering subpartition requests
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(
-			SingleInputGate inputGate,
-			PartitionRequestClient client,
-			int initialBackoff,
-			int maxBackoff) throws Exception {
-		final ConnectionManager connectionManager = mock(ConnectionManager.class);
-		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-			.thenReturn(client);
-
-		return InputChannelBuilder.newBuilder()
-			.setConnectionManager(connectionManager)
-			.setInitialBackoff(initialBackoff)
-			.setMaxBackoff(maxBackoff)
-			.buildRemoteAndSetToGate(inputGate);
-	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.

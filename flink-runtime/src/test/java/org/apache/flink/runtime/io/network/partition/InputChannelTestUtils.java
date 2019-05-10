@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -31,6 +34,9 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import java.util.Collection;
+import java.util.Collections;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -121,6 +127,48 @@ public class InputChannelTestUtils {
 			.buildRemoteAndSetToGate(inputGate);
 	}
 
+	public static RemoteInputChannel createRemoteInputChannel(
+		SingleInputGate inputGate,
+		PartitionRequestClient client,
+		MemorySegmentProvider memorySegmentProvider) {
+
+		return InputChannelBuilder.newBuilder()
+			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
+			.setMemorySegmentProvider(memorySegmentProvider)
+			.buildRemoteAndSetToGate(inputGate);
+	}
+
+	public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(PartitionRequestClient client) {
+		return new ConnectionManager() {
+			@Override
+			public void start(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventDispatcher) {
+			}
+
+			@Override
+			public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+				return client;
+			}
+
+			@Override
+			public void closeOpenChannelConnections(ConnectionID connectionId) {
+			}
+
+			@Override
+			public int getNumberOfActiveConnections() {
+				return 0;
+			}
+
+			@Override
+			public int getDataPort() {
+				return 0;
+			}
+
+			@Override
+			public void shutdown() {
+			}
+		};
+	}
+
 	public static InputChannelMetrics newUnregisteredInputChannelMetrics() {
 		return new InputChannelMetrics(UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 	}
@@ -129,4 +177,27 @@ public class InputChannelTestUtils {
 
 	/** This class is not meant to be instantiated. */
 	private InputChannelTestUtils() {}
+
+	/**
+	 * Test stub for {@link MemorySegmentProvider}.
+	 */
+	public static class StubMemorySegmentProvider implements MemorySegmentProvider {
+		private static final MemorySegmentProvider INSTANCE = new StubMemorySegmentProvider();
+
+		public static MemorySegmentProvider getInstance() {
+			return INSTANCE;
+		}
+
+		private StubMemorySegmentProvider() {
+		}
+
+		@Override
+		public Collection<MemorySegment> requestMemorySegments() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public void recycleMemorySegments(Collection<MemorySegment> segments) {
+		}
+	}
 }
