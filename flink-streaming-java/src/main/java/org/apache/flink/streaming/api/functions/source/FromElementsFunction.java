@@ -141,7 +141,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 			catch (Exception e) {
 				throw new IOException("Failed to deserialize an element from the source. " +
 						"If you are using user-defined serialization (Value and Writable types), check the " +
-						"serialization functions.\nSerializer is " + serializer);
+						"serialization functions.\nSerializer is " + serializer, e);
 			}
 
 			this.numElementsEmitted = this.numElementsToSkip;
@@ -157,7 +157,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 			catch (Exception e) {
 				throw new IOException("Failed to deserialize an element from the source. " +
 						"If you are using user-defined serialization (Value and Writable types), check the " +
-						"serialization functions.\nSerializer is " + serializer);
+						"serialization functions.\nSerializer is " + serializer, e);
 			}
 
 			synchronized (lock) {
