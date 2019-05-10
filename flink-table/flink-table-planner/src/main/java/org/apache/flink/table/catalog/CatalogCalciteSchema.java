@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -41,8 +40,6 @@ import java.util.Set;
 /**
  * A mapping between Flink's catalog and Calcite's schema. This enables to look up and access tables
  * in SQL queries without registering tables in advance. Databases are registered as sub-schemas in the schema.
- * This mapping is modeled as a strict two-level reference structure for Flink in Calcite,
- * the full path of tables and views is of format [catalog_name].[db_name].[meta-object_name].
  */
 @Internal
 public class CatalogCalciteSchema implements Schema {
@@ -69,8 +66,7 @@ public class CatalogCalciteSchema implements Schema {
 			return new DatabaseCalciteSchema(schemaName, catalog);
 		} else {
 			LOGGER.error(String.format("Schema %s does not exist in catalog %s", schemaName, catalogName));
-			throw new CatalogException(
-				new DatabaseNotExistException(catalogName, schemaName));
+			throw new CatalogException(new DatabaseNotExistException(catalogName, schemaName));
 		}
 	}
 
@@ -122,110 +118,5 @@ public class CatalogCalciteSchema implements Schema {
 	@Override
 	public Schema snapshot(SchemaVersion schemaVersion) {
 		return this;
-	}
-
-	/**
-	 * Register a ReadableCatalog to Calcite schema with given name.
-	 *
-	 * @param parentSchema the parent schema
-	 * @param catalogName name of the catalog to register
-	 * @param catalog the catalog to register
-	 */
-	public static void registerCatalog(
-			SchemaPlus parentSchema,
-			String catalogName,
-		Catalog catalog) {
-		CatalogCalciteSchema newCatalog = new CatalogCalciteSchema(catalogName, catalog);
-		parentSchema.add(catalogName, newCatalog);
-
-		LOGGER.info("Registered catalog '{}' to Calcite", catalogName);
-	}
-
-	/**
-	 * A mapping between Flink catalog's database and Calcite's schema.
-	 * Tables are registered as tables in the schema.
-	 */
-	private class DatabaseCalciteSchema implements Schema {
-
-		private final String dbName;
-		private final Catalog catalog;
-
-		public DatabaseCalciteSchema(String dbName, Catalog catalog) {
-			this.dbName = dbName;
-			this.catalog = catalog;
-		}
-
-		@Override
-		public Table getTable(String tableName) {
-			LOGGER.info("Getting table '{}' from catalog '{}'", tableName, catalogName);
-
-			ObjectPath tablePath = new ObjectPath(dbName, tableName);
-
-			try {
-				CatalogBaseTable table = catalog.getTable(tablePath);
-
-				LOGGER.info("Successfully got table '{}' from catalog '{}'", tableName, catalogName);
-
-				// TODO: [FLINK-12257] Convert CatalogBaseTable to org.apache.calcite.schema.Table
-				//  so that planner can use unified catalog APIs
-				return null;
-			} catch (TableNotExistException e) {
-				throw new CatalogException(e);
-			}
-		}
-
-		@Override
-		public Set<String> getTableNames() {
-			try {
-				return new HashSet<>(catalog.listTables(dbName));
-			} catch (DatabaseNotExistException e) {
-				throw new CatalogException(e);
-			}
-		}
-
-		@Override
-		public RelProtoDataType getType(String name) {
-			return null;
-		}
-
-		@Override
-		public Set<String> getTypeNames() {
-			return new HashSet<>();
-		}
-
-		@Override
-		public Collection<Function> getFunctions(String s) {
-			return new HashSet<>();
-		}
-
-		@Override
-		public Set<String> getFunctionNames() {
-			return new HashSet<>();
-		}
-
-		@Override
-		public Schema getSubSchema(String s) {
-			return null;
-		}
-
-		@Override
-		public Set<String> getSubSchemaNames() {
-			return new HashSet<>();
-		}
-
-		@Override
-		public Expression getExpression(SchemaPlus parentSchema, String name) {
-			return Schemas.subSchemaExpression(parentSchema, name, getClass());
-		}
-
-		@Override
-		public boolean isMutable() {
-			return true;
-		}
-
-		@Override
-		public Schema snapshot(SchemaVersion schemaVersion) {
-			return this;
-		}
 	}
 }

@@ -20,7 +20,9 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -55,9 +57,13 @@ public interface TableEnvironment {
 	 * Registers an {@link ExternalCatalog} under a unique name in the TableEnvironment's schema.
 	 * All tables registered in the {@link ExternalCatalog} can be accessed.
 	 *
-	 * @param name            The name under which the externalCatalog will be registered
+	 * @param name The name under which the externalCatalog will be registered
 	 * @param externalCatalog The externalCatalog to register
+	 * @see TableEnvironment#getCatalog(String)
+	 * @see TableEnvironment#registerCatalog(String, Catalog)
+	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
 	 */
+	@Deprecated
 	void registerExternalCatalog(String name, ExternalCatalog externalCatalog);
 
 	/**
@@ -65,8 +71,31 @@ public interface TableEnvironment {
 	 *
 	 * @param name The name to look up the {@link ExternalCatalog}
 	 * @return The {@link ExternalCatalog}
+	 * @see TableEnvironment#getCatalog(String)
+	 * @see TableEnvironment#registerCatalog(String, Catalog)
+	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
 	 */
+	@Deprecated
 	ExternalCatalog getRegisteredExternalCatalog(String name);
+
+	/**
+	 * Registers a {@link Catalog} under a unique name.
+	 * All tables registered in the {@link Catalog} can be accessed.
+	 *
+	 * @param name the name under which the catalog will be registered
+	 * @param catalog the catalog to register
+	 * @throws CatalogAlreadyExistsException thrown if catalog with given name already exists
+	 */
+	void registerCatalog(String name, Catalog catalog) throws CatalogAlreadyExistsException;
+
+	/**
+	 * Gets a registered {@link Catalog} by name.
+	 *
+	 * @param catalogName The name to look up the {@link Catalog}
+	 * @return the requested catalog
+	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
+	 */
+	Catalog getCatalog(String catalogName) throws CatalogNotExistException;
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
@@ -119,8 +148,13 @@ public interface TableEnvironment {
 	/**
 	 * Scans a registered table and returns the resulting {@link Table}.
 	 *
-	 * <p>A table to scan must be registered in the TableEnvironment. It can be either directly
-	 * registered or be a member of an {@link ExternalCatalog}.
+	 * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either directly
+	 * registered or be a member of an {@link ExternalCatalog} or {@link Catalog}.
+	 *
+	 * <p>First we try to look for {@code [default-path].[table-path]} if no object is found we assume the
+	 * object path is a fully qualified one and we look for {@code [table-path]}. See also
+	 * {@link TableEnvironment#setCurrentDatabase(String, String)} and
+	 * {@link TableEnvironment#setCurrentCatalog(String)}
 	 *
 	 * <p>Examples:
 	 *
@@ -141,6 +175,8 @@ public interface TableEnvironment {
 	 * @param tablePath The path of the table to scan.
 	 * @return The resulting {@link Table}.
 	 * @throws TableException if no table is found using the given table path.
+	 * @see TableEnvironment#setCurrentCatalog(String)
+	 * @see TableEnvironment#setCurrentDatabase(String, String)
 	 */
 	Table scan(String... tablePath) throws TableException;
 
@@ -279,6 +315,55 @@ public interface TableEnvironment {
 	 * @param config The {@link QueryConfig} to use.
 	 */
 	void sqlUpdate(String stmt, QueryConfig config);
+
+	/**
+	 * Gets the current default catalog name of the current session.
+	 *
+	 * @return the current default catalog that is used for path resolution
+	 * @see TableEnvironment#setCurrentCatalog(String)
+	 */
+	String getCurrentCatalogName();
+
+	/**
+	 * Sets the current catalog to the given value. It also sets the default
+	 * database to the catalog's default one. To assign both catalog and database explicitly
+	 * see {@link TableEnvironment#setCurrentDatabase(String, String)}.
+	 *
+	 * <p>This is used during resolution of object paths. The default path is constructed as
+	 * {@code [current-catalog].[current.database]}. During the resolution, first we try to look for
+	 * {@code [default-path].[object-path]} if no object is found we assume the object path is a fully
+	 * qualified one and we look for {@code [object-path]}.
+	 *
+	 * @param name name of the catalog to set as current default catalog
+	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
+	 */
+	void setCurrentCatalog(String name) throws CatalogNotExistException;
+
+	/**
+	 * Gets the current default database name of the running session.
+	 *
+	 * @return the current database of the current catalog
+	 * @see TableEnvironment#setCurrentDatabase(String, String)
+	 */
+	String getCurrentDatabaseName();
+
+	/**
+	 * Sets the current default catalog and database. That path will be used as the default one
+	 * when looking for unqualified object names.
+	 *
+	 * <p>This is used during resolution of object paths. The default path is constructed as
+	 * {@code [current-catalog].[current.database]}. During the resolution, first we try to look for
+	 * {@code [default-path].[object-path]} if no object is found we assume the object path is a fully
+	 * qualified one and we look for {@code [object-path]}.
+	 *
+	 * @param catalogName name of the catalog to set as current catalog
+	 * @param databaseName name of the database to set as current database
+	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
+	 * @throws DatabaseNotExistException thrown if the database doesn't exist
+	 */
+	void setCurrentDatabase(
+		String catalogName,
+		String databaseName) throws CatalogNotExistException, DatabaseNotExistException;
 
 	/**
 	 * Returns the table config that defines the runtime behavior of the Table API.

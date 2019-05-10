@@ -65,7 +65,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     override def lookupTable(name: String): Optional[TableReferenceExpression] =
       JavaScalaConversionUtil
       .toJava(tableEnv.scanInternal(Array(name))
-        .map(op => new TableReferenceExpression(name, op.getTableOperation)))
+        .map(op => new TableReferenceExpression(name, op)))
   }
 
   def project(

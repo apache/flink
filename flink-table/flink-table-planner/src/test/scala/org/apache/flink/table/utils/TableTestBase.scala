@@ -70,7 +70,7 @@ class TableTestBase {
   }
 }
 
-abstract class TableTestUtil {
+abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
 
   private var counter = 0
 
@@ -118,8 +118,12 @@ abstract class TableTestUtil {
         }
         else if (expectedLine == TableTestUtil.ANY_SUBTREE) {
           break
-        }
-        else if (expectedLine != actualLine) {
+        } else if (!verifyCatalogPath && actualLine.contains("table=[[")) {
+          val strippedCatalog = actualLine.replaceAll("builtin, default, ", "")
+          if (expectedLine != strippedCatalog) {
+            throw new ComparisonFailure(null, expectedMessage, actualMessage)
+          }
+        } else if (expectedLine != actualLine) {
           throw new ComparisonFailure(null, expectedMessage, actualMessage)
         }
       }

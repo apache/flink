@@ -20,7 +20,7 @@ package org.apache.flink.table.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
-import org.apache.flink.table.catalog.ExternalCatalog
+import org.apache.flink.table.catalog.{ExternalCatalog, Catalog}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
@@ -66,4 +66,20 @@ class MockTableEnvironment extends TableEnvironment {
   override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
 
   override def getConfig: TableConfig = ???
+
+  override def registerCatalog(
+    name: String,
+    catalog: Catalog): Unit = ???
+
+  override def getCatalog(catalogName: String): Catalog = ???
+
+  override def getCurrentCatalogName: String = ???
+
+  override def getCurrentDatabaseName: String = ???
+
+  override def setCurrentCatalog(name: String): Unit = ???
+
+  override def setCurrentDatabase(
+    catalogName: String,
+    databaseName: String): Unit = ???
 }
