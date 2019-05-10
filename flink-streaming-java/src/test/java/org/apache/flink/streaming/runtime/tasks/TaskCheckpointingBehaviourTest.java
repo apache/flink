@@ -505,8 +505,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		public void init() {}
 
 		@Override
-		protected void run() throws Exception {
-
+		protected boolean performDefaultAction() throws Exception {
 			triggerCheckpointOnBarrier(
 				new CheckpointMetaData(
 					11L,
@@ -517,6 +516,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 			while (isRunning()) {
 				Thread.sleep(1L);
 			}
+			return false;
 		}
 
 		@Override

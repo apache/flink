@@ -81,7 +81,9 @@ public class MockStreamTask extends StreamTask {
 	public void init() { }
 
 	@Override
-	protected void run() { }
+	protected boolean performDefaultAction() {
+		return false;
+	}
 
 	@Override
 	protected void cleanup() { }

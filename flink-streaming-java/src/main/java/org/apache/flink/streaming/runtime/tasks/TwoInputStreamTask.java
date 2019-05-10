@@ -40,8 +40,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 
-	private volatile boolean running = true;
-
 	private final WatermarkGauge input1WatermarkGauge;
 	private final WatermarkGauge input2WatermarkGauge;
 	private final MinWatermarkGauge minInputWatermarkGauge;
@@ -110,13 +108,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	}
 
 	@Override
-	protected void run() throws Exception {
-		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
-
-		while (running && inputProcessor.processInput()) {
-			// all the work happens in the "processInput" method
-		}
+	protected boolean performDefaultAction() throws Exception {
+		return inputProcessor.processInput();
 	}
 
 	@Override
@@ -128,6 +121,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	protected void cancelTask() {
-		running = false;
+
 	}
 }

@@ -188,7 +188,9 @@ public class StreamTaskCancellationBarrierTest {
 		}
 
 		@Override
-		protected void run() throws Exception {}
+		protected boolean performDefaultAction() {
+			return false;
+		}
 
 		@Override
 		protected void cleanup() throws Exception {}

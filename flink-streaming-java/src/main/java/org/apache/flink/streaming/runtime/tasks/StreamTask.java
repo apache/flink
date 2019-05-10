@@ -222,11 +222,23 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected abstract void init() throws Exception;
 
-	protected abstract void run() throws Exception;
-
 	protected abstract void cleanup() throws Exception;
 
 	protected abstract void cancelTask() throws Exception;
+
+	/**
+	 * This method implements the default action of the task (e.g. processing one event from the input). Implementations
+	 * should (in general) be non-blocking.
+	 *
+	 * @return <code>true</code> if there is more work to perform as default action for this task and <code>false</code>
+	 * if the task is ready to finish.
+	 * @throws Exception on any problems in the action.
+	 */
+	protected abstract boolean performDefaultAction() throws Exception;
+
+	protected void run() throws Exception {
+		while (isRunning && performDefaultAction()) {}
+	}
 
 	/**
 	 * Emits the {@link org.apache.flink.streaming.api.watermark.Watermark#MAX_WATERMARK MAX_WATERMARK}

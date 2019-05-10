@@ -843,7 +843,9 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() throws Exception {}
 
 		@Override
-		protected void run() throws Exception {}
+		protected boolean performDefaultAction() {
+			return false;
+		}
 
 		@Override
 		protected void cleanup() throws Exception {}
@@ -1031,7 +1033,9 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() throws Exception {}
 
 		@Override
-		protected void run() throws Exception {}
+		protected boolean performDefaultAction() {
+			return false;
+		}
 
 		@Override
 		protected void cleanup() throws Exception {}
@@ -1059,10 +1063,11 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void run() throws Exception {
+		protected boolean performDefaultAction() {
 			if (fail) {
 				throw new RuntimeException();
 			}
+			return false;
 		}
 
 		@Override
@@ -1149,7 +1154,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected void run() throws Exception {
+		protected boolean performDefaultAction() throws Exception {
 			holder = new LockHolder(getCheckpointLock(), latch);
 			holder.start();
 			latch.await();
@@ -1164,6 +1169,7 @@ public class StreamTaskTest extends TestLogger {
 				// restore interruption state
 				Thread.currentThread().interrupt();
 			}
+			return false;
 		}
 
 		@Override
@@ -1193,7 +1199,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected void run() throws Exception {
+		protected boolean performDefaultAction() throws Exception {
 			final OneShotLatch latch = new OneShotLatch();
 			final Object lock = new Object();
 
@@ -1219,7 +1225,7 @@ public class StreamTaskTest extends TestLogger {
 			finally {
 				holder.close();
 			}
-
+			return false;
 		}
 
 		@Override
@@ -1259,8 +1265,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void run() throws Exception {
+		protected boolean performDefaultAction() throws Exception {
 			syncLatch.await();
+			return false;
 		}
 
 		@Override

@@ -283,13 +283,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws InterruptedException {
+		protected boolean performDefaultAction() throws Exception {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (taskIndex == 0) {
 				numberOfRestarts.countDown();
 			}
 			invokeLatch.countDown();
 			finishLatch.await();
+			return false;
 		}
 
 		@Override
@@ -339,9 +340,10 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws InterruptedException {
+		protected boolean performDefaultAction() throws Exception {
 			invokeLatch.countDown();
 			finishLatch.await();
+			return false;
 		}
 
 		@Override
@@ -367,8 +369,8 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws Exception {
-
+		protected boolean performDefaultAction() throws Exception {
+			return false;
 		}
 
 		@Override
