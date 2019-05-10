@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,6 +174,8 @@ public class SingleInputGate extends InputGate {
 
 	private final Counter numBytesIn;
 
+	private final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
+
 	public SingleInputGate(
 		String owningTaskName,
 		JobID jobId,
@@ -182,13 +185,15 @@ public class SingleInputGate extends InputGate {
 		int numberOfInputChannels,
 		TaskActions taskActions,
 		Counter numBytesIn,
-		boolean isCreditBased) {
+		boolean isCreditBased,
+		SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
 
 		this.consumedResultId = checkNotNull(consumedResultId);
 		this.consumedPartitionType = checkNotNull(consumedPartitionType);
+		this.bufferPoolFactory = checkNotNull(bufferPoolFactory);
 
 		checkArgument(consumedSubpartitionIndex >= 0);
 		this.consumedSubpartitionIndex = consumedSubpartitionIndex;
@@ -205,6 +210,18 @@ public class SingleInputGate extends InputGate {
 		this.numBytesIn = checkNotNull(numBytesIn);
 
 		this.isCreditBased = isCreditBased;
+	}
+
+	@Override
+	public void setup() throws IOException {
+		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
+		if (isCreditBased) {
+			// assign exclusive buffers to input channels directly and use the rest for floating buffers
+			assignExclusiveSegments();
+		}
+
+		BufferPool bufferPool = bufferPoolFactory.get();
+		setBufferPool(bufferPool);
 	}
 
 	// ------------------------------------------------------------------------

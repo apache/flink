@@ -21,10 +21,16 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.function.SupplierWithException;
+
+import java.io.IOException;
 
 /**
  * Utility class to encapsulate the logic of building a {@link SingleInputGate} instance.
@@ -47,6 +53,10 @@ public class SingleInputGateBuilder {
 
 	private boolean isCreditBased = true;
 
+	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
+		throw new UnsupportedOperationException();
+	};
+
 	public SingleInputGateBuilder setResultPartitionType(ResultPartitionType partitionType) {
 		this.partitionType = partitionType;
 		return this;
@@ -67,6 +77,18 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setupBufferPoolFactory(NetworkEnvironment environment) {
+		NetworkEnvironmentConfiguration config = environment.getConfiguration();
+		this.bufferPoolFactory = SingleInputGateFactory.createBufferPoolFactory(
+			environment.getNetworkBufferPool(),
+			config.isCreditBased(),
+			config.networkBuffersPerChannel(),
+			config.floatingNetworkBuffersPerGate(),
+			numberOfChannels,
+			partitionType);
+		return this;
+	}
+
 	public SingleInputGate build() {
 		return new SingleInputGate(
 			"Single Input Gate",
@@ -77,6 +99,7 @@ public class SingleInputGateBuilder {
 			numberOfChannels,
 			taskActions,
 			numBytesInCounter,
-			isCreditBased);
+			isCreditBased,
+			bufferPoolFactory);
 	}
 }

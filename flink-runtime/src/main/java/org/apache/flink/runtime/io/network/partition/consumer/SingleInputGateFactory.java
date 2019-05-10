@@ -18,14 +18,17 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -33,11 +36,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,21 +70,27 @@ public class SingleInputGateFactory {
 	private final TaskEventPublisher taskEventPublisher;
 
 	@Nonnull
-	private final MemorySegmentProvider memorySegmentProvider;
+	private final NetworkBufferPool networkBufferPool;
+
+	private final int networkBuffersPerChannel;
+
+	private final int floatingNetworkBuffersPerGate;
 
 	public SingleInputGateFactory(
 			@Nonnull NetworkEnvironmentConfiguration networkConfig,
 			@Nonnull ConnectionManager connectionManager,
 			@Nonnull ResultPartitionManager partitionManager,
 			@Nonnull TaskEventPublisher taskEventPublisher,
-			@Nonnull MemorySegmentProvider memorySegmentProvider) {
+			@Nonnull NetworkBufferPool networkBufferPool) {
 		this.isCreditBased = networkConfig.isCreditBased();
 		this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
 		this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
+		this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
+		this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
 		this.connectionManager = connectionManager;
 		this.partitionManager = partitionManager;
 		this.taskEventPublisher = taskEventPublisher;
-		this.memorySegmentProvider = memorySegmentProvider;
+		this.networkBufferPool = networkBufferPool;
 	}
 
 	/**
@@ -101,7 +113,8 @@ public class SingleInputGateFactory {
 
 		final SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, numBytesInCounter, isCreditBased);
+			icdd.length, taskActions, numBytesInCounter, isCreditBased,
+			createBufferPoolFactory(icdd.length, consumedPartitionType));
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -131,7 +144,7 @@ public class SingleInputGateFactory {
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
 					metrics,
-					memorySegmentProvider);
+					networkBufferPool);
 
 				numRemoteChannels++;
 			}
@@ -143,7 +156,7 @@ public class SingleInputGateFactory {
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
 					metrics,
-					memorySegmentProvider);
+					networkBufferPool);
 
 				numUnknownChannels++;
 			}
@@ -162,5 +175,33 @@ public class SingleInputGateFactory {
 			numUnknownChannels);
 
 		return inputGate;
+	}
+
+	private SupplierWithException<BufferPool, IOException> createBufferPoolFactory(int size, ResultPartitionType type) {
+		return createBufferPoolFactory(
+			networkBufferPool, isCreditBased, networkBuffersPerChannel, floatingNetworkBuffersPerGate, size, type);
+	}
+
+	@VisibleForTesting
+	static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
+		BufferPoolFactory bufferPoolFactory,
+		boolean isCreditBased,
+		int networkBuffersPerChannel,
+		int floatingNetworkBuffersPerGate,
+		int size,
+		ResultPartitionType type) {
+
+		if (isCreditBased) {
+			int maxNumberOfMemorySegments = type.isBounded() ?
+				floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
+
+			return () -> bufferPoolFactory.createBufferPool(0, maxNumberOfMemorySegments);
+		} else {
+			int maxNumberOfMemorySegments = type.isBounded() ?
+				size * networkBuffersPerChannel +
+					floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
+
+			return () -> bufferPoolFactory.createBufferPool(size, maxNumberOfMemorySegments);
+		}
 	}
 }

@@ -20,9 +20,11 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -40,10 +42,8 @@ import java.util.List;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 /**
@@ -64,7 +64,7 @@ public class NetworkEnvironmentTest {
 	public ExpectedException expectedException = ExpectedException.none();
 
 	/**
-	 * Verifies that {@link NetworkEnvironment#registerTask(Task)} sets up (un)bounded buffer pool
+	 * Verifies that {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
 	 * instances for various types of input and output channels.
 	 */
 	@Test
@@ -81,18 +81,13 @@ public class NetworkEnvironmentTest {
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
-		SingleInputGate ig1 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
-		SingleInputGate ig2 = createSingleInputGate(ResultPartitionType.BLOCKING, 2);
-		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 8);
+		SingleInputGate ig1 = createSingleInputGate(network, ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, 2);
+		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
+		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 8);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		// overall task to register
-		Task task = mock(Task.class);
-		when(task.getProducedPartitions()).thenReturn(resultPartitions);
-		when(task.getAllInputGates()).thenReturn(inputGates);
-
-		network.registerTask(task);
+		Task.setupPartionsAndGates(resultPartitions, inputGates);
 
 		// verify buffer pools for the result partitions
 		assertEquals(rp1.getNumberOfSubpartitions(), rp1.getBufferPool().getNumberOfRequiredMemorySegments());
@@ -133,7 +128,7 @@ public class NetworkEnvironmentTest {
 	}
 
 	/**
-	 * Verifies that {@link NetworkEnvironment#registerTask(Task)} sets up (un)bounded buffer pool
+	 * Verifies that {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
 	 * instances for various types of input and output channels working with the bare minimum of
 	 * required buffers.
 	 */
@@ -153,7 +148,7 @@ public class NetworkEnvironmentTest {
 	}
 
 	/**
-	 * Verifies that {@link NetworkEnvironment#registerTask(Task)} fails if the bare minimum of
+	 * Verifies that {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}} fails if the bare minimum of
 	 * required buffers is not available (we are one buffer short).
 	 */
 	@Test
@@ -189,10 +184,10 @@ public class NetworkEnvironmentTest {
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
-		SingleInputGate ig1 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
-		SingleInputGate ig2 = createSingleInputGate(ResultPartitionType.BLOCKING, 2);
-		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 4);
+		SingleInputGate ig1 = createSingleInputGate(network, ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, 2);
+		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
+		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 4);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
 		// set up remote input channels for the exclusive buffers of the credit-based flow control
@@ -213,12 +208,7 @@ public class NetworkEnvironmentTest {
 			createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
 		}
 
-		// overall task to register
-		Task task = mock(Task.class);
-		when(task.getProducedPartitions()).thenReturn(resultPartitions);
-		when(task.getAllInputGates()).thenReturn(inputGates);
-
-		network.registerTask(task);
+		Task.setupPartionsAndGates(resultPartitions, inputGates);
 
 		// verify buffer pools for the result partitions
 		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
@@ -260,8 +250,10 @@ public class NetworkEnvironmentTest {
 
 	/**
 	 * Helper to create spy of a {@link SingleInputGate} for use by a {@link Task} inside
-	 * {@link NetworkEnvironment#registerTask(Task)}.
+	 * {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}}.
 	 *
+	 * @param network
+	 * 	    network enviroment to create buffer pool factory for {@link SingleInputGate}
 	 * @param partitionType
 	 * 		the consumed partition type
 	 * @param numberOfChannels
@@ -269,11 +261,14 @@ public class NetworkEnvironmentTest {
 	 *
 	 * @return input gate with some fake settiFngs
 	 */
-	private SingleInputGate createSingleInputGate(ResultPartitionType partitionType, int numberOfChannels) {
+	private SingleInputGate createSingleInputGate(
+		NetworkEnvironment network, ResultPartitionType partitionType, int numberOfChannels) {
+
 		return spy(new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfChannels)
 			.setResultPartitionType(partitionType)
 			.setIsCreditBased(enableCreditBasedFlowControl)
+			.setupBufferPoolFactory(network)
 			.build());
 	}
 

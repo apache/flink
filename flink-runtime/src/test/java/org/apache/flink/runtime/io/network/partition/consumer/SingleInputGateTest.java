@@ -391,17 +391,17 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testRequestBuffersWithRemoteInputChannel() throws Exception {
-		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
+		final NetworkEnvironment network = createNetworkEnvironment();
+		final SingleInputGate inputGate = createInputGate(network, 1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			RemoteInputChannel remote =
 				InputChannelBuilder.newBuilder()
 					.setupFromNetworkEnvironment(network)
 					.buildRemoteAndSetToGate(inputGate);
-			network.setupInputGate(inputGate);
+			inputGate.setup();
 
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 			if (enableCreditBasedFlowControl) {
@@ -427,16 +427,16 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
-		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
+		final NetworkEnvironment network = createNetworkEnvironment();
+		final SingleInputGate inputGate = createInputGate(network, 1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = createNetworkEnvironment();
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
 			addUnknownInputChannel(network, inputGate, resultPartitionId, 0);
 
-			network.setupInputGate(inputGate);
+			inputGate.setup();
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
 			if (enableCreditBasedFlowControl) {
@@ -478,8 +478,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testUpdateUnknownInputChannel() throws Exception {
-		final SingleInputGate inputGate = createInputGate(2);
 		final NetworkEnvironment network = createNetworkEnvironment();
+		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
 
 		try {
 			final ResultPartitionID localResultPartitionId = new ResultPartitionID();
@@ -488,7 +488,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			final ResultPartitionID remoteResultPartitionId = new ResultPartitionID();
 			addUnknownInputChannel(network, inputGate, remoteResultPartitionId, 1);
 
-			network.setupInputGate(inputGate);
+			inputGate.setup();
 
 			assertThat(inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
 				is(instanceOf((UnknownInputChannel.class))));

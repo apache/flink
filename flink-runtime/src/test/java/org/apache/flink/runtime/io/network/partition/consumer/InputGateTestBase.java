@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
 import org.junit.runner.RunWith;
@@ -74,17 +75,22 @@ public abstract class InputGateTestBase {
 	}
 
 	protected SingleInputGate createInputGate(int numberOfInputChannels) {
-		return createInputGate(numberOfInputChannels, ResultPartitionType.PIPELINED);
+		return createInputGate(null, numberOfInputChannels, ResultPartitionType.PIPELINED);
 	}
 
 	protected SingleInputGate createInputGate(
-			int numberOfInputChannels, ResultPartitionType partitionType) {
-		SingleInputGate inputGate = new SingleInputGateBuilder()
+		NetworkEnvironment environment, int numberOfInputChannels, ResultPartitionType partitionType) {
+
+		SingleInputGateBuilder builder = new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfInputChannels)
 			.setResultPartitionType(partitionType)
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build();
+			.setIsCreditBased(enableCreditBasedFlowControl);
 
+		if (environment != null) {
+			builder = builder.setupBufferPoolFactory(environment);
+		}
+
+		SingleInputGate inputGate = builder.build();
 		assertEquals(partitionType, inputGate.getConsumedPartitionType());
 		return inputGate;
 	}

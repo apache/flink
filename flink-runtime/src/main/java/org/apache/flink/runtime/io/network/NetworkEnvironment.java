@@ -27,7 +27,6 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputBufferPoolUsageGauge;
 import org.apache.flink.runtime.io.network.metrics.InputBuffersGauge;
@@ -47,9 +46,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -188,60 +185,6 @@ public class NetworkEnvironment {
 	@VisibleForTesting
 	public NetworkEnvironmentConfiguration getConfiguration() {
 		return config;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Task operations
-	// --------------------------------------------------------------------------------------------
-
-	public void registerTask(Task task) throws IOException {
-		final ResultPartition[] producedPartitions = task.getProducedPartitions();
-
-		synchronized (lock) {
-			if (isShutdown) {
-				throw new IllegalStateException("NetworkEnvironment is shut down");
-			}
-
-			for (final ResultPartition partition : producedPartitions) {
-				partition.setup();
-			}
-
-			// Setup the buffer pool for each buffer reader
-			final SingleInputGate[] inputGates = task.getAllInputGates();
-			for (SingleInputGate gate : inputGates) {
-				setupInputGate(gate);
-			}
-		}
-	}
-
-	@VisibleForTesting
-	public void setupInputGate(SingleInputGate gate) throws IOException {
-		BufferPool bufferPool = null;
-		int maxNumberOfMemorySegments;
-		try {
-			if (config.isCreditBased()) {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
-
-				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments();
-				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
-			} else {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					gate.getNumberOfInputChannels() * config.networkBuffersPerChannel() +
-						config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
-
-				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
-					maxNumberOfMemorySegments);
-			}
-			gate.setBufferPool(bufferPool);
-		} catch (Throwable t) {
-			if (bufferPool != null) {
-				bufferPool.lazyDestroy();
-			}
-
-			ExceptionUtils.rethrowIOException(t);
-		}
 	}
 
 	/**

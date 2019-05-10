@@ -65,6 +65,10 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
+	public void setup() {
+	}
+
+	@Override
 	public int getNumberOfInputChannels() {
 		return numberOfChannels;
 	}
