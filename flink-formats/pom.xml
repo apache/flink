@@ -39,7 +39,6 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-avro</module>
 		<module>flink-json</module>
 		<module>flink-avro-confluent-registry</module>
 		<module>flink-parquet</module>
@@ -50,8 +49,9 @@ under the License.
 		<module>flink-orc-nohive</module>
 		<module>flink-hadoop-bulk</module>
 		<module>flink-avro-glue-schema-registry</module>
-    <module>flink-format-common</module>
-  </modules>
+		<module>flink-format-common</module>
+		<module>flink-thrift</module>
+	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
 		in the jars-with-dependencies (uber jars) of formats and
