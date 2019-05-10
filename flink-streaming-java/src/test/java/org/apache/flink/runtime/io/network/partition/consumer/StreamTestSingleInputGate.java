@@ -21,12 +21,16 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -40,7 +44,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
-import static org.mockito.Mockito.doReturn;
 
 /**
  * Test {@link InputGate} that allows setting multiple channels. Use
@@ -76,7 +79,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 		inputQueues = new ConcurrentLinkedQueue[numInputChannels];
 
 		setupInputChannels();
-		doReturn(bufferSize).when(inputGate).getPageSize();
+		inputGate.setBufferPool(new NoOpBufferPool(bufferSize));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -217,6 +220,83 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 		public boolean isEvent() {
 			return isEvent;
+		}
+	}
+
+	private static class NoOpBufferPool implements BufferPool {
+		private int bufferSize;
+
+		public NoOpBufferPool(int bufferSize) {
+			this.bufferSize = bufferSize;
+		}
+
+		@Override
+		public void lazyDestroy() {
+		}
+
+		@Override
+		public int getMemorySegmentSize() {
+			return bufferSize;
+		}
+
+		@Override
+		public Buffer requestBuffer() throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Buffer requestBufferBlocking() throws IOException, InterruptedException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean addBufferListener(BufferListener listener) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean isDestroyed() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getNumberOfRequiredMemorySegments() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getMaxNumberOfMemorySegments() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getNumBuffers() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setNumBuffers(int numBuffers) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getNumberOfAvailableMemorySegments() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int bestEffortGetNumOfUsedBuffers() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void recycle(MemorySegment memorySegment) {
+			throw new UnsupportedOperationException();
 		}
 	}
 }

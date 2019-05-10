@@ -22,7 +22,6 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -32,7 +31,7 @@ import java.util.Queue;
 /**
  * Mock {@link InputGate}.
  */
-public class MockInputGate implements InputGate {
+public class MockInputGate extends InputGate {
 
 	private final int pageSize;
 
@@ -56,6 +55,8 @@ public class MockInputGate implements InputGate {
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
 		this.closed = new boolean[numberOfChannels];
 		this.owningTaskName = owningTaskName;
+
+		isAvailable = AVAILABLE;
 	}
 
 	@Override
@@ -108,10 +109,6 @@ public class MockInputGate implements InputGate {
 
 	@Override
 	public void sendTaskEvent(TaskEvent event) {
-	}
-
-	@Override
-	public void registerListener(InputGateListener listener) {
 	}
 
 	@Override
