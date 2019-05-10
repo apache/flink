@@ -16,31 +16,32 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
-from pyflink.table import TableEnvironment
+import os
+
+from pyflink.table.types import DataTypes
+from pyflink.testing import source_sink_utils
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
-class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase):
-    """
-    Tests whether the Python :class:`TableEnvironment` is consistent with
-    Java `org.apache.flink.table.api.TableEnvironment`.
-    """
-    @classmethod
-    def python_class(cls):
-        return TableEnvironment
+class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
 
-    @classmethod
-    def java_class(cls):
-        return "org.apache.flink.table.api.TableEnvironment"
+    def test_print_schema(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        t_env = self.t_env
+        t_env.register_table_source("Source", csv_source)
+        source = t_env.scan("Source")
+        field_names = ["a", "b"]
+        field_types = [DataTypes.INT, DataTypes.STRING]
+        t_env.register_table_sink(
+            "Results",
+            field_names, field_types, source_sink_utils.TestRetractSink())
 
-    @classmethod
-    def excluded_methods(cls):
-        # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
-        # registerExternalCatalog, getRegisteredExternalCatalog and listTables
-        # should be supported when catalog supported in python.
-        # getCompletionHints has been deprecated. It will be removed in the next release.
-        return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'connect',
-                'registerFunction', 'listUserDefinedFunctions', 'listTables', 'getCompletionHints'}
+        result = source.group_by("c").select("a.sum, c as b")
+        result.print_schema()
 
 
 if __name__ == '__main__':

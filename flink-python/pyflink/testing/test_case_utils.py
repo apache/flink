@@ -24,6 +24,9 @@ import tempfile
 import unittest
 from abc import abstractmethod
 
+from py4j.java_gateway import JavaObject
+from pyflink.table.table_source import CsvTableSource
+
 from pyflink.find_flink_home import _find_flink_home
 from pyflink.table import TableEnvironment, TableConfig
 from pyflink.java_gateway import get_gateway
@@ -59,9 +62,13 @@ class PyFlinkTestCase(unittest.TestCase):
 
     @classmethod
     def assert_equals(cls, actual, expected):
-        actual_py_list = cls.to_py_list(actual)
+        if isinstance(actual, JavaObject):
+            actual_py_list = cls.to_py_list(actual)
+        else:
+            actual_py_list = actual
         actual_py_list.sort()
         expected.sort()
+        assert len(actual_py_list) == len(expected)
         assert all(x == y for x, y in zip(actual_py_list, expected))
 
     @classmethod
@@ -71,6 +78,21 @@ class PyFlinkTestCase(unittest.TestCase):
             py_list.append(actual.apply(i))
         return py_list
 
+    @classmethod
+    def prepare_csv_source(cls, path, data, data_types, fields):
+        if os.path.isfile(path):
+            os.remove(path)
+        csv_data = ""
+        for item in data:
+            if isinstance(item, list) or isinstance(item, tuple):
+                csv_data += ",".join([str(element) for element in item]) + "\n"
+            else:
+                csv_data += str(item) + "\n"
+        with open(path, 'w') as f:
+            f.write(csv_data)
+            f.close()
+        return CsvTableSource(path, fields, data_types)
+
 
 class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     """
@@ -79,8 +101,8 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
 
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
-        self.t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(4).build()
-        self.t_env = TableEnvironment.get_table_environment(self.t_config)
+        self.t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
+        self.t_env = TableEnvironment.create(self.t_config)
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -90,8 +112,16 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
 
     def setUp(self):
         super(PyFlinkBatchTableTestCase, self).setUp()
-        self.t_config = TableConfig.Builder().as_batch_execution().set_parallelism(4).build()
-        self.t_env = TableEnvironment.get_table_environment(self.t_config)
+        self.t_config = TableConfig.Builder().as_batch_execution().set_parallelism(1).build()
+        self.t_env = TableEnvironment.create(self.t_config)
+
+    def collect(self, table):
+        j_table = table._j_table
+        gateway = get_gateway()
+        row_result = self.t_env._j_tenv\
+            .toDataSet(j_table, gateway.jvm.Class.forName("org.apache.flink.types.Row")).collect()
+        string_result = [java_row.toString() for java_row in row_result]
+        return string_result
 
 
 class PythonAPICompletenessTestCase(unittest.TestCase):
@@ -125,10 +155,8 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         python_methods = cls.get_python_class_methods(cls.python_class())
         missing_methods = java_methods - python_methods - cls.excluded_methods()
         if len(missing_methods) > 0:
-            print(missing_methods)
-            print('The Exception should be raised after FLINK-12407 is merged.')
-            # raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
-            #                % (missing_methods, cls.java_class(), cls.python_class()))
+            raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
+                            % (missing_methods, cls.java_class(), cls.python_class()))
 
     @classmethod
     def java_method_name(cls, python_method_name):

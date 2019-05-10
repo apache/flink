@@ -16,31 +16,29 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
-from pyflink.table import TableEnvironment
+import os
+
+from pyflink.table.types import DataTypes
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 
 
-class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase):
-    """
-    Tests whether the Python :class:`TableEnvironment` is consistent with
-    Java `org.apache.flink.table.api.TableEnvironment`.
-    """
-    @classmethod
-    def python_class(cls):
-        return TableEnvironment
+class BatchTableSortTests(PyFlinkBatchTableTestCase):
 
-    @classmethod
-    def java_class(cls):
-        return "org.apache.flink.table.api.TableEnvironment"
+    def test_order_by_offset_fetch(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b"]
+        field_types = [DataTypes.INT, DataTypes.STRING]
+        data = [(1, "Hello"), (2, "Hello"), (3, "Flink"), (4, "Python")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        t_env = self.t_env
+        t_env.register_table_source("Source", csv_source)
+        source = t_env.scan("Source")
 
-    @classmethod
-    def excluded_methods(cls):
-        # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
-        # registerExternalCatalog, getRegisteredExternalCatalog and listTables
-        # should be supported when catalog supported in python.
-        # getCompletionHints has been deprecated. It will be removed in the next release.
-        return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'connect',
-                'registerFunction', 'listUserDefinedFunctions', 'listTables', 'getCompletionHints'}
+        result = source.order_by("a.desc").offset(2).fetch(2).select("a, b")
+        actual = self.collect(result)
+
+        expected = ['2,Hello', '1,Hello']
+        self.assert_equals(actual, expected)
 
 
 if __name__ == '__main__':
