@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -39,6 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -74,10 +74,10 @@ public class NetworkEnvironmentTest {
 			.build();
 
 		// result partitions
-		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
-		ResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
-		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 8);
+		ResultPartition rp1 = createPartition(network, ResultPartitionType.PIPELINED, 2);
+		ResultPartition rp2 = createPartition(network, ResultPartitionType.BLOCKING, 2);
+		ResultPartition rp3 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
+		ResultPartition rp4 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 8);
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
@@ -182,10 +182,10 @@ public class NetworkEnvironmentTest {
 		final ConnectionManager connManager = createDummyConnectionManager();
 
 		// result partitions
-		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
-		ResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
-		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 4);
+		ResultPartition rp1 = createPartition(network, ResultPartitionType.PIPELINED, 2);
+		ResultPartition rp2 = createPartition(network, ResultPartitionType.BLOCKING, 2);
+		ResultPartition rp3 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
+		ResultPartition rp4 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 4);
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
@@ -256,27 +256,6 @@ public class NetworkEnvironmentTest {
 			ig.close();
 		}
 		network.shutdown();
-	}
-
-	/**
-	 * Helper to create simple {@link ResultPartition} instance for use by a {@link Task} inside
-	 * {@link NetworkEnvironment#registerTask(Task)}.
-	 *
-	 * @param partitionType
-	 * 		the produced partition type
-	 * @param channels
-	 * 		the number of output channels
-	 *
-	 * @return instance with minimal data set and some mocks so that it is useful for {@link
-	 * NetworkEnvironment#registerTask(Task)}
-	 */
-	private static ResultPartition createResultPartition(
-			final ResultPartitionType partitionType, final int channels) {
-		return new ResultPartitionBuilder()
-			.setResultPartitionType(partitionType)
-			.setNumberOfSubpartitions(channels)
-			.setNumTargetKeyGroups(channels)
-			.build();
 	}
 
 	/**

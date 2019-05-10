@@ -44,6 +44,10 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
+	public void setup() {
+	}
+
+	@Override
 	public BufferProvider getBufferProvider() {
 		return bufferProvider;
 	}

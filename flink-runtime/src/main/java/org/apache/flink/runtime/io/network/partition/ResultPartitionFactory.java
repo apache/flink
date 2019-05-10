@@ -23,9 +23,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Factory for {@link ResultPartition} to use in {@link org.apache.flink.runtime.io.network.NetworkEnvironment}.
@@ -46,12 +51,27 @@ public class ResultPartitionFactory {
 	@Nonnull
 	private final IOManager ioManager;
 
-	public ResultPartitionFactory(@Nonnull ResultPartitionManager partitionManager,  @Nonnull IOManager ioManager) {
+	@Nonnull
+	private final BufferPoolFactory bufferPoolFactory;
+
+	private final int networkBuffersPerChannel;
+
+	private final int floatingNetworkBuffersPerGate;
+
+	public ResultPartitionFactory(
+		@Nonnull ResultPartitionManager partitionManager,
+		@Nonnull IOManager ioManager,
+		@Nonnull BufferPoolFactory bufferPoolFactory,
+		int networkBuffersPerChannel,
+		int floatingNetworkBuffersPerGate) {
+
 		this.partitionManager = partitionManager;
 		this.ioManager = ioManager;
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		this.bufferPoolFactory = bufferPoolFactory;
 	}
 
-	@VisibleForTesting
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
 		@Nonnull TaskActions taskActions,
@@ -69,9 +89,11 @@ public class ResultPartitionFactory {
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
 			partitionConsumableNotifier,
-			desc.sendScheduleOrUpdateConsumersMessage());
+			desc.sendScheduleOrUpdateConsumersMessage(),
+			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
 	}
 
+	@VisibleForTesting
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
 		@Nonnull TaskActions taskActions,
@@ -81,7 +103,8 @@ public class ResultPartitionFactory {
 		int numberOfSubpartitions,
 		int maxParallelism,
 		@Nonnull ResultPartitionConsumableNotifier partitionConsumableNotifier,
-		boolean sendScheduleOrUpdateConsumersMessage) {
+		boolean sendScheduleOrUpdateConsumersMessage,
+		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
@@ -95,7 +118,8 @@ public class ResultPartitionFactory {
 			maxParallelism,
 			partitionManager,
 			partitionConsumableNotifier,
-			sendScheduleOrUpdateConsumersMessage);
+			sendScheduleOrUpdateConsumersMessage,
+			bufferPoolFactory);
 
 		createSubpartitions(partition, type, subpartitions);
 
@@ -158,5 +182,20 @@ public class ResultPartitionFactory {
 			final ResultSubpartition subpartition = partitions[i];
 			ExceptionUtils.suppressExceptions(subpartition::release);
 		}
+	}
+
+	@VisibleForTesting
+	FunctionWithException<BufferPoolOwner, BufferPool, IOException> createBufferPoolFactory(
+		int numberOfSubpartitions, ResultPartitionType type) {
+
+		return p -> {
+			int maxNumberOfMemorySegments = type.isBounded() ?
+				numberOfSubpartitions * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
+			// If the partition type is back pressure-free, we register with the buffer pool for
+			// callbacks to release memory.
+			return bufferPoolFactory.createBufferPool(numberOfSubpartitions,
+				maxNumberOfMemorySegments,
+				type.hasBackPressure() ? Optional.empty() : Optional.of(p));
+		};
 	}
 }

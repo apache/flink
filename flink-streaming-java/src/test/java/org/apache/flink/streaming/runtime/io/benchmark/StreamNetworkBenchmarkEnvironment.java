@@ -219,9 +219,10 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			.setNumberOfSubpartitions(channels)
 			.setResultPartitionManager(environment.getResultPartitionManager())
 			.setIOManager(ioManager)
+			.setupBufferPoolFactoryFromNetworkEnvironment(environment)
 			.build();
 
-		environment.setupPartition(resultPartition);
+		resultPartition.setup();
 
 		return resultPartition;
 	}

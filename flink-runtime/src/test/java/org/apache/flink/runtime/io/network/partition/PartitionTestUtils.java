@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+
 /**
  * This class should consolidate all mocking logic for ResultPartitions.
  * While using Mockito internally (for now), the use of Mockito should not
@@ -45,9 +47,11 @@ public class PartitionTestUtils {
 	}
 
 	public static ResultPartition createPartition(
+			NetworkEnvironment environment,
 			ResultPartitionType partitionType,
 			int numChannels) {
 		return new ResultPartitionBuilder()
+			.setupBufferPoolFactoryFromNetworkEnvironment(environment)
 			.setResultPartitionType(partitionType)
 			.setNumberOfSubpartitions(numChannels)
 			.build();

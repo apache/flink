@@ -115,11 +115,12 @@ public class LocalInputChannelTest {
 				.setNumTargetKeyGroups(parallelism)
 				.setResultPartitionManager(partitionManager)
 				.setSendScheduleOrUpdateConsumersMessage(true)
+				.setBufferPoolFactory(p ->
+					networkBuffers.createBufferPool(producerBufferPoolSize, producerBufferPoolSize))
 				.build();
 
 			// Create a buffer pool for this partition
-			partition.registerBufferPool(
-				networkBuffers.createBufferPool(producerBufferPoolSize, producerBufferPoolSize));
+			partition.setup();
 
 			// Create the producer
 			partitionProducers[i] = new TestPartitionProducer(
@@ -130,10 +131,6 @@ public class LocalInputChannelTest {
 					partition.getBufferProvider(),
 					numberOfBuffersPerChannel)
 			);
-
-			// Register with the partition manager in order to allow the local input channels to
-			// request their respective partitions.
-			partitionManager.registerResultPartition(partition);
 		}
 
 		// Test

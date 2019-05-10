@@ -215,10 +215,9 @@ public class ResultPartitionTest {
 		final int numAllBuffers = 10;
 		final NetworkEnvironment network = new NetworkEnvironmentBuilder()
 			.setNumNetworkBuffers(numAllBuffers).build();
-		final ResultPartitionConsumableNotifier notifier = new NoOpResultPartitionConsumableNotifier();
-		final ResultPartition resultPartition = createPartition(notifier, resultPartitionType, false);
+		final ResultPartition resultPartition = createPartition(network, resultPartitionType, 1);
 		try {
-			network.setupPartition(resultPartition);
+			resultPartition.setup();
 
 			// take all buffers (more than the minimum required)
 			for (int i = 0; i < numAllBuffers; ++i) {
