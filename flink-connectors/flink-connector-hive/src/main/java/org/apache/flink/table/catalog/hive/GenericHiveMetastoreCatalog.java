@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.util.GenericHiveMetastoreCatalogUtil;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
@@ -116,7 +117,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	@Override
 	protected CatalogBaseTable createCatalogBaseTable(Table hiveTable) {
 		// Table schema
-		TableSchema tableSchema = createTableSchema(
+		TableSchema tableSchema = HiveTableUtil.createTableSchema(
 			hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
 
 		// Table properties
@@ -167,7 +168,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 		StorageDescriptor sd = new StorageDescriptor();
 		sd.setSerdeInfo(new SerDeInfo(null, null, new HashMap<>()));
 
-		List<FieldSchema> allColumns = createHiveColumns(table.getSchema());
+		List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
 
 		// Table columns and partition keys
 		if (table instanceof CatalogTable) {
@@ -337,7 +338,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	/**
 	 * Filter out Hive-created properties, and return Flink-created properties.
 	 */
-	private Map<String, String> retrieveFlinkProperties(Map<String, String> hiveTableParams) {
+	private static Map<String, String> retrieveFlinkProperties(Map<String, String> hiveTableParams) {
 		return hiveTableParams.entrySet().stream()
 			.filter(e -> e.getKey().startsWith(FLINK_PROPERTY_PREFIX))
 			.collect(Collectors.toMap(e -> e.getKey().replace(FLINK_PROPERTY_PREFIX, ""), e -> e.getValue()));
@@ -346,7 +347,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	/**
 	 * Add a prefix to Flink-created properties to distinguish them from Hive-created properties.
 	 */
-	private Map<String, String> maskFlinkProperties(Map<String, String> properties) {
+	private static Map<String, String> maskFlinkProperties(Map<String, String> properties) {
 		return properties.entrySet().stream()
 			.filter(e -> e.getKey() != null && e.getValue() != null)
 			.collect(Collectors.toMap(e -> FLINK_PROPERTY_PREFIX + e.getKey(), e -> e.getValue()));

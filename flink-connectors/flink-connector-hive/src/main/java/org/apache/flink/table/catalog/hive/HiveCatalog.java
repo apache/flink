@@ -36,6 +36,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
@@ -109,7 +110,7 @@ public class HiveCatalog extends HiveCatalogBase {
 	protected CatalogBaseTable createCatalogBaseTable(Table hiveTable) {
 		// Table schema
 		TableSchema tableSchema =
-			createTableSchema(hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
+			HiveTableUtil.createTableSchema(hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
 
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
@@ -150,7 +151,7 @@ public class HiveCatalog extends HiveCatalogBase {
 		StorageDescriptor sd = new StorageDescriptor();
 		sd.setSerdeInfo(new SerDeInfo(null, null, new HashMap<>()));
 
-		List<FieldSchema> allColumns = createHiveColumns(table.getSchema());
+		List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
 
 		// Table columns and partition keys
 		if (table instanceof CatalogTable) {

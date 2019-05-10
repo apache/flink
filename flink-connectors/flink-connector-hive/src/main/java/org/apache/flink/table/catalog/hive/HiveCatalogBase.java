@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -38,18 +36,15 @@ import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -391,42 +386,5 @@ public abstract class HiveCatalogBase implements Catalog {
 			throw new CatalogException(
 				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
 		}
-	}
-
-	/**
-	 * Create a Flink's TableSchema from Hive table's columns and partition keys.
-	 */
-	protected TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys) {
-		List<FieldSchema> allCols = new ArrayList<>(cols);
-		allCols.addAll(partitionKeys);
-
-		String[] colNames = new String[allCols.size()];
-		TypeInformation[] colTypes = new TypeInformation[allCols.size()];
-
-		for (int i = 0; i < allCols.size(); i++) {
-			FieldSchema fs = allCols.get(i);
-
-			colNames[i] = fs.getName();
-			colTypes[i] = HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(fs.getType()));
-		}
-
-		return new TableSchema(colNames, colTypes);
-	}
-
-	/**
-	 * Create Hive columns from Flink TableSchema.
-	 */
-	protected List<FieldSchema> createHiveColumns(TableSchema schema) {
-		String[] fieldNames = schema.getFieldNames();
-		TypeInformation[] fieldTypes = schema.getFieldTypes();
-
-		List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
-
-		for (int i = 0; i < fieldNames.length; i++) {
-			columns.add(
-				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveType(fieldTypes[i]), null));
-		}
-
-		return columns;
 	}
 }
