@@ -85,7 +85,7 @@ To prevent such a situation, applications can define a *minimum duration between
 This duration is the minimum time interval that must pass between the end of the latest checkpoint and the beginning
 of the next. The figure below illustrates how this impacts checkpointing.
 
-<img src="../../fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
+<img src="{{ site.baseurl }}/fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
 
 *Note:* Applications can be configured (via the `CheckpointConfig`) to allow multiple checkpoints to be in progress at
 the same time. For applications with large state in Flink, this often ties up too many resources into the checkpointing.
@@ -295,7 +295,7 @@ Please note that this can come at some additional costs per checkpoint for creat
 chosen state backend and checkpointing strategy. For example, in most cases the implementation will simply duplicate the writes to the distributed
 store to a local file.
 
-<img src="../../fig/local_recovery.png" class="center" width="80%" alt="Illustration of checkpointing with task-local recovery."/>
+<img src="{{ site.baseurl }}/fig/local_recovery.png" class="center" width="80%" alt="Illustration of checkpointing with task-local recovery."/>
 
 ### Relationship of primary (distributed store) and secondary (task-local) state snapshots
 

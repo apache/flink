@@ -87,7 +87,7 @@ Internally, parts of the table ecosystem are implemented in Scala. Therefore, pl
 
 ### Extension Dependencies
 
-If you want to implement a [custom format](({{ site.baseurl }}/dev/table/sourceSinks.html#define-a-tablefactory)) for interacting with Kafka or a set of [user-defined functions]({{ site.baseurl }}/dev/table/functions.html), the following dependency is sufficient and can be used for JAR files for the SQL Client:
+If you want to implement a [custom format]({{ site.baseurl }}/dev/table/sourceSinks.html#define-a-tablefactory) for interacting with Kafka or a set of [user-defined functions]({{ site.baseurl }}/dev/table/functions.html), the following dependency is sufficient and can be used for JAR files for the SQL Client:
 
 {% highlight xml %}
 <dependency>
