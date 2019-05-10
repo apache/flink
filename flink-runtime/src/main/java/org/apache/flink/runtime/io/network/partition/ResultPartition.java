@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -32,8 +31,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,17 +122,16 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private volatile Throwable cause;
 
-	public ResultPartition(
+	ResultPartition(
 		String owningTaskName,
 		TaskActions taskActions, // actions on the owning task
 		JobID jobId,
 		ResultPartitionID partitionId,
 		ResultPartitionType partitionType,
-		int numberOfSubpartitions,
+		ResultSubpartition[] subpartitions,
 		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
 		ResultPartitionConsumableNotifier partitionConsumableNotifier,
-		IOManager ioManager,
 		boolean sendScheduleOrUpdateConsumersMessage) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
@@ -143,34 +139,11 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
-		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
+		this.subpartitions = checkNotNull(subpartitions);
 		this.numTargetKeyGroups = numTargetKeyGroups;
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
-
-		// Create the subpartitions.
-		switch (partitionType) {
-			case BLOCKING:
-				initializeBoundedBlockingPartitions(subpartitions, this, ioManager);
-				break;
-
-			case PIPELINED:
-			case PIPELINED_BOUNDED:
-				for (int i = 0; i < subpartitions.length; i++) {
-					subpartitions[i] = new PipelinedSubpartition(i, this);
-				}
-
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unsupported result partition type.");
-		}
-
-		// Initially, partitions should be consumed once before release.
-		pin();
-
-		LOG.debug("{}: Initialized {}", owningTaskName, this);
 	}
 
 	/**
@@ -463,37 +436,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
 
 			hasNotifiedPipelinedConsumers = true;
-		}
-	}
-
-	private static void initializeBoundedBlockingPartitions(
-			ResultSubpartition[] subpartitions,
-			ResultPartition parent,
-			IOManager ioManager) {
-
-		int i = 0;
-		try {
-			for (; i < subpartitions.length; i++) {
-				subpartitions[i] = new BoundedBlockingSubpartition(
-						i, parent, ioManager.createChannel().getPathFile().toPath());
-			}
-		}
-		catch (IOException e) {
-			// undo all the work so that a failed constructor does not leave any resources
-			// in need of disposal
-			releasePartitionsQuietly(subpartitions, i);
-
-			// this is not good, we should not be forced to wrap this in a runtime exception.
-			// the fact that the ResultPartition and Task constructor (which calls this) do not tolerate any exceptions
-			// is incompatible with eager initialization of resources (RAII).
-			throw new FlinkRuntimeException(e);
-		}
-	}
-
-	private static void releasePartitionsQuietly(ResultSubpartition[] partitions, int until) {
-		for (int i = 0; i < until; i++) {
-			final ResultSubpartition subpartition = partitions[i];
-			ExceptionUtils.suppressExceptions(subpartition::release);
 		}
 	}
 }

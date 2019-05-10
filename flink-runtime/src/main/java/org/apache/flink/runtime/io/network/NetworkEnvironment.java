@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -88,7 +89,7 @@ public class NetworkEnvironment {
 
 	private final TaskEventPublisher taskEventPublisher;
 
-	private final IOManager ioManager;
+	private final ResultPartitionFactory resultPartitionFactory;
 
 	private boolean isShutdown;
 
@@ -98,14 +99,14 @@ public class NetworkEnvironment {
 			ConnectionManager connectionManager,
 			ResultPartitionManager resultPartitionManager,
 			TaskEventPublisher taskEventPublisher,
-			IOManager ioManager) {
+			ResultPartitionFactory resultPartitionFactory) {
 		this.config = config;
 		this.networkBufferPool = networkBufferPool;
 		this.connectionManager = connectionManager;
 		this.resultPartitionManager = resultPartitionManager;
 		this.taskEventPublisher = taskEventPublisher;
-		this.ioManager = ioManager;
 		this.isShutdown = false;
+		this.resultPartitionFactory = resultPartitionFactory;
 	}
 
 	public static NetworkEnvironment create(
@@ -128,6 +129,8 @@ public class NetworkEnvironment {
 		registerNetworkMetrics(metricGroup, networkBufferPool);
 
 		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
+		ResultPartitionFactory resultPartitionFactory =
+			new ResultPartitionFactory(resultPartitionManager, ioManager);
 
 		return new NetworkEnvironment(
 			config,
@@ -135,7 +138,7 @@ public class NetworkEnvironment {
 			connectionManager,
 			resultPartitionManager,
 			taskEventPublisher,
-			ioManager);
+			resultPartitionFactory);
 	}
 
 	private static void registerNetworkMetrics(MetricGroup metricGroup, NetworkBufferPool networkBufferPool) {
@@ -283,18 +286,8 @@ public class NetworkEnvironment {
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter++] = new ResultPartition(
-					taskName,
-					taskActions,
-					jobId,
-					new ResultPartitionID(rpdd.getPartitionId(), executionId),
-					rpdd.getPartitionType(),
-					rpdd.getNumberOfSubpartitions(),
-					rpdd.getMaxParallelism(),
-					resultPartitionManager,
-					partitionConsumableNotifier,
-					ioManager,
-					rpdd.sendScheduleOrUpdateConsumersMessage());
+				resultPartitions[counter++] = resultPartitionFactory.create(
+					taskName, taskActions, jobId, executionId, rpdd, partitionConsumableNotifier);
 			}
 
 			registerOutputMetrics(outputGroup, buffersGroup, resultPartitions);
