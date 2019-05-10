@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.util.ExceptionUtils;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -103,6 +105,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	@GuardedBy("bufferQueue")
 	private boolean isWaitingForFloatingBuffers;
 
+	/** Global memory segment provider to request and recycle exclusive buffers (only for credit-based). */
+	@Nonnull
+	private final MemorySegmentProvider memorySegmentProvider;
+
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
 		int channelIndex,
@@ -111,23 +117,26 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		ConnectionManager connectionManager,
 		int initialBackOff,
 		int maxBackoff,
-		InputChannelMetrics metrics) {
+		InputChannelMetrics metrics,
+		@Nonnull MemorySegmentProvider memorySegmentProvider) {
 
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
+		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff,
+			metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
+		this.memorySegmentProvider = memorySegmentProvider;
 	}
 
 	/**
 	 * Assigns exclusive buffers to this input channel, and this method should be called only once
 	 * after this input channel is created.
 	 */
-	void assignExclusiveSegments(Collection<MemorySegment> segments) {
+	void assignExclusiveSegments() throws IOException {
 		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
 			"already been set for this input channel.");
 
-		checkNotNull(segments);
+		Collection<MemorySegment> segments = checkNotNull(memorySegmentProvider.requestMemorySegments());
 		checkArgument(!segments.isEmpty(), "The number of exclusive buffers per channel should be larger than 0.");
 
 		this.initialCredit = segments.size();
@@ -247,7 +256,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			}
 
 			if (exclusiveRecyclingSegments.size() > 0) {
-				inputGate.returnExclusiveSegments(exclusiveRecyclingSegments);
+				memorySegmentProvider.recycleMemorySegments(exclusiveRecyclingSegments);
 			}
 
 			// The released flag has to be set before closing the connection to ensure that
@@ -297,7 +306,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			// after releaseAllResources() released all buffers (see below for details).
 			if (isReleased.get()) {
 				try {
-					inputGate.returnExclusiveSegments(Collections.singletonList(segment));
+					memorySegmentProvider.recycleMemorySegments(Collections.singletonList(segment));
 					return;
 				} catch (Throwable t) {
 					ExceptionUtils.rethrow(t);

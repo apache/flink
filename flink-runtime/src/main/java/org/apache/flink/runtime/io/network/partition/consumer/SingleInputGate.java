@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -155,9 +154,6 @@ public class SingleInputGate extends InputGate {
 	 */
 	private BufferPool bufferPool;
 
-	/** Global memory segment provider to request and recycle exclusive buffers (only for credit-based). */
-	private MemorySegmentProvider memorySegmentProvider;
-
 	private final boolean isCreditBased;
 
 	private boolean hasReceivedAllEndOfPartitionEvents;
@@ -289,33 +285,17 @@ public class SingleInputGate extends InputGate {
 
 	/**
 	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
-	 *
-	 * @param memorySegmentProvider The global memory segment provider to request and recycle exclusive buffers
 	 */
-	public void assignExclusiveSegments(MemorySegmentProvider memorySegmentProvider) throws IOException {
+	@VisibleForTesting
+	public void assignExclusiveSegments() throws IOException {
 		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
-		checkState(this.memorySegmentProvider == null,
-			"Bug in input gate setup logic: global memory segment provider has already been set for this input gate.");
-
-		this.memorySegmentProvider = checkNotNull(memorySegmentProvider);
-
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				if (inputChannel instanceof RemoteInputChannel) {
-					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
-						memorySegmentProvider.requestMemorySegments());
+					((RemoteInputChannel) inputChannel).assignExclusiveSegments();
 				}
 			}
 		}
-	}
-
-	/**
-	 * The exclusive segments are recycled to network buffer pool directly when input channel is released.
-	 *
-	 * @param segments The exclusive segments need to be recycled
-	 */
-	public void returnExclusiveSegments(List<MemorySegment> segments) throws IOException {
-		memorySegmentProvider.recycleMemorySegments(segments);
 	}
 
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
@@ -354,10 +334,7 @@ public class SingleInputGate extends InputGate {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
 
 					if (this.isCreditBased) {
-						checkState(this.memorySegmentProvider != null, "Bug in input gate setup logic: " +
-							"global buffer pool has not been set for this input gate.");
-						((RemoteInputChannel) newChannel).assignExclusiveSegments(
-							memorySegmentProvider.requestMemorySegments());
+						((RemoteInputChannel) newChannel).assignExclusiveSegments();
 					}
 				}
 				else {

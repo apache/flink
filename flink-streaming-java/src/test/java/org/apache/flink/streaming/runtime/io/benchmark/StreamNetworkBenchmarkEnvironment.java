@@ -253,7 +253,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				environment.getConfiguration(),
 				environment.getConnectionManager(),
 				environment.getResultPartitionManager(),
-				new TaskEventDispatcher())
+				new TaskEventDispatcher(),
+				environment.getNetworkBufferPool())
 				.create(
 					"receiving task[" + channel + "]",
 					jobId,

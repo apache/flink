@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -329,12 +330,12 @@ public class RemoteInputChannelTest {
 		final int numFloatingBuffers = 14;
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			// Prepare the exclusive and floating buffers to verify recycle logic later
@@ -467,12 +468,12 @@ public class RemoteInputChannelTest {
 		final int numFloatingBuffers = 14;
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			// Prepare the exclusive and floating buffers to verify recycle logic later
@@ -541,12 +542,12 @@ public class RemoteInputChannelTest {
 		final int numFloatingBuffers = 14;
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			// Prepare the exclusive and floating buffers to verify recycle logic later
@@ -630,14 +631,14 @@ public class RemoteInputChannelTest {
 		final int numFloatingBuffers = 3;
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel channel1 = spy(createRemoteInputChannel(inputGate));
-		final RemoteInputChannel channel2 = spy(createRemoteInputChannel(inputGate));
-		final RemoteInputChannel channel3 = spy(createRemoteInputChannel(inputGate));
+		final RemoteInputChannel channel1 = spy(createRemoteInputChannel(inputGate, networkBufferPool));
+		final RemoteInputChannel channel2 = spy(createRemoteInputChannel(inputGate, networkBufferPool));
+		final RemoteInputChannel channel3 = spy(createRemoteInputChannel(inputGate, networkBufferPool));
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			channel1.requestSubpartition(0);
 			channel2.requestSubpartition(0);
 			channel3.requestSubpartition(0);
@@ -760,12 +761,12 @@ public class RemoteInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> requestBufferTask = new Callable<Void>() {
@@ -822,12 +823,12 @@ public class RemoteInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> requestBufferTask = new Callable<Void>() {
@@ -873,12 +874,12 @@ public class RemoteInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> releaseTask = new Callable<Void>() {
@@ -927,12 +928,12 @@ public class RemoteInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments(networkBufferPool);
+			inputGate.assignExclusiveSegments();
 			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> bufferPoolInteractionsTask = () -> {
@@ -993,9 +994,18 @@ public class RemoteInputChannelTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate)
-			throws IOException, InterruptedException {
+		throws IOException, InterruptedException {
 
-		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class), 0, 0);
+		return createRemoteInputChannel(inputGate, InputChannelTestUtils.StubMemorySegmentProvider.getInstance());
+	}
+
+	private RemoteInputChannel createRemoteInputChannel(
+		SingleInputGate inputGate,
+		MemorySegmentProvider memorySegmentProvider)
+		throws IOException, InterruptedException {
+
+		return createRemoteInputChannel(
+				inputGate, mock(PartitionRequestClient.class), 0, 0, memorySegmentProvider);
 	}
 
 	private RemoteInputChannel createRemoteInputChannel(
@@ -1003,6 +1013,18 @@ public class RemoteInputChannelTest {
 			PartitionRequestClient partitionRequestClient,
 			int initialBackoff,
 			int maxBackoff)
+			throws IOException, InterruptedException {
+
+		return createRemoteInputChannel(inputGate, partitionRequestClient, initialBackoff, maxBackoff,
+			InputChannelTestUtils.StubMemorySegmentProvider.getInstance());
+	}
+
+	private RemoteInputChannel createRemoteInputChannel(
+			SingleInputGate inputGate,
+			PartitionRequestClient partitionRequestClient,
+			int initialBackoff,
+			int maxBackoff,
+			MemorySegmentProvider memorySegmentProvider)
 			throws IOException, InterruptedException {
 
 		final ConnectionManager connectionManager = mock(ConnectionManager.class);
@@ -1013,6 +1035,7 @@ public class RemoteInputChannelTest {
 			.setConnectionManager(connectionManager)
 			.setInitialBackoff(initialBackoff)
 			.setMaxBackoff(maxBackoff)
+			.setMemorySegmentProvider(memorySegmentProvider)
 			.buildRemoteAndSetToGate(inputGate);
 	}
 

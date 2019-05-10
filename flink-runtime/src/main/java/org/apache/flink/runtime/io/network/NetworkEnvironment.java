@@ -138,8 +138,8 @@ public class NetworkEnvironment {
 		ResultPartitionFactory resultPartitionFactory =
 			new ResultPartitionFactory(resultPartitionManager, ioManager);
 
-		SingleInputGateFactory singleInputGateFactory =
-			new SingleInputGateFactory(config, connectionManager, resultPartitionManager, taskEventPublisher);
+		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
+			config, connectionManager, resultPartitionManager, taskEventPublisher, networkBufferPool);
 
 		return new NetworkEnvironment(
 			config,
@@ -247,7 +247,7 @@ public class NetworkEnvironment {
 					config.floatingNetworkBuffersPerGate() : Integer.MAX_VALUE;
 
 				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool);
+				gate.assignExclusiveSegments();
 				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
 			} else {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
