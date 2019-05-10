@@ -22,7 +22,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.mockito.Mockito.spy;
 
 /**
  * A test input gate to mock reading data.
@@ -36,7 +35,7 @@ public class TestSingleInputGate {
 	public TestSingleInputGate(int numberOfInputChannels, boolean initialize) {
 		checkArgument(numberOfInputChannels >= 1);
 
-		inputGate = spy(createSingleInputGate(numberOfInputChannels));
+		inputGate = createSingleInputGate(numberOfInputChannels);
 		inputChannels = new TestInputChannel[numberOfInputChannels];
 
 		if (initialize) {
