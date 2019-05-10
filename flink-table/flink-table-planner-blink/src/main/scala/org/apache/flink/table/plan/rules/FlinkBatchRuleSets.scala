@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
-import org.apache.flink.table.plan.rules.logical._
+import org.apache.flink.table.plan.rules.logical.{RewriteCoalesceRule, _}
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.batch._
 
@@ -60,10 +60,22 @@ object FlinkBatchRuleSets {
   )
 
   /**
+    * RuleSet to rewrite coalesce to case when
+    */
+  private val REWRITE_COALESCE_RULES: RuleSet = RuleSets.ofList(
+    // rewrite coalesce to case when
+    RewriteCoalesceRule.FILTER_INSTANCE,
+    RewriteCoalesceRule.PROJECT_INSTANCE,
+    RewriteCoalesceRule.JOIN_INSTANCE,
+    RewriteCoalesceRule.CALC_INSTANCE
+  )
+
+  /**
     * RuleSet to normalize plans for batch
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
-    REDUCE_EXPRESSION_RULES.asScala ++
+    REWRITE_COALESCE_RULES.asScala ++
+      REDUCE_EXPRESSION_RULES.asScala ++
       List(
         // Transform window to LogicalWindowAggregate
         BatchLogicalWindowAggregateRule.INSTANCE,
@@ -74,7 +86,8 @@ object FlinkBatchRuleSets {
         //ensure intersect set operator have the same row type
         new CoerceInputsRule(classOf[LogicalIntersect], false),
         //ensure except set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalMinus], false)
+        new CoerceInputsRule(classOf[LogicalMinus], false),
+        ConvertToNotInOrInRule.INSTANCE
       )).asJava)
 
   /**
@@ -132,7 +145,9 @@ object FlinkBatchRuleSets {
     // reorder sort and projection
     ProjectSortTransposeRule.INSTANCE,
     //removes constant keys from an Agg
-    AggregateProjectPullUpConstantsRule.INSTANCE
+    AggregateProjectPullUpConstantsRule.INSTANCE,
+    // push project through a Union
+    ProjectSetOpTransposeRule.INSTANCE
   )
 
   val WINDOW_RULES: RuleSet = RuleSets.ofList(
@@ -190,7 +205,7 @@ object FlinkBatchRuleSets {
     ProjectCalcMergeRule.INSTANCE,
     FilterToCalcRule.INSTANCE,
     ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE
+    FlinkCalcMergeRule.INSTANCE
   )
 
   /**

@@ -398,7 +398,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     }
 
     addReusableMember(
-      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size})")
+      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});")
 
     elements.foreach { element =>
       val content =

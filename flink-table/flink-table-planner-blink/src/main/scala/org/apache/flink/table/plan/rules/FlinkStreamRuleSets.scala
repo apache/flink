@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
-import org.apache.flink.table.plan.rules.logical._
+import org.apache.flink.table.plan.rules.logical.{FlinkCalcMergeRule, _}
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.stream._
 
@@ -60,10 +60,22 @@ object FlinkStreamRuleSets {
   )
 
   /**
+    * RuleSet to rewrite coalesce to case when
+    */
+  private val REWRITE_COALESCE_RULES: RuleSet = RuleSets.ofList(
+    // rewrite coalesce to case when
+    RewriteCoalesceRule.FILTER_INSTANCE,
+    RewriteCoalesceRule.PROJECT_INSTANCE,
+    RewriteCoalesceRule.JOIN_INSTANCE,
+    RewriteCoalesceRule.CALC_INSTANCE
+  )
+
+  /**
     * RuleSet to normalize plans for stream
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
-    REDUCE_EXPRESSION_RULES.asScala ++
+    REWRITE_COALESCE_RULES.asScala ++
+      REDUCE_EXPRESSION_RULES.asScala ++
       List(
         StreamLogicalWindowAggregateRule.INSTANCE,
         // slices a project into sections which contain window agg functions
@@ -76,7 +88,8 @@ object FlinkStreamRuleSets {
         //ensure intersect set operator have the same row type
         new CoerceInputsRule(classOf[LogicalIntersect], false),
         //ensure except set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalMinus], false)
+        new CoerceInputsRule(classOf[LogicalMinus], false),
+        ConvertToNotInOrInRule.INSTANCE
       )
     ).asJava)
 
@@ -180,7 +193,7 @@ object FlinkStreamRuleSets {
     ProjectCalcMergeRule.INSTANCE,
     FilterToCalcRule.INSTANCE,
     ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE
+    FlinkCalcMergeRule.INSTANCE
   )
 
   /**
@@ -223,8 +236,9 @@ object FlinkStreamRuleSets {
     // transform over window to topn node
     FlinkLogicalRankRule.INSTANCE,
     // split distinct aggregate to reduce data skew
-    SplitAggregateRule.INSTANCE
-    // TODO add flink calc merge rule
+    SplitAggregateRule.INSTANCE,
+    // merge calc after calc transpose
+    FlinkCalcMergeRule.INSTANCE
   )
 
   /**

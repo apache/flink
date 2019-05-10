@@ -54,8 +54,8 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 FlinkLogicalCalc(select=[EXPR$0, EXPR$1])
-+- FlinkLogicalAggregate(group=[{1}], EXPR$0=[SUM($0) FILTER $3], EXPR$1=[COUNT($2) FILTER $4])
-   +- FlinkLogicalCalc(select=[a, b, c, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 4:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 4:BIGINT), 4) AS $g_4])
++- FlinkLogicalAggregate(group=[{0}], EXPR$0=[SUM($1) FILTER $3], EXPR$1=[COUNT($2) FILTER $4])
+   +- FlinkLogicalCalc(select=[b, a, c, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 2:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 2:BIGINT), 2) AS $g_2])
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}])
          +- FlinkLogicalExpand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[null], b=[$1], c=[$2], $e=[4]}])
             +- FlinkLogicalTableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -99,8 +99,8 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
     <Resource name="planAfter">
       <![CDATA[
 FlinkLogicalCalc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
-+- FlinkLogicalAggregate(group=[{2}], EXPR$0=[COUNT($0) FILTER $5], EXPR$1=[SUM($1) FILTER $6], EXPR$2=[MIN($3) FILTER $7], EXPR$3=[MIN($4) FILTER $7])
-   +- FlinkLogicalCalc(select=[a, b, c, EXPR$2, EXPR$3, =(CASE(=($e, 2:BIGINT), 2:BIGINT, =($e, 4:BIGINT), 4:BIGINT, 6:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 2:BIGINT, =($e, 4:BIGINT), 4:BIGINT, 6:BIGINT), 4) AS $g_4, =(CASE(=($e, 2:BIGINT), 2:BIGINT, =($e, 4:BIGINT), 4:BIGINT, 6:BIGINT), 6) AS $g_6])
++- FlinkLogicalAggregate(group=[{0}], EXPR$0=[COUNT($1) FILTER $5], EXPR$1=[SUM($2) FILTER $6], EXPR$2=[MIN($3) FILTER $7], EXPR$3=[MIN($4) FILTER $7])
+   +- FlinkLogicalCalc(select=[c, a, b, EXPR$2, EXPR$3, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 3) AS $g_3])
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}], EXPR$2=[MAX($4)], EXPR$3=[MIN($4)])
          +- FlinkLogicalExpand(projects=[{a=[$0], b=[null], c=[$2], $e=[2], a_0=[$0]}, {a=[null], b=[$1], c=[$2], $e=[4], a_0=[$0]}, {a=[null], b=[null], c=[$2], $e=[6], a_0=[$0]}])
             +- FlinkLogicalTableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

@@ -700,9 +700,9 @@ LogicalProject(c=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- Sort(orderBy=[$f2 ASC, c ASC])
++- Sort(orderBy=[EXPR$1 ASC, c ASC])
    +- Exchange(distribution=[single])
-      +- Calc(select=[deptno, c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS $f2])
+      +- Calc(select=[c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
          +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
             +- Exchange(distribution=[hash[deptno, $e]])
                +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}])
