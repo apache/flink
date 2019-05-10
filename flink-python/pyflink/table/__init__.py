@@ -39,6 +39,7 @@ from pyflink.table.table_environment import (TableEnvironment, StreamTableEnviro
 from pyflink.table.table_sink import TableSink, CsvTableSink
 from pyflink.table.table_source import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes
+from pyflink.table.window import Tumble, Session, Slide, Over
 
 __all__ = [
     'TableEnvironment',
@@ -50,5 +51,9 @@ __all__ = [
     'TableSource',
     'CsvTableSink',
     'CsvTableSource',
-    'DataTypes'
+    'DataTypes',
+    'Tumble',
+    'Session',
+    'Slide',
+    'Over',
 ]
