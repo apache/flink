@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.codegen
 
+import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.streaming.api.graph.StreamConfig
 import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
