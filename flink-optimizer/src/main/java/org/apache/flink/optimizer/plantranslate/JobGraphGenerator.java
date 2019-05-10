@@ -27,6 +27,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -61,6 +62,7 @@ import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailTask;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -479,6 +481,37 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// solution sets have no input. the initial solution set input is connected when the iteration node is in its postVisit
 			if (node instanceof SourcePlanNode || node instanceof NAryUnionPlanNode || node instanceof SolutionSetPlanNode) {
 				return;
+			}
+
+			// if this is a blocking shuffle vertex, we add one IntermediateDataSetID to its predecessor and return
+			if (node instanceof SinkPlanNode) {
+				Object userCodeObject = node.getProgramOperator().getUserCodeWrapper().getUserCodeObject();
+				if (userCodeObject instanceof BlockingShuffleOutputFormat) {
+					Iterable<Channel> inputIterable = node.getInputs();
+					if (inputIterable == null || inputIterable.iterator() == null ||
+						!inputIterable.iterator().hasNext()) {
+						throw new IllegalStateException("SinkPlanNode must have a input.");
+					}
+					PlanNode precedentNode = inputIterable.iterator().next().getSource();
+					JobVertex precedentVertex;
+					if (vertices.containsKey(precedentNode)) {
+						precedentVertex = vertices.get(precedentNode);
+					} else {
+						precedentVertex = chainedTasks.get(precedentNode).getContainingVertex();
+					}
+					if (precedentVertex == null) {
+						throw new IllegalStateException("Bug: Chained task has not been assigned its containing vertex when connecting.");
+					}
+					precedentVertex.createAndAddResultDataSet(
+						// use specified intermediateDataSetID
+						new IntermediateDataSetID(((BlockingShuffleOutputFormat) userCodeObject).getIntermediateDataSetId()),
+						ResultPartitionType.BLOCKING_PERSISTENT
+					);
+
+					// remove this node so the OutputFormatVertex will not shown in the final JobGraph.
+					vertices.remove(node);
+					return;
+				}
 			}
 			
 			// check if we have an iteration. in that case, translate the step function now
@@ -1252,7 +1285,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		edge.setShipStrategyName(shipStrategy);
 		edge.setPreProcessingOperationName(localStrategy);
 		edge.setOperatorLevelCachingDescription(caching);
-		
+
 		return distributionPattern;
 	}
 	
