@@ -127,14 +127,13 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testReceiveBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
 		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments(networkBufferPool);
 
 			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);

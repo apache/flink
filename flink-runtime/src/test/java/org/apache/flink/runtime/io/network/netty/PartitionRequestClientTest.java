@@ -52,15 +52,15 @@ public class PartitionRequestClientTest {
 		final PartitionRequestClient client = new PartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+		final int numExclusiveBuffers = 2;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, numExclusiveBuffers);
 		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client, 1, 2);
 
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments(networkBufferPool);
 
 			// first subpartition request
 			inputChannel.requestSubpartition(0);
@@ -106,15 +106,15 @@ public class PartitionRequestClientTest {
 		final PartitionRequestClient client = new PartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+		final int numExclusiveBuffers = 2;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, numExclusiveBuffers);
 		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments(networkBufferPool);
 			inputChannel.requestSubpartition(0);
 
 			// The input channel should only send one partition request

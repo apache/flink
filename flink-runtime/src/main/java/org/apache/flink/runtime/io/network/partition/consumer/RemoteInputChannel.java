@@ -40,6 +40,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -122,12 +123,12 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 * Assigns exclusive buffers to this input channel, and this method should be called only once
 	 * after this input channel is created.
 	 */
-	void assignExclusiveSegments(List<MemorySegment> segments) {
+	void assignExclusiveSegments(Collection<MemorySegment> segments) {
 		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
 			"already been set for this input channel.");
 
 		checkNotNull(segments);
-		checkArgument(segments.size() > 0, "The number of exclusive buffers per channel should be larger than 0.");
+		checkArgument(!segments.isEmpty(), "The number of exclusive buffers per channel should be larger than 0.");
 
 		this.initialCredit = segments.size();
 		this.numRequiredBuffers = segments.size();

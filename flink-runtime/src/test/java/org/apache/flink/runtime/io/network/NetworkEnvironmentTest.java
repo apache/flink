@@ -117,10 +117,10 @@ public class NetworkEnvironmentTest {
 		assertEquals(enableCreditBasedFlowControl ? 8 : 8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();
@@ -243,10 +243,10 @@ public class NetworkEnvironmentTest {
 		assertEquals(enableCreditBasedFlowControl ? 8 : 4 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
+		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool());
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();

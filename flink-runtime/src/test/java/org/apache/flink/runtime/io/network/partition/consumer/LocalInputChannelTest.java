@@ -98,7 +98,7 @@ public class LocalInputChannelTest {
 
 		final NetworkBufferPool networkBuffers = new NetworkBufferPool(
 			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
-			TestBufferFactory.BUFFER_SIZE);
+			TestBufferFactory.BUFFER_SIZE, 1);
 
 		final ResultPartitionManager partitionManager = new ResultPartitionManager();
 
