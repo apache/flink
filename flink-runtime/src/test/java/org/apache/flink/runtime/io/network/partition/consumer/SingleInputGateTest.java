@@ -332,15 +332,18 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
 
-		SingleInputGate gate = SingleInputGate.create(
-			"TestTask",
-			new JobID(),
-			gateDesc,
-			netEnv,
-			new TaskEventDispatcher(),
-			new NoOpTaskActions(),
-			InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
-			new SimpleCounter());
+		SingleInputGate gate = new SingleInputGateFactory(
+			netEnv.getConfiguration(),
+			netEnv.getConnectionManager(),
+			netEnv.getResultPartitionManager(),
+			new TaskEventDispatcher())
+			.create(
+				"TestTask",
+				new JobID(),
+				gateDesc,
+				new NoOpTaskActions(),
+				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
+				new SimpleCounter());
 
 		try {
 			assertEquals(gateDesc.getConsumedPartitionType(), gate.getConsumedPartitionType());
