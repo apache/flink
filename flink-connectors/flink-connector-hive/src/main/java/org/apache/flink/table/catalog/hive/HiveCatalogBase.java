@@ -68,7 +68,7 @@ public abstract class HiveCatalogBase implements Catalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase), "defaultDatabase cannot be null or empty");
 		this.catalogName = catalogName;
-		this.defaultDatabase = checkNotNull(defaultDatabase, "defaultDatabase cannot be null");
+		this.defaultDatabase = defaultDatabase;
 		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
 	}
 
