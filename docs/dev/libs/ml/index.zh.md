@@ -72,7 +72,7 @@ FlinkML currently supports the following algorithms:
 You can check out our [quickstart guide](quickstart.html) for a comprehensive getting started
 example.
 
-If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 
 {% highlight xml %}
@@ -84,7 +84,7 @@ Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 {% endhighlight %}
 
 Note that FlinkML is currently not part of the binary distribution.
-See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking.html).
+See linking with it for cluster execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
 
 Now you can start solving your analysis task.
 The following code snippet shows how easy it is to train a multiple linear regression model.

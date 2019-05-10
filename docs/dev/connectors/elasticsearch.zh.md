@@ -59,7 +59,7 @@ of the Elasticsearch installation:
 </table>
 
 Note that the streaming connectors are currently not part of the binary
-distribution. See [here]({{site.baseurl}}/dev/linking.html) for information
+distribution. See [here]({{site.baseurl}}/dev/projectsetup/dependencies.html) for information
 about how to package the program with the libraries for cluster execution.
 
 ## Installing Elasticsearch
@@ -462,7 +462,7 @@ More information about Elasticsearch can be found [here](https://elastic.co).
 
 For the execution of your Flink program, it is recommended to build a
 so-called uber-jar (executable jar) containing all your dependencies
-(see [here]({{site.baseurl}}/dev/linking.html) for further information).
+(see [here]({{site.baseurl}}/dev/projectsetup/dependencies.html) for further information).
 
 Alternatively, you can put the connector's jar file into Flink's `lib/` folder to make it available
 system-wide, i.e. for all job being run.
