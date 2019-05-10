@@ -99,8 +99,9 @@ public abstract class InputGate implements AutoCloseable {
 	public abstract int getPageSize();
 
 	/**
-	 * @return a future that is completed if there are more records available. If there more records
-	 * available immediately, {@link #AVAILABLE} should be returned.
+	 * @return a future that is completed if there are more records available. If there are more
+	 * records available immediately, {@link #AVAILABLE} should be returned. Previously returned
+	 * not completed futures should become completed once there are more records available.
 	 */
 	public CompletableFuture<?> isAvailable() {
 		return isAvailable;
