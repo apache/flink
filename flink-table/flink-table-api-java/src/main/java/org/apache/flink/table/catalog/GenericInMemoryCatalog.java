@@ -74,7 +74,7 @@ public class GenericInMemoryCatalog implements Catalog {
 		this.catalogName = name;
 		this.defaultDatabase = defaultDatabase;
 		this.databases = new LinkedHashMap<>();
-		this.databases.put(DEFAULT_DB, new GenericCatalogDatabase(new HashMap<>()));
+		this.databases.put(defaultDatabase, new GenericCatalogDatabase(new HashMap<>()));
 		this.tables = new LinkedHashMap<>();
 		this.functions = new LinkedHashMap<>();
 		this.partitions = new LinkedHashMap<>();
@@ -85,11 +85,7 @@ public class GenericInMemoryCatalog implements Catalog {
 	}
 
 	@Override
-	public void open() throws CatalogException {
-		if (!databaseExists(defaultDatabase)) {
-			throw new CatalogException(String.format("Configured default database %s doesn't exist in catalog %s.",
-				defaultDatabase, catalogName));
-		}
+	public void open() {
 	}
 
 	@Override
