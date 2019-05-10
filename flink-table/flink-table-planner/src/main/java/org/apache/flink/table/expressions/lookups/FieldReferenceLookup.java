@@ -65,7 +65,7 @@ public class FieldReferenceLookup {
 		} else if (matchingFields.size() == 0) {
 			return Optional.empty();
 		} else {
-			throw failAmbigousColumn(name);
+			throw failAmbiuguousColumn(name);
 		}
 	}
 
@@ -97,14 +97,14 @@ public class FieldReferenceLookup {
 				FieldReferenceExpression::getName,
 				Function.identity(),
 				(fieldRef1, fieldRef2) -> {
-					throw failAmbigousColumn(fieldRef1.getName());
+					throw failAmbiuguousColumn(fieldRef1.getName());
 				},
 				// we need to maintain order of fields within input for resolving e.g. '*' reference
 				LinkedHashMap::new
 			));
 	}
 
-	private static ValidationException failAmbigousColumn(String name) {
-		return new ValidationException("Ambigous column name: " + name);
+	private static ValidationException failAmbiuguousColumn(String name) {
+		return new ValidationException("Ambiguous column name: " + name);
 	}
 }
