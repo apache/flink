@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
-import org.apache.flink.table.plan.rules.logical.{RewriteCoalesceRule, _}
+import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.batch._
 

@@ -47,8 +47,9 @@ class ConvertToNotInOrInRule
     "ConvertToNotInOrInRule") {
 
   // these threshold values are set by OptimizableHashSet benchmark test on different type.
+  // threshold for non-float and non-double type
   private val THRESHOLD: Int = 4
-  // float and double
+  // threshold for float and double type
   private val FRACTIONAL_THRESHOLD: Int = 20
 
   override def onMatch(call: RelOptRuleCall): Unit = {
