@@ -43,22 +43,26 @@ import java.util.Set;
 @PublicEvolving
 public final class TimeType extends LogicalType {
 
-	private static final int MIN_PRECISION = 0;
+	public static final int MIN_PRECISION = 0;
 
-	private static final int MAX_PRECISION = 9;
+	public static final int MAX_PRECISION = 9;
 
-	private static final int DEFAULT_PRECISION = 0;
+	public static final int DEFAULT_PRECISION = 0;
 
 	private static final String FORMAT = "TIME(%d)";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
 		java.sql.Time.class.getName(),
-		java.time.LocalTime.class.getName());
+		java.time.LocalTime.class.getName(),
+		Integer.class.getName(),
+		Long.class.getName());
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.sql.Time.class.getName(),
 		java.time.LocalTime.class.getName(),
+		Integer.class.getName(),
 		int.class.getName(),
+		Long.class.getName(),
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalTime.class;

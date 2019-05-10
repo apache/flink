@@ -34,7 +34,7 @@ import org.apache.flink.table.generated.GeneratedCollector
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.FlinkTableFunction
 import org.apache.flink.table.plan.util.RelExplainUtil
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 
@@ -157,7 +157,7 @@ object CorrelateCodeGenerator {
       ruleDescription: String,
       functionClass: Class[T],
       udtfCollector: GeneratedCollector[TableFunctionCollector[_]],
-      retainHeader: Boolean = true): OneInputOperatorWrapper[BaseRow, BaseRow] = {
+      retainHeader: Boolean = true): CodeGenOperatorFactory[BaseRow] = {
     ctx.references ++= collectorCtx.references
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType)
@@ -274,7 +274,7 @@ object CorrelateCodeGenerator {
       "",
       inputType,
       config)
-    new OneInputOperatorWrapper(genOperator)
+    new CodeGenOperatorFactory(genOperator)
   }
 
   private def generateProjectResultExpr(

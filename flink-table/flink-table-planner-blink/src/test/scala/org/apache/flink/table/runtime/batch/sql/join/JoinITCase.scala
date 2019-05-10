@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.table.api.{TableConfigOptions, Types}
-import org.apache.flink.table.runtime.TwoInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -80,11 +80,12 @@ class JoinITCase(val compilationOption: String) extends BatchTestBase {
         "collect")
 
       var haveTwoOp = false
-      env.getStreamGraph.getOperators.foreach(o =>
+      env.getStreamGraph.getAllOperatorFactory.foreach(o =>
         o.f1 match {
-          case two: TwoInputOperatorWrapper[_, _, _] =>
-            Assert.assertTrue(two.getGeneratedClass.getCode.contains("LongHashJoinOperator"))
-            haveTwoOp = true
+          case factory: CodeGenOperatorFactory[_] =>
+            if (factory.getGeneratedClass.getCode.contains("LongHashJoinOperator")) {
+              haveTwoOp = true
+            }
           case _ =>
         }
       )

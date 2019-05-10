@@ -43,15 +43,17 @@ import java.util.Set;
  *
  * <p>A conversion from and to {@code int} describes the number of months. A conversion from
  * {@link java.time.Period} ignores the {@code days} part.
+ *
+ * @see DayTimeIntervalType
  */
 @PublicEvolving
 public final class YearMonthIntervalType extends LogicalType {
 
-	private static final int MIN_PRECISION = 1;
+	public static final int MIN_PRECISION = 1;
 
-	private static final int MAX_PRECISION = 4;
+	public static final int MAX_PRECISION = 4;
 
-	private static final int DEFAULT_PRECISION = 2;
+	public static final int DEFAULT_PRECISION = 2;
 
 	private static final String YEAR_FORMAT = "INTERVAL YEAR(%d)";
 
@@ -60,10 +62,12 @@ public final class YearMonthIntervalType extends LogicalType {
 	private static final String MONTH_FORMAT = "INTERVAL MONTH";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
-		java.time.Period.class.getName());
+		java.time.Period.class.getName(),
+		Integer.class.getName());
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.time.Period.class.getName(),
+		Integer.class.getName(),
 		int.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.Period.class;

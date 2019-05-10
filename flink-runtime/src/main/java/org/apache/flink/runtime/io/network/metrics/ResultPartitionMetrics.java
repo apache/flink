@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition;
+package org.apache.flink.runtime.io.network.metrics;
 
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -158,12 +160,15 @@ public class ResultPartitionMetrics {
 	//  Static access
 	// ------------------------------------------------------------------------
 
-	public static void registerQueueLengthMetrics(MetricGroup group, ResultPartition partition) {
-		ResultPartitionMetrics metrics = new ResultPartitionMetrics(partition);
+	public static void registerQueueLengthMetrics(MetricGroup parent, ResultPartition[] partitions) {
+		for (int i = 0; i < partitions.length; i++) {
+			ResultPartitionMetrics metrics = new ResultPartitionMetrics(partitions[i]);
 
-		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
-		group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
-		group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
-		group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
+			MetricGroup group = parent.addGroup(i);
+			group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
+			group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
+			group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
+			group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
+		}
 	}
 }

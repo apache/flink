@@ -138,7 +138,7 @@ final class TestingAppendBaseRowSink(
     this(rowTypeInfo, TimeZone.getTimeZone("UTC"))
   }
 
-  def invoke(value: BaseRow): Unit = localResults +=
+  override def invoke(value: BaseRow): Unit = localResults +=
     BaseRowTestUtil.baseRowToString(value, rowTypeInfo, tz)
 
   def getAppendResults: List[String] = getResults
@@ -150,7 +150,7 @@ final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row]
     this(TimeZone.getTimeZone("UTC"))
   }
 
-  def invoke(value: Row): Unit = localResults += TestSinkUtil.rowToString(value, tz)
+  override def invoke(value: Row): Unit = localResults += TestSinkUtil.rowToString(value, tz)
 
   def getAppendResults: List[String] = getResults
 }
@@ -210,7 +210,7 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
     }
   }
 
-  def invoke(d: (Boolean, BaseRow)): Unit = {
+  override def invoke(d: (Boolean, BaseRow)): Unit = {
     this.synchronized {
       val wrapRow = new GenericRow(2)
       wrapRow.setField(0, d._1)
@@ -438,7 +438,7 @@ class TestingRetractSink(tz: TimeZone)
     }
   }
 
-  def invoke(v: (Boolean, Row)): Unit = {
+  override def invoke(v: (Boolean, Row)): Unit = {
     this.synchronized {
       val tupleString = "(" + v._1.toString + "," + TestSinkUtil.rowToString(v._2, tz) + ")"
       localResults += tupleString

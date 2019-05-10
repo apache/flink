@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -68,6 +69,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test for subclasses of {@link org.apache.flink.table.types.logical.LogicalType}.
@@ -401,6 +403,25 @@ public class LogicalTypesTest {
 					new RowType.RowField("a", new VarCharType(), "Different desc."),
 					new RowType.RowField("b`", new TimestampType())))
 		);
+
+		try {
+			new RowType(
+				Arrays.asList(
+					new RowType.RowField("b", new VarCharType()),
+					new RowType.RowField("b", new VarCharType()),
+					new RowType.RowField("a", new VarCharType()),
+					new RowType.RowField("a", new TimestampType())));
+			fail("Not unique fields expected.");
+		} catch (ValidationException e) {
+			// ok
+		}
+
+		try {
+			new RowType(Collections.singletonList(new RowType.RowField("", new VarCharType())));
+			fail("Invalid name.");
+		} catch (ValidationException e) {
+			// ok
+		}
 	}
 
 	@Test
@@ -602,7 +623,7 @@ public class LogicalTypesTest {
 		return new StructuredType.Builder(
 				new UserDefinedType.TypeIdentifier("cat", "db", "Human"),
 				Collections.singletonList(
-					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE)))
+					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
 			.setDescription("Human type desc.")
 			.setFinal(false)
 			.setInstantiable(false)

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.table.catalog.ReadableWritableCatalog;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Base class for catalogs backed by Hive metastore.
  */
-public abstract class HiveCatalogBase implements ReadableWritableCatalog {
+public abstract class HiveCatalogBase implements Catalog {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogBase.class);
 
 	public static final String DEFAULT_DB = "default";

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -657,7 +658,7 @@ public class SingleInputGate implements InputGate {
 
 	// ------------------------------------------------------------------------
 
-	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+	public Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
 		return inputChannels;
 	}
 

@@ -40,9 +40,9 @@ public interface SchedulingStrategy {
 	/**
 	 * Called whenever vertices need to be restarted (due to task failure).
 	 *
-	 * @param verticesNeedingRestart The tasks need to be restarted
+	 * @param verticesToRestart The tasks need to be restarted
 	 */
-	void restartTasks(Set<ExecutionVertexID> verticesNeedingRestart);
+	void restartTasks(Set<ExecutionVertexID> verticesToRestart);
 
 	/**
 	 * Called whenever an {@link Execution} changes its state.

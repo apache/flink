@@ -21,7 +21,7 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.`type`.{RowType, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rex._
@@ -39,7 +39,7 @@ object CalcCodeGenerator {
       calcProgram: RexProgram,
       condition: Option[RexNode],
       retainHeader: Boolean = false,
-      opName: String): OneInputOperatorWrapper[BaseRow, BaseRow] = {
+      opName: String): CodeGenOperatorFactory[BaseRow] = {
     val inputType = TypeConverters.createInternalTypeFromTypeInfo(
       inputTransform.getOutputType).asInstanceOf[RowType]
     // filter out time attributes
@@ -66,7 +66,7 @@ object CalcCodeGenerator {
         inputTerm = inputTerm,
         lazyInputUnboxingCode = true)
 
-    new OneInputOperatorWrapper(genOperator)
+    new CodeGenOperatorFactory(genOperator)
   }
 
   private[flink] def generateProcessCode(

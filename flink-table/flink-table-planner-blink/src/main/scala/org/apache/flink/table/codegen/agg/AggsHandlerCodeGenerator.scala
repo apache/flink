@@ -45,9 +45,7 @@ class AggsHandlerCodeGenerator(
     ctx: CodeGeneratorContext,
     relBuilder: RelBuilder,
     inputFieldTypes: Seq[InternalType],
-    needRetract: Boolean,
-    copyInputField: Boolean,
-    needAccumulate: Boolean = true) {
+    copyInputField: Boolean) {
 
   private val inputType = new RowType(inputFieldTypes: _*)
 
@@ -69,7 +67,9 @@ class AggsHandlerCodeGenerator(
 
   private var ignoreAggValues: Array[Int] = Array()
 
-  private var needMerge = false
+  private var isAccumulateNeeded = false
+  private var isRetractNeeded = false
+  private var isMergeNeeded = false
 
   var valueType: RowType = _
 
@@ -132,22 +132,45 @@ class AggsHandlerCodeGenerator(
     this
   }
 
+
   /**
-    * Sets merged accumulator information.
+    * Tells the generator to generate `accumulate(..)` method for the [[AggsHandleFunction]] and
+    * [[NamespaceAggsHandleFunction]]. Default not generate `accumulate(..)` method.
+    */
+  def needAccumulate(): AggsHandlerCodeGenerator = {
+    this.isAccumulateNeeded = true
+    this
+  }
+
+  /**
+    * Tells the generator to generate `retract(..)` method for the [[AggsHandleFunction]] and
+    * [[NamespaceAggsHandleFunction]]. Default not generate `retract(..)` method.
+    *
+    * @return
+    */
+  def needRetract(): AggsHandlerCodeGenerator = {
+    this.isRetractNeeded = true
+    this
+  }
+
+  /**
+    * Tells the generator to generate `merge(..)` method with the merged accumulator information
+    * for the [[AggsHandleFunction]] and [[NamespaceAggsHandleFunction]].
+    * Default not generate `merge(..)` method.
     *
     * @param mergedAccOffset the mergedAcc may come from local aggregate,
     *                         this is the first buffer offset in the row
     * @param mergedAccOnHeap true if the mergedAcc is on heap, otherwise
     * @param mergedAccExternalTypes the merged acc types
     */
-  def withMerging(
+  def needMerge(
       mergedAccOffset: Int,
       mergedAccOnHeap: Boolean,
       mergedAccExternalTypes: Array[TypeInformation[_]] = null): AggsHandlerCodeGenerator = {
     this.mergedAccOffset = mergedAccOffset
     this.mergedAccOnHeap = mergedAccOnHeap
     this.mergedAccExternalTypes = mergedAccExternalTypes
-    this.needMerge = true
+    this.isMergeNeeded = true
     this
   }
 
@@ -230,7 +253,7 @@ class AggsHandlerCodeGenerator(
           aggBufferOffset,
           aggBufferSize,
           hasNamespace,
-          needMerge,
+          isMergeNeeded,
           mergedAccOnHeap,
           distinctInfo.consumeRetraction,
           copyInputField,
@@ -540,7 +563,7 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genAccumulate(): String = {
-    if (needAccumulate) {
+    if (isAccumulateNeeded) {
       // validation check
       checkNeededMethods(needAccumulate = true)
 
@@ -563,7 +586,7 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genRetract(): String = {
-    if (needRetract) {
+    if (isRetractNeeded) {
       // validation check
       checkNeededMethods(needRetract = true)
 
@@ -586,7 +609,7 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genMerge(): String = {
-    if (needMerge) {
+    if (isMergeNeeded) {
       // validation check
       checkNeededMethods(needMerge = true)
 

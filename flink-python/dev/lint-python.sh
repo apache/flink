@@ -18,7 +18,7 @@
 ################################################################################
 
 # lint-python.sh
-# This script will prepare a virtual environment for many kinds of checks, such as pytest, flake8 codestyle.
+# This script will prepare a virtual environment for many kinds of checks, such as tox check, flake8 check.
 #
 # You can refer to the README.MD in ${flink-python} to learn how easy to run the script.
 #
@@ -27,7 +27,8 @@
 function download() {
     local DOWNLOAD_STATUS=
     if hash "wget" 2>/dev/null; then
-        wget "$1" -O "$2" -q --show-progress
+        # because of the difference of all versions of wget, so we turn of the option --show-progress
+        wget "$1" -O "$2" -q
         DOWNLOAD_STATUS="$?"
     else
         curl "$1" -o "$2" --progress-bar
@@ -39,7 +40,7 @@ function download() {
     fi
 }
 
-# for print infos both in log and console
+# Printing infos both in log and console
 function print_function() {
     local STAGE_LENGTH=48
     local left_edge_len=
@@ -98,16 +99,6 @@ function check_valid_stage() {
                 return 0
             fi
             ;;
-        "tox")
-            if [ $2 -eq 0 ]; then
-                return 0
-            fi
-            ;;
-        "flake8")
-            if [ $2 -eq 0 ]; then
-                return 0
-            fi
-            ;;
         *)
             ;;
     esac
@@ -125,7 +116,7 @@ function get_os_index() {
 }
 
 # Considering the file size of miniconda.sh,
-# "wget" is better than curl in the weak network environment.
+# "wget" is better than "curl" in the weak network environment.
 function install_wget() {
     if [ $1 == "Darwin" ]; then
         hash "brew" 2>/dev/null
@@ -150,7 +141,7 @@ function install_wget() {
 
 # The script choose miniconda as our package management tool.
 # The script use miniconda to create all kinds of python versions and
-# some pakcages such as tox and flake8.
+# some pakcages including checks such as tox and flake8.
 
 function install_miniconda() {
     OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh" \
@@ -257,7 +248,7 @@ function install_flake8() {
 # In this function, the script will prepare all kinds of python environments and checks.
 function install_environment() {
 
-    print_function "STAGE" "Stage 1:installing environment"
+    print_function "STAGE" "installing environment"
 
     local sys_os=`uname -s`
     #get the index of the SUPPORT_OS array for convinient to intall tool.
@@ -313,10 +304,7 @@ function install_environment() {
     fi
     print_function "STEP" "install flake8... [SUCCESS]"
 
-    print_function "STAGE"  "Stage 1:finishing install environment"
-
-    STAGE="tox"
-    STEP=0
+    print_function "STAGE"  "install environment... [SUCCESS]"
 }
 
 # create dir if needed
@@ -335,7 +323,7 @@ function create_dir() {
 function activate () {
     if [ ! -d ${CURRENT_DIR}/.conda/envs ]; then
         echo "For some unkown reasons,missing the directory ${CURRENT_DIR}/.conda/envs,\
-        you should exec the script with the parameter: -f"
+        you should exec the script with the option: -f"
         exit 1
     fi
 
@@ -346,7 +334,7 @@ function activate () {
     export PATH 2>/dev/null
     if [ $? -ne 0 ]; then
         echo "For some unkown reasons, the py package is not complete,\
-        you should exec the script with the parameter: -f"
+        you should exec the script with the option: -f"
         exit 1
     fi
 }
@@ -362,18 +350,85 @@ function deactivate() {
     fi
 }
 
-# Tox pytest Check
+# Collect checks
+function collect_checks() {
+    if [ ! -z "$EXCLUDE_CHECKS" ] && [ ! -z  "$INCLUDE_CHECKS" ]; then
+        echo "You can't use option -s and -e simultaneously."
+        exit 1
+    fi
+    if [ ! -z "$EXCLUDE_CHECKS" ]; then
+        for (( i = 0; i < ${#EXCLUDE_CHECKS[@]}; i++)); do
+            if echo "${SUPPORT_CHECKS[@]}" | grep -w "${EXCLUDE_CHECKS[i]}_check" &>/dev/null; then
+                SUPPORT_CHECKS=("${SUPPORT_CHECKS[@]/${EXCLUDE_CHECKS[i]}_check}")
+            else
+                echo "the check ${EXCLUDE_CHECKS[i]} is invalid."
+                exit 1
+            fi
+        done
+    fi
+    if [ ! -z "$INCLUDE_CHECKS" ]; then
+        REAL_SUPPORT_CHECKS=()
+        for (( i = 0; i < ${#INCLUDE_CHECKS[@]}; i++)); do
+            if echo "${SUPPORT_CHECKS[@]}" | grep -w "${INCLUDE_CHECKS[i]}_check" &>/dev/null; then
+                REAL_SUPPORT_CHECKS+=("${INCLUDE_CHECKS[i]}_check")
+            else
+                echo "the check ${INCLUDE_CHECKS[i]} is invalid."
+                exit 1
+            fi
+        done
+        SUPPORT_CHECKS=(${REAL_SUPPORT_CHECKS[@]})
+    fi
+}
+
+# If the check stage is needed
+function include_stage() {
+    if echo "${SUPPORT_CHECKS[@]}" | grep -w "$1" &>/dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# get all supported checks functions
+function get_all_supported_checks() {
+    _OLD_IFS=$IFS
+    IFS=$'\n'
+    SUPPORT_CHECKS=()
+    for fun in $(declare -F); do
+        if echo "$fun" | grep -e "_check$" &>/dev/null; then
+            SUPPORT_CHECKS+=("${fun:11}")
+        fi
+    done
+    IFS=$_OLD_IFS
+}
+
+# exec all selected check stages
+function check_stage() {
+    print_function "STAGE" "checks starting"
+    for fun in ${SUPPORT_CHECKS[@]}; do
+        $fun
+    done
+    echo "All the checks are finished, the detailed information can be found in: $LOG_FILE"
+}
+
+
+###############################################################All Checks Definitions###############################################################
+#########################
+# This part defines all check functions such as tox_check and flake8_check
+# We make a rule that all check functions are suffixed with _ check. e.g. tox_check, flake8_chek
+#########################
+# Tox check
 function tox_check() {
-    print_function "STAGE" "Stage 2:tox check"
+    print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
     $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
     if [ $TOX_RESULT -eq '0' ]; then
-        print_function "STAGE" "tox checked ... [FAILED]"
+        print_function "STAGE" "tox checks... [FAILED]"
     else
-        print_function "STAGE" "tox checked ... [SUCCESS]"
+        print_function "STAGE" "tox checks... [SUCCESS]"
     fi
     # Reset the $PATH
     deactivate
@@ -381,15 +436,13 @@ function tox_check() {
     if [ $TOX_RESULT -eq '0' ]; then
         exit 1
     fi
-    STAGE="flake8"
-    STEP="0"
 }
 
-# Flake8 codestyle check
-function flake8_check {
+# Flake8 check
+function flake8_check() {
     local PYTHON_SOURCE="$(find . \( -path ./dev -o -path ./.tox \) -prune -o -type f -name "*.py" -print )"
 
-    print_function "STAGE" "Stage 3:flake8 code style check"
+    print_function "STAGE" "flake8 checks"
     if [ ! -f "$FLAKE8_PATH" ]; then
         echo "For some unkown reasons, the flake8 package is not complete,\
         you should exec the script with the parameter: -f"
@@ -407,13 +460,14 @@ function flake8_check {
 
     PYCODESTYLE_STATUS=$?
     if [ $PYCODESTYLE_STATUS -ne 0 ]; then
-        print_function "STAGE" "python code style checks ... [FAILED]"
+        print_function "STAGE" "flake8 checks... [FAILED]"
         # Stop the running script.
         exit 1;
     else
-        print_function "STAGE" "python code style checks ... [SUCCESS]"
+        print_function "STAGE" "flake8 checks... [SUCCESS]"
     fi
 }
+###############################################################All Checks Definitions###############################################################
 
 # CURRENT_DIR is "flink/flink-python/dev/"
 CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
@@ -435,7 +489,7 @@ _OLD_PATH="$PATH"
 
 SUPPORT_OS=("Darwin" "Linux")
 
-# the file stores the success progress.
+# the file stores the success step in installing progress.
 STAGE_FILE=$CURRENT_DIR/.stage.txt
 
 # the dir includes all kinds of py env installed.
@@ -465,13 +519,25 @@ STAGE_INSTALL_STEPS=5
 
 # whether force to restart the script.
 FORCE_START=0
+
+SUPPORT_CHECKS=()
+
+# search all supported check functions and put them into SUPPORT_CHECKS array
+get_all_supported_checks
+
+EXCLUDE_CHECKS=""
+
+INCLUDE_CHECKS=""
 # parse_opts
 USAGE="
 usage: $0 [options]$
--h           print this help message and exit
--f           force to exec from the start
+-h          print this help message and exit
+-f          force to exec from the progress of installing environment
+-e          exclude checks which split by comma(,) e.g. -e tox,flake8
+-i          include checks which split by comma(,) to exec e.g. -i flake8.
+-l          list all checks supported.
 "
-while getopts "hf" arg; do
+while getopts "hfi:e:l" arg; do
     case "$arg" in
         h)
             printf "%s\\n" "$USAGE"
@@ -480,12 +546,29 @@ while getopts "hf" arg; do
         f)
             FORCE_START=1
             ;;
+        e)
+            EXCLUDE_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
+            ;;
+        i)
+            SELECT_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
+            ;;
+        l)
+            printf "current supported checks includes:\n"
+            for fun in ${SUPPORT_CHECKS[@]}; do
+                echo ${fun%%_check*}
+            done
+            exit 2
+            ;;
         ?)
             printf "ERROR: did not recognize option '%s', please try -h\\n" "$1"
             exit 1
             ;;
     esac
 done
+
+# collect checks according to the options
+collect_checks
+
 # If exec the script with the param: -f, all progress will be re-run
 if [ $FORCE_START -eq 1 ]; then
     STAGE="install"
@@ -494,17 +577,9 @@ if [ $FORCE_START -eq 1 ]; then
 else
     restore_stage
 fi
-# Stage 1:install environment
-if [ $STAGE == "install" ]; then
-    install_environment
-fi
-# Stage 2:tox check python compatibility
-if [ $STAGE == "tox" ]; then
-    tox_check
-fi
-# Stage 3:code style test
-if [ $STAGE == "flake8" ]; then
-    flake8_check
-fi
 
-echo "All the checks are finished, the detailed information can be found in: $LOG_FILE"
+# install environment
+install_environment
+
+# exec all selected checks
+check_stage

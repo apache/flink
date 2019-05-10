@@ -20,8 +20,8 @@ package org.apache.flink.table.codegen
 
 import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow, GenericRow}
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 
 import org.apache.calcite.rex.RexNode
 
@@ -37,7 +37,7 @@ object ExpandCodeGenerator {
       config: TableConfig,
       projects: java.util.List[java.util.List[RexNode]],
       retainHeader: Boolean = false,
-      opName: String): OneInputOperatorWrapper[BaseRow, BaseRow] = {
+      opName: String): CodeGenOperatorFactory[BaseRow] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
@@ -71,7 +71,7 @@ object ExpandCodeGenerator {
       inputTerm = inputTerm,
       lazyInputUnboxingCode = false)
 
-    new OneInputOperatorWrapper(genOperator)
+    new CodeGenOperatorFactory(genOperator)
   }
 
 }

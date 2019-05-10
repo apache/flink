@@ -19,9 +19,12 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -44,7 +47,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	private final StreamTransformation<IN1> input1;
 	private final StreamTransformation<IN2> input2;
 
-	private final TwoInputStreamOperator<IN1, IN2, OUT> operator;
+	private final StreamOperatorFactory<OUT> operatorFactory;
 
 	private KeySelector<IN1, ?> stateKeySelector1;
 
@@ -69,10 +72,20 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
 			TypeInformation<OUT> outputType,
 			int parallelism) {
+		this(input1, input2, name, SimpleOperatorFactory.of(operator), outputType, parallelism);
+	}
+
+	public TwoInputTransformation(
+			StreamTransformation<IN1> input1,
+			StreamTransformation<IN2> input2,
+			String name,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<OUT> outputType,
+			int parallelism) {
 		super(name, outputType, parallelism);
 		this.input1 = input1;
 		this.input2 = input2;
-		this.operator = operator;
+		this.operatorFactory = operatorFactory;
 	}
 
 	/**
@@ -103,11 +116,16 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 		return input2.getOutputType();
 	}
 
-	/**
-	 * Returns the {@code TwoInputStreamOperator} of this Transformation.
-	 */
+	@VisibleForTesting
 	public TwoInputStreamOperator<IN1, IN2, OUT> getOperator() {
-		return operator;
+		return (TwoInputStreamOperator<IN1, IN2, OUT>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+	}
+
+	/**
+	 * Returns the {@code StreamOperatorFactory} of this Transformation.
+	 */
+	public StreamOperatorFactory<OUT> getOperatorFactory() {
+		return operatorFactory;
 	}
 
 	/**
@@ -161,7 +179,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operator.setChainingStrategy(strategy);
+		operatorFactory.setChainingStrategy(strategy);
 	}
 
 }
