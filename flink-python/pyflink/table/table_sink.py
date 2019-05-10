@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TableSink', 'CsvTableSink']
