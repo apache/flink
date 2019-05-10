@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
@@ -89,7 +90,7 @@ public class MetricUtils {
 		return jobManagerMetricGroup;
 	}
 
-	public static TaskManagerMetricGroup instantiateTaskManagerMetricGroup(
+	public static Tuple2<TaskManagerMetricGroup, MetricGroup> instantiateTaskManagerMetricGroup(
 			MetricRegistry metricRegistry,
 			String hostName,
 			ResourceID resourceID,
@@ -107,7 +108,7 @@ public class MetricUtils {
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
 		}
-		return taskManagerMetricGroup;
+		return Tuple2.of(taskManagerMetricGroup, statusGroup);
 	}
 
 	public static void instantiateStatusMetrics(
