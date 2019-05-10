@@ -28,9 +28,6 @@ import org.apache.flink.runtime.taskmanager.TaskActions;
  * Utility class to encapsulate the logic of building a {@link ResultPartition} instance.
  */
 public class ResultPartitionBuilder {
-
-	private static final String taskName = "Result Partition";
-
 	private JobID jobId = new JobID();
 
 	private final TaskActions taskActions = new NoOpTaskActions();
@@ -97,17 +94,15 @@ public class ResultPartitionBuilder {
 	}
 
 	public ResultPartition build() {
-		return new ResultPartition(
-			taskName,
+		return new ResultPartitionFactory(partitionManager, ioManager).create(
+			"Result Partition task",
 			taskActions,
 			jobId,
 			partitionId,
 			partitionType,
 			numberOfSubpartitions,
 			numTargetKeyGroups,
-			partitionManager,
 			partitionConsumableNotifier,
-			ioManager,
 			sendScheduleOrUpdateConsumersMessage);
 	}
 }
