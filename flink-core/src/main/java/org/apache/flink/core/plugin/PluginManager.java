@@ -25,6 +25,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
@@ -41,13 +42,17 @@ public class PluginManager {
 	/** A collection of descriptions of all plugins known to this plugin manager. */
 	private final Collection<PluginDescriptor> pluginDescriptors;
 
-	public PluginManager(Collection<PluginDescriptor> pluginDescriptors) {
-		this(pluginDescriptors, PluginManager.class.getClassLoader());
+	/** List of patterns for classes that should always be resolved from the parent ClassLoader. */
+	private final String[] alwaysParentFirstPatterns;
+
+	public PluginManager(Collection<PluginDescriptor> pluginDescriptors, String[] alwaysParentFirstPatterns) {
+		this(pluginDescriptors, PluginManager.class.getClassLoader(), alwaysParentFirstPatterns);
 	}
 
-	public PluginManager(Collection<PluginDescriptor> pluginDescriptors, ClassLoader parentClassLoader) {
+	public PluginManager(Collection<PluginDescriptor> pluginDescriptors, ClassLoader parentClassLoader, String[] alwaysParentFirstPatterns) {
 		this.pluginDescriptors = pluginDescriptors;
 		this.parentClassLoader = parentClassLoader;
+		this.alwaysParentFirstPatterns = alwaysParentFirstPatterns;
 	}
 
 	/**
@@ -61,7 +66,7 @@ public class PluginManager {
 	public <P extends Plugin> Iterator<P> load(Class<P> service) {
 		ArrayList<Iterator<P>> combinedIterators = new ArrayList<>(pluginDescriptors.size());
 		for (PluginDescriptor pluginDescriptor : pluginDescriptors) {
-			PluginLoader pluginLoader = new PluginLoader(pluginDescriptor, parentClassLoader);
+			PluginLoader pluginLoader = new PluginLoader(pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns);
 			combinedIterators.add(pluginLoader.load(service));
 		}
 		return Iterators.concat(combinedIterators.iterator());
@@ -72,6 +77,7 @@ public class PluginManager {
 		return "PluginManager{" +
 			"parentClassLoader=" + parentClassLoader +
 			", pluginDescriptors=" + pluginDescriptors +
+			", alwaysParentFirstPatterns=" + Arrays.toString(alwaysParentFirstPatterns) +
 			'}';
 	}
 }

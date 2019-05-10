@@ -31,7 +31,7 @@ import java.util.Iterator;
 /**
  * Test for {@link PluginLoader}.
  */
-public class PluginLoaderTest extends PluginTestBase{
+public class PluginLoaderTest extends PluginTestBase {
 
 	@Test
 	public void testPluginLoading() throws Exception {
@@ -39,7 +39,7 @@ public class PluginLoaderTest extends PluginTestBase{
 		final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
 		PluginDescriptor pluginDescriptorA = new PluginDescriptor("A", new URL[]{classpathA}, new String[0]);
-		final PluginLoader pluginLoaderA = new PluginLoader(pluginDescriptorA, PARENT_CLASS_LOADER);
+		final PluginLoader pluginLoaderA = new PluginLoader(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
 
 		Iterator<TestSpi> testSpiIteratorA = pluginLoaderA.load(TestSpi.class);
 
@@ -59,7 +59,7 @@ public class PluginLoaderTest extends PluginTestBase{
 		Assert.assertFalse(testSpiA instanceof TestServiceA);
 
 		// In the following we check for isolation of classes between different plugin loaders.
-		final PluginLoader secondPluginLoaderA = new PluginLoader(pluginDescriptorA, PARENT_CLASS_LOADER);
+		final PluginLoader secondPluginLoaderA = new PluginLoader(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
 
 		TestSpi secondTestSpiA = secondPluginLoaderA.load(TestSpi.class).next();
 		Assert.assertNotNull(secondTestSpiA.testMethod());
