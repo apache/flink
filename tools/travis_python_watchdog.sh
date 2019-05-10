@@ -171,7 +171,7 @@ echo "RUNNING '${PYTHON_TEST}'."
 # Run $PYTHON_TEST and pipe output to $PYTHON_OUT for the watchdog. The PID is written to $PYTHON_PID to
 # allow the watchdog to kill python test process if it is not producing any output anymore. $PYTHON_EXIT contains
 # the exit code. This is important for Travis' build life-cycle (success/failure).
-( PYTHON_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$PYTHON_PID 4>$PYTHON_EXIT | tee $PYTHON_OUT
+( $PYTHON_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$PYTHON_PID 4>$PYTHON_EXIT | tee $PYTHON_OUT
 
 EXIT_CODE=$(<$PYTHON_EXIT)
 
