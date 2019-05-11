@@ -25,12 +25,11 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecHashJoin
-import org.apache.flink.table.runtime.join.FlinkJoinType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Join, SemiJoin}
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.util.ImmutableIntList
 
 import java.util
@@ -42,11 +41,11 @@ import scala.collection.JavaConversions._
   * if there exists at least one equal-join condition and
   * ShuffleHashJoin or BroadcastHashJoin are enabled.
   */
-class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
+class BatchExecHashJoinRule
   extends RelOptRule(
-    operand(joinClass,
+    operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    s"BatchExecHashJoinRule_${joinClass.getSimpleName}")
+    "BatchExecHashJoinRule")
   with BatchExecJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -61,10 +60,9 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val isShuffleHashJoinEnabled = tableConfig.isOperatorEnabled(OperatorType.ShuffleHashJoin)
     val isBroadcastHashJoinEnabled = tableConfig.isOperatorEnabled(OperatorType.BroadcastHashJoin)
 
-    val joinType = getFlinkJoinType(join)
     val leftSize = binaryRowRelNodeSize(join.getLeft)
     val rightSize = binaryRowRelNodeSize(join.getRight)
-    val (isBroadcast, _) = canBroadcast(joinType, leftSize, rightSize, tableConfig)
+    val (isBroadcast, _) = canBroadcast(join.getJoinType, leftSize, rightSize, tableConfig)
 
     // TODO use shuffle hash join if isBroadcast is true and isBroadcastHashJoinEnabled is false ?
     if (isBroadcast) isBroadcastHashJoinEnabled else isShuffleHashJoinEnabled
@@ -74,10 +72,21 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
-    val joinType = getFlinkJoinType(join)
+    val joinType = join.getJoinType
 
     val left = join.getLeft
-    val right = join.getRight
+    val (right, tryDistinctBuildRow) = joinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        // We can do a distinct to buildSide(right) when semi join.
+        val distinctKeys = 0 until join.getRight.getRowType.getFieldCount
+        val useBuildDistinct = chooseSemiBuildDistinct(join.getRight, distinctKeys)
+        if (useBuildDistinct) {
+          (addLocalDistinctAgg(join.getRight, distinctKeys, call.builder()), true)
+        } else {
+          (join.getRight, false)
+        }
+      case _ => (join.getRight, false)
+    }
 
     val leftSize = binaryRowRelNodeSize(left)
     val rightSize = binaryRowRelNodeSize(right)
@@ -88,8 +97,8 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
       leftIsBroadcast
     } else if (leftSize == null || rightSize == null || leftSize == rightSize) {
       // use left to build hash table if leftSize or rightSize is unknown or equal size.
-      // choose right to build if join is semiJoin.
-      !join.isInstanceOf[SemiJoin]
+      // choose right to build if join is SEMI/ANTI.
+      !join.getJoinType.projectsRight
     } else {
       leftSize < rightSize
     }
@@ -107,7 +116,8 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
         join.getCondition,
         join.getJoinType,
         leftIsBuild,
-        isBroadcast)
+        isBroadcast,
+        tryDistinctBuildRow)
 
       call.transformTo(newJoin)
     }
@@ -155,7 +165,7 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     *         as broadcast side, false else.
     */
   private def canBroadcast(
-      joinType: FlinkJoinType,
+      joinType: JoinRelType,
       leftSize: JDouble,
       rightSize: JDouble,
       tableConfig: TableConfig): (Boolean, Boolean) = {
@@ -166,17 +176,17 @@ class BatchExecHashJoinRule(joinClass: Class[_ <: Join])
     val threshold = tableConfig.getConf.getLong(
       PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD)
     joinType match {
-      case FlinkJoinType.LEFT => (rightSize <= threshold, false)
-      case FlinkJoinType.RIGHT => (leftSize <= threshold, true)
-      case FlinkJoinType.FULL => (false, false)
-      case FlinkJoinType.INNER =>
+      case JoinRelType.LEFT => (rightSize <= threshold, false)
+      case JoinRelType.RIGHT => (leftSize <= threshold, true)
+      case JoinRelType.FULL => (false, false)
+      case JoinRelType.INNER =>
         (leftSize <= threshold || rightSize <= threshold, leftSize < rightSize)
       // left side cannot be used as build side in SEMI/ANTI join.
-      case FlinkJoinType.SEMI | FlinkJoinType.ANTI => (rightSize <= threshold, false)
+      case JoinRelType.SEMI | JoinRelType.ANTI => (rightSize <= threshold, false)
     }
   }
 }
 
 object BatchExecHashJoinRule {
-  val INSTANCE = new BatchExecHashJoinRule(classOf[FlinkLogicalJoin])
+  val INSTANCE = new BatchExecHashJoinRule
 }

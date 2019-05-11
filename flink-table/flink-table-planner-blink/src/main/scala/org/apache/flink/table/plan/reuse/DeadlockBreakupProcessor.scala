@@ -182,12 +182,12 @@ class DeadlockBreakupProcessor {
     override def visit(node: ExecNode[_, _]): Unit = {
       super.visit(node)
       node match {
-        case hashJoin: BatchExecHashJoinBase =>
-          val joinInfo = hashJoin.joinInfo
+        case hashJoin: BatchExecHashJoin =>
+          val joinInfo = hashJoin.getJoinInfo
           val columns = if (hashJoin.leftIsBuild) joinInfo.rightKeys else joinInfo.leftKeys
           val distribution = FlinkRelDistribution.hash(columns)
           rewriteJoin(hashJoin, hashJoin.leftIsBuild, distribution)
-        case nestedLoopJoin: BatchExecNestedLoopJoinBase =>
+        case nestedLoopJoin: BatchExecNestedLoopJoin =>
           rewriteJoin(nestedLoopJoin, nestedLoopJoin.leftIsBuild, FlinkRelDistribution.ANY)
         case _ => // do nothing
       }
@@ -323,11 +323,11 @@ class DeadlockBreakupProcessor {
             true
           } else {
             node match {
-              case h: BatchExecHashJoinBase =>
+              case h: BatchExecHashJoin =>
                 val buildSideIndex = if (h.leftIsBuild) 0 else 1
                 val buildNode = h.getInputNodes.get(buildSideIndex)
                 checkJoinBuildSide(buildNode, idx, inputPath)
-              case n: BatchExecNestedLoopJoinBase =>
+              case n: BatchExecNestedLoopJoin =>
                 val buildSideIndex = if (n.leftIsBuild) 0 else 1
                 val buildNode = n.getInputNodes.get(buildSideIndex)
                 checkJoinBuildSide(buildNode, idx, inputPath)

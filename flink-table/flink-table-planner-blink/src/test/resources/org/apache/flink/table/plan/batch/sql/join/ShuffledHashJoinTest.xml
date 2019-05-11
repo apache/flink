@@ -82,7 +82,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[FullOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[left])
++- HashJoin(joinType=[FullOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -209,7 +209,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(a, d))], select=[a, b, c, d, e, g], build=[left])
++- HashJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(a, d))], select=[a, b, c, d, e, g], build=[right])
    :- Exchange(distribution=[hash[b, a]])
    :  +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e, d]])
@@ -233,7 +233,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[d, e, g, a, b, c], build=[left])
++- HashJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[d, e, g, a, b, c], build=[right])
    :- Exchange(distribution=[hash[d, e]])
    :  +- Calc(select=[d, e, g])
    :     +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
@@ -283,7 +283,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[RightOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[left])
++- HashJoin(joinType=[RightOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -309,7 +309,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, g], build=[left])
++- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, g], build=[right])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, c])
    :     +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -334,7 +334,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[LeftOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[left])
++- HashJoin(joinType=[LeftOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

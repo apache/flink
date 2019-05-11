@@ -188,22 +188,19 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
     if (predicate == null || predicate.isAlwaysTrue) {
       1.0
     } else {
-      estimateSelectivity(rel, mq, predicate)
-    }
-  }
-
-  def getSelectivity(rel: SemiJoin, mq: RelMetadataQuery, predicate: RexNode): JDouble = {
-    if (predicate == null || predicate.isAlwaysTrue) {
-      1.0
-    } else {
-      // create a RexNode representing the selectivity of the
-      // semijoin filter and pass it to getSelectivity
-      val rexBuilder = rel.getCluster.getRexBuilder
-      var newPred = FlinkRelMdUtil.makeSemiJoinSelectivityRexNode(mq, rel)
-      if (predicate != null) {
-        newPred = rexBuilder.makeCall(SqlStdOperatorTable.AND, newPred, predicate)
+      rel.getJoinType match {
+        case JoinRelType.SEMI | JoinRelType.ANTI =>
+          // create a RexNode representing the selectivity of the
+          // semi-join filter and pass it to getSelectivity
+          val rexBuilder = rel.getCluster.getRexBuilder
+          var newPred = FlinkRelMdUtil.makeSemiAntiJoinSelectivityRexNode(mq, rel)
+          if (predicate != null) {
+            newPred = rexBuilder.makeCall(SqlStdOperatorTable.AND, newPred, predicate)
+          }
+          mq.getSelectivity(rel.getLeft, newPred)
+        case _ =>
+          estimateSelectivity(rel, mq, predicate)
       }
-      mq.getSelectivity(rel.getLeft, newPred)
     }
   }
 
