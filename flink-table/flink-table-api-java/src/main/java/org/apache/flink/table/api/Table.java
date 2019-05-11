@@ -97,9 +97,22 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.select("key, value.avg + ' The average' as average")
+	 *   tab.select("key")
 	 * }
 	 * </pre>
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.select("value.avg + ' The average' as average")
+	 * }
+	 * </pre>
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
+	 * }
+	 * </pre>
+	 *
 	 */
 	Table select(String fields);
 
@@ -111,7 +124,19 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.select('key, 'value.avg + " The average" as 'average)
+	 *   tab.select('key)
+	 * }
+	 * </pre>
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.select('value.avg + " The average" as 'average)
+	 * }
+	 * </pre>
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
 	 * }
 	 * </pre>
 	 */
