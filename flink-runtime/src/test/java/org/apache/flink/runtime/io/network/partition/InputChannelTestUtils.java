@@ -20,9 +20,9 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -31,8 +31,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import java.net.InetSocketAddress;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -43,9 +41,6 @@ import static org.mockito.Mockito.when;
  * Some utility methods used for testing InputChannels and InputGates.
  */
 public class InputChannelTestUtils {
-
-	private static final ConnectionID STUB_CONNECTION_ID = new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
-
 	/**
 	 * Creates a result partition manager that ignores all IDs, and simply returns the given
 	 * subpartitions in sequence.
@@ -96,15 +91,10 @@ public class InputChannelTestUtils {
 		int channelIndex,
 		ResultPartitionManager partitionManager) {
 
-		return new LocalInputChannel(
-			inputGate,
-			channelIndex,
-			new ResultPartitionID(),
-			partitionManager,
-			new TaskEventDispatcher(),
-			0,
-			0,
-			newUnregisteredInputChannelMetrics());
+		return InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex)
+			.setPartitionManager(partitionManager)
+			.buildLocalAndSetToGate(inputGate);
 	}
 
 	public static LocalInputChannel createLocalInputChannel(
@@ -113,15 +103,11 @@ public class InputChannelTestUtils {
 		int initialBackoff,
 		int maxBackoff) {
 
-		return new LocalInputChannel(
-			inputGate,
-			0,
-			new ResultPartitionID(),
-			partitionManager,
-			new TaskEventDispatcher(),
-			initialBackoff,
-			maxBackoff,
-			newUnregisteredInputChannelMetrics());
+		return InputChannelBuilder.newBuilder()
+			.setPartitionManager(partitionManager)
+			.setInitialBackoff(initialBackoff)
+			.setMaxBackoff(maxBackoff)
+			.buildLocalAndSetToGate(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
@@ -129,15 +115,10 @@ public class InputChannelTestUtils {
 		int channelIndex,
 		ConnectionManager connectionManager) {
 
-		return new RemoteInputChannel(
-			inputGate,
-			channelIndex,
-			new ResultPartitionID(),
-			STUB_CONNECTION_ID,
-			connectionManager,
-			0,
-			0,
-			newUnregisteredInputChannelMetrics());
+		return InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex)
+			.setConnectionManager(connectionManager)
+			.buildRemoteAndSetToGate(inputGate);
 	}
 
 	public static InputChannelMetrics newUnregisteredInputChannelMetrics() {

@@ -108,17 +108,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		ResultPartitionID partitionId,
 		ConnectionID connectionId,
 		ConnectionManager connectionManager,
-		InputChannelMetrics metrics) {
-
-		this(inputGate, channelIndex, partitionId, connectionId, connectionManager, 0, 0, metrics);
-	}
-
-	public RemoteInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionID partitionId,
-		ConnectionID connectionId,
-		ConnectionManager connectionManager,
 		int initialBackOff,
 		int maxBackoff,
 		InputChannelMetrics metrics) {

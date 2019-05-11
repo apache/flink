@@ -27,9 +27,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -211,7 +211,7 @@ public class PartitionRequestClientHandlerTest {
 	 * @return The new created remote input channel.
 	 */
 	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
-		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class));
+		return createRemoteInputChannel(inputGate, null);
 	}
 
 	/**
@@ -243,19 +243,11 @@ public class PartitionRequestClientHandlerTest {
 		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
 			.thenReturn(client);
 
-		ResultPartitionID partitionId = new ResultPartitionID();
-		RemoteInputChannel inputChannel = new RemoteInputChannel(
-			inputGate,
-			0,
-			partitionId,
-			mock(ConnectionID.class),
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
-
-		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
-		return inputChannel;
+		return InputChannelBuilder.newBuilder()
+			.setConnectionManager(connectionManager)
+			.setInitialBackoff(initialBackoff)
+			.setMaxBackoff(maxBackoff)
+			.buildRemoteAndSetToGate(inputGate);
 	}
 
 	/**

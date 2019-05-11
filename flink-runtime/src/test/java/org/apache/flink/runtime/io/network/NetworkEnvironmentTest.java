@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -288,7 +287,7 @@ public class NetworkEnvironmentTest {
 	 * @param numberOfChannels
 	 * 		the number of input channels
 	 *
-	 * @return input gate with some fake settings
+	 * @return input gate with some fake settiFngs
 	 */
 	private SingleInputGate createSingleInputGate(ResultPartitionType partitionType, int numberOfChannels) {
 		return spy(new SingleInputGateBuilder()
@@ -303,15 +302,10 @@ public class NetworkEnvironmentTest {
 			int channelIndex,
 			ResultPartition resultPartition,
 			ConnectionManager connManager) {
-		RemoteInputChannel channel = new RemoteInputChannel(
-			inputGate,
-			channelIndex,
-			resultPartition.getPartitionId(),
-			mock(ConnectionID.class),
-			connManager,
-			0,
-			0,
-			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
-		inputGate.setInputChannel(resultPartition.getPartitionId().getPartitionId(), channel);
+		InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex)
+			.setPartitionId(resultPartition.getPartitionId())
+			.setConnectionManager(connManager)
+			.buildRemoteAndSetToGate(inputGate);
 	}
 }
