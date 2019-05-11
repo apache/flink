@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -297,8 +295,6 @@ public class LocalInputChannelTest {
 
 		final LocalInputChannel channel = createLocalInputChannel(gate, partitionManager, 1, 1);
 
-		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
-
 		Thread releaser = new Thread() {
 			@Override
 			public void run() {
@@ -444,15 +440,12 @@ public class LocalInputChannelTest {
 
 			// Setup input channels
 			for (int i = 0; i < numberOfInputChannels; i++) {
-				inputGate.setInputChannel(
-						new IntermediateResultPartitionID(),
-						new LocalInputChannel(
-								inputGate,
-								i,
-								consumedPartitionIds[i],
-								partitionManager,
-								taskEventDispatcher,
-								InputChannelTestUtils.newUnregisteredInputChannelMetrics()));
+				InputChannelBuilder.newBuilder()
+					.setChannelIndex(i)
+					.setPartitionManager(partitionManager)
+					.setPartitionId(consumedPartitionIds[i])
+					.setTaskEventPublisher(taskEventDispatcher)
+					.buildLocalAndSetToGate(inputGate);
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;

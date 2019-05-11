@@ -27,7 +27,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
-import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
@@ -92,8 +91,7 @@ public class InputGateFairnessTest {
 		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		for (int i = 0; i < numberOfChannels; i++) {
-			LocalInputChannel channel = createLocalInputChannel(gate, i, resultPartitionManager);
-			gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
+			createLocalInputChannel(gate, i, resultPartitionManager);
 		}
 
 		// read all the buffers and the EOF event
@@ -138,8 +136,7 @@ public class InputGateFairnessTest {
 			final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 			for (int i = 0; i < numberOfChannels; i++) {
-				LocalInputChannel channel = createLocalInputChannel(gate, i, resultPartitionManager);
-				gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
+				createLocalInputChannel(gate, i, resultPartitionManager);
 			}
 
 			// seed one initial buffer
@@ -192,8 +189,6 @@ public class InputGateFairnessTest {
 				channel.onBuffer(mockBuffer, p, -1);
 			}
 			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
-
-			gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
 		}
 
 		// read all the buffers and the EOF event
@@ -234,7 +229,6 @@ public class InputGateFairnessTest {
 		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = createRemoteInputChannel(gate, i, connManager);
 			channels[i] = channel;
-			gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
 		}
 
 		channels[11].onBuffer(mockBuffer, 0, -1);
