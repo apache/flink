@@ -102,10 +102,10 @@ public abstract class HiveCatalogBase implements Catalog {
 	 * Validate input base table.
 	 *
 	 * @param catalogBaseTable the base table to be validated
-	 * @throws IllegalArgumentException thrown if the input base table is invalid.
+	 * @throws CatalogException thrown if the input base table is invalid.
 	 */
 	protected abstract void validateCatalogBaseTable(CatalogBaseTable catalogBaseTable)
-		throws IllegalArgumentException;
+		throws CatalogException;
 
 	/**
 	 * Create a CatalogBaseTable from a Hive table.

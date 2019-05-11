@@ -107,9 +107,10 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	// ------ tables and views------
 
 	@Override
-	protected void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
+	protected void validateCatalogBaseTable(CatalogBaseTable table)
+			throws CatalogException {
 		if (!(table instanceof GenericCatalogTable) && !(table instanceof GenericCatalogView)) {
-			throw new IllegalArgumentException(
+			throw new CatalogException(
 				"GenericHiveMetastoreCatalog can only operate on GenericCatalogTable and GenericCatalogView.");
 		}
 	}

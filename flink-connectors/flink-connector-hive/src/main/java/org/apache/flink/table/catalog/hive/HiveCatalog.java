@@ -98,10 +98,11 @@ public class HiveCatalog extends HiveCatalogBase {
 	// ------ tables and views------
 
 	@Override
-	protected void validateCatalogBaseTable(CatalogBaseTable table) throws IllegalArgumentException {
+	protected void validateCatalogBaseTable(CatalogBaseTable table)
+			throws CatalogException {
 		// TODO: validate HiveCatalogView
 		if (!(table instanceof HiveCatalogTable)) {
-			throw new IllegalArgumentException(
+			throw new CatalogException(
 				"HiveCatalog can only operate on HiveCatalogTable and HiveCatalogView.");
 		}
 	}
