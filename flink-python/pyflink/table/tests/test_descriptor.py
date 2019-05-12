@@ -110,8 +110,8 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
     def test_field(self):
         csv = OldCsv()
 
-        csv.field("a", DataTypes.LONG)
-        csv.field("b", DataTypes.STRING)
+        csv.field("a", DataTypes.BIGINT())
+        csv.field("b", DataTypes.STRING())
         csv.field("c", "SQL_TIMESTAMP")
 
         properties = csv.to_properties()
@@ -216,17 +216,17 @@ class SchemaDescriptorTests(PyFlinkTestCase):
         schema = Schema()
 
         schema = schema\
-            .field("int_field", DataTypes.INT)\
-            .field("long_field", DataTypes.LONG)\
-            .field("string_field", DataTypes.STRING)\
-            .field("timestamp_field", DataTypes.TIMESTAMP)\
-            .field("time_field", DataTypes.TIME)\
-            .field("date_field", DataTypes.DATE)\
-            .field("double_field", DataTypes.DOUBLE)\
-            .field("float_field", DataTypes.FLOAT)\
-            .field("byte_field", DataTypes.BYTE)\
-            .field("short_field", DataTypes.SHORT)\
-            .field("boolean_field", DataTypes.BOOLEAN)
+            .field("int_field", DataTypes.INT())\
+            .field("long_field", DataTypes.BIGINT())\
+            .field("string_field", DataTypes.STRING())\
+            .field("timestamp_field", DataTypes.TIMESTAMP())\
+            .field("time_field", DataTypes.TIME())\
+            .field("date_field", DataTypes.DATE())\
+            .field("double_field", DataTypes.DOUBLE())\
+            .field("float_field", DataTypes.FLOAT())\
+            .field("byte_field", DataTypes.TINYINT())\
+            .field("short_field", DataTypes.SMALLINT())\
+            .field("boolean_field", DataTypes.BOOLEAN())
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
@@ -298,9 +298,9 @@ class SchemaDescriptorTests(PyFlinkTestCase):
         schema = Schema()
 
         schema = schema\
-            .field("int_field", DataTypes.INT)\
-            .field("long_field", DataTypes.LONG).from_origin_field("origin_field_a")\
-            .field("string_field", DataTypes.STRING)
+            .field("int_field", DataTypes.INT())\
+            .field("long_field", DataTypes.BIGINT()).from_origin_field("origin_field_a")\
+            .field("string_field", DataTypes.STRING())
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
@@ -316,9 +316,9 @@ class SchemaDescriptorTests(PyFlinkTestCase):
         schema = Schema()
 
         schema = schema\
-            .field("int_field", DataTypes.INT)\
-            .field("ptime", DataTypes.LONG).proctime()\
-            .field("string_field", DataTypes.STRING)
+            .field("int_field", DataTypes.INT())\
+            .field("ptime", DataTypes.BIGINT()).proctime()\
+            .field("string_field", DataTypes.STRING())
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
@@ -334,12 +334,12 @@ class SchemaDescriptorTests(PyFlinkTestCase):
         schema = Schema()
 
         schema = schema\
-            .field("int_field", DataTypes.INT)\
-            .field("long_field", DataTypes.LONG)\
-            .field("rtime", DataTypes.LONG)\
+            .field("int_field", DataTypes.INT())\
+            .field("long_field", DataTypes.BIGINT())\
+            .field("rtime", DataTypes.BIGINT())\
             .rowtime(
                 Rowtime().timestamps_from_field("long_field").watermarks_periodic_bounded(5000))\
-            .field("string_field", DataTypes.STRING)
+            .field("string_field", DataTypes.STRING())
 
         properties = schema.to_properties()
         print(properties)
@@ -392,7 +392,7 @@ class AbstractTableDescriptorTests(object):
     def test_register_table_sink(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -405,13 +405,13 @@ class AbstractTableDescriptorTests(object):
         t_env.connect(FileSystem().path(sink_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .with_schema(Schema()
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .register_table_sink("sink")
         t_env.scan("source") \
              .select("a + 1, b, c") \
@@ -425,7 +425,7 @@ class AbstractTableDescriptorTests(object):
     def test_register_table_source(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -440,13 +440,13 @@ class AbstractTableDescriptorTests(object):
         t_env.connect(FileSystem().path(source_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .with_schema(Schema()
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .register_table_source("source")
         t_env.scan("source") \
              .select("a + 1, b, c") \
@@ -460,7 +460,7 @@ class AbstractTableDescriptorTests(object):
     def test_register_table_source_and_sink(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         self.prepare_csv_source(source_path, data, field_types, field_names)
         sink_path = os.path.join(self.tempdir + '/streaming2.csv')
@@ -471,24 +471,24 @@ class AbstractTableDescriptorTests(object):
         t_env.connect(FileSystem().path(source_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .with_schema(Schema()
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .register_table_source_and_sink("source")
         t_env.connect(FileSystem().path(sink_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .with_schema(Schema()
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .register_table_source_and_sink("sink")
         t_env.scan("source") \
              .select("a + 1, b, c") \
@@ -588,13 +588,13 @@ class StreamDescriptorEndToEndTests(PyFlinkStreamTableTestCase):
         t_env.connect(FileSystem().path(sink_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .with_schema(Schema()
-                          .field("a", DataTypes.INT)
-                          .field("b", DataTypes.STRING)
-                          .field("c", DataTypes.STRING))\
+                          .field("a", DataTypes.INT())
+                          .field("b", DataTypes.STRING())
+                          .field("c", DataTypes.STRING()))\
              .register_table_sink("sink")
 
         t_env.scan("source") \

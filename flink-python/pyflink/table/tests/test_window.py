@@ -31,7 +31,7 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
     def test_over_window(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.INT(), DataTypes.STRING()]
         data = [(1, 1, "Hello"), (2, 2, "Hello"), (3, 4, "Hello"), (4, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -51,7 +51,7 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
     def test_tumble_window(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.INT(), DataTypes.STRING()]
         data = [(1, 1, "Hello"), (2, 2, "Hello"), (3, 4, "Hello"), (4, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -68,7 +68,7 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
     def test_slide_window(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.INT(), DataTypes.STRING()]
         data = [(1000, 1, "Hello"), (2000, 2, "Hello"), (3000, 4, "Hello"), (4000, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -85,7 +85,7 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
     def test_session_window(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.INT(), DataTypes.STRING()]
         data = [(1000, 1, "Hello"), (2000, 2, "Hello"), (4000, 4, "Hello"), (5000, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env

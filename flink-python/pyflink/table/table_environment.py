@@ -25,7 +25,8 @@ from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDesc
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
-from pyflink.util import type_utils, utils
+from pyflink.table.types import _to_java_type
+from pyflink.util import utils
 
 __all__ = [
     'BatchTableEnvironment',
@@ -88,7 +89,7 @@ class TableEnvironment(object):
         j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
         j_field_types = utils.to_jarray(
             gateway.jvm.TypeInformation,
-            [type_utils.to_java_type(field_type) for field_type in field_types])
+            [_to_java_type(field_type) for field_type in field_types])
         self._j_tenv.registerTableSink(name, j_field_names, j_field_types, table_sink._j_table_sink)
 
     def scan(self, *table_path):

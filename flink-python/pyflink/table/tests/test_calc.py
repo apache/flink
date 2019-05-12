@@ -18,8 +18,7 @@
 
 import os
 
-from pyflink.table.table_source import CsvTableSource
-from pyflink.table.types import DataTypes
+from pyflink.table import CsvTableSource, DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
@@ -33,7 +32,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
             f.write(lines)
             f.close()
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env = self.t_env
         # register Orders table in table environment
         t_env.register_table_source(
@@ -55,7 +54,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
     def test_alias(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -76,7 +75,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
     def test_where(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -97,7 +96,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
     def test_filter(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env

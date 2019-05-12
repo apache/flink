@@ -33,13 +33,13 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_register_scan(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
@@ -55,7 +55,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_register_table_source_sink(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -74,7 +74,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_from_table_source(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -93,7 +93,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_list_tables(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = []
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -113,7 +113,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_explain(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = []
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -128,7 +128,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_sql_query(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -149,7 +149,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_sql_update(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -168,7 +168,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
     def test_sql_update_with_query_config(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -236,7 +236,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_register_scan(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -251,7 +251,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_register_table_source_sink(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -274,7 +274,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_from_table_source(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -288,7 +288,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_list_tables(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = []
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -310,7 +310,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_explain(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = []
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -325,7 +325,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_sql_query(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -350,7 +350,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_sql_update(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
@@ -373,7 +373,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_sql_update_with_query_config(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env

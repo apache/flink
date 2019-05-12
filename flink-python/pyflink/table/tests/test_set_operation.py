@@ -28,7 +28,7 @@ class StreamTableSetOperationTests(PyFlinkStreamTableTestCase):
     def test_union_all(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
@@ -40,7 +40,7 @@ class StreamTableSetOperationTests(PyFlinkStreamTableTestCase):
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
@@ -64,7 +64,7 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
     def test_minus(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (1, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
@@ -85,7 +85,7 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
     def test_minus_all(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (1, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
@@ -107,7 +107,7 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
     def test_union(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
@@ -132,7 +132,7 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
     def test_intersect(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
@@ -153,7 +153,7 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
     def test_intersect_all(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
