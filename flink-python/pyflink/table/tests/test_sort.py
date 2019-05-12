@@ -27,7 +27,7 @@ class BatchTableSortTests(PyFlinkBatchTableTestCase):
     def test_order_by_offset_fetch(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING()]
         data = [(1, "Hello"), (2, "Hello"), (3, "Flink"), (4, "Python")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env

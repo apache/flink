@@ -28,14 +28,14 @@ class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
     def test_print_schema(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.INT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())

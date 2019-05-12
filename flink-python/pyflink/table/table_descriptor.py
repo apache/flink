@@ -19,9 +19,9 @@ import sys
 from abc import ABCMeta
 
 from py4j.java_gateway import get_method
+from pyflink.table.types import _to_java_type
 
 from pyflink.java_gateway import get_gateway
-from pyflink.util.type_utils import to_java_type
 
 if sys.version >= '3':
     unicode = str
@@ -191,7 +191,7 @@ class Schema(Descriptor):
         if isinstance(field_type, (str, unicode)):
             self._j_schema = self._j_schema.field(field_name, field_type)
         else:
-            self._j_schema = self._j_schema.field(field_name, to_java_type(field_type))
+            self._j_schema = self._j_schema.field(field_name, _to_java_type(field_type))
         return self
 
     def from_origin_field(self, origin_field_name):
@@ -298,7 +298,7 @@ class OldCsv(FormatDescriptor):
         if isinstance(field_type, (str, unicode)):
             self._j_csv = self._j_csv.field(field_name, field_type)
         else:
-            self._j_csv = self._j_csv.field(field_name, to_java_type(field_type))
+            self._j_csv = self._j_csv.field(field_name, _to_java_type(field_type))
         return self
 
     def quote_character(self, quote_character):
