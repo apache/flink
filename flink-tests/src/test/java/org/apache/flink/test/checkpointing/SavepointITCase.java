@@ -27,6 +27,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -34,13 +35,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -190,11 +192,7 @@ public class SavepointITCase extends TestLogger {
 
 			StatefulCounter.getProgressLatch().await();
 
-			final String savepointPath = client.cancelWithSavepoint(jobId, null);
-
-			waitJobCanceled(client, jobId);
-
-			return savepointPath;
+			return client.cancelWithSavepoint(jobId, null);
 		} finally {
 			cluster.after();
 			StatefulCounter.resetForTest(parallelism);
@@ -242,7 +240,13 @@ public class SavepointITCase extends TestLogger {
 
 			client.cancel(jobId);
 
-			waitJobCanceled(client, jobId);
+			FutureUtils.retrySuccessfulWithDelay(
+				() -> client.getJobStatus(jobId),
+				Time.milliseconds(50),
+				Deadline.now().plus(Duration.ofSeconds(30)),
+				status -> status == JobStatus.CANCELED,
+				TestingUtils.defaultScheduledExecutor()
+			);
 
 			client.disposeSavepoint(savepointPath)
 				.get();
@@ -252,20 +256,6 @@ public class SavepointITCase extends TestLogger {
 			cluster.after();
 			StatefulCounter.resetForTest(parallelism);
 		}
-	}
-
-	private void waitJobCanceled(ClusterClient<?> client, JobID jobId) throws Exception {
-
-		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
-
-		CommonTestUtils.waitUntilCondition(() -> {
-			final JobStatus jobStatus = client.getJobStatus(jobId).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			if (jobStatus == JobStatus.CANCELED) {
-				return true;
-			}
-			assertFalse("Unexpected status " + jobStatus + " of job " + jobId, jobStatus.isGloballyTerminalState());
-			return false;
-		}, deadline);
 	}
 
 	@Test
@@ -334,9 +324,6 @@ public class SavepointITCase extends TestLogger {
 			assertTrue(ExceptionUtils.findThrowable(e, IllegalStateException.class).isPresent());
 			assertTrue(ExceptionUtils.findThrowableWithMessage(e, graph.getJobID().toString()).isPresent());
 			assertTrue(ExceptionUtils.findThrowableWithMessage(e, "is not a streaming job").isPresent());
-
-			client.cancel(graph.getJobID());
-			waitJobCanceled(client, graph.getJobID());
 		} finally {
 			cluster.after();
 		}
@@ -452,11 +439,7 @@ public class SavepointITCase extends TestLogger {
 			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 			savepointPath = client.triggerSavepoint(jobID, null).get();
-
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
-
-			client.cancel(jobID);
-			waitJobCanceled(client, jobID);
 		} finally {
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
@@ -506,9 +489,6 @@ public class SavepointITCase extends TestLogger {
 
 			// Await some progress after restore
 			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-			client.cancel(modifiedJobGraph.getJobID());
-			waitJobCanceled(client, modifiedJobGraph.getJobID());
 		} finally {
 			cluster.after();
 		}
@@ -707,7 +687,9 @@ public class SavepointITCase extends TestLogger {
 			savepointPath = client.triggerSavepoint(jobGraph.getJobID(), null).get();
 
 			client.cancel(jobGraph.getJobID());
-			waitJobCanceled(client, jobGraph.getJobID());
+			while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
+				Thread.sleep(100);
+			}
 
 			jobGraph = streamGraph.getJobGraph();
 			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
@@ -719,7 +701,9 @@ public class SavepointITCase extends TestLogger {
 			}
 
 			client.cancel(jobGraph.getJobID());
-			waitJobCanceled(client, jobGraph.getJobID());
+			while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
+				Thread.sleep(100);
+			}
 		} finally {
 			if (null != savepointPath) {
 				client.disposeSavepoint(savepointPath);
