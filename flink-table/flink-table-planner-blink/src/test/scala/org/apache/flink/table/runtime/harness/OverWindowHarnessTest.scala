@@ -789,11 +789,11 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     expectedOutput.add(new StreamRecord(
       baserow(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa"), 5L: JLong, 1L: JLong, 6L: JLong)))
+      baserow(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
       baserow(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "bbb"), 30L: JLong, 10L: JLong, 30L: JLong)))
+      baserow(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
       baserow(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
