@@ -110,7 +110,7 @@ public class NetworkEnvironmentBuilder {
 	}
 
 	public NetworkEnvironment build() {
-		return new NetworkEnvironment(
+		return NetworkEnvironment.create(
 			new NetworkEnvironmentConfiguration(
 				numNetworkBuffers,
 				networkBufferSize,
