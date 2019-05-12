@@ -132,7 +132,7 @@ public class TopSpeedWindowing {
 					} else {
 						speeds[carId] = Math.max(0, speeds[carId] - 5);
 					}
-					distances[carId] += speeds[carId] / 3.6d;
+					distances[carId] += speeds[carId] / 36d;
 					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<>(carId,
 							speeds[carId], distances[carId], System.currentTimeMillis());
 					ctx.collect(record);
