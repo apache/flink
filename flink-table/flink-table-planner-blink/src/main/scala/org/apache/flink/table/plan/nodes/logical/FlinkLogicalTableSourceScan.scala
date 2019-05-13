@@ -75,7 +75,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", tableSource.getTableSchema.getColumnNames.mkString(", "))
+      .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
   }
 
 }
