@@ -447,15 +447,7 @@ public class SingleInputGate extends InputGate {
 
 	@Override
 	public boolean isFinished() {
-		synchronized (requestLock) {
-			for (InputChannel inputChannel : inputChannels.values()) {
-				if (!inputChannel.isReleased()) {
-					return false;
-				}
-			}
-		}
-
-		return true;
+		return hasReceivedAllEndOfPartitionEvents;
 	}
 
 	@Override
