@@ -39,9 +39,10 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Query optimizer for Stream.
+  * A [[CommonSubGraphBasedOptimizer]] for Stream.
   */
-class StreamOptimizer(tEnv: StreamTableEnvironment) extends OptimizerBase {
+class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
+  extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan

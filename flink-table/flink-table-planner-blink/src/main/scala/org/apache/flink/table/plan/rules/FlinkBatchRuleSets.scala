@@ -277,6 +277,13 @@ object FlinkBatchRuleSets {
     CalcMergeRule.INSTANCE)
 
   /**
+    * RuleSet to do rewrite on FlinkLogicalRel for batch
+    */
+  val LOGICAL_REWRITE: RuleSet =  RuleSets.ofList(
+    FlinkCalcMergeRule.INSTANCE
+  )
+
+  /**
     * RuleSet to do physical optimize for batch
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(

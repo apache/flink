@@ -28,9 +28,10 @@ import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelNode
 
 /**
-  * Query optimizer for Batch.
+  * A [[CommonSubGraphBasedOptimizer]] for Batch.
   */
-class BatchOptimizer(tEnv: BatchTableEnvironment) extends OptimizerBase {
+class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
+  extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan

@@ -28,9 +28,20 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Base class for [[Optimizer]].
+  * A [[Optimizer]] that optimizes [[RelNode]] DAG into semantically [[RelNode]] DAG
+  * based common sub-graph. Common sub-graph represents the common sub RelNode plan
+  * in multiple RelNode trees. Calcite planner does not support DAG (multiple roots) optimization,
+  * so a [[RelNode]] DAG should be decomposed into multiple common sub-graphs,
+  * and each sub-graph is a tree (which has only one root), and can be optimized independently
+  * by Calcite [[org.apache.calcite.plan.RelOptPlanner]].
+  * The algorithm works as follows:
+  * 1. Decompose [[RelNode]] DAG into multiple [[RelNodeBlock]]s, and build [[RelNodeBlock]] DAG.
+  * Each [[RelNodeBlock]] has only one sink output, and represents a common sub-graph.
+  * 2. optimize recursively each [[RelNodeBlock]] from leaf block to root(sink) block,
+  * and register the optimized result of non-root block as an [[IntermediateRelTable]].
+  * 3. expand [[IntermediateRelTable]] into RelNode tree in each [[RelNodeBlock]].
   */
-abstract class OptimizerBase extends Optimizer {
+abstract class CommonSubGraphBasedOptimizer extends Optimizer {
 
   /**
     * Generates the optimized [[RelNode]] DAG from the original relational nodes.

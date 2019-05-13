@@ -34,7 +34,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.optimize.{Optimizer, StreamOptimizer}
+import org.apache.flink.table.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
@@ -87,7 +87,7 @@ abstract class StreamTableEnvironment(
       AccModeTraitDef.INSTANCE)
   }
 
-  override protected def getOptimizer: Optimizer = new StreamOptimizer(this)
+  override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
   /**
     * Checks if the chosen table name is valid.

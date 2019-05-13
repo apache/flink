@@ -36,9 +36,23 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * A [[RelNodeBlock]] is a sub-tree in the [[RelNode]] plan. All [[RelNode]]s in
-  * each block have only one [[Sink]] output.
-  * The nodes in different block will be optimized independently.
+  * A [[RelNodeBlock]] is a sub-tree in the [[RelNode]] DAG, and represents common sub-graph
+  * in [[CommonSubGraphBasedOptimizer]]. All [[RelNode]]s in each block have
+  * only one [[Sink]] output.
+  *
+  * The algorithm works as follows:
+  * 1. If there is only one tree, the whole tree is in one block. (the next steps is needless.)
+  * 2. reuse common sub-plan in different RelNode tree, generate a RelNode DAG,
+  * 3. traverse each tree from root to leaf, and mark the sink RelNode of each RelNode
+  * 4. traverse each tree from root to leaf again, if meet a RelNode which has multiple sink
+  * RelNode, the RelNode is the output node of a new block (or named break-point).
+  * There are several special cases that a RelNode can not be a break-point.
+  * (1). UnionAll is not a break-point
+  * when [[PlannerConfigOptions.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
+  * (2). [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]]
+  * with window attribute) are not a break-point because their physical RelNodes are a composite
+  * RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan and
+  * FlinkLogicalCorrelate will be combined into a BatchExecCorrelate or a StreamExecCorrelate.
   *
   * For example: (Table API)
   *

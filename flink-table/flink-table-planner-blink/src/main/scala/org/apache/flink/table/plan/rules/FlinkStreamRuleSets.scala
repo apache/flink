@@ -259,7 +259,7 @@ object FlinkStreamRuleSets {
     ).asJava)
 
   /**
-    * RuleSet to od rewrite on FlinkLogicalRel for Stream
+    * RuleSet to do rewrite on FlinkLogicalRel for Stream
     */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transform over window to topn node

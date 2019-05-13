@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.optimize.{BatchOptimizer, Optimizer}
+import org.apache.flink.table.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -69,7 +69,7 @@ class BatchTableEnvironment(
       RelCollationTraitDef.INSTANCE)
   }
 
-  override protected def getOptimizer: Optimizer = new BatchOptimizer(this)
+  override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
   /**
     * Checks if the chosen table name is valid.
