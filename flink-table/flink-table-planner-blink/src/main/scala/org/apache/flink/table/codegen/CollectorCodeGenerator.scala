@@ -73,7 +73,6 @@ object CollectorCodeGenerator {
 
         @Override
         public void collect(Object record) throws Exception {
-          super.collect(record);
           $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
           $input2TypeClass $collectedTerm = ($input2TypeClass) ${converter("record")};
           ${ctx.reuseLocalVariableCode()}

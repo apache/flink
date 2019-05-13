@@ -207,7 +207,7 @@ object CorrelateCodeGenerator {
              |boolean hasOutput = $udtfCollectorTerm.isCollected();
              |if (!hasOutput) {
              |  $header
-             |  $udtfCollectorTerm.getCollector().collect($nullRowTerm);
+             |  $udtfCollectorTerm.outputResult($nullRowTerm);
              |}
              |""".stripMargin
       } else if (projectProgram.isDefined) {
@@ -237,7 +237,7 @@ object CorrelateCodeGenerator {
              |if (!hasOutput) {
              |  ${projectionExpression.code}
              |  $header
-             |  $udtfCollectorTerm.getCollector().collect($outputTerm);
+             |  $udtfCollectorTerm.outputResult($outputTerm);
              |}
              |""".stripMargin
 
@@ -260,7 +260,7 @@ object CorrelateCodeGenerator {
              |if (!hasOutput) {
              |  $joinedRowTerm.replace(${exprGenerator.input1Term}, $nullRowTerm);
              |  $header
-             |  $udtfCollectorTerm.getCollector().collect($joinedRowTerm);
+             |  $udtfCollectorTerm.outputResult($joinedRowTerm);
              |}
              |""".stripMargin
 
@@ -347,7 +347,7 @@ object CorrelateCodeGenerator {
         s"""
            |${udtfResultExpr.code}
            |$header
-           |getCollector().collect(${udtfResultExpr.resultTerm});
+           |outputResult(${udtfResultExpr.resultTerm});
         """.stripMargin
       } else {
         val outputTerm = CodeGenUtils.newName("projectOut")
@@ -372,7 +372,7 @@ object CorrelateCodeGenerator {
         s"""
            |$header
            |${projectionExpression.code}
-           |getCollector().collect(${projectionExpression.resultTerm});
+           |outputResult(${projectionExpression.resultTerm});
         """.stripMargin
       }
     } else {
@@ -389,7 +389,7 @@ object CorrelateCodeGenerator {
         |${udtfResultExpr.code}
         |$joinedRowTerm.replace($inputTerm, ${udtfResultExpr.resultTerm});
         |$header
-        |getCollector().collect($joinedRowTerm);
+        |outputResult($joinedRowTerm);
       """.stripMargin
     }
 

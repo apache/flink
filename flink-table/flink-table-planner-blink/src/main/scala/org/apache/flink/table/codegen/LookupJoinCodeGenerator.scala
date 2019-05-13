@@ -232,8 +232,7 @@ object LookupJoinCodeGenerator {
          |${udtfResultExpr.code}
          |$joinedRowTerm.replace($inputTerm, ${udtfResultExpr.resultTerm});
          |$header
-         |getCollector().collect($joinedRowTerm);
-         |super.collect(record);
+         |outputResult($joinedRowTerm);
       """.stripMargin
 
     val collectorCode = if (condition.isEmpty) {
@@ -442,16 +441,8 @@ object LookupJoinCodeGenerator {
     private val converter = new RowConverter(rowTypeInfo)
 
     override def collect(record: Row): Unit = {
-      super.collect(record)
       val result = converter.toInternal(record)
-      getCollector.asInstanceOf[Collector[BaseRow]].collect(result)
+      outputResult(result)
     }
-
-    override def reset(): Unit = {
-      super.reset()
-      getCollector.asInstanceOf[TableFunctionCollector[_]].reset()
-    }
-
-    override def close(): Unit = getCollector.close()
   }
 }

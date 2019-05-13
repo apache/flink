@@ -30,7 +30,7 @@ public abstract class TableFunctionCollector<T> extends AbstractRichFunction imp
 	private static final long serialVersionUID = 1L;
 
 	private Object input;
-	private Collector<?> collector;
+	private Collector collector;
 	private boolean collected;
 
 	/**
@@ -57,17 +57,22 @@ public abstract class TableFunctionCollector<T> extends AbstractRichFunction imp
 	}
 
 	/**
-	 * Gets the internal collector which used to emit the final row.
-	 */
-	public Collector<?> getCollector() {
-		return collector;
-	}
-
-	/**
 	 * Resets the flag to indicate whether [[collect(T)]] has been called.
 	 */
 	public void reset() {
 		this.collected = false;
+		if (collector instanceof TableFunctionCollector) {
+			((TableFunctionCollector) collector).reset();
+		}
+	}
+
+	/**
+	 * Output final result of this UDTF to downstreams.
+	 */
+	@SuppressWarnings("unchecked")
+	public void outputResult(Object result) {
+		this.collected = true;
+		this.collector.collect(result);
 	}
 
 	/**
@@ -79,11 +84,7 @@ public abstract class TableFunctionCollector<T> extends AbstractRichFunction imp
 		return collected;
 	}
 
-	@Override
-	public void collect(T record) {
-		this.collected = true;
-	}
-
 	public void close() {
+		this.collector.close();
 	}
 }

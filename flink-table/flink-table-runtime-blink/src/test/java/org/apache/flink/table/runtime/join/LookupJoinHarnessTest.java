@@ -253,13 +253,11 @@ public class LookupJoinHarnessTest {
 	public static final class TestingFetcherCollector extends TableFunctionCollector {
 		private static final long serialVersionUID = -312754413938303160L;
 
-		@SuppressWarnings("unchecked")
 		@Override
 		public void collect(Object record) {
-			super.collect(record);
 			BaseRow left = (BaseRow) getInput();
 			BaseRow right = (BaseRow) record;
-			getCollector().collect(new JoinedRow(left, right));
+			outputResult(new JoinedRow(left, right));
 		}
 	}
 
