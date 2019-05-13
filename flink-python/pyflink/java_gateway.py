@@ -62,7 +62,7 @@ def launch_gateway():
         raise Exception("Windows system is not supported currently.")
     script = "./bin/pyflink-gateway-server.sh"
     command = [os.path.join(FLINK_HOME, script)]
-    command += ['-c', 'org.apache.flink.api.python.PythonGatewayServer']
+    command += ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
 
     # Create a temporary directory where the gateway server should write the connection information.
     conn_info_dir = tempfile.mkdtemp()
