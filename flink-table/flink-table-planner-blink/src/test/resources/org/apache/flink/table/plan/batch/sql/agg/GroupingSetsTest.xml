@@ -728,10 +728,10 @@ LogicalProject(c=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- SortLimit(orderBy=[$f2 ASC, c ASC], offset=[0], fetch=[200], global=[true])
++- SortLimit(orderBy=[EXPR$1 ASC, c ASC], offset=[0], fetch=[200], global=[true])
    +- Exchange(distribution=[single])
-      +- SortLimit(orderBy=[$f2 ASC, c ASC], offset=[0], fetch=[200], global=[false])
-         +- Calc(select=[deptno, c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS $f2])
+      +- SortLimit(orderBy=[EXPR$1 ASC, c ASC], offset=[0], fetch=[200], global=[false])
+         +- Calc(select=[c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
             +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
                +- Exchange(distribution=[hash[deptno, $e]])
                   +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
