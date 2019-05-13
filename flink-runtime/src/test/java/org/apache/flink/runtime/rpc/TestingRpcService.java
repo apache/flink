@@ -23,11 +23,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -53,11 +53,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TestingRpcService extends AkkaRpcService {
 
+	private static final Function<RpcGateway, CompletableFuture<RpcGateway>> DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION = CompletableFuture::completedFuture;
+
 	/** Map of pre-registered connections. */
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
 
-	/** Artificial delay on connection. */
-	private long connectionDelayMillis;
+	private volatile Function<RpcGateway, CompletableFuture<RpcGateway>> rpcGatewayFutureFunction = DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION;
 
 	/**
 	 * Creates a new {@code TestingRpcService}.
@@ -102,19 +103,9 @@ public class TestingRpcService extends AkkaRpcService {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private <C extends RpcGateway> CompletableFuture<C> getRpcGatewayFuture(C gateway) {
-		if (connectionDelayMillis <= 0) {
-			return CompletableFuture.completedFuture(gateway);
-		} else {
-			return CompletableFuture.supplyAsync(
-				() -> {
-					try {
-						Thread.sleep(connectionDelayMillis);
-					} catch (InterruptedException ignored) {}
-					return gateway;
-				},
-				TestingUtils.defaultExecutor());
-		}
+		return (CompletableFuture<C>) rpcGatewayFutureFunction.apply(gateway);
 	}
 
 	@Override
@@ -158,7 +149,11 @@ public class TestingRpcService extends AkkaRpcService {
 		registeredConnections.clear();
 	}
 
-	public void setConnectionDelayMillis(long connectionDelayMillis) {
-		this.connectionDelayMillis = connectionDelayMillis;
+	public void resetRpcGatewayFutureFunction() {
+		rpcGatewayFutureFunction = DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION;
+	}
+
+	public void setRpcGatewayFutureFunction(Function<RpcGateway, CompletableFuture<RpcGateway>> rpcGatewayFutureFunction) {
+		this.rpcGatewayFutureFunction = rpcGatewayFutureFunction;
 	}
 }

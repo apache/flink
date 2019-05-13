@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -58,6 +60,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -237,23 +240,36 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	 */
 	@Test
 	public void testDelayedRegisterTaskExecutor() throws Exception {
-		// additional delay over RPC timeout
-		// use a value much smaller (< 1/2) than heartbeat timeout not to hit the timeout on delay for race test below
-		final long additionalDelayMillis = HEARTBEAT_TIMEOUT / 5;
+		final Time fastTimeout = Time.milliseconds(1L);
 		try {
-			// first registration is with connection delay longer than timeout expecting timeout and then retry
-			rpcService.setConnectionDelayMillis(TIMEOUT.toMilliseconds() + additionalDelayMillis);
+			final OneShotLatch startConnection = new OneShotLatch();
+			final OneShotLatch finishConnection = new OneShotLatch();
+
+			// first registration is with blocking connection
+			rpcService.setRpcGatewayFutureFunction(rpcGateway ->
+				CompletableFuture.supplyAsync(
+					() -> {
+						startConnection.trigger();
+						try {
+							finishConnection.await();
+						} catch (InterruptedException ignored) {}
+						return rpcGateway;
+					},
+					TestingUtils.defaultExecutor()));
+
 			CompletableFuture<RegistrationResponse> firstFuture =
-				rmGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
+				rmGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, fastTimeout);
 			try {
 				firstFuture.get();
 				fail("Should have failed because connection to taskmanager is delayed beyond timeout");
 			} catch (Exception e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof AskTimeoutException);
+				assertThat(ExceptionUtils.stripExecutionException(e), instanceOf(AskTimeoutException.class));
 			}
 
+			startConnection.await();
+
 			// second registration after timeout is with no delay, expecting it to be succeeded
-			rpcService.setConnectionDelayMillis(0);
+			rpcService.resetRpcGatewayFutureFunction();
 			CompletableFuture<RegistrationResponse> secondFuture =
 				rmGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
 			RegistrationResponse response = secondFuture.get();
@@ -264,8 +280,9 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			rmGateway.sendSlotReport(taskExecutorResourceID,
 				((TaskExecutorRegistrationSuccess) response).getRegistrationId(), slotReport, TIMEOUT).get();
 
-			// wait enough for the first registration's connection delay to be over letting its remaining part go through
-			Thread.sleep(additionalDelayMillis * 2);
+			// let the remaining part of the first registration proceed
+			finishConnection.trigger();
+			Thread.sleep(1L);
 
 			// verify that the latest registration is valid not being unregistered by the delayed one
 			final TaskManagerInfo taskManagerInfo = rmGateway.requestTaskManagerInfo(
@@ -274,7 +291,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			assertThat(taskManagerInfo.getResourceId(), equalTo(taskExecutorResourceID));
 			assertThat(taskManagerInfo.getNumberSlots(), equalTo(1));
 		} finally {
-			rpcService.setConnectionDelayMillis(0L);
+			rpcService.resetRpcGatewayFutureFunction();
 		}
 	}
 }
