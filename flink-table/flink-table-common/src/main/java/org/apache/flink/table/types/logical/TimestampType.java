@@ -117,6 +117,14 @@ public final class TimestampType extends LogicalType {
 	}
 
 	@Override
+	public String asSummaryString() {
+		if (kind != TimestampKind.REGULAR) {
+			return String.format("%s *%s*", asSerializableString(), kind);
+		}
+		return asSerializableString();
+	}
+
+	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
 		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
 	}
