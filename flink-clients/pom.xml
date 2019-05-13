@@ -72,7 +72,7 @@ under the License.
 		<dependency>
 			<groupId>net.sf.py4j</groupId>
 			<artifactId>py4j</artifactId>
-			<version>${pyj4.version}</version>
+			<version>${py4j.version}</version>
 		</dependency>
 
 		<!-- test dependencies -->
