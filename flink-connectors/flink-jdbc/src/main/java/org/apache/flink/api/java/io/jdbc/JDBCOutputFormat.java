@@ -19,8 +19,11 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +33,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * OutputFormat to write Rows into a JDBC database.
@@ -41,6 +45,8 @@ import java.sql.SQLException;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
+	static final int DEFAULT_RETIES = 0;
+	static final Time DEFAULT_BASE_RETRY_DELAY = Time.milliseconds(100);
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -50,6 +56,10 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private String dbURL;
 	private String query;
 	private int batchInterval = DEFAULT_BATCH_INTERVAL;
+
+	private int retries = DEFAULT_RETIES;
+	private Time baseRetryDelay = DEFAULT_BASE_RETRY_DELAY;
+	private List<Row> retryBuffer = Lists.newArrayList();
 
 	private Connection dbConn;
 	private PreparedStatement upload;
@@ -107,6 +117,10 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void writeRecord(Row row) throws IOException {
+		writeRecord(row, retries > 0);
+	}
+
+	private void writeRecord(Row row, boolean bufferForRetry) throws IOException {
 
 		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.getArity()) {
 			LOG.warn("Column SQL types array doesn't match arity of passed Row! Check the passed array...");
@@ -210,6 +224,9 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			}
 			upload.addBatch();
 			batchCount++;
+			if (bufferForRetry) {
+				retryBuffer.add(Row.copy(row));
+			}
 		} catch (SQLException e) {
 			throw new RuntimeException("Preparation of JDBC statement failed.", e);
 		}
@@ -221,11 +238,75 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	}
 
 	void flush() {
+		int n = 0;
+		do {
+			n++;
+			try {
+				upload.executeBatch();
+				batchCount = 0;
+				retryBuffer.clear();
+			} catch (SQLException e) {
+				if (n < retries) {
+					long sleepMs = n * baseRetryDelay.toMilliseconds();
+					LOG.warn("Execution of JDBC statement failed. {}th retry will be triggered after {}ms.", n, sleepMs, e);
+					// Sync sleep to simulate delay
+					try {
+						Thread.sleep(sleepMs);
+					} catch (InterruptedException ie) {
+
+					}
+					renewStatement();
+					for (Row r : retryBuffer) {
+						try {
+							writeRecord(r, false);
+						} catch (IOException ioe) {
+							throw new RuntimeException("Write row to statement failed.", ioe);
+						}
+					}
+				} else {
+					throw new RuntimeException("Execution of JDBC statement failed.", e);
+				}
+			}
+		} while (n < retries);
+	}
+
+	private void renewStatement() {
+		if (upload != null) {
+			try {
+				upload.close();
+			} catch (SQLException e) {
+				LOG.info("JDBC statement could not be closed: " + e.getMessage());
+			}
+		}
+
+		boolean connValid = false;
+		if (dbConn != null) {
+			try {
+				connValid = dbConn.isValid(1);
+			} catch (SQLException e) {
+
+			}
+		}
+		if (!connValid) {
+			if (dbConn != null) {
+				try {
+					dbConn.close();
+				} catch (SQLException e) {
+					LOG.info("JDBC connection could not be closed: " + e.getMessage());
+				}
+			}
+
+			try {
+				establishConnection();
+			} catch (SQLException | ClassNotFoundException e) {
+				throw new RuntimeException("Get JDBC Connection failed.", e);
+			}
+		}
+
 		try {
-			upload.executeBatch();
-			batchCount = 0;
+			upload = dbConn.prepareStatement(query);
 		} catch (SQLException e) {
-			throw new RuntimeException("Execution of JDBC statement failed.", e);
+			throw new IllegalArgumentException("Get JDBC statement failed.", e);
 		}
 	}
 
@@ -312,6 +393,16 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			return this;
 		}
 
+		public JDBCOutputFormatBuilder setRetries(int reties) {
+			format.retries = reties;
+			return this;
+		}
+
+		public JDBCOutputFormatBuilder setBaseRetryDelay(Time baseRetryDelay) {
+			format.baseRetryDelay = baseRetryDelay;
+			return this;
+		}
+
 		/**
 		 * Finalizes the configuration and checks validity.
 		 *
@@ -332,6 +423,12 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			}
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied.");
+			}
+			if (format.retries < 0) {
+				throw new IllegalArgumentException("Retries should great or equal to 0.");
+			}
+			if (format.baseRetryDelay == null) {
+				throw new IllegalArgumentException("No baseRetryDelay supplied.");
 			}
 
 			return format;

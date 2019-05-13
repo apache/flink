@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_BASE_RETRY_DELAY;
 import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_BATCH_INTERVAL;
+import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_RETIES;
 
 /**
  * A builder to configure and build the JDBCAppendTableSink.
@@ -34,6 +37,8 @@ public class JDBCAppendTableSinkBuilder {
 	private String query;
 	private int batchSize = DEFAULT_BATCH_INTERVAL;
 	private int[] parameterTypes;
+	private int retries = DEFAULT_RETIES;
+	private Time baseRetryDelay = DEFAULT_BASE_RETRY_DELAY;
 
 	/**
 	 * Specify the username of the JDBC connection.
@@ -116,6 +121,25 @@ public class JDBCAppendTableSinkBuilder {
 	}
 
 	/**
+	 * Specify the reties number that the sink will be accepting.
+	 * @param retries the maximum number of retries after a JDBC execute failed.
+	 */
+	public JDBCAppendTableSinkBuilder setRetries(int retries) {
+		this.retries = retries;
+		return this;
+	}
+
+	/**
+	 * Specify the base retry delay that the sink will be accepting.
+	 * When jdbc execution is failed, it will retry after current_retry_count * base_retry_delay.
+	 * @param baseRetryDelay the base time of delay before a JDBC execute retry.
+	 */
+	public JDBCAppendTableSinkBuilder setBaseRetryDelay(Time baseRetryDelay) {
+		this.baseRetryDelay = baseRetryDelay;
+		return this;
+	}
+
+	/**
 	 * Finalizes the configuration and checks validity.
 	 *
 	 * @return Configured JDBCOutputFormat
@@ -133,6 +157,8 @@ public class JDBCAppendTableSinkBuilder {
 			.setDrivername(driverName)
 			.setBatchInterval(batchSize)
 			.setSqlTypes(parameterTypes)
+			.setRetries(retries)
+			.setBaseRetryDelay(baseRetryDelay)
 			.finish();
 
 		return new JDBCAppendTableSink(format);
