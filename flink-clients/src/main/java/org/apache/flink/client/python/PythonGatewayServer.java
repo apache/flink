@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.python;
+package org.apache.flink.client.python;
 
 import py4j.GatewayServer;
 
