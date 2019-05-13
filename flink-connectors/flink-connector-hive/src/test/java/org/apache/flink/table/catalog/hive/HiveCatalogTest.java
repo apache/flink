@@ -49,46 +49,6 @@ public class HiveCatalogTest extends CatalogTestBase {
 	public void testCreateTable_Streaming() throws Exception {
 	}
 
-	// =====================
-	// HiveCatalog doesn't support view operation yet
-	// Thus, overriding the following tests which involve table operation in CatalogTestBase so they won't run against HiveCatalog
-	// =====================
-
-	// TODO: re-enable these tests once HiveCatalog support view operations
-
-	public void testListTables() throws Exception {
-	}
-
-	public void testCreateView() throws Exception {
-	}
-
-	public void testCreateView_DatabaseNotExistException() throws Exception {
-	}
-
-	public void testCreateView_TableAlreadyExistException() throws Exception {
-	}
-
-	public void testCreateView_TableAlreadyExist_ignored() throws Exception {
-	}
-
-	public void testDropView() throws Exception {
-	}
-
-	public void testAlterView() throws Exception {
-	}
-
-	public void testAlterView_TableNotExistException() throws Exception {
-	}
-
-	public void testAlterView_TableNotExist_ignored() throws Exception {
-	}
-
-	public void testListView() throws Exception {
-	}
-
-	public void testRenameView() throws Exception {
-	}
-
 	// ------ utils ------
 
 	@Override
@@ -154,14 +114,22 @@ public class HiveCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogView createView() {
-		// TODO: implement this once HiveCatalog support view operations
-		return null;
+		return new HiveCatalogView(
+			String.format("select * from %s", t1),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+			createTableSchema(),
+			new HashMap<>(),
+			"This is a hive view");
 	}
 
 	@Override
 	public CatalogView createAnotherView() {
-		// TODO: implement this once HiveCatalog support view operations
-		return null;
+		return new HiveCatalogView(
+			String.format("select * from %s", t2),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+			createAnotherTableSchema(),
+			new HashMap<>(),
+			"This is another hive view");
 	}
 
 	@Override
@@ -174,5 +142,16 @@ public class HiveCatalogTest extends CatalogTestBase {
 		// Hive tables may have properties created by itself
 		// thus properties of Hive table is a super set of those in its corresponding Flink table
 		assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
+	}
+
+	protected void checkEquals(CatalogView v1, CatalogView v2) {
+		assertEquals(v1.getSchema(), v1.getSchema());
+		assertEquals(v1.getComment(), v2.getComment());
+		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
+		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
+
+		// Hive views may have properties created by itself
+		// thus properties of Hive view is a super set of those in its corresponding Flink view
+		assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
 	}
 }

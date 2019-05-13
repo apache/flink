@@ -45,14 +45,6 @@ public class CatalogTestUtil {
 		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
 	}
 
-	public static void checkEquals(CatalogView v1, CatalogView v2) {
-		assertEquals(v1.getSchema(), v1.getSchema());
-		assertEquals(v1.getProperties(), v2.getProperties());
-		assertEquals(v1.getComment(), v2.getComment());
-		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
-		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
-	}
-
 	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
 		assertEquals(d1.getProperties(), d2.getProperties());
 	}

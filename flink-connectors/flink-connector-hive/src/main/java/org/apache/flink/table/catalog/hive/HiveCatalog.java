@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -41,6 +42,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
@@ -100,8 +102,7 @@ public class HiveCatalog extends HiveCatalogBase {
 	@Override
 	protected void validateCatalogBaseTable(CatalogBaseTable table)
 			throws CatalogException {
-		// TODO: validate HiveCatalogView
-		if (!(table instanceof HiveCatalogTable)) {
+		if (!(table instanceof HiveCatalogTable) && !(table instanceof HiveCatalogView)) {
 			throw new CatalogException(
 				"HiveCatalog can only operate on HiveCatalogTable and HiveCatalogView.");
 		}
@@ -128,7 +129,18 @@ public class HiveCatalog extends HiveCatalogBase {
 				.collect(Collectors.toList());
 		}
 
-		return new HiveCatalogTable(tableSchema, partitionKeys, properties, comment);
+		if (TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW) {
+			return new HiveCatalogView(
+				hiveTable.getViewOriginalText(),
+				hiveTable.getViewExpandedText(),
+				tableSchema,
+				properties,
+				comment
+			);
+		} else {
+			return new HiveCatalogTable(
+				tableSchema, partitionKeys, properties, comment);
+		}
 	}
 
 	@Override
@@ -169,8 +181,18 @@ public class HiveCatalog extends HiveCatalogBase {
 				sd.setCols(allColumns);
 				hiveTable.setPartitionKeys(new ArrayList<>());
 			}
+		} else if (table instanceof CatalogView) {
+			HiveCatalogView view = (HiveCatalogView) table;
+
+			// TODO: [FLINK-12398] Support partitioned view in catalog API
+			sd.setCols(allColumns);
+			hiveTable.setPartitionKeys(new ArrayList<>());
+
+			hiveTable.setViewOriginalText(view.getOriginalQuery());
+			hiveTable.setViewExpandedText(view.getExpandedQuery());
+			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
 		} else {
-			throw new UnsupportedOperationException("HiveCatalog doesn't support view yet");
+			throw new CatalogException("HiveCatalog only supports CatalogTable and CatalogView");
 		}
 
 		hiveTable.setSd(sd);

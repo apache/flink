@@ -201,7 +201,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 			hiveTable.setViewExpandedText(view.getExpandedQuery());
 			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
 		} else {
-			throw new IllegalArgumentException(
+			throw new CatalogException(
 				"GenericHiveMetastoreCatalog only supports CatalogTable and CatalogView");
 		}
 

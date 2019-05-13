@@ -451,7 +451,7 @@ public abstract class CatalogTestBase {
 		catalog.createTable(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+		checkEquals(view, (CatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -481,12 +481,12 @@ public abstract class CatalogTestBase {
 		catalog.createTable(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+		checkEquals(view, (CatalogView) catalog.getTable(path1));
 
 		catalog.createTable(path1, createAnotherView(), true);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+		checkEquals(view, (CatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -508,13 +508,13 @@ public abstract class CatalogTestBase {
 		CatalogView view = createView();
 		catalog.createTable(path1, view, false);
 
-		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
+		checkEquals(view, (CatalogView) catalog.getTable(path1));
 
 		CatalogView newView = createAnotherView();
 		catalog.alterTable(path1, newView, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path1));
+		checkEquals(newView, (CatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -672,5 +672,13 @@ public abstract class CatalogTestBase {
 		assertEquals(t1.getComment(), t2.getComment());
 		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
 		assertEquals(t1.isPartitioned(), t2.isPartitioned());
+	}
+
+	protected void checkEquals(CatalogView v1, CatalogView v2) {
+		assertEquals(v1.getSchema(), v1.getSchema());
+		assertEquals(v1.getProperties(), v2.getProperties());
+		assertEquals(v1.getComment(), v2.getComment());
+		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
+		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
 	}
 }

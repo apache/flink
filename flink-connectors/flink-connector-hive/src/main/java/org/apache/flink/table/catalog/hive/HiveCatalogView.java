@@ -16,18 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A generic catalog view implementation.
+ * A Hive catalog view implementation.
  */
-public class GenericCatalogView implements CatalogView {
+public class HiveCatalogView implements CatalogView {
 	// Original text of the view definition.
 	private final String originalQuery;
 
@@ -37,32 +43,37 @@ public class GenericCatalogView implements CatalogView {
 	// Expanded query text takes care of the this, as an example.
 	private final String expandedQuery;
 
-	private final TableSchema schema;
+	// Schema of the view (column names and types)
+	private final TableSchema tableSchema;
+	// Properties of the view
 	private final Map<String, String> properties;
-	private String comment = "This is a generic catalog view";
+	// Comment of the view
+	private String comment = "This is a hive catalog view.";
 
-	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
-		Map<String, String> properties, String comment) {
-		this(originalQuery, expandedQuery, schema, properties);
-		this.comment = comment;
-	}
+	public HiveCatalogView(
+			String originalQuery,
+			String expandedQuery,
+			TableSchema tableSchema,
+			Map<String, String> properties,
+			String comment) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(originalQuery), "original query cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(expandedQuery), "expanded query cannot be null or empty");
 
-	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
-		Map<String, String> properties) {
 		this.originalQuery = originalQuery;
 		this.expandedQuery = expandedQuery;
-		this.schema = schema;
-		this.properties = properties;
+		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
+		this.properties = checkNotNull(properties, "properties cannot be null");
+		this.comment = comment;
 	}
 
 	@Override
 	public String getOriginalQuery() {
-		return this.originalQuery;
+		return originalQuery;
 	}
 
 	@Override
 	public String getExpandedQuery() {
-		return this.expandedQuery;
+		return expandedQuery;
 	}
 
 	@Override
@@ -72,7 +83,7 @@ public class GenericCatalogView implements CatalogView {
 
 	@Override
 	public TableSchema getSchema() {
-		return schema;
+		return tableSchema;
 	}
 
 	@Override
@@ -81,18 +92,19 @@ public class GenericCatalogView implements CatalogView {
 	}
 
 	@Override
-	public GenericCatalogView copy() {
-		return new GenericCatalogView(this.originalQuery, this.expandedQuery, schema.copy(),
-			new HashMap<>(this.properties), comment);
+	public CatalogBaseTable copy() {
+		return new HiveCatalogView(
+			originalQuery, expandedQuery, tableSchema.copy(), new HashMap<>(properties), comment);
 	}
 
 	@Override
 	public Optional<String> getDescription() {
-		return Optional.of(comment);
+		return Optional.ofNullable(comment);
 	}
 
 	@Override
 	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a catalog view in an im-memory catalog");
+		// TODO: return a detailed description
+		return Optional.ofNullable(comment);
 	}
 }
