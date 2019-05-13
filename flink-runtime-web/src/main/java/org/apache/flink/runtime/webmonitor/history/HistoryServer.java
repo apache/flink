@@ -144,7 +144,7 @@ public class HistoryServer {
 		Preconditions.checkNotNull(numFinishedPolls);
 
 		this.config = config;
-		if (config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED) && SSLUtils.isRestSSLEnabled(config)) {
+		if (HistoryServerUtils.isSSLEnabled(config)) {
 			LOG.info("Enabling SSL for the history server.");
 			try {
 				this.serverSSLFactory = SSLUtils.createRestServerSSLEngineFactory(config);
