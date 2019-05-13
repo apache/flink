@@ -180,15 +180,6 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
-	/**
-	 * The address of Flink HistoryServer.
-	 * This configuration parameter allows setting the appTrackingUrl for finished YARN applications.
-	 */
-	public static final ConfigOption<String> APPLICATION_HISTORY_SERVER_ADDRESS =
-		key("yarn.history.server.address")
-		.defaultValue("")
-		.withDescription("The address of Flink HistoryServer.");
-
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
