@@ -152,22 +152,6 @@ public class TableSchema {
 	}
 
 	/**
-	 * @deprecated Use {@link TableSchema#getFieldTypes()} instead. Can be dropped after 1.7.
-	 */
-	@Deprecated
-	public TypeInformation<?>[] getTypes() {
-		return getFieldTypes();
-	}
-
-	/**
-	 * @deprecated Use {@link TableSchema#getFieldNames()} instead. Can be dropped after 1.7.
-	 */
-	@Deprecated
-	public String[] getColumnNames() {
-		return getFieldNames();
-	}
-
-	/**
 	 * Converts a table schema into a (nested) type information describing a {@link Row}.
 	 */
 	public TypeInformation<Row> toRowType() {
