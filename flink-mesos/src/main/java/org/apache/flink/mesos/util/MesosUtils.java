@@ -113,13 +113,14 @@ public class MesosUtils {
 		log.info("TaskManagers will be created with {} task slots",
 			configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS));
 		log.info("TaskManagers will be started with container size {} MB, JVM heap size {} MB, " +
-				"JVM direct memory limit {} MB, {} cpus, {} gpus, disk space {} MB",
+				"JVM direct memory limit {} MB, {} cpus, {} gpus, disk space {} MB, network bandwidth {} MB / sec",
 			taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(),
 			taskExecutorProcessSpec.getJvmHeapMemorySize().getMebiBytes(),
 			taskExecutorProcessSpec.getJvmDirectMemorySize().getMebiBytes(),
 			taskManagerParameters.cpus(),
 			taskManagerParameters.gpus(),
-			taskManagerParameters.disk());
+			taskManagerParameters.disk(),
+			taskManagerParameters.network());
 
 		return taskManagerParameters;
 	}

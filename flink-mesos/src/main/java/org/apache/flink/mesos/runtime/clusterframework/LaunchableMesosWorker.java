@@ -142,7 +142,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public double getNetworkMbps() {
-			return 0.0;
+			return params.network();
 		}
 
 		@Override
@@ -227,6 +227,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		if (taskRequest.getDisk() > 0.0) {
 			taskInfo.addAllResources(allocation.takeScalar("disk", taskRequest.getDisk(), roles));
+		}
+
+		if (taskRequest.getNetworkMbps() > 0.0) {
+			taskInfo.addAllResources(allocation.takeScalar("network", taskRequest.getNetworkMbps(), roles));
 		}
 
 		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
