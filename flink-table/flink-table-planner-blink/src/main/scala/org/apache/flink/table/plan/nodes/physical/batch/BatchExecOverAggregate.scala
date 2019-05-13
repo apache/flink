@@ -286,11 +286,12 @@ class BatchExecOverAggregate(
           codeGenCtx,
           relBuilder,
           inputType.getFieldTypes,
-          needRetract = false,
           copyInputField = false)
         // over agg code gen must pass the constants
-        generator.withConstants(constants).generateAggsHandler(
-          "BoundedOverAggregateHelper", aggInfoList)
+        generator
+          .needAccumulate()
+          .withConstants(constants)
+          .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
       }.toArray
 
       val resetAccumulators =
@@ -344,12 +345,14 @@ class BatchExecOverAggregate(
               CodeGeneratorContext(config),
               relBuilder,
               inputType.getFieldTypes,
-              needRetract = true,
               copyInputField = false)
 
             // over agg code gen must pass the constants
-            val genAggsHandler = generator.withConstants(constants)
-                .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
+            val genAggsHandler = generator
+              .needAccumulate()
+              .needRetract()
+              .withConstants(constants)
+              .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
 
             // LEAD is behind the currentRow, so we need plus offset.
             // LAG is in front of the currentRow, so we need minus offset.
@@ -414,11 +417,12 @@ class BatchExecOverAggregate(
             codeGenCtx,
             relBuilder,
             inputType.getFieldTypes,
-            needRetract = false,
             copyInputField = false)
 
           // over agg code gen must pass the constants
-          val genAggsHandler = generator.withConstants(constants)
+          val genAggsHandler = generator
+              .needAccumulate()
+              .withConstants(constants)
               .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
 
           mode match {

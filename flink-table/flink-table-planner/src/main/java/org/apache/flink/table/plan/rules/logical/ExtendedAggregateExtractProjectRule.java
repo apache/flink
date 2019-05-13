@@ -20,11 +20,13 @@ package org.apache.flink.table.plan.rules.logical;
 
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.plan.logical.LogicalWindow;
+import org.apache.flink.table.plan.logical.rel.LogicalTableAggregate;
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
@@ -45,20 +47,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Rule to extract a {@link org.apache.calcite.rel.core.Project}
- * from a {@link LogicalAggregate} or a {@link LogicalWindowAggregate}
- * and push it down towards the input.
+ * Rule to extract a {@link org.apache.calcite.rel.core.Project} from a {@link LogicalAggregate},
+ * a {@link LogicalWindowAggregate} or a {@link LogicalTableAggregate} and push it down towards
+ * the input.
  *
  * <p>Note: Most of the logic in this rule is same with {@link AggregateExtractProjectRule}. The
- * difference is this rule has also taken the {@link LogicalWindowAggregate} into consideration.
- * Furthermore, this rule also creates trivial {@link Project}s unless the input node is already
- * a {@link Project}.
+ * difference is this rule has also taken the {@link LogicalWindowAggregate} and
+ * {@link LogicalTableAggregate} into consideration. Furthermore, this rule also creates trivial
+ * {@link Project}s unless the input node is already a {@link Project}.
  */
 public class ExtendedAggregateExtractProjectRule extends AggregateExtractProjectRule {
 
 	public static final ExtendedAggregateExtractProjectRule INSTANCE =
 		new ExtendedAggregateExtractProjectRule(
-			operand(Aggregate.class,
+			operand(SingleRel.class,
 				operand(RelNode.class, any())), RelFactories.LOGICAL_BUILDER);
 
 	public ExtendedAggregateExtractProjectRule(
@@ -70,19 +72,34 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 
 	@Override
 	public boolean matches(RelOptRuleCall call) {
-		final Aggregate aggregate = call.rel(0);
-		return aggregate instanceof LogicalWindowAggregate || aggregate instanceof LogicalAggregate;
+		final SingleRel relNode = call.rel(0);
+		return relNode instanceof LogicalWindowAggregate ||
+			relNode instanceof LogicalAggregate ||
+			relNode instanceof LogicalTableAggregate;
 	}
 
 	@Override
 	public void onMatch(RelOptRuleCall call) {
-		final Aggregate aggregate = call.rel(0);
+		final RelNode relNode = call.rel(0);
 		final RelNode input = call.rel(1);
 		final RelBuilder relBuilder = call.builder().push(input);
 
+		if (relNode instanceof LogicalAggregate || relNode instanceof LogicalWindowAggregate) {
+			call.transformTo(performExtract((Aggregate) relNode, input, relBuilder));
+		} else if (relNode instanceof LogicalTableAggregate) {
+			LogicalAggregate logicalAggregate =
+				LogicalTableAggregate.getCorrespondingAggregate((LogicalTableAggregate) relNode);
+			RelNode newAggregate = performExtract(logicalAggregate, input, relBuilder);
+			call.transformTo(LogicalTableAggregate.create((Aggregate) newAggregate));
+		}
+	}
+
+	/**
+	 * Extract a project from the input aggregate and return a new aggregate.
+	 */
+	private RelNode performExtract(Aggregate aggregate, RelNode input, RelBuilder relBuilder) {
 		Mapping mapping = extractProjectsAndMapping(aggregate, input, relBuilder);
-		RelNode newAggregate = getNewAggregate(aggregate, relBuilder, mapping);
-		call.transformTo(newAggregate);
+		return getNewAggregate(aggregate, relBuilder, mapping);
 	}
 
 	/**

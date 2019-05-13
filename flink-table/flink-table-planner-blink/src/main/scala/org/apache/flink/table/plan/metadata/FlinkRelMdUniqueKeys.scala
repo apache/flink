@@ -339,8 +339,15 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       join: Join,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getJoinUniqueKeys(
-      join.analyzeCondition(), join.getJoinType, join.getLeft, join.getRight, mq, ignoreNulls)
+    join.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        // only return the unique keys from the LHS since a SEMI/ANTI join only
+        // returns the LHS
+        mq.getUniqueKeys(join.getLeft, ignoreNulls)
+      case _ =>
+        getJoinUniqueKeys(
+          join.analyzeCondition(), join.getJoinType, join.getLeft, join.getRight, mq, ignoreNulls)
+    }
   }
 
   private def getJoinUniqueKeys(
@@ -419,15 +426,6 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       retSet.addAll(rightSet)
     }
     retSet
-  }
-
-  def getUniqueKeys(
-      rel: SemiJoin,
-      mq: RelMetadataQuery,
-      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    // only return the unique keys from the LHS since a semijoin only
-    // returns the LHS
-    mq.getUniqueKeys(rel.getLeft, ignoreNulls)
   }
 
   // TODO supports temporal table join

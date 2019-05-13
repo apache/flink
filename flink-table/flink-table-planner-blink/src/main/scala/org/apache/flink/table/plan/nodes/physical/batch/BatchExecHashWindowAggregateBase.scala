@@ -31,7 +31,7 @@ import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.aggregate.BytesHashMap
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -46,34 +46,34 @@ import java.util
 import scala.collection.JavaConversions._
 
 abstract class BatchExecHashWindowAggregateBase(
-    window: LogicalWindow,
-    inputTimeFieldIndex: Int,
-    inputTimeIsDate: Boolean,
-    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
-    inputNode: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+    inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
     aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+    window: LogicalWindow,
+    inputTimeFieldIndex: Int,
+    inputTimeIsDate: Boolean,
+    namedProperties: Seq[NamedWindowProperty],
     enableAssignPane: Boolean = false,
     isMerge: Boolean,
     isFinal: Boolean)
   extends BatchExecWindowAggregateBase(
-    window,
-    namedProperties,
     cluster,
     traitSet,
-    inputNode,
-    aggCallToAggFunction,
+    inputRel,
     outputRowType,
     inputRowType,
     grouping,
     auxGrouping,
+    aggCallToAggFunction,
+    window,
+    namedProperties,
     enableAssignPane,
     isMerge,
     isFinal)
@@ -94,8 +94,8 @@ abstract class BatchExecHashWindowAggregateBase(
     // happen under the assumption
     //  We aim for a 200% utilization of the bucket table.
     val bucketSize = rowCnt * BytesHashMap.BUCKET_SIZE / FlinkCost.HASH_COLLISION_WEIGHT
-    val recordSize = rowCnt * (FlinkRelMdUtil.binaryRowAverageSize(this) + BytesHashMap
-        .RECORD_EXTRA_LENGTH)
+    val rowAvgSize = FlinkRelMdUtil.binaryRowAverageSize(this)
+    val recordSize = rowCnt * (rowAvgSize + BytesHashMap.RECORD_EXTRA_LENGTH)
     val memCost = bucketSize + recordSize
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(rowCnt, hashCpuCost + aggFunctionCpuCost, 0, 0, memCost)
@@ -141,7 +141,7 @@ abstract class BatchExecHashWindowAggregateBase(
       aggInfos, inputRowType, grouping, auxGrouping, enableAssignPane, isMerge, isFinal).gen(
       inputType, outputType, groupBufferLimitSize, reservedManagedMem, maxManagedMem, 0,
       windowSize, slideSize)
-    val operator = new OneInputOperatorWrapper[BaseRow, BaseRow](generatedOperator)
+    val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
     new OneInputTransformation(
       input,
       getOperatorName,

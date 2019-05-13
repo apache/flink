@@ -116,4 +116,18 @@ public final class MemorySegmentFactory {
 		return new HybridMemorySegment(memory, owner);
 	}
 
+	/**
+	 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
+	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
+	 *
+	 * <p>This method is intended to be used for components which pool memory and create
+	 * memory segments around long-lived memory regions.
+	 *
+	 * @param memory The byte buffer with the off-heap memory to be represented by the memory segment.
+	 * @return A new memory segment representing the given off-heap memory.
+	 */
+	public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
+		return new HybridMemorySegment(memory);
+	}
+
 }

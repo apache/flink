@@ -18,18 +18,13 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.Task;
 
 import org.junit.Rule;
@@ -276,18 +271,8 @@ public class NetworkEnvironmentTest {
 	 */
 	private static ResultPartition createResultPartition(
 			final ResultPartitionType partitionType, final int channels) {
-		return new ResultPartition(
-			"TestTask-" + partitionType + ":" + channels,
-			new NoOpTaskActions(),
-			new JobID(),
-			new ResultPartitionID(),
-			partitionType,
-			channels,
-			channels,
-			mock(ResultPartitionManager.class),
-			new NoOpResultPartitionConsumableNotifier(),
-			mock(IOManager.class),
-			false);
+
+		return PartitionTestUtils.createPartition(partitionType, channels);
 	}
 
 	/**

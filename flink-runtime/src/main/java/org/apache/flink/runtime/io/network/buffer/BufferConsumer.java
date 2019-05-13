@@ -61,9 +61,16 @@ public class BufferConsumer implements Closeable {
 	 * Constructs {@link BufferConsumer} instance with static content.
 	 */
 	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
+		this(memorySegment, recycler, memorySegment.size(), isBuffer);
+	}
+
+	/**
+	 * Constructs {@link BufferConsumer} instance with static content of a certain size.
+	 */
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, boolean isBuffer) {
 		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
-			() -> -memorySegment.size(),
-			0);
+				() -> -size,
+				0);
 		checkState(memorySegment.size() > 0);
 		checkState(isFinished(), "BufferConsumer with static size must be finished after construction!");
 	}

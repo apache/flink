@@ -212,12 +212,11 @@ class StreamExecGlobalGroupAggregate(
       CodeGeneratorContext(config),
       relBuilder,
       FlinkTypeFactory.toInternalRowType(inputRowType).getFieldTypes,
-      needRetract = false,
-      config.getNullCheck,
       inputFieldCopy)
 
     generator
-      .withMerging(mergedAccOffset, mergedAccOnHeap, mergedAccExternalTypes)
+      .needAccumulate()
+      .needMerge(mergedAccOffset, mergedAccOnHeap, mergedAccExternalTypes)
       .generateAggsHandler(name, aggInfoList)
   }
 

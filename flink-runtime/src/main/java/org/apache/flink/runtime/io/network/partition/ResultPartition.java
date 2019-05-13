@@ -32,6 +32,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,10 +152,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		// Create the subpartitions.
 		switch (partitionType) {
 			case BLOCKING:
-				for (int i = 0; i < subpartitions.length; i++) {
-					subpartitions[i] = new SpillableSubpartition(i, this, ioManager);
-				}
-
+				initializeBoundedBlockingPartitions(subpartitions, this, ioManager);
 				break;
 
 			case PIPELINED:
@@ -446,7 +445,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 				this, subpartitionIndex, pendingReferences);
 	}
 
-	ResultSubpartition[] getAllPartitions() {
+	public ResultSubpartition[] getAllPartitions() {
 		return subpartitions;
 	}
 
@@ -464,6 +463,37 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
 
 			hasNotifiedPipelinedConsumers = true;
+		}
+	}
+
+	private static void initializeBoundedBlockingPartitions(
+			ResultSubpartition[] subpartitions,
+			ResultPartition parent,
+			IOManager ioManager) {
+
+		int i = 0;
+		try {
+			for (; i < subpartitions.length; i++) {
+				subpartitions[i] = new BoundedBlockingSubpartition(
+						i, parent, ioManager.createChannel().getPathFile().toPath());
+			}
+		}
+		catch (IOException e) {
+			// undo all the work so that a failed constructor does not leave any resources
+			// in need of disposal
+			releasePartitionsQuietly(subpartitions, i);
+
+			// this is not good, we should not be forced to wrap this in a runtime exception.
+			// the fact that the ResultPartition and Task constructor (which calls this) do not tolerate any exceptions
+			// is incompatible with eager initialization of resources (RAII).
+			throw new FlinkRuntimeException(e);
+		}
+	}
+
+	private static void releasePartitionsQuietly(ResultSubpartition[] partitions, int until) {
+		for (int i = 0; i < until; i++) {
+			final ResultSubpartition subpartition = partitions[i];
+			ExceptionUtils.suppressExceptions(subpartition::release);
 		}
 	}
 }

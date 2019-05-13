@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.codegen;
 
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedJoinCondition;
@@ -37,7 +36,7 @@ import org.junit.Test;
 public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 
 	@Override
-	public StreamOperator newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
+	public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
 		RowType keyType = new RowType(InternalTypes.INT);
 		Assert.assertTrue(LongHashJoinGenerator.support(type, keyType, new boolean[] {true}));
 		return LongHashJoinGenerator.gen(

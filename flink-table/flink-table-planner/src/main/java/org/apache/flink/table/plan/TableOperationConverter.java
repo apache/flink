@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.Aggregation;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -35,6 +36,7 @@ import org.apache.flink.table.expressions.RexPlannerExpression;
 import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
+import org.apache.flink.table.operations.AggregateOperationFactory;
 import org.apache.flink.table.operations.AggregateTableOperation;
 import org.apache.flink.table.operations.CalculatedTableOperation;
 import org.apache.flink.table.operations.CatalogTableOperation;
@@ -107,6 +109,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 	private final SingleRelVisitor singleRelVisitor = new SingleRelVisitor();
 	private final ExpressionBridge<PlannerExpression> expressionBridge;
 	private final AggregateVisitor aggregateVisitor = new AggregateVisitor();
+	private final TableAggregateVisitor tableAggregateVisitor = new TableAggregateVisitor();
 	private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
 
 	public TableOperationConverter(
@@ -133,15 +136,27 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visitAggregate(AggregateTableOperation aggregate) {
+			boolean isTableAggregate = aggregate.getAggregateExpressions().size() == 1 &&
+				AggregateOperationFactory.isTableAggFunctionCall(aggregate.getAggregateExpressions().get(0));
+
 			List<AggCall> aggregations = aggregate.getAggregateExpressions()
 				.stream()
-				.map(expr -> expr.accept(aggregateVisitor))
-				.collect(toList());
+				.map(expr -> {
+					if (isTableAggregate) {
+						return expr.accept(tableAggregateVisitor);
+					} else {
+						return expr.accept(aggregateVisitor);
+					}
+				}).collect(toList());
 
 			List<RexNode> groupings = convertToRexNodes(aggregate.getGroupingExpressions());
 			GroupKey groupKey = relBuilder.groupKey(groupings);
 
-			return relBuilder.aggregate(groupKey, aggregations).build();
+			if (isTableAggregate) {
+				return ((FlinkRelBuilder) relBuilder).tableAggregate(groupKey, aggregations).build();
+			} else {
+				return relBuilder.aggregate(groupKey, aggregations).build();
+			}
 		}
 
 		@Override
@@ -360,6 +375,17 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		@Override
 		protected AggCall defaultMethod(Expression expression) {
 			throw new TableException("Unexpected expression: " + expression);
+		}
+	}
+
+	private class TableAggregateVisitor extends AggregateVisitor {
+		@Override
+		public AggCall visitCall(CallExpression call) {
+			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+				AggFunctionCall aggFunctionCall = (AggFunctionCall) expressionBridge.bridge(call);
+				return aggFunctionCall.toAggCall(aggFunctionCall.toString(), false, relBuilder);
+			}
+			throw new TableException("Expected table aggregate. Got: " + call);
 		}
 	}
 }

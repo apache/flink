@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecWindowJoin
-import org.apache.flink.table.plan.util.WindowJoinUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, WindowJoinUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -35,7 +35,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] with window bounds in join condition
+  * Rule that converts non-SEMI/ANTI [[FlinkLogicalJoin]] with window bounds in join condition
   * to [[StreamExecWindowJoin]].
   */
 class StreamExecWindowJoinRule
@@ -46,21 +46,23 @@ class StreamExecWindowJoinRule
     "StreamExecWindowJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
+    val join: FlinkLogicalJoin = call.rel(0)
     val joinRowType = join.getRowType
     val joinInfo = join.analyzeCondition()
 
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    if (joinInfo.pairs().isEmpty) {
+    // TODO support SEMI/ANTI join
+    if (!join.getJoinType.projectsRight || joinInfo.pairs().isEmpty) {
       return false
     }
 
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
     val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       joinRowType,
       join.getCluster.getRexBuilder,
-      TableConfig.DEFAULT)
+      tableConfig)
 
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {

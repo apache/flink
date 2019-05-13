@@ -85,9 +85,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
           case InternalTypes.BINARY => createSqlType(VARBINARY)
 
-          case InternalTypes.CHAR =>
-            throw new TableException("Character type is not supported.")
-
           case decimal: DecimalType =>
             createSqlType(DECIMAL, decimal.precision(), decimal.scale())
 

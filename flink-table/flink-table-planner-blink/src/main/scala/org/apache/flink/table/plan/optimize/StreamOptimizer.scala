@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexBuilder
 
 /**
   * Query optimizer for Stream.
@@ -64,6 +65,10 @@ class StreamOptimizer(tEnv: StreamTableEnvironment) extends Optimizer {
     Preconditions.checkNotNull(programs)
 
     programs.optimize(relNode, new StreamOptimizeContext() {
+
+      override def getRexBuilder: RexBuilder = tEnv.getRelBuilder.getRexBuilder
+
+      override def needFinalTimeIndicatorConversion: Boolean = true
 
       override def getTableConfig: TableConfig = config
 

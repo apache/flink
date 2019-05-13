@@ -73,7 +73,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 				InternalTypes.LONG,
 				InternalTypes.FLOAT,
 				InternalTypes.DOUBLE,
-				InternalTypes.CHAR,
 				InternalTypes.TIMESTAMP,
 				InternalTypes.DATE,
 				InternalTypes.TIME,
@@ -192,13 +191,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public void setChar(int pos, char value) {
-		assertIndexIsValid(pos);
-		setNotNullAt(pos);
-		segments[0].putChar(getFieldOffset(pos), value);
-	}
-
-	@Override
 	public void setDecimal(int pos, Decimal value, int precision) {
 		assertIndexIsValid(pos);
 
@@ -297,12 +289,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	public double getDouble(int pos) {
 		assertIndexIsValid(pos);
 		return segments[0].getDouble(getFieldOffset(pos));
-	}
-
-	@Override
-	public char getChar(int pos) {
-		assertIndexIsValid(pos);
-		return segments[0].getChar(getFieldOffset(pos));
 	}
 
 	@Override

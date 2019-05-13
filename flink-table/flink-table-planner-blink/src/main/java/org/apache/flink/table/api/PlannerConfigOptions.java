@@ -73,6 +73,12 @@ public class PlannerConfigOptions {
 							"instance that holds a partition of all data when performing a hash join. " +
 							"Broadcast will be disabled if the value is -1.");
 
+	public static final ConfigOption<Double> SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO =
+			key("sql.optimizer.semi-anti-join.build-distinct.ndv-ratio")
+					.defaultValue(0.8)
+					.withDescription("When the semi-side of semi/anti join can distinct a lot of data in advance," +
+							" we will add distinct node before semi/anti join.");
+
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED =
 			key("sql.optimizer.data-skew.distinct-agg.enabled")
 					.defaultValue(false)

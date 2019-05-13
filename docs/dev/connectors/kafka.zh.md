@@ -114,7 +114,7 @@ Then, import the connector in your maven project:
 {% endhighlight %}
 
 Note that the streaming connectors are currently not part of the binary distribution.
-See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
+See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
 
 ## Installing Apache Kafka
 
@@ -490,8 +490,8 @@ special records in the Kafka stream that contain the current event-time watermar
 Consumer allows the specification of an `AssignerWithPeriodicWatermarks` or an `AssignerWithPunctuatedWatermarks`.
 
 You can specify your custom timestamp extractor/watermark emitter as described
-[here]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html), or use one from the
-[predefined ones]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html). After doing so, you
+[here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html), or use one from the
+[predefined ones]({{ site.baseurl }}/dev/event_timestamp_extractors.html). After doing so, you
 can pass it to your consumer in the following way:
 
 <div class="codetabs" markdown="1">

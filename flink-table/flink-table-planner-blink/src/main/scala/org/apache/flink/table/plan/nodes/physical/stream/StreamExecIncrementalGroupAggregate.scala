@@ -208,12 +208,11 @@ class StreamExecIncrementalGroupAggregate(
       CodeGeneratorContext(config),
       relBuilder,
       FlinkTypeFactory.toInternalRowType(inputRowType).getFieldTypes,
-      needRetract = false,
-      config.getNullCheck,
       inputFieldCopy)
 
     generator
-      .withMerging(mergedAccOffset, mergedAccOnHeap = true, mergedAccExternalTypes)
+      .needAccumulate()
+      .needMerge(mergedAccOffset, mergedAccOnHeap = true, mergedAccExternalTypes)
       .generateAggsHandler(name, aggInfoList)
   }
 }

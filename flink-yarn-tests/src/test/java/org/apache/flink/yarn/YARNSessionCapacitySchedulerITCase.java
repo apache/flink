@@ -263,46 +263,48 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			"Flink JobManager is now running on ",
 			RunTypes.YARN_SESSION);
 
-		final String logs = outContent.toString();
-		final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-		final String host = hostAndPort.getHostText();
-		final int port = hostAndPort.getPort();
-		LOG.info("Extracted hostname:port: {}", host, port);
+		try {
+			final String logs = outContent.toString();
+			final HostAndPort hostAndPort = parseJobManagerHostname(logs);
+			final String host = hostAndPort.getHostText();
+			final int port = hostAndPort.getPort();
+			LOG.info("Extracted hostname:port: {}", host, port);
 
-		submitJob("WindowJoin.jar");
+			submitJob("WindowJoin.jar");
 
-		//
-		// Assert that custom YARN application name "customName" is set
-		//
-		final ApplicationReport applicationReport = getOnlyApplicationReport();
-		assertEquals("customName", applicationReport.getName());
+			//
+			// Assert that custom YARN application name "customName" is set
+			//
+			final ApplicationReport applicationReport = getOnlyApplicationReport();
+			assertEquals("customName", applicationReport.getName());
 
-		//
-		// Assert the number of TaskManager slots are set
-		//
-		waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
-		assertNumberOfSlotsPerTask(host, port, 3);
+			//
+			// Assert the number of TaskManager slots are set
+			//
+			waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
+			assertNumberOfSlotsPerTask(host, port, 3);
 
-		final Map<String, String> flinkConfig = getFlinkConfig(host, port);
+			final Map<String, String> flinkConfig = getFlinkConfig(host, port);
 
-		//
-		// Assert dynamic properties
-		//
-		assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
-		assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
+			//
+			// Assert dynamic properties
+			//
+			assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
+			assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
 
-		//
-		// FLINK-2213: assert that vcores are set
-		//
-		assertThat(flinkConfig, hasEntry(YarnConfigOptions.VCORES.key(), "2"));
+			//
+			// FLINK-2213: assert that vcores are set
+			//
+			assertThat(flinkConfig, hasEntry(YarnConfigOptions.VCORES.key(), "2"));
 
-		//
-		// FLINK-1902: check if jobmanager hostname is shown in web interface
-		//
-		assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), host));
-
-		yarnSessionClusterRunner.sendStop();
-		yarnSessionClusterRunner.join();
+			//
+			// FLINK-1902: check if jobmanager hostname is shown in web interface
+			//
+			assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), host));
+		} finally {
+			yarnSessionClusterRunner.sendStop();
+			yarnSessionClusterRunner.join();
+		}
 	}
 
 	private static HostAndPort parseJobManagerHostname(final String logs) {

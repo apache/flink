@@ -467,27 +467,19 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
         return 1D
       }
     }
-    RelMdUtil.getJoinDistinctRowCount(mq, rel, rel.getJoinType, groupKey, predicate, false)
-  }
-
-  def getDistinctRowCount(
-      rel: SemiJoin,
-      mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet,
-      predicate: RexNode): JDouble = {
-    if (predicate == null || predicate.isAlwaysTrue) {
-      if (groupKey.isEmpty) {
-        return 1D
-      }
+    rel.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        // create a RexNode representing the selectivity of the
+        // semi-join filter and pass it to getDistinctRowCount
+        var newPred = FlinkRelMdUtil.makeSemiAntiJoinSelectivityRexNode(mq, rel)
+        if (predicate != null) {
+          val rexBuilder = rel.getCluster.getRexBuilder
+          newPred = rexBuilder.makeCall(SqlStdOperatorTable.AND, newPred, predicate)
+        }
+        mq.getDistinctRowCount(rel.getLeft, groupKey, newPred)
+      case _ =>
+        RelMdUtil.getJoinDistinctRowCount(mq, rel, rel.getJoinType, groupKey, predicate, false)
     }
-    // create a RexNode representing the selectivity of the
-    // semijoin filter and pass it to getDistinctRowCount
-    var newPred = FlinkRelMdUtil.makeSemiJoinSelectivityRexNode(mq, rel)
-    if (predicate != null) {
-      val rexBuilder = rel.getCluster.getRexBuilder
-      newPred = rexBuilder.makeCall(SqlStdOperatorTable.AND, newPred, predicate)
-    }
-    mq.getDistinctRowCount(rel.getLeft, groupKey, newPred)
   }
 
   def getDistinctRowCount(

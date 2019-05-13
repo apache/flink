@@ -34,7 +34,7 @@ import org.apache.flink.table.expressions.{Alias, ExpressionBridge, PlannerExpre
 import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.logical.LogicalWindow
-import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+import org.apache.flink.table.plan.logical.rel.{LogicalTableAggregate, LogicalWindowAggregate}
 
 import scala.collection.JavaConverters._
 
@@ -82,6 +82,16 @@ class FlinkRelBuilder(
     // build logical window aggregate from it
     push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
     this
+  }
+
+  def tableAggregate(
+    groupKey: GroupKey,
+    aggCalls: Iterable[AggCall]): RelBuilder = {
+
+    // build logical aggregate
+    val aggregate = super.aggregate(groupKey, aggCalls).build().asInstanceOf[LogicalAggregate]
+    // build logical table aggregate from it
+    push(LogicalTableAggregate.create(aggregate))
   }
 
   def tableOperation(tableOperation: TableOperation): RelBuilder= {

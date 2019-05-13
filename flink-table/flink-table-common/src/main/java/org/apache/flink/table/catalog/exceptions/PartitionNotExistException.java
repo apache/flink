@@ -22,7 +22,8 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /**
- * Exception for operation on a nonexistent partition.
+ * Exception for operation on a partition that doesn't exist. The cause includes non-existent table,
+ * non-partitioned table, invalid partition spec, etc.
  */
 public class PartitionNotExistException extends Exception {
 	private static final String MSG = "Partition %s of table %s in catalog %s does not exist.";

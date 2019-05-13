@@ -92,11 +92,6 @@ public final class UpdatableRow implements BaseRow {
 	}
 
 	@Override
-	public char getChar(int ordinal) {
-		return updated[ordinal] ? (char) fields[ordinal] : row.getChar(ordinal);
-	}
-
-	@Override
 	public byte[] getBinary(int ordinal) {
 		return updated[ordinal] ? (byte[]) fields[ordinal] : row.getBinary(ordinal);
 	}
@@ -168,11 +163,6 @@ public final class UpdatableRow implements BaseRow {
 
 	@Override
 	public void setDouble(int ordinal, double value) {
-		setField(ordinal, value);
-	}
-
-	@Override
-	public void setChar(int ordinal, char value) {
 		setField(ordinal, value);
 	}
 

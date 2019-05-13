@@ -223,6 +223,7 @@ abstract class TableTestUtil(test: TableTestBase) {
   }
 
   def verifyPlanNotExpected(table: Table, notExpected: String*): Unit = {
+    require(notExpected.nonEmpty)
     val relNode = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = getOptimizedPlan(
       relNode,

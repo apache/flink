@@ -137,7 +137,6 @@ public enum LogicalTypeRoot {
 
 	MAP(
 		LogicalTypeFamily.CONSTRUCTED,
-		LogicalTypeFamily.COLLECTION,
 		LogicalTypeFamily.EXTENSION),
 
 	ROW(

@@ -41,14 +41,19 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for hash [[Join]].
   */
-trait BatchExecHashJoinBase extends BatchExecJoinBase {
-
-  // true if LHS is build side, else false
-  val leftIsBuild: Boolean
-  // true if build side is broadcast, else false
-  val isBroadcast: Boolean
-  val tryDistinctBuildRow: Boolean
-  var haveInsertRf: Boolean
+class BatchExecHashJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType,
+    // true if LHS is build side, else false
+    val leftIsBuild: Boolean,
+    // true if build side is broadcast, else false
+    val isBroadcast: Boolean,
+    val tryDistinctBuildRow: Boolean)
+  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   private val (leftKeys, rightKeys) =
     JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
@@ -60,6 +65,25 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
 
   val hashJoinType: HashJoinType = HashJoinType.of(leftIsBuild, getJoinType.generatesNullsOnRight(),
     getJoinType.generatesNullsOnLeft())
+
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
+    new BatchExecHashJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType,
+      leftIsBuild,
+      isBroadcast,
+      tryDistinctBuildRow)
+  }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
@@ -122,38 +146,4 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     throw new TableException("Implements this")
   }
-}
-
-class BatchExecHashJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    joinType: JoinRelType,
-    val leftIsBuild: Boolean,
-    val isBroadcast: Boolean,
-    override var haveInsertRf: Boolean = false)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
-  with BatchExecHashJoinBase {
-
-  override val tryDistinctBuildRow = false
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): Join =
-    new BatchExecHashJoin(
-      cluster,
-      traitSet,
-      left,
-      right,
-      conditionExpr,
-      joinType,
-      leftIsBuild,
-      isBroadcast,
-      haveInsertRf)
 }

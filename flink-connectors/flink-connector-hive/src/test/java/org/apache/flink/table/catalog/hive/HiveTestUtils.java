@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.catalog.CatalogTestBase;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
 
@@ -35,7 +37,7 @@ public class HiveTestUtils {
 	 * Create a GenericHiveMetastoreCatalog with an embedded Hive Metastore.
 	 */
 	public static GenericHiveMetastoreCatalog createGenericHiveMetastoreCatalog() throws IOException {
-		return new GenericHiveMetastoreCatalog("test", getHiveConf());
+		return new GenericHiveMetastoreCatalog(CatalogTestBase.TEST_CATALOG_NAME, getHiveConf());
 	}
 
 	private static HiveConf getHiveConf() throws IOException {

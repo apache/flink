@@ -65,7 +65,8 @@ class StreamExecWindowJoin(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.toFlinkJoinType(joinType)
+  // TODO remove FlinkJoinType
+  private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(joinType)
 
   override def producesUpdates: Boolean = false
 

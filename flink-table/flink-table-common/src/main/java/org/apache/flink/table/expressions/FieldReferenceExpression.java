@@ -41,8 +41,15 @@ public final class FieldReferenceExpression implements Expression {
 
 	private final TypeInformation<?> resultType;
 
+	/**
+	 * index of an input the field belongs to.
+	 * e.g. for a join, `inputIndex` of left input is 0 and `inputIndex` of right input is 1.
+	 */
 	private final int inputIndex;
 
+	/**
+	 * index of a field within the corresponding input.
+	 */
 	private final int fieldIndex;
 
 	public FieldReferenceExpression(

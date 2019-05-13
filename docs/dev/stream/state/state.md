@@ -417,7 +417,7 @@ This feature can be activated in `StateTtlConfig`:
 import org.apache.flink.api.common.state.StateTtlConfig;
  StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupIncrementally()
+    .cleanupIncrementally(10, true)
     .build();
 {% endhighlight %}
 </div>
@@ -426,7 +426,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.StateTtlConfig
 val ttlConfig = StateTtlCon fig
     .newBuilder(Time.seconds(1))
-    .cleanupIncrementally
+    .cleanupIncrementally(10, true)
     .build
 {% endhighlight %}
 </div>

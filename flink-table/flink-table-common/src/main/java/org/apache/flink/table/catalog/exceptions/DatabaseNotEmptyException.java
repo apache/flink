@@ -23,7 +23,7 @@ package org.apache.flink.table.catalog.exceptions;
  *
  */
 public class DatabaseNotEmptyException extends Exception {
-	private static final String MSG = "Database %s in Catalog %s is not empty.";
+	private static final String MSG = "Database %s in catalog %s is not empty.";
 
 	public DatabaseNotEmptyException(String catalog, String database, Throwable cause) {
 		super(String.format(MSG, database, catalog), cause);

@@ -28,8 +28,10 @@ import org.junit._
 
 class CalcValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSelectInvalidFieldFields(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Cannot resolve field [foo], input field list:[a, b, c].")
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       // must fail. Field 'foo does not exist

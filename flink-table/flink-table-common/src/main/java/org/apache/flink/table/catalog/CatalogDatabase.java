@@ -31,6 +31,13 @@ public interface CatalogDatabase {
 	Map<String, String> getProperties();
 
 	/**
+	 * Get comment of the database.
+	 *
+	 * @return comment of the database
+	 */
+	String getComment();
+
+	/**
 	 * Get a deep copy of the CatalogDatabase instance.
 	 *
 	 * @return a copy of CatalogDatabase instance

@@ -39,12 +39,36 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for nested-loop [[Join]].
   */
-trait BatchExecNestedLoopJoinBase extends BatchExecJoinBase {
+class BatchExecNestedLoopJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType,
+    // true if LHS is build side, else RHS is build side
+    val leftIsBuild: Boolean,
+    // true if one side returns single row, else false
+    val singleRowJoin: Boolean)
+  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
-  // true if LHS is build side, else RHS is build side
-  val leftIsBuild: Boolean
-  // true if one side returns single row, else false
-  val singleRowJoin: Boolean
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
+    new BatchExecNestedLoopJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType,
+      leftIsBuild,
+      singleRowJoin)
+  }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
@@ -99,34 +123,3 @@ trait BatchExecNestedLoopJoinBase extends BatchExecJoinBase {
   }
 
 }
-
-class BatchExecNestedLoopJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    joinType: JoinRelType,
-    val leftIsBuild: Boolean,
-    val singleRowJoin: Boolean)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
-  with BatchExecNestedLoopJoinBase {
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): Join =
-    new BatchExecNestedLoopJoin(
-      cluster,
-      traitSet,
-      left,
-      right,
-      conditionExpr,
-      joinType,
-      leftIsBuild,
-      singleRowJoin)
-}
-

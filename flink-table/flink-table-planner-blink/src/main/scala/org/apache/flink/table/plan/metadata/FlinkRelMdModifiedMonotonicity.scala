@@ -23,14 +23,12 @@ import org.apache.flink.table.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.plan.metadata.FlinkMetadata.ModifiedMonotonicity
-import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{WithLower, WithUpper}
-import org.apache.flink.table.plan.util.JoinTypeUtil
-import org.apache.flink.table.runtime.join.FlinkJoinType
 import org.apache.flink.table.{JByte, JDouble, JFloat, JList, JLong, JShort}
 
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -217,8 +215,6 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
-  // TODO supports window aggregate
-
   def getRelModifiedMonotonicity(rel: Exchange, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     // for exchange, get correspond from input
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
@@ -259,6 +255,20 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getRelModifiedMonotonicityOnAggregate(
       rel.getInput, mq, rel.finalAggCalls.toList, rel.finalAggGrouping)
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: WindowAggregate,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = null
+
+  def getRelModifiedMonotonicity(
+      rel: StreamExecGroupWindowAggregate,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    if (allAppend(mq, rel.getInput) && !rel.producesUpdates) {
+      constants(rel.getRowType.getFieldCount)
+    } else {
+      null
+    }
   }
 
   def getRelModifiedMonotonicity(
@@ -364,7 +374,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val joinInfo = rel.analyzeCondition
     val leftKeys = joinInfo.leftKeys
     val rightKeys = joinInfo.rightKeys
-    val joinType = JoinTypeUtil.toFlinkJoinType(rel.getJoinType)
+    val joinType = rel.getJoinType
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
 
     // if group set contains update return null
@@ -379,11 +389,11 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val isKeyAllAppend = isAllConstantOnKeys(left, leftKeys.toIntArray) &&
       isAllConstantOnKeys(right, rightKeys.toIntArray)
 
-    if (!containDelete && !joinType.equals(FlinkJoinType.ANTI) && isKeyAllAppend &&
+    if (!containDelete && !joinType.equals(JoinRelType.ANTI) && isKeyAllAppend &&
       (containUpdate && joinInfo.isEqui || !containUpdate)) {
 
       // output rowtype of semi equals to the rowtype of left child
-      if (joinType.equals(FlinkJoinType.SEMI)) {
+      if (joinType.equals(JoinRelType.SEMI)) {
         fmq.getRelModifiedMonotonicity(left)
       } else {
         val leftFieldMonotonicities = fmq.getRelModifiedMonotonicity(left).fieldMonotonicities

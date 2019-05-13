@@ -19,10 +19,13 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -40,7 +43,7 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	private final StreamTransformation<T> input;
 
-	private final StreamSink<T> operator;
+	private final StreamOperatorFactory<Object> operatorFactory;
 
 	// We need this because sinks can also have state that is partitioned by key
 	private KeySelector<T, ?> stateKeySelector;
@@ -60,9 +63,17 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 			String name,
 			StreamSink<T> operator,
 			int parallelism) {
+		this(input, name, SimpleOperatorFactory.of(operator), parallelism);
+	}
+
+	public SinkTransformation(
+			StreamTransformation<T> input,
+			String name,
+			StreamOperatorFactory<Object> operatorFactory,
+			int parallelism) {
 		super(name, TypeExtractor.getForClass(Object.class), parallelism);
 		this.input = input;
-		this.operator = operator;
+		this.operatorFactory = operatorFactory;
 	}
 
 	/**
@@ -72,11 +83,16 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 		return input;
 	}
 
-	/**
-	 * Returns the {@link StreamSink} that is the operator of this {@code SinkTransformation}.
-	 */
+	@VisibleForTesting
 	public StreamSink<T> getOperator() {
-		return operator;
+		return (StreamSink<T>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+	}
+
+	/**
+	 * Returns the {@link StreamOperatorFactory} of this {@code SinkTransformation}.
+	 */
+	public StreamOperatorFactory<Object> getOperatorFactory() {
+		return operatorFactory;
 	}
 
 	/**
@@ -116,6 +132,6 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operator.setChainingStrategy(strategy);
+		operatorFactory.setChainingStrategy(strategy);
 	}
 }

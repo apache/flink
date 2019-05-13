@@ -395,25 +395,22 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
-    areColumnsUniqueOfJoin(
-      rel.analyzeCondition(),
-      rel.getJoinType,
-      rel.getLeft.getRowType,
-      (leftSet: ImmutableBitSet) => mq.areColumnsUnique(rel.getLeft, leftSet, ignoreNulls),
-      (rightSet: ImmutableBitSet) => mq.areColumnsUnique(rel.getRight, rightSet, ignoreNulls),
-      mq,
-      columns
-    )
-  }
-
-  def areColumnsUnique(
-      rel: SemiJoin,
-      mq: RelMetadataQuery,
-      columns: ImmutableBitSet,
-      ignoreNulls: Boolean): JBoolean = {
-    // only return the unique keys from the LHS since a semijoin only
-    // returns the LHS
-    mq.areColumnsUnique(rel.getLeft, columns, ignoreNulls)
+    rel.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        // only return the unique keys from the LHS since a SEMI/ANTI join only
+        // returns the LHS
+        mq.areColumnsUnique(rel.getLeft, columns, ignoreNulls)
+      case _ =>
+        areColumnsUniqueOfJoin(
+          rel.analyzeCondition(),
+          rel.getJoinType,
+          rel.getLeft.getRowType,
+          (leftSet: ImmutableBitSet) => mq.areColumnsUnique(rel.getLeft, leftSet, ignoreNulls),
+          (rightSet: ImmutableBitSet) => mq.areColumnsUnique(rel.getRight, rightSet, ignoreNulls),
+          mq,
+          columns
+        )
+    }
   }
 
   def areColumnsUnique(

@@ -302,12 +302,14 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
   def getPopulationSize(
       rel: Join,
       mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet): JDouble = RelMdUtil.getJoinPopulationSize(mq, rel, groupKey)
-
-  def getPopulationSize(
-      rel: SemiJoin,
-      mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet): JDouble = mq.getPopulationSize(rel.getLeft, groupKey)
+      groupKey: ImmutableBitSet): JDouble = {
+    rel.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        mq.getPopulationSize(rel.getLeft, groupKey)
+      case _ =>
+        RelMdUtil.getJoinPopulationSize(mq, rel, groupKey)
+    }
+  }
 
   def getPopulationSize(
       rel: Union,

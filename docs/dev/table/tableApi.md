@@ -298,6 +298,81 @@ val result = orders.where('b === "red")
   </tbody>
 </table>
 </div>
+<div data-lang="python" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+  		<td>
+        <strong>Scan</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+  		<td>
+        <p>Similar to the FROM clause in a SQL query. Performs a scan of a registered table.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+{% endhighlight %}
+      </td>
+  	</tr>
+    <tr>
+      <td>
+        <strong>Select</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.select("a, c as d");
+{% endhighlight %}
+        <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
+{% highlight python %}
+result = orders.select("*");
+{% endhighlight %}
+</td>
+        </tr>
+    <tr>
+      <td>
+        <strong>Alias</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Renames fields.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.alias("x, y, z, t");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Where / Filter</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.where("b === 'red'");
+{% endhighlight %}
+or
+{% highlight python %}
+orders = table_env.scan("Orders");
+result = orders.filter("a % 2 === 0");
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
 </div>
 
 {% top %}
@@ -1892,6 +1967,115 @@ Table table = input
 {% endhighlight %}
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        <strong>Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.</p>
+{% highlight java %}
+public class MyMinMaxAcc {
+    public int min = 0;
+    public int max = 0;
+}
+
+public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
+
+    public void accumulate(MyMinMaxAcc acc, int value) {
+        if (value < acc.min) {
+            acc.min = value;
+        }
+        if (value > acc.max) {
+            acc.max = value;
+        }
+    }
+
+    @Override
+    public MyMinMaxAcc createAccumulator() {
+        return new MyMinMaxAcc();
+    }
+    
+    public void resetAccumulator(MyMinMaxAcc acc) {
+        acc.min = 0;
+        acc.max = 0;
+    }
+
+    @Override
+    public Row getValue(MyMinMaxAcc acc) {
+        return Row.of(acc.min, acc.max);
+    }
+
+    @Override
+    public TypeInformation<Row> getResultType() {
+        return new RowTypeInfo(Types.INT, Types.INT);
+    }
+}
+    
+AggregateFunction myAggFunc = new MyMinMax();
+tableEnv.registerFunction("myAggFunc", myAggFunc);
+Table table = input
+  .groupBy("key")
+  .aggregate("myAggFunc(a) as (x, y)")
+  .select("key, x, y")
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>GroupBy TableAggregation</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+{% highlight java %}
+    public class MyMinMaxAcc {
+        public int min = 0;
+        public int max = 0;
+    }
+
+    public class MyMinMax extends TableAggregateFunction<Row, MyMinMaxAcc> {
+
+        public void accumulate(MyMinMaxAcc acc, int value) {
+            if (value < acc.min) {
+                acc.min = value;
+            }
+            if (value > acc.max) {
+                acc.max = value;
+            }
+        }
+
+        @Override
+        public MyMinMaxAcc createAccumulator() {
+            return new MyMinMaxAcc();
+        }
+
+        public void emitValue(MyMinMaxAcc acc, Collector<Row> out) {
+            out.collect(Row.of(acc.min, acc.min));
+            out.collect(Row.of(acc.max, acc.max));
+        }
+
+        @Override
+        public TypeInformation<Row> getResultType() {
+            return new RowTypeInfo(Types.INT, Types.INT);
+        }
+    }
+    
+TableAggregateFunction tableAggFunc = new MyMinMax();
+tableEnv.registerFunction("myTableAggFunc", tableAggFunc);
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .groupBy("a")
+    .flatAggregate("myTableAggFunc(a) as (x, y)")
+    .select("a, x, y");
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -1958,6 +2142,103 @@ val func = new MyFlatMapFunction
 val table = input
   .flatMap(func('c)).as('a, 'b)
 {% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.</p>
+{% highlight scala %}
+case class MyMinMaxAcc(var min: Int, var max: Int)
+
+class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
+
+  def accumulate(acc: MyMinMaxAcc, value: Int): Unit = {
+    if (value < acc.min) {
+      acc.min = value
+    }
+    if (value > acc.max) {
+      acc.max = value
+    }
+  }
+
+  override def createAccumulator(): MyMinMaxAcc = MyMinMaxAcc(0, 0)
+  
+  def resetAccumulator(acc: MyMinMaxAcc): Unit = {
+    acc.min = 0
+    acc.max = 0
+  }
+
+  override def getValue(acc: MyMinMaxAcc): Row = {
+    Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.max))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.INT, Types.INT)
+  }
+}
+
+val myAggFunc: AggregateFunction = new MyMinMax
+val table = input
+  .groupBy('key)
+  .aggregate(myAggFunc('a) as ('x, 'y))
+  .select('key, 'x, 'y)
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>GroupBy TableAggregation</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+{% highlight scala %}
+case class MyMinMaxAcc(var min: Int, var max: Int)
+
+class MyMinMax extends TableAggregateFunction[Row, MyMinMaxAcc] {
+
+  def accumulate(acc: MyMinMaxAcc, value: Int): Unit = {
+    if (value < acc.min) {
+      acc.min = value
+    }
+    if (value > acc.max) {
+      acc.max = value
+    }
+  }
+
+  def resetAccumulator(acc: MyMinMaxAcc): Unit = {
+    acc.min = 0
+    acc.max = 0
+  }
+
+  override def createAccumulator(): MyMinMaxAcc = MyMinMaxAcc(0, 0)
+
+  def emitValue(acc: MyMinMaxAcc, out: Collector[Row]): Unit = {
+    out.collect(Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.min)))
+    out.collect(Row.of(Integer.valueOf(acc.max), Integer.valueOf(acc.max)))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.INT, Types.INT)
+  }
+}
+
+val tableAggFunc = new MyMinMax
+val orders: Table = tableEnv.scan("Orders")
+val result = orders
+    .groupBy('a)
+    .flatAggregate(tableAggFunc('a) as ('x, 'y))
+    .select('a, 'x, 'y)
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>

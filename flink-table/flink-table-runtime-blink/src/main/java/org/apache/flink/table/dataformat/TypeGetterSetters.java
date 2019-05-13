@@ -87,11 +87,6 @@ public interface TypeGetterSetters {
 	double getDouble(int ordinal);
 
 	/**
-	 * Get char value.
-	 */
-	char getChar(int ordinal);
-
-	/**
 	 * Get string value, internal format is BinaryString.
 	 */
 	BinaryString getString(int ordinal);
@@ -162,11 +157,6 @@ public interface TypeGetterSetters {
 	void setDouble(int ordinal, double value);
 
 	/**
-	 * Set char value.
-	 */
-	void setChar(int ordinal, char value);
-
-	/**
 	 * Set the decimal column value.
 	 *
 	 * <p>Note:
@@ -193,8 +183,6 @@ public interface TypeGetterSetters {
 			return row.getDouble(ordinal);
 		} else if (type.equals(InternalTypes.STRING)) {
 			return row.getString(ordinal);
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return row.getChar(ordinal);
 		} else if (type instanceof DateType) {
 			return row.getInt(ordinal);
 		} else if (type.equals(InternalTypes.TIME)) {

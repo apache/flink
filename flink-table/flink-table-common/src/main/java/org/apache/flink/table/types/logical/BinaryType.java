@@ -36,11 +36,11 @@ import java.util.Set;
 @PublicEvolving
 public final class BinaryType extends LogicalType {
 
-	private static final int MIN_LENGTH = 1;
+	public static final int MIN_LENGTH = 1;
 
-	private static final int MAX_LENGTH = Integer.MAX_VALUE;
+	public static final int MAX_LENGTH = Integer.MAX_VALUE;
 
-	private static final int DEFAULT_LENGTH = 1;
+	public static final int DEFAULT_LENGTH = 1;
 
 	private static final String FORMAT = "BINARY(%d)";
 

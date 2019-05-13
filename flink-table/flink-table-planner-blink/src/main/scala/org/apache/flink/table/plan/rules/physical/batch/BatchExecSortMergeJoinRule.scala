@@ -38,11 +38,11 @@ import scala.collection.JavaConversions._
   * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecSortMergeJoin]]
   * if there exists at least one equal-join condition and SortMergeJoin is enabled.
   */
-class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
+class BatchExecSortMergeJoinRule
   extends RelOptRule(
-    operand(joinClass,
+    operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    s"BatchExecSortMergeJoinRule_${joinClass.getSimpleName}")
+    "BatchExecSortMergeJoinRule")
   with BatchExecJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -91,7 +91,7 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
       val providedTraitSet = call.getPlanner
         .emptyTraitSet()
         .replace(FlinkConventions.BATCH_PHYSICAL)
-      val newJoin =  new BatchExecSortMergeJoin(
+      val newJoin = new BatchExecSortMergeJoin(
         join.getCluster,
         providedTraitSet,
         newLeft,
@@ -139,5 +139,5 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
 }
 
 object BatchExecSortMergeJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule(classOf[FlinkLogicalJoin])
+  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule
 }
