@@ -17,13 +17,12 @@
 # limitations under the License.
 ################################################################################
 
-KAFKA_CONNECTOR_VERSION="$1"
-KAFKA_VERSION="$2"
-CONFLUENT_VERSION="$3"
-CONFLUENT_MAJOR_VERSION="$4"
-KAFKA_SQL_VERSION="$5"
+KAFKA_VERSION="$1"
+CONFLUENT_VERSION="$2"
+CONFLUENT_MAJOR_VERSION="$3"
+KAFKA_SQL_VERSION="$4"
 
-source "$(dirname "$0")"/kafka-common.sh $2 $3 $4
+source "$(dirname "$0")"/kafka-common.sh $1 $2 $3
 
 function create_kafka_json_source {
     topicName="$1"

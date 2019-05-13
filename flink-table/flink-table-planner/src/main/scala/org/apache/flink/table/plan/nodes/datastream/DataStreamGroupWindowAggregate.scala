@@ -26,9 +26,8 @@ import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream,
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.expressions.PlannerExpressionUtils._
 import org.apache.flink.table.expressions.ResolvedFieldReference
 import org.apache.flink.table.plan.logical._
@@ -115,7 +114,7 @@ class DataStreamGroupWindowAggregate(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
+      tableEnv: StreamTableEnvImpl,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
@@ -173,12 +172,6 @@ class DataStreamGroupWindowAggregate(
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"window: ($window), select: ($aggString)"
 
-    val generator = new AggregationCodeGenerator(
-      tableEnv.getConfig,
-      false,
-      inputSchema.typeInfo,
-      None)
-
     val needMerge = window match {
       case SessionGroupWindow(_, _, _) => true
       case _ => false
@@ -201,7 +194,10 @@ class DataStreamGroupWindowAggregate(
 
       val (aggFunction, accumulatorRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
-          generator,
+          tableEnv.getConfig,
+          false,
+          inputSchema.typeInfo,
+          None,
           namedAggregates,
           inputSchema.relDataType,
           inputSchema.fieldTypeInfos,
@@ -227,7 +223,10 @@ class DataStreamGroupWindowAggregate(
 
       val (aggFunction, accumulatorRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
-          generator,
+          tableEnv.getConfig,
+          false,
+          inputSchema.typeInfo,
+          None,
           namedAggregates,
           inputSchema.relDataType,
           inputSchema.fieldTypeInfos,

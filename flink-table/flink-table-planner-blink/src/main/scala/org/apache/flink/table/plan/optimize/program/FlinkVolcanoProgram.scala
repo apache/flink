@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.metadata.FlinkRelMdNonCumulativeCost
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.util.Preconditions
 
@@ -55,6 +56,7 @@ class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgra
     val optProgram = Programs.ofRules(rules)
 
     try {
+      FlinkRelMdNonCumulativeCost.THREAD_PLANNER.set(planner)
       optProgram.run(
         planner,
         root,
@@ -83,6 +85,8 @@ class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgra
             s"${r.getCause.getMessage}\n" +
             s"Please check the documentation for the set of currently supported SQL features.",
           r.getCause)
+    } finally {
+      FlinkRelMdNonCumulativeCost.THREAD_PLANNER.remove()
     }
   }
 

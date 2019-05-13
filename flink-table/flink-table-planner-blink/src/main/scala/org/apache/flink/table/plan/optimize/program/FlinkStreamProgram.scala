@@ -37,6 +37,7 @@ object FlinkStreamProgram {
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
+  val PHYSICAL_REWRITE = "physical_rewrite"
 
   def buildProgram(config: Configuration): FlinkChainedProgram[StreamOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[StreamOptimizeContext]()
@@ -45,6 +46,17 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       SUBQUERY_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        // rewrite RelTable before rewriting sub-queries
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.TABLE_REF_RULES)
+          .build(), "convert table references before rewriting sub-queries to semi-join")
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.SEMI_JOIN_RULES)
+          .build(), "rewrite sub-queries to semi-join")
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
@@ -60,6 +72,9 @@ object FlinkStreamProgram {
 
     // query decorrelation
     chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+
+    // convert time indicators
+    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
 
     // default rewrite, includes: predicate simplification, expression reduction, window
     // properties rewrite, etc.
@@ -113,6 +128,26 @@ object FlinkStreamProgram {
       FlinkVolcanoProgramBuilder.newBuilder
         .add(FlinkStreamRuleSets.PHYSICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.STREAM_PHYSICAL))
+        .build())
+
+    // physical rewrite
+    chainedProgram.addLast(
+      PHYSICAL_REWRITE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        .addProgram(new FlinkUpdateAsRetractionTraitInitProgram,
+          "init for retraction")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.RETRACTION_RULES)
+            .build(), "retraction rules")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.PHYSICAL_REWRITE)
+            .build(), "physical rewrite")
         .build())
 
     chainedProgram

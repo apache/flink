@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.AggregateUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -45,9 +46,15 @@ class FlinkLogicalAggregate(
     indicator: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
-    aggCalls: util.List[AggregateCall])
+    aggCalls: util.List[AggregateCall],
+    /* flag indicating whether to skip SplitAggregateRule */
+    var partialFinalType: PartialFinalType = PartialFinalType.NONE)
   extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls)
   with FlinkLogicalRel {
+
+  def setPartialFinalType(partialFinalType: PartialFinalType): Unit = {
+    this.partialFinalType = partialFinalType
+  }
 
   override def copy(
       traitSet: RelTraitSet,
@@ -57,11 +64,11 @@ class FlinkLogicalAggregate(
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): Aggregate = {
     new FlinkLogicalAggregate(
-      cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls)
+      cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls, partialFinalType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    if (getGroupSets.size > 1 || FlinkRelOptUtil.getGroupIdExprIndexes(getAggCallList).nonEmpty) {
+    if (getGroupSets.size > 1 || AggregateUtil.getGroupIdExprIndexes(getAggCallList).nonEmpty) {
       planner.getCostFactory.makeInfiniteCost()
     } else {
       val child = this.getInput
@@ -96,7 +103,7 @@ private class FlinkLogicalAggregateBatchConverter
       case _ => true
     }
 
-    val hasAccurateDistinctCall = FlinkRelOptUtil.containsAccurateDistinctCall(agg.getAggCallList)
+    val hasAccurateDistinctCall = AggregateUtil.containsAccurateDistinctCall(agg.getAggCallList)
 
     !hasAccurateDistinctCall && supported
   }
@@ -154,7 +161,7 @@ object FlinkLogicalAggregate {
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): FlinkLogicalAggregate = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalAggregate(cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls)
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalAggregate(cluster,traitSet, input, indicator, groupSet, groupSets, aggCalls)
   }
 }

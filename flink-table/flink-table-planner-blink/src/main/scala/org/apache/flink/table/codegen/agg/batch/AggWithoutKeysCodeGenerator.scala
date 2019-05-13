@@ -52,7 +52,6 @@ object AggWithoutKeysCodeGenerator {
     val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, Array(), aggregates)
     val aggArgs = aggInfoList.aggInfos.map(_.argIndexes)
 
-    val config = ctx.tableConfig
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     // register udagg
@@ -63,13 +62,13 @@ object AggWithoutKeysCodeGenerator {
       isMerge,
       isFinal,
       ctx,
-      config,
       builder,
       Array(),
       Array(),
       aggCallToAggFunction,
       aggArgs,
       aggregates,
+      aggInfoList.aggInfos.map(_.externalResultType),
       udaggs,
       inputTerm,
       inputType,
@@ -114,7 +113,6 @@ object AggWithoutKeysCodeGenerator {
       classOf[TableStreamOperator[BaseRow]].getCanonicalName,
       processCode,
       endInputCode,
-      inputType,
-      config)
+      inputType)
   }
 }

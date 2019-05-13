@@ -31,6 +31,7 @@ import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.util.ScanUtil
+import org.apache.flink.table.runtime.AbstractProcessStreamOperator
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{ROWTIME_INDICATOR, ROWTIME_STREAM_MARKER}
 
 import org.apache.calcite.plan._
@@ -54,7 +55,7 @@ class StreamExecDataStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    relDataType: RelDataType)
+    outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow]{
@@ -73,7 +74,7 @@ class StreamExecDataStreamScan(
 
   override def requireWatermark: Boolean = false
 
-  override def deriveRowType(): RelDataType = relDataType
+  override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecDataStreamScan(cluster, traitSet, getTable, getRowType)
@@ -90,7 +91,15 @@ class StreamExecDataStreamScan(
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
   override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = List()
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
@@ -112,16 +121,17 @@ class StreamExecDataStreamScan(
         } else {
           ("", "")
         }
-
+      val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
+        classOf[AbstractProcessStreamOperator[BaseRow]])
       ScanUtil.convertToInternalRow(
-        CodeGeneratorContext(config),
+        ctx,
         transform,
         dataStreamTable.fieldIndexes,
         dataStreamTable.typeInfo,
         getRowType,
         getTable.getQualifiedName,
         config,
-        None,
+        rowtimeExpr,
         beforeConvert = extractElement,
         afterConvert = resetElement)
     } else {

@@ -26,11 +26,11 @@ import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isTimeIndicatorType}
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.logical.LogicalNode
+import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
 import org.apache.flink.util.Preconditions.checkState
@@ -43,22 +43,22 @@ class LogicalCorrelateToTemporalTableJoinRule
         operand(classOf[TableFunctionScan], none()))),
     "LogicalCorrelateToTemporalTableJoinRule") {
 
-  private def extractNameFromTimeAttribute(timeAttribute: PlannerExpression): String = {
+  private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
-      case ResolvedFieldReference(name, _)
-        if timeAttribute.resultType == Types.LONG ||
-          timeAttribute.resultType == Types.SQL_TIMESTAMP ||
-          isTimeIndicatorType(timeAttribute.resultType) =>
-        name
+      case f : FieldReferenceExpression
+        if f.getResultType == Types.LONG ||
+          f.getResultType == Types.SQL_TIMESTAMP ||
+          isTimeIndicatorType(f.getResultType) =>
+        f.getName
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
     }
   }
 
-  private def extractNameFromPrimaryKeyAttribute(expression: PlannerExpression): String = {
+  private def extractNameFromPrimaryKeyAttribute(expression: Expression): String = {
     expression match {
-      case ResolvedFieldReference(name, _) =>
-        name
+      case f: FieldReferenceExpression =>
+        f.getName
       case _ => throw new ValidationException(
         s"Unsupported expression [$expression] as primary key. " +
           s"Only top-level (not nested) field references are supported.")
@@ -87,8 +87,9 @@ class LogicalCorrelateToTemporalTableJoinRule
           leftNode.getTable.getRelOptSchema)
         val rexBuilder = cluster.getRexBuilder
 
-        val rightNode: RelNode = underlyingHistoryTable.asInstanceOf[LogicalNode]
-          .toRelNode(relBuilder)
+        val converter = call.getPlanner.getContext
+          .unwrap(classOf[TableOperationConverter.ToRelConverterSupplier]).get(relBuilder)
+        val rightNode: RelNode = underlyingHistoryTable.accept(converter)
 
         val rightTimeIndicatorExpression = createRightExpression(
           rexBuilder,
@@ -103,7 +104,8 @@ class LogicalCorrelateToTemporalTableJoinRule
           extractNameFromPrimaryKeyAttribute(rightTemporalTableFunction.getPrimaryKey))
 
         relBuilder.push(
-          if (isProctimeIndicatorType(rightTemporalTableFunction.getTimeAttribute.resultType)) {
+          if (isProctimeIndicatorType(rightTemporalTableFunction.getTimeAttribute
+            .asInstanceOf[FieldReferenceExpression].getResultType)) {
             LogicalTemporalTableJoin.createProctime(
               rexBuilder,
               cluster,

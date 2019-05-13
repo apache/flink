@@ -25,15 +25,13 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -93,22 +91,18 @@ public class MetricUtils {
 
 	public static TaskManagerMetricGroup instantiateTaskManagerMetricGroup(
 			MetricRegistry metricRegistry,
-			TaskManagerLocation taskManagerLocation,
-			NetworkEnvironment network,
+			String hostName,
+			ResourceID resourceID,
 			Optional<Time> systemResourceProbeInterval) {
 		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
 			metricRegistry,
-			taskManagerLocation.getHostname(),
-			taskManagerLocation.getResourceID().toString());
+			hostName,
+			resourceID.toString());
 
 		MetricGroup statusGroup = taskManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
 
 		// Initialize the TM metrics
 		instantiateStatusMetrics(statusGroup);
-
-		MetricGroup networkGroup = statusGroup
-			.addGroup("Network");
-		instantiateNetworkMetrics(networkGroup, network);
 
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
@@ -137,15 +131,6 @@ public class MetricUtils {
 			configuration,
 			METRICS_ACTOR_SYSTEM_NAME,
 			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
-	}
-
-	private static void instantiateNetworkMetrics(
-		MetricGroup metrics,
-		final NetworkEnvironment network) {
-
-		final NetworkBufferPool networkBufferPool = network.getNetworkBufferPool();
-		metrics.<Integer, Gauge<Integer>>gauge("TotalMemorySegments", networkBufferPool::getTotalNumberOfMemorySegments);
-		metrics.<Integer, Gauge<Integer>>gauge("AvailableMemorySegments", networkBufferPool::getNumberOfAvailableMemorySegments);
 	}
 
 	private static void instantiateClassLoaderMetrics(MetricGroup metrics) {

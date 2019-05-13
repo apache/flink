@@ -38,5 +38,4 @@ public interface ExpressionVisitor<R> {
 	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
 
 	R visit(Expression other);
-
 }

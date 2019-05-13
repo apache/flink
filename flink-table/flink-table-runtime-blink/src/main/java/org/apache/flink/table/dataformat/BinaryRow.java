@@ -73,7 +73,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 				InternalTypes.LONG,
 				InternalTypes.FLOAT,
 				InternalTypes.DOUBLE,
-				InternalTypes.CHAR,
 				InternalTypes.TIMESTAMP,
 				InternalTypes.DATE,
 				InternalTypes.TIME,
@@ -192,13 +191,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public void setChar(int pos, char value) {
-		assertIndexIsValid(pos);
-		setNotNullAt(pos);
-		segments[0].putChar(getFieldOffset(pos), value);
-	}
-
-	@Override
 	public void setDecimal(int pos, Decimal value, int precision) {
 		assertIndexIsValid(pos);
 
@@ -220,7 +212,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 			} else {
 
 				byte[] bytes = value.toUnscaledBytes();
-				assert(bytes.length <= 16);
+				assert bytes.length <= 16;
 
 				// Write the bytes to the variable length portion.
 				SegmentsUtil.copyFromBytes(segments, offset + cursor, bytes, 0, bytes.length);
@@ -297,12 +289,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	public double getDouble(int pos) {
 		assertIndexIsValid(pos);
 		return segments[0].getDouble(getFieldOffset(pos));
-	}
-
-	@Override
-	public char getChar(int pos) {
-		assertIndexIsValid(pos);
-		return segments[0].getChar(getFieldOffset(pos));
 	}
 
 	@Override
@@ -427,5 +413,21 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		}
 		build.append(']');
 		return build.toString();
+	}
+
+	public boolean equalsWithoutHeader(BaseRow o) {
+		return equalsFrom(o, 1);
+	}
+
+	private boolean equalsFrom(Object o, int startIndex) {
+		if (o != null && o instanceof BinaryRow) {
+			BinaryRow other = (BinaryRow) o;
+			return sizeInBytes == other.sizeInBytes &&
+					SegmentsUtil.equals(
+							segments, offset + startIndex,
+							other.segments, other.offset + startIndex, sizeInBytes - startIndex);
+		} else {
+			return false;
+		}
 	}
 }

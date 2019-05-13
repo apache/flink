@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.dataformat.util;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryUtils;
+import org.apache.flink.table.dataformat.BinaryRow;
 
 /**
  * Util for binary row. Many of the methods in this class are used in code generation.
@@ -28,6 +30,14 @@ public class BinaryRowUtil {
 
 	public static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
 	public static final int BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+
+	public static final BinaryRow EMPTY_ROW = new BinaryRow(0);
+
+	static {
+		int size = EMPTY_ROW.getFixedLengthPartSize();
+		byte[] bytes = new byte[size];
+		EMPTY_ROW.pointTo(MemorySegmentFactory.wrap(bytes), 0, size);
+	}
 
 	public static boolean byteArrayEquals(byte[] left, byte[] right, int length) {
 		return byteArrayEquals(

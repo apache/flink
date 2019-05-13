@@ -20,6 +20,8 @@ package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Utility method for resolving {@link RestartStrategy}.
  */
@@ -45,6 +47,8 @@ public final class RestartStrategyResolving {
 			RestartStrategies.RestartStrategyConfiguration clientConfiguration,
 			RestartStrategyFactory serverStrategyFactory,
 			boolean isCheckpointingEnabled) {
+
+		checkNotNull(serverStrategyFactory);
 
 		final RestartStrategy clientSideRestartStrategy =
 			RestartStrategyFactory.createRestartStrategy(clientConfiguration);

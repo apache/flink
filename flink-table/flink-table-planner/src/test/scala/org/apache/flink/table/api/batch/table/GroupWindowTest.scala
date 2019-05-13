@@ -114,7 +114,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
-        term("select", "int", "long")
+        term("select", "long", "int")
       ),
       term("window", "TumblingGroupWindow('w, 'long, 5.millis)"),
       term("select", "COUNT(int) AS TMP_0")
@@ -138,7 +138,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
-        term("select", "int", "long")
+        term("select", "long", "int")
       ),
       term("window", "TumblingGroupWindow('w, 'long, 2.rows)"),
       term("select", "COUNT(int) AS TMP_0")
@@ -275,7 +275,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
-        term("select", "int", "long")
+        term("select", "long", "int")
       ),
       term("window", "SlidingGroupWindow('w, 'long, 8.millis, 10.millis)"),
       term("select", "COUNT(int) AS TMP_0")
@@ -299,7 +299,7 @@ class GroupWindowTest extends TableTestBase {
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
-        term("select", "int", "long")
+        term("select", "long", "int")
       ),
       term("window", "SlidingGroupWindow('w, 'long, 2.rows, 1.rows)"),
       term("select", "COUNT(int) AS TMP_0")
@@ -462,7 +462,7 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "c", "rowtime", "*(c, c) AS $f2")
+            term("select", "rowtime", "c", "*(c, c) AS $f2")
           ),
           term("window", "TumblingGroupWindow('w, 'rowtime, 900000.millis)"),
           term("select",

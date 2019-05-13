@@ -706,6 +706,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case STREAMRECORD_TIMESTAMP =>
         generateRowtimeAccess(ctx, contextTerm)
 
+      case THROW_EXCEPTION =>
+        val code =
+          s"""
+             |${operands.map(_.code).mkString("\n")}
+             |org.apache.flink.util.ExceptionUtils.rethrow(
+             |  new RuntimeException(${operands(1).resultTerm}.toString()));
+             |""".stripMargin
+        GeneratedExpression(operands.head.resultTerm, operands.head.nullTerm, code, resultType)
+
       case ssf: ScalarSqlFunction =>
         new ScalarFunctionCallGen(ssf.getScalarFunction).generate(ctx, operands, resultType)
 

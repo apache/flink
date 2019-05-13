@@ -22,7 +22,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
-import org.apache.flink.table.functions.{DeclarativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.generated.GeneratedOperator
 import org.apache.flink.table.plan.util.AggregateInfoList
 import org.apache.flink.table.runtime.TableStreamOperator
@@ -49,7 +50,6 @@ class HashAggCodeGenerator(
   private lazy val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
   private lazy val aggCallToAggFunction =
     aggInfoList.aggInfos.map(info => (info.agg, info.function))
-  private lazy val aggregateCalls = aggCallToAggFunction.map(_._1)
   private lazy val aggregates: Seq[UserDefinedFunction] = aggInfoList.aggInfos.map(_.function)
   private lazy val aggArgs: Array[Array[Int]] = aggInfoList.aggInfos.map(_.argIndexes)
   // get udagg instance names
@@ -63,7 +63,6 @@ class HashAggCodeGenerator(
   def genWithKeys(
       reservedManagedMemory: Long, maxManagedMemory: Long)
     : GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val config = ctx.tableConfig
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val className = if (isFinal) "HashAggregateWithKeys" else "LocalHashAggregateWithKeys"
 
@@ -97,7 +96,6 @@ class HashAggCodeGenerator(
       "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
-      config,
       reservedManagedMemory,
       maxManagedMemory,
       groupKeyTypesTerm,
@@ -120,18 +118,15 @@ class HashAggCodeGenerator(
       isMerge,
       isFinal,
       ctx,
-      config,
       builder,
       (grouping, auxGrouping),
       inputTerm,
       inputType,
-      aggregateCalls,
       aggCallToAggFunction,
       aggArgs,
       aggregates,
       currentAggBufferTerm,
       aggBufferRowType,
-      aggBufferNames,
       aggBufferTypes,
       outputTerm,
       outputType,
@@ -139,7 +134,7 @@ class HashAggCodeGenerator(
       reuseAggBufferTerm)
 
     val outputResultFromMap = HashAggCodeGenHelper.genAggMapIterationAndOutput(
-      ctx, config, isFinal, aggregateMapTerm, reuseAggMapEntryTerm, reuseAggBufferTerm, outputExpr)
+      ctx, isFinal, aggregateMapTerm, reuseAggMapEntryTerm, reuseAggBufferTerm, outputExpr)
 
     // gen code to deal with hash map oom, if enable fallback we will use sort agg strategy
     val sorterTerm = CodeGenUtils.newName("sorter")
@@ -149,12 +144,11 @@ class HashAggCodeGenerator(
     val (dealWithAggHashMapOOM, fallbackToSortAggCode) = HashAggCodeGenHelper.genAggMapOOMHandling(
       isFinal,
       ctx,
-      config,
       builder,
       (grouping, auxGrouping),
       aggCallToAggFunction,
       aggArgs,
-      aggregates,
+      aggInfoList.aggInfos.map(_.externalResultType),
       udaggs,
       logTerm,
       aggregateMapTerm,
@@ -233,7 +227,6 @@ class HashAggCodeGenerator(
       classOf[TableStreamOperator[BaseRow]].getCanonicalName,
       processCode,
       endInputCode,
-      inputType,
-      config)
+      inputType)
   }
 }

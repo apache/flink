@@ -26,7 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionWriteResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -510,7 +510,7 @@ public class ElasticsearchSinkBaseTest {
 
 								if (mockItemFailure == null) {
 									// the mock response for the item is success
-									mockResponses[i] = new BulkItemResponse(i, "opType", mock(ActionResponse.class));
+									mockResponses[i] = new BulkItemResponse(i, "opType", mock(ActionWriteResponse.class));
 								} else {
 									// the mock response for the item is failure
 									mockResponses[i] = new BulkItemResponse(i, "opType", new BulkItemResponse.Failure("index", "type", "id", mockItemFailure));

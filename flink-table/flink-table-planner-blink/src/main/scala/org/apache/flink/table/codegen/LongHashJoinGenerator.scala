@@ -25,7 +25,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, baseRo
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.generated.{GeneratedJoinCondition, GeneratedProjection}
-import org.apache.flink.table.runtime.TwoInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.hashtable.{LongHashPartition, LongHybridHashTable}
 import org.apache.flink.table.runtime.join.HashJoinType
 import org.apache.flink.table.typeutils.BinaryRowSerializer
@@ -105,7 +105,7 @@ object LongHashJoinGenerator {
       buildRowSize: Int,
       buildRowCount: Long,
       reverseJoinFunction: Boolean,
-      condFunc: GeneratedJoinCondition): TwoInputOperatorWrapper[BaseRow, BaseRow, BaseRow] = {
+      condFunc: GeneratedJoinCondition): CodeGenOperatorFactory[BaseRow] = {
 
     val buildSer = new BinaryRowSerializer(buildType.getArity)
     val probeSer = new BinaryRowSerializer(probeType.getArity)
@@ -336,6 +336,6 @@ object LongHashJoinGenerator {
       buildType,
       probeType)
 
-    new TwoInputOperatorWrapper[BaseRow, BaseRow, BaseRow](genOp)
+    new CodeGenOperatorFactory[BaseRow](genOp)
   }
 }

@@ -22,11 +22,15 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.common.CommonCalc
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.calcite.rel.metadata.RelMdCollation
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexProgram
+
+import java.util
+import java.util.function.Supplier
 
 /**
   * Sub-class of [[Calc]] that is a relational expression which computes project expressions
@@ -63,11 +67,13 @@ private class FlinkLogicalCalcConverter
 object FlinkLogicalCalc {
   val CONVERTER: ConverterRule = new FlinkLogicalCalcConverter()
 
-  def create(
-      input: RelNode,
-      calcProgram: RexProgram): FlinkLogicalCalc = {
+  def create(input: RelNode, calcProgram: RexProgram): FlinkLogicalCalc = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val mq = cluster.getMetadataQuery
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
+      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
+        def get: util.List[RelCollation] = RelMdCollation.calc(mq, input, calcProgram)
+      }).simplify()
     new FlinkLogicalCalc(cluster, traitSet, input, calcProgram)
   }
 }

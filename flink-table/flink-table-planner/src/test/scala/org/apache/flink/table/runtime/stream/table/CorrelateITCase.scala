@@ -305,6 +305,36 @@ class CorrelateITCase extends AbstractTestBase {
     )
   }
 
+  @Test
+  def testFlatMap(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val func2 = new TableFunc2
+    val ds = testData(env).toTable(tEnv, 'a, 'b, 'c)
+      // test non alias
+      .flatMap(func2('c))
+      .select('f0, 'f1)
+      // test the output field name of flatMap is the same as the field name of the input table
+      .flatMap(func2(concat('f0, "#")))
+      .as ('f0, 'f1)
+      .select('f0, 'f1)
+
+    val results = ds.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Jack,4",
+      "22,2",
+      "John,4",
+      "19,2",
+      "Anna,4",
+      "44,2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
   private def testData(
       env: StreamExecutionEnvironment)
     : DataStream[(Int, Long, String)] = {

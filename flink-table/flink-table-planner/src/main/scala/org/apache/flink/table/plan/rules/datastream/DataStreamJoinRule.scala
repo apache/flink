@@ -47,7 +47,7 @@ class DataStreamJoinRule
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
-      TableConfig.DEFAULT)
+      TableConfig.getDefault)
 
     if (windowBounds.isDefined) {
       return false

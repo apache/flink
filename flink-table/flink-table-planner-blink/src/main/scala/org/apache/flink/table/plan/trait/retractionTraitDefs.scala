@@ -73,7 +73,7 @@ class AccModeTraitDef extends RelTraitDef[AccModeTrait] {
 
   override def getSimpleName: String = this.getClass.getSimpleName
 
-  override def getDefault: AccModeTrait = AccModeTrait.DEFAULT
+  override def getDefault: AccModeTrait = AccModeTrait.UNKNOWN
 }
 
 object AccModeTraitDef {

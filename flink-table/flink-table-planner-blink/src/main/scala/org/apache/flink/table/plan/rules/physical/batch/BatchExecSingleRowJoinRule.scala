@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.plan.FlinkJoinRelType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecNestedLoopJoin
@@ -33,25 +32,23 @@ import org.apache.calcite.rel.core._
   * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecNestedLoopJoin]]
   * if one of join input sides returns at most a single row.
   */
-class BatchExecSingleRowJoinRule(joinClass: Class[_ <: Join])
+class BatchExecSingleRowJoinRule
   extends ConverterRule(
-    joinClass,
+    classOf[FlinkLogicalJoin],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    s"BatchExecSingleRowJoinRule_${joinClass.getSimpleName}")
+    "BatchExecSingleRowJoinRule")
   with BatchExecJoinRuleBase
   with BatchExecNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
-    val joinType = getFlinkJoinRelType(join)
-    joinType match {
-      case FlinkJoinRelType.INNER | FlinkJoinRelType.FULL =>
+    join.getJoinType match {
+      case JoinRelType.INNER | JoinRelType.FULL =>
         isSingleRow(join.getLeft) || isSingleRow(join.getRight)
-      case FlinkJoinRelType.LEFT if isSingleRow(join.getRight) => true
-      case FlinkJoinRelType.RIGHT if isSingleRow(join.getLeft) => true
-      case FlinkJoinRelType.SEMI if isSingleRow(join.getRight) => true
-      case FlinkJoinRelType.ANTI if isSingleRow(join.getRight) => true
+      case JoinRelType.LEFT => isSingleRow(join.getRight)
+      case JoinRelType.RIGHT => isSingleRow(join.getLeft)
+      case JoinRelType.SEMI | JoinRelType.ANTI => isSingleRow(join.getRight)
       case _ => false
     }
   }
@@ -85,5 +82,5 @@ class BatchExecSingleRowJoinRule(joinClass: Class[_ <: Join])
 }
 
 object BatchExecSingleRowJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecSingleRowJoinRule(classOf[FlinkLogicalJoin])
+  val INSTANCE: RelOptRule = new BatchExecSingleRowJoinRule
 }

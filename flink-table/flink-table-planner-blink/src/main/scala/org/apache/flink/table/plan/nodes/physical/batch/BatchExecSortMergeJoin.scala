@@ -17,9 +17,20 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.plan.FlinkJoinRelType
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{StreamTransformation, TwoInputTransformation}
+import org.apache.flink.table.`type`.{RowType, TypeConverters}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
+import org.apache.flink.table.codegen.sort.SortCodeGenerator
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.nodes.ExpressionFormat
+import org.apache.flink.table.plan.nodes.exec.ExecNode
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil, SortUtil}
+import org.apache.flink.table.runtime.join.{FlinkJoinType, SortMergeJoinOperator}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -27,26 +38,34 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
+import java.util
+
 import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for sort-merge [[Join]].
   */
-trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
-
-  // true if LHS is sorted by left join keys, else false
-  val leftSorted: Boolean
-  // true if RHS is sorted by right join key, else false
-  val rightSorted: Boolean
+class BatchExecSortMergeJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType,
+    // true if LHS is sorted by left join keys, else false
+    val leftSorted: Boolean,
+    // true if RHS is sorted by right join key, else false
+    val rightSorted: Boolean)
+  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   protected lazy val (leftAllKey, rightAllKey) =
-    FlinkRelOptUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
+    JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
 
-  protected def isMergeJoinSupportedType(joinRelType: FlinkJoinRelType): Boolean = {
-    joinRelType == FlinkJoinRelType.INNER ||
-      joinRelType == FlinkJoinRelType.LEFT ||
-      joinRelType == FlinkJoinRelType.RIGHT ||
-      joinRelType == FlinkJoinRelType.FULL
+  protected def isMergeJoinSupportedType(joinRelType: FlinkJoinType): Boolean = {
+    joinRelType == FlinkJoinType.INNER ||
+      joinRelType == FlinkJoinType.LEFT ||
+      joinRelType == FlinkJoinType.RIGHT ||
+      joinRelType == FlinkJoinType.FULL
   }
 
   protected lazy val smjType: SortMergeJoinType.Value = {
@@ -54,13 +73,31 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
       case (true, true) if isMergeJoinSupportedType(flinkJoinType) =>
         SortMergeJoinType.MergeJoin
       case (false, true) //TODO support more
-        if flinkJoinType == FlinkJoinRelType.INNER || flinkJoinType == FlinkJoinRelType.RIGHT =>
+        if flinkJoinType == FlinkJoinType.INNER || flinkJoinType == FlinkJoinType.RIGHT =>
         SortMergeJoinType.SortLeftJoin
       case (true, false) //TODO support more
-        if flinkJoinType == FlinkJoinRelType.INNER || flinkJoinType == FlinkJoinRelType.LEFT =>
+        if flinkJoinType == FlinkJoinType.INNER || flinkJoinType == FlinkJoinType.LEFT =>
         SortMergeJoinType.SortRightJoin
       case _ => SortMergeJoinType.SortMergeJoin
     }
+  }
+
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
+    new BatchExecSortMergeJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType,
+      leftSorted,
+      rightSorted)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter =
@@ -104,6 +141,101 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase {
     val rowCount = mq.getRowCount(this)
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
   }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  /**
+    * Now must be full dam without two input operator chain.
+    * TODO two input operator chain will return different value.
+    */
+  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+
+    val config = tableEnv.getConfig
+
+    val leftInput = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+    val rightInput = getInputNodes.get(1).translateToPlan(tableEnv)
+        .asInstanceOf[StreamTransformation[BaseRow]]
+
+    val leftType = TypeConverters.createInternalTypeFromTypeInfo(
+      leftInput.getOutputType).asInstanceOf[RowType]
+    val rightType = TypeConverters.createInternalTypeFromTypeInfo(
+      rightInput.getOutputType).asInstanceOf[RowType]
+
+    val keyType = new RowType(leftAllKey.map(leftType.getFieldTypes()(_)): _*)
+
+    val condFunc = generateCondition(config, leftType, rightType)
+
+    val externalBufferMemory = config.getConf.getInteger(
+      TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB
+
+    val sortMemory = config.getConf.getInteger(
+      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB
+
+    def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
+      val originalOrders = originalKeys.map(_ => true)
+      val (keys, orders, nullsIsLast) = SortUtil.deduplicateSortKeys(
+        originalKeys,
+        originalOrders,
+        SortUtil.getNullDefaultOrders(originalOrders))
+      val types = keys.map(t.getTypeAt)
+      new SortCodeGenerator(config, keys, types, orders, nullsIsLast)
+    }
+
+    val leftSortGen = newSortGen(leftAllKey, leftType)
+    val rightSortGen = newSortGen(rightAllKey, rightType)
+
+    val operator = new SortMergeJoinOperator(
+      sortMemory,
+      sortMemory,
+      externalBufferMemory,
+      flinkJoinType,
+      estimateOutputSize(getLeft) < estimateOutputSize(getRight),
+      condFunc,
+      generateProjection(
+        CodeGeneratorContext(config), "SMJProjection", leftType, keyType, leftAllKey),
+      generateProjection(
+        CodeGeneratorContext(config), "SMJProjection", rightType, keyType, rightAllKey),
+      leftSortGen.generateNormalizedKeyComputer("LeftComputer"),
+      leftSortGen.generateRecordComparator("LeftComparator"),
+      rightSortGen.generateNormalizedKeyComputer("RightComputer"),
+      rightSortGen.generateRecordComparator("RightComparator"),
+      newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
+      filterNulls)
+
+    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+      leftInput,
+      rightInput,
+      getOperatorName,
+      operator,
+      FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo,
+      leftInput.getParallelism)
+  }
+
+  private def estimateOutputSize(relNode: RelNode): Double = {
+    val mq = relNode.getCluster.getMetadataQuery
+    mq.getAverageRowSize(relNode) * mq.getRowCount(relNode)
+  }
+
+  private def getOperatorName: String = if (getCondition != null) {
+    val inFields = inputRowType.getFieldNames.toList
+    s"SortMergeJoin(where: ${
+      getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)})"
+  } else {
+    "SortMergeJoin"
+  }
 }
 
 
@@ -117,34 +249,4 @@ object SortMergeJoinType extends Enumeration {
   SortRightJoin,
   // both LHS and RHS need sort
   SortMergeJoin = Value
-}
-
-class BatchExecSortMergeJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    joinType: JoinRelType,
-    override val leftSorted: Boolean,
-    override val rightSorted: Boolean)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
-  with BatchExecSortMergeJoinBase {
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): Join =
-    new BatchExecSortMergeJoin(
-      cluster,
-      traitSet,
-      left,
-      right,
-      conditionExpr,
-      joinType,
-      leftSorted,
-      rightSorted)
 }

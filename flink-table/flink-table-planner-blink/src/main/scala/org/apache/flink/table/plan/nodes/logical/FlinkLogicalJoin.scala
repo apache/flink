@@ -57,16 +57,22 @@ class FlinkLogicalJoin(
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val leftRowCnt = mq.getRowCount(getLeft)
     val leftRowSize = mq.getAverageRowSize(getLeft)
-
     val rightRowCnt = mq.getRowCount(getRight)
-    val rightRowSize = mq.getAverageRowSize(getRight)
 
-    val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
-    val cpuCost = leftRowCnt + rightRowCnt
-    val rowCnt = leftRowCnt + rightRowCnt
-
-    planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
+    joinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        val rightRowSize = mq.getAverageRowSize(getRight)
+        val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
+        val cpuCost = leftRowCnt + rightRowCnt
+        val rowCnt = leftRowCnt + rightRowCnt
+        planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
+      case _ =>
+        val cpuCost = leftRowCnt + rightRowCnt
+        val ioCost = (leftRowCnt * leftRowSize) + rightRowCnt
+        planner.getCostFactory.makeCost(leftRowCnt, cpuCost, ioCost)
+    }
   }
+
 }
 
 /**
@@ -93,10 +99,10 @@ object FlinkLogicalJoin {
   def create(
       left: RelNode,
       right: RelNode,
-      condition: RexNode,
+      conditionExpr: RexNode,
       joinType: JoinRelType): FlinkLogicalJoin = {
     val cluster = left.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalJoin(cluster, traitSet, left, right, condition, joinType)
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
   }
 }

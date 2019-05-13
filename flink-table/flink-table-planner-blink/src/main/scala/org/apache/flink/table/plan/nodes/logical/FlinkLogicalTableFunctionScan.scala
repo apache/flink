@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import com.google.common.collect.ImmutableList
@@ -91,7 +92,7 @@ class FlinkLogicalTableFunctionScanConverter
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[LogicalTableFunctionScan]
-    val traitSet = rel.getCluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
 
     val constantTableFunction = RexUtil.isConstant(scan.getCall) && scan.getInputs.isEmpty
     if (constantTableFunction) {

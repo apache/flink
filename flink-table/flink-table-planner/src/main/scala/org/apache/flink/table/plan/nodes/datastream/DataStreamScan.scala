@@ -24,7 +24,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl}
 import org.apache.flink.table.expressions.Cast
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.schema.DataStreamTable
@@ -58,7 +58,7 @@ class DataStreamScan(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
+      tableEnv: StreamTableEnvImpl,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig

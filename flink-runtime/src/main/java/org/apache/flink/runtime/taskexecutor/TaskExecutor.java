@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -268,6 +270,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.currentRegistrationTimeoutId = null;
 
 		this.stackTraceSampleService = new StackTraceSampleService(rpcService.getScheduledExecutor());
+	}
+
+	@Override
+	public CompletableFuture<Boolean> canBeReleased() {
+		return CompletableFuture.completedFuture(
+			taskExecutorServices.getNetworkEnvironment().getResultPartitionManager().areAllPartitionsReleased());
 	}
 
 	// ------------------------------------------------------------------------
@@ -593,25 +601,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	@Override
-	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		final Task task = taskSlotTable.getTask(executionAttemptID);
-
-		if (task != null) {
-			try {
-				task.stopExecution();
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			} catch (Throwable t) {
-				return FutureUtils.completedExceptionally(new TaskException("Cannot stop task for execution " + executionAttemptID + '.', t));
-			}
-		} else {
-			final String message = "Cannot find task to stop for execution " + executionAttemptID + '.';
-
-			log.debug(message);
-			return FutureUtils.completedExceptionally(new TaskException(message));
-		}
-	}
-
 	// ----------------------------------------------------------------------
 	// Partition lifecycle RPCs
 	// ----------------------------------------------------------------------
@@ -661,11 +650,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	@Override
-	public void failPartition(ExecutionAttemptID executionAttemptID) {
-		log.info("Discarding the results produced by task execution {}.", executionAttemptID);
-
+	public void releasePartitions(Collection<ResultPartitionID> partitionIds) {
 		try {
-			networkEnvironment.getResultPartitionManager().releasePartitionsProducedBy(executionAttemptID);
+			networkEnvironment.releasePartitions(partitionIds);
 		} catch (Throwable t) {
 			// TODO: Do we still need this catch branch?
 			onFatalError(t);
@@ -697,13 +684,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ExecutionAttemptID executionAttemptID,
 			long checkpointId,
 			long checkpointTimestamp,
-			CheckpointOptions checkpointOptions) {
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime) {
 		log.debug("Trigger checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
+
+		final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+		if (advanceToEndOfEventTime && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
+			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+		}
 
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
-			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions);
+			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions, advanceToEndOfEventTime);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {

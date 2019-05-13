@@ -34,12 +34,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableEnvImpl, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataview._
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
@@ -99,11 +97,11 @@ object UserDefinedFunctionUtils {
     * of [[TypeInformation]]. Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
-      function: AggregateFunction[_, _],
+      function: UserDefinedAggregateFunction[_, _],
       signature: Seq[TypeInformation[_]])
   : Option[Array[Class[_]]] = {
     val accType = TypeExtractor.createTypeInfo(
-      function, classOf[AggregateFunction[_, _]], function.getClass, 1)
+      function, classOf[UserDefinedAggregateFunction[_, _]], function.getClass, 1)
     val input = (Array(accType) ++ signature).toSeq
     getUserDefinedMethod(
       function,
@@ -324,7 +322,7 @@ object UserDefinedFunctionUtils {
   def createAggregateSqlFunction(
       name: String,
       displayName: String,
-      aggFunction: AggregateFunction[_, _],
+      aggFunction: UserDefinedAggregateFunction[_, _],
       resultType: TypeInformation[_],
       accTypeInfo: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
@@ -338,8 +336,7 @@ object UserDefinedFunctionUtils {
       aggFunction,
       resultType,
       accTypeInfo,
-      typeFactory,
-      aggFunction.requiresOver)
+      typeFactory)
   }
 
   /**
@@ -573,7 +570,7 @@ object UserDefinedFunctionUtils {
     * @return The inferred result type of the AggregateFunction.
     */
   def getResultTypeOfAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
+      aggregateFunction: UserDefinedAggregateFunction[_, _],
       extractedType: TypeInformation[_] = null)
     : TypeInformation[_] = {
 
@@ -605,7 +602,7 @@ object UserDefinedFunctionUtils {
     * @return The inferred accumulator type of the AggregateFunction.
     */
   def getAccumulatorTypeOfAggregateFunction(
-    aggregateFunction: AggregateFunction[_, _],
+    aggregateFunction: UserDefinedAggregateFunction[_, _],
     extractedType: TypeInformation[_] = null)
   : TypeInformation[_] = {
 
@@ -638,12 +635,12 @@ object UserDefinedFunctionUtils {
     */
   @throws(classOf[InvalidTypesException])
   private def extractTypeFromAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
+      aggregateFunction: UserDefinedAggregateFunction[_, _],
       parameterTypePos: Int): TypeInformation[_] = {
 
     TypeExtractor.createTypeInfo(
       aggregateFunction,
-      classOf[AggregateFunction[_, _]],
+      classOf[UserDefinedAggregateFunction[_, _]],
       aggregateFunction.getClass,
       parameterTypePos).asInstanceOf[TypeInformation[_]]
   }
@@ -702,9 +699,9 @@ object UserDefinedFunctionUtils {
   def getFieldInfo(inputType: TypeInformation[_])
     : (Array[String], Array[Int], Array[TypeInformation[_]]) = {
 
-    (TableEnvironment.getFieldNames(inputType),
-    TableEnvironment.getFieldIndices(inputType),
-    TableEnvironment.getFieldTypes(inputType))
+    (TableEnvImpl.getFieldNames(inputType),
+    TableEnvImpl.getFieldIndices(inputType),
+    TableEnvImpl.getFieldTypes(inputType))
   }
 
   /**
@@ -765,59 +762,6 @@ object UserDefinedFunctionUtils {
     // arrays
     (candidate.isArray && expected.isArray &&
       (candidate.getComponentType == expected.getComponentType))
-
-  /**
-    * Creates a [[LogicalTableFunctionCall]] by an expression.
-    *
-    * @param callExpr an expression of a TableFunctionCall, such as "split(c)"
-    * @param logicalNode child logical node
-    * @return A LogicalTableFunctionCall.
-    */
-  def createLogicalFunctionCall(
-      callExpr: PlannerExpression,
-      logicalNode: LogicalNode)
-    : LogicalTableFunctionCall = {
-
-    var alias: Option[Seq[String]] = None
-
-    // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: PlannerExpression): PlannerTableFunctionCall = expr match {
-      case Alias(child, name, extraNames) =>
-        alias = Some(Seq(name) ++ extraNames)
-        unwrap(child)
-      case c: PlannerTableFunctionCall => c
-      case _ =>
-        throw new TableException(
-          "A lateral join only accepts a string expression which defines a table function " +
-            "call that might be followed by some alias.")
-    }
-
-    val tableFunctionCall = unwrap(callExpr)
-
-    val originNames = getFieldInfo(tableFunctionCall.resultType)._1
-
-    // determine the final field names
-    val fieldNames = alias match {
-      case Some(aliasList) if aliasList.length != originNames.length =>
-        throw new ValidationException(
-          s"List of column aliases must have same degree as table; " +
-            s"the returned table of function '${tableFunctionCall.functionName}' has " +
-            s"${originNames.length} columns (${originNames.mkString(",")}), " +
-            s"whereas alias list has ${aliasList.length} columns")
-      case Some(aliasList) =>
-        aliasList.toArray
-      case _ =>
-        originNames
-    }
-
-    LogicalTableFunctionCall(
-      tableFunctionCall.functionName,
-      tableFunctionCall.tableFunction,
-      tableFunctionCall.parameters,
-      tableFunctionCall.resultType,
-      fieldNames,
-      logicalNode)
-  }
 
   def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {
     val operandTypes = for (i <- 0 until callBinding.getOperandCount)

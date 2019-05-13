@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.runtime.window.grouping.HeapWindowsGrouping;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -65,6 +66,19 @@ public class TableConfigOptions {
 					.defaultValue(true)
 					.withDescription("Whether to asynchronously merge sort spill files.");
 
+	public static final ConfigOption<Integer> SQL_EXEC_PER_REQUEST_MEM =
+			key("sql.exec.per-request.mem.mb")
+					.defaultValue(32)
+					.withDescription("Sets the number of per-requested buffers when the operator " +
+							"allocates much more segments from the floating memory pool.");
+
+	public static final ConfigOption<Boolean> SQL_EXEC_SORT_NON_TEMPORAL_ENABLED =
+			key("sql.exec.sort.non-temporal.enabled")
+					.defaultValue(false)
+					.withDescription("Switch on/off stream sort without temporal or limit." +
+							"Set whether to enable universal sort for stream. When it is false, " +
+							"universal sort can't use for stream, default false. Just for testing.");
+
 	// ------------------------------------------------------------------------
 	//  Spill Options
 	// ------------------------------------------------------------------------
@@ -91,11 +105,62 @@ public class TableConfigOptions {
 	//  Resource Options
 	// ------------------------------------------------------------------------
 
+	/**
+	 * How many Bytes per MB.
+	 */
+	public static final long SIZE_IN_MB =  1024L * 1024;
+
 	public static final ConfigOption<Integer> SQL_RESOURCE_DEFAULT_PARALLELISM =
 			key("sql.resource.default.parallelism")
 					.defaultValue(-1)
 					.withDescription("Default parallelism of the job. If any node do not have special parallelism, use it." +
 							"Its default value is the num of cpu cores in the client host.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_EXTERNAL_BUFFER_MEM =
+			key("sql.resource.external-buffer.memory.mb")
+					.defaultValue(10)
+					.withDescription("Sets the externalBuffer memory size that is used in sortMergeJoin and overWindow.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MEM =
+			key("sql.resource.hash-agg.table.memory.mb")
+					.defaultValue(32)
+					.withDescription("Sets the table reserved memory size of hashAgg operator. It defines the lower limit.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM =
+			key("sql.resource.hash-agg.table-max-memory-mb")
+					.defaultValue(512)
+					.withDescription("Sets the table max memory size of hashAgg operator. It defines the upper limit.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
+			key("sql.resource.sort.buffer.memory.mb")
+					.defaultValue(32)
+					.withDescription("Sets the buffer reserved memory size for sort. It defines the lower limit for the sort.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MAX_MEM =
+			key("sql.resource.sort.buffer-max-memory-mb")
+					.defaultValue(512)
+					.withDescription("Sets the max buffer memory size for sort. It defines the upper memory for the sort.");
+
+	// ------------------------------------------------------------------------
+	//  Agg Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * See {@link HeapWindowsGrouping}.
+	 */
+	public static final ConfigOption<Integer> SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT =
+			key("sql.exec.window-agg.buffer-size.limit")
+					.defaultValue(100 * 1000)
+					.withDescription("Sets the window elements buffer limit in size used in group window agg operator.");
+
+	// ------------------------------------------------------------------------
+	//  topN Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_EXEC_TOPN_CACHE_SIZE =
+			key("sql.exec.topn.cache.size")
+					.defaultValue(10000L)
+					.withDescription("Cache size of every topn task.");
 
 	// ------------------------------------------------------------------------
 	//  MiniBatch Options
@@ -106,6 +171,11 @@ public class TableConfigOptions {
 					.defaultValue(Long.MIN_VALUE)
 					.withDescription("MiniBatch allow latency(ms). Value > 0 means MiniBatch enabled.");
 
+	public static final ConfigOption<Long> SQL_EXEC_MINIBATCH_SIZE =
+			key("sql.exec.mini-batch.size")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("The maximum number of inputs that MiniBatch buffer can accommodate.");
+
 	// ------------------------------------------------------------------------
 	//  STATE BACKEND Options
 	// ------------------------------------------------------------------------
@@ -114,6 +184,23 @@ public class TableConfigOptions {
 			key("sql.exec.statebackend.onheap")
 					.defaultValue(false)
 					.withDescription("Whether the statebackend is on heap.");
+
+	// ------------------------------------------------------------------------
+	//  State Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_EXEC_STATE_TTL_MS =
+			key("sql.exec.state.ttl.ms")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("The minimum time until state that was not updated will be retained. State" +
+							" might be cleared and removed if it was not updated for the defined period of time.");
+
+	public static final ConfigOption<Long> SQL_EXEC_STATE_TTL_MAX_MS =
+			key("sql.exec.state.ttl.max.ms")
+					.defaultValue(Long.MIN_VALUE)
+					.withDescription("The maximum time until state which was not updated will be retained." +
+							"State will be cleared and removed if it was not updated for the defined " +
+							"period of time.");
 
 	// ------------------------------------------------------------------------
 	//  Other Exec Options
@@ -127,5 +214,21 @@ public class TableConfigOptions {
 							"If the configure's value is \"NestedLoopJoin, ShuffleHashJoin\", NestedLoopJoin and ShuffleHashJoin " +
 							"are disabled. If the configure's value is \"HashJoin\", " +
 							"ShuffleHashJoin and BroadcastHashJoin are disabled.");
+
+
+	// ------------------------------------------------------------------------
+	//  prefer and max memory resource Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Long> SQL_RESOURCE_INFER_ROWS_PER_PARTITION =
+			key("sql.resource.infer.rows-per-partition")
+					.defaultValue(1000000L)
+					.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
+							"to input row count.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MAX =
+			key("sql.resource.infer.operator.parallelism.max")
+					.defaultValue(800)
+					.withDescription("Sets max parallelism for all operators.");
 
 }

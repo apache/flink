@@ -74,7 +74,7 @@ object FlinkLogicalSink {
       sink: TableSink[_],
       sinkName: String): FlinkLogicalSink = {
     val cluster = input.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalSink(cluster, traitSet, input, sink, sinkName)
   }
 }

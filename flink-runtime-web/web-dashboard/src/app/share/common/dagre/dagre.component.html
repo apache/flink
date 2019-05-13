@@ -1,0 +1,62 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<flink-svg-container
+  [style.visibility]="visibility"
+  (transformEvent)="onTransform($event)">
+  <svg:g class="graph" #graphElement>
+    <defs>
+      <svg:marker class="edge-marker" id="end-arrow" viewBox="1 0 10 10" refX="12" refY="3.5" markerWidth="10" markerHeight="10" orient="auto">
+        <svg:polygon points="0 0, 10 3.5, 0 7"></svg:polygon>
+      </svg:marker>
+      <svg:marker class="edge-marker-focus" id="end-arrow-focus" viewBox="1 0 10 10" refX="12" refY="3.5" markerWidth="10" markerHeight="15" orient="auto">
+        <svg:polygon points="0 0, 10 3.5, 0 7"></svg:polygon>
+      </svg:marker>
+    </defs>
+    <svg:g #linkElement
+      *ngFor="let link of layoutLinks;trackBy:trackByLink"
+      class="link-group"
+      [id]="link.id">
+      <svg:path class="edge" [id]="'link-' + link.id" [class.focused]="link.options?.focused" [attr.marker-end]="'url(#end-arrow' + (link.options?.focused ? '-focus' : '') + ')'">
+      </svg:path>
+      <svg:text class="edge-label" text-anchor="middle" dy="20">
+        <svg:textPath class="text-path" [attr.xlink:href]="'#link-' + link.id" [style.dominant-baseline]="link?.options?.dominantBaseline" startOffset="50%">
+          {{link?.detail?.ship_strategy}} {{link?.detail?.local_strategy}}
+        </svg:textPath>
+      </svg:text>
+    </svg:g>
+    <svg:g #nodeElement
+      *ngFor="let node of layoutNodes;trackBy:trackByNode"
+      class="node-group"
+      [class.focused]="node.options?.focused"
+      [id]="node.id"
+      (click)="clickNode(node, $event)"
+      (mouseenter)="onNodeMouseEnter($event)"
+      (mouseleave)="onNodeMouseLeave($event)">
+      <svg:g flink-node [node]="node"></svg:g>
+    </svg:g>
+    <svg:rect
+      #overlayElement
+      class="nodes-chart-overlay"
+      [class.active]="selectedNodeId"
+      transform="scale(999999)"
+      x="-1" y="-1" width="2" height="2"></svg:rect>
+  </svg:g>
+</flink-svg-container>
+<nz-slider nzVertical [nzTipFormatter]="null" [nzMin]="0.1" [nzMax]="5" [nzStep]="0.01" [ngModel]="zoom" (ngModelChange)="zoomToLevel($event)"></nz-slider>
+

@@ -229,6 +229,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "ascii(cast (null AS VARCHAR))",
       "null"
     )
+
+    testSqlApi(
+      "ascii('val_238') = ascii('val_239')",
+      "true"
+    )
   }
 
   @Test
@@ -269,6 +274,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "instr('e', cast (null AS VARCHAR))",
       "null"
+    )
+
+    testSqlApi(
+      "instr('val_238', '_') = instr('val_239', '_')",
+      "true"
+    )
+
+      testSqlApi(
+      "instr('val_239', '_')",
+      "4"
     )
   }
 
@@ -446,6 +461,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "LENGTH(f0)",
       "22")
+
+    testSqlApi(
+      "length(uuid())",
+      "36")
   }
 
   @Test
@@ -873,6 +892,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("lpad('äääääääää',10,'??')", "?äääääääää")
     testSqlApi("lpad('Hello', -1, 'x') IS NULL", "true")
     testSqlApi("lpad('Hello', -1, 'x') IS NOT NULL", "false")
+    testSqlApi("lpad('ab', 5, '')", "null")
 
     testSqlApi(
       "lpad('äää',13,'12345')",
@@ -897,7 +917,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("rpad('111',-2,'??')", "null")
     testSqlApi("rpad('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
     testSqlApi("rpad('üö',1,'??')", "ü")
-
+    testSqlApi("rpad('abcd', 5, '')", "null")
     testSqlApi(
       "rpad('äää',13,'12345')",
       "äää1234512345")
@@ -1110,6 +1130,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "0")
 
     testSqlApi(
+      "BIN(-7)",
+      "1111111111111111111111111111111111111111111111111111111111111001")
+
+    testSqlApi(
+      "BIN(-1)",
+      "1111111111111111111111111111111111111111111111111111111111111111")
+
+    testSqlApi(
       "BIN(f32)",
       "1111111111111111111111111111111111111111111111111111111111111111")
   }
@@ -1173,6 +1201,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "1514356320000 / 60000",
       "2.5239272E7")
+
+    // DIV return decimal
+    testSqlApi(
+      "DIV(1514356320000, 60000)",
+      "25239272")
 
     testSqlApi(
       "f7 / 2",
@@ -2804,6 +2837,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "decode(encode('中国', 'UTF-16LE'), 'UTF-16LE')",
       "中国")
+
+    testSqlApi(
+      "decode(encode('val_238', 'US-ASCII'), 'US-ASCII') =" +
+          " decode(encode('val_238', 'utf-8'), 'utf-8')",
+      "true")
   }
 
 
@@ -3091,6 +3129,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       s"${2 & 2}")
 
     testSqlApi(
+      "BITAND(-3, -2)",
+      "-4")
+
+    testSqlApi(
       "BITOR(1, 2)",
       s"${1 | 2}")
 
@@ -3099,12 +3141,24 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       s"${3 | 0}")
 
     testSqlApi(
+      "BITOR(3, 4)",
+      "7")
+
+    testSqlApi(
+      "BITOR(-3, 2)",
+      "-1")
+
+    testSqlApi(
       "BITXOR(1, 1)",
       s"${1 ^ 1}")
 
     testSqlApi(
       "BITXOR(3, 1)",
       s"${3 ^ 1}")
+
+    testSqlApi(
+      "BITXOR(-3, 2)",
+      "-1")
 
     testSqlApi(
       "BITNOT(1)",
@@ -3117,6 +3171,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "BITNOT(3)",
       s"${~3}")
+
+    testSqlApi(
+      "BITNOT(-3)",
+      "2")
   }
 
 }

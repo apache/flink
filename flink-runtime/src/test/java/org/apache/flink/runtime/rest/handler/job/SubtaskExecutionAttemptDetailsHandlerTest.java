@@ -73,23 +73,16 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
 		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
 
-		final long bytesInLocal = 1L;
-		final long bytesInRemote = 2L;
+		final long bytesIn = 1L;
 		final long bytesOut = 10L;
 		final long recordsIn = 20L;
 		final long recordsOut = 30L;
 
 		final IOMetrics ioMetrics = new IOMetrics(
-			bytesInLocal,
-			bytesInRemote,
+			bytesIn,
 			bytesOut,
 			recordsIn,
-			recordsOut,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0);
+			recordsOut);
 
 		final ArchivedExecutionJobVertex archivedExecutionJobVertex = new ArchivedExecutionJobVertex(
 			new ArchivedExecutionVertex[]{
@@ -159,7 +152,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
 		// Verify
 		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
-			bytesInLocal + bytesInRemote,
+			bytesIn,
 			true,
 			bytesOut,
 			true,

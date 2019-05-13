@@ -21,6 +21,7 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
@@ -968,5 +969,30 @@ public class FutureUtils {
 
 			return DELAYER.schedule(runnable, delay, timeUnit);
 		}
+	}
+
+	/**
+	 * Asserts that the given {@link CompletableFuture} is not completed exceptionally. If the future
+	 * is completed exceptionally, then it will call the {@link FatalExitExceptionHandler}.
+	 *
+	 * @param completableFuture to assert for no exceptions
+	 */
+	public static void assertNoException(CompletableFuture<?> completableFuture) {
+		handleUncaughtException(completableFuture, FatalExitExceptionHandler.INSTANCE);
+	}
+
+	/**
+	 * Checks that the given {@link CompletableFuture} is not completed exceptionally. If the future
+	 * is completed exceptionally, then it will call the given uncaught exception handler.
+	 *
+	 * @param completableFuture to assert for no exceptions
+	 * @param uncaughtExceptionHandler to call if the future is completed exceptionally
+	 */
+	public static void handleUncaughtException(CompletableFuture<?> completableFuture, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+		checkNotNull(completableFuture).whenComplete((ignored, throwable) -> {
+			if (throwable != null) {
+				uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
+			}
+		});
 	}
 }

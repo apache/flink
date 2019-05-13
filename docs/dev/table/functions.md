@@ -2590,7 +2590,7 @@ REPLACE(string1, string2, string3)
       </td>
       <td>
         <p>Returns a new string which replaces all the occurrences of <i>string2</i> with <i>string3</i> (non-overlapping) from <i>string1</i></p>
-        <p>E.g., <code>REPLACE("hello world", "world", "flink")</code> returns "hello flink"; <code>REPLACE("ababab", "abab", "z")</code> returns "zab".</p>
+        <p>E.g., <code>REPLACE('hello world', 'world', 'flink')</code> returns "hello flink"; <code>REPLACE('ababab', 'abab', 'z')</code> returns "zab".</p>
       </td>
     </tr>
 
@@ -2868,7 +2868,7 @@ STRING1.regexpExtract(STRING2[, INTEGER1])
       <td>
         <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
         <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
-        <p>E.g. <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)"</code> returns "bar".</p>
+        <p>E.g., <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)</code> returns "bar".</p>
       </td>
     </tr>
 
@@ -5798,5 +5798,287 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 |                          | `SQL_TSI_HOUR` _(SQL-only)_    |
 |                          | `SQL_TSI_MINUTE` _(SQL-only)_  |
 |                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
+
+{% top %}
+
+Column Functions
+---------------------------------------
+
+The column functions are used to select or deselect table columns.
+
+| SYNTAX              | DESC                         |
+| :--------------------- | :-------------------------- |
+| withColumns(...)         | select the specified columns                  |
+| withoutColumns(...)        | deselect the columns specified                  |
+
+The detailed syntax is as follows:
+
+{% highlight text %}
+columnFunction:
+    withColumns(columnExprs)
+    withoutColumns(columnExprs)
+
+columnExprs:
+    columnExpr [, columnExpr]*
+
+columnExpr:
+    columnRef | columnIndex to columnIndex | columnName to columnName
+
+columnRef:
+    columnName(The field name that exists in the table) | columnIndex(a positive integer starting from 1)
+{% endhighlight %}
+
+The usage of the column function is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Api</th>
+      <th class="text-center">Usage</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        withColumns(*)|*
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(*)") | select("*") = select("a, b, c, d, e")
+{% endhighlight %}
+      </td>
+      <td>
+        all the columns
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        withColumns(m to n)
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(2 to 4)") = select("b, c, d")
+{% endhighlight %}
+      </td>
+      <td>
+        columns from m to n
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        withColumns(m, n, k)
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(1, 3, e)") = select("a, c, e")
+{% endhighlight %}
+      </td>
+      <td>
+        columns m, n, k
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        withColumns(m, n to k)
+      </td>
+      <td>
+{% highlight java %}
+select("withColumns(1, 3 to 5)") = select("a, c, d ,e")
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        withoutColumns(m to n)
+      </td>
+      <td>
+{% highlight java %}
+select("withoutColumns(2 to 4)") = select("a, e")
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m, n, k)
+      </td>
+      <td>
+{% highlight java %}
+select("withoutColumns(1, 3, 5)") = select("b, d")
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns m, n, k
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        withoutColumns(m, n to k)
+      </td>
+      <td>
+{% highlight java %}
+select("withoutColumns(1, 3 to 5)") = select("b")
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+    
+  </tbody>
+</table>
+</div>
+
+<div data-lang="scala" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Api</th>
+      <th class="text-center">Usage</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        withColumns(*)|*
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        all the columns
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        withColumns(m to n)
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns(2 to 4)) = select('b, 'c, 'd)
+{% endhighlight %}
+      </td>
+      <td>
+        columns from m to n
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m, n, k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns(1, 3, 'e)) = select('a, 'c, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        columns m, n, k
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withColumns(m, n to k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withColumns(1, 3 to 5)) = select('a, 'c, 'd, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        withoutColumns(m to n)
+      </td>
+      <td>
+{% highlight scala %}
+select(withoutColumns(2 to 4)) = select('a, 'e)
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns from m to n
+      </td>
+    </tr>   
+     
+    <tr>
+      <td>
+        withoutColumns(m, n, k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withoutColumns(1, 3, 5)) = select('b, 'd)
+{% endhighlight %}
+      </td>
+      <td>
+        deselect columns m, n, k
+      </td>
+    </tr>
+   
+    <tr>
+      <td>
+        withoutColumns(m, n to k)
+      </td>
+      <td>
+{% highlight scala %}
+select(withoutColumns(1, 3 to 5)) = select('b)
+{% endhighlight %}
+      </td>
+      <td>
+        mixing of the above two representation
+      </td>
+    </tr> 
+    
+  </tbody>
+</table>
+</div>
+</div>
+
+The column functions can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDFs etc.` e.g.:
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+table
+   .groupBy("withColumns(1 to 3)")
+   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+table
+   .groupBy(withColumns(1 to 3))
+   .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
+{% endhighlight %}
+</div>
+</div>
+
+<span class="label label-info">Note</span> Column functions are only used in Table API.
 
 {% top %}

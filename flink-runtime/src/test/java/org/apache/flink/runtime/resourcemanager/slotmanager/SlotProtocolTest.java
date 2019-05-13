@@ -34,7 +34,6 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -82,11 +81,9 @@ public class SlotProtocolTest extends TestLogger {
 
 		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(scheduledExecutor)
+			.build()) {
 
 			final CompletableFuture<ResourceProfile> resourceProfileFuture = new CompletableFuture<>();
 			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
@@ -150,11 +147,9 @@ public class SlotProtocolTest extends TestLogger {
 			})
 			.createTestingTaskExecutorGateway();
 
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(scheduledExecutor)
+			.build()) {
 
 			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder().build();
 

@@ -23,13 +23,9 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.DummyActorGateway;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -43,7 +39,6 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.junit.Assert.assertEquals;
@@ -52,7 +47,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@SuppressWarnings("serial")
+/**
+ * Tests for cancelling {@link ExecutionVertex ExecutionVertices}.
+ */
 public class ExecutionVertexCancelTest extends TestLogger {
 
 	// --------------------------------------------------------------------------------------------
@@ -304,8 +301,8 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// deploying after canceling from CREATED needs to raise an exception, because
 			// the scheduler (or any caller) needs to know that the slot should be released
 			try {
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-				SimpleSlot slot = instance.allocateSimpleSlot();
+
+				final LogicalSlot slot = new TestingLogicalSlot();
 
 				vertex.deployToSlot(slot);
 				fail("Method should throw an exception");
@@ -344,8 +341,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-				SimpleSlot slot = instance.allocateSimpleSlot();
+				final LogicalSlot slot = new TestingLogicalSlot();
 
 				vertex.deployToSlot(slot);
 				fail("Method should throw an exception");
@@ -354,14 +350,12 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				// that is what we expect
 			}
 
-
 			// fail while canceling
 			{
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 						AkkaUtils.getDefaultTimeout());
 
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-				SimpleSlot slot = instance.allocateSimpleSlot();
+				final LogicalSlot slot = new TestingLogicalSlot();
 
 				setVertexResource(vertex, slot);
 				setVertexState(vertex, ExecutionState.CANCELING);
@@ -371,7 +365,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				vertex.fail(failureCause);
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-				assertTrue(slot.isReleased());
+				assertFalse(slot.isAlive());
 			}
 		}
 		catch (Exception e) {
@@ -380,7 +374,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 		}
 	}
 
-	public static class CancelSequenceSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
+	private static class CancelSequenceSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
 		private final int successfulOperations;
 		private int index = -1;
 

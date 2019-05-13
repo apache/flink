@@ -18,13 +18,13 @@
 
 package org.apache.flink.metrics.influxdb;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
@@ -32,6 +32,8 @@ import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
@@ -117,15 +119,14 @@ public class InfluxdbReporterTest extends TestLogger {
 	}
 
 	private MetricRegistryImpl createMetricRegistry() {
-		String configPrefix = ConfigConstants.METRICS_REPORTER_PREFIX + "test.";
-		Configuration configuration = new Configuration();
-		configuration.setString(
-			configPrefix + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-			InfluxdbReporter.class.getTypeName());
-		configuration.setString(configPrefix + "host", "localhost");
-		configuration.setString(configPrefix + "port", String.valueOf(wireMockRule.port()));
-		configuration.setString(configPrefix + "db", TEST_INFLUXDB_DB);
-		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+		MetricConfig metricConfig = new MetricConfig();
+		metricConfig.setProperty("host", "localhost");
+		metricConfig.setProperty("port", String.valueOf(wireMockRule.port()));
+		metricConfig.setProperty("db", TEST_INFLUXDB_DB);
+
+		return new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Collections.singletonList(ReporterSetup.forReporter("test", metricConfig, new InfluxdbReporter())));
 	}
 
 	private static Counter registerTestMetric(String metricName, MetricRegistry metricRegistry) {

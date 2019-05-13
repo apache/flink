@@ -649,11 +649,6 @@ object FunctionGenerator {
 
   addSqlFunction(
     PRINT,
-    Seq(InternalTypes.STRING, InternalTypes.CHAR),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
     Seq(InternalTypes.STRING, InternalTypes.DATE),
     new PrintCallGen())
 
@@ -733,11 +728,6 @@ object FunctionGenerator {
         new IfCallGen())
     }
   }
-
-  addSqlFunction(
-    IF,
-    Seq(InternalTypes.BOOLEAN, InternalTypes.CHAR, InternalTypes.CHAR),
-    new IfCallGen())
 
   addSqlFunction(
     IF,
@@ -824,11 +814,6 @@ object FunctionGenerator {
   addSqlFunction(
     HASH_CODE,
     Seq(InternalTypes.DOUBLE),
-    new HashCodeCallGen())
-
-  addSqlFunction(
-    HASH_CODE,
-    Seq(InternalTypes.CHAR),
     new HashCodeCallGen())
 
   addSqlFunction(

@@ -187,7 +187,7 @@ class SingleRowJoinTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(1),
-            term("select", "0 AS $f0")),
+            term("select", "")),
           term("select", "COUNT(*) AS cnt")
         )
 
@@ -224,7 +224,7 @@ class SingleRowJoinTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(1),
-            term("select", "0 AS $f0")),
+            term("select", "")),
           term("select", "COUNT(*) AS cnt")
         )
 
@@ -260,7 +260,7 @@ class SingleRowJoinTest extends TableTestBase {
         unaryNode(
           "DataSetCalc",
           batchTableNode(1),
-          term("select", "0 AS $f0")),
+          term("select", "")),
         term("select", "COUNT(*) AS cnt")
       ) + "\n" +
         batchTableNode(0)
@@ -298,7 +298,7 @@ class SingleRowJoinTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(1),
-            term("select", "0 AS $f0")),
+            term("select", "")),
           term("select", "COUNT(*) AS cnt")
         ) + "\n" +
         batchTableNode(0)

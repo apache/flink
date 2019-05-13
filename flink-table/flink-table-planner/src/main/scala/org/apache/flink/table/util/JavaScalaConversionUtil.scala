@@ -22,6 +22,8 @@ import java.util.Optional
 import java.util.function.{BiConsumer, Consumer, Function}
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import java.util.{List => JList}
+import scala.collection.JavaConverters._
 
 /**
   * Utilities for interoperability between Scala and Java classes.
@@ -57,5 +59,9 @@ object JavaScalaConversionUtil {
 
   def toJava[T0, T1](tuple: (T0, T1)): JTuple2[T0, T1] = {
     new JTuple2[T0, T1](tuple._1, tuple._2)
+  }
+
+  def toJava[T](seq: Seq[T]): JList[T] = {
+    seq.asJava
   }
 }

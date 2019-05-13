@@ -23,7 +23,7 @@ import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{CountMinMax, TableTestBase}
 import org.junit.Test
 
 class AggregateStringExpressionTest extends TableTestBase {
@@ -168,6 +168,72 @@ class AggregateStringExpressionTest extends TableTestBase {
       .select("w1.rowtime as rowtime, string, int.count")
 
     verifyTableEquals(resJava, resScala)
+  }
+
+  def testNonGroupedRowBasedAggregate(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
+
+    val testAgg = new CountMinMax
+    util.tableEnv.registerFunction("testAgg", testAgg)
+
+    // Expression / Scala API
+    val resScala = t
+      .aggregate(testAgg('a))
+      .select('f0, 'f1)
+
+    // String / Java API
+    val resJava = t
+      .aggregate("testAgg(a)")
+      .select("f0, f1")
+
+    verifyTableEquals(resScala, resJava)
+  }
+
+  @Test
+  def testGroupedRowBasedAggregate(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
+
+    val testAgg = new CountMinMax
+    util.tableEnv.registerFunction("testAgg", testAgg)
+
+    // Expression / Scala API
+    val resScala = t
+      .groupBy('b)
+      .aggregate(testAgg('a))
+      .select('b, 'f0, 'f1)
+
+    // String / Java API
+    val resJava = t
+      .groupBy("b")
+      .aggregate("testAgg(a)")
+      .select("b, f0, f1")
+
+    verifyTableEquals(resScala, resJava)
+  }
+
+  @Test
+  def testAggregateWithAlias(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
+
+    val testAgg = new CountMinMax
+    util.tableEnv.registerFunction("testAgg", testAgg)
+
+    // Expression / Scala API
+    val resScala = t
+      .groupBy('b)
+      .aggregate(testAgg('a) as ('x, 'y, 'z))
+      .select('b, 'x, 'y)
+
+    // String / Java API
+    val resJava = t
+      .groupBy("b")
+      .aggregate("testAgg(a) as (x, y, z)")
+      .select("b, x, y")
+
+    verifyTableEquals(resScala, resJava)
   }
 }
 

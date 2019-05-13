@@ -41,14 +41,18 @@ public class SlotManagerConfiguration {
 	private final Time taskManagerRequestTimeout;
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
+	private final boolean waitResultConsumedBeforeRelease;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
-			Time taskManagerTimeout) {
+			Time taskManagerTimeout,
+			boolean waitResultConsumedBeforeRelease) {
+
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
+		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -61,6 +65,10 @@ public class SlotManagerConfiguration {
 
 	public Time getTaskManagerTimeout() {
 		return taskManagerTimeout;
+	}
+
+	public boolean isWaitResultConsumedBeforeRelease() {
+		return waitResultConsumedBeforeRelease;
 	}
 
 	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
@@ -78,7 +86,10 @@ public class SlotManagerConfiguration {
 		final Time taskManagerTimeout = Time.milliseconds(
 				configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
-		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout);
+		boolean waitResultConsumedBeforeRelease =
+			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
+
+		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout, waitResultConsumedBeforeRelease);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {

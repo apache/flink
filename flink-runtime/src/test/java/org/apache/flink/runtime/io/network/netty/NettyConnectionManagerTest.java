@@ -57,7 +57,7 @@ public class NettyConnectionManagerTest {
 				numberOfSlots,
 				new Configuration());
 
-		NettyConnectionManager connectionManager = new NettyConnectionManager(config);
+		NettyConnectionManager connectionManager = new NettyConnectionManager(config, true);
 
 		connectionManager.start(
 				mock(ResultPartitionProvider.class),
@@ -125,7 +125,7 @@ public class NettyConnectionManagerTest {
 				1337,
 				flinkConfig);
 
-		NettyConnectionManager connectionManager = new NettyConnectionManager(config);
+		NettyConnectionManager connectionManager = new NettyConnectionManager(config, true);
 
 		connectionManager.start(
 				mock(ResultPartitionProvider.class),

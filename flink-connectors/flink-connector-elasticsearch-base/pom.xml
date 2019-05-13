@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>1.7.1</elasticsearch.version>
+		<elasticsearch.version>2.3.5</elasticsearch.version>
 	</properties>
 
 	<dependencies>

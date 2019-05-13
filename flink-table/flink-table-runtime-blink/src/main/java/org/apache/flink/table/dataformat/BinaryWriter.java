@@ -18,12 +18,14 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.DateType;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.MapType;
 import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.type.TimestampType;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
 
 /**
@@ -57,8 +59,6 @@ public interface BinaryWriter {
 	void writeFloat(int pos, float value);
 
 	void writeDouble(int pos, double value);
-
-	void writeChar(int pos, char value);
 
 	void writeString(int pos, BinaryString value);
 
@@ -96,13 +96,11 @@ public interface BinaryWriter {
 			writer.writeDouble(pos, (double) o);
 		} else if (type.equals(InternalTypes.STRING)) {
 			writer.writeString(pos, (BinaryString) o);
-		} else if (type.equals(InternalTypes.CHAR)) {
-			writer.writeChar(pos, (char) o);
-		} else if (type.equals(InternalTypes.DATE)) {
+		} else if (type instanceof DateType) {
 			writer.writeInt(pos, (int) o);
 		} else if (type.equals(InternalTypes.TIME)) {
 			writer.writeInt(pos, (int) o);
-		} else if (type.equals(InternalTypes.TIMESTAMP)) {
+		} else if (type instanceof TimestampType) {
 			writer.writeLong(pos, (long) o);
 		} else if (type instanceof DecimalType) {
 			DecimalType decimalType = (DecimalType) type;

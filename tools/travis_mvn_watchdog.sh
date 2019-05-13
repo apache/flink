@@ -55,7 +55,7 @@ MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -B $MVN_LOGGING_OPTIONS"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -B -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_TEST_OPTIONS="$MVN_LOGGING_OPTIONS"
 
@@ -81,28 +81,6 @@ ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
-print_system_info() {
-	FOLD_ESCAPE="\x0d\x1b"
-	COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
-	COLOR_OFF="\x1b\x5b\x30\x6d"
-
-	echo -e "travis_fold:start:cpu_info${FOLD_ESCAPE}${COLOR_ON}CPU information${COLOR_OFF}"
-	lscpu
-	echo -en "travis_fold:end:cpu_info${FOLD_ESCAPE}"
-
-	echo -e "travis_fold:start:mem_info${FOLD_ESCAPE}${COLOR_ON}Memory information${COLOR_OFF}"
-	cat /proc/meminfo
-	echo -en "travis_fold:end:mem_info${FOLD_ESCAPE}"
-
-	echo -e "travis_fold:start:disk_info${FOLD_ESCAPE}${COLOR_ON}Disk information${COLOR_OFF}"
-	df -hH
-	echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
-
-	echo -e "travis_fold:start:cache_info${FOLD_ESCAPE}${COLOR_ON}Cache information${COLOR_OFF}"
-	du -s --si $HOME/.m2
-	echo -en "travis_fold:end:cache_info${FOLD_ESCAPE}"
-}
 
 upload_artifacts_s3() {
 	echo "PRODUCED build artifacts."
@@ -132,7 +110,7 @@ upload_artifacts_s3() {
 
 	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
-	curl --upload-file $ARTIFACTS_FILE https://transfer.sh
+	curl --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
 }
 
 print_stacktraces () {
@@ -211,8 +189,6 @@ WD_PID=$!
 
 echo "STARTED watchdog (${WD_PID})."
 
-print_system_info
-
 # Make sure to be in project root
 cd $HERE/../
 
@@ -282,31 +258,6 @@ upload_artifacts_s3
 # since we are in flink/tools/artifacts
 # we are going back to
 cd ../../
-
-# only run end-to-end tests in misc because we only have flink-dist here
-if [[ ${PROFILE} == *"jdk9"* ]]; then
-    printf "\n\n==============================================================================\n"
-    printf "Skipping end-to-end tests since they fail on Java 9.\n"
-    printf "==============================================================================\n"
-else
-    case $TEST in
-        (misc)
-            if [ $EXIT_CODE == 0 ]; then
-                printf "\n\n==============================================================================\n"
-                printf "Running end-to-end tests\n"
-                printf "==============================================================================\n"
-    
-                FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-    
-                EXIT_CODE=$?
-            else
-                printf "\n==============================================================================\n"
-                printf "Previous build failure detected, skipping end-to-end tests.\n"
-                printf "==============================================================================\n"
-            fi
-        ;;
-    esac
-fi
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE

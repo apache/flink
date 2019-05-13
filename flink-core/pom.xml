@@ -49,7 +49,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm</artifactId>
+			<artifactId>flink-shaded-asm-6</artifactId>
 		</dependency>
 
 		<!-- standard utilities -->
@@ -84,6 +84,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
+
+		<!-- Python API dependencies -->
+		<dependency>
+			<groupId>net.sf.py4j</groupId>
+			<artifactId>py4j</artifactId>
+			<version>0.10.8.1</version>
 		</dependency>
 
 		<!-- ================== test dependencies ================== -->

@@ -148,7 +148,7 @@ class RocksDBListState<K, N, V>
 				return element;
 			}
 		} catch (IOException e) {
-			throw new FlinkRuntimeException("Unexpected list element deserialization failure");
+			throw new FlinkRuntimeException("Unexpected list element deserialization failure", e);
 		}
 		return null;
 	}
@@ -209,8 +209,6 @@ class RocksDBListState<K, N, V>
 	public void updateInternal(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
-		clear();
-
 		if (!values.isEmpty()) {
 			try {
 				backend.db.put(
@@ -221,6 +219,8 @@ class RocksDBListState<K, N, V>
 			} catch (IOException | RocksDBException e) {
 				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
+		} else {
+			clear();
 		}
 	}
 

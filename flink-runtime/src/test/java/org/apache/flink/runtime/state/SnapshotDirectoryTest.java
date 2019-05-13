@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -32,6 +35,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
 
+/**
+ * Tests for the {@link SnapshotDirectory}.
+ */
 public class SnapshotDirectoryTest extends TestLogger {
 
 	private static TemporaryFolder temporaryFolder;
@@ -194,13 +200,36 @@ public class SnapshotDirectoryTest extends TestLogger {
 		File folderRoot = temporaryFolder.getRoot();
 		File folder = new File(folderRoot, String.valueOf(UUID.randomUUID()));
 		Assert.assertTrue(folder.mkdirs());
-		Path folderPath = new Path(folder.toURI());
-		SnapshotDirectory tmpSnapshotDirectory = SnapshotDirectory.temporary(folderPath);
+		SnapshotDirectory tmpSnapshotDirectory = SnapshotDirectory.temporary(folder);
 		// temporary snapshot directories should not return a handle, because they will be deleted.
 		Assert.assertNull(tmpSnapshotDirectory.completeSnapshotAndGetHandle());
 		// check that the directory is deleted even after we called #completeSnapshotAndGetHandle.
 		Assert.assertTrue(tmpSnapshotDirectory.cleanup());
 		Assert.assertFalse(folder.exists());
+	}
+
+	/**
+	 * Tests that we always use the local file system even if we have specified a different default
+	 * file system. See FLINK-12042.
+	 */
+	@Test
+	public void testLocalFileSystemIsUsedForTemporary() throws Exception {
+		// ensure that snapshot directory will always use the local file system instead of the default file system
+		Configuration configuration = new Configuration();
+		configuration.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "nonexistfs:///");
+		FileSystem.initialize(configuration);
+
+		final File folderRoot = temporaryFolder.getRoot();
+
+		try {
+			File folderB = new File(folderRoot, String.valueOf(UUID.randomUUID()));
+			// only pass the path and leave the scheme missing
+			SnapshotDirectory snapshotDirectoryB = SnapshotDirectory.temporary(folderB);
+			Assert.assertEquals(snapshotDirectoryB.getFileSystem(), FileSystem.getLocalFileSystem());
+		} finally {
+			// restore the FileSystem configuration
+			FileSystem.initialize(new Configuration());
+		}
 	}
 
 }

@@ -26,6 +26,7 @@ STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 
 MODULES_CORE="\
+flink-annotations,\
 flink-test-utils-parent/flink-test-utils,\
 flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
@@ -36,24 +37,13 @@ flink-runtime,\
 flink-runtime-web,\
 flink-scala,\
 flink-streaming-java,\
-flink-streaming-scala"
-
-MODULES_CORE_JDK9_EXCLUSIONS="\
-!flink-state-backends/flink-statebackend-rocksdb,\
-!flink-clients,\
-!flink-runtime,\
-!flink-scala,\
-!flink-scala-shell"
+flink-streaming-scala,\
+flink-metrics,\
+flink-metrics/flink-metrics-core"
 
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
-flink-libraries/flink-gelly,\
-flink-libraries/flink-gelly-scala,\
-flink-libraries/flink-gelly-examples,\
-flink-libraries/flink-ml,\
-flink-libraries/flink-python,\
-flink-libraries/flink-streaming-python,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
@@ -62,59 +52,72 @@ flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-table-planner,\
 flink-table/flink-table-planner-blink,\
 flink-table/flink-table-runtime-blink,\
-flink-table/flink-sql-client,\
-flink-queryable-state/flink-queryable-state-runtime,\
-flink-queryable-state/flink-queryable-state-client-java"
+flink-table/flink-sql-client"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
+flink-filesystems,\
+flink-filesystems/flink-fs-hadoop-shaded,\
 flink-filesystems/flink-hadoop-fs,\
 flink-filesystems/flink-mapr-fs,\
+flink-filesystems/flink-oss-fs-hadoop,\
 flink-filesystems/flink-s3-fs-base,\
 flink-filesystems/flink-s3-fs-hadoop,\
 flink-filesystems/flink-s3-fs-presto,\
+flink-filesystems/flink-swift-fs-hadoop,\
+flink-fs-tests,\
+flink-formats,\
+flink-formats/flink-avro-confluent-registry,\
 flink-formats/flink-avro,\
 flink-formats/flink-parquet,\
+flink-formats/flink-sequence-file,\
 flink-formats/flink-json,\
 flink-formats/flink-csv,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors/flink-jdbc,\
+flink-connectors,\
+flink-connectors/flink-orc,\
 flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch,\
 flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
+flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
 flink-connectors/flink-connector-kafka-0.9,\
+flink-connectors/flink-sql-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
+flink-connectors/flink-sql-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\
+flink-connectors/flink-sql-connector-kafka-0.11,\
 flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
-flink-connectors/flink-connector-twitter"
+flink-connectors/flink-connector-twitter,\
+flink-metrics/flink-metrics-dropwizard,\
+flink-metrics/flink-metrics-graphite,\
+flink-metrics/flink-metrics-jmx,\
+flink-metrics/flink-metrics-influxdb,\
+flink-metrics/flink-metrics-prometheus,\
+flink-metrics/flink-metrics-statsd,\
+flink-metrics/flink-metrics-datadog,\
+flink-metrics/flink-metrics-slf4j,\
+flink-queryable-state/flink-queryable-state-runtime,\
+flink-queryable-state/flink-queryable-state-client-java"
 
 MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-filesystems/flink-s3-fs-hadoop,\
 !flink-filesystems/flink-s3-fs-presto,\
-!flink-formats/flink-avro,\
-!flink-connectors/flink-hbase,\
-!flink-connectors/flink-connector-cassandra,\
-!flink-connectors/flink-connector-elasticsearch,\
-!flink-connectors/flink-connector-kafka-0.9,\
-!flink-connectors/flink-connector-kafka-0.10,\
-!flink-connectors/flink-connector-kafka-0.11"
+!flink-filesystems/flink-mapr-fs,\
+!flink-connectors/flink-hbase"
 
 MODULES_TESTS="\
+flink-libraries/flink-gelly,\
+flink-libraries/flink-gelly-scala,\
+flink-libraries/flink-gelly-examples,\
 flink-tests"
-
-MODULES_TESTS_JDK9_EXCLUSIONS="\
-!flink-tests"
-
-MODULES_MISC_JDK9_EXCLUSIONS="\
-!flink-yarn-tests"
 
 if [[ ${PROFILE} == *"include-kinesis"* ]]; then
     MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
@@ -123,7 +126,6 @@ fi
 # we can only build the Kafka 0.8 connector when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then
     MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.8"
-    MODULES_CONNECTORS_JDK9_EXCLUSIONS="${MODULES_CONNECTORS_JDK9_EXCLUSIONS},!flink-connectors/flink-connector-kafka-0.8"
 fi
 
 # we can only build the Scala Shell when building for Scala 2.11
@@ -148,7 +150,8 @@ function get_compile_modules_for_stage() {
             echo "-pl $MODULES_TESTS -am"
         ;;
         (${STAGE_MISC})
-            # compile everything since dist needs it anyway
+            # compile everything; using the -am switch does not work with negated module lists!
+            # the negation takes precedence, thus not all required modules would be built
             echo ""
         ;;
     esac
@@ -169,11 +172,7 @@ function get_test_modules_for_stage() {
 
     # various modules fail testing on JDK 9; exclude them
     if [[ ${PROFILE} == *"jdk9"* ]]; then
-        modules_core="$modules_core,$MODULES_CORE_JDK9_EXCLUSIONS"
         modules_connectors="$modules_connectors,$MODULES_CONNECTORS_JDK9_EXCLUSIONS"
-        # add flink-annotations so that at least one module is tested, otherwise maven fails
-        modules_tests="$modules_tests,$MODULES_TESTS_JDK9_EXCLUSIONS,flink-annotations"
-        modules_misc="$modules_misc,$MODULES_MISC_JDK9_EXCLUSIONS"
     fi
 
     case ${stage} in

@@ -973,8 +973,7 @@ public interface Table {
 	Table renameColumns(Expression... fields);
 
 	/**
-	 * Drops existing columns. The field expressions
-	 * should be field reference expressions, and only existing fields can be dropped.
+	 * Drops existing columns. The field expressions should be field reference expressions.
 	 *
 	 * <p>Example:
 	 *
@@ -987,8 +986,7 @@ public interface Table {
 	Table dropColumns(String fields);
 
 	/**
-	 * Drops existing columns. The field expressions
-	 * should be field reference expressions, and only existing fields can be dropped.
+	 * Drops existing columns. The field expressions should be field reference expressions.
 	 *
 	 * <p>Scala Example:
 	 * <pre>
@@ -1006,7 +1004,8 @@ public interface Table {
 	 * <p>Example:
 	 *
 	 * <pre>
-	 * {@code ScalarFunction func = new MyMapFunction();
+	 * {@code
+	 *   ScalarFunction func = new MyMapFunction();
 	 *   tableEnv.registerFunction("func", func);
 	 *   tab.map("func(c)");
 	 * }
@@ -1021,10 +1020,110 @@ public interface Table {
 	 * <p>Scala Example:
 	 *
 	 * <pre>
-	 * {@code val func = new MyMapFunction()
+	 * {@code
+	 *   val func = new MyMapFunction()
 	 *   tab.map(func('c))
 	 * }
 	 * </pre>
 	 */
 	Table map(Expression mapFunction);
+
+	/**
+	 * Performs a flatMap operation with an user-defined table function or built-in table function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableFunction func = new MyFlatMapFunction();
+	 *   tableEnv.registerFunction("func", func);
+	 *   table.flatMap("func(c)");
+	 * }
+	 * </pre>
+	 */
+	Table flatMap(String tableFunction);
+
+	/**
+	 * Performs a flatMap operation with an user-defined table function or built-in table function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val func = new MyFlatMapFunction
+	 *   table.flatMap(func('c))
+	 * }
+	 * </pre>
+	 */
+	Table flatMap(Expression tableFunction);
+
+	/**
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   AggregateFunction aggFunc = new MyAggregateFunction()
+	 *   tableEnv.registerFunction("aggFunc", aggFunc);
+	 *   table.aggregate("aggFunc(a, b) as (f0, f1, f2)")
+	 *     .select("f0, f1")
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(String aggregateFunction);
+
+	/**
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val aggFunc = new MyAggregateFunction
+	 *   table.aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
+	 *     .select('f0, 'f1)
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(Expression aggregateFunction);
+
+	/**
+	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
+	 * which returns multiple rows. Use a selection after the flatAggregate.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
+	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+	 *   tab.flatAggregate("tableAggFunc(a, b) as (x, y, z)")
+	 *     .select("x, y, z")
+	 * }
+	 * </pre>
+	 */
+	FlatAggregateTable flatAggregate(String tableAggregateFunction);
+
+	/**
+	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
+	 * which returns multiple rows. Use a selection after the flatAggregate.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val tableAggFunc = new MyTableAggregateFunction
+	 *   tab.flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
+	 *     .select('x, 'y, 'z)
+	 * }
+	 * </pre>
+	 */
+	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 }

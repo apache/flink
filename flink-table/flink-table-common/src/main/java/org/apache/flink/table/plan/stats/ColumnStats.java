@@ -121,4 +121,14 @@ public final class ColumnStats {
 		String columnStatsStr = String.join(", ", columnStats);
 		return "ColumnStats(" + columnStatsStr + ")";
 	}
+
+	/**
+	 * Create a deep copy of "this" instance.
+	 * @return a deep copy
+	 */
+	public ColumnStats copy() {
+		return new ColumnStats(this.ndv, this.nullCount, this.avgLen, this.maxLen,
+			this.max, this.min);
+	}
+
 }

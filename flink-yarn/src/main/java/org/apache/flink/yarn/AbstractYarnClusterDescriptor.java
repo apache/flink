@@ -34,6 +34,7 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -97,7 +98,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
@@ -139,9 +142,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String nodeLabel;
 
-	/** Optional Jar file to include in the system class loader of all application nodes
-	 * (for per-job submission). */
-	private final Set<File> userJarFiles = new HashSet<>();
+	private String applicationType;
 
 	private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
@@ -661,12 +662,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// ------------------ Initialize the file systems -------------------------
 
-		try {
-			org.apache.flink.core.fs.FileSystem.initialize(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-					"filesystem scheme from configuration.", e);
-		}
+		//TODO provide plugin path.
+		org.apache.flink.core.fs.FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 
 		// initialize file system
 		// Copy the application master jar to the filesystem
@@ -739,12 +736,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					1));
 		}
 
-		if (jobGraph != null) {
-			// add the user code jars from the provided JobGraph
-			for (org.apache.flink.core.fs.Path path : jobGraph.getUserJars()) {
-				userJarFiles.add(new File(path.toUri()));
-			}
-		}
+		final Set<File> userJarFiles = (jobGraph == null)
+			// not per-job submission
+			? Collections.emptySet()
+			// add user code jars from the provided JobGraph
+			: jobGraph.getUserJars().stream().map(f -> f.toUri()).map(File::new).collect(Collectors.toSet());
 
 		// local resource map for Yarn
 		final Map<String, LocalResource> localResources = new HashMap<>(2 + systemShipFiles.size() + userJarFiles.size());
@@ -790,11 +786,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		for (String classPath : systemClassPaths) {
 			classPathBuilder.append(classPath).append(File.pathSeparator);
 		}
-		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
-			for (String userClassPath : userClassPaths) {
-				classPathBuilder.append(userClassPath).append(File.pathSeparator);
-			}
-		}
 
 		// Setup jar for ApplicationMaster
 		Path remotePathJar = setupSingleLocalResource(
@@ -834,6 +825,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		classPathBuilder.append("flink.jar").append(File.pathSeparator);
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
+
+		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
+			for (String userClassPath : userClassPaths) {
+				classPathBuilder.append(userClassPath).append(File.pathSeparator);
+			}
+		}
 
 		// write job graph to tmp file and add it to local resource
 		// TODO: server use user main method to generate job graph
@@ -988,7 +985,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final String customApplicationName = customName != null ? customName : applicationName;
 
 		appContext.setApplicationName(customApplicationName);
-		appContext.setApplicationType("Apache Flink");
+		appContext.setApplicationType(applicationType != null ? applicationType : "Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 
@@ -1281,10 +1278,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	public void setName(String name) {
-		if (name == null) {
-			throw new IllegalArgumentException("The passed name is null");
-		}
-		customName = name;
+		this.customName = Preconditions.checkNotNull(name, "The customized name must not be null");
+	}
+
+	public void setApplicationType(String type) {
+		this.applicationType = Preconditions.checkNotNull(type, "The customized application type must not be null");
 	}
 
 	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws

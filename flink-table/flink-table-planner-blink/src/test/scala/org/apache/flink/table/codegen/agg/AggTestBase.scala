@@ -27,7 +27,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataview.DataViewSpec
-import org.apache.flink.table.functions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
+import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.context.ExecutionContext
 
@@ -93,7 +93,7 @@ abstract class AggTestBase {
   }
 
   val aggInfoList = AggregateInfoList(
-    Array(aggInfo1, aggInfo2, aggInfo3), None, count1AggInserted = false, Array())
+    Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
   val ctx = new CodeGeneratorContext(conf)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])

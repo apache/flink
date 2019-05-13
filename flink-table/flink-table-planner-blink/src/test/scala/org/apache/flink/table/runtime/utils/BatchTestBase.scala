@@ -23,12 +23,15 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
+import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
+import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
-import org.apache.flink.table.util.DiffRepository
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
+import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository}
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
@@ -49,13 +52,14 @@ import scala.collection.Seq
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Sorting
 
-class BatchTestBase extends AbstractTestBase {
+class BatchTestBase extends BatchAbstractTestBase {
 
   TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
   val conf: TableConfig = BatchTestBase.initConfigForTest(new TableConfig)
   val jobConfig = new Configuration()
   val env: ScalaExecEnv = generatorScalaTestEnv
   val javaEnv: StreamExecutionEnvironment = generatorTestEnv
+  env.getConfig.enableObjectReuse()
   val tEnv: ScalaBatchTableEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
   val javaTableEnv: JavaBatchTableEnv = TableEnvironment.getBatchTableEnvironment(javaEnv, conf)
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
@@ -380,19 +384,32 @@ class BatchTestBase extends AbstractTestBase {
     BatchTableEnvUtil.registerCollection(tEnv, tableName, data.asScala, typeInfo, fields)
   }
 
-  def registerCollection(
+  def registerCollection[T](
       tableName: String,
-      data: Iterable[Row],
-      typeInfo: TypeInformation[Row],
+      data: Iterable[T],
+      typeInfo: TypeInformation[T],
       fieldNullables: Array[Boolean],
       fields: String): Unit = {
     BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
   }
+
+  def registerCollection(
+      tableName: String,
+      data: Iterable[Row],
+      typeInfo: TypeInformation[Row],
+      fields: String,
+      fieldNullables: Array[Boolean]): Unit = {
+    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
+  }
+
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: AggregateFunction[T, ACC]): Unit = {
+    tEnv.registerFunction(name, f)
+  }
 }
 
 object BatchTestBase {
-
-  val PARALLELISM = 3
 
   def row(args: Any*): Row = {
     val values = args.toArray
@@ -405,9 +422,29 @@ object BatchTestBase {
     row
   }
 
+  def binaryRow(types: Array[InternalType], fields: Any*): BinaryRow = {
+    assertEquals(
+      "Filed count inconsistent with type information",
+      fields.length,
+      types.length)
+    val row = new BinaryRow(fields.length)
+    val writer = new BinaryRowWriter(row)
+    writer.reset()
+    fields.zipWithIndex.foreach { case (field, index) =>
+      if (field == null) writer.setNullAt(index)
+      else BaseRowTestUtil.write(writer, index, field, types(index))
+    }
+    writer.complete()
+    row
+  }
+
   def initConfigForTest(conf: TableConfig): TableConfig = {
     // TODO prepare for some resource config
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, PARALLELISM)
+    conf.getConf.setInteger(
+      TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
     conf
   }
 

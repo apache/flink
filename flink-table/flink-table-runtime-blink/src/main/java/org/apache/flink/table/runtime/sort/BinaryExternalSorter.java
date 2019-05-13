@@ -230,7 +230,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		if (reservedMemorySize < SORTER_MIN_NUM_SORT_MEM) {
 			throw new IllegalArgumentException("Too little memory provided to sorter to perform task. " +
 					"Required are at least " + SORTER_MIN_NUM_SORT_MEM +
-					" pages. Current page size is " + memoryManager.getPageSize() + " bytes.");
+					" bytes. Current memory size is " + reservedMemorySize + " bytes.");
 		}
 
 		// adjust the memory quotas to the page size

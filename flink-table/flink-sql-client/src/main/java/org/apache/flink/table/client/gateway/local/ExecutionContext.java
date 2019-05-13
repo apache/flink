@@ -29,6 +29,7 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -185,12 +186,8 @@ public class ExecutionContext<T> {
 	 * Executes the given supplier using the execution context's classloader as thread classloader.
 	 */
 	public <R> R wrapClassLoader(Supplier<R> supplier) {
-		final ClassLoader previousClassloader = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(classLoader);
-		try {
+		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
 			return supplier.get();
-		} finally {
-			Thread.currentThread().setContextClassLoader(previousClassloader);
 		}
 	}
 

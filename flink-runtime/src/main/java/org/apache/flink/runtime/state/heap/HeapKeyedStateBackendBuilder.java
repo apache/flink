@@ -31,7 +31,6 @@ import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
-
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -95,21 +94,9 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 		CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
 		HeapSnapshotStrategy<K> snapshotStrategy = initSnapshotStrategy(
 			asynchronousSnapshots, registeredKVStates, registeredPQStates, cancelStreamRegistryForBackend);
-		HeapKeyedStateBackend<K> backend = new HeapKeyedStateBackend<>(
-			kvStateRegistry,
-			keySerializerProvider,
-			userCodeClassLoader,
-			numberOfKeyGroups,
+		InternalKeyContext<K> keyContext = new InternalKeyContextImpl<>(
 			keyGroupRange,
-			executionConfig,
-			ttlTimeProvider,
-			cancelStreamRegistryForBackend,
-			keyGroupCompressionDecorator,
-			registeredKVStates,
-			registeredPQStates,
-			localRecoveryConfig,
-			priorityQueueSetFactory,
-			snapshotStrategy
+			numberOfKeyGroups
 		);
 		HeapRestoreOperation<K> restoreOperation = new HeapRestoreOperation<>(
 			restoreStateHandles,
@@ -122,14 +109,26 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 			keyGroupRange,
 			numberOfKeyGroups,
 			snapshotStrategy,
-			backend);
+			keyContext);
 		try {
 			restoreOperation.restore();
 		} catch (Exception e) {
-			backend.dispose();
 			throw new BackendBuildingException("Failed when trying to restore heap backend", e);
 		}
-		return backend;
+		return new HeapKeyedStateBackend<>(
+			kvStateRegistry,
+			keySerializerProvider.currentSchemaSerializer(),
+			userCodeClassLoader,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistryForBackend,
+			keyGroupCompressionDecorator,
+			registeredKVStates,
+			registeredPQStates,
+			localRecoveryConfig,
+			priorityQueueSetFactory,
+			snapshotStrategy,
+			keyContext);
 	}
 
 	private HeapSnapshotStrategy<K> initSnapshotStrategy(

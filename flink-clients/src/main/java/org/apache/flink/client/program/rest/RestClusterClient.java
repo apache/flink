@@ -46,19 +46,15 @@ import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusHeaders;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusMessageParameters;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerHeaders;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
+import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
-import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -83,6 +79,8 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMess
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.queue.AsynchronouslyCreatedResource;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
@@ -386,25 +384,42 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public void stop(JobID jobID) throws Exception {
-		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
+	public void cancel(JobID jobID) throws Exception {
+		JobCancellationMessageParameters params = new JobCancellationMessageParameters();
 		params.jobPathParameter.resolve(jobID);
-		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.STOP));
+		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
 		CompletableFuture<EmptyResponseBody> responseFuture = sendRequest(
-			JobTerminationHeaders.getInstance(),
+			JobCancellationHeaders.getInstance(),
 			params);
 		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Override
-	public void cancel(JobID jobID) throws Exception {
-		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
-		params.jobPathParameter.resolve(jobID);
-		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
-		CompletableFuture<EmptyResponseBody> responseFuture = sendRequest(
-			JobTerminationHeaders.getInstance(),
-			params);
-		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+	public String stopWithSavepoint(
+			final JobID jobId,
+			final boolean advanceToEndOfTime,
+			@Nullable final String savepointDirectory) throws Exception {
+
+		final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders = StopWithSavepointTriggerHeaders.getInstance();
+
+		final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
+				stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
+		stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
+
+		final CompletableFuture<TriggerResponse> responseFuture = sendRequest(
+				stopWithSavepointTriggerHeaders,
+				stopWithSavepointTriggerMessageParameters,
+				new StopWithSavepointRequestBody(savepointDirectory, advanceToEndOfTime));
+
+		return responseFuture.thenCompose(savepointTriggerResponseBody -> {
+			final TriggerId savepointTriggerId = savepointTriggerResponseBody.getTriggerId();
+			return pollSavepointAsync(jobId, savepointTriggerId);
+		}).thenApply(savepointInfo -> {
+			if (savepointInfo.getFailureCause() != null) {
+				throw new CompletionException(savepointInfo.getFailureCause());
+			}
+			return savepointInfo.getLocation();
+		}).get();
 	}
 
 	@Override
@@ -510,43 +525,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	@Override
 	public T getClusterId() {
 		return clusterId;
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
-
-		final RescalingTriggerHeaders rescalingTriggerHeaders = RescalingTriggerHeaders.getInstance();
-		final RescalingTriggerMessageParameters rescalingTriggerMessageParameters = rescalingTriggerHeaders.getUnresolvedMessageParameters();
-		rescalingTriggerMessageParameters.jobPathParameter.resolve(jobId);
-		rescalingTriggerMessageParameters.rescalingParallelismQueryParameter.resolve(Collections.singletonList(newParallelism));
-
-		final CompletableFuture<TriggerResponse> rescalingTriggerResponseFuture = sendRequest(
-			rescalingTriggerHeaders,
-			rescalingTriggerMessageParameters);
-
-		final CompletableFuture<AsynchronousOperationInfo> rescalingOperationFuture = rescalingTriggerResponseFuture.thenCompose(
-			(TriggerResponse triggerResponse) -> {
-				final TriggerId triggerId = triggerResponse.getTriggerId();
-				final RescalingStatusHeaders rescalingStatusHeaders = RescalingStatusHeaders.getInstance();
-				final RescalingStatusMessageParameters rescalingStatusMessageParameters = rescalingStatusHeaders.getUnresolvedMessageParameters();
-
-				rescalingStatusMessageParameters.jobPathParameter.resolve(jobId);
-				rescalingStatusMessageParameters.triggerIdPathParameter.resolve(triggerId);
-
-				return pollResourceAsync(
-					() -> sendRequest(
-						rescalingStatusHeaders,
-						rescalingStatusMessageParameters));
-			});
-
-		return rescalingOperationFuture.thenApply(
-			(AsynchronousOperationInfo asynchronousOperationInfo) -> {
-				if (asynchronousOperationInfo.getFailureCause() == null) {
-					return Acknowledge.get();
-				} else {
-					throw new CompletionException(asynchronousOperationInfo.getFailureCause());
-				}
-			});
 	}
 
 	@Override

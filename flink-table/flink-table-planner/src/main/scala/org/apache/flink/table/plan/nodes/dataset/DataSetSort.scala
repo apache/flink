@@ -26,7 +26,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl, TableException}
 import org.apache.flink.table.plan.nodes.CommonSort
 import org.apache.flink.table.runtime.aggregate.SortUtil.directionToOrder
 import org.apache.flink.table.runtime.{CountPartitionFunction, LimitFilterFunction}
@@ -80,7 +80,7 @@ class DataSetSort(
   }
 
   override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
+      tableEnv: BatchTableEnvImpl,
       queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     if (fieldCollations.isEmpty) {

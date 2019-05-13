@@ -26,8 +26,8 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -256,6 +256,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * from results than need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
+	/** The maximum number of prior execution attempts kept in history. */
+	private final int maxPriorAttemptsHistoryLength;
+
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
 	private final AtomicInteger verticesFinished;
@@ -374,12 +377,39 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			timeout);
 	}
 
+	@VisibleForTesting
+	public ExecutionGraph(
+			JobInformation jobInformation,
+			ScheduledExecutorService futureExecutor,
+			Executor ioExecutor,
+			Time timeout,
+			RestartStrategy restartStrategy,
+			FailoverStrategy.Factory failoverStrategy,
+			SlotProvider slotProvider,
+			ClassLoader userClassLoader,
+			BlobWriter blobWriter,
+			Time allocationTimeout) throws IOException {
+		this(
+			jobInformation,
+			futureExecutor,
+			ioExecutor,
+			timeout,
+			restartStrategy,
+			JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue(),
+			failoverStrategy,
+			slotProvider,
+			userClassLoader,
+			blobWriter,
+			allocationTimeout);
+	}
+
 	public ExecutionGraph(
 			JobInformation jobInformation,
 			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
 			Time rpcTimeout,
 			RestartStrategy restartStrategy,
+			int maxPriorAttemptsHistoryLength,
 			FailoverStrategy.Factory failoverStrategyFactory,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
@@ -423,6 +453,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the failover strategy must be instantiated last, so that the execution graph
 		// is ready by the time the failover strategy sees it
 		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(this), "null failover strategy");
+
+		this.maxPriorAttemptsHistoryLength = maxPriorAttemptsHistoryLength;
 
 		this.schedulingFuture = null;
 		this.jobMasterMainThreadExecutor =
@@ -826,12 +858,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			// create the execution job vertex and attach it to the graph
 			ExecutionJobVertex ejv = new ExecutionJobVertex(
-				this,
-				jobVertex,
-				1,
-				rpcTimeout,
-				globalModVersion,
-				createTimestamp);
+					this,
+					jobVertex,
+					1,
+					maxPriorAttemptsHistoryLength,
+					rpcTimeout,
+					globalModVersion,
+					createTimestamp);
 
 			ejv.connectToPredecessors(this.intermediateResults);
 
@@ -1093,21 +1126,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	public void stop() throws StoppingException {
-
-		assertRunningInJobMasterMainThread();
-
-		if (isStoppable) {
-			for (ExecutionVertex ev : this.getAllExecutionVertices()) {
-				if (ev.getNumberOfInputs() == 0) { // send signal to sources only
-					ev.stop();
-				}
-			}
-		} else {
-			throw new StoppingException("This job is not stoppable.");
-		}
-	}
-
 	/**
 	 * Suspends the current ExecutionGraph.
 	 *
@@ -1287,26 +1305,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		catch (Throwable t) {
 			LOG.warn("Failed to restart the job.", t);
 			failGlobal(t);
-		}
-	}
-
-	/**
-	 * Restores the latest checkpointed state.
-	 *
-	 * <p>The recovery of checkpoints might block. Make sure that calls to this method don't
-	 * block the job manager actor and run asynchronously.
-	 *
-	 * @param errorIfNoCheckpoint Fail if there is no checkpoint available
-	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
-	 * to the ExecutionGraph vertices (if the checkpoint contains state for a
-	 * job vertex that is not part of this ExecutionGraph).
-	 */
-	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean allowNonRestoredState) throws Exception {
-		assertRunningInJobMasterMainThread();
-		synchronized (progressLock) {
-			if (checkpointCoordinator != null) {
-				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), errorIfNoCheckpoint, allowNonRestoredState);
-			}
 		}
 	}
 

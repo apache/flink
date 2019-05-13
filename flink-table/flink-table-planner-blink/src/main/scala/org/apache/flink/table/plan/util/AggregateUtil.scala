@@ -20,19 +20,29 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.dataview.DataViewSpec
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
-import org.apache.flink.table.functions.sql.AggSqlFunctions
+import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RexNodeConverter, RowtimeAttribute, WindowEnd, WindowStart}
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
+import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
+import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
+import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo, TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.sql.SqlRankFunction
+import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.sql.fun._
+import org.apache.calcite.sql.validate.SqlMonotonicity
+import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
+import org.apache.calcite.tools.RelBuilder
 
 import java.util
 
@@ -41,6 +51,36 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil extends Enumeration {
+
+  /**
+    * Returns whether any of the aggregates are accurate DISTINCT.
+    *
+    * @return Whether any of the aggregates are accurate DISTINCT
+    */
+  def containsAccurateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
+    aggCalls.exists(call => call.isDistinct && !call.isApproximate)
+  }
+
+  /**
+    * Returns whether any of the aggregates are approximate DISTINCT.
+    *
+    * @return Whether any of the aggregates are approximate DISTINCT
+    */
+  def containsApproximateDistinctCall(aggCalls: util.List[AggregateCall]): Boolean = {
+    aggCalls.exists(call => call.isDistinct && call.isApproximate)
+  }
+
+  /**
+    * Returns indices of group functions.
+    */
+  def getGroupIdExprIndexes(aggCalls: Seq[AggregateCall]): Seq[Int] = {
+    aggCalls.zipWithIndex.filter { case (call, _) =>
+      call.getAggregation.getKind match {
+        case SqlKind.GROUP_ID | SqlKind.GROUPING | SqlKind.GROUPING_ID => true
+        case _ => false
+      }
+    }.map { case (_, idx) => idx }
+  }
 
   /**
     * Check whether AUXILIARY_GROUP aggCalls is in the front of the given agg's aggCallList,
@@ -57,16 +97,16 @@ object AggregateUtil extends Enumeration {
     val aggCalls = agg.getAggCallList
     aggCalls.zipWithIndex.foreach {
       case (call, idx) =>
-        if (call.getAggregation == AggSqlFunctions.AUXILIARY_GROUP) {
+        if (call.getAggregation == FlinkSqlOperatorTable.AUXILIARY_GROUP) {
           require(call.getArgList.size == 1)
         }
         if (nonAuxGroupCallsStartIdx >= 0) {
           // the left aggCalls should not be AUXILIARY_GROUP
-          require(call.getAggregation != AggSqlFunctions.AUXILIARY_GROUP,
+          require(call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP,
             "AUXILIARY_GROUP should be in the front of aggCall list")
         }
         if (nonAuxGroupCallsStartIdx < 0 &&
-          call.getAggregation != AggSqlFunctions.AUXILIARY_GROUP) {
+          call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP) {
           nonAuxGroupCallsStartIdx = idx
         }
     }
@@ -93,6 +133,33 @@ object AggregateUtil extends Enumeration {
   def checkAndGetFullGroupSet(agg: Aggregate): Array[Int] = {
     val (auxGroupSet, _) = checkAndSplitAggCalls(agg)
     agg.getGroupSet.toArray ++ auxGroupSet
+  }
+
+  def getOutputIndexToAggCallIndexMap(
+      aggregateCalls: Seq[AggregateCall],
+      inputType: RelDataType,
+      orderKeyIdx: Array[Int] = null): util.Map[Integer, Integer] = {
+    val aggInfos = transformToAggregateInfoList(
+      aggregateCalls,
+      inputType,
+      orderKeyIdx,
+      Array.fill(aggregateCalls.size)(false),
+      needInputCount = false,
+      isStateBackedDataViews = false,
+      needDistinctInfo = false).aggInfos
+
+    val map = new util.HashMap[Integer, Integer]()
+    var outputIndex = 0
+    aggregateCalls.indices.foreach {
+      aggCallIndex =>
+        val aggInfo = aggInfos(aggCallIndex)
+        val aggBuffers = aggInfo.externalAccTypes
+        aggBuffers.indices.foreach { bufferIndex =>
+          map.put(outputIndex + bufferIndex, aggCallIndex)
+        }
+        outputIndex += aggBuffers.length
+    }
+    map
   }
 
   def transformToBatchAggregateFunctions(
@@ -150,7 +217,7 @@ object AggregateUtil extends Enumeration {
       aggregateCalls,
       inputRowType,
       orderKeyIdx = null,
-      needRetraction ++ Array(needInputCount), // for additional count1
+      needRetraction ++ Array(needInputCount), // for additional count(*)
       needInputCount,
       isStateBackendDataViews,
       needDistinctInfo)
@@ -181,7 +248,7 @@ object AggregateUtil extends Enumeration {
     // Step-1:
     // if need inputCount, find count1 in the existed aggregate calls first,
     // if not exist, insert a new count1 and remember the index
-    val (count1AggIndex, count1AggInserted, aggCalls) = insertInputCountAggregate(
+    val (indexOfCountStar, countStarInserted, aggCalls) = insertCountStarAggCall(
       needInputCount,
       aggregateCalls)
 
@@ -208,16 +275,22 @@ object AggregateUtil extends Enumeration {
         case a: DeclarativeAggregateFunction =>
           val bufferTypes: Array[InternalType] = a.getAggBufferTypes
           val bufferTypeInfos = bufferTypes.map(
-            TypeConverters.createInternalTypeInfoFromInternalType)
+            TypeConverters.createExternalTypeInfoFromInternalType)
           (bufferTypeInfos, Array.empty[DataViewSpec], a.getResultType)
         case a: AggregateFunction[_, _] =>
-          val externalAccType = getAccumulatorTypeOfAggregateFunction(a)
+          val (implicitAccType, implicitResultType) = call.getAggregation match {
+            case aggSqlFun: AggSqlFunction =>
+              (aggSqlFun.externalAccType, aggSqlFun.externalResultType)
+            case _ => (null, null)
+          }
+          val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
           val (newExternalAccType, specs) = useNullSerializerForStateViewFieldsFromAccType(
             index,
             a,
             externalAccType,
             isStateBackedDataViews)
-          (Array(newExternalAccType), specs, getResultTypeOfAggregateFunction(a))
+          (Array(newExternalAccType), specs,
+            getResultTypeOfAggregateFunction(a, implicitResultType))
         case _ => throw new TableException(s"Unsupported function: $function")
       }
 
@@ -233,28 +306,29 @@ object AggregateUtil extends Enumeration {
 
     }.toArray
 
-    AggregateInfoList(aggInfos, count1AggIndex, count1AggInserted, distinctInfos)
+    AggregateInfoList(aggInfos, indexOfCountStar, countStarInserted, distinctInfos)
   }
 
 
   /**
-    * Inserts an InputCount aggregate which is count1 actually if needed.
+    * Inserts an COUNT(*) aggregate call if needed. The COUNT(*) aggregate call is used
+    * to count the number of added and retracted input records.
     * @param needInputCount whether to insert an InputCount aggregate
     * @param aggregateCalls original aggregate calls
-    * @return (count1AggIndex, count1AggInserted, newaggCalls)
+    * @return (indexOfCountStar, countStarInserted, newAggCalls)
     */
-  private def insertInputCountAggregate(
+  private def insertCountStarAggCall(
       needInputCount: Boolean,
       aggregateCalls: Seq[AggregateCall]): (Option[Int], Boolean, Seq[AggregateCall]) = {
 
-    var count1AggIndex: Option[Int] = None
-    var count1AggInserted: Boolean = false
+    var indexOfCountStar: Option[Int] = None
+    var countStarInserted: Boolean = false
     if (!needInputCount) {
-      return (count1AggIndex, count1AggInserted, aggregateCalls)
+      return (indexOfCountStar, countStarInserted, aggregateCalls)
     }
 
-    // if need inputCount, find count1 in the existed aggregate calls first,
-    // if not exist, insert a new count1 and remember the index
+    // if need inputCount, find count(*) in the existed aggregate calls first,
+    // if not exist, insert a new count(*) and remember the index
     var newAggCalls = aggregateCalls
     aggregateCalls.zipWithIndex.foreach { case (call, index) =>
       if (call.getAggregation.isInstanceOf[SqlCountAggFunction] &&
@@ -262,13 +336,13 @@ object AggregateUtil extends Enumeration {
         call.getArgList.isEmpty &&
         !call.isApproximate &&
         !call.isDistinct) {
-        count1AggIndex = Some(index)
+        indexOfCountStar = Some(index)
       }
     }
 
-    // count1 not exist in aggregateCalls, insert a count1 in it.
+    // count(*) not exist in aggregateCalls, insert a count(*) in it.
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
-    if (count1AggIndex.isEmpty) {
+    if (indexOfCountStar.isEmpty) {
 
       val count1 = AggregateCall.create(
         SqlStdOperatorTable.COUNT,
@@ -279,12 +353,12 @@ object AggregateUtil extends Enumeration {
         typeFactory.createTypeFromInternalType(InternalTypes.LONG, isNullable = false),
         "_$count1$_")
 
-      count1AggIndex = Some(aggregateCalls.length)
-      count1AggInserted = true
+      indexOfCountStar = Some(aggregateCalls.length)
+      countStarInserted = true
       newAggCalls = aggregateCalls ++ Seq(count1)
     }
 
-    (count1AggIndex, count1AggInserted, newAggCalls)
+    (indexOfCountStar, countStarInserted, newAggCalls)
   }
 
   /**
@@ -303,8 +377,7 @@ object AggregateUtil extends Enumeration {
       aggCalls: Seq[AggregateCall],
       inputType: RelDataType,
       isStateBackedDataViews: Boolean,
-      consumeRetraction: Boolean)
-  : (Array[DistinctInfo], Seq[AggregateCall]) = {
+      consumeRetraction: Boolean): (Array[DistinctInfo], Seq[AggregateCall]) = {
 
     if (!needDistinctInfo) {
       return (Array(), aggCalls)
@@ -373,11 +446,13 @@ object AggregateUtil extends Enumeration {
         valueType,
         isStateBackedDataViews,
         // the mapview serializer should handle null keys
-        nullAware = true)
+        true)
 
       val distinctMapViewSpec = if (isStateBackedDataViews) {
-        // TODO supports MapViewSpec
-        throw new TableException("MapViewSpec is not supported now")
+        Some(MapViewSpec(
+          s"distinctAcc_$index",
+          -1, // the field index will not be used
+          accTypeInfo))
       } else {
         None
       }
@@ -436,7 +511,6 @@ object AggregateUtil extends Enumeration {
     * Return true if all aggregates can be split. False otherwise.
     */
   def doAllAggSupportSplit(aggCalls: util.List[AggregateCall]): Boolean = {
-    // TODO supports SqlConcatAggFunction
     aggCalls.forall { aggCall =>
       aggCall.getAggregation match {
         case _: SqlCountAggFunction |
@@ -444,7 +518,8 @@ object AggregateUtil extends Enumeration {
              _: SqlMinMaxAggFunction |
              _: SqlSumAggFunction |
              _: SqlSumEmptyIsZeroAggFunction |
-             _: SqlSingleValueAggFunction => true
+             _: SqlSingleValueAggFunction |
+             _: SqlConcatAggFunction => true
         case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
         case _ => false
       }
@@ -459,7 +534,6 @@ object AggregateUtil extends Enumeration {
       inputType: RelDataType,
       groupSet: Array[Int],
       typeFactory: FlinkTypeFactory): RelDataType = {
-
     val accTypes = aggInfoList.getAccTypes
     val groupingTypes = groupSet
       .map(inputType.getFieldList.get(_).getType)
@@ -494,5 +568,144 @@ object AggregateUtil extends Enumeration {
       s"distinct$$$i"
     }
     (aggBufferNames ++ distinctBufferNames).toArray
+  }
+
+  /**
+    * Optimize max or min with retraction agg. MaxWithRetract can be optimized to Max if input is
+    * update increasing.
+    */
+  def getNeedRetractions(
+      groupCount: Int,
+      needRetraction: Boolean,
+      monotonicity: RelModifiedMonotonicity,
+      aggCalls: Seq[AggregateCall]): Array[Boolean] = {
+    val needRetractionArray = Array.fill(aggCalls.size)(needRetraction)
+    if (monotonicity != null && needRetraction) {
+      aggCalls.zipWithIndex.foreach { case (aggCall, idx) =>
+        aggCall.getAggregation match {
+          // if monotonicity is decreasing and aggCall is min with retract,
+          // set needRetraction to false
+          case a: SqlMinMaxAggFunction
+            if a.getKind == SqlKind.MIN &&
+              monotonicity.fieldMonotonicities(groupCount + idx) == SqlMonotonicity.DECREASING =>
+            needRetractionArray(idx) = false
+          // if monotonicity is increasing and aggCall is max with retract,
+          // set needRetraction to false
+          case a: SqlMinMaxAggFunction
+            if a.getKind == SqlKind.MAX &&
+              monotonicity.fieldMonotonicities(groupCount + idx) == SqlMonotonicity.INCREASING =>
+            needRetractionArray(idx) = false
+          case _ => // do nothing
+        }
+      }
+    }
+
+    needRetractionArray
+  }
+
+  /**
+    * Derives output row type from local aggregate
+    */
+  def inferLocalAggRowType(
+      aggInfoList: AggregateInfoList,
+      inputRowType: RelDataType,
+      groupSet: Array[Int],
+      typeFactory: FlinkTypeFactory): RelDataType = {
+    val accTypes = aggInfoList.getAccTypes
+    val groupingTypes = groupSet
+      .map(inputRowType.getFieldList.get(_).getType)
+      .map(FlinkTypeFactory.toInternalType)
+    val groupingNames = groupSet.map(inputRowType.getFieldNames.get(_))
+    val accFieldNames = inferAggAccumulatorNames(aggInfoList)
+
+    typeFactory.buildRelDataType(
+      groupingNames ++ accFieldNames,
+      groupingTypes ++ accTypes.map(TypeConverters.createInternalTypeFromTypeInfo))
+  }
+
+  /**
+    * Derives accumulators names from aggregate
+    */
+  def inferAggAccumulatorNames(aggInfoList: AggregateInfoList): Array[String] = {
+    var index = -1
+    val aggBufferNames = aggInfoList.aggInfos.indices.flatMap { i =>
+      aggInfoList.aggInfos(i).function match {
+        case _: AggregateFunction[_, _] =>
+          val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
+          index += 1
+          Array(s"$name$$$index")
+        case daf: DeclarativeAggregateFunction =>
+          daf.aggBufferAttributes.map { a =>
+            index += 1
+            s"${a.getName}$$$index"
+          }
+      }
+    }
+    val distinctBufferNames = aggInfoList.distinctInfos.indices.map { i =>
+      s"distinct$$$i"
+    }
+    (aggBufferNames ++ distinctBufferNames).toArray
+  }
+
+  /**
+    * Creates a MiniBatch trigger depends on the config.
+    */
+  def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
+    new CountBundleTrigger[BaseRow](
+      tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+  }
+
+  /**
+    * Compute field index of given timeField expression.
+    */
+  def timeFieldIndex(
+      inputType: RelDataType, relBuilder: RelBuilder, timeField: FieldReferenceExpression): Int = {
+    timeField.accept(new RexNodeConverter(relBuilder.values(inputType)))
+        .asInstanceOf[RexInputRef].getIndex
+  }
+
+  /**
+    * Computes the positions of (window start, window end, row time).
+    */
+  private[flink] def computeWindowPropertyPos(
+      properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
+    val propPos = properties.foldRight(
+      (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
+      case (p, (s, e, rt, i)) => p match {
+        case NamedWindowProperty(_, prop) =>
+          prop match {
+            case WindowStart(_) if s.isDefined =>
+              throw new TableException(
+                "Duplicate window start property encountered. This is a bug.")
+            case WindowStart(_) =>
+              (Some(i), e, rt, i - 1)
+            case WindowEnd(_) if e.isDefined =>
+              throw new TableException("Duplicate window end property encountered. This is a bug.")
+            case WindowEnd(_) =>
+              (s, Some(i), rt, i - 1)
+            case RowtimeAttribute(_) if rt.isDefined =>
+              throw new TableException(
+                "Duplicate window rowtime property encountered. This is a bug.")
+            case RowtimeAttribute(_) =>
+              (s, e, Some(i), i - 1)
+            case ProctimeAttribute(_) =>
+              // ignore this property, it will be null at the position later
+              (s, e, rt, i - 1)
+          }
+      }
+    }
+    (propPos._1, propPos._2, propPos._3)
+  }
+
+  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
+    TimeIndicatorTypeInfo.ROWTIME_INDICATOR == fieldType
+  }
+
+  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
+    TimeIndicatorTypeInfo.PROCTIME_INDICATOR == fieldType
+  }
+
+  def isTimeIntervalType(intervalType: TypeInformation[_]): Boolean = {
+    intervalType == TimeIntervalTypeInfo.INTERVAL_MILLIS
   }
 }

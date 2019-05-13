@@ -26,10 +26,11 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An unresolved reference to a field or table.
+ * An unresolved reference to a field, table, or local reference.
  *
  * <p>This is a purely API facing expression that will be resolved into
- * {@link FieldReferenceExpression} or {@link TableReferenceExpression}.
+ * {@link FieldReferenceExpression}, {@link LocalReferenceExpression},
+ * or {@link TableReferenceExpression}.
  */
 @PublicEvolving
 public final class UnresolvedReferenceExpression implements Expression {

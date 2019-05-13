@@ -19,6 +19,7 @@
 
 RUBY=${RUBY:-ruby}
 GEM=${GEM:-gem}
+CACHE_DIR=${CACHE_DIR:-".rubydeps"}
 
 set -e
 cd "$(dirname ${BASH_SOURCE[0]})"
@@ -42,7 +43,7 @@ if [ "`command -v bundle`" == "" ]; then
 fi
 
 # Install Ruby dependencies locally
-bundle install --path .rubydeps
+bundle install --path ${CACHE_DIR}
 
 DOCS_SRC=${DIR}
 DOCS_DST=${DOCS_SRC}/content

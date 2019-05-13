@@ -67,8 +67,8 @@ public class BytesHashMap {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BytesHashMap.class);
 
-	private static final int BUCKET_SIZE = 16;
-	private static final int RECORD_EXTRA_LENGTH = 8;
+	public static final int BUCKET_SIZE = 16;
+	public static final int RECORD_EXTRA_LENGTH = 8;
 	private static final int BUCKET_SIZE_BITS = 4;
 
 	private static final int ELEMENT_POINT_LENGTH = 8;

@@ -398,7 +398,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     }
 
     addReusableMember(
-      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size})")
+      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});")
 
     elements.foreach { element =>
       val content =
@@ -592,12 +592,16 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
+    * @param functionContextClass class of [[FunctionContext]]
     * @param contextTerm [[RuntimeContext]] term to access the [[RuntimeContext]]
     * @return member variable term
     */
-  def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
+  def addReusableFunction(
+      function: UserDefinedFunction,
+      functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
+      contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val fieldTerm = s"function_${function.functionIdentifier}"
+    val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)
 

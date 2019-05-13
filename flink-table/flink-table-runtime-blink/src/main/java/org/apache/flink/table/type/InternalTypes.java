@@ -41,8 +41,6 @@ public class InternalTypes {
 
 	public static final ShortType SHORT = ShortType.INSTANCE;
 
-	public static final CharType CHAR = CharType.INSTANCE;
-
 	public static final BinaryType BINARY = BinaryType.INSTANCE;
 
 	public static final DateType DATE = DateType.DATE;
@@ -91,6 +89,10 @@ public class InternalTypes {
 
 	public static MapType createMapType(InternalType keyType, InternalType valueType) {
 		return new MapType(keyType, valueType);
+	}
+
+	public static MultisetType createMultisetType(InternalType elementType) {
+		return new MultisetType(elementType);
 	}
 
 	public static <T> GenericType<T> createGenericType(Class<T> cls) {

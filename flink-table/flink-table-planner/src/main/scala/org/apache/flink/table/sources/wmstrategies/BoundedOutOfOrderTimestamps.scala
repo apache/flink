@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.sources.wmstrategies
 
+import java.util
+
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.descriptors.Rowtime
 
 /**
   * A watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
@@ -47,5 +50,14 @@ final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWaterma
 
   override def hashCode(): Int = {
     delay.hashCode()
+  }
+
+  override def toProperties: util.Map[String, String] = {
+    val javaMap = new util.HashMap[String, String]()
+    javaMap.put(
+      Rowtime.ROWTIME_WATERMARKS_TYPE,
+      Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED)
+    javaMap.put(Rowtime.ROWTIME_WATERMARKS_DELAY, delay.toString)
+    javaMap
   }
 }

@@ -355,6 +355,96 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jars/:jarid/plan</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'. Program arguments can be passed both via the JSON request (recommended) or query parameters.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jarid</code> - String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars).</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>program-args</code> (optional): Deprecated, please use 'programArg' instead. String value that specifies the arguments for the program or plan</li>
+<li><code>programArg</code> (optional): Comma-separated list of program arguments.</li>
+<li><code>entry-class</code> (optional): String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest.</li>
+<li><code>parallelism</code> (optional): Positive integer value that specifies the desired parallelism for the job.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#550027726">Request</button>
+        <div id="550027726" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
+  "properties" : {
+    "entryClass" : {
+      "type" : "string"
+    },
+    "programArgs" : {
+      "type" : "string"
+    },
+    "programArgsList" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "parallelism" : {
+      "type" : "integer"
+    },
+    "jobId" : {
+      "type" : "any"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1311035100">Response</button>
+        <div id="1311035100" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+  "properties" : {
+    "plan" : {
+      "type" : "any"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><h5><strong>/jars/:jarid/run</strong></h5></td>
     </tr>
     <tr>
@@ -592,7 +682,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDING", "SUSPENDED", "RECONCILING" ]
+            "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
           }
         }
       }
@@ -829,7 +919,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "state" : {
       "type" : "string",
-      "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDING", "SUSPENDED", "RECONCILING" ]
+      "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
     },
     "start-time" : {
       "type" : "integer"
@@ -2041,7 +2131,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers the rescaling of a job.</td>
+      <td colspan="2">Triggers the rescaling of a job. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2171,7 +2261,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers a savepoint, and optionally cancels the job afterwards.</td>
+      <td colspan="2">Triggers a savepoint, and optionally cancels the job afterwards. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2282,6 +2372,71 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       }
     },
     "operation" : {
+      "type" : "any"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/stop-with-savepoint</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>POST</code></td>
+      <td class="text-left">Response code: <code>202 Accepted</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking the savepoint to flush out any state waiting for timers to fire. This async operation would return a 'triggerid' for further query identifier.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1622419335">Request</button>
+        <div id="1622419335" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:stop:StopWithSavepointRequestBody",
+  "properties" : {
+    "targetDirectory" : {
+      "type" : "string"
+    },
+    "endOfEventTime" : {
+      "type" : "boolean"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1441715731">Response</button>
+        <div id="1441715731" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+  "properties" : {
+    "request-id" : {
       "type" : "any"
     }
   }
@@ -3426,7 +3581,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers the desposal of a savepoint.</td>
+      <td colspan="2">Triggers the desposal of a savepoint. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">

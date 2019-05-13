@@ -33,6 +33,7 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -235,11 +236,9 @@ public class ResourceManagerTest extends TestLogger {
 	}
 
 	private TestingResourceManager createAndStartResourceManager(HeartbeatServices heartbeatServices) throws Exception {
-		final SlotManager slotManager = new SlotManager(
-			rpcService.getScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime());
+		final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(rpcService.getScheduledExecutor())
+			.build();
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),

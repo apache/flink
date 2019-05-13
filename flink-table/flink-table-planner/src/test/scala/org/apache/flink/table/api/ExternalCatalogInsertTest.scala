@@ -19,8 +19,8 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.java.StreamTableEnvironment
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.utils.TableTestBase

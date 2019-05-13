@@ -61,16 +61,16 @@ object TestData {
     row(null, null, null)
   )
 
-  val allNullablesOfNullData3 = Seq(true, true, true)
+  val allNullablesOfNullData3 = Array(true, true, true)
 
-  val nullablesOfNullData3 = Seq(true, false, false)
+  val nullablesOfNullData3 = Array(true, false, false)
 
   lazy val nullData5: Seq[Row] = data5 ++ Seq(
     row(null, 999L, 999, "NullTuple", 999L),
     row(null, 999L, 999, "NullTuple", 999L)
   )
 
-  val nullablesOfNullData5 = Seq(true, false, false, false, false)
+  val nullablesOfNullData5 = Array(true, false, false, false, false)
 
   lazy val smallData3 = Seq(
     row(1, 1L, "Hi"),
@@ -78,7 +78,7 @@ object TestData {
     row(3, 2L, "Hello world")
   )
 
-  val nullablesOfSmallData3 = Seq(false, false, false)
+  val nullablesOfSmallData3 = Array(false, false, false)
 
   lazy val smallData5 = Seq(
     row(1, 1L, 0, "Hallo", 1L),
@@ -86,7 +86,7 @@ object TestData {
     row(2, 3L, 2, "Hallo Welt wie", 1L)
   )
 
-  val nullablesOfSmallData5 = Seq(false, false, false, false, false)
+  val nullablesOfSmallData5 = Array(false, false, false, false, false)
 
   lazy val buildInData = Seq(
     row(false, 1.toByte, 2, 3L, 2.56, "abcd", "f%g", UTCDate("2017-12-12"),

@@ -820,10 +820,6 @@ object ScalarOperatorGens {
         terms => s""" "" + ${terms.head}"""
       }
 
-    // * -> Character
-    case (_, InternalTypes.CHAR) =>
-      throw new CodeGenException("Character type not supported.")
-
     // String -> Boolean
     case (InternalTypes.STRING, InternalTypes.BOOLEAN) =>
       generateUnaryOperatorIfNotNull(

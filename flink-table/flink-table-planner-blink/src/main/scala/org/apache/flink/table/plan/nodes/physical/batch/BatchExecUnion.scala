@@ -17,6 +17,12 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.transformations.{StreamTransformation, UnionTransformation}
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{SetOp, Union}
@@ -36,7 +42,8 @@ class BatchExecUnion(
     all: Boolean,
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
-  with BatchPhysicalRel {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   require(all, "Only support union all now")
 
@@ -51,4 +58,24 @@ class BatchExecUnion(
       .item("union", getRowType.getFieldNames.mkString(", "))
   }
 
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+
+  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+
+  override def replaceInputNode(
+      ordinalInParent: Int,
+      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+  }
+
+  override def translateToPlanInternal(
+      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+    val transformations = getInputNodes.map {
+      input => input.translateToPlan(tableEnv).asInstanceOf[StreamTransformation[BaseRow]]
+    }
+    new UnionTransformation(transformations)
+  }
 }

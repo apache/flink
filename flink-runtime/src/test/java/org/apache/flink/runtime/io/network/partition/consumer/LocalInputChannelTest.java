@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -41,7 +43,6 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -64,8 +65,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import scala.Tuple2;
-
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -193,10 +194,11 @@ public class LocalInputChannelTest {
 	@Test
 	public void testPartitionRequestExponentialBackoff() throws Exception {
 		// Config
-		Tuple2<Integer, Integer> backoff = new Tuple2<>(500, 3000);
+		int initialBackoff = 500;
+		int maxBackoff = 3000;
 
 		// Start with initial backoff, then keep doubling, and cap at max.
-		int[] expectedDelays = {backoff._1(), 1000, 2000, backoff._2()};
+		int[] expectedDelays = {initialBackoff, 1000, 2000, maxBackoff};
 
 		// Setup
 		SingleInputGate inputGate = mock(SingleInputGate.class);
@@ -206,7 +208,7 @@ public class LocalInputChannelTest {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
-		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager, backoff);
+		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager, initialBackoff, maxBackoff);
 
 		when(partitionManager
 				.createSubpartitionView(eq(ch.partitionId), eq(0), any(BufferAvailabilityListener.class)))
@@ -259,8 +261,7 @@ public class LocalInputChannelTest {
 		BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
 
-		LocalInputChannel ch = createLocalInputChannel(
-				inputGate, partitionManager, new Tuple2<>(0, 0));
+		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager);
 
 		ch.requestSubpartition(0);
 
@@ -293,17 +294,7 @@ public class LocalInputChannelTest {
 	 */
 	@Test
 	public void testConcurrentReleaseAndRetriggerPartitionRequest() throws Exception {
-		final SingleInputGate gate = new SingleInputGate(
-			"test task name",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			1,
-			new NoOpTaskActions(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true
-		);
+		final SingleInputGate gate = createSingleInputGate(1);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager
@@ -322,14 +313,7 @@ public class LocalInputChannelTest {
 				}
 			});
 
-		final LocalInputChannel channel = new LocalInputChannel(
-			gate,
-			0,
-			new ResultPartitionID(),
-			partitionManager,
-			new TaskEventDispatcher(),
-			1, 1,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		final LocalInputChannel channel = createLocalInputChannel(gate, partitionManager, 1, 1);
 
 		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
@@ -375,13 +359,7 @@ public class LocalInputChannelTest {
 			anyInt(),
 			any(BufferAvailabilityListener.class))).thenReturn(reader);
 
-		LocalInputChannel channel = new LocalInputChannel(
-			gate,
-			0,
-			new ResultPartitionID(),
-			partitionManager,
-			new TaskEventDispatcher(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		LocalInputChannel channel = createLocalInputChannel(gate, partitionManager);
 
 		channel.requestSubpartition(0);
 
@@ -406,23 +384,6 @@ public class LocalInputChannelTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	private LocalInputChannel createLocalInputChannel(
-			SingleInputGate inputGate,
-			ResultPartitionManager partitionManager,
-			Tuple2<Integer, Integer> initialAndMaxRequestBackoff)
-			throws IOException, InterruptedException {
-
-		return new LocalInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				partitionManager,
-				mock(TaskEventDispatcher.class),
-				initialAndMaxRequestBackoff._1(),
-				initialAndMaxRequestBackoff._2(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-	}
 
 	/**
 	 * Returns the configured number of buffers for each channel in a random order.
@@ -492,15 +453,15 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-					"Test Name",
-					new JobID(),
-					new IntermediateDataSetID(),
-					ResultPartitionType.PIPELINED,
-					subpartitionIndex,
-					numberOfInputChannels,
-					new NoOpTaskActions(),
-					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-					true);
+				"Test Name",
+				new JobID(),
+				new IntermediateDataSetID(),
+				ResultPartitionType.PIPELINED,
+				subpartitionIndex,
+				numberOfInputChannels,
+				new NoOpTaskActions(),
+				new SimpleCounter(),
+				true);
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -515,7 +476,7 @@ public class LocalInputChannelTest {
 								consumedPartitionIds[i],
 								partitionManager,
 								taskEventDispatcher,
-								UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()));
+								InputChannelTestUtils.newUnregisteredInputChannelMetrics()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;

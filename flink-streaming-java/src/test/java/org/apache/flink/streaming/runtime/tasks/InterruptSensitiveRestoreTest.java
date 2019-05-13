@@ -44,6 +44,7 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
@@ -180,7 +181,7 @@ public class InterruptSensitiveRestoreTest {
 			StreamStateHandle state,
 			int mode) throws IOException {
 
-		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
+		NetworkEnvironment networkEnvironment = new NetworkEnvironmentBuilder().build();
 
 		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
 		Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();

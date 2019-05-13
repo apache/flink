@@ -18,15 +18,47 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import java.util.Arrays;
+import java.util.Random;
 
 /**
  * Test scalar functions.
  */
 public class JavaUserDefinedScalarFunctions {
+
+	/**
+	 * Accumulator for test requiresOver.
+	 */
+	public static class AccumulatorOver extends Tuple2<Long, Integer> {}
+
+	/**
+	 * Test for requiresOver.
+	 */
+	public static class OverAgg0 extends AggregateFunction<Long, AccumulatorOver> {
+		@Override
+		public AccumulatorOver createAccumulator() {
+			return new AccumulatorOver();
+		}
+
+		@Override
+		public Long getValue(AccumulatorOver accumulator) {
+			return 1L;
+		}
+
+		//Overloaded accumulate method
+		public void accumulate(AccumulatorOver accumulator, long iValue, int iWeight) {
+		}
+
+		@Override
+		public boolean requiresOver() {
+			return true;
+		}
+	}
 
 	/**
 	 * Increment input.
@@ -99,6 +131,26 @@ public class JavaUserDefinedScalarFunctions {
 				throw new IllegalStateException("Open method is not called!");
 			}
 			return "$" + c;
+		}
+	}
+
+	/**
+	 * Non-deterministic scalar function.
+	 */
+	public static class NonDeterministicUdf extends ScalarFunction {
+		Random random = new Random();
+
+		public int eval() {
+			return random.nextInt();
+		}
+
+		public int eval(int v) {
+			return v + random.nextInt();
+		}
+
+		@Override
+		public boolean isDeterministic() {
+			return false;
 		}
 	}
 

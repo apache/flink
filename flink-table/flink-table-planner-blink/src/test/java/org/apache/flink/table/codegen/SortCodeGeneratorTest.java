@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -43,6 +43,7 @@ import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
+import org.apache.flink.table.plan.util.SortUtil;
 import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
 import org.apache.flink.table.type.ArrayType;
 import org.apache.flink.table.type.DecimalType;
@@ -82,7 +83,6 @@ public class SortCodeGeneratorTest {
 			InternalTypes.LONG,
 			InternalTypes.FLOAT,
 			InternalTypes.DOUBLE,
-			InternalTypes.CHAR,
 			InternalTypes.STRING,
 			new DecimalType(18, 2),
 			new DecimalType(38, 18),
@@ -126,7 +126,7 @@ public class SortCodeGeneratorTest {
 
 			keys = new int[] {0};
 			orders = new boolean[] {rnd.nextBoolean()};
-			nullsIsLast = FlinkPlannerImpl.getNullDefaultOrders(orders);
+			nullsIsLast = SortUtil.getNullDefaultOrders(orders);
 			testInner();
 		}
 	}
@@ -149,7 +149,7 @@ public class SortCodeGeneratorTest {
 			keys[i] = indexQueue.poll();
 			orders[i] = rnd.nextBoolean();
 		}
-		nullsIsLast = FlinkPlannerImpl.getNullDefaultOrders(orders);
+		nullsIsLast = SortUtil.getNullDefaultOrders(orders);
 	}
 
 	private Object[] shuffle(Object[] objects) {
@@ -210,8 +210,6 @@ public class SortCodeGeneratorTest {
 				seeds[i] = rnd.nextFloat() * rnd.nextLong();
 			} else if (type.equals(InternalTypes.DOUBLE)) {
 				seeds[i] = rnd.nextDouble() * rnd.nextLong();
-			} else if (type.equals(InternalTypes.CHAR)) {
-				seeds[i] = (char) rnd.nextInt();
 			} else if (type.equals(InternalTypes.STRING)) {
 				seeds[i] = BinaryString.fromString(RandomStringUtils.random(rnd.nextInt(20)));
 			} else if (type instanceof DecimalType) {
@@ -262,8 +260,6 @@ public class SortCodeGeneratorTest {
 			return Float.MIN_VALUE;
 		} else if (type.equals(InternalTypes.DOUBLE)) {
 			return Double.MIN_VALUE;
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return '1';
 		} else if (type.equals(InternalTypes.STRING)) {
 			return BinaryString.fromString("");
 		} else if (type instanceof DecimalType) {
@@ -306,8 +302,6 @@ public class SortCodeGeneratorTest {
 			return 0f;
 		} else if (type.equals(InternalTypes.DOUBLE)) {
 			return 0d;
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return '0';
 		} else if (type.equals(InternalTypes.STRING)) {
 			return BinaryString.fromString("0");
 		} else if (type instanceof DecimalType) {
@@ -347,8 +341,6 @@ public class SortCodeGeneratorTest {
 			return Float.MAX_VALUE;
 		} else if (type.equals(InternalTypes.DOUBLE)) {
 			return Double.MAX_VALUE;
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return '鼎';
 		} else if (type.equals(InternalTypes.STRING)) {
 			return BinaryString.fromString(RandomStringUtils.random(100));
 		} else if (type instanceof DecimalType) {

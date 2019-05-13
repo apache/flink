@@ -26,7 +26,7 @@ import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl, TableException}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
@@ -83,7 +83,7 @@ class DataSetUnion(
   }
 
   override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
+      tableEnv: BatchTableEnvImpl,
       queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     getInputs

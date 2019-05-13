@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -58,8 +57,6 @@ class SingleRowJoinTest extends TableTestBase {
         |  (SELECT min(b1) AS b1, max(b2) AS b2 FROM B)
         |WHERE a1 < b1 AND a2 = b2
       """.stripMargin
-    // TODO NestedLoopJoin is more efficient than HashJoin for this query,
-    //  check this plan after metadata handler introduced
     util.verifyPlan(query)
   }
 
@@ -68,8 +65,6 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Int)]("A", 'a1, 'a2)
     util.addTableSource[(Int, Int)]("B", 'b1, 'b2)
-    // TODO NestedLoopJoin is more efficient than HashJoin for this query,
-    //  check this plan after metadata handler introduced
     util.verifyPlan("SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt")
   }
 
@@ -86,8 +81,6 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Long)]("A", 'a1, 'a2)
     util.addTableSource[(Long, Long)]("B", 'b1, 'b2)
-    // TODO NestedLoopJoin is more efficient than HashJoin for this query,
-    //  check this plan after metadata handler introduced
     util.verifyPlan("SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a2")
   }
 
@@ -104,9 +97,6 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Int, Int)]("A", 'a1, 'a2)
     val sql = "SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)"
-    // TODO remove this after SINGLE_VALUE supported
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Unsupported Function: 'SINGLE_VALUE'")
     util.verifyPlan(sql)
   }
 }

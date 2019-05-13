@@ -44,14 +44,14 @@ class SchemaTest extends DescriptorTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
-    val desc1 = Schema()
+    val desc1 = new Schema()
       .field("myField", Types.BOOLEAN)
       .field("otherField", "VARCHAR").from("csvField")
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
-        Rowtime().timestampsFromSource().watermarksFromSource())
+      new Rowtime().timestampsFromSource().watermarksFromSource())
 
-    val desc2 = Schema()
+    val desc2 = new Schema()
       .field("myField", Types.BOOLEAN)
       .field("otherField", "VARCHAR").from("csvField")
       .field("p", Types.SQL_TIMESTAMP).proctime()

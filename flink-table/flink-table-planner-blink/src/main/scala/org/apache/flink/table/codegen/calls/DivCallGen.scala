@@ -36,7 +36,7 @@ class DivCallGen extends CallGenerator {
       operands: Seq[GeneratedExpression],
       returnType: InternalType): GeneratedExpression = {
 
-    val (arg1, type1) = (operands(0).resultTerm, operands(0).resultType)
+    val (arg1, type1) = (operands.head.resultTerm, operands.head.resultType)
     val (arg2, type2) = (operands(1).resultTerm, operands(1).resultType)
     def toDec(arg: String) = s"$DECIMAL.castFrom($arg, 19, 0)"
     def decDiv(arg1: String, arg2: String) = {

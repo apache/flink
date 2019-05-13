@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl}
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.types.Row
 
@@ -28,10 +28,10 @@ trait DataSetRel extends FlinkRelNode {
   /**
     * Translates the [[DataSetRel]] node into a [[DataSet]] operator.
     *
-    * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
+    * @param tableEnv    The [[BatchTableEnvImpl]] of the translated Table.
     * @param queryConfig The configuration for the query to generate.
     * @return DataSet of type [[Row]]
     */
-  def translateToPlan(tableEnv: BatchTableEnvironment, queryConfig: BatchQueryConfig): DataSet[Row]
+  def translateToPlan(tableEnv: BatchTableEnvImpl, queryConfig: BatchQueryConfig): DataSet[Row]
 
 }

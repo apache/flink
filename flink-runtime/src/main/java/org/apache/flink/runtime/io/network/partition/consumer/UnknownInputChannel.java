@@ -22,9 +22,9 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -48,7 +48,7 @@ class UnknownInputChannel extends InputChannel {
 
 	private final int maxBackoff;
 
-	private final TaskIOMetricGroup metrics;
+	private final InputChannelMetrics metrics;
 
 	public UnknownInputChannel(
 			SingleInputGate gate,
@@ -59,7 +59,7 @@ class UnknownInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
-			TaskIOMetricGroup metrics) {
+			InputChannelMetrics metrics) {
 
 		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
 

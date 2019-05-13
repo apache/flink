@@ -26,13 +26,15 @@ import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.{Decimal, _}
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
+import org.apache.flink.table.dataview.StateDataViewStore
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.util.MurmurHashUtil
 import org.apache.flink.types.Row
 
 import java.lang.reflect.Method
-import java.lang.{Boolean => JBoolean, Byte => JByte, Character => JChar, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
 
 object CodeGenUtils {
@@ -77,6 +79,12 @@ object CodeGenUtils {
 
   val SEGMENT: String = className[MemorySegment]
 
+  val AGGS_HANDLER_FUNCTION: String = className[AggsHandleFunction]
+
+  val NAMESPACE_AGGS_HANDLER_FUNCTION: String = className[NamespaceAggsHandleFunction[_]]
+
+  val STATE_DATA_VIEW_STORE: String = className[StateDataViewStore]
+
   // ----------------------------------------------------------------------------------------
 
   private val nameCounter = new AtomicInteger
@@ -110,11 +118,10 @@ object CodeGenUtils {
     case InternalTypes.FLOAT => "float"
     case InternalTypes.DOUBLE => "double"
     case InternalTypes.BOOLEAN => "boolean"
-    case InternalTypes.CHAR => "char"
 
     case InternalTypes.DATE => "int"
     case InternalTypes.TIME => "int"
-    case InternalTypes.TIMESTAMP => "long"
+    case _: TimestampType => "long"
 
     case InternalTypes.INTERVAL_MONTHS => "int"
     case InternalTypes.INTERVAL_MILLIS => "long"
@@ -130,11 +137,10 @@ object CodeGenUtils {
     case InternalTypes.FLOAT => className[JFloat]
     case InternalTypes.DOUBLE => className[JDouble]
     case InternalTypes.BOOLEAN => className[JBoolean]
-    case InternalTypes.CHAR => className[JChar]
 
     case InternalTypes.DATE => boxedTypeTermForType(InternalTypes.INT)
     case InternalTypes.TIME => boxedTypeTermForType(InternalTypes.INT)
-    case InternalTypes.TIMESTAMP => boxedTypeTermForType(InternalTypes.LONG)
+    case _: TimestampType => boxedTypeTermForType(InternalTypes.LONG)
 
     case InternalTypes.STRING => BINARY_STRING
     case InternalTypes.BINARY => "byte[]"
@@ -163,7 +169,6 @@ object CodeGenUtils {
     case InternalTypes.DOUBLE => "-1.0d"
     case InternalTypes.BOOLEAN => "false"
     case InternalTypes.STRING => s"$BINARY_STRING.EMPTY_UTF8"
-    case InternalTypes.CHAR => "'\\0'"
 
     case _: DateType | InternalTypes.TIME => "-1"
     case _: TimestampType => "-1L"
@@ -187,7 +192,6 @@ object CodeGenUtils {
     case InternalTypes.LONG => s"${className[JLong]}.hashCode($term)"
     case InternalTypes.FLOAT => s"${className[JFloat]}.hashCode($term)"
     case InternalTypes.DOUBLE => s"${className[JDouble]}.hashCode($term)"
-    case InternalTypes.CHAR => s"${className[JChar]}.hashCode($term)"
     case InternalTypes.STRING => s"$term.hashCode()"
     case InternalTypes.BINARY => s"${className[MurmurHashUtil]}.hashUnsafeBytes(" +
       s"$term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
@@ -196,11 +200,20 @@ object CodeGenUtils {
     case InternalTypes.TIME => s"${className[JInt]}.hashCode($term)"
     case _: TimestampType => s"${className[JLong]}.hashCode($term)"
     case _: ArrayType => throw new IllegalArgumentException(s"Not support type to hash: $t")
+    case rowType: RowType =>
+      val subCtx = CodeGeneratorContext(ctx.tableConfig)
+      val genHash = HashCodeGenerator.generateRowHash(
+        subCtx, rowType, "SubHashRow", (0 until rowType.getArity).toArray)
+      ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
+      val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
+      val hashFunc = newName("hashFunc")
+      ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
+      ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
+      s"$hashFunc.hashCode($term)"
     case gt: GenericType[_] =>
       val serTerm = ctx.addReusableObject(gt.getSerializer, "serializer")
       s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
   }
-
 
   // ----------------------------------------------------------------------------------------------
 
@@ -350,7 +363,6 @@ object CodeGenUtils {
       // primitive types
       case InternalTypes.BOOLEAN => s"$rowTerm.getBoolean($indexTerm)"
       case InternalTypes.BYTE => s"$rowTerm.getByte($indexTerm)"
-      case InternalTypes.CHAR => s"$rowTerm.getChar($indexTerm)"
       case InternalTypes.SHORT => s"$rowTerm.getShort($indexTerm)"
       case InternalTypes.INT => s"$rowTerm.getInt($indexTerm)"
       case InternalTypes.LONG => s"$rowTerm.getLong($indexTerm)"
@@ -459,7 +471,7 @@ object CodeGenUtils {
 
   def binaryRowSetNull(indexTerm: String, rowTerm: String, t: InternalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.precision()) =>
-      s"$rowTerm.setDecimal($indexTerm, null, ${d.precision()}, ${d.scale()})"
+      s"$rowTerm.setDecimal($indexTerm, null, ${d.precision()})"
     case _ => s"$rowTerm.setNullAt($indexTerm)"
   }
 
@@ -483,12 +495,11 @@ object CodeGenUtils {
       case InternalTypes.FLOAT => s"$binaryRowTerm.setFloat($index, $fieldValTerm)"
       case InternalTypes.DOUBLE => s"$binaryRowTerm.setDouble($index, $fieldValTerm)"
       case InternalTypes.BOOLEAN => s"$binaryRowTerm.setBoolean($index, $fieldValTerm)"
-      case InternalTypes.CHAR =>  s"$binaryRowTerm.setChar($index, $fieldValTerm)"
       case _: DateType =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case InternalTypes.TIME =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case _: TimestampType =>  s"$binaryRowTerm.setLong($index, $fieldValTerm)"
       case d: DecimalType =>
-        s"$binaryRowTerm.setDecimal($index, $fieldValTerm, ${d.precision()}, ${d.scale()})"
+        s"$binaryRowTerm.setDecimal($index, $fieldValTerm, ${d.precision()})"
       case _ =>
         throw new CodeGenException("Fail to find binary row field setter method of InternalType "
           + fieldType + ".")
@@ -509,7 +520,6 @@ object CodeGenUtils {
       case InternalTypes.FLOAT => s"$rowTerm.setFloat($indexTerm, $fieldTerm)"
       case InternalTypes.DOUBLE => s"$rowTerm.setDouble($indexTerm, $fieldTerm)"
       case InternalTypes.BOOLEAN => s"$rowTerm.setBoolean($indexTerm, $fieldTerm)"
-      case InternalTypes.CHAR =>  s"$rowTerm.setChar($indexTerm, $fieldTerm)"
       case _: DateType =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
       case InternalTypes.TIME =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
       case _: TimestampType =>  s"$rowTerm.setLong($indexTerm, $fieldTerm)"
@@ -524,7 +534,6 @@ object CodeGenUtils {
       elementType: InternalType): String = elementType match {
     case InternalTypes.BOOLEAN => s"$arrayTerm.setNullBoolean($index)"
     case InternalTypes.BYTE => s"$arrayTerm.setNullByte($index)"
-    case InternalTypes.CHAR => s"$arrayTerm.setNullChar($index)"
     case InternalTypes.SHORT => s"$arrayTerm.setNullShort($index)"
     case InternalTypes.INT => s"$arrayTerm.setNullInt($index)"
     case InternalTypes.LONG => s"$arrayTerm.setNullLong($index)"
@@ -576,7 +585,6 @@ object CodeGenUtils {
       case InternalTypes.STRING => s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
       case d: DecimalType =>
         s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${d.precision()})"
-      case InternalTypes.CHAR => s"$writerTerm.writeChar($indexTerm, $fieldValTerm)"
       case _: DateType => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
       case InternalTypes.TIME => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
       case _: TimestampType => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"

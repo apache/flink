@@ -60,8 +60,8 @@ public class PlannerConfigOptions {
 							"3. L and R shuffle by c1 and c2\n" +
 							"It can reduce some shuffle cost someTimes.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLE =
-			key("sql.optimizer.smj.remove-sort.enable")
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED =
+			key("sql.optimizer.smj.remove-sort.enabled")
 					.defaultValue(false)
 					.withDescription("When true, the optimizer will try to remove redundant sort for SortMergeJoin. " +
 							"However that will increase optimization time. Default value is false.");
@@ -72,5 +72,40 @@ public class PlannerConfigOptions {
 					.withDescription("Maximum size in bytes for data that could be broadcast to each parallel " +
 							"instance that holds a partition of all data when performing a hash join. " +
 							"Broadcast will be disabled if the value is -1.");
+
+	public static final ConfigOption<Double> SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO =
+			key("sql.optimizer.semi-anti-join.build-distinct.ndv-ratio")
+					.defaultValue(0.8)
+					.withDescription("When the semi-side of semi/anti join can distinct a lot of data in advance," +
+							" we will add distinct node before semi/anti join.");
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED =
+			key("sql.optimizer.data-skew.distinct-agg.enabled")
+					.defaultValue(false)
+					.withDescription("Tell the optimizer whether there exists data skew in distinct aggregation\n"
+							+ "so as to enable the aggregation split optimization.");
+
+	public static final ConfigOption<Integer> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET =
+			key("sql.optimizer.data-skew.distinct-agg.bucket")
+					.defaultValue(1024)
+					.withDescription("Configure the number of buckets when splitting distinct aggregation.");
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
+			key("sql.optimizer.incremental-agg.enabled")
+					.defaultValue(true)
+					.withDescription("Whether to enable incremental aggregate.");
+
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED =
+			key("sql.optimizer.reuse.sub-plan.enabled")
+					.defaultValue(true)
+					.withDescription("When true, the optimizer will try to find out duplicated " +
+							"sub-plan and reuse them.");
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED =
+			key("sql.optimizer.reuse.table-source.enabled")
+					.defaultValue(true)
+					.withDescription("When true, the optimizer will try to find out duplicated table-source and " +
+							"reuse them. This works only when " + SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED + " is true.");
 
 }

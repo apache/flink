@@ -74,10 +74,10 @@ import static org.junit.Assert.fail;
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestEnvironmentImpl.class);
+	private final List<KafkaServer> brokers = new ArrayList<>();
 	private File tmpZkDir;
 	private File tmpKafkaParent;
 	private List<File> tmpKafkaDirs;
-	private List<KafkaServer> brokers;
 	private TestingServer zookeeper;
 	private String zookeeperConnectionString;
 	private String brokerConnectionString = "";
@@ -93,7 +93,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public void prepare(Config config) {
+	public void prepare(Config config) throws Exception {
 		//increase the timeout since in Travis ZK connection takes long time for secure connection.
 		if (config.isSecureMode()) {
 			//run only one kafka server to avoid multiple ZK connections from many instances - Travis timeout
@@ -117,30 +117,23 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		zookeeper = null;
-		brokers = null;
+		brokers.clear();
 
-		try {
-			zookeeper = new TestingServer(-1, tmpZkDir);
-			zookeeperConnectionString = zookeeper.getConnectString();
-			LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
+		zookeeper = new TestingServer(-1, tmpZkDir);
+		zookeeperConnectionString = zookeeper.getConnectString();
+		LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
 
-			LOG.info("Starting KafkaServer");
-			brokers = new ArrayList<>(config.getKafkaServersNumber());
+		LOG.info("Starting KafkaServer");
 
-			ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
-			for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-				KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
-				brokers.add(kafkaServer);
-				brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
-				brokerConnectionString +=  ",";
-			}
-
-			LOG.info("ZK and KafkaServer started.");
+		ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
+		for (int i = 0; i < config.getKafkaServersNumber(); i++) {
+			KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
+			brokers.add(kafkaServer);
+			brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
+			brokerConnectionString +=  ",";
 		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("Test setup failed: " + t.getMessage());
-		}
+
+		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
 		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
@@ -359,6 +352,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 				// ignore
 			}
 		}
+		super.shutdown();
 	}
 
 	protected KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws Exception {

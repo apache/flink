@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
-
 # send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
 sudo: required
 dist: trusty
@@ -23,11 +21,12 @@ cache:
   # default timeout is too low
   timeout: 600
   directories:
-  - $HOME/.rvm/
   - $HOME/.m2
   - $HOME/flink_cache
   # keep in sync with tools/travis/setup_maven.sh
   - $HOME/maven_cache
+  # keep in sync with tools/travis/docs.sh
+  - $HOME/gem_cache
 
 # do not cache our own artifacts
 before_cache:
@@ -48,28 +47,13 @@ env:
     - CHANGE_MINIKUBE_NONE_USER=true
 
 before_script:
-   - "gem install --no-document --version 0.8.9 faraday "
    - "export -f travis_nanoseconds"
    - "export -f travis_time_start"
    - "export -f travis_time_finish"
-  # Download kubectl, which is a requirement for using minikube.
-   - curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-  # Download minikube.
-   - curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.25.2/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
-   - sudo minikube start --vm-driver=none --kubernetes-version=v1.9.0
-  # Fix the kubectl context, as it's often stale.
-   - minikube update-context
-  # Wait for Kubernetes to be up and ready.
-   - JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do sleep 1; done
 
 # Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
 before_install:
    - source ./tools/travis/setup_maven.sh
-# Installing the specified docker compose version
-   - sudo rm /usr/local/bin/docker-compose
-   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-   - chmod +x docker-compose
-   - sudo mv docker-compose /usr/local/bin
 
 notifications:
   slack:
@@ -156,72 +140,72 @@ jobs:
     - if: type = cron
       stage: compile
       script: ./tools/travis_controller.sh compile
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: compile - scala 2.12
     - if: type = cron
       stage: test
       script: ./tools/travis_controller.sh core
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: core - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh libraries
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: libraries - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh connectors
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: connectors - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh tests
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: tests - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: misc - scala 2.12
     - if: type = cron
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.112"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: cleanup - scala 2.12
     # JDK9 profile
     - if: type = cron
       jdk: "openjdk9"
       stage: compile
       script: ./tools/travis_controller.sh compile
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: compile - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       stage: test
       script: ./tools/travis_controller.sh core
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: core - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh libraries
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: libraries - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh connectors
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: connectors - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh tests
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: tests - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: misc
     - if: type = cron
       jdk: "openjdk9"
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9 -Djapicmp.skip=true"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
       name: cleanup - jdk 9
     # Documentation 404 check
     - if: type = cron

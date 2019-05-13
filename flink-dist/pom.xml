@@ -568,6 +568,12 @@ under the License.
 									<projectName>Apache Flink</projectName>
 								</transformer>
 							</transformers>
+							<relocations>
+								<relocation>
+									<pattern>py4j</pattern>
+									<shadedPattern>org.apache.flink.api.python.py4j</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 					<execution>

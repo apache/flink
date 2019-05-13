@@ -27,14 +27,17 @@ fi
 
 SCRIPT=$1
 
+source ${HERE}/setup_docker.sh
+source ${HERE}/setup_kubernetes.sh
+
 ARTIFACTS_DIR="${HERE}/artifacts"
 
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
-LOG4J_PROPERTIES=tools/log4j-travis.properties
+LOG4J_PROPERTIES=${HERE}/../log4j-travis.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast"
+MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build"
 MVN_COMPILE_OPTIONS="-T1C -DskipTests"
 
 cp tools/travis/splits/* flink-end-to-end-tests

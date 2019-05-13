@@ -72,7 +72,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
 					try {
-						SourceStreamTask.super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+						SourceStreamTask.super.triggerCheckpoint(checkpointMetaData, checkpointOptions, false);
 					}
 					catch (RuntimeException | FlinkException e) {
 						throw e;
@@ -85,6 +85,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 			((ExternallyInducedSource<?, ?>) source).setCheckpointTrigger(triggerHook);
 		}
+	}
+
+	@Override
+	protected void advanceToEndOfEventTime() throws Exception {
+		headOperator.advanceToEndOfEventTime();
 	}
 
 	@Override
@@ -104,14 +109,19 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		}
 	}
 
+	@Override
+	protected void finishTask() throws Exception {
+		cancelTask();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Checkpointing
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 		if (!externallyInducedCheckpoints) {
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 		else {
 			// we do not trigger checkpoints here, we simply state whether we can trigger them

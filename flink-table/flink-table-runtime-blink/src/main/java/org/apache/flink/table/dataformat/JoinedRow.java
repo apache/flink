@@ -127,15 +127,6 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public char getChar(int i) {
-		if (i < row1.getArity()) {
-			return row1.getChar(i);
-		} else {
-			return row2.getChar(i - row1.getArity());
-		}
-	}
-
-	@Override
 	public Decimal getDecimal(int i, int precision, int scale) {
 		if (i < row1.getArity()) {
 			return row1.getDecimal(i, precision, scale);
@@ -267,15 +258,6 @@ public final class JoinedRow implements BaseRow {
 			row1.setDouble(i, value);
 		} else {
 			row2.setDouble(i - row1.getArity(), value);
-		}
-	}
-
-	@Override
-	public void setChar(int i, char value) {
-		if (i < row1.getArity()) {
-			row1.setChar(i, value);
-		} else {
-			row2.setChar(i - row1.getArity(), value);
 		}
 	}
 

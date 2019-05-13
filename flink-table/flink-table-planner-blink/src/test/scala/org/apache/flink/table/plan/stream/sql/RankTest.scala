@@ -327,8 +327,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNAfterAgg(): Unit = {
     val subquery =
       """
@@ -350,8 +349,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after LAST_VALUE added
+  @Test
   def testTopNWithKeyChanged(): Unit = {
     val subquery =
       """
@@ -373,8 +371,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testUnarySortTopNOnString(): Unit = {
     util.addTableSource[(String, Int, String)]("T", 'category, 'shopId, 'price)
     val sql =
@@ -394,8 +391,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNOrderByCount(): Unit = {
     val subquery =
       """
@@ -422,8 +418,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql2)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNOrderBySumWithCond(): Unit = {
     val subquery =
       """
@@ -446,8 +441,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNOrderBySumWithCaseWhen(): Unit = {
     val subquery =
       """
@@ -469,8 +463,7 @@ class RankTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after IF added
+  @Test
   def testTopNOrderBySumWithIf(): Unit = {
     val subquery =
       """
@@ -492,8 +485,7 @@ class RankTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNOrderBySumWithFilterClause(): Unit = {
     val subquery =
       """
@@ -515,8 +507,7 @@ class RankTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNOrderBySumWithFilterClause2(): Unit = {
     val subquery =
       """
@@ -538,8 +529,7 @@ class RankTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNOrderByCountAndOtherField(): Unit = {
     val subquery =
       """
@@ -561,8 +551,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testTopNWithGroupByConstantKey(): Unit = {
     val subquery =
       """
@@ -587,8 +576,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after INCR_SUM added
+  @Test
   def testTopNOrderByIncrSum(): Unit = {
     val subquery =
       """
@@ -610,8 +598,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  // FIXME remove expected exception after agg rules added
+  @Test
   def testNestedTopN(): Unit = {
     val subquery =
       """
@@ -672,8 +659,7 @@ class RankTest extends TableTestBase {
     util.verifyPlanWithTrait(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // FIXME remove expected exception after INCR_SUM added
+  @Test
   def testTopNWithoutRowNumber2(): Unit = {
     util.addTableSource[(String, String, String, String, Long, String, Long, String)](
       "stream_source",

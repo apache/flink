@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.stats
 
+import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
+
 import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialConstraint}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.util.ImmutableBitSet
@@ -32,7 +34,8 @@ import scala.collection.JavaConversions._
   */
 class FlinkStatistic(
     tableStats: TableStats,
-    uniqueKeys: util.Set[_ <: util.Set[String]] = null)
+    uniqueKeys: util.Set[_ <: util.Set[String]] = null,
+    monotonicity: RelModifiedMonotonicity = null)
   extends Statistic {
 
   require(uniqueKeys == null || !uniqueKeys.exists(keys => keys == null || keys.isEmpty),
@@ -64,6 +67,11 @@ class FlinkStatistic(
     * @return
     */
   def getUniqueKeys: util.Set[_ <: util.Set[String]] = uniqueKeys
+
+  /**
+    * Returns the modified monotonicity of the table
+    */
+  def getRelModifiedMonotonicity: RelModifiedMonotonicity = monotonicity
 
   /**
     * Returns the number of rows of the table.

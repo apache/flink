@@ -20,8 +20,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<meta http-equiv="refresh" content="1; url={{ site.baseurl }}{{ page.redirect }}" />
+{% if page.language == "en" %}
 
-<h1>Page '{{ page.title }}' Has Moved</h1>
+    <meta http-equiv="refresh" content="1; url={{ site.baseurl }}{{ page.redirect }}" />
 
-The <strong>{{ page.title }}</strong> has been moved. Redirecting to <a href="{{ site.baseurl }}/{{ page.redirect }}">{{ site.baseurl }}{{ page.redirect }}</a> in 1 second.
+    <h1>Page '{{ page.title }}' Has Moved</h1>
+
+    The <strong>{{ page.title }}</strong> has been moved. Redirecting to <a href="{{ site.baseurl }}/{{ page.redirect }}">{{ site.baseurl }}{{ page.redirect }}</a> in 1 second.
+
+{% else if page.language == "zh" %}
+
+    <meta http-equiv="refresh" content="1; url={{ site.baseurl }}/zh{{ page.redirect }}" />
+
+    <h1>'{{ page.title }}' 页面已被移动</h1>
+
+    <strong>{{ page.title }}</strong> 页面已经被移动了。将在 1 秒后重定向到 <a href="{{ site.baseurl }}/zh{{ page.redirect }}">{{ site.baseurl }}/zh{{ page.redirect }}</a> 。
+
+{% endif %}

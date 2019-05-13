@@ -26,7 +26,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -141,18 +140,26 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	@VisibleForTesting
 	ExecutionJobVertex(
-		ExecutionGraph graph,
-		JobVertex jobVertex,
-		int defaultParallelism,
-		Time timeout) throws JobException {
+			ExecutionGraph graph,
+			JobVertex jobVertex,
+			int defaultParallelism,
+			Time timeout) throws JobException {
 
-		this(graph, jobVertex, defaultParallelism, timeout, 1L, System.currentTimeMillis());
+		this(
+			graph,
+			jobVertex,
+			defaultParallelism,
+			JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue(),
+			timeout,
+			1L,
+			System.currentTimeMillis());
 	}
 
 	public ExecutionJobVertex(
 			ExecutionGraph graph,
 			JobVertex jobVertex,
 			int defaultParallelism,
+			int maxPriorAttemptsHistoryLength,
 			Time timeout,
 			long initialGlobalModVersion,
 			long createTimestamp) throws JobException {
@@ -213,11 +220,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					numTaskVertices,
 					result.getResultType());
 		}
-
-		Configuration jobConfiguration = graph.getJobConfiguration();
-		int maxPriorAttemptsHistoryLength = jobConfiguration != null ?
-				jobConfiguration.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE) :
-				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue();
 
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
@@ -599,11 +601,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			}
 			catch (Throwable t) {
 				throw new RuntimeException("Re-creating the input split assigner failed: " + t.getMessage(), t);
-			}
-
-			// Reset intermediate results
-			for (IntermediateResult result : producedDataSets) {
-				result.resetForNewExecution();
 			}
 		}
 	}

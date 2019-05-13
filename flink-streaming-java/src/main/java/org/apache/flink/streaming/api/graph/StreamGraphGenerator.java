@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -480,13 +480,13 @@ public class StreamGraphGenerator {
 		streamGraph.addSource(source.getId(),
 				slotSharingGroup,
 				source.getCoLocationGroupKey(),
-				source.getOperator(),
+				source.getOperatorFactory(),
 				null,
 				source.getOutputType(),
 				"Source: " + source.getName());
-		if (source.getOperator().getUserFunction() instanceof InputFormatSourceFunction) {
-			InputFormatSourceFunction<T> fs = (InputFormatSourceFunction<T>) source.getOperator().getUserFunction();
-			streamGraph.setInputFormat(source.getId(), fs.getFormat());
+		if (source.getOperatorFactory() instanceof InputFormatOperatorFactory) {
+			streamGraph.setInputFormat(source.getId(),
+					((InputFormatOperatorFactory<T>) source.getOperatorFactory()).getInputFormat());
 		}
 		streamGraph.setParallelism(source.getId(), source.getParallelism());
 		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
@@ -505,7 +505,7 @@ public class StreamGraphGenerator {
 		streamGraph.addSink(sink.getId(),
 				slotSharingGroup,
 				sink.getCoLocationGroupKey(),
-				sink.getOperator(),
+				sink.getOperatorFactory(),
 				sink.getInput().getOutputType(),
 				null,
 				"Sink: " + sink.getName());
@@ -548,7 +548,7 @@ public class StreamGraphGenerator {
 		streamGraph.addOperator(transform.getId(),
 				slotSharingGroup,
 				transform.getCoLocationGroupKey(),
-				transform.getOperator(),
+				transform.getOperatorFactory(),
 				transform.getInputType(),
 				transform.getOutputType(),
 				transform.getName());
@@ -594,7 +594,7 @@ public class StreamGraphGenerator {
 				transform.getId(),
 				slotSharingGroup,
 				transform.getCoLocationGroupKey(),
-				transform.getOperator(),
+				transform.getOperatorFactory(),
 				transform.getInputType1(),
 				transform.getInputType2(),
 				transform.getOutputType(),

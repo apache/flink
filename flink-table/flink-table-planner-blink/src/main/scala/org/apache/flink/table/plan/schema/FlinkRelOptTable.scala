@@ -22,7 +22,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
-import com.google.common.collect.ImmutableList
+import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.adapter.enumerable.EnumerableTableScan
 import org.apache.calcite.linq4j.tree.Expression
 import org.apache.calcite.plan.RelOptTable.ToRelContext
@@ -39,7 +39,7 @@ import org.apache.calcite.sql.validate.{SqlModality, SqlMonotonicity}
 import org.apache.calcite.sql2rel.InitializerContext
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
-import java.util.{List => JList}
+import java.util.{List => JList, Set => JSet}
 
 import scala.collection.JavaConversions._
 
@@ -62,6 +62,32 @@ class FlinkRelOptTable protected(
   // Default value of rowCount if there is no available stats.
   // Sets a bigger default value to avoid broadcast join.
   val DEFAULT_ROWCOUNT: Double = 1E8
+
+  // unique keySets of current table.
+  lazy val uniqueKeysSet: Option[JSet[ImmutableBitSet]] = {
+    table.getStatistic match {
+      case statistic: FlinkStatistic =>
+        val uniqueKeys = statistic.getUniqueKeys
+        if (uniqueKeys == null) {
+          None
+        } else if (uniqueKeys.isEmpty) {
+          Option(ImmutableSet.of())
+        } else {
+          val uniqueKeysSetBuilder = ImmutableSet.builder[ImmutableBitSet]()
+          for (keys <- uniqueKeys) {
+            // some columns in original uniqueKeys may not exist in RowType after project push down.
+            val allUniqueKeysExists = keys.forall(rowType.getField(_, false, false) != null)
+            // if not all columns in original uniqueKey, skip this uniqueKey
+            if (allUniqueKeysExists) {
+              val keysPosition = keys.map(rowType.getField(_, false, false).getIndex).toArray
+              uniqueKeysSetBuilder.add(ImmutableBitSet.of(keysPosition: _*))
+            }
+          }
+          Option(uniqueKeysSetBuilder.build())
+        }
+      case _ => None
+    }
+  }
 
   def copy(newTable: FlinkTable, newRowType: RelDataType): FlinkRelOptTable =
     new FlinkRelOptTable(schema, newRowType, names, newTable)
@@ -285,6 +311,10 @@ class FlinkRelOptTable protected(
   override def extend(extendedTable: Table) =
     throw new RuntimeException("Extending column not supported")
 
+  /**
+    * We recognize all tables in FLink are temporal as they are changeable.
+    */
+  override def isTemporal: Boolean = true
 }
 
 object FlinkRelOptTable {

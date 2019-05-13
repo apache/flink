@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSortMergeJoin
-import org.apache.flink.table.plan.util.RelFieldCollationUtil
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -38,11 +38,11 @@ import scala.collection.JavaConversions._
   * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecSortMergeJoin]]
   * if there exists at least one equal-join condition and SortMergeJoin is enabled.
   */
-class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
+class BatchExecSortMergeJoinRule
   extends RelOptRule(
-    operand(joinClass,
+    operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    s"BatchExecSortMergeJoinRule_${joinClass.getSimpleName}")
+    "BatchExecSortMergeJoinRule")
   with BatchExecJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -67,7 +67,7 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
         .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(FlinkRelDistribution.hash(shuffleKeys, requireStrict))
       if (requireCollation) {
-        val fieldCollations = shuffleKeys.map(RelFieldCollationUtil.of(_))
+        val fieldCollations = shuffleKeys.map(FlinkRelOptUtil.ofRelFieldCollation(_))
         val relCollation = RelCollations.of(fieldCollations)
         traitSet = traitSet.replace(relCollation)
       }
@@ -91,7 +91,7 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
       val providedTraitSet = call.getPlanner
         .emptyTraitSet()
         .replace(FlinkConventions.BATCH_PHYSICAL)
-      val newJoin =  new BatchExecSortMergeJoin(
+      val newJoin = new BatchExecSortMergeJoin(
         join.getCluster,
         providedTraitSet,
         newLeft,
@@ -105,7 +105,7 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
 
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val candidates = if (tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLE)) {
+      PlannerConfigOptions.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
     } else {
@@ -139,5 +139,5 @@ class BatchExecSortMergeJoinRule(joinClass: Class[_ <: Join])
 }
 
 object BatchExecSortMergeJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule(classOf[FlinkLogicalJoin])
+  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule
 }

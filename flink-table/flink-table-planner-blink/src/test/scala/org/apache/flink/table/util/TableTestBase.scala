@@ -31,15 +31,16 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
 
@@ -162,25 +163,24 @@ abstract class TableTestUtil(test: TableTestBase) {
 
   /**
     * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
-    * TODO implements this method after `registerFunction` added
     */
   def addFunction[T: TypeInformation](
       name: String,
-      function: TableFunction[T]): TableFunction[T] = ???
+      function: TableFunction[T]): Unit = getTableEnv.registerFunction(name, function)
 
   /**
     * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
-    * TODO implements this method after `registerFunction` added
     */
-  def addFunction(name: String, function: ScalarFunction): Unit = ???
+  def addFunction(name: String, function: ScalarFunction): Unit = {
+    getTableEnv.registerFunction(name, function)
+  }
 
   /**
     * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
-    * TODO implements this method after `registerFunction` added
     */
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: AggregateFunction[T, ACC]): Unit = ???
+      function: AggregateFunction[T, ACC]): Unit = getTableEnv.registerFunction(name, function)
 
   def verifyPlan(): Unit = {
     // TODO implements this method when supporting multi-sinks
@@ -208,6 +208,31 @@ abstract class TableTestUtil(test: TableTestBase) {
       explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
+  }
+
+  def verifyPlanWithType(table: Table): Unit = {
+    doVerifyPlan(
+      table,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRowType = true,
+      printPlanBefore = true)
+  }
+
+  def verifyPlanNotExpected(sql: String, notExpected: String*): Unit = {
+    verifyPlanNotExpected(getTableEnv.sqlQuery(sql), notExpected: _*)
+  }
+
+  def verifyPlanNotExpected(table: Table, notExpected: String*): Unit = {
+    require(notExpected.nonEmpty)
+    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val optimizedPlan = getOptimizedPlan(
+      relNode,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRetractTraits = false,
+      withRowType = false)
+    val result = notExpected.forall(!optimizedPlan.contains(_))
+    val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
+    assertTrue(message, result)
   }
 
   def verifyExplain(): Unit = doVerifyExplain()
@@ -315,12 +340,24 @@ abstract class TableTestUtil(test: TableTestBase) {
       explainLevel: SqlExplainLevel,
       withRetractTraits: Boolean,
       withRowType: Boolean): String = {
-    val optimized = getTableEnv.optimize(relNode)
-    FlinkRelOptUtil.toString(
-      optimized,
-      detailLevel = explainLevel,
-      withRetractTraits = withRetractTraits,
-      withRowType = withRowType)
+    val tEnv = getTableEnv
+    val optimized = tEnv.optimize(relNode)
+    optimized match {
+      case execNode: ExecNode[_, _] =>
+        val optimizedNodes = tEnv.translateNodeDag(Seq(execNode))
+        require(optimizedNodes.length == 1)
+        ExecNodePlanDumper.treeToString(
+          optimizedNodes.head,
+          detailLevel = explainLevel,
+          withRetractTraits = withRetractTraits,
+          withOutputType = withRowType)
+      case _ =>
+        FlinkRelOptUtil.toString(
+          optimized,
+          detailLevel = explainLevel,
+          withRetractTraits = withRetractTraits,
+          withRowType = withRowType)
+    }
   }
 
   /* Stage {id} is ignored, because id keeps incrementing in test class
@@ -401,6 +438,12 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
       .replaceStreamProgram(program).build()
     tableEnv.getConfig.setCalciteConfig(calciteConfig)
   }
+
+  def enableMiniBatch(): Unit = {
+    tableEnv.getConfig.getConf.setLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
+    tableEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
+  }
 }
 
 /**
@@ -416,7 +459,9 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
 
   // TODO implements this method when a DataStream could be converted into a Table
   override def addDataStream[T: TypeInformation](
-      name: String, fields: Symbol*): Table = ???
+      name: String, fields: Symbol*): Table = {
+    throw new TableException("Implements this")
+  }
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConf)

@@ -319,19 +319,31 @@ public final class BuiltInFunctionDefinitions {
 	public static final FunctionDefinition CURRENT_ROW =
 		new FunctionDefinition("currentRow", OTHER_FUNCTION);
 
+	// columns
+	public static final FunctionDefinition WITH_COLUMNS =
+		new FunctionDefinition("withColumns", OTHER_FUNCTION);
+	public static final FunctionDefinition WITHOUT_COLUMNS =
+		new FunctionDefinition("withoutColumns", OTHER_FUNCTION);
+
 	// etc
 	public static final FunctionDefinition IN =
 		new FunctionDefinition("in", SCALAR_FUNCTION);
 	public static final FunctionDefinition CAST =
 		new FunctionDefinition("cast", SCALAR_FUNCTION);
+	public static final FunctionDefinition REINTERPRET_CAST =
+			new FunctionDefinition("reinterpretCast", SCALAR_FUNCTION);
 	public static final FunctionDefinition AS =
 		new FunctionDefinition("as", OTHER_FUNCTION);
 	public static final FunctionDefinition STREAM_RECORD_TIMESTAMP =
 		new FunctionDefinition("streamRecordTimestamp", OTHER_FUNCTION);
+	public static final FunctionDefinition RANGE_TO =
+		new FunctionDefinition("rangeTo", OTHER_FUNCTION);
 
 	public static final Set<FunctionDefinition> WINDOW_PROPERTIES = new HashSet<>(Arrays.asList(
 		WINDOW_START, WINDOW_END, PROCTIME, ROWTIME
 	));
+
+	public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
 
 	public static List<FunctionDefinition> getDefinitions() {
 		final Field[] fields = BuiltInFunctionDefinitions.class.getFields();

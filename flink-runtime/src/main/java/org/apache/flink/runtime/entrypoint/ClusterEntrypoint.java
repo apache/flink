@@ -30,6 +30,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -75,6 +77,7 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -153,6 +156,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
+
 			configureFileSystems(configuration);
 
 			SecurityContext securityContext = installSecurityContext(configuration);
@@ -181,15 +185,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		}
 	}
 
-	private void configureFileSystems(Configuration configuration) throws Exception {
+	private void configureFileSystems(Configuration configuration) {
 		LOG.info("Install default filesystem.");
-
-		try {
-			FileSystem.initialize(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
+		//TODO provide plugin path
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 	}
 
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
@@ -303,7 +302,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	}
 
 	protected MetricRegistryImpl createMetricRegistry(Configuration configuration) {
-		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+		return new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration),
+			ReporterSetup.fromConfiguration(configuration));
 	}
 
 	@Override

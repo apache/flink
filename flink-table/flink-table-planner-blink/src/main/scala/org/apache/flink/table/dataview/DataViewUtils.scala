@@ -19,11 +19,11 @@ package org.apache.flink.table.dataview
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo}
-import org.apache.flink.table.`type`.{RowType, TypeConverters}
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
+import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.typeutils._
 
@@ -80,11 +80,10 @@ object DataViewUtils {
         val pojoTypeInfo = new PojoTypeInfo(externalAccType.getTypeClass, newPojoFields)
         (pojoTypeInfo, accumulatorSpecs.toArray)
 
-      // RowType's ExternalTypeInfo is RowTypeInfo
       // so we add another check => acc.isInstanceOf[GenericRow]
-      case r: RowTypeInfo if acc.isInstanceOf[GenericRow] =>
+      case t: BaseRowTypeInfo if acc.isInstanceOf[GenericRow] =>
         val accInstance = acc.asInstanceOf[GenericRow]
-        val (arity, fieldNames, fieldTypes) = (r.getArity, r.getFieldNames, r.getFieldTypes)
+        val (arity, fieldNames, fieldTypes) = (t.getArity, t.getFieldNames, t.getFieldTypes)
         val newFieldTypes = for (i <- 0 until arity) yield {
           val fieldName = fieldNames(i)
           val fieldInstance = accInstance.getField(i)
@@ -102,8 +101,9 @@ object DataViewUtils {
           TypeConverters.createInternalTypeFromTypeInfo(newTypeInfo)
         }
 
-        val newType = new RowType(newFieldTypes.toArray, fieldNames)
-        (TypeConverters.createExternalTypeInfoFromInternalType(newType), accumulatorSpecs.toArray)
+        val newType = new BaseRowTypeInfo(newFieldTypes.toArray, fieldNames)
+        (newType, accumulatorSpecs.toArray)
+
       case ct: CompositeType[_] if includesDataView(ct) =>
         throw new TableException(
           "MapView, SortedMapView and ListView only supported in accumulators of POJO type.")
@@ -139,7 +139,64 @@ object DataViewUtils {
         throw new TableException(
           "MapView, SortedMapView and ListView only supported at first level of " +
             "accumulators of Pojo type.")
-      // TODO supports MapViewTypeInfo, SortedMapViewTypeInfo, ListViewTypeInfo
+      case map: MapViewTypeInfo[_, _] =>
+        val mapView = instance match {
+          case b: BinaryGeneric[_] =>
+            b.getJavaObject.asInstanceOf[MapView[_, _]]
+          case _ =>
+            instance.asInstanceOf[MapView[_, _]]
+        }
+
+        val newTypeInfo =
+          if (mapView != null && mapView.keyType != null && mapView.valueType != null) {
+            // use explicit key value type if user has defined
+            new MapViewTypeInfo(mapView.keyType, mapView.valueType)
+          } else {
+            map
+          }
+
+        if (!isStateBackedDataViews) {
+          // add data view field if it is not backed by a state backend.
+          // data view fields which are backed by state backend are not serialized.
+          newTypeInfo.setNullSerializer(false)
+        } else {
+          newTypeInfo.setNullSerializer(true)
+
+          // create map view specs with unique id (used as state name)
+          spec = Some(MapViewSpec(
+            "agg" + aggIndex + "$" + fieldName,
+            fieldIndex, // dataview field index in pojo
+            newTypeInfo))
+        }
+        newTypeInfo
+
+      case list: ListViewTypeInfo[_] =>
+        val listView = instance match {
+          case b: BinaryGeneric[_] =>
+            b.getJavaObject.asInstanceOf[ListView[_]]
+          case _ =>
+            instance.asInstanceOf[ListView[_]]
+        }
+        val newTypeInfo = if (listView != null && listView.elementType != null) {
+          // use explicit element type if user has defined
+          new ListViewTypeInfo(listView.elementType)
+        } else {
+          list
+        }
+        if (!isStateBackedDataViews) {
+          // add data view field if it is not backed by a state backend.
+          // data view fields which are backed by state backend are not serialized.
+          newTypeInfo.setNullSerializer(false)
+        } else {
+          newTypeInfo.setNullSerializer(true)
+
+          // create list view specs with unique is (used as state name)
+          spec = Some(ListViewSpec(
+            "agg" + aggIndex + "$" + fieldName,
+            fieldIndex, // dataview field index in pojo
+            newTypeInfo))
+        }
+        newTypeInfo
 
       case t: TypeInformation[_] => t
     }

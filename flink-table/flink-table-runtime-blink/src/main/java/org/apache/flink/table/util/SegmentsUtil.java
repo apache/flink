@@ -947,32 +947,6 @@ public class SegmentsUtil {
 		}
 	}
 
-	/**
-	 * get char from segments.
-	 *
-	 * @param segments target segments.
-	 * @param offset value offset.
-	 */
-	public static char getChar(MemorySegment[] segments, int offset) {
-		if (inFirstSegment(segments, offset, 2)) {
-			return segments[0].getChar(offset);
-		} else {
-			return getCharMultiSegments(segments, offset);
-		}
-	}
-
-	private static char getCharMultiSegments(MemorySegment[] segments, int offset) {
-		int segSize = segments[0].size();
-		int segIndex = offset / segSize;
-		int segOffset = offset - segIndex * segSize; // equal to %
-
-		if (segOffset < segSize - 1) {
-			return segments[segIndex].getChar(segOffset);
-		} else {
-			return (char) getTwoByteSlowly(segments, segSize, segIndex, segOffset);
-		}
-	}
-
 	private static int getTwoByteSlowly(
 			MemorySegment[] segments, int segSize, int segNum, int segOffset) {
 		MemorySegment segment = segments[segNum];
@@ -991,32 +965,6 @@ public class SegmentsUtil {
 			segOffset++;
 		}
 		return ret;
-	}
-
-	/**
-	 * set char from segments.
-	 *
-	 * @param segments target segments.
-	 * @param offset value offset.
-	 */
-	public static void setChar(MemorySegment[] segments, int offset, char value) {
-		if (inFirstSegment(segments, offset, 2)) {
-			segments[0].putChar(offset, value);
-		} else {
-			setCharMultiSegments(segments, offset, value);
-		}
-	}
-
-	private static void setCharMultiSegments(MemorySegment[] segments, int offset, char value) {
-		int segSize = segments[0].size();
-		int segIndex = offset / segSize;
-		int segOffset = offset - segIndex * segSize; // equal to %
-
-		if (segOffset < segSize - 3) {
-			segments[segIndex].putChar(segOffset, value);
-		} else {
-			setTwoByteSlowly(segments, segSize, segIndex, segOffset, value, value >> 8);
-		}
 	}
 
 	private static void setTwoByteSlowly(

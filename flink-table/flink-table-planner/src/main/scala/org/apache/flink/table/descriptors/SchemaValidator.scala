@@ -24,8 +24,8 @@ import java.util.Optional
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
-import org.apache.flink.table.descriptors.RowtimeValidator._
-import org.apache.flink.table.descriptors.SchemaValidator._
+import org.apache.flink.table.descriptors.Rowtime._
+import org.apache.flink.table.descriptors.Schema._
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor
 import org.apache.flink.table.util.JavaScalaConversionUtil.{toJava, toScala}
 
@@ -92,16 +92,6 @@ class SchemaValidator(
 }
 
 object SchemaValidator {
-
-  /**
-    * Prefix for schema-related properties.
-    */
-  val SCHEMA = "schema"
-
-  val SCHEMA_NAME = "name"
-  val SCHEMA_TYPE = "type"
-  val SCHEMA_PROCTIME = "proctime"
-  val SCHEMA_FROM = "from"
 
   /**
     * Returns keys for a

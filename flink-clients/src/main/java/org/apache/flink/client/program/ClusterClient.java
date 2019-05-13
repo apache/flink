@@ -356,13 +356,15 @@ public abstract class ClusterClient<T> {
 	 * a while after sending the stop command, because after sources stopped to emit data all operators
 	 * need to finish processing.
 	 *
-	 * @param jobId
-	 *            the job ID of the streaming program to stop
+	 * @param jobId the job ID of the streaming program to stop
+	 * @param advanceToEndOfEventTime flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return a {@link CompletableFuture} containing the path where the savepoint is located
 	 * @throws Exception
 	 *             If the job ID is invalid (ie, is unknown or refers to a batch job) or if sending the stop signal
 	 *             failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
 	 */
-	public abstract void stop(final JobID jobId) throws Exception;
+	public abstract String stopWithSavepoint(final JobID jobId, final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory) throws Exception;
 
 	/**
 	 * Triggers a savepoint for the job identified by the job id. The savepoint will be written to the given savepoint
@@ -496,17 +498,6 @@ public abstract class ClusterClient<T> {
 	 */
 	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 		throws ProgramInvocationException;
-
-	/**
-	 * Rescales the specified job such that it will have the new parallelism.
-	 *
-	 * @param jobId specifying the job to modify
-	 * @param newParallelism specifying the new parallelism of the rescaled job
-	 * @return Future which is completed once the rescaling has been completed
-	 */
-	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
-		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support rescaling.");
-	}
 
 	public void shutDownCluster() {
 		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");

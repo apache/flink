@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Cast, PlannerExpression, ResolvedFieldReference}
+import org.apache.flink.table.expressions.{Cast, PlannerExpression, PlannerResolvedFieldReference, ResolvedFieldReference}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
@@ -374,12 +374,13 @@ object TableSourceUtil {
         // push an empty values node with the physical schema on the relbuilder
         relBuilder.push(createSchemaRelNode(resolvedFields))
         // get extraction expression
-        resolvedFields.map(f => ResolvedFieldReference(f._1, f._3))
+        resolvedFields.map(f => PlannerResolvedFieldReference(f._1, f._3))
       } else {
-        new Array[ResolvedFieldReference](0)
+        new Array[PlannerResolvedFieldReference](0)
       }
 
-      val expression = tsExtractor.getExpression(fieldAccesses)
+      val expression = tsExtractor
+        .getExpression(fieldAccesses.map(_.asInstanceOf[ResolvedFieldReference]))
       // add cast to requested type and convert expression to RexNode
       // TODO we cast to planner expressions as a temporary solution to keep the old interfaces
       val rexExpression = Cast(expression.asInstanceOf[PlannerExpression], resultType)

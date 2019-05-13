@@ -41,6 +41,13 @@ class TimeIndicatorTypeInfo(val isEventTime: Boolean)
   override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[Timestamp] =
     LongSerializer.INSTANCE.asInstanceOf[TypeSerializer[Timestamp]]
 
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case t: TimeIndicatorTypeInfo => t.isEventTime == isEventTime
+      case _ => false
+    }
+  }
+
   override def toString: String =
     s"TimeIndicatorTypeInfo(${if (isEventTime) "rowtime" else "proctime" })"
 }

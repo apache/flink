@@ -18,42 +18,52 @@
 
 package org.apache.flink.table.utils
 
-import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.catalog.ExternalCatalog
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
-class MockTableEnvironment extends TableEnvironment(new TableConfig) {
+class MockTableEnvironment extends TableEnvironment {
 
-  override private[flink] def writeToSink[T](
-      table: Table,
-      sink: TableSink[T],
-      queryConfig: QueryConfig): Unit = ???
+  override def fromTableSource(source: TableSource[_]): Table = ???
 
-  override protected def checkValidTableName(name: String): Unit = ???
+  override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = ???
 
-  override def sqlQuery(query: String): Table = ???
+  override def getRegisteredExternalCatalog(name: String): ExternalCatalog = ???
 
-  override protected def getBuiltInNormRuleSet: RuleSet = ???
+  override def registerFunction(name: String, function: ScalarFunction): Unit = ???
 
-  override protected def getBuiltInPhysicalOptRuleSet: RuleSet = ???
+  override def registerTable(name: String, table: Table): Unit = ???
+
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
 
   override def registerTableSink(
-      name: String,
-      fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit = ???
+    name: String,
+    fieldNames: Array[String],
+    fieldTypes: Array[TypeInformation[_]], tableSink: TableSink[_]): Unit = ???
 
-  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = ???
+  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = ???
 
-  override protected def createUniqueTableName(): String = ???
+  override def scan(tablePath: String*): Table = ???
 
-  override protected def registerTableSourceInternal(name: String, tableSource: TableSource[_])
-    : Unit = ???
+  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+
+  override def listTables(): Array[String] = ???
+
+  override def listUserDefinedFunctions(): Array[String] = ???
 
   override def explain(table: Table): String = ???
 
-  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+  override def getCompletionHints(statement: String, position: Int): Array[String] = ???
+
+  override def sqlQuery(query: String): Table = ???
+
+  override def sqlUpdate(stmt: String): Unit = ???
+
+  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
+
+  override def getConfig: TableConfig = ???
 }
