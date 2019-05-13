@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
@@ -76,23 +75,22 @@ public class HiveCatalog extends HiveCatalogBase {
 	// ------ databases ------
 
 	@Override
-	public CatalogDatabase getDatabase(String databaseName)
-			throws DatabaseNotExistException, CatalogException {
-		Database hiveDb = getHiveDatabase(databaseName);
-
+	protected CatalogDatabase createCatalogDatabase(Database hiveDatabase) {
 		return new HiveCatalogDatabase(
-			hiveDb.getParameters(), hiveDb.getLocationUri(), hiveDb.getDescription());
+			hiveDatabase.getParameters(),
+			hiveDatabase.getLocationUri(),
+			hiveDatabase.getDescription());
 	}
 
 	@Override
-	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
-			throws DatabaseAlreadyExistException, CatalogException {
-		createHiveDatabase(HiveCatalogUtil.createHiveDatabase(name, database), ignoreIfExists);
-	}
+	protected Database createHiveDatabase(String databaseName, CatalogDatabase catalogDatabase) {
+		HiveCatalogDatabase hiveCatalogDatabase = (HiveCatalogDatabase) catalogDatabase;
 
-	@Override
-	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists) throws DatabaseNotExistException, CatalogException {
-		alterHiveDatabase(name, HiveCatalogUtil.createHiveDatabase(name, newDatabase), ignoreIfNotExists);
+		return new Database(
+			databaseName,
+			catalogDatabase.getComment(),
+			hiveCatalogDatabase.getLocation(),
+			hiveCatalogDatabase.getProperties());
 	}
 
 	// ------ tables and views------
