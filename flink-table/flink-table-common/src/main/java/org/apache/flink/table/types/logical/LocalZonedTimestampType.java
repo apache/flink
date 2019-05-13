@@ -131,6 +131,14 @@ public final class LocalZonedTimestampType extends LogicalType {
 	}
 
 	@Override
+	public String asSummaryString() {
+		if (kind != TimestampKind.REGULAR) {
+			return String.format("%s *%s*", asSerializableString(), kind);
+		}
+		return asSerializableString();
+	}
+
+	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
 		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
 	}

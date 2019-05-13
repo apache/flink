@@ -122,6 +122,14 @@ public final class ZonedTimestampType extends LogicalType {
 	}
 
 	@Override
+	public String asSummaryString() {
+		if (kind != TimestampKind.REGULAR) {
+			return String.format("%s *%s*", asSerializableString(), kind);
+		}
+		return asSerializableString();
+	}
+
+	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
 		return INPUT_CONVERSION.contains(clazz.getName());
 	}
