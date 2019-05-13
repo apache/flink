@@ -39,7 +39,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[AND(=(age, 10), >(CAST(name), 1000))], select=[a, b, c, proctime, rowtime, id, name])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[AND(=(age, 10), >(CAST(name), 1000))], select=[a, b, c, proctime, rowtime, id, name, age])
    +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -155,7 +155,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[=(age, 10)], select=[a, b, c, proctime, rowtime, id, name])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[=(age, 10)], select=[a, b, c, proctime, rowtime, id, name, age])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -184,7 +184,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(65536) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(65536) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(65536) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -259,7 +259,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[], select=[a, b, c, proctime, rowtime, id])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], select=[a, b, c, proctime, rowtime, id, name, age])
    +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

@@ -132,7 +132,7 @@ abstract class CommonLookupJoin(
 
     super.explainTerms(pw)
       .item("table", tableSource.explainSource())
-      .item("joinType", JoinTypeUtil.toFlinkJoinType(joinType))
+      .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("async", lookupConfig.isAsyncEnabled)
       .item("on", joinOnToString(inputFieldNames, rightFieldNames, joinInfo))
       .itemIf("where", whereString, calcOnTemporalTable.isDefined)

@@ -32,6 +32,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
  * This rules is copied from Calcite's {@link org.apache.calcite.rel.rules.JoinPushExpressionsRule}.
  * Modification:
  * - Supports SEMI/ANTI join using {@link org.apache.flink.table.plan.util.FlinkRelOptUtil#pushDownJoinConditions}
+ * - Only push down calls on non-time-indicator field.
  */
 
 /**
