@@ -116,6 +116,8 @@ public abstract class DataType implements Serializable {
 	 */
 	public abstract DataType bridgedTo(Class<?> newConversionClass);
 
+	public abstract <R> R accept(DataTypeVisitor<R> visitor);
+
 	@Override
 	public String toString() {
 		return logicalType.toString();

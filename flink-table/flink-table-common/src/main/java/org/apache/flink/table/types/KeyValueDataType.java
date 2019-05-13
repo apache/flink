@@ -92,6 +92,11 @@ public final class KeyValueDataType extends DataType {
 	}
 
 	@Override
+	public <R> R accept(DataTypeVisitor<R> visitor) {
+		return visitor.visit(this);
+	}
+
+	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
 			return true;
