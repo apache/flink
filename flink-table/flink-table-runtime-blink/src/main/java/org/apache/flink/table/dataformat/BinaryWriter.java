@@ -60,8 +60,6 @@ public interface BinaryWriter {
 
 	void writeDouble(int pos, double value);
 
-	void writeChar(int pos, char value);
-
 	void writeString(int pos, BinaryString value);
 
 	void writeBinary(int pos, byte[] bytes);
@@ -98,8 +96,6 @@ public interface BinaryWriter {
 			writer.writeDouble(pos, (double) o);
 		} else if (type.equals(InternalTypes.STRING)) {
 			writer.writeString(pos, (BinaryString) o);
-		} else if (type.equals(InternalTypes.CHAR)) {
-			writer.writeChar(pos, (char) o);
 		} else if (type instanceof DateType) {
 			writer.writeInt(pos, (int) o);
 		} else if (type.equals(InternalTypes.TIME)) {

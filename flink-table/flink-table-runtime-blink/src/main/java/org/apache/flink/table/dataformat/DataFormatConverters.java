@@ -84,7 +84,6 @@ public class DataFormatConverters {
 		t2C.put(BasicTypeInfo.DOUBLE_TYPE_INFO, DoubleConverter.INSTANCE);
 		t2C.put(BasicTypeInfo.SHORT_TYPE_INFO, ShortConverter.INSTANCE);
 		t2C.put(BasicTypeInfo.BYTE_TYPE_INFO, ByteConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.CHAR_TYPE_INFO, CharConverter.INSTANCE);
 		t2C.put(BasicTypeInfo.BIG_DEC_TYPE_INFO, new BigDecimalConverter(
 				DecimalType.SYSTEM_DEFAULT.precision(),
 				DecimalType.SYSTEM_DEFAULT.scale()));
@@ -96,7 +95,6 @@ public class DataFormatConverters {
 		t2C.put(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveDoubleArrayConverter.INSTANCE);
 		t2C.put(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveShortArrayConverter.INSTANCE);
 		t2C.put(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveByteArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveCharArrayConverter.INSTANCE);
 
 		t2C.put(SqlTimeTypeInfo.DATE, DateConverter.INSTANCE);
 		t2C.put(SqlTimeTypeInfo.TIME, TimeConverter.INSTANCE);
@@ -344,23 +342,6 @@ public class DataFormatConverters {
 		@Override
 		Double toExternalImpl(BaseRow row, int column) {
 			return row.getDouble(column);
-		}
-	}
-
-	/**
-	 * Converter for char.
-	 */
-	public static final class CharConverter extends IdentityConverter<Character> {
-
-		private static final long serialVersionUID = -7631466361315237011L;
-
-		public static final CharConverter INSTANCE = new CharConverter();
-
-		private CharConverter() {}
-
-		@Override
-		Character toExternalImpl(BaseRow row, int column) {
-			return row.getChar(column);
 		}
 	}
 
@@ -796,33 +777,6 @@ public class DataFormatConverters {
 
 		@Override
 		double[] toExternalImpl(BaseRow row, int column) {
-			return toExternalImpl(row.getArray(column));
-		}
-	}
-
-	/**
-	 * Converter for primitive char array.
-	 */
-	public static final class PrimitiveCharArrayConverter extends DataFormatConverter<BinaryArray, char[]> {
-
-		private static final long serialVersionUID = -5438377988505771316L;
-
-		public static final PrimitiveCharArrayConverter INSTANCE = new PrimitiveCharArrayConverter();
-
-		private PrimitiveCharArrayConverter() {}
-
-		@Override
-		BinaryArray toInternalImpl(char[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
-		}
-
-		@Override
-		char[] toExternalImpl(BinaryArray value) {
-			return value.toCharArray();
-		}
-
-		@Override
-		char[] toExternalImpl(BaseRow row, int column) {
 			return toExternalImpl(row.getArray(column));
 		}
 	}
