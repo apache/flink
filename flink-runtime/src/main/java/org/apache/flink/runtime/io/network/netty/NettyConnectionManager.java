@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 public class NettyConnectionManager implements ConnectionManager {
 
 	private final NettyServer server;
@@ -35,24 +37,27 @@ public class NettyConnectionManager implements ConnectionManager {
 
 	private final PartitionRequestClientFactory partitionRequestClientFactory;
 
-	private final boolean isCreditBased;
+	private final NettyProtocol nettyProtocol;
 
-	public NettyConnectionManager(NettyConfig nettyConfig, boolean isCreditBased) {
+	public NettyConnectionManager(
+		ResultPartitionProvider partitionProvider,
+		TaskEventPublisher taskEventPublisher,
+		NettyConfig nettyConfig,
+		boolean isCreditBased) {
+
 		this.server = new NettyServer(nettyConfig);
 		this.client = new NettyClient(nettyConfig);
 		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
 
 		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
 
-		this.isCreditBased = isCreditBased;
+		this.nettyProtocol = new NettyProtocol(checkNotNull(partitionProvider), checkNotNull(taskEventPublisher), isCreditBased);
 	}
 
 	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher) throws IOException {
-		NettyProtocol partitionRequestProtocol = new NettyProtocol(partitionProvider, taskEventPublisher, isCreditBased);
-
-		client.init(partitionRequestProtocol, bufferPool);
-		server.init(partitionRequestProtocol, bufferPool);
+	public void start() throws IOException {
+		client.init(nettyProtocol, bufferPool);
+		server.init(nettyProtocol, bufferPool);
 	}
 
 	@Override

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
@@ -33,7 +33,6 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 /**
  * Simple netty connection manager test.
@@ -57,11 +56,8 @@ public class NettyConnectionManagerTest {
 				numberOfSlots,
 				new Configuration());
 
-		NettyConnectionManager connectionManager = new NettyConnectionManager(config, true);
-
-		connectionManager.start(
-				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class));
+		NettyConnectionManager connectionManager = createNettyConnectionManager(config);
+		connectionManager.start();
 
 		assertEquals(numberOfSlots, connectionManager.getBufferPool().getNumberOfArenas());
 
@@ -125,11 +121,8 @@ public class NettyConnectionManagerTest {
 				1337,
 				flinkConfig);
 
-		NettyConnectionManager connectionManager = new NettyConnectionManager(config, true);
-
-		connectionManager.start(
-				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class));
+		NettyConnectionManager connectionManager = createNettyConnectionManager(config);
+		connectionManager.start();
 
 		assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
 
@@ -170,4 +163,7 @@ public class NettyConnectionManagerTest {
 		}
 	}
 
+	private NettyConnectionManager createNettyConnectionManager(NettyConfig config) {
+		return new NettyConnectionManager(new ResultPartitionManager(), new TaskEventDispatcher(), config, true);
+	}
 }
