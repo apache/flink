@@ -31,7 +31,6 @@ import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
@@ -40,7 +39,6 @@ import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.hive.util.GenericHiveMetastoreCatalogUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
@@ -90,22 +88,21 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	// ------ databases ------
 
 	@Override
-	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		Database hiveDb = getHiveDatabase(databaseName);
-
-		return new GenericCatalogDatabase(hiveDb.getParameters(), hiveDb.getDescription());
+	protected CatalogDatabase createCatalogDatabase(Database hiveDatabase) {
+		return new GenericCatalogDatabase(
+			hiveDatabase.getParameters(),
+			hiveDatabase.getDescription()
+		);
 	}
 
 	@Override
-	public void createDatabase(String name, CatalogDatabase database, boolean ignoreIfExists)
-			throws DatabaseAlreadyExistException, CatalogException {
-		createHiveDatabase(GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, database), ignoreIfExists);
-	}
-
-	@Override
-	public void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
-			throws DatabaseNotExistException, CatalogException {
-		alterHiveDatabase(name, GenericHiveMetastoreCatalogUtil.createHiveDatabase(name, newDatabase), ignoreIfNotExists);
+	protected Database createHiveDatabase(String databaseName, CatalogDatabase catalogDatabase) {
+		return new Database(
+			databaseName,
+			catalogDatabase.getComment(),
+			// HDFS location URI which GenericCatalogDatabase shouldn't care
+			null,
+			catalogDatabase.getProperties());
 	}
 
 	// ------ tables and views------
