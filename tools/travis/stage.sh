@@ -19,11 +19,11 @@
 
 STAGE_COMPILE="compile"
 STAGE_CORE="core"
+STAGE_PYTHON="python"
 STAGE_LIBRARIES="libraries"
 STAGE_CONNECTORS="connectors"
 STAGE_TESTS="tests"
 STAGE_MISC="misc"
-STAGE_PYTHON="python"
 STAGE_CLEANUP="cleanup"
 
 MODULES_CORE="\

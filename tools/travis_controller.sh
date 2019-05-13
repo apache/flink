@@ -201,11 +201,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	travis_time_finish
 	end_fold "adjust_timestamps"
 
-	if [ $STAGE == "$STAGE_PYTHON" ]; then
-		"./tools/travis_python_watchdog.sh" 300
-	else
-		TEST="$STAGE" "./tools/travis_mvn_watchdog.sh" 300
-	fi
+	TEST="$STAGE" "./tools/travis_watchdog.sh" 300
 	EXIT_CODE=$?
 elif [ $STAGE == "$STAGE_CLEANUP" ]; then
 	echo "Cleaning up $CACHE_BUILD_DIR"
