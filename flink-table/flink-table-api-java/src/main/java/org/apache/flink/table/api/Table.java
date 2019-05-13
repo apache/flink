@@ -103,13 +103,13 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.select("value.avg + ' The average' as average")
+	 *   tab.select("value.avg")
 	 * }
 	 * </pre>
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
+	 *   tab.groupBy("key").select("key, value.avg")
 	 * }
 	 * </pre>
 	 *
@@ -130,13 +130,13 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.select('value.avg + " The average" as 'average)
+	 *   tab.select('value.avg)
 	 * }
 	 * </pre>
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
+	 *   tab.groupBy('key).select('key, 'value.avg)
 	 * }
 	 * </pre>
 	 */
