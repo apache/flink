@@ -21,6 +21,8 @@ import java.lang.reflect.Modifier
 import java.lang.{Iterable => JIterable}
 import java.util.{List => JList}
 
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -28,14 +30,16 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.{TableAggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.utils.{AggSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
-import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, GeneratedTableAggregations, SingleElementIterable}
+import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GeneratedAggregations, GeneratedTableAggregations, SingleElementIterable}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -126,6 +130,8 @@ class AggregationCodeGenerator(
   val constantExprs = constants.map(_.map(generateExpression)).getOrElse(Seq())
   val constantTypes = constantExprs.map(_.resultType)
   val constantFields = constantExprs.map(addReusableBoxedConstant)
+
+  val isTableAggregate = AggregateUtil.containsTableAggregateFunction(aggregates)
 
   /**
     * @return code block of statements that need to be placed in the cleanup() method of
@@ -979,5 +985,41 @@ class AggregationCodeGenerator(
          """.stripMargin
 
     GeneratedAggregationsFunction(funcName, funcCode)
+  }
+
+  /**
+    * Generates a [[GeneratedAggregations]] or a [[GeneratedTableAggregations]] that can be passed
+    * to a Java compiler.
+    *
+    * @param outputType      Output type of the (table)aggregate node.
+    * @param groupSize       The size of the groupings.
+    * @param namedAggregates The correspond named aggregates in the aggregate operator.
+    * @return A GeneratedAggregationsFunction
+    */
+  def genAggregationsOrTableAggregations(
+    outputType: RelDataType,
+    groupSize: Int,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]])
+  : GeneratedAggregationsFunction = {
+
+    if (isTableAggregate) {
+      // get the output row type of the table aggregate
+      val sqlAggFunction = namedAggregates.head.left.getAggregation.asInstanceOf[AggSqlFunction]
+      val aggOutputArity = sqlAggFunction.returnType.getArity
+      val tableAggOutputRowType = new RowTypeInfo(
+        outputType.getFieldList
+          .map(e => FlinkTypeFactory.toTypeInfo(e.getType))
+          .slice(groupSize, groupSize + aggOutputArity)
+          .toArray,
+        outputType.getFieldNames
+          .slice(groupSize, groupSize + aggOutputArity)
+          .toArray)
+
+      generateTableAggregations(
+        tableAggOutputRowType,
+        namedAggregates.head.left.getAggregation.asInstanceOf[AggSqlFunction].returnType)
+    } else {
+      generateAggregations
+    }
   }
 }

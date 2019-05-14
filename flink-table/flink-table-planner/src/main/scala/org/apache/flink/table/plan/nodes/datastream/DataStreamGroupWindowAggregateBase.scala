@@ -44,6 +44,9 @@ import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 
+/**
+  * Base RelNode for data stream group window aggregate and table aggregate.
+  */
 abstract class DataStreamGroupWindowAggregateBase(
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
@@ -171,6 +174,7 @@ abstract class DataStreamGroupWindowAggregateBase(
         grouping.length,
         namedAggregates.size,
         schema.arity,
+        namedAggregates,
         namedProperties)
 
       val keySelector = new CRowKeySelector(grouping, inputSchema.projectedTypeInfo(grouping))
@@ -181,12 +185,13 @@ abstract class DataStreamGroupWindowAggregateBase(
           .asInstanceOf[WindowedStream[CRow, Row, DataStreamWindow]]
 
       val (aggFunction, accumulatorRowType) =
-        AggregateUtil.createDataStreamAggregateFunction(
+        AggregateUtil.createDataStreamGroupWindowAggregateFunction(
           tableEnv.getConfig,
           false,
           inputSchema.typeInfo,
           None,
           namedAggregates,
+          namedProperties,
           inputSchema.relDataType,
           inputSchema.fieldTypeInfos,
           schema.relDataType,
@@ -203,6 +208,7 @@ abstract class DataStreamGroupWindowAggregateBase(
       val windowFunction = AggregateUtil.createAggregationAllWindowFunction(
         window,
         schema.arity,
+        namedAggregates,
         namedProperties)
 
       val windowedStream =
@@ -210,12 +216,13 @@ abstract class DataStreamGroupWindowAggregateBase(
           .asInstanceOf[AllWindowedStream[CRow, DataStreamWindow]]
 
       val (aggFunction, accumulatorRowType) =
-        AggregateUtil.createDataStreamAggregateFunction(
+        AggregateUtil.createDataStreamGroupWindowAggregateFunction(
           tableEnv.getConfig,
           false,
           inputSchema.typeInfo,
           None,
           namedAggregates,
+          namedProperties,
           inputSchema.relDataType,
           inputSchema.fieldTypeInfos,
           schema.relDataType,
