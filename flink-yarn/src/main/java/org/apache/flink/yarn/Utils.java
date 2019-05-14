@@ -236,9 +236,9 @@ public final class Utils {
 	 * @return YARN resource
 	 */
 	private static LocalResource registerLocalResource(
-		Path remoteRsrcPath,
-		long resourceSize,
-		long resourceModificationTime) {
+			Path remoteRsrcPath,
+			long resourceSize,
+			long resourceModificationTime) {
 		LocalResource localResource = Records.newRecord(LocalResource.class);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(resourceSize);
