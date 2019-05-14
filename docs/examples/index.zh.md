@@ -31,7 +31,7 @@ under the License.
 在Flink源文件中，包含了许多Flink不同API接口的代码示例：
 
 * DataStream 应用 ({% gh_link flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples "Java" %} / {% gh_link flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples "Scala" %}) 
-* DataSet 应用 ({% gh_link flink-examples/zh/flink-examples-batch/src/main/java/org/apache/flink/examples/java "Java" %} / {% gh_link flink-examples/zh/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala "Scala" %})
+* DataSet 应用 ({% gh_link flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala "Scala" %})
 * Table API / SQL 查询 ({% gh_link flink-examples/zh/flink-examples-table/src/main/java/org/apache/flink/table/examples/java "Java" %} / {% gh_link flink-examples/zh/flink-examples-table/src/main/scala/org/apache/flink/table/examples/scala "Scala" %})
 
 这些[代码示例]({{ site.baseurl }}/zh/dev/batch/examples.html#running-an-example)清晰的解释了如何运行一个Flink程序。
