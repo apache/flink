@@ -42,11 +42,11 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 默认情况下，History server 绑定到本机 `localhost` 的 `8082` 端口。
 
-目前你可以把它当做单独的进程来运行。
+目前，只能当做单独的进程来运行。
 
 ## 配置
 
-存档和展示已完成的作业 需要调配 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 这俩配置项。
+如果要存档和展示已完成的作业 需要调配 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 这俩配置项。
 
 **JobManager**
 
@@ -59,7 +59,7 @@ jobmanager.archive.fs.dir: hdfs:///completed-jobs
 
 **HistoryServer**
 
-History Server 可以监控 `historyserver.archive.fs.dir` 配置的用逗号分隔的文件目录列表。并且会为新存档定期轮询已配置的目录，轮询的间隔可以通过 `historyserver.archive.fs.refresh-interval` 来配置。
+History Server 可以监控 `historyserver.archive.fs.dir` 配置的用逗号分隔的文件目录列表。History Server 会定期轮询配置的目录以发现新存档，轮询的间隔可以通过 `historyserver.archive.fs.refresh-interval` 来配置。
 
 {% highlight yaml %}
 # 监控已完成作业的目录
