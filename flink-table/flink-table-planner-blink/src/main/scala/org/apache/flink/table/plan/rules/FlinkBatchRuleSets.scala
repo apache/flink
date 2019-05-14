@@ -270,16 +270,13 @@ object FlinkBatchRuleSets {
       LOGICAL_CONVERTERS.asScala
     ).asJava)
 
+  /**
+    * RuleSet to do rewrite on FlinkLogicalRel for batch
+    */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transpose calc past snapshot
     CalcSnapshotTransposeRule.INSTANCE,
     // merge calc after calc transpose
-    CalcMergeRule.INSTANCE)
-
-  /**
-    * RuleSet to do rewrite on FlinkLogicalRel for batch
-    */
-  val LOGICAL_REWRITE: RuleSet =  RuleSets.ofList(
     FlinkCalcMergeRule.INSTANCE
   )
 

@@ -97,7 +97,7 @@ class BatchTableEnvironment(
       jobName: Option[String]): StreamGraph = {
     mergeParameters()
     streamEnv.getConfig
-      .enableObjectReuse()
+      //.enableObjectReuse() // TODO add object reuse config in table config for batch and stream
       .setLatencyTrackingInterval(-1L)
     streamEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     streamEnv.setBufferTimeout(-1L)
