@@ -544,35 +544,20 @@ public class SingleInputGate extends InputGate {
 	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
-			InputChannel inputChannel;
-			synchronized (inputChannelsWithData) {
-				while (inputChannelsWithData.size() == 0) {
-					if (isReleased) {
-						throw new IllegalStateException("Released");
-					}
-
-					if (blocking) {
-						inputChannelsWithData.wait();
-					}
-					else {
-						resetIsAvailable();
-						return Optional.empty();
-					}
-				}
-
-				inputChannel = inputChannelsWithData.remove();
-				enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+			Optional<InputChannel> inputChannel = getChannel(blocking);
+			if (!inputChannel.isPresent()) {
+				return Optional.empty();
 			}
 
 			// Do not query inputChannel under the lock, to avoid potential deadlocks coming from
 			// notifications.
-			Optional<BufferAndAvailability> result = inputChannel.getNextBuffer();
+			Optional<BufferAndAvailability> result = inputChannel.get().getNextBuffer();
 
 			synchronized (inputChannelsWithData) {
 				if (result.isPresent() && result.get().moreAvailable()) {
 					// enqueue the inputChannel at the end to avoid starvation
-					inputChannelsWithData.add(inputChannel);
-					enqueuedInputChannelsWithData.set(inputChannel.getChannelIndex());
+					inputChannelsWithData.add(inputChannel.get());
+					enqueuedInputChannelsWithData.set(inputChannel.get().getChannelIndex());
 				}
 
 				if (inputChannelsWithData.isEmpty()) {
@@ -581,7 +566,7 @@ public class SingleInputGate extends InputGate {
 
 				if (result.isPresent()) {
 					return Optional.of(new InputWithData<>(
-						inputChannel,
+						inputChannel.get(),
 						result.get(),
 						!inputChannelsWithData.isEmpty()));
 				}
@@ -675,6 +660,28 @@ public class SingleInputGate extends InputGate {
 
 		if (toNotify != null) {
 			toNotify.complete(null);
+		}
+	}
+
+	private Optional<InputChannel> getChannel(boolean blocking) throws InterruptedException {
+		synchronized (inputChannelsWithData) {
+			while (inputChannelsWithData.size() == 0) {
+				if (isReleased) {
+					throw new IllegalStateException("Released");
+				}
+
+				if (blocking) {
+					inputChannelsWithData.wait();
+				}
+				else {
+					resetIsAvailable();
+					return Optional.empty();
+				}
+			}
+
+			InputChannel inputChannel = inputChannelsWithData.remove();
+			enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+			return Optional.of(inputChannel);
 		}
 	}
 
