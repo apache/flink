@@ -19,10 +19,13 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.AsyncDataInput;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The CheckpointBarrierHandler reacts to checkpoint barrier arriving from the input channels.
@@ -30,23 +33,16 @@ import java.io.IOException;
  * barriers.
  */
 @Internal
-public interface CheckpointBarrierHandler {
-
+public interface CheckpointBarrierHandler extends AsyncDataInput<BufferOrEvent> {
 	/**
-	 * Returns the next {@link BufferOrEvent} that the operator may consume.
-	 * This call blocks until the next BufferOrEvent is available, or until the stream
-	 * has been determined to be finished.
-	 *
-	 * @return The next BufferOrEvent, or {@code null}, if the stream is finished.
-	 *
-	 * @throws IOException Thrown if the network or local disk I/O fails.
-	 *
-	 * @throws InterruptedException Thrown if the thread is interrupted while blocking during
-	 *                              waiting for the next BufferOrEvent to become available.
-	 * @throws Exception Thrown in case that a checkpoint fails that is started as the result of receiving
-	 *                   the last checkpoint barrier
+	 * Blocking version of {@link #pollNext()}.
 	 */
-	BufferOrEvent getNextNonBlocked() throws Exception;
+	@Deprecated
+	default BufferOrEvent getNextNonBlocked() throws Exception {
+		Optional<BufferOrEvent> bufferOrEvent = pollNext();
+		checkState(bufferOrEvent.isPresent());
+		return bufferOrEvent.get();
+	}
 
 	/**
 	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.

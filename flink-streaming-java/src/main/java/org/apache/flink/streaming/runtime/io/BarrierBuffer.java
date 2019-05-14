@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -115,6 +116,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	/** Flag to indicate whether we have drawn all available input. */
 	private boolean endOfStream;
 
+	/** Indicate end of the input. Set to true after encountering {@link #endOfStream} and depleting
+	 * {@link #currentBuffered}. */
+	private boolean isFinished;
+
 	/**
 	 * Creates a new checkpoint stream aligner.
 	 *
@@ -154,37 +159,37 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		this.taskName = taskName;
 	}
 
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		if (currentBuffered == null) {
+			return inputGate.isAvailable();
+		}
+		return AVAILABLE;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Buffer and barrier handling
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferOrEvent getNextNonBlocked() throws Exception {
+	public Optional<BufferOrEvent> pollNext() throws Exception {
 		while (true) {
 			// process buffered BufferOrEvents before grabbing new ones
 			Optional<BufferOrEvent> next;
 			if (currentBuffered == null) {
-				next = inputGate.getNext();
+				next = inputGate.pollNext();
 			}
 			else {
+				// TODO: FLINK-12536 for non credit-based flow control, getNext method is blocking
 				next = Optional.ofNullable(currentBuffered.getNext());
 				if (!next.isPresent()) {
 					completeBufferedSequence();
-					return getNextNonBlocked();
+					return pollNext();
 				}
 			}
 
 			if (!next.isPresent()) {
-				if (!endOfStream) {
-					// end of input stream. stream continues with the buffered data
-					endOfStream = true;
-					releaseBlocksAndResetBarriers();
-					return getNextNonBlocked();
-				}
-				else {
-					// final end of both input and buffered data
-					return null;
-				}
+				return handleEmptyBuffer();
 			}
 
 			BufferOrEvent bufferOrEvent = next.get();
@@ -194,7 +199,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				checkSizeLimit();
 			}
 			else if (bufferOrEvent.isBuffer()) {
-				return bufferOrEvent;
+				return next;
 			}
 			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
 				if (!endOfStream) {
@@ -209,8 +214,24 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
 					processEndOfPartition();
 				}
-				return bufferOrEvent;
+				return next;
 			}
+		}
+	}
+
+	private Optional<BufferOrEvent> handleEmptyBuffer() throws Exception {
+		if (!inputGate.isFinished()) {
+			return Optional.empty();
+		}
+
+		if (endOfStream) {
+			isFinished = true;
+			return Optional.empty();
+		} else {
+			// end of input stream. stream continues with the buffered data
+			endOfStream = true;
+			releaseBlocksAndResetBarriers();
+			return pollNext();
 		}
 	}
 
@@ -434,6 +455,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	@Override
 	public boolean isEmpty() {
 		return currentBuffered == null;
+	}
+
+	@Override
+	public boolean isFinished() {
+		return isFinished;
 	}
 
 	@Override

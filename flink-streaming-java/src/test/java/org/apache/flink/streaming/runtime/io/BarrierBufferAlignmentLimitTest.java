@@ -44,8 +44,8 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
@@ -160,8 +160,8 @@ public class BarrierBufferAlignmentLimitTest {
 			any(CheckpointOptions.class),
 			any(CheckpointMetrics.class));
 
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
+		assertFalse(buffer.pollNext().isPresent());
+		assertTrue(buffer.isFinished());
 
 		buffer.cleanup();
 		checkNoTempFilesRemain();
@@ -260,8 +260,8 @@ public class BarrierBufferAlignmentLimitTest {
 		verify(toNotify, times(0)).triggerCheckpointOnBarrier(
 			argThat(new CheckpointMatcher(3L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
+		assertFalse(buffer.pollNext().isPresent());
+		assertTrue(buffer.isFinished());
 
 		buffer.cleanup();
 		checkNoTempFilesRemain();

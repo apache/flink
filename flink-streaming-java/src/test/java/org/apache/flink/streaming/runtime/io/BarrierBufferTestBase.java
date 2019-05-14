@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -83,8 +84,8 @@ public abstract class BarrierBufferTestBase {
 
 	@After
 	public void ensureEmpty() throws Exception {
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
+		assertFalse(buffer.pollNext().isPresent());
+		assertTrue(buffer.isFinished());
 		assertTrue(buffer.isEmpty());
 
 		buffer.cleanup();
