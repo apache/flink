@@ -65,6 +65,13 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 	 * We use {@link BlockingQueue} to make sure the head {@link ResultFuture}s are available.
 	 */
 	private transient BlockingQueue<JoinedRowResultFuture> resultFutureBuffer;
+	/**
+	 * A Collection contains all ResultFutures in the runner which is used to invoke
+	 * {@code close()} on every ResultFuture. {@link #resultFutureBuffer} may not
+	 * contain all the ResultFutures because ResultFutures will be polled from the buffer when
+	 * processing.
+	 */
+	private transient List<JoinedRowResultFuture> allResultFutures;
 
 	public AsyncLookupJoinRunner(
 			GeneratedFunction<AsyncFunction<BaseRow, Object>> generatedFetcher,
@@ -105,6 +112,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 		// asyncBufferCapacity + 1 as the queue size in order to avoid
 		// blocking on the queue when taking a collector.
 		this.resultFutureBuffer = new ArrayBlockingQueue<>(asyncBufferCapacity + 1);
+		this.allResultFutures = new ArrayList<>();
 		for (int i = 0; i < asyncBufferCapacity + 1; i++) {
 			JoinedRowResultFuture rf = new JoinedRowResultFuture(
 				resultFutureBuffer,
@@ -114,6 +122,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 				rightRowTypeInfo.getArity());
 			// add will throw exception immediately if the queue is full which should never happen
 			resultFutureBuffer.add(rf);
+			allResultFutures.add(rf);
 		}
 	}
 
@@ -141,7 +150,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 		if (fetcher != null) {
 			FunctionUtils.closeFunction(fetcher);
 		}
-		for (JoinedRowResultFuture rf : resultFutureBuffer) {
+		for (JoinedRowResultFuture rf : allResultFutures) {
 			rf.close();
 		}
 	}
