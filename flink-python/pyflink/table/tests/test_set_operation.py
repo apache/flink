@@ -31,26 +31,24 @@ class StreamTableSetOperationTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(2, "Hi", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.union_all(source2)
-
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
+
+        result = source1.union_all(source2)
         result.insert_into("Results")
         t_env.execute()
+
         actual = source_sink_utils.results()
         expected = ['1,Hi,Hello',
                     '2,Hi,Hello',
@@ -69,20 +67,18 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (1, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(3, "Hello", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.minus(source2)
 
+        result = source1.minus(source2)
         actual = self.collect(result)
+
         expected = ['1,Hi,Hello']
         self.assert_equals(actual, expected)
 
@@ -92,20 +88,18 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (1, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(3, "Hello", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.minus_all(source2)
 
+        result = source1.minus_all(source2)
         actual = self.collect(result)
+
         expected = ['1,Hi,Hello',
                     '1,Hi,Hello']
         self.assert_equals(actual, expected)
@@ -116,20 +110,18 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(2, "Hi", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.union(source2)
 
+        result = source1.union(source2)
         actual = self.collect(result)
+
         expected = ['1,Hi,Hello',
                     '2,Hi,Hello',
                     '3,Hello,Hello',
@@ -143,20 +135,18 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(2, "Hi", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.union_all(source2)
 
+        result = source1.union_all(source2)
         actual = self.collect(result)
+
         expected = ['1,Hi,Hello',
                     '2,Hi,Hello',
                     '2,Hi,Hello',
@@ -171,20 +161,18 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(2, "Hi", "Hello"), (2, "Hi", "Hello"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.intersect(source2)
 
+        result = source1.intersect(source2)
         actual = self.collect(result)
+
         expected = ['2,Hi,Hello']
         self.assert_equals(actual, expected)
 
@@ -194,20 +182,18 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
         data2 = [(2, "Hi", "Hello"), (2, "Hi", "Hello"), (4, "Hi", "Flink")]
         csv_source2 = self.prepare_csv_source(source_path2, data2, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source1", csv_source)
         t_env.register_table_source("Source2", csv_source2)
-
         source1 = t_env.scan("Source1")
         source2 = t_env.scan("Source2")
-        result = source1.intersect_all(source2)
 
+        result = source1.intersect_all(source2)
         actual = self.collect(result)
+
         expected = ['2,Hi,Hello', '2,Hi,Hello']
         self.assert_equals(actual, expected)
 

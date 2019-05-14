@@ -185,8 +185,7 @@ class Table(object):
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoin(right._j_table))
         else:
-            return Table(self._j_table.leftOuterJoin(
-                right._j_table, join_predicate))
+            return Table(self._j_table.leftOuterJoin(right._j_table, join_predicate))
 
     def right_outer_join(self, right, join_predicate):
         """
@@ -206,8 +205,7 @@ class Table(object):
         :param join_predicate: The join predicate expression string.
         :return: Result table.
         """
-        return Table(self._j_table.rightOuterJoin(
-            right._j_table, join_predicate))
+        return Table(self._j_table.rightOuterJoin(right._j_table, join_predicate))
 
     def full_outer_join(self, right, join_predicate):
         """
@@ -227,8 +225,7 @@ class Table(object):
         :param join_predicate: The join predicate expression string.
         :return: Result table.
         """
-        return Table(self._j_table.fullOuterJoin(
-            right._j_table, join_predicate))
+        return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate))
 
     def minus(self, right):
         """
@@ -437,7 +434,7 @@ class Table(object):
 
         :param windows: :class:`OverWindow`s created from :class:`Over` or :class:`GroupWindow`
                         created from :class:`Tumble`, :class:`Session` or :class:`Slide`.
-        :return: An :class:`OverWindowedTable` or a :class:`GroupWindowedTable`.
+        :return: A :class:`OverWindowedTable` or a :class:`GroupWindowedTable`.
         """
 
         if len(windows) == 1 and isinstance(windows[0], GroupWindow):

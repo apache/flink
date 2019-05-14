@@ -36,19 +36,19 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
-        result = t_env.scan("Source")
-
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
+
+        result = t_env.scan("Source")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
+
         expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
@@ -58,18 +58,16 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
-        t_env.register_table_source("Orders", csv_source)
 
+        t_env.register_table_source("Orders", csv_source)
         t_env.register_table_sink(
             "Sinks",
             field_names, field_types, source_sink_utils.TestAppendSink())
-
         t_env.scan("Orders").insert_into("Sinks")
         t_env.execute()
-
         actual = source_sink_utils.results()
+
         expected = ['1,Hi,Hello']
         self.assert_equals(actual, expected)
 
@@ -79,18 +77,16 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
-        source = t_env.from_table_source(csv_source)
-
         t_env.register_table_sink(
             "Sinks",
             field_names, field_types, source_sink_utils.TestAppendSink())
 
+        source = t_env.from_table_source(csv_source)
         source.insert_into("Sinks")
         t_env.execute()
-
         actual = source_sink_utils.results()
+
         expected = ['1,Hi,Hello', '2,Hi,Hello']
         self.assert_equals(actual, expected)
 
@@ -102,16 +98,15 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
         t_env.register_table_source("Orders", csv_source)
-
         t_env.register_table_sink(
             "Sinks",
             field_names, field_types, source_sink_utils.TestAppendSink())
-
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
 
         actual = t_env.list_tables()
+
         expected = ['Orders', 'Results', 'Sinks']
         self.assert_equals(actual, expected)
 
@@ -121,61 +116,97 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = []
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
         result = source.alias("a, b, c").select("1 + a, b, c")
 
         actual = t_env.explain(result)
-        print(actual)
+
         assert isinstance(actual, str) or isinstance(actual, unicode)
 
-    def test_sql_query_update(self):
+    def test_sql_query(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = t_env.sql_query("select a + 1, b, c from %s" % source)
-        t_env.register_table("results", result)
-
         t_env.register_table_sink(
             "sinks",
             field_names, field_types, source_sink_utils.TestAppendSink())
 
-        query_config = t_env.query_config()
-        query_config.with_idle_state_retention_time(
-            datetime.timedelta(days=1), datetime.timedelta(days=2))
-        assert query_config.get_max_idle_state_retention_time() == 2 * 24 * 3600 * 1000
-        assert query_config.get_min_idle_state_retention_time() == 24 * 3600 * 1000
+        result = t_env.sql_query("select a + 1, b, c from %s" % source)
+        result.insert_into("sinks")
+        t_env.execute()
+        actual = source_sink_utils.results()
 
-        t_env.sql_update("insert into sinks select * from results", query_config)
+        expected = ['2,Hi,Hello', '3,Hello,Hello']
+        self.assert_equals(actual, expected)
+
+    def test_sql_update(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        t_env = self.t_env
+        t_env.register_table_source("source", csv_source)
+        t_env.register_table_sink(
+            "sinks",
+            field_names, field_types, source_sink_utils.TestAppendSink())
+
+        t_env.sql_update("insert into sinks select * from source")
         t_env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
-        expected = ['2,Hi,Hello', '3,Hello,Hello']
+        expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
-        t_env.sql_update("insert into sinks select * from results")
-        t_env.execute()
+    def test_sql_update_with_query_config(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        t_env = self.t_env
+        t_env.register_table_source("source", csv_source)
+        t_env.register_table_sink(
+            "sinks",
+            field_names, field_types, source_sink_utils.TestAppendSink())
+        query_config = t_env.query_config()
+        query_config.with_idle_state_retention_time(
+            datetime.timedelta(days=1), datetime.timedelta(days=2))
+
+        t_env.sql_update("insert into sinks select * from source", query_config)
+        t_env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
-        expected = ['2,Hi,Hello', '3,Hello,Hello']
+        expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
+
+    def test_query_config(self):
+        t_env = self.t_env
+        query_config = t_env.query_config()
+
+        query_config.with_idle_state_retention_time(
+            datetime.timedelta(days=1), datetime.timedelta(days=2))
+
+        assert query_config.get_max_idle_state_retention_time() == 2 * 24 * 3600 * 1000
+        assert query_config.get_min_idle_state_retention_time() == 24 * 3600 * 1000
 
     def test_table_config(self):
         t_env = self.t_env
         table_config = t_env.get_config()
+
         table_config.parallelism = 4
         table_config.null_check = True
         table_config.max_generated_code_length = 64000
         table_config.timezone = "Asia/Shanghai"
         table_config.is_stream = True
+
         assert table_config.parallelism == 4
         assert table_config.null_check is True
         assert table_config.max_generated_code_length == 64000
@@ -190,7 +221,9 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             .set_timezone("Asia/Shanghai")\
             .as_streaming_execution()\
             .build()
+
         t_env = TableEnvironment.create(table_config)
+
         readed_table_config = t_env.get_config()
         assert readed_table_config.parallelism == 2
         assert readed_table_config.null_check is False
@@ -207,12 +240,12 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
-        result = t_env.scan("Source")
 
+        result = t_env.scan("Source")
         actual = self.collect(result)
+
         expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
@@ -222,22 +255,19 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
-        t_env.register_table_source("Orders", csv_source)
-
         tmp_dir = tempfile.gettempdir()
         tmp_csv = tmp_dir + '/streaming2.csv'
         if os.path.isfile(tmp_csv):
             os.remove(tmp_csv)
 
+        t_env.register_table_source("Orders", csv_source)
         t_env.register_table_sink(
             "Results",
             field_names, field_types, CsvTableSink(tmp_csv))
-
         t_env.scan("Orders").insert_into("Results")
-
         t_env.execute()
+
         with open(tmp_csv, 'r') as f:
             lines = f.read()
             assert lines == '1,Hi,Hello\n'
@@ -248,11 +278,11 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hi", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
-        source = t_env.from_table_source(csv_source)
 
+        source = t_env.from_table_source(csv_source)
         actual = self.collect(source)
+
         expected = ['1,Hi,Hello', '2,Hi,Hello']
         self.assert_equals(actual, expected)
 
@@ -264,19 +294,17 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
         t_env.register_table_source("Orders", csv_source)
-
         tmp_dir = tempfile.gettempdir()
         tmp_csv = tmp_dir + '/streaming2.csv'
-
         t_env.register_table_sink(
             "Sinks",
             field_names, field_types, CsvTableSink(tmp_csv))
-
         t_env.register_table_sink(
             "Results",
             field_names, field_types, CsvTableSink(tmp_csv))
 
         actual = t_env.list_tables()
+
         expected = ['Orders', 'Results', 'Sinks']
         self.assert_equals(actual, expected)
 
@@ -286,66 +314,97 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = []
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
         result = source.alias("a, b, c").select("1 + a, b, c")
 
         actual = t_env.explain(result)
+
         assert isinstance(actual, str) or isinstance(actual, unicode)
 
-    def test_sql_query_update(self):
+    def test_sql_query(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = t_env.sql_query("select a + 1, b, c from %s" % source)
-        t_env.register_table("results", result)
-
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         tmp_dir = tempfile.gettempdir()
         tmp_csv = tmp_dir + '/streaming2.csv'
         if os.path.isfile(tmp_csv):
             os.remove(tmp_csv)
-
         t_env.register_table_sink(
             "sinks",
             field_names, field_types, CsvTableSink(tmp_csv))
 
-        query_config = t_env.query_config()
 
-        t_env.sql_update("insert into sinks select * from results", query_config)
-        t_env.execute("test_sql_job")
-
-        with open(tmp_csv, 'r') as f:
-            lines = f.read()
-            print(lines)
-            assert lines == '2,Hi,Hello\n' + '3,Hello,Hello\n'
-
-        if os.path.isfile(tmp_csv):
-            os.remove(tmp_csv)
-        t_env.sql_update("insert into sinks select * from results")
+        result = t_env.sql_query("select a + 1, b, c from %s" % source)
+        result.insert_into("sinks")
         t_env.execute()
 
         with open(tmp_csv, 'r') as f:
             lines = f.read()
-            print(lines)
             assert lines == '2,Hi,Hello\n' + '3,Hello,Hello\n'
+
+    def test_sql_update(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        t_env = self.t_env
+        t_env.register_table_source("source", csv_source)
+        tmp_dir = tempfile.gettempdir()
+        tmp_csv = tmp_dir + '/streaming2.csv'
+        if os.path.isfile(tmp_csv):
+            os.remove(tmp_csv)
+        t_env.register_table_sink(
+            "sinks",
+            field_names, field_types, CsvTableSink(tmp_csv))
+
+        t_env.sql_update("insert into sinks select * from source")
+        t_env.execute("test_sql_job")
+
+        with open(tmp_csv, 'r') as f:
+            lines = f.read()
+            assert lines == '1,Hi,Hello\n' + '2,Hello,Hello\n'
+
+    def test_sql_update_with_query_config(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        t_env = self.t_env
+        t_env.register_table_source("source", csv_source)
+        tmp_dir = tempfile.gettempdir()
+        tmp_csv = tmp_dir + '/streaming2.csv'
+        if os.path.isfile(tmp_csv):
+            os.remove(tmp_csv)
+        t_env.register_table_sink(
+            "sinks",
+            field_names, field_types, CsvTableSink(tmp_csv))
+        query_config = t_env.query_config()
+
+        t_env.sql_update("insert into sinks select * from source", query_config)
+        t_env.execute("test_sql_job")
+
+        with open(tmp_csv, 'r') as f:
+            lines = f.read()
+            assert lines == '1,Hi,Hello\n' + '2,Hello,Hello\n'
 
     def test_table_config(self):
         t_env = self.t_env
+
         table_config = t_env.get_config()
         table_config.parallelism = 4
         table_config.null_check = True
         table_config.max_generated_code_length = 64000
         table_config.timezone = "Asia/Shanghai"
+
         assert table_config.parallelism == 4
         assert table_config.null_check is True
         assert table_config.max_generated_code_length == 64000
@@ -360,7 +419,9 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
             .set_timezone("Asia/Shanghai")\
             .as_batch_execution()\
             .build()
+
         t_env = TableEnvironment.create(table_config)
+
         readed_table_config = t_env.get_config()
         assert readed_table_config.parallelism == 2
         assert readed_table_config.null_check is False

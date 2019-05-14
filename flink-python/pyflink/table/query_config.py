@@ -57,18 +57,18 @@ class StreamQueryConfig(QueryConfig):
         When new data arrives for previously cleaned-up state, the new data will be handled as if it
         was the first data. This can result in previous results being overwritten.
 
-        Set to 0 (zero) to never clean-up the state.
+        Set to ``datetime.timedelta()``(zero) to never clean-up the state.
 
         .. note::
             Cleaning up state requires additional bookkeeping which becomes less expensive for
             larger differences of minTime and maxTime. The difference between minTime and maxTime
-            must be at least 5 minutes.
+            must be at least ``datetime.timedelta(minutes=5)``(5 minutes).
 
-        :param min_time: The minimum time interval for which idle state is retained. Set to 0(zero)
-                         to never clean-up the state.
+        :param min_time: The minimum time interval for which idle state is retained. Set to
+                         ``datetime.timedelta()``(zero) to never clean-up the state.
         :param max_time: The maximum time interval for which idle state is retained. Must be at
-                         least 5 minutes greater than minTime. Set to 0 (zero) to never clean-up
-                         the state.
+                         least 5 minutes greater than minTime. Set to
+                         ``datetime.timedelta()``(zero) to never clean-up the state.
         :return: :class:`StreamQueryConfig`
         """
         #  type: (timedelta, timedelta) -> StreamQueryConfig
@@ -81,6 +81,8 @@ class StreamQueryConfig(QueryConfig):
 
     def get_min_idle_state_retention_time(self):
         """
+        State might be cleared and removed if it was not updated for the defined period of time.
+
         :return: The minimum time until state which was not updated will be retained.
         """
         #  type: () -> int
@@ -88,6 +90,8 @@ class StreamQueryConfig(QueryConfig):
 
     def get_max_idle_state_retention_time(self):
         """
+        State will be cleared and removed if it was not updated for the defined period of time.
+
         :return: The maximum time until state which was not updated will be retained.
         """
         #  type: () -> int

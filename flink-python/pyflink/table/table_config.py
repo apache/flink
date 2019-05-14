@@ -33,6 +33,9 @@ class TableConfig(object):
 
     @property
     def is_stream(self):
+        """
+        Configures execution mode, "true" for streaming and "false" for batch.
+        """
         return self._is_stream
 
     @is_stream.setter
@@ -41,6 +44,9 @@ class TableConfig(object):
 
     @property
     def parallelism(self):
+        """
+        The parallelism for all operations.
+        """
         return self._parallelism
 
     @parallelism.setter
@@ -49,6 +55,10 @@ class TableConfig(object):
 
     @property
     def timezone(self):
+        """
+        The timezone_id for a timezone, either an abbreviation such as "PST", a full name such as
+        "America/Los_Angeles", or a custom timezone_id such as "GMT-8:00".
+        """
         return self._j_table_config.getTimeZone().getID()
 
     @timezone.setter
@@ -61,6 +71,9 @@ class TableConfig(object):
 
     @property
     def null_check(self):
+        """
+        A boolean value, "True" enables NULL check and "False" disables NULL check.
+        """
         return self._j_table_config.getNullCheck()
 
     @null_check.setter
@@ -72,6 +85,11 @@ class TableConfig(object):
 
     @property
     def max_generated_code_length(self):
+        """
+        The current threshold where generated code will be split into sub-function calls. Java has
+        a maximum method length of 64 KB. This setting allows for finer granularity if necessary.
+        Default is 64000.
+        """
         return self._j_table_config.getMaxGeneratedCodeLength()
 
     @max_generated_code_length.setter

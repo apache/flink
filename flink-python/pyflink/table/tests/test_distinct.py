@@ -31,20 +31,20 @@ class StreamTableDistinctTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.distinct().select("a, c as b")
-
         field_names = ["a", "b"]
         field_types = [DataTypes.INT, DataTypes.STRING]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
+
+        result = source.distinct().select("a, c as b")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
+
         expected = ['1,Hello', '2,Hello']
         self.assert_equals(actual, expected)
 
@@ -57,13 +57,13 @@ class BatchTableDistinctTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
         data = [(1, "Hi", "Hello"), (2, "Hello", "Hello"), (2, "Hello", "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.distinct().select("a, c as b")
 
+        result = source.distinct().select("a, c as b")
         actual = self.collect(result)
+
         expected = ['1,Hello', '2,Hello']
         self.assert_equals(actual, expected)
 

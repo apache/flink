@@ -30,13 +30,13 @@ class BatchTableSortTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.INT, DataTypes.STRING]
         data = [(1, "Hello"), (2, "Hello"), (3, "Flink"), (4, "Python")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.order_by("a.desc").offset(2).fetch(2).select("a, b")
 
+        result = source.order_by("a.desc").offset(2).fetch(2).select("a, b")
         actual = self.collect(result)
+
         expected = ['2,Hello', '1,Hello']
         self.assert_equals(actual, expected)
 

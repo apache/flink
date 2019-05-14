@@ -34,10 +34,10 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
         data = [(1, 1, "Hello"), (2, 2, "Hello"), (3, 4, "Hello"), (4, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
+
         result = source.window(Over.partition_by("c").order_by("a")
                                .preceding("2.rows").following("current_row").alias("w"))
 
@@ -54,14 +54,14 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
         data = [(1, 1, "Hello"), (2, 2, "Hello"), (3, 4, "Hello"), (4, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
+
         result = source.window(Tumble.over("2.rows").on("a").alias("w"))\
             .group_by("w, c").select("b.sum")
-
         actual = self.collect(result)
+
         expected = ['3', '12']
         self.assert_equals(actual, expected)
 
@@ -71,14 +71,14 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
         data = [(1000, 1, "Hello"), (2000, 2, "Hello"), (3000, 4, "Hello"), (4000, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
+
         result = source.window(Slide.over("2.seconds").every("1.seconds").on("a").alias("w"))\
             .group_by("w, c").select("b.sum")
-
         actual = self.collect(result)
+
         expected = ['1', '3', '6', '12', '8']
         self.assert_equals(actual, expected)
 
@@ -88,14 +88,14 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
         field_types = [DataTypes.LONG, DataTypes.INT, DataTypes.STRING]
         data = [(1000, 1, "Hello"), (2000, 2, "Hello"), (4000, 4, "Hello"), (5000, 8, "Hello")]
         csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
+
         result = source.window(Session.with_gap("1.seconds").on("a").alias("w"))\
             .group_by("w, c").select("b.sum")
-
         actual = self.collect(result)
+
         expected = ['3', '12']
         self.assert_equals(actual, expected)
 
