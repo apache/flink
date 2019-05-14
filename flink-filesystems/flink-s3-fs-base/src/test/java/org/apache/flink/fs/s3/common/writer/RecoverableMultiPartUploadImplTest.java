@@ -18,10 +18,9 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.fs.common.util.RefCountedBufferingFileStream;
 import org.apache.flink.fs.common.util.RefCountedFile;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
