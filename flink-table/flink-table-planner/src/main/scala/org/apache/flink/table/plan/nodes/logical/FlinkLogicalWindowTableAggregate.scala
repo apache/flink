@@ -16,51 +16,48 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.logical.rel
+package org.apache.flink.table.plan.nodes.logical
 
 import java.util
 
-import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
+import org.apache.flink.table.plan.logical.rel.{LogicalWindowTableAggregate, TableAggregate}
+import org.apache.flink.table.plan.nodes.FlinkConventions
 
-class LogicalWindowTableAggregate(
+class FlinkLogicalWindowTableAggregate(
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    indicatorFlag: Boolean,
+    indicator: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends TableAggregate(cluster, traitSet, input, indicatorFlag, groupSet, groupSets, aggCalls) {
+  extends TableAggregate(cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls)
+    with FlinkLogicalRel {
 
   def getWindow: LogicalWindow = window
 
   def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-    for (property <- namedProperties) {
-      pw.item(property.name, property.property)
-    }
-    pw
-  }
-
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): TableAggregate = {
-    new LogicalWindowTableAggregate(
+    new FlinkLogicalWindowTableAggregate(
       window,
       namedProperties,
       cluster,
       traitSet,
       inputs.get(0),
-      indicatorFlag,
+      indicator,
       groupSet,
       groupSets,
       aggCalls)
@@ -72,6 +69,7 @@ class LogicalWindowTableAggregate(
     val aggregateRowType = super.deriveRowType()
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
+    // add group ley types and agg types
     builder.addAll(aggregateRowType.getFieldList)
     namedProperties.foreach { namedProp =>
       builder.add(
@@ -82,55 +80,40 @@ class LogicalWindowTableAggregate(
     builder.build()
   }
 
-  override private[flink] def getCorrespondingAggregate: Aggregate = {
-    new LogicalWindowAggregate(
-      window,
-      namedProperties,
-      cluster,
-      traitSet,
-      getInput,
-      indicatorFlag,
-      groupSet,
-      groupSets,
-      aggCalls
-    )
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+    val child = this.getInput
+    val rowCnt = metadata.getRowCount(child)
+    val rowSize = this.estimateRowSize(child.getRowType)
+    val aggCnt = this.aggCalls.size
+    planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 }
 
-object LogicalWindowTableAggregate {
+class FlinkLogicalWindowTableAggregateConverter
+  extends ConverterRule(
+    classOf[LogicalWindowTableAggregate],
+    Convention.NONE,
+    FlinkConventions.LOGICAL,
+    "FlinkLogicalWindowTableAggregateConverter") {
 
-  def create(
-    window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
-    aggregate: Aggregate)
-  : LogicalWindowTableAggregate = {
+  override def convert(rel: RelNode): RelNode = {
+    val agg = rel.asInstanceOf[LogicalWindowTableAggregate]
+    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
+    val newInput = RelOptRule.convert(agg.getInput, FlinkConventions.LOGICAL)
 
-    val cluster: RelOptCluster = aggregate.getCluster
-    val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)
-    new LogicalWindowTableAggregate(
-      window,
-      namedProperties,
-      cluster,
+    new FlinkLogicalWindowTableAggregate(
+      agg.getWindow,
+      agg.getNamedProperties,
+      rel.getCluster,
       traitSet,
-      aggregate.getInput,
-      aggregate.indicator,
-      aggregate.getGroupSet,
-      aggregate.getGroupSets,
-      aggregate.getAggCallList)
+      newInput,
+      agg.getIndicator,
+      agg.getGroupSet,
+      agg.getGroupSets,
+      agg.getAggCallList)
   }
+}
 
-  def create(logicalWindowAggregate: LogicalWindowAggregate): LogicalWindowTableAggregate = {
-    val cluster: RelOptCluster = logicalWindowAggregate.getCluster
-    val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)
-    new LogicalWindowTableAggregate(
-      logicalWindowAggregate.getWindow,
-      logicalWindowAggregate.getNamedProperties,
-      cluster,
-      traitSet,
-      logicalWindowAggregate.getInput,
-      logicalWindowAggregate.indicator,
-      logicalWindowAggregate.getGroupSet,
-      logicalWindowAggregate.getGroupSets,
-      logicalWindowAggregate.getAggCallList)
-  }
+object FlinkLogicalWindowTableAggregate {
+  val CONVERTER = new FlinkLogicalWindowTableAggregateConverter
 }

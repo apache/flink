@@ -110,7 +110,7 @@ public class AggregateOperationFactory {
 
 		TypeInformation[] fieldTypes = Stream.concat(
 			convertedGroupings.stream().map(PlannerExpression::resultType),
-			convertedAggregates.stream().flatMap(this::getAggregateResultTypes)
+			convertedAggregates.stream().flatMap(this::extractAggregateResultTypes)
 		).toArray(TypeInformation[]::new);
 
 		String[] fieldNames = Stream.concat(
@@ -149,7 +149,7 @@ public class AggregateOperationFactory {
 
 		TypeInformation[] fieldTypes = concat(
 			convertedGroupings.stream().map(PlannerExpression::resultType),
-			convertedAggregates.stream().flatMap(this::getAggregateResultTypes),
+			convertedAggregates.stream().flatMap(this::extractAggregateResultTypes),
 			convertedWindowProperties.stream().map(PlannerExpression::resultType)
 		).toArray(TypeInformation[]::new);
 
@@ -171,10 +171,10 @@ public class AggregateOperationFactory {
 	}
 
 	/**
-	 * Get result types for the aggregate or the table aggregate expression. For a table aggregate,
+	 * Extract result types for the aggregate or the table aggregate expression. For a table aggregate,
 	 * it may return multi result types when the composite return type is flattened.
 	 */
-	private Stream<TypeInformation<?>> getAggregateResultTypes(PlannerExpression plannerExpression) {
+	private Stream<TypeInformation<?>> extractAggregateResultTypes(PlannerExpression plannerExpression) {
 		if (plannerExpression instanceof AggFunctionCall &&
 			((AggFunctionCall) plannerExpression).aggregateFunction() instanceof TableAggregateFunction) {
 			return Stream.of(UserDefinedFunctionUtils.getFieldInfo(plannerExpression.resultType())._3());

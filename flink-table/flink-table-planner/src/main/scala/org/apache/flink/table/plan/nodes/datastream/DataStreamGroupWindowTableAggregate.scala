@@ -19,16 +19,16 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.plan.nodes.CommonAggregate
+import org.apache.flink.table.plan.nodes.CommonTableAggregate
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.util.Logging
 
-class DataStreamGroupWindowAggregate(
+class DataStreamGroupWindowTableAggregate(
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
@@ -48,13 +48,13 @@ class DataStreamGroupWindowAggregate(
     schema,
     inputSchema,
     grouping,
-    "Aggregate")
-    with CommonAggregate
+    "TableAggregate")
+    with CommonTableAggregate
     with DataStreamRel
     with Logging {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamGroupWindowAggregate(
+    new DataStreamGroupWindowTableAggregate(
       window,
       namedProperties,
       cluster,
@@ -66,4 +66,3 @@ class DataStreamGroupWindowAggregate(
       grouping)
   }
 }
-

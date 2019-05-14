@@ -20,7 +20,9 @@ package org.apache.flink.table.utils
 
 import org.apache.flink.table.functions.TableAggregateFunction
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+
 import java.lang.{Integer => JInt}
+import java.lang.{Iterable => JIterable}
 import java.sql.Timestamp
 import java.util
 
@@ -34,6 +36,9 @@ class Top3Accum {
   var smallest: JInt = _
 }
 
+/**
+  * Note: This function suffers performance problem. Only use it in tests.
+  */
 class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
   override def createAccumulator(): Top3Accum = {
     val acc = new Top3Accum
@@ -92,6 +97,20 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
     }
   }
 
+  def merge(acc: Top3Accum, its: JIterable[Top3Accum]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val map = iter.next().data
+      val mapIter = map.entrySet().iterator()
+      while (mapIter.hasNext) {
+        val entry = mapIter.next()
+        for (_ <- 0 until entry.getValue) {
+          accumulate(acc, entry.getKey)
+        }
+      }
+    }
+  }
+
   def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {
     val entries = acc.data.entrySet().iterator()
     while (entries.hasNext) {
@@ -109,6 +128,9 @@ class Top3WithMapViewAccum {
   var smallest: JInt = _
 }
 
+/**
+  * Note: This function suffers performance problem. Only use it in tests.
+  */
 class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3WithMapViewAccum] {
 
   @Override
