@@ -189,6 +189,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
   @Test
   def testJoinOnDifferentKeyTypes(): Unit = {
     // Will do implicit type coercion.
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("VARCHAR(65536) and INTEGER does not have common type now")
     streamUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN temporalTest "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }

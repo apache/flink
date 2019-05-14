@@ -79,6 +79,13 @@ public class PlannerConfigOptions {
 					.withDescription("When the semi-side of semi/anti join can distinct a lot of data in advance," +
 							" we will add distinct node before semi/anti join.");
 
+	public static final ConfigOption<Long> SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD =
+			key("sql.optimizer.join.null.filter.threshold")
+					.defaultValue(2000000L)
+					.withDescription("If the source of InnerJoin has nullCount more than this value, " +
+							"it will add a null filter (possibly be pushDowned) before the join, filter" +
+							" null values to avoid the impact of null values on the single join node.");
+
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED =
 			key("sql.optimizer.data-skew.distinct-agg.enabled")
 					.defaultValue(false)

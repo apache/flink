@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
-import org.apache.flink.table.plan.rules.logical.{CalcSnapshotTransposeRule, _}
+import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.stream._
 import org.apache.calcite.rel.core.RelFactories
@@ -34,6 +34,7 @@ object FlinkStreamRuleSets {
   val SEMI_JOIN_RULES: RuleSet = RuleSets.ofList(
     SimplifyFilterConditionRule.EXTENDED,
     FlinkSubQueryRemoveRule.FILTER,
+    JoinConditionTypeCoerceRule.INSTANCE,
     FlinkJoinPushExpressionsRule.INSTANCE
   )
 
@@ -87,10 +88,21 @@ object FlinkStreamRuleSets {
   )
 
   /**
+    * RuleSet to simplify predicate expressions in filters and joins
+    */
+  private val PREDICATE_SIMPLIFY_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
+    SimplifyFilterConditionRule.INSTANCE,
+    SimplifyJoinConditionRule.INSTANCE,
+    JoinConditionTypeCoerceRule.INSTANCE,
+    JoinPushExpressionsRule.INSTANCE
+  )
+
+  /**
     * RuleSet to normalize plans for stream
     */
   val DEFAULT_REWRITE_RULES: RuleSet = RuleSets.ofList((
-    REWRITE_COALESCE_RULES.asScala ++
+    PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
+      REWRITE_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
         StreamLogicalWindowAggregateRule.INSTANCE,
@@ -127,19 +139,11 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * Ruleset to simplify expressions
-    */
-  private val PREDICATE_SIMPLIFY_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
-    // TODO: add filter simply and join condition simplify rules
-    FlinkJoinPushExpressionsRule.INSTANCE
-  )
-
-  /**
     * RuleSet to do predicate pushdown
     */
   val FILTER_PREPARE_RULES: RuleSet = RuleSets.ofList((
     FILTER_RULES.asScala
-      // simplify expressions
+      // simplify predicate expressions in filters and joins
       ++ PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala
       // reduce expressions in filters and joins
       ++ REDUCE_EXPRESSION_RULES.asScala
@@ -164,7 +168,7 @@ object FlinkStreamRuleSets {
   val PROJECT_RULES: RuleSet = RuleSets.ofList(
     // push a projection past a filter
     ProjectFilterTransposeRule.INSTANCE,
-    // push a projection to the children of a join
+    // push a projection to the children of a non semi/anti join
     // push all expressions to handle the time indicator correctly
     new FlinkProjectJoinTransposeRule(
       PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
