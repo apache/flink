@@ -18,18 +18,23 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException, Types}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
-import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.plan.util.ScanUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rex.RexNode
 
 import java.util
 
@@ -75,7 +80,58 @@ class BatchExecTableSourceScan(
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
-    throw new TableException("Implements this")
+    val config = tableEnv.getConfig
+    val bts = tableSource.asInstanceOf[BatchTableSource[_]]
+    val inputTransform = bts.getBoundedStream(tableEnv.streamEnv).getTransformation
+
+    val fieldIndexes = TableSourceUtil.computeIndexMapping(
+      tableSource,
+      isStreamTable = false,
+      None)
+
+    // check that declared and actual type of table source DataStream are identical
+    if (createInternalTypeFromTypeInfo(inputTransform.getOutputType) !=
+      createInternalTypeFromTypeInfo(tableSource.getReturnType)) {
+      throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
+        s"returned a DataSet of type ${inputTransform.getOutputType} that does not match with " +
+        s"the type ${tableSource.getReturnType} declared by the TableSource.getReturnType() " +
+        s"method. Please validate the implementation of the TableSource.")
+    }
+
+    // get expression to extract rowtime attribute
+    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+      tableSource,
+      None,
+      cluster,
+      tableEnv.getRelBuilder,
+      Types.SQL_TIMESTAMP
+    )
+    if (needInternalConversion) {
+      ScanUtil.convertToInternalRow(
+        CodeGeneratorContext(config),
+        inputTransform.asInstanceOf[StreamTransformation[Any]],
+        fieldIndexes,
+        tableSource.getReturnType,
+        getRowType,
+        getTable.getQualifiedName,
+        config,
+        rowtimeExpression)
+    } else {
+      inputTransform.asInstanceOf[StreamTransformation[BaseRow]]
+    }
+
   }
 
+  def needInternalConversion: Boolean = {
+    val fieldIndexes = TableSourceUtil.computeIndexMapping(
+      tableSource,
+      isStreamTable = false,
+      None)
+    ScanUtil.hasTimeAttributeField(fieldIndexes) ||
+      ScanUtil.needsConversion(
+        tableSource.getReturnType,
+        TypeExtractor.createTypeInfo(
+          tableSource, classOf[BatchTableSource[_]], tableSource.getClass, 0)
+          .getTypeClass.asInstanceOf[Class[_]])
+  }
 }

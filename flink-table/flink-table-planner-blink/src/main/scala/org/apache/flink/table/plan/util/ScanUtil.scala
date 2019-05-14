@@ -77,7 +77,7 @@ object ScanUtil {
       val convertFunc = CodeGenUtils.genToInternal(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
-        case _ => ((record: String) => s"$GENERIC_ROW.wrap(${convertFunc(record)})",
+        case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
             new RowType(internalInType))
       }
     }
