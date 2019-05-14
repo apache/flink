@@ -31,6 +31,7 @@ import org.apache.flink.table.validate.ValidationFailure;
 import org.apache.flink.table.validate.ValidationResult;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -86,29 +87,31 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		private Expression validateArguments(CallExpression call, PlannerExpression plannerCall) {
 			if (!plannerCall.valid()) {
-				throw new ValidationException(getValidationErrorMessage(plannerCall));
+				throw new ValidationException(
+					getValidationErrorMessage(plannerCall)
+						.orElse("Unexpected behavior, validation failed but can't get error messages!"));
 			}
 			return call;
 		}
 
 		/**
 		 * Return the validation error message of this {@link PlannerExpression} or return the
-		 * validation error message of it's children if it passes the validation. Return an empty
-		 * string if all validation succeeded.
+		 * validation error message of it's children if it passes the validation. Return empty if
+		 * all validation succeeded.
 		 */
-		private String getValidationErrorMessage(PlannerExpression plannerCall) {
+		private Optional<String> getValidationErrorMessage(PlannerExpression plannerCall) {
 			ValidationResult validationResult = plannerCall.validateInput();
 			if (validationResult instanceof ValidationFailure) {
-				return ((ValidationFailure) validationResult).message();
+				return Optional.of(((ValidationFailure) validationResult).message());
 			} else {
 				for (Expression plannerExpression: plannerCall.getChildren()) {
-					String errorMessage = getValidationErrorMessage((PlannerExpression) plannerExpression);
-					if (!errorMessage.isEmpty()) {
+					Optional<String> errorMessage = getValidationErrorMessage((PlannerExpression) plannerExpression);
+					if (errorMessage.isPresent()) {
 						return errorMessage;
 					}
 				}
 			}
-			return "";
+			return Optional.empty();
 		}
 
 		private Expression castIfNeeded(PlannerExpression childExpression, TypeInformation<?> expectedType) {
