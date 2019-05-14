@@ -22,6 +22,8 @@ import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.rel.LogicalTableAggregate;
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate;
+import org.apache.flink.table.plan.logical.rel.LogicalWindowTableAggregate;
+import org.apache.flink.table.plan.logical.rel.TableAggregate;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -48,12 +50,12 @@ import java.util.stream.Collectors;
 
 /**
  * Rule to extract a {@link org.apache.calcite.rel.core.Project} from a {@link LogicalAggregate},
- * a {@link LogicalWindowAggregate} or a {@link LogicalTableAggregate} and push it down towards
+ * a {@link LogicalWindowAggregate} or a {@link TableAggregate} and push it down towards
  * the input.
  *
  * <p>Note: Most of the logic in this rule is same with {@link AggregateExtractProjectRule}. The
  * difference is this rule has also taken the {@link LogicalWindowAggregate} and
- * {@link LogicalTableAggregate} into consideration. Furthermore, this rule also creates trivial
+ * {@link TableAggregate} into consideration. Furthermore, this rule also creates trivial
  * {@link Project}s unless the input node is already a {@link Project}.
  */
 public class ExtendedAggregateExtractProjectRule extends AggregateExtractProjectRule {
@@ -75,7 +77,7 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 		final SingleRel relNode = call.rel(0);
 		return relNode instanceof LogicalWindowAggregate ||
 			relNode instanceof LogicalAggregate ||
-			relNode instanceof LogicalTableAggregate;
+			relNode instanceof TableAggregate;
 	}
 
 	@Override
@@ -84,22 +86,31 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 		final RelNode input = call.rel(1);
 		final RelBuilder relBuilder = call.builder().push(input);
 
-		if (relNode instanceof LogicalAggregate || relNode instanceof LogicalWindowAggregate) {
-			call.transformTo(performExtract((Aggregate) relNode, input, relBuilder));
-		} else if (relNode instanceof LogicalTableAggregate) {
-			LogicalAggregate logicalAggregate =
-				LogicalTableAggregate.getCorrespondingAggregate((LogicalTableAggregate) relNode);
-			RelNode newAggregate = performExtract(logicalAggregate, input, relBuilder);
-			call.transformTo(LogicalTableAggregate.create((Aggregate) newAggregate));
+		if (relNode instanceof Aggregate) {
+			call.transformTo(performExtractForAggregate((Aggregate) relNode, input, relBuilder));
+		} else if (relNode instanceof TableAggregate) {
+			call.transformTo(performExtractForTableAggregate((TableAggregate) relNode, input, relBuilder));
 		}
 	}
 
 	/**
 	 * Extract a project from the input aggregate and return a new aggregate.
 	 */
-	private RelNode performExtract(Aggregate aggregate, RelNode input, RelBuilder relBuilder) {
+	private RelNode performExtractForAggregate(Aggregate aggregate, RelNode input, RelBuilder relBuilder) {
 		Mapping mapping = extractProjectsAndMapping(aggregate, input, relBuilder);
 		return getNewAggregate(aggregate, relBuilder, mapping);
+	}
+
+	/**
+	 * Extract a project from the input table aggregate and return a new table aggregate.
+	 */
+	private RelNode performExtractForTableAggregate(TableAggregate aggregate, RelNode input, RelBuilder relBuilder) {
+		RelNode newAggregate = performExtractForAggregate(aggregate.getCorrespondingAggregate(), input, relBuilder);
+		if (aggregate instanceof LogicalTableAggregate) {
+			return LogicalTableAggregate.create((Aggregate) newAggregate);
+		} else {
+			return LogicalWindowTableAggregate.create((LogicalWindowAggregate) newAggregate);
+		}
 	}
 
 	/**
@@ -153,7 +164,7 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 		}
 		// 3. window time field if the aggregate is a group window aggregate.
 		if (aggregate instanceof LogicalWindowAggregate) {
-			inputFieldsUsed.set(getWindowTimeFieldIndex((LogicalWindowAggregate) aggregate, input));
+			inputFieldsUsed.set(getWindowTimeFieldIndex(((LogicalWindowAggregate) aggregate).getWindow(), input));
 		}
 		return inputFieldsUsed;
 	}
@@ -195,8 +206,7 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 		}
 	}
 
-	private int getWindowTimeFieldIndex(LogicalWindowAggregate aggregate, RelNode input) {
-		LogicalWindow logicalWindow = aggregate.getWindow();
+	private int getWindowTimeFieldIndex(LogicalWindow logicalWindow, RelNode input) {
 		ResolvedFieldReference timeAttribute = (ResolvedFieldReference) logicalWindow.timeAttribute();
 		return input.getRowType().getFieldNames().indexOf(timeAttribute.name());
 	}

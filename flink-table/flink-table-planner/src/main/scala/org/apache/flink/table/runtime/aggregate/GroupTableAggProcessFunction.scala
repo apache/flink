@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.apache.flink.table.runtime.CRowWrappingCollector
+import org.apache.flink.table.runtime.TableAggregateCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
@@ -41,6 +41,7 @@ class GroupTableAggProcessFunction[K](
     private val genTableAggregations: GeneratedAggregationsFunction,
     private val aggregationStateType: RowTypeInfo,
     private val generateRetraction: Boolean,
+    private val groupKeySize: Int,
     private val queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
     with Compiler[GeneratedTableAggregations]
@@ -54,7 +55,7 @@ class GroupTableAggProcessFunction[K](
   // counts the number of added and retracted input records
   private var cntState: ValueState[JLong] = _
 
-  private var appendKeyCollector: AppendKeyCRowCollector = _
+  private var concatCollector: TableAggregateCollector = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling TableAggregateHelper: ${genTableAggregations.name} \n\n " +
@@ -74,8 +75,8 @@ class GroupTableAggProcessFunction[K](
       new ValueStateDescriptor[JLong]("GroupTableAggregateInputCounter", Types.LONG)
     cntState = getRuntimeContext.getState(inputCntDescriptor)
 
-    appendKeyCollector = new AppendKeyCRowCollector
-    appendKeyCollector.setResultRow(function.createOutputRow())
+    concatCollector = new TableAggregateCollector(groupKeySize)
+    concatCollector.setResultRow(function.createOutputRow())
 
     initCleanupTimeState("GroupTableAggregateCleanupTime")
   }
@@ -110,14 +111,14 @@ class GroupTableAggProcessFunction[K](
     }
 
     // Set group keys value to the final output
-    function.setForwardedFields(input, appendKeyCollector.getResultRow)
+    function.setForwardedFields(input, concatCollector.getResultRow)
 
-    appendKeyCollector.out = out
+    concatCollector.out = out
     if (!firstRow) {
       if (generateRetraction) {
-        appendKeyCollector.setChange(false)
-        function.emit(accumulators, appendKeyCollector)
-        appendKeyCollector.setChange(true)
+        concatCollector.setChange(false)
+        function.emit(accumulators, concatCollector)
+        concatCollector.setChange(true)
       }
     }
 
@@ -144,7 +145,7 @@ class GroupTableAggProcessFunction[K](
       cntState.update(inputCnt)
 
       // emit the new result
-      function.emit(accumulators, appendKeyCollector)
+      function.emit(accumulators, concatCollector)
 
     } else {
       // and clear all state
@@ -166,31 +167,5 @@ class GroupTableAggProcessFunction[K](
 
   override def close(): Unit = {
     function.close()
-  }
-}
-
-/**
-  * The collector is used to assemble group key and table function output.
-  */
-class AppendKeyCRowCollector() extends CRowWrappingCollector {
-
-  var resultRow: Row = _
-
-  def setResultRow(row: Row): Unit = {
-    resultRow = row
-  }
-
-  def getResultRow: Row = {
-    resultRow
-  }
-
-  override def collect(record: Row): Unit = {
-    var i = 0
-    val offset = resultRow.getArity - record.getArity
-    while (i < record.getArity) {
-      resultRow.setField(i + offset, record.getField(i))
-      i += 1
-    }
-    super.collect(resultRow)
   }
 }

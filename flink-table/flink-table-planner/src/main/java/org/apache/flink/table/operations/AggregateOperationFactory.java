@@ -53,6 +53,7 @@ import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -107,30 +108,14 @@ public class AggregateOperationFactory {
 		List<PlannerExpression> convertedGroupings = bridge(groupings);
 		List<PlannerExpression> convertedAggregates = bridge(aggregates);
 
-		Boolean isTableAggregate = aggregates.size() == 1 && isTableAggFunctionCall(aggregates.get(0));
-
 		TypeInformation[] fieldTypes = Stream.concat(
 			convertedGroupings.stream().map(PlannerExpression::resultType),
-			convertedAggregates.stream().flatMap(expr -> {
-				if (isTableAggregate) {
-					return Stream.of(UserDefinedFunctionUtils.getFieldInfo(expr.resultType())._3());
-				} else {
-					return Stream.of(expr.resultType());
-				}
-			})
+			convertedAggregates.stream().flatMap(this::extractAggregateResultTypes)
 		).toArray(TypeInformation[]::new);
 
 		String[] fieldNames = Stream.concat(
 			groupings.stream().map(expr -> extractName(expr).orElseGet(expr::toString)),
-			aggregates.stream().flatMap(expr -> {
-				if (isTableAggregate) {
-					return Stream.of(UserDefinedFunctionUtils.getFieldInfo(
-						((AggregateFunctionDefinition) ((CallExpression) expr).getFunctionDefinition())
-							.getResultTypeInfo())._1());
-				} else {
-					return Stream.of(extractName(expr).orElseGet(expr::toString));
-				}
-			})
+			aggregates.stream().flatMap(this::extractAggregateNames)
 		).toArray(String[]::new);
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
@@ -163,18 +148,16 @@ public class AggregateOperationFactory {
 		List<PlannerExpression> convertedWindowProperties = bridge(windowProperties);
 
 		TypeInformation[] fieldTypes = concat(
-			convertedGroupings.stream(),
-			convertedAggregates.stream(),
-			convertedWindowProperties.stream()
-		).map(PlannerExpression::resultType)
-			.toArray(TypeInformation[]::new);
+			convertedGroupings.stream().map(PlannerExpression::resultType),
+			convertedAggregates.stream().flatMap(this::extractAggregateResultTypes),
+			convertedWindowProperties.stream().map(PlannerExpression::resultType)
+		).toArray(TypeInformation[]::new);
 
 		String[] fieldNames = concat(
-			groupings.stream(),
-			aggregates.stream(),
-			windowProperties.stream()
-		).map(expr -> extractName(expr).orElseGet(expr::toString))
-			.toArray(String[]::new);
+			groupings.stream().map(expr -> extractName(expr).orElseGet(expr::toString)),
+			aggregates.stream().flatMap(this::extractAggregateNames),
+			windowProperties.stream().map(expr -> extractName(expr).orElseGet(expr::toString))
+		).toArray(String[]::new);
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
 
@@ -185,6 +168,33 @@ public class AggregateOperationFactory {
 			window,
 			child,
 			tableSchema);
+	}
+
+	/**
+	 * Extract result types for the aggregate or the table aggregate expression. For a table aggregate,
+	 * it may return multi result types when the composite return type is flattened.
+	 */
+	private Stream<TypeInformation<?>> extractAggregateResultTypes(PlannerExpression plannerExpression) {
+		if (plannerExpression instanceof AggFunctionCall &&
+			((AggFunctionCall) plannerExpression).aggregateFunction() instanceof TableAggregateFunction) {
+			return Stream.of(UserDefinedFunctionUtils.getFieldInfo(plannerExpression.resultType())._3());
+		} else {
+			return Stream.of(plannerExpression.resultType());
+		}
+	}
+
+	/**
+	 * Extract names for the aggregate or the table aggregate expression. For a table aggregate, it
+	 * may return multi output names when the composite return type is flattened.
+	 */
+	private Stream<String> extractAggregateNames(Expression expression) {
+		if (isTableAggFunctionCall(expression)) {
+			return Arrays.stream(UserDefinedFunctionUtils.getFieldInfo(
+				((AggregateFunctionDefinition) ((CallExpression) expression).getFunctionDefinition())
+					.getResultTypeInfo())._1());
+		} else {
+			return Stream.of(extractName(expression).orElseGet(expression::toString));
+		}
 	}
 
 	/**

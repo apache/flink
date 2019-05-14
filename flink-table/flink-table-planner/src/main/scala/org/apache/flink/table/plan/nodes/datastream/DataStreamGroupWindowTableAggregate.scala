@@ -15,57 +15,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.plan.nodes.CommonTableAggregate
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.util.Logging
 
-/**
-  *
-  * Flink RelNode for data stream unbounded group aggregate
-  *
-  * @param cluster         Cluster of the RelNode, represent for an environment of related
-  *                        relational expressions during the optimization of a query.
-  * @param traitSet        Trait set of the RelNode
-  * @param inputNode       The input RelNode of aggregation
-  * @param namedAggregates List of calls to aggregate functions and their output field names
-  * @param inputSchema     The type of the rows consumed by this RelNode
-  * @param schema          The type of the rows emitted by this RelNode
-  * @param groupings       The position (in the input Row) of the grouping keys
-  */
-class DataStreamGroupAggregate(
+class DataStreamGroupWindowTableAggregate(
+    window: LogicalWindow,
+    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     schema: RowSchema,
     inputSchema: RowSchema,
-    groupings: Array[Int])
-  extends DataStreamGroupAggregateBase(
+    grouping: Array[Int])
+  extends DataStreamGroupWindowAggregateBase(
+    window,
+    namedProperties,
     cluster,
     traitSet,
     inputNode,
     namedAggregates,
     schema,
     inputSchema,
-    groupings,
-    "Aggregate")
+    grouping,
+    "TableAggregate")
+    with CommonTableAggregate
     with DataStreamRel
     with Logging {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamGroupAggregate(
+    new DataStreamGroupWindowTableAggregate(
+      window,
+      namedProperties,
       cluster,
       traitSet,
       inputs.get(0),
       namedAggregates,
       schema,
       inputSchema,
-      groupings)
+      grouping)
   }
 }
-

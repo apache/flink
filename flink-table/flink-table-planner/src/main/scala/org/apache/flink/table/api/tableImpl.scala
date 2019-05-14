@@ -640,6 +640,58 @@ class WindowGroupedTableImpl(
         explicitAlias = true
       ))
   }
+
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = {
+    flatAggregate(ExpressionParser.parseExpression(tableAggregateFunction))
+  }
+
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = {
+    new WindowFlatAggregateTableImpl(table, groupKeys, tableAggregateFunction, window)
+  }
+}
+
+/**
+  * The implementation of a [[WindowGroupedTable]] that has been windowed and grouped on
+  * [[GroupWindow]]s for table aggregate.
+  */
+class WindowFlatAggregateTableImpl(
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val tableAggFunction: Expression,
+    private[flink] val window: GroupWindow)
+  extends FlatAggregateTable {
+
+  private val tableImpl = table.asInstanceOf[TableImpl]
+
+  override def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields): _*)
+  }
+
+  override def select(fields: Expression*): Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver))
+    val extracted = extractAggregationsAndProperties(
+      expressionsWithResolvedCalls,
+      tableImpl.getUniqueAttributeSupplier)
+
+    if (extracted.getAggregations.nonEmpty) {
+      throw new ValidationException("Aggregate functions cannot be used in the select right " +
+        "after the flatAggregate.")
+    }
+
+    new TableImpl(tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder.project(
+        extracted.getProjections,
+        tableImpl.operationTreeBuilder.windowTableAggregate(
+          groupKeys,
+          window,
+          extracted.getWindowProperties,
+          tableAggFunction,
+          tableImpl.operationTree
+        ),
+        // required for proper resolution of the time attribute in multi-windows
+        explicitAlias = true
+      ))
+  }
 }
 
 /**
