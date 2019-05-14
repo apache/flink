@@ -100,6 +100,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 		return new Database(
 			databaseName,
 			catalogDatabase.getComment(),
+			// HDFS location URI which GenericCatalogDatabase shouldn't care
 			null,
 			catalogDatabase.getProperties());
 	}
