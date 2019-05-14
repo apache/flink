@@ -640,6 +640,10 @@ class WindowGroupedTableImpl(
         explicitAlias = true
       ))
   }
+
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = ???
+
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = ???
 }
 
 /**
