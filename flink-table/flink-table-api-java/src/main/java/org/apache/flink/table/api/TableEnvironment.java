@@ -22,12 +22,14 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
+
+import java.util.Optional;
 
 /**
  * The base class for batch and stream TableEnvironments.
@@ -57,8 +59,8 @@ public interface TableEnvironment {
 	 * Registers an {@link ExternalCatalog} under a unique name in the TableEnvironment's schema.
 	 * All tables registered in the {@link ExternalCatalog} can be accessed.
 	 *
-	 * @param name The name under which the externalCatalog will be registered
-	 * @param externalCatalog The externalCatalog to register
+	 * @param name The name under which the externalCatalog will be registered.
+	 * @param externalCatalog The externalCatalog to register.
 	 * @see TableEnvironment#getCatalog(String)
 	 * @see TableEnvironment#registerCatalog(String, Catalog)
 	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
@@ -69,8 +71,8 @@ public interface TableEnvironment {
 	/**
 	 * Gets a registered {@link ExternalCatalog} by name.
 	 *
-	 * @param name The name to look up the {@link ExternalCatalog}
-	 * @return The {@link ExternalCatalog}
+	 * @param name The name to look up the {@link ExternalCatalog}.
+	 * @return The {@link ExternalCatalog}.
 	 * @see TableEnvironment#getCatalog(String)
 	 * @see TableEnvironment#registerCatalog(String, Catalog)
 	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
@@ -82,20 +84,19 @@ public interface TableEnvironment {
 	 * Registers a {@link Catalog} under a unique name.
 	 * All tables registered in the {@link Catalog} can be accessed.
 	 *
-	 * @param name the name under which the catalog will be registered
-	 * @param catalog the catalog to register
-	 * @throws CatalogAlreadyExistsException thrown if catalog with given name already exists
+	 * @param catalogName The name under which the catalog will be registered.
+	 * @param catalog The catalog to register.
+	 * @throws CatalogException if the registration of the catalog under the given name failed
 	 */
-	void registerCatalog(String name, Catalog catalog) throws CatalogAlreadyExistsException;
+	void registerCatalog(String catalogName, Catalog catalog);
 
 	/**
 	 * Gets a registered {@link Catalog} by name.
 	 *
-	 * @param catalogName The name to look up the {@link Catalog}
-	 * @return the requested catalog
-	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
+	 * @param catalogName The name to look up the {@link Catalog}.
+	 * @return The requested catalog, empty if there is no registered catalog with given name.
 	 */
-	Catalog getCatalog(String catalogName) throws CatalogNotExistException;
+	Optional<Catalog> getCatalog(String catalogName);
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
@@ -149,12 +150,10 @@ public interface TableEnvironment {
 	 * Scans a registered table and returns the resulting {@link Table}.
 	 *
 	 * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either directly
-	 * registered or be a member of an {@link ExternalCatalog} or {@link Catalog}.
+	 * registered or be an external member of a {@link Catalog}.
 	 *
-	 * <p>First we try to look for {@code [default-path].[table-path]} if no object is found we assume the
-	 * object path is a fully qualified one and we look for {@code [table-path]}. See also
-	 * {@link TableEnvironment#setCurrentDatabase(String, String)} and
-	 * {@link TableEnvironment#setCurrentCatalog(String)}
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String, String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
 	 *
 	 * <p>Examples:
 	 *
@@ -174,11 +173,11 @@ public interface TableEnvironment {
 	 *
 	 * @param tablePath The path of the table to scan.
 	 * @return The resulting {@link Table}.
-	 * @throws TableException if no table is found using the given table path.
-	 * @see TableEnvironment#setCurrentCatalog(String)
-	 * @see TableEnvironment#setCurrentDatabase(String, String)
+	 * @throws ValidationException if no table is found using the given table path.
+	 * @see TableEnvironment#useCatalog(String)
+	 * @see TableEnvironment#useDatabase(String, String)
 	 */
-	Table scan(String... tablePath) throws TableException;
+	Table scan(String... tablePath);
 
 	/**
 	 * Creates a table source and/or table sink from a descriptor.
@@ -319,51 +318,138 @@ public interface TableEnvironment {
 	/**
 	 * Gets the current default catalog name of the current session.
 	 *
-	 * @return the current default catalog that is used for path resolution
-	 * @see TableEnvironment#setCurrentCatalog(String)
+	 * @return The current default catalog name that is used for the path resolution.
+	 * @see TableEnvironment#useCatalog(String)
 	 */
-	String getCurrentCatalogName();
+	String getCurrentCatalog();
 
 	/**
 	 * Sets the current catalog to the given value. It also sets the default
 	 * database to the catalog's default one. To assign both catalog and database explicitly
-	 * see {@link TableEnvironment#setCurrentDatabase(String, String)}.
+	 * see {@link TableEnvironment#useDatabase(String, String)}.
 	 *
-	 * <p>This is used during resolution of object paths. The default path is constructed as
-	 * {@code [current-catalog].[current.database]}. During the resolution, first we try to look for
-	 * {@code [default-path].[object-path]} if no object is found we assume the object path is a fully
-	 * qualified one and we look for {@code [object-path]}.
+	 * <p>This is used during the resolution of object paths. Both the catalog and database are optional
+	 * when referencing catalog objects(tables, views etc.). The algorithm looks for requested objects in following
+	 * paths in that order:
+	 * <ol>
+	 *     <li>{@code [current-catalog].[current-database].[requested-path]}</li>
+	 *     <li>{@code [current-catalog].[requested-path]}</li>
+	 *     <li>{@code [requested-path]}</li>
+	 * </ol>
 	 *
-	 * @param name name of the catalog to set as current default catalog
-	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
+	 * <p>Example:
+	 *
+	 * <p>Given structure with default catalog set to {@code default-catalog} and default database set to
+	 * {@code default-database}.
+	 * <pre>
+	 * root:
+	 *   |- default-catalog
+	 *       |- default-database
+	 *           |- tab1
+	 *       |- db1
+	 *           |- tab1
+	 *   |- cat1
+	 *       |- db1
+	 *           |- tab1
+	 * </pre>
+	 *
+	 * <p></p>The following table describes resolved paths:
+	 * <table>
+	 *     <thead>
+	 *         <tr>
+	 *             <th>Requested path</th>
+	 *             <th>Resolved path</th>
+	 *         </tr>
+	 *     </thead>
+	 *     <tbody>
+	 *         <tr>
+	 *             <td>tab1</td>
+	 *             <td>default-catalog.default-database.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>db1.tab1</td>
+	 *             <td>default-catalog.db1.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>cat1.db1.tab1</td>
+	 *             <td>cat1.db1.tab1</td>
+	 *         </tr>
+	 *     </tbody>
+	 * </table>
+	 *
+	 * @param catalogName The name of the catalog to set as the current default catalog.
+	 * @throws CatalogException thrown if a catalog with given name could not be set as the default one
 	 */
-	void setCurrentCatalog(String name) throws CatalogNotExistException;
+	void useCatalog(String catalogName);
 
 	/**
 	 * Gets the current default database name of the running session.
 	 *
-	 * @return the current database of the current catalog
-	 * @see TableEnvironment#setCurrentDatabase(String, String)
+	 * @return The name of the current database of the current catalog.
+	 * @see TableEnvironment#useDatabase(String, String)
 	 */
-	String getCurrentDatabaseName();
+	String getCurrentDatabase();
 
 	/**
 	 * Sets the current default catalog and database. That path will be used as the default one
 	 * when looking for unqualified object names.
 	 *
-	 * <p>This is used during resolution of object paths. The default path is constructed as
-	 * {@code [current-catalog].[current.database]}. During the resolution, first we try to look for
-	 * {@code [default-path].[object-path]} if no object is found we assume the object path is a fully
-	 * qualified one and we look for {@code [object-path]}.
+	 * <p>This is used during the resolution of object paths. Both the catalog and database are optional
+	 * when referencing catalog objects(tables, views etc.). The algorithm looks for requested objects in following
+	 * paths in that order:
+	 * <ol>
+	 *     <li>{@code [current-catalog].[current-database].[requested-path]}</li>
+	 *     <li>{@code [current-catalog].[requested-path]}</li>
+	 *     <li>{@code [requested-path]}</li>
+	 * </ol>
 	 *
-	 * @param catalogName name of the catalog to set as current catalog
-	 * @param databaseName name of the database to set as current database
-	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
-	 * @throws DatabaseNotExistException thrown if the database doesn't exist
+	 * <p>Example:
+	 *
+	 * <p>Given structure with default catalog set to {@code default-catalog} and default database set to
+	 * {@code default-database}.
+	 * <pre>
+	 * root:
+	 *   |- default-catalog
+	 *       |- default-database
+	 *           |- tab1
+	 *       |- db1
+	 *           |- tab1
+	 *   |- cat1
+	 *       |- db1
+	 *           |- tab1
+	 * </pre>
+	 *
+	 * <p></p>The following table describes resolved paths:
+	 * <table>
+	 *     <thead>
+	 *         <tr>
+	 *             <th>Requested path</th>
+	 *             <th>Resolved path</th>
+	 *         </tr>
+	 *     </thead>
+	 *     <tbody>
+	 *         <tr>
+	 *             <td>tab1</td>
+	 *             <td>default-catalog.default-database.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>db1.tab1</td>
+	 *             <td>default-catalog.db1.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>cat1.db1.tab1</td>
+	 *             <td>cat1.db1.tab1</td>
+	 *         </tr>
+	 *     </tbody>
+	 * </table>
+	 *
+	 * @param catalogName The name of the catalog to set as the current catalog.
+	 * @param databaseName The name of the database to set as the current database.
+	 * @throws CatalogException thrown if the given catalog and database could not be set as the default ones
 	 */
-	void setCurrentDatabase(
+	void useDatabase(
 		String catalogName,
-		String databaseName) throws CatalogNotExistException, DatabaseNotExistException;
+		String databaseName);
 
 	/**
 	 * Returns the table config that defines the runtime behavior of the Table API.

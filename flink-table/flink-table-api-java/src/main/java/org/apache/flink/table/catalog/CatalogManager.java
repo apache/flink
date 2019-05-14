@@ -19,14 +19,13 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.CatalogAlreadyExistsException;
 import org.apache.flink.table.api.CatalogNotExistException;
-import org.apache.flink.table.api.ExternalCatalogAlreadyExistException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.operations.CatalogTableOperation;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -34,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A CatalogManager that encapsulates all available catalogs. It also implements the logic of
- * table path resolution. Supports both new API ({@link ReadableCatalog} as well as {@link ExternalCatalog}.
+ * table path resolution. Supports both new API ({@link Catalog} as well as {@link ExternalCatalog}).
  */
 @Internal
 public class CatalogManager {
@@ -63,11 +63,15 @@ public class CatalogManager {
 	private String currentDatabaseName;
 
 	public CatalogManager(String defaultCatalogName, Catalog defaultCatalog) {
+		checkArgument(
+			!StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
+			"Default catalog name cannot be null or empty");
+		checkNotNull(defaultCatalog, "Default catalog cannot be null");
 		catalogs = new LinkedHashMap<>();
 		externalCatalogs = new LinkedHashMap<>();
 		catalogs.put(defaultCatalogName, defaultCatalog);
 		this.currentCatalogName = defaultCatalogName;
-		this.currentDatabaseName = defaultCatalog.getCurrentDatabase();
+		this.currentDatabaseName = defaultCatalog.getDefaultDatabase();
 	}
 
 	/**
@@ -76,14 +80,14 @@ public class CatalogManager {
 	 *
 	 * @param catalogName name under which to register the given catalog
 	 * @param catalog catalog to register
-	 * @throws CatalogAlreadyExistsException thrown if the name is already taken
+	 * @throws CatalogException if the registration of the catalog under the given name failed
 	 */
-	public void registerCatalog(String catalogName, Catalog catalog) throws CatalogAlreadyExistsException {
+	public void registerCatalog(String catalogName, Catalog catalog) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
 		checkNotNull(catalog, "Catalog cannot be null");
 
 		if (catalogs.containsKey(catalogName) || externalCatalogs.containsKey(catalogName)) {
-			throw new CatalogAlreadyExistsException(catalogName);
+			throw new CatalogException(String.format("Catalog %s already exists.", catalogName));
 		}
 
 		catalogs.put(catalogName, catalog);
@@ -94,16 +98,11 @@ public class CatalogManager {
 	 * Gets a catalog by name.
 	 *
 	 * @param catalogName name of the catalog to retrieve
-	 * @return the requested catalog
-	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
+	 * @return the requested catalog or empty if it does not exist
 	 * @see CatalogManager#getExternalCatalog(String)
 	 */
-	public Catalog getCatalog(String catalogName) throws CatalogNotExistException {
-		if (!catalogs.keySet().contains(catalogName)) {
-			throw new CatalogNotExistException(catalogName);
-		}
-
-		return catalogs.get(catalogName);
+	public Optional<Catalog> getCatalog(String catalogName) {
+		return Optional.ofNullable(catalogs.get(catalogName));
 	}
 
 	/**
@@ -112,16 +111,16 @@ public class CatalogManager {
 	 *
 	 * @param catalogName name under which to register the given catalog
 	 * @param catalog catalog to register
-	 * @throws ExternalCatalogAlreadyExistException thrown if the name is already taken
+	 * @throws CatalogException thrown if the name is already taken
 	 * @deprecated {@link ExternalCatalog} APIs will be dropped
 	 */
 	@Deprecated
 	public void registerExternalCatalog(String catalogName, ExternalCatalog catalog) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
-		checkNotNull(catalog, "catalog cannot be null");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "The catalog name cannot be null or empty.");
+		checkNotNull(catalog, "The catalog cannot be null.");
 
 		if (externalCatalogs.containsKey(catalogName) || catalogs.containsKey(catalogName)) {
-			throw new ExternalCatalogAlreadyExistException(catalogName);
+			throw new CatalogException(String.format("An external catalog named [%s] already exists.", catalogName));
 		}
 
 		externalCatalogs.put(catalogName, catalog);
@@ -131,7 +130,7 @@ public class CatalogManager {
 	 * Gets an external catalog by name.
 	 *
 	 * @param externalCatalogName name of the catalog to retrieve
-	 * @return the requested external catalog
+	 * @return the requested external catalog or empty if it does not exist
 	 * @see CatalogManager#getCatalog(String)
 	 * @deprecated {@link ExternalCatalog} APIs will be dropped
 	 */
@@ -144,9 +143,9 @@ public class CatalogManager {
 	 * Retrieves names of all registered catalogs. It does not include {@link ExternalCatalog}s.
 	 *
 	 * @return a set of names of registered catalogs
-	 * @see CatalogManager#getExternalCatalogNames()
+	 * @see CatalogManager#getExternalCatalogs()
 	 */
-	public Set<String> getCatalogNames() {
+	public Set<String> getCatalogs() {
 		return catalogs.keySet();
 	}
 
@@ -154,11 +153,11 @@ public class CatalogManager {
 	 * Retrieves names of all registered external catalogs. It does not include {@link Catalog}s.
 	 *
 	 * @return a set of names of registered catalogs
-	 * @see CatalogManager#getCatalogNames()
+	 * @see CatalogManager#getCatalogs()
 	 * @deprecated {@link ExternalCatalog} APIs will be dropped
 	 */
 	@Deprecated
-	public Set<String> getExternalCatalogNames() {
+	public Set<String> getExternalCatalogs() {
 		return externalCatalogs.keySet();
 	}
 
@@ -168,7 +167,7 @@ public class CatalogManager {
 	 * @return the current default catalog
 	 * @see CatalogManager#resolveTable(String...)
 	 */
-	public String getCurrentCatalogName() {
+	public String getCurrentCatalog() {
 		return currentCatalogName;
 	}
 
@@ -182,21 +181,21 @@ public class CatalogManager {
 	public void setCurrentCatalog(String catalogName) throws CatalogNotExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
 
-		if (externalCatalogs.keySet().contains(catalogName)) {
+		if (externalCatalogs.containsKey(catalogName)) {
 			throw new CatalogException("An external catalog cannot be set as the default one.");
 		}
 
 		Catalog potentialCurrentCatalog = catalogs.get(catalogName);
 		if (potentialCurrentCatalog == null) {
-			throw new CatalogNotExistException(catalogName);
+			throw new CatalogException(String.format("A catalog with name [%s] does not exist.", catalogName));
 		}
 
 		if (!currentCatalogName.equals(catalogName)) {
 			currentCatalogName = catalogName;
-			currentDatabaseName = potentialCurrentCatalog.getCurrentDatabase();
+			currentDatabaseName = potentialCurrentCatalog.getDefaultDatabase();
 
 			LOG.info(
-				"Sets the current default catalog as '{}' and the current default database as '{}'",
+				"Sets the current default catalog as [{}] and the current default database as [{}].",
 				currentCatalogName,
 				currentDatabaseName);
 		}
@@ -208,40 +207,47 @@ public class CatalogManager {
 	 * @return the current default database
 	 * @see CatalogManager#resolveTable(String...)
 	 */
-	public String getCurrentDatabaseName() {
+	public String getCurrentDatabase() {
 		return currentDatabaseName;
 	}
 
 	/**
-	 * Sets the current default catalog name that will be used when resolving table path.
+	 * Sets the current default database name that will be used when resolving a table path.
 	 * The database has to exist in the current catalog.
 	 *
 	 * @param databaseName database name to set as current default database name
-	 * @throws DatabaseNotExistException thrown if the database doesn't exist in the current catalog
+	 * @throws CatalogException thrown if the database doesn't exist in the current catalog
 	 * @see CatalogManager#resolveTable(String...)
 	 * @see CatalogManager#setCurrentCatalog(String)
 	 */
-	public void setCurrentDatabase(String databaseName) throws DatabaseNotExistException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "The database name cannot be null or empty");
+	public void setCurrentDatabase(String databaseName) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "The database name cannot be null or empty.");
 
 		if (!catalogs.get(currentCatalogName).databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(currentCatalogName, databaseName);
+			throw new CatalogException(String.format(
+				"A database with name [%s] does not exist in the catalog: [%s].",
+				databaseName,
+				currentCatalogName));
 		}
 
 		if (!currentDatabaseName.equals(databaseName)) {
 			currentDatabaseName = databaseName;
 
 			LOG.info(
-				"Sets the current default catalog as '{}' and the current default database as '{}'",
+				"Sets the current default database as [{}] in the current default catalog [{}].",
 				currentCatalogName,
 				currentDatabaseName);
 		}
 	}
 
 	/**
-	 * Tries to resolve a table path to a {@link CatalogTableOperation}. First it tries to look for
-	 * {@code [default-path].[table-path]} if no table is found assumes the table path is a fully qualified one
-	 * and looks for {@code [table-path]}.
+	 * Tries to resolve a table path to a {@link CatalogTableOperation}. The algorithm looks for requested table
+	 * in following paths in that order:
+	 * <ol>
+	 *     <li>{@code [current-catalog].[current-database].[tablePath]}</li>
+	 *     <li>{@code [current-catalog].[tablePath]}</li>
+	 *     <li>{@code [tablePath]}</li>
+	 * </ol>
 	 *
 	 * @param tablePath table path to look for
 	 * @return {@link CatalogTableOperation} containing both fully qualified table identifier and its
@@ -250,66 +256,97 @@ public class CatalogManager {
 	public Optional<CatalogTableOperation> resolveTable(String... tablePath) {
 		checkArgument(tablePath != null && tablePath.length != 0, "Table path must not be null or empty.");
 
-		List<String> defaultPath = new ArrayList<>();
-		defaultPath.add(currentCatalogName);
-		defaultPath.add(currentDatabaseName);
-
 		List<String> userPath = Arrays.asList(tablePath);
-		defaultPath.addAll(userPath);
 
-		Optional<CatalogTableOperation> inDefaultPath = lookupPath(defaultPath);
+		List<List<String>> prefixes = Arrays.asList(
+			Arrays.asList(currentCatalogName, currentDatabaseName),
+			Collections.singletonList(currentCatalogName),
+			Collections.emptyList()
+		);
 
-		if (inDefaultPath.isPresent()) {
-			return inDefaultPath;
-		} else {
-			return lookupPath(userPath);
-		}
-	}
-
-	private Optional<CatalogTableOperation> lookupPath(List<String> path) {
-		try {
-			Optional<TableSchema> potentialTable = lookupCatalogTable(path);
-
-			if (!potentialTable.isPresent()) {
-				potentialTable = lookupExternalTable(path);
-			}
-			return potentialTable.map(schema -> new CatalogTableOperation(path, schema));
-		} catch (TableNotExistException e) {
-			return Optional.empty();
-		}
-	}
-
-	private Optional<TableSchema> lookupCatalogTable(List<String> path) throws TableNotExistException {
-		if (path.size() >= 3) {
-			Catalog currentCatalog = catalogs.get(path.get(0));
-			String currentDatabaseName = path.get(1);
-			String tableName = String.join(".", path.subList(2, path.size()));
-			ObjectPath objectPath = new ObjectPath(currentDatabaseName, tableName);
-
-			if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
-				return Optional.of(currentCatalog.getTable(objectPath).getSchema());
+		for (List<String> prefix : prefixes) {
+			Optional<CatalogTableOperation> potentialTable = lookupPath(prefix, userPath);
+			if (potentialTable.isPresent()) {
+				return potentialTable;
 			}
 		}
 
 		return Optional.empty();
 	}
 
-	private Optional<TableSchema> lookupExternalTable(List<String> path) {
-		ExternalCatalog currentCatalog = externalCatalogs.get(path.get(0));
-		return Optional.ofNullable(currentCatalog)
-			.flatMap(externalCatalog -> extractPath(externalCatalog, path.subList(1, path.size() - 1)))
-			.map(finalCatalog -> finalCatalog.getTable(path.get(path.size() - 1)))
-			.map(ExternalTableUtil::getTableSchema);
+	private Optional<CatalogTableOperation> lookupPath(List<String> prefix, List<String> userPath) {
+		List<String> path = new ArrayList<>(prefix);
+		path.addAll(userPath);
+
+		Optional<CatalogTableOperation> potentialTable = lookupCatalogTable(path);
+
+		if (!potentialTable.isPresent()) {
+			potentialTable = lookupExternalTable(path);
+		}
+		return potentialTable;
 	}
 
-	private Optional<ExternalCatalog> extractPath(ExternalCatalog rootExternalCatalog, List<String> path) {
-		ExternalCatalog schema = rootExternalCatalog;
-		for (String pathPart : path) {
-			schema = schema.getSubCatalog(pathPart);
-			if (schema == null) {
-				return Optional.empty();
+	private Optional<CatalogTableOperation> lookupCatalogTable(List<String> path) {
+		if (path.size() == 3) {
+			try {
+				String currentDatabaseName = path.get(1);
+				String tableName = path.get(2);
+				ObjectPath objectPath = new ObjectPath(currentDatabaseName, tableName);
+
+				Catalog currentCatalog = catalogs.get(path.get(0));
+				if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
+					TableSchema tableSchema = currentCatalog.getTable(objectPath).getSchema();
+					return Optional.of(new CatalogTableOperation(
+						Arrays.asList(path.get(0), currentDatabaseName, tableName),
+						tableSchema));
+				}
+			} catch (TableNotExistException e) {
+				// swallow exception return empty
 			}
 		}
-		return Optional.of(schema);
+
+		return Optional.empty();
+	}
+
+	private Optional<CatalogTableOperation> lookupExternalTable(List<String> path) {
+		ExternalCatalog currentCatalog = externalCatalogs.get(path.get(0));
+		return Optional.ofNullable(currentCatalog)
+			.flatMap(externalCatalog -> {
+				final List<String> schema = path.subList(1, path.size() - 1);
+				final String tableName = path.get(path.size() - 1);
+				return extractPath(
+					externalCatalog,
+					schema,
+					tableName);
+			})
+			.map(table -> new CatalogTableOperation(path, getTableSchema(table)));
+	}
+
+	private Optional<ExternalCatalogTable> extractPath(
+			ExternalCatalog rootExternalCatalog,
+			List<String> path,
+			String tableName) {
+		try {
+			ExternalCatalog schema = rootExternalCatalog;
+			for (String pathPart : path) {
+				schema = schema.getSubCatalog(pathPart);
+				if (schema == null) {
+					return Optional.empty();
+				}
+			}
+			return Optional.of(schema.getTable(tableName));
+		} catch (org.apache.flink.table.api.TableNotExistException | CatalogNotExistException ex) {
+			// swallow exception return empty
+		}
+		return Optional.empty();
+	}
+
+	private static TableSchema getTableSchema(ExternalCatalogTable externalTable) {
+		if (externalTable.isTableSource()) {
+			return TableFactoryUtil.findAndCreateTableSource(externalTable).getTableSchema();
+		} else {
+			TableSink tableSink = TableFactoryUtil.findAndCreateTableSink(externalTable);
+			return new TableSchema(tableSink.getFieldNames(), tableSink.getFieldTypes());
+		}
 	}
 }

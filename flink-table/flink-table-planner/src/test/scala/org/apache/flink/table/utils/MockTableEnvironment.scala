@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.utils
 
+import java.util.Optional
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
-import org.apache.flink.table.catalog.{ExternalCatalog, Catalog}
+import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
@@ -71,15 +73,15 @@ class MockTableEnvironment extends TableEnvironment {
     name: String,
     catalog: Catalog): Unit = ???
 
-  override def getCatalog(catalogName: String): Catalog = ???
+  override def getCatalog(catalogName: String): Optional[Catalog] = ???
 
-  override def getCurrentCatalogName: String = ???
+  override def getCurrentCatalog: String = ???
 
-  override def getCurrentDatabaseName: String = ???
+  override def getCurrentDatabase: String = ???
 
-  override def setCurrentCatalog(name: String): Unit = ???
+  override def useCatalog(catalogName: String): Unit = ???
 
-  override def setCurrentDatabase(
+  override def useDatabase(
     catalogName: String,
     databaseName: String): Unit = ???
 }

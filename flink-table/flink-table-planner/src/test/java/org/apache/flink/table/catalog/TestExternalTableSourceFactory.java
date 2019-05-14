@@ -19,8 +19,14 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.sources.BatchTableSource;
+import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 
@@ -53,16 +59,35 @@ public class TestExternalTableSourceFactory implements TableSourceFactory<Row> {
 
 	@Override
 	public TableSource<Row> createTableSource(Map<String, String> properties) {
-		return new TableSource<Row>() {
-			@Override
-			public TypeInformation<Row> getReturnType() {
-				return null;
-			}
+		return new TestExternalTableSource();
+	}
 
-			@Override
-			public TableSchema getTableSchema() {
-				return new TableSchema(new String[0], new TypeInformation[0]);
-			}
-		};
+	private static class TestExternalTableSource implements StreamTableSource<Row>, BatchTableSource<Row> {
+		private final TableSchema tableSchema = new TableSchema(new String[0], new TypeInformation[0]);
+
+		@Override
+		public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
+			return null;
+		}
+
+		@Override
+		public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+			return null;
+		}
+
+		@Override
+		public TypeInformation<Row> getReturnType() {
+			return tableSchema.toRowType();
+		}
+
+		@Override
+		public TableSchema getTableSchema() {
+			return tableSchema;
+		}
+
+		@Override
+		public String explainSource() {
+			return "()";
+		}
 	}
 }

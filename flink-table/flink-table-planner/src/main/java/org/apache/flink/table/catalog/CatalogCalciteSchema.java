@@ -19,8 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -30,20 +28,18 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A mapping between Flink's catalog and Calcite's schema. This enables to look up and access tables
- * in SQL queries without registering tables in advance. Databases are registered as sub-schemas in the schema.
+ * A mapping between Flink's catalog and Calcite's schema. This enables to look up and access objects(tables, views,
+ * functions, types) in SQL queries without registering them in advance. Databases are registered as sub-schemas
+ * in the schema.
  */
 @Internal
 public class CatalogCalciteSchema implements Schema {
-	private static final Logger LOGGER = LoggerFactory.getLogger(CatalogCalciteSchema.class);
 
 	private final String catalogName;
 	private final Catalog catalog;
@@ -57,16 +53,15 @@ public class CatalogCalciteSchema implements Schema {
 	 * Look up a sub-schema (database) by the given sub-schema name.
 	 *
 	 * @param schemaName name of sub-schema to look up
-	 * @return the sub-schema with a given dbName, or null
+	 * @return the sub-schema with a given database name, or null
 	 */
 	@Override
 	public Schema getSubSchema(String schemaName) {
 
 		if (catalog.databaseExists(schemaName)) {
-			return new DatabaseCalciteSchema(schemaName, catalog);
+			return new DatabaseCalciteSchema(schemaName, catalogName, catalog);
 		} else {
-			LOGGER.error(String.format("Schema %s does not exist in catalog %s", schemaName, catalogName));
-			throw new CatalogException(new DatabaseNotExistException(catalogName, schemaName));
+			return null;
 		}
 	}
 

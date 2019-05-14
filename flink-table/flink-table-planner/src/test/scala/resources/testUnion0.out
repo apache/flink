@@ -1,12 +1,12 @@
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[builtin, default, _DataSetTable_0]])
-  LogicalTableScan(table=[[builtin, default, _DataSetTable_1]])
+  LogicalTableScan(table=[[default-catalog, default-database, _DataSetTable_0]])
+  LogicalTableScan(table=[[default-catalog, default-database, _DataSetTable_1]])
 
 == Optimized Logical Plan ==
 DataSetUnion(all=[true], union=[count, word])
-  DataSetScan(table=[[builtin, default, _DataSetTable_0]])
-  DataSetScan(table=[[builtin, default, _DataSetTable_1]])
+  DataSetScan(table=[[default-catalog, default-database, _DataSetTable_0]])
+  DataSetScan(table=[[default-catalog, default-database, _DataSetTable_1]])
 
 == Physical Execution Plan ==
 Stage 3 : Data Source

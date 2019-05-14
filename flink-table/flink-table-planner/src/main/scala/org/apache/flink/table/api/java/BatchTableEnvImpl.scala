@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
@@ -35,9 +36,13 @@ import _root_.scala.collection.JavaConverters._
   */
 class BatchTableEnvImpl(
     execEnv: ExecutionEnvironment,
-    config: TableConfig)
-  extends org.apache.flink.table.api.BatchTableEnvImpl(execEnv, config)
-    with org.apache.flink.table.api.java.BatchTableEnvironment {
+    config: TableConfig,
+    catalogManager: CatalogManager)
+  extends org.apache.flink.table.api.BatchTableEnvImpl(
+    execEnv,
+    config,
+    catalogManager)
+  with org.apache.flink.table.api.java.BatchTableEnvironment {
 
   override def fromDataSet[T](dataSet: DataSet[T]): Table = {
 

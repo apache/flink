@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
@@ -63,8 +64,9 @@ import _root_.scala.collection.JavaConverters._
   */
 abstract class StreamTableEnvImpl(
     private[flink] val execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
-  extends TableEnvImpl(config) {
+    config: TableConfig,
+    catalogManager: CatalogManager)
+  extends TableEnvImpl(config, catalogManager) {
 
   // a counter for unique table names
   private val nameCntr: AtomicInteger = new AtomicInteger(0)
@@ -118,7 +120,7 @@ abstract class StreamTableEnvImpl(
         }
 
         // register
-        getTable(name) match {
+        getTable(defaultCatalogName, defaultDatabaseName, name) match {
 
           // check if a table (source or sink) is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {

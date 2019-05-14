@@ -18,11 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.CatalogAlreadyExistsException;
-import org.apache.flink.table.api.CatalogNotExistException;
-import org.apache.flink.table.api.ExternalCatalogAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.runtime.utils.CommonTestData;
 import org.apache.flink.util.TestLogger;
 
@@ -55,13 +51,13 @@ public class CatalogManagerTest extends TestLogger {
 				database(BUILTIN_DEFAULT_DATABASE_NAME))
 			.build();
 
-		assertEquals(1, manager.getCatalogNames().size());
-		assertFalse(manager.getCatalogNames().contains(TEST_CATALOG_NAME));
+		assertEquals(1, manager.getCatalogs().size());
+		assertFalse(manager.getCatalogs().contains(TEST_CATALOG_NAME));
 
 		manager.registerCatalog(TEST_CATALOG_NAME, new GenericInMemoryCatalog(TEST_CATALOG_NAME));
 
-		assertEquals(2, manager.getCatalogNames().size());
-		assertTrue(manager.getCatalogNames().contains(TEST_CATALOG_NAME));
+		assertEquals(2, manager.getCatalogs().size());
+		assertTrue(manager.getCatalogs().contains(TEST_CATALOG_NAME));
 	}
 
 	@Test
@@ -74,18 +70,18 @@ public class CatalogManagerTest extends TestLogger {
 				database(TEST_CATALOG_DEFAULT_DB_NAME))
 			.build();
 
-		assertEquals(CatalogStructureBuilder.BUILTIN_CATALOG_NAME, manager.getCurrentCatalogName());
-		assertEquals(BUILTIN_DEFAULT_DATABASE_NAME, manager.getCurrentDatabaseName());
+		assertEquals(CatalogStructureBuilder.BUILTIN_CATALOG_NAME, manager.getCurrentCatalog());
+		assertEquals(BUILTIN_DEFAULT_DATABASE_NAME, manager.getCurrentDatabase());
 
 		manager.setCurrentCatalog(TEST_CATALOG_NAME);
 
-		assertEquals(TEST_CATALOG_NAME, manager.getCurrentCatalogName());
-		assertEquals(TEST_CATALOG_DEFAULT_DB_NAME, manager.getCurrentDatabaseName());
+		assertEquals(TEST_CATALOG_NAME, manager.getCurrentCatalog());
+		assertEquals(TEST_CATALOG_DEFAULT_DB_NAME, manager.getCurrentDatabase());
 	}
 
 	@Test
 	public void testRegisterCatalogWithExistingName() throws Exception {
-		thrown.expect(CatalogAlreadyExistsException.class);
+		thrown.expect(CatalogException.class);
 
 		CatalogManager manager = root()
 			.builtin(
@@ -98,7 +94,7 @@ public class CatalogManagerTest extends TestLogger {
 
 	@Test
 	public void testRegisterCatalogWithExistingExternalCatalog() throws Exception {
-		thrown.expect(CatalogAlreadyExistsException.class);
+		thrown.expect(CatalogException.class);
 
 		CatalogManager manager = root()
 			.builtin(
@@ -111,7 +107,8 @@ public class CatalogManagerTest extends TestLogger {
 
 	@Test
 	public void testRegisterExternalCatalogWithExistingName() throws Exception {
-		thrown.expect(ExternalCatalogAlreadyExistException.class);
+		thrown.expect(CatalogException.class);
+		thrown.expectMessage("An external catalog named [test] already exists.");
 
 		CatalogManager manager = root()
 			.builtin(
@@ -125,7 +122,7 @@ public class CatalogManagerTest extends TestLogger {
 	@Test
 	public void testCannotSetExternalCatalogAsDefault() throws Exception {
 		thrown.expect(CatalogException.class);
-		thrown.expectMessage("An external catalog cannot be set as the default one");
+		thrown.expectMessage("An external catalog cannot be set as the default one.");
 
 		CatalogManager manager = root()
 			.externalCatalog("ext")
@@ -135,7 +132,8 @@ public class CatalogManagerTest extends TestLogger {
 
 	@Test
 	public void testSetNonExistingCurrentCatalog() throws Exception {
-		thrown.expect(CatalogNotExistException.class);
+		thrown.expect(CatalogException.class);
+		thrown.expectMessage("A catalog with name [nonexistent] does not exist.");
 
 		CatalogManager manager = root().build();
 		manager.setCurrentCatalog("nonexistent");
@@ -143,7 +141,8 @@ public class CatalogManagerTest extends TestLogger {
 
 	@Test
 	public void testSetNonExistingCurrentDatabase() throws Exception {
-		thrown.expect(DatabaseNotExistException.class);
+		thrown.expect(CatalogException.class);
+		thrown.expectMessage("A database with name [nonexistent] does not exist in the catalog: [builtin].");
 
 		CatalogManager manager = root().build();
 		// This catalog does not exist in the builtin catalog

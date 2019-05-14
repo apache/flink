@@ -26,6 +26,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.Table;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -50,7 +51,7 @@ public class CalciteCatalogTable implements CatalogBaseTable {
 
 	@Override
 	public Map<String, String> getProperties() {
-		throw new UnsupportedOperationException("Calcite table cannot be expressed as a map of properties.");
+		return Collections.emptyMap();
 	}
 
 	@Override

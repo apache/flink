@@ -169,7 +169,9 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
 
   override def fetch(fetch: Int): Table = ???
 
-  override def insertInto(tableName: String): Unit = ???
+  override def insertInto(tableName: String*): Unit = ???
+
+  override def insertInto(conf: QueryConfig, tableName: String*): Unit = ???
 
   override def insertInto(
     tableName: String,

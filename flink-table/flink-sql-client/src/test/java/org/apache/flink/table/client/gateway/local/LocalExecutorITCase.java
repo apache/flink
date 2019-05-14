@@ -229,9 +229,9 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final List<String> expectedTableHints = Arrays.asList(
-			"builtin.default.TableNumber1",
-			"builtin.default.TableNumber2",
-			"builtin.default.TableSourceSink");
+			"default-catalog.default-database.TableNumber1",
+			"default-catalog.default-database.TableNumber2",
+			"default-catalog.default-database.TableSourceSink");
 		assertEquals(expectedTableHints, executor.completeStatement(session, "SELECT * FROM Ta", 16));
 
 		final List<String> expectedClause = Collections.singletonList("WHERE");

@@ -19,12 +19,22 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.calcite.FlinkTypeSystem;
+import org.apache.flink.table.plan.schema.StreamTableSourceTable;
+import org.apache.flink.table.plan.schema.TableSourceSinkTable;
+import org.apache.flink.table.plan.stats.FlinkStatistic;
+import org.apache.flink.table.sources.StreamTableSource;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+
+import scala.Option;
+import scala.Some;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 
@@ -103,8 +113,7 @@ public class CatalogStructureBuilder {
 			DatabaseBuilder[] databases) throws Exception {
 		GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(
 			name,
-			defaultDatabase.getName(),
-			new GenericCatalogDatabase(new HashMap<>()));
+			defaultDatabase.getName());
 		defaultDatabase.build(catalog, name);
 		registerDatabases(name, catalog, databases);
 		return catalog;
@@ -234,7 +243,7 @@ public class CatalogStructureBuilder {
 		private final String fullyQualifiedName;
 
 		public ExternalTestTable(String fullyQualifiedName) {
-			super(false, true, true, true, new HashMap<>());
+			super(false, true, true, false, new HashMap<>());
 			this.fullyQualifiedName = fullyQualifiedName;
 		}
 
@@ -263,42 +272,34 @@ public class CatalogStructureBuilder {
 		}
 	}
 
-	private static class TestTable implements CatalogBaseTable {
+	private static class TestTable extends CalciteCatalogTable {
 
 		private final String fullyQualifiedPath;
 
+		private static final StreamTableSourceTable<Object> tableSourceTable = new StreamTableSourceTable<>(
+			new StreamTableSource<Object>() {
+				@Override
+				public DataStream<Object> getDataStream(StreamExecutionEnvironment execEnv) {
+					return null;
+				}
+
+				@Override
+				public TypeInformation<Object> getReturnType() {
+					return null;
+				}
+
+				@Override
+				public TableSchema getTableSchema() {
+					return new TableSchema(new String[] {}, new TypeInformation[] {});
+				}
+			}, FlinkStatistic.UNKNOWN());
+
 		private TestTable(String fullyQualifiedPath) {
+			super(new TableSourceSinkTable<>(
+				new Some<>(tableSourceTable),
+				Option.empty()
+			), new FlinkTypeFactory(new FlinkTypeSystem()));
 			this.fullyQualifiedPath = fullyQualifiedPath;
-		}
-
-		@Override
-		public Map<String, String> getProperties() {
-			return null;
-		}
-
-		@Override
-		public TableSchema getSchema() {
-			return new TableSchema(new String[] {}, new TypeInformation[] {});
-		}
-
-		@Override
-		public String getComment() {
-			return null;
-		}
-
-		@Override
-		public CatalogBaseTable copy() {
-			return this;
-		}
-
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
-
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
 		}
 
 		@Override

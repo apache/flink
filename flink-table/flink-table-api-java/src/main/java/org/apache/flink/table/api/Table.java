@@ -812,7 +812,8 @@ public interface Table {
 	Table fetch(int fetch);
 
 	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
+	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String, String)}.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
@@ -820,13 +821,14 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tableName Name of the registered {@link TableSink} to which the {@link Table} is
+	 * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
 	 *                  written.
 	 */
-	void insertInto(String tableName);
+	void insertInto(String... tablePath);
 
 	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
+	 * in the initial default catalog.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
@@ -834,10 +836,27 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tableName Name of the {@link TableSink} to which the {@link Table} is written.
+	 * @param tableName The name of the {@link TableSink} to which the {@link Table} is written.
 	 * @param conf The {@link QueryConfig} to use.
+	 * @deprecated use {@link #insertInto(QueryConfig, String...)}
 	 */
+	@Deprecated
 	void insertInto(String tableName, QueryConfig conf);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
+	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String, String)}.
+	 *
+	 * <p>A batch {@link Table} can only be written to a
+	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
+	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
+	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
+	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
+	 *
+	 * @param conf The {@link QueryConfig} to use.
+	 * @param tablePath The path of the {@link TableSink} to which the {@link Table} is written.
+	 */
+	void insertInto(QueryConfig conf, String... tablePath);
 
 	/**
 	 * Groups the records of a table by assigning them to windows defined by a time or row interval.

@@ -60,15 +60,6 @@ object ExternalTableUtil extends Logging {
     new TableSourceSinkTable[T1, T2](source, sink)
   }
 
-  def getTableSchema(externalTable: ExternalCatalogTable) : TableSchema = {
-    if (externalTable.isTableSource) {
-      TableFactoryUtil.findAndCreateTableSource[Any](externalTable).getTableSchema
-    } else {
-      val tableSink = TableFactoryUtil.findAndCreateTableSink(externalTable)
-      new TableSchema(tableSink.getFieldNames, tableSink.getFieldTypes)
-    }
-  }
-
   private def createTableSource[T](
       isBatch: Boolean,
       externalTable: ExternalCatalogTable,

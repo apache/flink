@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -40,18 +41,20 @@ import java.util.Set;
  * Tables are registered as tables in the schema.
  */
 class DatabaseCalciteSchema implements Schema {
-	private final String dbName;
+	private final String databaseName;
+	private final String catalogName;
 	private final Catalog catalog;
 
-	public DatabaseCalciteSchema(String dbName, Catalog catalog) {
-		this.dbName = dbName;
+	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog) {
+		this.databaseName = databaseName;
+		this.catalogName = catalogName;
 		this.catalog = catalog;
 	}
 
 	@Override
 	public Table getTable(String tableName) {
 
-		ObjectPath tablePath = new ObjectPath(dbName, tableName);
+		ObjectPath tablePath = new ObjectPath(databaseName, tableName);
 
 		try {
 			if (!catalog.tableExists(tablePath)) {
@@ -65,15 +68,21 @@ class DatabaseCalciteSchema implements Schema {
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}
-		} catch (Exception e) {
-			throw new TableException("Could not find table: " + tableName, e);
+		} catch (TableNotExistException | CatalogException e) {
+			// TableNotExistException should never happen, because we are checking it exists
+			// via catalog.tableExists
+			throw new TableException(String.format(
+				"A failure occured when accesing table. Table path [%s, %s, %s]",
+				catalogName,
+				databaseName,
+				tableName), e);
 		}
 	}
 
 	@Override
 	public Set<String> getTableNames() {
 		try {
-			return new HashSet<>(catalog.listTables(dbName));
+			return new HashSet<>(catalog.listTables(databaseName));
 		} catch (DatabaseNotExistException e) {
 			throw new CatalogException(e);
 		}

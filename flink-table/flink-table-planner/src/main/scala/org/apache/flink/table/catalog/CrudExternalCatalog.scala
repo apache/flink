@@ -71,11 +71,11 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * @param ignoreIfExists Flag to specify behavior if a sub catalog with the given name already
     *                       exists: if set to false, it throws a CatalogAlreadyExistsException,
     *                       if set to true, nothing happens.
-    * @throws CatalogAlreadyExistsException
+    * @throws CatalogAlreadyExistException
     *         thrown if the sub catalog does already exist in the catalog
     *         and ignoreIfExists is false
     */
-  @throws[CatalogAlreadyExistsException]
+  @throws[CatalogAlreadyExistException]
   def createSubCatalog(name: String, catalog: ExternalCatalog, ignoreIfExists: Boolean): Unit
 
   /**

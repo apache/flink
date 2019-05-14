@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.CatalogNotExistException;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -32,26 +31,27 @@ import org.apache.calcite.schema.Table;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Bridge between {@link CatalogManager} and {@link Schema}. This way we can query Flink's specific catalogs
+ * Bridge between the {@link CatalogManager} and the {@link Schema}. This way we can query Flink's specific catalogs
  * from Calcite.
  *
  * <p>The mapping for {@link Catalog}s is modeled as a strict two-level reference structure for Flink in Calcite,
- * the full path of tables and views is of format [catalog_name].[db_name].[meta-object_name].
+ * the full path of objects is of format [catalog_name].[db_name].[meta-object_name].
  *
- * <p>It also supports {@link ExternalCatalog}s. An external catalog maps 1:1 to Calcite's schema.
+ * <p>It also supports {@link ExternalCatalog}s. An external catalog maps 1:1 to the Calcite's schema.
  */
 @Internal
-public class CatalogManagerSchema implements Schema {
+public class CatalogManagerCalciteSchema implements Schema {
 
 	private final CatalogManager catalogManager;
-	private Boolean isBatch;
+	private boolean isBatch;
 
-	public CatalogManagerSchema(CatalogManager catalogManager, Boolean isBatch) {
+	public CatalogManagerCalciteSchema(CatalogManager catalogManager, boolean isBatch) {
 		this.catalogManager = catalogManager;
 		this.isBatch = isBatch;
 	}
@@ -88,20 +88,21 @@ public class CatalogManagerSchema implements Schema {
 
 	@Override
 	public Schema getSubSchema(String name) {
-		try {
-			return catalogManager.getExternalCatalog(name)
-				.map(externalCatalog -> (Schema) new ExternalCatalogSchema(isBatch, name, externalCatalog))
-				.orElseGet(() -> new CatalogCalciteSchema(name, catalogManager.getCatalog(name)));
-		} catch (CatalogNotExistException ex) {
-			return null;
-		}
+		Optional<Schema> externalSchema = catalogManager.getExternalCatalog(name)
+			.map(externalCatalog -> new ExternalCatalogSchema(isBatch, name, externalCatalog));
+
+		return externalSchema.orElseGet(() ->
+			catalogManager.getCatalog(name)
+				.map(catalog -> new CatalogCalciteSchema(name, catalog))
+				.orElse(null)
+		);
 	}
 
 	@Override
 	public Set<String> getSubSchemaNames() {
 		return Stream.concat(
-			catalogManager.getCatalogNames().stream(),
-			catalogManager.getExternalCatalogNames().stream())
+			catalogManager.getCatalogs().stream(),
+			catalogManager.getExternalCatalogs().stream())
 			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 

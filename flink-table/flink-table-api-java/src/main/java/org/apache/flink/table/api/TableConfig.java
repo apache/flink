@@ -58,6 +58,18 @@ public class TableConfig {
 	private Integer maxGeneratedCodeLength = 64000; // just an estimate
 
 	/**
+	 * Specifies the name of the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	private String bultinCatalogName = "default-catalog";
+
+	/**
+	 * Specifies the name of the default database in the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	private String bultinDatabaseName = "default-database";
+
+	/**
 	 * Returns the timezone for date/time/timestamp conversions.
 	 */
 	public TimeZone getTimeZone() {
@@ -132,6 +144,38 @@ public class TableConfig {
 	 */
 	public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
 		this.maxGeneratedCodeLength = Preconditions.checkNotNull(maxGeneratedCodeLength);
+	}
+
+	/**
+	 * Gets the specified name of the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	public String getBultinCatalogName() {
+		return bultinCatalogName;
+	}
+
+	/**
+	 * Specifies the name of the initial catalog to be created when instantiating
+	 * TableEnvironment. This method has no effect if called after creating TableEnvironment.
+	 */
+	public void setBultinCatalogName(String bultinCatalogName) {
+		this.bultinCatalogName = bultinCatalogName;
+	}
+
+	/**
+	 * Gets the specified name of the default database in the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	public String getBultinDatabaseName() {
+		return bultinDatabaseName;
+	}
+
+	/**
+	 * Specifies the name of the default database in the initial catalog to be created when instantiating
+	 * TableEnvironment. This method has no effect if called after creating TableEnvironment.
+	 */
+	public void setBultinDatabaseName(String bultinDatabaseName) {
+		this.bultinDatabaseName = bultinDatabaseName;
 	}
 
 	public static TableConfig getDefault() {
