@@ -129,7 +129,8 @@ class Table(object):
 
     def distinct(self):
         """
-        Removes duplicate values and returns onl
+        Removes duplicate values and returns only distinct (different) values.
+
         Example:
         ::
             >>> tab.select("key, value").distinct()
@@ -165,7 +166,7 @@ class Table(object):
     def left_outer_join(self, right, join_predicate=None):
         """
         Joins two :class:`Table`s. Similar to a SQL left outer join. The fields of the two joined
-        operations must not overlap, use :func:`~pyflink.table.Table.as_` to rename fields if
+        operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary.
 
         .. note::
@@ -190,7 +191,7 @@ class Table(object):
     def right_outer_join(self, right, join_predicate):
         """
         Joins two :class:`Table`s. Similar to a SQL right outer join. The fields of the two joined
-        operations must not overlap, use :func:`~pyflink.table.Table.as_` to rename fields if
+        operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary.
 
         .. note::
@@ -211,7 +212,7 @@ class Table(object):
     def full_outer_join(self, right, join_predicate):
         """
         Joins two :class:`Table`s. Similar to a SQL full outer join. The fields of the two joined
-        operations must not overlap, use :func:`~pyflink.table.Table.as_` to rename fields if
+        operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary.
 
         .. note::
@@ -442,7 +443,7 @@ class Table(object):
         if len(windows) == 1 and isinstance(windows[0], GroupWindow):
             return GroupWindowedTable(self._j_table.window(windows[0]._java_window))
         elif len(windows) > 0:
-            if False not in [isinstance(item, OverWindow) for item in windows]:
+            if all(isinstance(item, OverWindow) for item in windows):
                 gateway = get_gateway()
                 window_array = gateway.new_array(gateway.jvm.OverWindow, len(windows))
                 for i in xrange(0, len(windows)):
@@ -450,6 +451,64 @@ class Table(object):
                 return OverWindowedTable(self._j_table.window(window_array))
         raise Exception("Only single grouped window(tumble/session/slide) "
                         "or over windows are accepted. Current input is %s" % windows)
+
+    def add_columns(self, fields):
+        """
+        Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+        can contain complex expressions, but can not contain aggregations. It will throw an
+        exception if the added fields already exist.
+
+        Example:
+        ::
+            >>> tab.add_columns("a + 1 as a1, concat(b, 'sunny') as b1")
+
+        :param fields: Column list string.
+        :return: Result table.
+        """
+        return Table(self._j_table.addColumns(fields))
+
+    def add_or_replace_columns(self, fields):
+        """
+        Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+        can contain complex expressions, but can not contain aggregations. Existing fields will be
+        replaced if add columns name is the same as the existing column name. Moreover, if the added
+        fields have duplicate field name, then the last one is used.
+
+        Example:
+        ::
+            >>> tab.add_or_replace_columns("a + 1 as a1, concat(b, 'sunny') as b1")
+
+        :param fields: Column list string.
+        :return: Result table.
+        """
+        return Table(self._j_table.addOrReplaceColumns(fields))
+
+    def rename_columns(self, fields):
+        """
+        Renames existing columns. Similar to a field alias statement. The field expressions
+        should be alias expressions, and only the existing fields can be renamed.
+
+        Example:
+        ::
+            >>> tab.rename_columns("a as a1, b as b1")
+
+        :param fields: Column list string.
+        :return: Result table.
+        """
+        return Table(self._j_table.renameColumns(fields))
+
+    def drop_columns(self, fields):
+        """
+        Drops existing columns. The field expressions should be field reference expressions.
+
+        Example:
+        ::
+            >>> tab.drop_columns("a, b")
+
+        :param fields: Column list string.
+        :return: Result table.
+        """
+        return Table(self._j_table.dropColumns(fields))
 
     def insert_into(self, table_name):
         """
@@ -498,7 +557,7 @@ class GroupWindowedTable(object):
     """
 
     def __init__(self, java_group_windowed_table):
-        self._java_table = java_group_windowed_table
+        self._j_table = java_group_windowed_table
 
     def group_by(self, fields):
         """
@@ -519,7 +578,7 @@ class GroupWindowedTable(object):
         :param fields: Group keys.
         :return: A :class:`WindowGroupedTable`.
         """
-        return WindowGroupedTable(self._java_table.groupBy(fields))
+        return WindowGroupedTable(self._j_table.groupBy(fields))
 
 
 class WindowGroupedTable(object):
@@ -528,7 +587,7 @@ class WindowGroupedTable(object):
     """
 
     def __init__(self, java_window_grouped_table):
-        self._java_table = java_window_grouped_table
+        self._j_table = java_window_grouped_table
 
     def select(self, fields):
         """
@@ -543,7 +602,7 @@ class WindowGroupedTable(object):
         :param fields: Expression string.
         :return: Result table.
         """
-        return Table(self._java_table.select(fields))
+        return Table(self._j_table.select(fields))
 
 
 class OverWindowedTable(object):
@@ -556,7 +615,7 @@ class OverWindowedTable(object):
     """
 
     def __init__(self, java_over_windowed_table):
-        self._java_table = java_over_windowed_table
+        self._j_table = java_over_windowed_table
 
     def select(self, fields):
         """
@@ -571,4 +630,4 @@ class OverWindowedTable(object):
         :param fields: Expression string.
         :return: Result table.
         """
-        return Table(self._java_table.select(fields))
+        return Table(self._j_table.select(fields))

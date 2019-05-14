@@ -18,47 +18,14 @@
 
 import os
 
-from pyflink.table.table_source import CsvTableSource
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
 
-class StreamTableCalcTests(PyFlinkStreamTableTestCase):
+class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
-    def test_select(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        with open(source_path, 'w') as f:
-            lines = '1,hi,hello\n' + '2,hi,hello\n'
-            f.write(lines)
-            f.close()
-
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
-
-        t_env = self.t_env
-
-        # register Orders table in table environment
-        t_env.register_table_source(
-            "Orders",
-            CsvTableSource(source_path, field_names, field_types))
-
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
-        t_env.scan("Orders") \
-             .where("a > 0") \
-             .select("a + 1, b, c") \
-             .insert_into("Results")
-
-        t_env.execute()
-
-        actual = source_sink_utils.results()
-        expected = ['2,hi,hello', '3,hi,hello']
-        self.assert_equals(actual, expected)
-
-    def test_select_alias(self):
+    def test_add_columns(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
@@ -68,20 +35,20 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.alias("a, b, c").select("a + 1, b + c")
+        result = source.select("a").add_columns("a + 1 as b, a + 2 as c")
 
-        field_names = ["a", "b"]
-        field_types = [DataTypes.INT, DataTypes.STRING]
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.INT, DataTypes.INT]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
-        expected = ['2,HiHello', '3,HelloHello']
+        expected = ['1,2,3', '2,3,4']
         self.assert_equals(actual, expected)
 
-    def test_where_filter(self):
+    def test_add_or_replace_columns(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
@@ -91,23 +58,20 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.where("a > 1").filter("c = 'Hello'").select("a + 1, b + c")
+        result = source.select("a").add_or_replace_columns("a + 1 as b, a + 2 as a")
 
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT, DataTypes.STRING]
+        field_types = [DataTypes.INT, DataTypes.INT]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
-        expected = ['3,HelloHello']
+        expected = ['3,2', '4,3']
         self.assert_equals(actual, expected)
 
-
-class BatchTableCalcTests(PyFlinkBatchTableTestCase):
-
-    def test_select_alias(self):
+    def test_rename_columns(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
@@ -117,13 +81,20 @@ class BatchTableCalcTests(PyFlinkBatchTableTestCase):
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.alias("a, b, c").select("a + 1, b + c")
+        result = source.select("a, b, c").rename_columns("a as d, c as f, b as e").select("d, e, f")
 
-        actual = self.collect(result)
-        expected = ['2,HiHello', '3,HelloHello']
+        field_names = ["d", "e", "f"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        t_env.register_table_sink(
+            "Results",
+            field_names, field_types, source_sink_utils.TestAppendSink())
+        result.insert_into("Results")
+        t_env.execute()
+        actual = source_sink_utils.results()
+        expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
-    def test_where_filter(self):
+    def test_drop_columns(self):
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
@@ -133,10 +104,84 @@ class BatchTableCalcTests(PyFlinkBatchTableTestCase):
         t_env = self.t_env
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
-        result = source.where("a > 1").filter("c = 'Hello'").select("a + 1, b + c")
+        result = source.select("a, b, c").drop_columns("a, c").select("b")
+
+        field_names = ["b"]
+        field_types = [DataTypes.STRING]
+        t_env.register_table_sink(
+            "Results",
+            field_names, field_types, source_sink_utils.TestAppendSink())
+        result.insert_into("Results")
+        t_env.execute()
+        actual = source_sink_utils.results()
+        expected = ['Hi', 'Hello']
+        self.assert_equals(actual, expected)
+
+
+class BatchTableColumnsOperationTests(PyFlinkBatchTableTestCase):
+
+    def test_add_columns(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+
+        t_env = self.t_env
+        t_env.register_table_source("Source", csv_source)
+        source = t_env.scan("Source")
+        result = source.select("a").add_columns("a + 1 as b, a + 2 as c")
 
         actual = self.collect(result)
-        expected = ['3,HelloHello']
+        expected = ['1,2,3', '2,3,4']
+        self.assert_equals(actual, expected)
+
+    def test_add_or_replace_columns(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+
+        t_env = self.t_env
+        t_env.register_table_source("Source", csv_source)
+        source = t_env.scan("Source")
+        result = source.select("a").add_or_replace_columns("a + 1 as b, a + 2 as a")
+
+        actual = self.collect(result)
+        expected = ['3,2', '4,3']
+        self.assert_equals(actual, expected)
+
+    def test_rename_columns(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+
+        t_env = self.t_env
+        t_env.register_table_source("Source", csv_source)
+        source = t_env.scan("Source")
+        result = source.select("a, b, c").rename_columns("a as d, c as f, b as e")
+
+        actual = self.collect(result)
+        expected = ['1,Hi,Hello', '2,Hello,Hello']
+        self.assert_equals(actual, expected)
+
+    def test_drop_columns(self):
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
+        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+
+        t_env = self.t_env
+        t_env.register_table_source("Source", csv_source)
+        source = t_env.scan("Source")
+        result = source.select("a, b, c").drop_columns("a, c").select("b")
+
+        actual = self.collect(result)
+        expected = ['Hi', 'Hello']
         self.assert_equals(actual, expected)
 
 

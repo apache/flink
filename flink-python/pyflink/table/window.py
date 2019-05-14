@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import ABCMeta
-
 from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
 
@@ -43,8 +41,6 @@ class GroupWindow(object):
 
     For finite batch tables, group windows provide shortcuts for time-based groupBy.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, java_window):
         self._java_window = java_window
@@ -100,7 +96,7 @@ class TumbleWithSize(object):
         :param time_field: Time attribute for streaming and batch tables.
         :return: A tumbling window on event-time/processing-time.
         """
-        # type: (str) ->TumbleWithSizeOnTime
+        # type: (str) -> TumbleWithSizeOnTime
         return TumbleWithSizeOnTime(self._java_window.on(time_field))
 
 
@@ -123,18 +119,8 @@ class TumbleWithSizeOnTime(object):
         :param alias: Alias for this window.
         :return: This window.
         """
-        # type: (str) ->TumbleWithSizeOnTimeWithAlias
-        return TumbleWithSizeOnTimeWithAlias(
-            get_method(self._java_window, "as")(alias))
-
-
-class TumbleWithSizeOnTimeWithAlias(GroupWindow):
-    """
-    Tumbling window on time with alias. Fully specifies a window.
-    """
-
-    def __init__(self, java_window):
-        super(TumbleWithSizeOnTimeWithAlias, self).__init__(java_window)
+        # type: (str) -> GroupWindow
+        return GroupWindow(get_method(self._java_window, "as")(alias))
 
 
 class Session(object):
@@ -160,7 +146,7 @@ class Session(object):
                     closing the session window.
         :return: A partially defined session window.
         """
-        # type: (str) ->SessionWithGap
+        # type: (str) -> SessionWithGap
         return SessionWithGap(
             get_gateway().jvm.Session.withGap(gap))
 
@@ -189,7 +175,7 @@ class SessionWithGap(object):
         :param time_field: Time attribute for streaming and batch tables.
         :return: A tumbling window on event-time.
         """
-        # type: (str) ->SessionWithGapOnTime
+        # type: (str) -> SessionWithGapOnTime
         return SessionWithGapOnTime(self._java_window.on(time_field))
 
 
@@ -212,18 +198,8 @@ class SessionWithGapOnTime(object):
         :param alias: Alias for this window.
         :return: This window.
         """
-        # type: (str) -> SessionWithGapOnTimeWithAlias
-        return SessionWithGapOnTimeWithAlias(
-            get_method(self._java_window, "as")(alias))
-
-
-class SessionWithGapOnTimeWithAlias(GroupWindow):
-    """
-    Session window on time with alias. Fully specifies a window.
-    """
-
-    def __init__(self, java_window):
-        super(SessionWithGapOnTimeWithAlias, self).__init__(java_window)
+        # type: (str) -> GroupWindow
+        return GroupWindow(get_method(self._java_window, "as")(alias))
 
 
 class Slide(object):
@@ -255,7 +231,7 @@ class Slide(object):
         :param size: The size of the window as time or row-count interval.
         :return: A partially specified sliding window.
         """
-        # type: (str) ->SlideWithSize
+        # type: (str) -> SlideWithSize
         return SlideWithSize(
             get_gateway().jvm.Slide.over(size))
 
@@ -283,7 +259,7 @@ class SlideWithSize(object):
         :param slide: The slide of the window either as time or row-count interval.
         :return: A sliding window.
         """
-        # type: (str) ->SlideWithSizeAndSlide
+        # type: (str) -> SlideWithSizeAndSlide
         return SlideWithSizeAndSlide(self._java_window.every(slide))
 
 
@@ -308,7 +284,7 @@ class SlideWithSizeAndSlide(object):
 
         For batch tables you can specify grouping on a timestamp or long attribute.
         """
-        # type: (str) ->SlideWithSizeAndSlideOnTime
+        # type: (str) -> SlideWithSizeAndSlideOnTime
         return SlideWithSizeAndSlideOnTime(self._java_window.on(time_field))
 
 
@@ -331,18 +307,9 @@ class SlideWithSizeAndSlideOnTime(object):
         :param alias: Alias for this window.
         :return: This window.
         """
-        # type: (str) ->SlideWithSizeAndSlideOnTimeWithAlias
-        return SlideWithSizeAndSlideOnTimeWithAlias(
+        # type: (str) -> GroupWindow
+        return GroupWindow(
             get_method(self._java_window, "as")(alias))
-
-
-class SlideWithSizeAndSlideOnTimeWithAlias(GroupWindow):
-    """
-    Sliding window on time with alias. Fully specifies a window.
-    """
-
-    def __init__(self, java_window):
-        super(SlideWithSizeAndSlideOnTimeWithAlias, self).__init__(java_window)
 
 
 class Over(object):
@@ -368,7 +335,7 @@ class Over(object):
         :param order_by: Field reference.
         :return: An over window with defined order.
         """
-        # type: (str) ->OverWindowPartitionedOrdered
+        # type: (str) -> OverWindowPartitionedOrdered
         return OverWindowPartitionedOrdered(get_gateway().jvm.Over.orderBy(order_by))
 
     @classmethod
@@ -382,7 +349,7 @@ class Over(object):
         :param partition_by: List of field references.
         :return: An over window with defined partitioning.
         """
-        # type: (str) ->OverWindowPartitioned
+        # type: (str) -> OverWindowPartitioned
         return OverWindowPartitioned(get_gateway().jvm.Over.partitionBy(partition_by))
 
 
@@ -401,7 +368,7 @@ class OverWindowPartitionedOrdered(object):
         :param alias: Preceding offset relative to the current row.
         :return: An over window with defined preceding.
         """
-        # type: (str) ->OverWindow
+        # type: (str) -> OverWindow
         return OverWindow(get_method(self._java_over_window, "as")(alias))
 
     def preceding(self, preceding):
@@ -411,7 +378,7 @@ class OverWindowPartitionedOrdered(object):
         :param preceding: Preceding offset relative to the current row.
         :return: An over window with defined preceding.
         """
-        # type: (str) ->OverWindowPartitionedOrderedPreceding
+        # type: (str) -> OverWindowPartitionedOrderedPreceding
         return OverWindowPartitionedOrderedPreceding(
             self._java_over_window.preceding(preceding))
 
@@ -432,7 +399,7 @@ class OverWindowPartitionedOrderedPreceding(object):
         :param alias: Alias for this over window.
         :return: The fully defined over window.
         """
-        # type: (str) ->OverWindow
+        # type: (str) -> OverWindow
         return OverWindow(get_method(self._java_over_window, "as")(alias))
 
     def following(self, following):
@@ -442,7 +409,7 @@ class OverWindowPartitionedOrderedPreceding(object):
         :param following: Following offset that relative to the current row.
         :return: An over window with defined following.
         """
-        # type: (str) ->OverWindowPartitionedOrderedPreceding
+        # type: (str) -> OverWindowPartitionedOrderedPreceding
         return OverWindowPartitionedOrderedPreceding(
             self._java_over_window.following(following))
 
