@@ -2026,7 +2026,7 @@ Table table = input
     
     <tr>
       <td>
-        <strong>GroupBy TableAggregation</strong><br>
+        <strong>FlatAggregate</strong><br>
         <span class="label label-primary">Streaming</span><br>
         <span class="label label-info">Result Updating</span>
       </td>
@@ -2066,14 +2066,35 @@ Table table = input
     }
     
 TableAggregateFunction tableAggFunc = new MyMinMax();
-tableEnv.registerFunction("myTableAggFunc", tableAggFunc);
+tableEnv.registerFunction("tableAggFunc", tableAggFunc);
 Table orders = tableEnv.scan("Orders");
 Table result = orders
     .groupBy("a")
-    .flatAggregate("myTableAggFunc(a) as (x, y)")
+    .flatAggregate("tableAggFunc(b) as (x, y)")
     .select("a, x, y");
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+      </td>
+    </tr>
+    
+    
+    <tr>
+      <td>
+        <strong>Group Window FlatAggregate</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+      </td>
+      <td>
+        <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+{% highlight java %}
+TableAggregateFunction tableAggFunc = new MyMinMax();
+tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
+    .groupBy("a, w") // group by key and window
+    .flatAggregate("tableAggFunc(b) as (x, y)")
+    .select("a, w.start, w.end, w.rowtime, x, y"); // access window properties and aggregate results
+{% endhighlight %}
       </td>
     </tr>
   </tbody>
@@ -2194,7 +2215,7 @@ val table = input
     
     <tr>
       <td>
-        <strong>GroupBy TableAggregation</strong><br>
+        <strong>FlatAggregate</strong><br>
         <span class="label label-primary">Streaming</span><br>
         <span class="label label-info">Result Updating</span>
       </td>
@@ -2235,10 +2256,30 @@ val tableAggFunc = new MyMinMax
 val orders: Table = tableEnv.scan("Orders")
 val result = orders
     .groupBy('a)
-    .flatAggregate(tableAggFunc('a) as ('x, 'y))
+    .flatAggregate(tableAggFunc('b) as ('x, 'y))
     .select('a, 'x, 'y)
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>Group Window FlatAggregate</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+      </td>
+      <td>
+        <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+{% highlight scala %}
+val tableAggFunc = new MyMinMax
+val orders: Table = tableEnv.scan("Orders")
+val result = orders
+    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
+    .groupBy('a, 'w) // group by key and window
+    .flatAggregate(tableAggFunc('b) as ('x, 'y))
+    .select('a, w.start, 'w.end, 'w.rowtime, 'x, 'y) // access window properties and aggregate results
+
+{% endhighlight %}
       </td>
     </tr>
   </tbody>
