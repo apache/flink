@@ -160,9 +160,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         aggregate.getNamedProperties,
         convAggregate)
 
-    case tableAgg: LogicalTableAggregate =>
-      val correspondAggregate = LogicalTableAggregate.getCorrespondingAggregate(tableAgg)
-      val convAggregate = convertAggregate(correspondAggregate)
+    case tableAggregate: LogicalTableAggregate =>
+      val convAggregate = convertAggregate(tableAggregate.getCorrespondingAggregate)
       LogicalTableAggregate.create(convAggregate)
 
     case temporalTableJoin: LogicalTemporalTableJoin =>

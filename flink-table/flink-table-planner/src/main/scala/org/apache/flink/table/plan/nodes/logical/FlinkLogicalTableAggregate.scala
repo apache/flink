@@ -75,9 +75,9 @@ private class FlinkLogicalTableAggregateConverter
       rel.getCluster,
       traitSet,
       newInput,
-      agg.indicator,
-      agg.groupSet,
-      agg.groupSets,
+      agg.getIndicator,
+      agg.getGroupSet,
+      agg.getGroupSets,
       agg.aggCalls)
   }
 }

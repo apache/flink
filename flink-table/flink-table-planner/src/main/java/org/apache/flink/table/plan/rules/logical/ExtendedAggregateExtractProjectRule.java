@@ -87,9 +87,9 @@ public class ExtendedAggregateExtractProjectRule extends AggregateExtractProject
 		if (relNode instanceof LogicalAggregate || relNode instanceof LogicalWindowAggregate) {
 			call.transformTo(performExtract((Aggregate) relNode, input, relBuilder));
 		} else if (relNode instanceof LogicalTableAggregate) {
-			LogicalAggregate logicalAggregate =
-				LogicalTableAggregate.getCorrespondingAggregate((LogicalTableAggregate) relNode);
-			RelNode newAggregate = performExtract(logicalAggregate, input, relBuilder);
+			Aggregate aggregate =
+				((LogicalTableAggregate) relNode).getCorrespondingAggregate();
+			RelNode newAggregate = performExtract(aggregate, input, relBuilder);
 			call.transformTo(LogicalTableAggregate.create((Aggregate) newAggregate));
 		}
 	}

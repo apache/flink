@@ -34,7 +34,8 @@ import org.apache.flink.table.expressions.{Alias, ExpressionBridge, PlannerExpre
 import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.TableOperationConverter
 import org.apache.flink.table.plan.logical.LogicalWindow
-import org.apache.flink.table.plan.logical.rel.{LogicalTableAggregate, LogicalWindowAggregate}
+import org.apache.flink.table.plan.logical.rel.{LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
+import org.apache.flink.table.runtime.aggregate.AggregateUtil
 
 import scala.collection.JavaConverters._
 
@@ -64,7 +65,25 @@ class FlinkRelBuilder(
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-  def aggregate(
+  /**
+    * Build non-window aggregate for either aggregate or table aggregate.
+    */
+  override def aggregate(groupKey: GroupKey, aggCalls: Iterable[AggCall]): RelBuilder = {
+    // build a relNode, the build() may also return a project
+    val relNode = super.aggregate(groupKey, aggCalls).build()
+
+    relNode match {
+      case logicalAggregate: LogicalAggregate
+        if AggregateUtil.isTableAggregate(logicalAggregate.getAggCallList) =>
+        push(LogicalTableAggregate.create(logicalAggregate))
+      case _ => push(relNode)
+    }
+  }
+
+  /**
+    * Build window aggregate for either aggregate or table aggregate.
+    */
+  def windowAggregate(
       window: LogicalWindow,
       groupKey: GroupKey,
       windowProperties: JList[PlannerExpression],
@@ -80,18 +99,11 @@ class FlinkRelBuilder(
     }
 
     // build logical window aggregate from it
-    push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
-    this
-  }
-
-  def tableAggregate(
-    groupKey: GroupKey,
-    aggCalls: Iterable[AggCall]): RelBuilder = {
-
-    // build logical aggregate
-    val aggregate = super.aggregate(groupKey, aggCalls).build().asInstanceOf[LogicalAggregate]
-    // build logical table aggregate from it
-    push(LogicalTableAggregate.create(aggregate))
+    if (AggregateUtil.isTableAggregate(aggregate.getAggCallList)) {
+      push(LogicalWindowTableAggregate.create(window, namedProperties, aggregate))
+    } else {
+      push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
+    }
   }
 
   def tableOperation(tableOperation: TableOperation): RelBuilder= {

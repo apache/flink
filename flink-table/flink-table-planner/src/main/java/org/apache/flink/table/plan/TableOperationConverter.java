@@ -136,27 +136,14 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visitAggregate(AggregateTableOperation aggregate) {
-			boolean isTableAggregate = aggregate.getAggregateExpressions().size() == 1 &&
-				AggregateOperationFactory.isTableAggFunctionCall(aggregate.getAggregateExpressions().get(0));
-
 			List<AggCall> aggregations = aggregate.getAggregateExpressions()
 				.stream()
-				.map(expr -> {
-					if (isTableAggregate) {
-						return expr.accept(tableAggregateVisitor);
-					} else {
-						return expr.accept(aggregateVisitor);
-					}
-				}).collect(toList());
+				.map(this::getAggCall)
+				.collect(toList());
 
 			List<RexNode> groupings = convertToRexNodes(aggregate.getGroupingExpressions());
 			GroupKey groupKey = relBuilder.groupKey(groupings);
-
-			if (isTableAggregate) {
-				return ((FlinkRelBuilder) relBuilder).tableAggregate(groupKey, aggregations).build();
-			} else {
-				return relBuilder.aggregate(groupKey, aggregations).build();
-			}
+			return relBuilder.aggregate(groupKey, aggregations).build();
 		}
 
 		@Override
@@ -164,7 +151,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 			FlinkRelBuilder flinkRelBuilder = (FlinkRelBuilder) relBuilder;
 			List<AggCall> aggregations = windowAggregate.getAggregateExpressions()
 				.stream()
-				.map(expr -> expr.accept(aggregateVisitor))
+				.map(this::getAggCall)
 				.collect(toList());
 
 			List<RexNode> groupings = convertToRexNodes(windowAggregate.getGroupingExpressions());
@@ -174,7 +161,18 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 				.collect(toList());
 			GroupKey groupKey = relBuilder.groupKey(groupings);
 			LogicalWindow logicalWindow = toLogicalWindow(windowAggregate.getGroupWindow());
-			return flinkRelBuilder.aggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
+			return flinkRelBuilder.windowAggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
+		}
+
+		/**
+		 * Get the {@link AggCall} correspond to the aggregate expression.
+		 */
+		private AggCall getAggCall(Expression aggregateExpression) {
+			if (AggregateOperationFactory.isTableAggFunctionCall(aggregateExpression)) {
+				return aggregateExpression.accept(tableAggregateVisitor);
+			} else {
+				return aggregateExpression.accept(aggregateVisitor);
+			}
 		}
 
 		@Override

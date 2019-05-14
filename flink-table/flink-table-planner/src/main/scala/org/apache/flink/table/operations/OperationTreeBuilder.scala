@@ -241,7 +241,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val flattenedOperation = this.project(flattenExpressions.toList, aggTableOperation)
 
     // add alias
-    aliasBackwardFields(flattenedOperation, alias)
+    aliasBackwardFields(flattenedOperation, alias, groupingExpressions.size())
   }
 
   def tableAggregate(
@@ -253,21 +253,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     // Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
     // groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
     // table aggregate function in Step4.
-    var attrNameCntr: Int = 0
-    val usedFieldNames = child.getTableSchema.getFieldNames.toBuffer
-    val newGroupingExpressions = groupingExpressions.map {
-      case c: CallExpression
-        if !c.getFunctionDefinition.getName.equals(BuiltInFunctionDefinitions.AS.getName) => {
-          val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
-          usedFieldNames.append(tempName)
-          attrNameCntr += 1
-          new CallExpression(
-            BuiltInFunctionDefinitions.AS,
-            Seq(c, new ValueLiteralExpression(tempName))
-          )
-        }
-      case e => e
-    }
+    val newGroupingExpressions = addAliasToTheCallInGroupings(
+      child.getTableSchema.getFieldNames,
+      groupingExpressions)
 
     // Step2: resolve expressions
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build
@@ -280,7 +268,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       .createAggregate(resolvedGroupings, Seq(resolvedFunctionAndAlias.f0), child)
 
     // Step4: add a top project to alias the output fields of the table aggregate.
-    aliasBackwardFields(tableAggOperation, resolvedFunctionAndAlias.f1)
+    aliasBackwardFields(tableAggOperation, resolvedFunctionAndAlias.f1, groupingExpressions.size())
   }
 
   def windowAggregate(
@@ -313,6 +301,51 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       convertedProperties,
       resolvedWindow,
       child)
+  }
+
+  def windowTableAggregate(
+    groupingExpressions: JList[Expression],
+    window: GroupWindow,
+    windowProperties: JList[Expression],
+    tableAggFunction: Expression,
+    child: TableOperation)
+  : TableOperation = {
+
+    // Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+    // groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
+    // table aggregate function in Step4.
+    val newGroupingExpressions = addAliasToTheCallInGroupings(
+      child.getTableSchema.getFieldNames,
+      groupingExpressions)
+
+    // Step2: resolve expressions, including grouping, aggregates and window properties.
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver)
+
+    val resolverWithWindowReferences = resolverFor(tableCatalog, functionCatalog, child)
+      .withLocalReferences(
+        new LocalReferenceExpression(
+          resolvedWindow.getAlias,
+          resolvedWindow.getTimeAttribute.getResultType))
+      .build
+
+    val convertedGroupings = resolverWithWindowReferences.resolve(newGroupingExpressions)
+    val convertedAggregates = resolverWithWindowReferences.resolve(Seq(tableAggFunction))
+    val convertedProperties = resolverWithWindowReferences.resolve(windowProperties)
+    val resolvedFunctionAndAlias = aggregateOperationFactory.extractTableAggFunctionAndAliases(
+      convertedAggregates.get(0))
+
+    // Step3: create window table agg operation
+    val tableAggOperation = aggregateOperationFactory.createWindowAggregate(
+      convertedGroupings,
+      Seq(resolvedFunctionAndAlias.f0),
+      convertedProperties,
+      resolvedWindow,
+      child)
+
+    // Step4: add a top project to alias the output fields of the table aggregate. Also, project the
+    // window attribute.
+    aliasBackwardFields(tableAggOperation, resolvedFunctionAndAlias.f1, groupingExpressions.size())
   }
 
   def join(
@@ -497,16 +530,44 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
   }
 
   /**
-    * Rename backward fields of the input [[TableOperation]].
+    * Add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+    * groupBy(a % 5 as TMP_0).
+    */
+  private def addAliasToTheCallInGroupings(
+      inputFieldNames: Seq[String],
+      groupingExpressions: JList[Expression])
+    : JList[Expression] = {
+
+    var attrNameCntr: Int = 0
+    val usedFieldNames = inputFieldNames.toBuffer
+    groupingExpressions.map {
+      case c: CallExpression
+        if !c.getFunctionDefinition.getName.equals(BuiltInFunctionDefinitions.AS.getName) => {
+        val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
+        usedFieldNames.append(tempName)
+        attrNameCntr += 1
+        new CallExpression(
+          BuiltInFunctionDefinitions.AS,
+          Seq(c, new ValueLiteralExpression(tempName))
+        )
+      }
+      case e => e
+    }
+  }
+
+  /**
+    * Rename fields in the input [[TableOperation]].
     */
   private def aliasBackwardFields(
     inputOperation: TableOperation,
-    alias: Seq[String])
+    alias: Seq[String],
+    aliasStartIndex: Int)
   : TableOperation = {
 
     if (alias.nonEmpty) {
       val namesBeforeAlias = inputOperation.getTableSchema.getFieldNames
-      val namesAfterAlias = namesBeforeAlias.dropRight(alias.size()) ++ alias
+      val namesAfterAlias = namesBeforeAlias.take(aliasStartIndex) ++ alias ++
+        namesBeforeAlias.takeRight(namesBeforeAlias.length - alias.size - aliasStartIndex)
       this.alias(namesAfterAlias.map(e =>
         new UnresolvedReferenceExpression(e)).toList, inputOperation)
     } else {
