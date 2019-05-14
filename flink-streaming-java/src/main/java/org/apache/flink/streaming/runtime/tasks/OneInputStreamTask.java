@@ -96,8 +96,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	}
 
 	@Override
-	protected boolean performDefaultAction() throws Exception {
-		return inputProcessor.processInput();
+	protected void performDefaultAction(ActionContext context) throws Exception {
+		if (!inputProcessor.processInput()) {
+			context.allActionsCompleted();
+		}
 	}
 
 	@Override

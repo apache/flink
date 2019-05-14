@@ -156,10 +156,10 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		protected boolean performDefaultAction() throws Exception {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			executionLatch.trigger();
 			cancellationLatch.await();
-			return false;
+			context.allActionsCompleted();
 		}
 
 		@Override

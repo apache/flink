@@ -843,8 +843,8 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() throws Exception {}
 
 		@Override
-		protected boolean performDefaultAction() {
-			return false;
+		protected void performDefaultAction(ActionContext context) throws Exception {
+			context.allActionsCompleted();
 		}
 
 		@Override
@@ -1033,8 +1033,8 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() throws Exception {}
 
 		@Override
-		protected boolean performDefaultAction() {
-			return false;
+		protected void performDefaultAction(ActionContext context) throws Exception {
+			context.allActionsCompleted();
 		}
 
 		@Override
@@ -1063,11 +1063,11 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected boolean performDefaultAction() {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			if (fail) {
 				throw new RuntimeException();
 			}
-			return false;
+			context.allActionsCompleted();
 		}
 
 		@Override
@@ -1154,7 +1154,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected boolean performDefaultAction() throws Exception {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			holder = new LockHolder(getCheckpointLock(), latch);
 			holder.start();
 			latch.await();
@@ -1169,7 +1169,7 @@ public class StreamTaskTest extends TestLogger {
 				// restore interruption state
 				Thread.currentThread().interrupt();
 			}
-			return false;
+			context.allActionsCompleted();
 		}
 
 		@Override
@@ -1199,7 +1199,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected boolean performDefaultAction() throws Exception {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			final OneShotLatch latch = new OneShotLatch();
 			final Object lock = new Object();
 
@@ -1225,7 +1225,7 @@ public class StreamTaskTest extends TestLogger {
 			finally {
 				holder.close();
 			}
-			return false;
+			context.allActionsCompleted();
 		}
 
 		@Override
@@ -1265,9 +1265,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected boolean performDefaultAction() throws Exception {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			syncLatch.await();
-			return false;
+			context.allActionsCompleted();
 		}
 
 		@Override

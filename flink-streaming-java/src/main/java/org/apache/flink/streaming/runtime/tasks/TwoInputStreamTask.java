@@ -108,8 +108,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	}
 
 	@Override
-	protected boolean performDefaultAction() throws Exception {
-		return inputProcessor.processInput();
+	protected void performDefaultAction(ActionContext context) throws Exception {
+		if (!inputProcessor.processInput()) {
+			context.allActionsCompleted();
+		}
 	}
 
 	@Override

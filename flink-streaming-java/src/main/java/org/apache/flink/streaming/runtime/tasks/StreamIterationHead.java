@@ -66,21 +66,20 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected boolean performDefaultAction() throws Exception {
+	protected void performDefaultAction(ActionContext context) throws Exception {
 		StreamRecord<OUT> nextRecord = shouldWait ?
 			dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS) :
 			dataChannel.take();
 
-		if (nextRecord == null) {
-			return false;
-		}
-
-		synchronized (getCheckpointLock()) {
-			for (RecordWriterOutput<OUT> output : streamOutputs) {
-				output.collect(nextRecord);
+		if (nextRecord != null) {
+			synchronized (getCheckpointLock()) {
+				for (RecordWriterOutput<OUT> output : streamOutputs) {
+					output.collect(nextRecord);
+				}
 			}
+		} else {
+			context.allActionsCompleted();
 		}
-		return true;
 	}
 
 	// ------------------------------------------------------------------------

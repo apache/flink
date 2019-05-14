@@ -80,8 +80,8 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
 			protected void init() throws Exception {}
 
 			@Override
-			protected boolean performDefaultAction() throws Exception {
-				return false;
+			protected void performDefaultAction(ActionContext context) throws Exception {
+				context.allActionsCompleted();
 			}
 
 			@Override

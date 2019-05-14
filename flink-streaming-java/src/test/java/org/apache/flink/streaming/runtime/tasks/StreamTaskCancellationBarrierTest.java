@@ -188,8 +188,8 @@ public class StreamTaskCancellationBarrierTest {
 		}
 
 		@Override
-		protected boolean performDefaultAction() {
-			return false;
+		protected void performDefaultAction(ActionContext context) throws Exception {
+			context.allActionsCompleted();
 		}
 
 		@Override

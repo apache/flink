@@ -224,11 +224,11 @@ public class StreamTaskTerminationTest extends TestLogger {
 		}
 
 		@Override
-		protected boolean performDefaultAction() throws Exception {
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			RUN_LATCH.trigger();
 			// wait until we have started an asynchronous checkpoint
 			CHECKPOINTING_LATCH.await();
-			return false;
+			context.allActionsCompleted();
 		}
 
 		@Override
