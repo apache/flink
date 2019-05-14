@@ -104,6 +104,19 @@ public class LogicalTypesTest {
 	}
 
 	@Test
+	public void testVarCharTypeWithMaximumLength() {
+		testAll(
+			new VarCharType(Integer.MAX_VALUE),
+			"STRING",
+			"STRING",
+			new Class[]{String.class, byte[].class},
+			new Class[]{String.class, byte[].class},
+			new LogicalType[]{},
+			new VarCharType(12)
+		);
+	}
+
+	@Test
 	public void testBooleanType() {
 		testAll(
 			new BooleanType(),
