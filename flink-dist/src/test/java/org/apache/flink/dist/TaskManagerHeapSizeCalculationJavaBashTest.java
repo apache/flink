@@ -20,6 +20,7 @@ package org.apache.flink.dist;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
@@ -158,9 +159,9 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		config.setLong(KEY_TASKM_MEM_SIZE, javaMemMB);
 		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, useOffHeap);
 
-		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, netBufMemFrac);
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(netBufMemMin));
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(netBufMemMax));
+		config.setFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, netBufMemFrac);
+		config.setString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(netBufMemMin));
+		config.setString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(netBufMemMax));
 
 		if (managedMemSizeMB == 0) {
 			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
@@ -232,9 +233,9 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		String[] command = {"src/test/bin/calcTMNetBufMem.sh",
 			totalJavaMemorySizeMB + "m",
-			String.valueOf(config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)};
+			String.valueOf(config.getFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
+			config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN),
+			config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX)};
 
 		String scriptOutput = executeScript(command);
 
@@ -271,9 +272,9 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		String[] command = {"src/test/bin/calcTMHeapSizeMB.sh",
 			totalJavaMemorySizeMB + "m",
 			String.valueOf(config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)),
-			String.valueOf(config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX),
+			String.valueOf(config.getFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
+			config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN),
+			config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX),
 			config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE),
 			String.valueOf(config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION))};
 		String scriptOutput = executeScript(command);

@@ -27,7 +27,7 @@ import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -362,7 +362,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		public static void setAsContext() {
 			Configuration config = new Configuration();
 			// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
-			config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
+			config.setString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
 			final LocalEnvironment le = new LocalEnvironment(config);
 
 			initializeContextEnvironment(new ExecutionEnvironmentFactory() {

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
@@ -70,9 +71,9 @@ public class NetworkBufferCalculationTest extends TestLogger {
 	 *
 	 * @param managedMemory         see {@link TaskManagerOptions#MANAGED_MEMORY_SIZE}
 	 * @param managedMemoryFraction see {@link TaskManagerOptions#MANAGED_MEMORY_FRACTION}
-	 * @param networkBufFraction	see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION}
-	 * @param networkBufMin			see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}
-	 * @param networkBufMax			see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}
+	 * @param networkBufFraction	see {@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION}
+	 * @param networkBufMin			see {@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN}
+	 * @param networkBufMax			see {@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}
 	 * @param memoryType			on-heap or off-heap
 	 *
 	 * @return configuration object
@@ -89,9 +90,9 @@ public class NetworkBufferCalculationTest extends TestLogger {
 
 		configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), managedMemory);
 		configuration.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(), managedMemoryFraction);
-		configuration.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(), networkBufFraction);
-		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key(), networkBufMin);
-		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key(), networkBufMax);
+		configuration.setFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(), networkBufFraction);
+		configuration.setLong(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(), networkBufMin);
+		configuration.setLong(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key(), networkBufMax);
 		configuration.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP.key(), memoryType == MemoryType.OFF_HEAP);
 
 		return configuration;
