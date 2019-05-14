@@ -544,6 +544,7 @@ public class SingleInputGate extends InputGate {
 	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
+			InputChannel inputChannel;
 			synchronized (inputChannelsWithData) {
 				while (inputChannelsWithData.size() == 0) {
 					if (isReleased) {
@@ -559,15 +560,19 @@ public class SingleInputGate extends InputGate {
 					}
 				}
 
-				InputChannel inputChannel = inputChannelsWithData.remove();
+				inputChannel = inputChannelsWithData.remove();
+				enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+			}
 
-				Optional<BufferAndAvailability> result = inputChannel.getNextBuffer();
+			// Do not query inputChannel under the lock, to avoid potential deadlocks coming from
+			// notifications.
+			Optional<BufferAndAvailability> result = inputChannel.getNextBuffer();
 
+			synchronized (inputChannelsWithData) {
 				if (result.isPresent() && result.get().moreAvailable()) {
 					// enqueue the inputChannel at the end to avoid starvation
 					inputChannelsWithData.add(inputChannel);
-				} else {
-					enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+					enqueuedInputChannelsWithData.set(inputChannel.getChannelIndex());
 				}
 
 				if (inputChannelsWithData.isEmpty()) {

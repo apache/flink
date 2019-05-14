@@ -199,6 +199,7 @@ public class UnionInputGate extends InputGate {
 	private Optional<InputWithData<InputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
+			InputGate inputGate;
 			synchronized (inputGatesWithData) {
 				while (inputGatesWithData.size() == 0) {
 					if (blocking) {
@@ -210,12 +211,16 @@ public class UnionInputGate extends InputGate {
 				}
 
 				Iterator<InputGate> inputGateIterator = inputGatesWithData.iterator();
-				final InputGate inputGate = inputGateIterator.next();
+				inputGate = inputGateIterator.next();
 				inputGateIterator.remove();
+			}
 
-				// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
-				Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
+			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
+			// Do not poll the gate under inputGatesWithData lock, since this can trigger notifications
+			// that could deadlock because of wrong locks taking order.
+			Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
 
+			synchronized (inputGatesWithData) {
 				if (bufferOrEvent.isPresent() && bufferOrEvent.get().moreAvailable()) {
 					// enqueue the inputGate at the end to avoid starvation
 					inputGatesWithData.add(inputGate);
