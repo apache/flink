@@ -36,7 +36,7 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -56,8 +56,8 @@ public class BarrierTrackerTest {
 
 	@After
 	public void ensureEmpty() throws Exception {
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
+		assertFalse(tracker.pollNext().isPresent());
+		assertTrue(tracker.isFinished());
 		assertTrue(tracker.isEmpty());
 	}
 
