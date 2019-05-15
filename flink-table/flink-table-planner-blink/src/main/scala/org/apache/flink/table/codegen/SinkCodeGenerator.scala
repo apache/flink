@@ -180,8 +180,7 @@ object SinkCodeGenerator {
          |$retractProcessCode
          |""".stripMargin,
       endInputCode,
-      createInternalTypeFromTypeInfo(inputTypeInfo),
-      config)
+      createInternalTypeFromTypeInfo(inputTypeInfo))
     (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
   }
 

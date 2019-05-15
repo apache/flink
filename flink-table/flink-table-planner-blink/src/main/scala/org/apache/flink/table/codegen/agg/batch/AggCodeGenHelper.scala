@@ -707,7 +707,6 @@ object AggCodeGenHelper {
       processCode,
       endInputCode,
       inputType,
-      ctx.tableConfig,
       lazyInputUnboxingCode = true)
   }
 }

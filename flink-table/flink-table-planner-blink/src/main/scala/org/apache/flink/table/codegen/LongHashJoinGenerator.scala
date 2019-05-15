@@ -334,8 +334,7 @@ object LongHashJoinGenerator {
          |LOG.info("Finish rebuild phase.");
        """.stripMargin,
       buildType,
-      probeType,
-      conf)
+      probeType)
 
     new CodeGenOperatorFactory[BaseRow](genOp)
   }

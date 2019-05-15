@@ -49,7 +49,6 @@ object OperatorCodeGenerator extends Logging {
       processCode: String,
       endInputCode: String,
       inputType: InternalType,
-      config: TableConfig,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       lazyInputUnboxingCode: Boolean = false,
       converter: String => String = a => a): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
@@ -121,7 +120,7 @@ object OperatorCodeGenerator extends Logging {
     LOG.debug(s"Compiling OneInputStreamOperator Code:\n$name")
     new GeneratedOperator(
       operatorName, operatorCode, ctx.references.toArray,
-      config.getConf.getString(ConfigConstants.CODE_GEN_COMPILATION_OPTION))
+      ctx.tableConfig.getConf.getString(ConfigConstants.CODE_GEN_COMPILATION_OPTION))
   }
 
   def generateTwoInputStreamOperator[IN1 <: Any, IN2 <: Any, OUT <: Any](
@@ -133,7 +132,6 @@ object OperatorCodeGenerator extends Logging {
       endInputCode2: String,
       input1Type: InternalType,
       input2Type: InternalType,
-      config: TableConfig,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
       useTimeCollect: Boolean = false)
@@ -208,7 +206,7 @@ object OperatorCodeGenerator extends Logging {
     LOG.debug(s"Compiling TwoInputStreamOperator Code:\n$name")
     new GeneratedOperator(
       operatorName, operatorCode, ctx.references.toArray,
-      config.getConf.getString(ConfigConstants.CODE_GEN_COMPILATION_OPTION))
+      ctx.tableConfig.getConf.getString(ConfigConstants.CODE_GEN_COMPILATION_OPTION))
   }
 
   private def generateInputTerm(inputTypeTerm: String): String = {

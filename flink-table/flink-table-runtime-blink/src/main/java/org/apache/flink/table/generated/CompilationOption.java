@@ -31,7 +31,7 @@ public enum CompilationOption {
 	JANINO,
 
 	/**
-	 * Compiling Java code by Java Compiler API (JCA)
+	 * Compiling Java code by Java Compiler API (JCA).
 	 */
 	JCA,
 
