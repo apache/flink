@@ -28,15 +28,9 @@ sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 3/"
 start_cluster
 
 function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_kafka_cluster
 }
-trap test_cleanup INT
-trap test_cleanup EXIT
+on_exit test_cleanup
 
 # create the required topics
 create_kafka_topic 1 1 test-input
