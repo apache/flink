@@ -164,9 +164,4 @@ function get_completed_number_of_checkpoints {
         sed 's/,.*//'     # 24
 }
 
-function test_cleanup {
-    unlink_queryable_state_lib
-}
-
-trap test_cleanup EXIT
 run_test

@@ -23,7 +23,6 @@ setup_kafka_dist
 start_kafka_cluster
 
 # modify configuration to have enough slots
-cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
 sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 3/" $FLINK_DIR/conf/flink-conf.yaml
 
 start_cluster
@@ -35,9 +34,6 @@ function test_cleanup {
   trap "" EXIT
 
   stop_kafka_cluster
-
-  # revert our modifications to the Flink distribution
-  mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
 }
 trap test_cleanup INT
 trap test_cleanup EXIT

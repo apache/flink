@@ -18,22 +18,9 @@
 ################################################################################
 
 function link_queryable_state_lib {
-    echo "Moving flink-queryable-state-runtime from opt/ to lib/"
-    mv ${FLINK_DIR}/opt/flink-queryable-state-runtime* ${FLINK_DIR}/lib/
-    if [ $? != 0 ]; then
-        echo "Failed to move flink-queryable-state-runtime from opt/ to lib/. Exiting"
-        exit 1
-    fi
+    echo "Adding flink-queryable-state-runtime to lib/"
+    add_optional_lib "queryable-state-runtime"
     set_conf "queryable-state.enable" "true"
-}
-
-function unlink_queryable_state_lib {
-    echo "Moving flink-queryable-state-runtime from lib/ to opt/"
-    mv ${FLINK_DIR}/lib/flink-queryable-state-runtime* ${FLINK_DIR}/opt/
-    if [ $? != 0 ]; then
-        echo "Failed to move flink-queryable-state-runtime from lib/ to opt/. Exiting"
-        exit 1
-    fi
 }
 
 # Returns the ip address of the queryable state server

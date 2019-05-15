@@ -33,7 +33,6 @@ function ha_cleanup() {
 
   stop_watchdogs
   kill_all 'StandaloneJobClusterEntryPoint'
-  rm ${FLINK_LIB_DIR}/${TEST_PROGRAM_JAR_NAME}
 }
 
 trap ha_cleanup INT

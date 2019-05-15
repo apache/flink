@@ -32,17 +32,6 @@ TEST_PROGRAM_NAME=DataStreamStateTTLTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
 setup_flink_slf4j_metric_reporter
-function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
-  # revert our modifications to the Flink distribution
-  rm ${FLINK_DIR}/lib/flink-metrics-slf4j-*.jar
-}
-trap test_cleanup INT
-trap test_cleanup EXIT
 
 set_conf "metrics.fetcher.update-interval" "2000"
 

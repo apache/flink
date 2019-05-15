@@ -59,17 +59,9 @@ AZURE_TEST_DATA_WORDS_URI="wasbs://$IT_CASE_AZURE_CONTAINER@$IT_CASE_AZURE_ACCOU
 #   None
 ###################################
 function azure_setup {
-  # make sure we delete the file at the end
-  function azure_cleanup {
-    rm $FLINK_DIR/lib/flink-azure-fs*.jar
-
-    # remove any leftover settings
-    sed -i -e 's/fs.azure.account.key.*//' "$FLINK_DIR/conf/flink-conf.yaml"
-  }
-  trap azure_cleanup EXIT
 
   echo "Copying flink azure jars and writing out configs"
-  cp $FLINK_DIR/opt/flink-azure-fs-hadoop-*.jar $FLINK_DIR/lib/
+  add_optional_lib "azure-fs-hadoop"
   echo "fs.azure.account.key.$IT_CASE_AZURE_ACCOUNT.blob.core.windows.net: $IT_CASE_AZURE_ACCESS_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
 }
 

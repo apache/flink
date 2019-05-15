@@ -63,17 +63,7 @@ s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.ja
 #   None
 ###################################
 function s3_setup {
-  # make sure we delete the file at the end
-  function s3_cleanup {
-    rm $FLINK_DIR/lib/flink-s3-fs*.jar
-
-    # remove any leftover settings
-    sed -i -e 's/s3.access-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-    sed -i -e 's/s3.secret-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-  }
-  trap s3_cleanup EXIT
-
-  cp $FLINK_DIR/opt/flink-s3-fs-$1-*.jar $FLINK_DIR/lib/
+  add_optional_lib "s3-fs-$1"
   echo "s3.access-key: $IT_CASE_S3_ACCESS_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
   echo "s3.secret-key: $IT_CASE_S3_SECRET_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
 }
