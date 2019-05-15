@@ -156,6 +156,19 @@ public class LogicalTypesTest {
 	}
 
 	@Test
+	public void testVarBinaryTypeWithMaximumLength() {
+		testAll(
+			new VarBinaryType(Integer.MAX_VALUE),
+			"VARBINARY(2147483647)",
+			"BYTES",
+			new Class[]{byte[].class},
+			new Class[]{byte[].class},
+			new LogicalType[]{},
+			new VarBinaryType(12)
+		);
+	}
+
+	@Test
 	public void testDecimalType() {
 		testAll(
 			new DecimalType(10, 2),
