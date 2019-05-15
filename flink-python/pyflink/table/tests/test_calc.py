@@ -21,7 +21,7 @@ import os
 from pyflink.table.table_source import CsvTableSource
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableCalcTests(PyFlinkStreamTableTestCase):
@@ -111,78 +111,6 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
-
-        expected = ['2,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-
-class BatchTableCalcTests(PyFlinkBatchTableTestCase):
-
-    def test_select(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        with open(source_path, 'w') as f:
-            lines = '1,hi,hello\n' + '2,hi,hello\n'
-            f.write(lines)
-            f.close()
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
-        t_env = self.t_env
-        # register Orders table in table environment
-        t_env.register_table_source(
-            "Orders",
-            CsvTableSource(source_path, field_names, field_types))
-
-        result = t_env.scan("Orders") \
-                      .select("a + 1, b, c")
-        actual = self.collect(result)
-
-        expected = ['2,hi,hello', '3,hi,hello']
-        self.assert_equals(actual, expected)
-
-    def test_alias(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
-        source = t_env.scan("Source")
-
-        result = source.alias("d, e, f").select("d, e, f")
-        actual = self.collect(result)
-
-        expected = ['1,Hi,Hello', '2,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-    def test_where(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
-        source = t_env.scan("Source")
-
-        result = source.where("a > 1 && b = 'Hello'")
-        actual = self.collect(result)
-
-        expected = ['2,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-    def test_filter(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
-        source = t_env.scan("Source")
-
-        result = source.filter("a > 1 && b = 'Hello'")
-        actual = self.collect(result)
 
         expected = ['2,Hello,Hello']
         self.assert_equals(actual, expected)

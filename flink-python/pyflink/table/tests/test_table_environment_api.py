@@ -340,7 +340,6 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
             "sinks",
             field_names, field_types, CsvTableSink(tmp_csv))
 
-
         result = t_env.sql_query("select a + 1, b, c from %s" % source)
         result.insert_into("sinks")
         t_env.execute()
