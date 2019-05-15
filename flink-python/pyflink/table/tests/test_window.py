@@ -38,8 +38,8 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
         t_env.register_table_source("Source", csv_source)
         source = t_env.scan("Source")
 
-        result = source.window(Over.partition_by("c").order_by("a")
-                               .preceding("2.rows").following("current_row").alias("w"))
+        result = source.over_window(Over.partition_by("c").order_by("a")
+                                    .preceding("2.rows").following("current_row").alias("w"))
 
         self.assertRaisesRegexp(
             Py4JJavaError, "Ordering must be defined on a time attribute",

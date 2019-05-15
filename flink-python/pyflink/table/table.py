@@ -20,7 +20,7 @@ import sys
 from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
 
-from pyflink.table.window import GroupWindow, OverWindow
+from pyflink.table.window import GroupWindow
 
 if sys.version > '3':
     xrange = range
@@ -395,9 +395,36 @@ class Table(object):
         """
         return Table(self._j_table.fetch(fetch))
 
-    def window(self, *windows):
+    def window(self, window):
         """
-        Defines over-windows or group window on the records of a table.
+        Defines group window on the records of a table.
+
+        A group window groups the records of a table by assigning them to windows defined by a time
+        or row interval.
+
+        For streaming tables of infinite size, grouping into windows is required to define finite
+        groups on which group-based aggregates can be computed.
+
+        For batch tables of finite size, windowing essentially provides shortcuts for time-based
+        groupBy.
+
+        .. note::
+            Computing windowed aggregates on a streaming table is only a parallel operation
+            if additional grouping attributes are added to the
+            :func:`~pyflink.table.GroupWindowedTable.group_by` clause.
+            If the :func:`~pyflink.table.GroupWindowedTable.group_by` only references a GroupWindow
+            alias, the streamed table will be processed by a single task, i.e., with parallelism 1.
+
+        :param windows: A :class:`GroupWindow` created from :class:`Tumble`, :class:`Session` or
+                        :class:`Slide`.
+        :return: A :class:`GroupWindowedTable`.
+        """
+        # type: (GroupWindow) -> GroupWindowedTable
+        return GroupWindowedTable(self._j_table.window(window._java_window))
+
+    def over_window(self, *over_windows):
+        """
+        Defines over-windows on the records of a table.
 
         An over-window defines for each record an interval of records over which aggregation
         functions can be computed.
@@ -416,38 +443,14 @@ class Table(object):
         .. note::
             Over-windows for batch tables are currently not supported.
 
-        A group window groups the records of a table by assigning them to windows defined by a time
-        or row interval.
-
-        For streaming tables of infinite size, grouping into windows is required to define finite
-        groups on which group-based aggregates can be computed.
-
-        For batch tables of finite size, windowing essentially provides shortcuts for time-based
-        groupBy.
-
-        .. note::
-            Computing windowed aggregates on a streaming table is only a parallel operation
-            if additional grouping attributes are added to the
-            :func:`~pyflink.table.GroupWindowedTable.group_by` clause.
-            If the :func:`~pyflink.table.GroupWindowedTable.group_by` only references a GroupWindow
-            alias, the streamed table will be processed by a single task, i.e., with parallelism 1.
-
-        :param windows: :class:`OverWindow`s created from :class:`Over` or :class:`GroupWindow`
-                        created from :class:`Tumble`, :class:`Session` or :class:`Slide`.
-        :return: A :class:`OverWindowedTable` or a :class:`GroupWindowedTable`.
+        :param windows: :class:`OverWindow`s created from :class:`Over`.
+        :return: A :class:`OverWindowedTable`.
         """
-
-        if len(windows) == 1 and isinstance(windows[0], GroupWindow):
-            return GroupWindowedTable(self._j_table.window(windows[0]._java_window))
-        elif len(windows) > 0:
-            if all(isinstance(item, OverWindow) for item in windows):
-                gateway = get_gateway()
-                window_array = gateway.new_array(gateway.jvm.OverWindow, len(windows))
-                for i in xrange(0, len(windows)):
-                    window_array[i] = windows[i]._java_over_window
-                return OverWindowedTable(self._j_table.window(window_array))
-        raise Exception("Only single grouped window(tumble/session/slide) "
-                        "or over windows are accepted. Current input is %s" % windows)
+        gateway = get_gateway()
+        window_array = gateway.new_array(gateway.jvm.OverWindow, len(over_windows))
+        for i in xrange(0, len(over_windows)):
+            window_array[i] = over_windows[i]._java_over_window
+        return OverWindowedTable(self._j_table.window(window_array))
 
     def add_columns(self, fields):
         """
