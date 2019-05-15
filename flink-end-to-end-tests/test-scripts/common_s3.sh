@@ -64,8 +64,8 @@ s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.ja
 ###################################
 function s3_setup {
   add_optional_lib "s3-fs-$1"
-  echo "s3.access-key: $IT_CASE_S3_ACCESS_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
-  echo "s3.secret-key: $IT_CASE_S3_SECRET_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
+  set_config_key "s3.access-key" "$IT_CASE_S3_ACCESS_KEY"
+  set_config_key "s3.secret-key" "$IT_CASE_S3_SECRET_KEY"
 }
 
 ###################################

@@ -62,7 +62,7 @@ function azure_setup {
 
   echo "Copying flink azure jars and writing out configs"
   add_optional_lib "azure-fs-hadoop"
-  echo "fs.azure.account.key.$IT_CASE_AZURE_ACCOUNT.blob.core.windows.net: $IT_CASE_AZURE_ACCESS_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
+  set_config_key "fs.azure.account.key.$IT_CASE_AZURE_ACCOUNT.blob.core.windows.net" "$IT_CASE_AZURE_ACCESS_KEY"
 }
 
 azure_setup

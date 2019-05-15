@@ -61,12 +61,12 @@ function _set_conf_ssl_helper {
     # adapt config
     # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
     # external communication channels)
-    set_conf security.ssl.${type}.enabled true
-    set_conf security.ssl.${type}.keystore ${ssl_dir}/node.keystore
-    set_conf security.ssl.${type}.keystore-password ${password}
-    set_conf security.ssl.${type}.key-password ${password}
-    set_conf security.ssl.${type}.truststore ${ssl_dir}/ca.truststore
-    set_conf security.ssl.${type}.truststore-password ${password}
+    set_config_key security.ssl.${type}.enabled true
+    set_config_key security.ssl.${type}.keystore ${ssl_dir}/node.keystore
+    set_config_key security.ssl.${type}.keystore-password ${password}
+    set_config_key security.ssl.${type}.key-password ${password}
+    set_config_key security.ssl.${type}.truststore ${ssl_dir}/ca.truststore
+    set_config_key security.ssl.${type}.truststore-password ${password}
 }
 
 function _set_conf_mutual_rest_ssl {
@@ -78,7 +78,7 @@ function _set_conf_mutual_rest_ssl {
         mutual="true";
     fi
     echo "Mutual ssl auth: ${mutual}"
-    set_conf security.ssl.rest.authentication-enabled ${mutual}
+    set_config_key security.ssl.rest.authentication-enabled ${mutual}
 }
 
 function set_conf_rest_ssl {

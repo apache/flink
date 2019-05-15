@@ -28,9 +28,9 @@ else
   NUM_SLOTS=${NEW_DOP}
 fi
 
-change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
+set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
 setup_flink_slf4j_metric_reporter
-set_conf "metrics.fetcher.update-interval" "2000"
+set_config_key "metrics.fetcher.update-interval" "2000"
 
 start_cluster
 

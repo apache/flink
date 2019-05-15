@@ -23,7 +23,7 @@ setup_kafka_dist
 start_kafka_cluster
 
 # modify configuration to have enough slots
-sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 3/" $FLINK_DIR/conf/flink-conf.yaml
+set_config_key "taskmanager.numberOfTaskSlots" "3"
 
 start_cluster
 

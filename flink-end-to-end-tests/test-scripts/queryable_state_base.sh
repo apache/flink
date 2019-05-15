@@ -20,7 +20,7 @@
 function link_queryable_state_lib {
     echo "Adding flink-queryable-state-runtime to lib/"
     add_optional_lib "queryable-state-runtime"
-    set_conf "queryable-state.enable" "true"
+    set_config_key "queryable-state.enable" "true"
 }
 
 # Returns the ip address of the queryable state server
