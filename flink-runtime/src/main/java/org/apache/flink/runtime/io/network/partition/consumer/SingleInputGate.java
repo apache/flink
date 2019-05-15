@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -30,13 +29,13 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
@@ -107,9 +106,6 @@ public class SingleInputGate extends InputGate {
 	/** The name of the owning task, for logging purposes. */
 	private final String owningTaskName;
 
-	/** The job ID of the owning task. */
-	private final JobID jobId;
-
 	/**
 	 * The ID of the consumed intermediate result. Each input gate consumes partitions of the
 	 * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -146,8 +142,8 @@ public class SingleInputGate extends InputGate {
 
 	private final BitSet channelsWithEndOfPartitionEvents;
 
-	/** The partition state listener listening to failed partition requests. */
-	private final TaskActions taskActions;
+	/** The partition producer state listener. */
+	private final PartitionProducerStateProvider partitionProducerStateProvider;
 
 	/**
 	 * Buffer pool for incoming buffers. Incoming data from remote channels is copied to buffers
@@ -162,9 +158,6 @@ public class SingleInputGate extends InputGate {
 	/** Flag indicating whether partitions have been requested. */
 	private boolean requestedPartitionsFlag;
 
-	/** Flag indicating whether all resources have been released. */
-	private volatile boolean isReleased;
-
 	private final List<TaskEvent> pendingEvents = new ArrayList<>();
 
 	private int numberOfUninitializedChannels;
@@ -176,20 +169,20 @@ public class SingleInputGate extends InputGate {
 
 	private final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
 
+	private final CompletableFuture<Void> closeFuture;
+
 	public SingleInputGate(
 		String owningTaskName,
-		JobID jobId,
 		IntermediateDataSetID consumedResultId,
 		final ResultPartitionType consumedPartitionType,
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
-		TaskActions taskActions,
+		PartitionProducerStateProvider partitionProducerStateProvider,
 		Counter numBytesIn,
 		boolean isCreditBased,
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
-		this.jobId = checkNotNull(jobId);
 
 		this.consumedResultId = checkNotNull(consumedResultId);
 		this.consumedPartitionType = checkNotNull(consumedPartitionType);
@@ -205,11 +198,13 @@ public class SingleInputGate extends InputGate {
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
-		this.taskActions = checkNotNull(taskActions);
+		this.partitionProducerStateProvider = checkNotNull(partitionProducerStateProvider);
 
 		this.numBytesIn = checkNotNull(numBytesIn);
 
 		this.isCreditBased = isCreditBased;
+
+		this.closeFuture = new CompletableFuture<>();
 	}
 
 	@Override
@@ -289,6 +284,10 @@ public class SingleInputGate extends InputGate {
 		return owningTaskName;
 	}
 
+	public CompletableFuture<Void> getCloseFuture() {
+		return closeFuture;
+	}
+
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
@@ -327,7 +326,7 @@ public class SingleInputGate extends InputGate {
 
 	public void updateInputChannel(InputChannelDeploymentDescriptor icdd) throws IOException, InterruptedException {
 		synchronized (requestLock) {
-			if (isReleased) {
+			if (closeFuture.isDone()) {
 				// There was a race with a task failure/cancel
 				return;
 			}
@@ -380,9 +379,9 @@ public class SingleInputGate extends InputGate {
 	/**
 	 * Retriggers a partition request.
 	 */
-	public void retriggerPartitionRequest(IntermediateResultPartitionID partitionId) throws IOException, InterruptedException {
+	public void retriggerPartitionRequest(IntermediateResultPartitionID partitionId) throws IOException {
 		synchronized (requestLock) {
-			if (!isReleased) {
+			if (!closeFuture.isDone()) {
 				final InputChannel ch = inputChannels.get(partitionId);
 
 				checkNotNull(ch, "Unknown input channel with ID " + partitionId);
@@ -419,7 +418,7 @@ public class SingleInputGate extends InputGate {
 	public void close() throws IOException {
 		boolean released = false;
 		synchronized (requestLock) {
-			if (!isReleased) {
+			if (!closeFuture.isDone()) {
 				try {
 					LOG.debug("{}: Releasing {}.", owningTaskName, this);
 
@@ -444,8 +443,8 @@ public class SingleInputGate extends InputGate {
 					}
 				}
 				finally {
-					isReleased = true;
 					released = true;
+					closeFuture.complete(null);
 				}
 			}
 		}
@@ -474,7 +473,7 @@ public class SingleInputGate extends InputGate {
 	public void requestPartitions() throws IOException, InterruptedException {
 		synchronized (requestLock) {
 			if (!requestedPartitionsFlag) {
-				if (isReleased) {
+				if (closeFuture.isDone()) {
 					throw new IllegalStateException("Already released.");
 				}
 
@@ -513,7 +512,7 @@ public class SingleInputGate extends InputGate {
 			return Optional.empty();
 		}
 
-		if (isReleased) {
+		if (closeFuture.isDone()) {
 			throw new IllegalStateException("Released");
 		}
 
@@ -623,7 +622,20 @@ public class SingleInputGate extends InputGate {
 	}
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
-		taskActions.triggerPartitionProducerStateCheck(jobId, consumedResultId, partitionId);
+		partitionProducerStateProvider.requestPartitionProducerState(
+			consumedResultId,
+			partitionId)
+			.thenAccept(responseHandle -> {
+				boolean isProducingState = new RemoteChannelStateChecker(partitionId, owningTaskName)
+					.isProducerReadyOrAbortConsumption(responseHandle);
+				if (isProducingState) {
+					try {
+						retriggerPartitionRequest(partitionId.getPartitionId());
+					} catch (IOException t) {
+						responseHandle.failConsumption(t);
+					}
+				}
+			});
 	}
 
 	private void queueChannel(InputChannel channel) {
@@ -655,7 +667,7 @@ public class SingleInputGate extends InputGate {
 	private Optional<InputChannel> getChannel(boolean blocking) throws InterruptedException {
 		synchronized (inputChannelsWithData) {
 			while (inputChannelsWithData.size() == 0) {
-				if (isReleased) {
+				if (closeFuture.isDone()) {
 					throw new IllegalStateException("Released");
 				}
 

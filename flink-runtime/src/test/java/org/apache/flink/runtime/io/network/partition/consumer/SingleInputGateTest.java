@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -44,11 +44,12 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -344,9 +345,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 			netEnv.getNetworkBufferPool())
 			.create(
 				"TestTask",
-				new JobID(),
 				gateDesc,
-				new NoOpTaskActions(),
+				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
 				new SimpleCounter());
 
@@ -546,7 +546,68 @@ public class SingleInputGateTest extends InputGateTestBase {
 		}
 	}
 
+	@Test
+	public void testInputGateRemovalFromNetworkEnvironment() throws Exception {
+		NetworkEnvironment network = createNetworkEnvironment();
+
+		try {
+			int numberOfGates = 10;
+			Map<InputGateID, SingleInputGate> createdInputGatesById =
+				createInputGateWithLocalChannels(network, numberOfGates, 1);
+
+			assertEquals(numberOfGates, createdInputGatesById.size());
+
+			for (InputGateID id : createdInputGatesById.keySet()) {
+				assertThat(network.getInputGate(id).isPresent(), is(true));
+				createdInputGatesById.get(id).close();
+				assertThat(network.getInputGate(id).isPresent(), is(false));
+			}
+		} finally {
+			network.shutdown();
+		}
+	}
+
 	// ---------------------------------------------------------------------------------------------
+
+	private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
+			NetworkEnvironment network,
+			int numberOfGates,
+			@SuppressWarnings("SameParameterValue") int numberOfLocalChannels) {
+		InputChannelDeploymentDescriptor[] channelDescs = new InputChannelDeploymentDescriptor[numberOfLocalChannels];
+		for (int i = 0; i < numberOfLocalChannels; i++) {
+			channelDescs[i] = new InputChannelDeploymentDescriptor(
+				new ResultPartitionID(),
+				ResultPartitionLocation.createLocal());
+		}
+
+		InputGateDeploymentDescriptor[] gateDescs = new InputGateDeploymentDescriptor[numberOfGates];
+		IntermediateDataSetID[] ids = new IntermediateDataSetID[numberOfGates];
+		for (int i = 0; i < numberOfGates; i++) {
+			ids[i] = new IntermediateDataSetID();
+			gateDescs[i] = new InputGateDeploymentDescriptor(
+				ids[i],
+				ResultPartitionType.PIPELINED,
+				0,
+				channelDescs);
+		}
+
+		ExecutionAttemptID consumerID = new ExecutionAttemptID();
+		SingleInputGate[] gates = network.createInputGates(
+			"",
+			consumerID,
+			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
+			Arrays.asList(gateDescs),
+			new UnregisteredMetricsGroup(),
+			new UnregisteredMetricsGroup(),
+			new UnregisteredMetricsGroup(),
+			new SimpleCounter());
+		Map<InputGateID, SingleInputGate> inputGatesById = new HashMap<>();
+		for (int i = 0; i < numberOfGates; i++) {
+			inputGatesById.put(new InputGateID(ids[i], consumerID), gates[i]);
+		}
+
+		return inputGatesById;
+	}
 
 	private void addUnknownInputChannel(
 			NetworkEnvironment network,

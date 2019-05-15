@@ -175,7 +175,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Retriggers a remote subpartition request.
 	 */
-	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException, InterruptedException {
+	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException {
 		checkState(partitionRequestClient != null, "Missing initial subpartition request.");
 
 		if (increaseBackoff()) {

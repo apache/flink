@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -51,7 +52,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -60,7 +61,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -68,7 +68,9 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -92,7 +94,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -120,7 +121,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable, TaskActions, CheckpointListener {
+public class Task implements Runnable, TaskActions, PartitionProducerStateProvider, CheckpointListener {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -192,8 +193,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	private final ResultPartitionWriter[] producedPartitions;
 
 	private final SingleInputGate[] inputGates;
-
-	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
 	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
@@ -383,18 +382,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		// consumed intermediate result partitions
 		this.inputGates = networkEnvironment.createInputGates(
 			taskNameWithSubtaskAndId,
-			jobId,
+			executionId,
 			this,
 			inputGateDeploymentDescriptors,
 			metrics.getIOMetricGroup(),
 			inputGroup,
 			buffersGroup,
 			metrics.getIOMetricGroup().getNumBytesInCounter());
-
-		this.inputGatesById = new HashMap<>();
-		for (SingleInputGate inputGate : inputGates) {
-			inputGatesById.put(inputGate.getConsumedResultId(), inputGate);
-		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
 
@@ -432,10 +426,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
-	}
-
-	public SingleInputGate getInputGateById(IntermediateDataSetID id) {
-		return inputGatesById.get(id);
 	}
 
 	public AccumulatorRegistry getAccumulatorRegistry() {
@@ -1068,44 +1058,18 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void triggerPartitionProducerStateCheck(
-		JobID jobId,
-		final IntermediateDataSetID intermediateDataSetId,
-		final ResultPartitionID resultPartitionId) {
-
-		CompletableFuture<ExecutionState> futurePartitionState =
+	public CompletableFuture<PartitionProducerStateResponseHandle> requestPartitionProducerState(
+			final IntermediateDataSetID intermediateDataSetId,
+			final ResultPartitionID resultPartitionId) {
+		final CompletableFuture<ExecutionState> futurePartitionState =
 			partitionProducerStateChecker.requestPartitionProducerState(
 				jobId,
 				intermediateDataSetId,
 				resultPartitionId);
-
-		futurePartitionState.whenCompleteAsync(
-			(ExecutionState executionState, Throwable throwable) -> {
-				try {
-					if (executionState != null) {
-						onPartitionStateUpdate(
-							intermediateDataSetId,
-							resultPartitionId,
-							executionState);
-					} else if (throwable instanceof TimeoutException) {
-						// our request timed out, assume we're still running and try again
-						onPartitionStateUpdate(
-							intermediateDataSetId,
-							resultPartitionId,
-							ExecutionState.RUNNING);
-					} else if (throwable instanceof PartitionProducerDisposedException) {
-						String msg = String.format("Producer %s of partition %s disposed. Cancelling execution.",
-							resultPartitionId.getProducerId(), resultPartitionId.getPartitionId());
-						LOG.info(msg, throwable);
-						cancelExecution();
-					} else {
-						failExternally(throwable);
-					}
-				} catch (IOException | InterruptedException e) {
-					failExternally(e);
-				}
-			},
-			executor);
+		final CompletableFuture<PartitionProducerStateResponseHandle> result =
+			futurePartitionState.handleAsync(PartitionProducerStateResponseHandle::new, executor);
+		FutureUtils.assertNoException(result);
+		return result;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1216,64 +1180,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Answer to a partition state check issued after a failed partition request.
-	 */
-	@VisibleForTesting
-	void onPartitionStateUpdate(
-			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionID resultPartitionId,
-			ExecutionState producerState) throws IOException, InterruptedException {
-
-		if (executionState == ExecutionState.RUNNING) {
-			final SingleInputGate inputGate = inputGatesById.get(intermediateDataSetId);
-
-			if (inputGate != null) {
-				if (producerState == ExecutionState.SCHEDULED
-					|| producerState == ExecutionState.DEPLOYING
-					|| producerState == ExecutionState.RUNNING
-					|| producerState == ExecutionState.FINISHED) {
-
-					// Retrigger the partition request
-					inputGate.retriggerPartitionRequest(resultPartitionId.getPartitionId());
-
-				} else if (producerState == ExecutionState.CANCELING
-					|| producerState == ExecutionState.CANCELED
-					|| producerState == ExecutionState.FAILED) {
-
-					// The producing execution has been canceled or failed. We
-					// don't need to re-trigger the request since it cannot
-					// succeed.
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Cancelling task {} after the producer of partition {} with attempt ID {} has entered state {}.",
-							taskNameWithSubtask,
-							resultPartitionId.getPartitionId(),
-							resultPartitionId.getProducerId(),
-							producerState);
-					}
-
-					cancelExecution();
-				} else {
-					// Any other execution state is unexpected. Currently, only
-					// state CREATED is left out of the checked states. If we
-					// see a producer in this state, something went wrong with
-					// scheduling in topological order.
-					String msg = String.format("Producer with attempt ID %s of partition %s in unexpected state %s.",
-						resultPartitionId.getProducerId(),
-						resultPartitionId.getPartitionId(),
-						producerState);
-
-					failExternally(new IllegalStateException(msg));
-				}
-			} else {
-				failExternally(new IllegalStateException("Received partition producer state for " +
-						"unknown input gate " + intermediateDataSetId + "."));
-			}
-		} else {
-			LOG.debug("Task {} ignored a partition producer state notification, because it's not running.", taskNameWithSubtask);
-		}
-	}
-
-	/**
 	 * Utility method to dispatch an asynchronous call on the invokable.
 	 *
 	 * @param runnable The async call runnable.
@@ -1350,6 +1256,35 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	@Override
 	public String toString() {
 		return String.format("%s (%s) [%s]", taskNameWithSubtask, executionId, executionState);
+	}
+
+	@VisibleForTesting
+	class PartitionProducerStateResponseHandle implements ResponseHandle {
+		private final Either<ExecutionState, Throwable> result;
+
+		PartitionProducerStateResponseHandle(@Nullable ExecutionState producerState, @Nullable Throwable t) {
+			this.result = producerState != null ? Either.Left(producerState) : Either.Right(t);
+		}
+
+		@Override
+		public ExecutionState getConsumerExecutionState() {
+			return executionState;
+		}
+
+		@Override
+		public Either<ExecutionState, Throwable> getProducerExecutionState() {
+			return result;
+		}
+
+		@Override
+		public void cancelConsumption() {
+			cancelExecution();
+		}
+
+		@Override
+		public void failConsumption(Throwable cause) {
+			failExternally(cause);
+		}
 	}
 
 	/**

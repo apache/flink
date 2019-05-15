@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -38,7 +39,7 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -53,8 +54,8 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.taskexecutor.exceptions.PartitionUpdateException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
@@ -65,6 +66,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -75,13 +77,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for submission logic of the {@link TaskExecutor}.
@@ -259,7 +263,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			createTestTaskDeploymentDescriptor(
 				"Sender",
 				eid1,
-				TestingAbstractInvokables.Sender.class, 
+				TestingAbstractInvokables.Sender.class,
 				1,
 				Collections.singletonList(task1ResultPartitionDescriptor),
 				Collections.emptyList());
@@ -294,7 +298,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.FINISHED, task2FinishedFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
-				.setMockNetworkEnvironment(false)
+				.useRealNonMockNetworkEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -379,7 +383,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.CANCELED, task2CanceledFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
-				.setMockNetworkEnvironment(false)
+				.useRealNonMockNetworkEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -447,7 +451,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.setConfiguration(config)
 				.setLocalCommunication(false)
-				.setMockNetworkEnvironment(false)
+				.useRealNonMockNetworkEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -462,7 +466,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the TaskManager sends proper exception back to the sender if the partition update fails.
+	 * Tests that the TaskManager fails the task if the partition update fails.
 	 */
 	@Test
 	public void testUpdateTaskInputPartitionsFailure() throws Exception {
@@ -471,11 +475,19 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
+		final PartitionInfo partitionUpdate = new PartitionInfo(
+			new IntermediateDataSetID(),
+			new InputChannelDeploymentDescriptor(new ResultPartitionID(), ResultPartitionLocation.createLocal()));
+		final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
+		doThrow(new IOException()).when(networkEnvironment).updatePartitionInfo(eid, partitionUpdate);
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
+				.setNetworkEnvironment(networkEnvironment)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
+				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -486,17 +498,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			CompletableFuture<Acknowledge> updateFuture = tmGateway.updatePartitions(
 				eid,
-				Collections.singletonList(
-					new PartitionInfo(
-						new IntermediateDataSetID(),
-						new InputChannelDeploymentDescriptor(new ResultPartitionID(), ResultPartitionLocation.createLocal()))),
+				Collections.singletonList(partitionUpdate),
 				timeout);
-			try {
-				updateFuture.get();
-				fail();
-			} catch (Exception e) {
-				assertTrue(ExceptionUtils.findThrowable(e, PartitionUpdateException.class).isPresent());
-			}
+
+			updateFuture.get();
+			taskFailedFuture.get();
+			Task task = taskSlotTable.getTask(tdd.getExecutionAttemptId());
+			assertThat(task.getExecutionState(), is(ExecutionState.FAILED));
+			assertThat(task.getFailureCause(), instanceOf(IOException.class));
 		}
 	}
 
@@ -539,7 +548,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.setConfiguration(config)
-				.setMockNetworkEnvironment(false)
+				.useRealNonMockNetworkEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -611,7 +620,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
-				.setMockNetworkEnvironment(false)
+				.useRealNonMockNetworkEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();

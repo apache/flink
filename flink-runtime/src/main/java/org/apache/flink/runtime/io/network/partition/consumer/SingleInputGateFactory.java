@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -30,12 +29,12 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
@@ -98,9 +97,8 @@ public class SingleInputGateFactory {
 	 */
 	public SingleInputGate create(
 			@Nonnull String owningTaskName,
-			@Nonnull JobID jobId,
 			@Nonnull InputGateDeploymentDescriptor igdd,
-			@Nonnull TaskActions taskActions,
+			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
 			@Nonnull InputChannelMetrics metrics,
 			@Nonnull Counter numBytesInCounter) {
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
@@ -112,8 +110,14 @@ public class SingleInputGateFactory {
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
 		final SingleInputGate inputGate = new SingleInputGate(
-			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, numBytesInCounter, isCreditBased,
+			owningTaskName,
+			consumedResultId,
+			consumedPartitionType,
+			consumedSubpartitionIndex,
+			icdd.length,
+			partitionProducerStateProvider,
+			numBytesInCounter,
+			isCreditBased,
 			createBufferPoolFactory(icdd.length, consumedPartitionType));
 
 		// Create the input channels. There is one input channel for each consumed partition.

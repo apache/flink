@@ -49,11 +49,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -80,7 +77,6 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.taskexecutor.exceptions.CheckpointException;
-import org.apache.flink.runtime.taskexecutor.exceptions.PartitionUpdateException;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
@@ -614,34 +610,29 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		if (task != null) {
 			for (final PartitionInfo partitionInfo: partitionInfos) {
-				IntermediateDataSetID intermediateResultPartitionID = partitionInfo.getIntermediateDataSetID();
-
-				final SingleInputGate singleInputGate = task.getInputGateById(intermediateResultPartitionID);
-
-				if (singleInputGate != null) {
-					// Run asynchronously because it might be blocking
-					getRpcService().execute(
+				// Run asynchronously because it might be blocking
+				FutureUtils.assertNoException(
+					CompletableFuture.runAsync(
 						() -> {
 							try {
-								singleInputGate.updateInputChannel(partitionInfo.getInputChannelDeploymentDescriptor());
-							} catch (IOException | InterruptedException e) {
-								log.error("Could not update input data location for task {}. Trying to fail task.", task.getTaskInfo().getTaskName(), e);
-
-								try {
-									task.failExternally(e);
-								} catch (RuntimeException re) {
-									// TODO: Check whether we need this or make exception in failExtenally checked
-									log.error("Failed canceling task with execution ID {} after task update failure.", executionAttemptID, re);
+								if (!networkEnvironment.updatePartitionInfo(executionAttemptID, partitionInfo)) {
+									log.debug(
+										"Discard update for input gate partition {} of result {} in task {}. " +
+											"The partition is no longer available.",
+										partitionInfo.getInputChannelDeploymentDescriptor().getConsumedPartitionId(),
+										partitionInfo.getIntermediateDataSetID(),
+										executionAttemptID);
 								}
+							} catch (IOException | InterruptedException e) {
+								log.error(
+									"Could not update input data location for task {}. Trying to fail task.",
+									task.getTaskInfo().getTaskName(),
+									e);
+								task.failExternally(e);
 							}
-						});
-				} else {
-					return FutureUtils.completedExceptionally(
-						new PartitionUpdateException("No reader with ID " + intermediateResultPartitionID +
-							" for task " + executionAttemptID + " was found."));
-				}
+						},
+						getRpcService().getExecutor()));
 			}
-
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {
 			log.debug("Discard update for input partitions of task {}. Task is no longer running.", executionAttemptID);
