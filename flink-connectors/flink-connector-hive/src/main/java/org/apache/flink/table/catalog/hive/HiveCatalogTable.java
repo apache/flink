@@ -41,7 +41,7 @@ public class HiveCatalogTable implements CatalogTable {
 	// Properties of the table
 	private final Map<String, String> properties;
 	// Comment of the table
-	private String comment = "This is a hive catalog table.";
+	private final String comment;
 
 	public HiveCatalogTable(
 			TableSchema tableSchema,
