@@ -90,7 +90,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	@Override
 	protected CatalogDatabase createCatalogDatabase(Database hiveDatabase) {
 		return new GenericCatalogDatabase(
-			hiveDatabase.getParameters(),
+			retrieveFlinkProperties(hiveDatabase.getParameters()),
 			hiveDatabase.getDescription()
 		);
 	}
@@ -102,7 +102,7 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 			catalogDatabase.getComment(),
 			// HDFS location URI which GenericCatalogDatabase shouldn't care
 			null,
-			catalogDatabase.getProperties());
+			maskFlinkProperties(catalogDatabase.getProperties()));
 	}
 
 	// ------ tables and views------

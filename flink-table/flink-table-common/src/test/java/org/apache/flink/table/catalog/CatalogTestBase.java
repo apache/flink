@@ -105,9 +105,13 @@ public abstract class CatalogTestBase {
 
 	@Test
 	public void testCreateDb() throws Exception {
-		catalog.createDatabase(db2, createDb(), false);
+		assertFalse(catalog.databaseExists(db1));
 
-		assertEquals(2, catalog.listDatabases().size());
+		CatalogDatabase cd = createDb();
+		catalog.createDatabase(db1, cd, false);
+
+		assertTrue(catalog.databaseExists(db1));
+		CatalogTestUtil.checkEquals(cd, catalog.getDatabase(db1));
 	}
 
 	@Test
@@ -125,13 +129,13 @@ public abstract class CatalogTestBase {
 		catalog.createDatabase(db1, cd1, false);
 		List<String> dbs = catalog.listDatabases();
 
-		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(cd1.getProperties().entrySet()));
+		CatalogTestUtil.checkEquals(cd1, catalog.getDatabase(db1));
 		assertEquals(2, dbs.size());
 		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabase())), new HashSet<>(dbs));
 
 		catalog.createDatabase(db1, createAnotherDb(), true);
 
-		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(cd1.getProperties().entrySet()));
+		CatalogTestUtil.checkEquals(cd1, catalog.getDatabase(db1));
 		assertEquals(2, dbs.size());
 		assertEquals(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabase())), new HashSet<>(dbs));
 	}
@@ -147,11 +151,11 @@ public abstract class CatalogTestBase {
 	public void testDropDb() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
-		assertTrue(catalog.listDatabases().contains(db1));
+		assertTrue(catalog.databaseExists(db1));
 
 		catalog.dropDatabase(db1, false);
 
-		assertFalse(catalog.listDatabases().contains(db1));
+		assertFalse(catalog.databaseExists(db1));
 	}
 
 	@Test
@@ -181,13 +185,11 @@ public abstract class CatalogTestBase {
 		CatalogDatabase db = createDb();
 		catalog.createDatabase(db1, db, false);
 
-		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(db.getProperties().entrySet()));
-
 		CatalogDatabase newDb = createAnotherDb();
 		catalog.alterDatabase(db1, newDb, false);
 
 		assertFalse(catalog.getDatabase(db1).getProperties().entrySet().containsAll(db.getProperties().entrySet()));
-		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(newDb.getProperties().entrySet()));
+		CatalogTestUtil.checkEquals(newDb, catalog.getDatabase(db1));
 	}
 
 	@Test
