@@ -161,8 +161,8 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
     @classmethod
     def excluded_methods(cls):
         """
-        Exclude method names that do not need to be checked. When adding excluded methods to the lists
-        you should give a good reason in a comment.
+        Exclude method names that do not need to be checked. When adding excluded methods
+        to the lists you should give a good reason in a comment.
         :return:
         """
         return {}
