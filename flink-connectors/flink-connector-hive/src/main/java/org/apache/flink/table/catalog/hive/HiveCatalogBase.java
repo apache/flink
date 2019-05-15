@@ -319,6 +319,7 @@ public abstract class HiveCatalogBase implements Catalog {
 				if (!ignoreIfNotExists) {
 					throw new TableNotExistException(catalogName, tablePath);
 				}
+<<<<<<< HEAD
 				return;
 			}
 
