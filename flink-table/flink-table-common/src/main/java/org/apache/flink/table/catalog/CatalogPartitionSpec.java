@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
+
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -47,6 +51,31 @@ public class CatalogPartitionSpec {
 	 */
 	public Map<String, String> getPartitionSpec() {
 		return partitionSpec;
+	}
+
+	/**
+	 * Get a list of ordered partition values by re-arranging them based on the given list of partition keys.
+	 *
+	 * @param partitionKeys A list of partition keys. Exception will be thrown if any key in partitionKeys
+	 *                      doesn't exist in {@link #partitionSpec} of this {@link CatalogPartitionSpec}.
+	 * @return A list of partition values ordered according to partitionKeys.
+	 * @throws PartitionSpecInvalidException thrown if any key in partitionKeys doesn't exist in {@link #partitionSpec}
+	 *                                       of this {@link CatalogPartitionSpec}.
+	 */
+	public List<String> getOrderedValues(List<String> partitionKeys) throws PartitionSpecInvalidException {
+		checkNotNull(partitionKeys, "partitionKeys cannot be null");
+
+		List<String> values = new ArrayList<>();
+
+		for (String key : partitionKeys) {
+			if (!partitionSpec.containsKey(key)) {
+				throw new PartitionSpecInvalidException(partitionKeys, this);
+			} else {
+				values.add(partitionSpec.get(key));
+			}
+		}
+
+		return values;
 	}
 
 	@Override

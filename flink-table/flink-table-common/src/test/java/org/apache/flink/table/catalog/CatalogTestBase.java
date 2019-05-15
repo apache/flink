@@ -30,6 +30,12 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -38,6 +44,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,6 +54,7 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -753,6 +761,264 @@ public abstract class CatalogTestBase {
 		catalog.dropDatabase(db1, false);
 	}
 
+	// ------ partitions ------
+
+	@Test
+	public void testCreatePartition() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		assertTrue(catalog.listPartitions(path1).isEmpty());
+
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1, createPartitionSpecSubset()));
+		checkEquals(createPartition(), catalog.getPartition(path1, createPartitionSpec()));
+
+		catalog.createPartition(path1, createAnotherPartitionSpec(), createPartition(), false);
+
+		assertEquals(Arrays.asList(createPartitionSpec(), createAnotherPartitionSpec()), catalog.listPartitions(path1));
+		assertEquals(Arrays.asList(createPartitionSpec(), createAnotherPartitionSpec()), catalog.listPartitions(path1, createPartitionSpecSubset()));
+		checkEquals(createPartition(), catalog.getPartition(path1, createAnotherPartitionSpec()));
+	}
+
+	@Test
+	public void testCreatePartition_TableNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		exception.expect(TableNotExistException.class);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+	}
+
+	@Test
+	public void testCreatePartition_TableNotPartitionedException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		exception.expect(TableNotPartitionedException.class);
+		exception.expectMessage(
+			String.format("Table %s in catalog %s is not partitioned.", path1.getFullName(), TEST_CATALOG_NAME));
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+	}
+
+	@Test
+	public void testCreatePartition_PartitionSpecInvalidException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogPartitionSpec partitionSpec = createInvalidPartitionSpecSubset();
+		exception.expect(PartitionSpecInvalidException.class);
+		catalog.createPartition(path1, partitionSpec, createPartition(), false);
+	}
+
+	@Test
+	public void testCreatePartition_PartitionAlreadyExistsException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		CatalogPartition partition = createPartition();
+		catalog.createPartition(path1, createPartitionSpec(), partition, false);
+
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+
+		exception.expect(PartitionAlreadyExistsException.class);
+		catalog.createPartition(path1, partitionSpec, createPartition(), false);
+	}
+
+	@Test
+	public void testCreatePartition_PartitionAlreadyExists_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path1, partitionSpec, createPartition(), false);
+		catalog.createPartition(path1, partitionSpec, createPartition(), true);
+	}
+
+	@Test
+	public void testDropPartition() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+
+		catalog.dropPartition(path1, createPartitionSpec(), false);
+
+		assertEquals(Collections.emptyList(), catalog.listPartitions(path1));
+	}
+
+	@Test
+	public void testDropPartition_TableNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		exception.expect(TableNotExistException.class);
+		catalog.dropPartition(path1, createPartitionSpec(), false);
+	}
+
+	@Test
+	public void testDropPartition_TableNotPartitionedException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		exception.expect(TableNotPartitionedException.class);
+		catalog.dropPartition(path1, createPartitionSpec(), false);
+	}
+
+	@Test
+	public void testDropPartition_PartitionSpecInvalid() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogPartitionSpec partitionSpec = createInvalidPartitionSpecSubset();
+		exception.expect(PartitionSpecInvalidException.class);
+		catalog.dropPartition(path1, partitionSpec, false);
+	}
+
+	@Test
+	public void testDropPartition_PartitionNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		exception.expect(PartitionNotExistException.class);
+		catalog.dropPartition(path1, createPartitionSpec(), false);
+	}
+
+	@Test
+	public void testDropPartition_PartitionNotExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.dropPartition(path1, createPartitionSpec(), true);
+	}
+
+	@Test
+	public void testAlterPartition() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+		CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
+		checkEquals(createPartition(), cp);
+		assertNull(cp.getProperties().get("k"));
+
+		CatalogPartition another = createPartition();
+		another.getProperties().put("k", "v");
+		catalog.alterPartition(path1, createPartitionSpec(), another, false);
+
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+		cp = catalog.getPartition(path1, createPartitionSpec());
+		checkEquals(another, cp);
+		assertEquals("v", cp.getProperties().get("k"));
+	}
+
+	@Test
+	public void testAlterPartition_TableNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		exception.expect(TableNotExistException.class);
+		catalog.alterPartition(path1, createPartitionSpec(), createPartition(), false);
+	}
+
+	@Test
+	public void testAlterPartition_TableNotPartitionedException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		exception.expect(TableNotPartitionedException.class);
+		catalog.alterPartition(path1, createPartitionSpec(), createPartition(), false);
+	}
+
+	@Test
+	public void testAlterPartition_PartitionSpecInvalid() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogPartitionSpec partitionSpec = createInvalidPartitionSpecSubset();
+		exception.expect(PartitionSpecInvalidException.class);
+		catalog.alterPartition(path1, partitionSpec, createPartition(), false);
+	}
+
+	@Test
+	public void testAlterPartition_PartitionNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		exception.expect(PartitionNotExistException.class);
+		catalog.alterPartition(path1, createPartitionSpec(), createPartition(), false);
+	}
+
+	@Test
+	public void testAlterPartition_PartitionNotExist_ignored() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.alterPartition(path1, createPartitionSpec(), createPartition(), true);
+	}
+
+	@Test
+	public void testGetPartition_TableNotExistException() throws Exception {
+		exception.expect(TableNotExistException.class);
+		catalog.getPartition(path1, createPartitionSpec());
+	}
+
+	@Test
+	public void testGetPartition_TableNotPartitionedException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		exception.expect(TableNotPartitionedException.class);
+		catalog.getPartition(path1, createPartitionSpec());
+	}
+
+	@Test
+	public void testGetPartition_PartitionSpecInvalid_invalidPartitionSpec() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogPartitionSpec partitionSpec = createInvalidPartitionSpecSubset();
+		exception.expect(PartitionSpecInvalidException.class);
+		catalog.getPartition(path1, partitionSpec);
+	}
+
+	@Test
+	public void testGetPartition_PartitionSpecInvalid_sizeNotEqual() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(
+			new HashMap<String, String>() {{
+				put("second", "bob");
+			}}
+		);
+		exception.expect(PartitionSpecInvalidException.class);
+		catalog.getPartition(path1, partitionSpec);
+	}
+
+	@Test
+	public void testGetPartition_PartitionNotExistException() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		exception.expect(PartitionNotExistException.class);
+		catalog.getPartition(path1, createPartitionSpec());
+	}
+
+	@Test
+	public void testPartitionExists() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+
+		assertTrue(catalog.partitionExists(path1, createPartitionSpec()));
+		assertFalse(catalog.partitionExists(path2, createPartitionSpec()));
+		assertFalse(catalog.partitionExists(ObjectPath.fromString("non.exist"), createPartitionSpec()));
+	}
+
 	// ------ utilities ------
 
 	/**
@@ -832,6 +1098,13 @@ public abstract class CatalogTestBase {
 	 */
 	protected abstract CatalogFunction createAnotherFunction();
 
+	/**
+	 * Creates a CatalogPartition by specific catalog implementation.
+	 *
+	 * @return a CatalogPartition
+	 */
+	public abstract CatalogPartition createPartition();
+
 	protected TableSchema createTableSchema() {
 		return new TableSchema(
 			new String[] {"first", "second", "third"},
@@ -856,6 +1129,36 @@ public abstract class CatalogTestBase {
 
 	protected List<String> createPartitionKeys() {
 		return Arrays.asList("second", "third");
+	}
+
+	protected CatalogPartitionSpec createPartitionSpec() {
+		return new CatalogPartitionSpec(
+			new HashMap<String, String>() {{
+				put("third", "2000");
+				put("second", "bob");
+			}});
+	}
+
+	protected CatalogPartitionSpec createAnotherPartitionSpec() {
+		return new CatalogPartitionSpec(
+			new HashMap<String, String>() {{
+				put("third", "2010");
+				put("second", "bob");
+			}});
+	}
+
+	protected CatalogPartitionSpec createPartitionSpecSubset() {
+		return new CatalogPartitionSpec(
+			new HashMap<String, String>() {{
+				put("second", "bob");
+			}});
+	}
+
+	protected CatalogPartitionSpec createInvalidPartitionSpecSubset() {
+		return new CatalogPartitionSpec(
+			new HashMap<String, String>() {{
+				put("third", "2010");
+			}});
 	}
 
 	protected Map<String, String> getBatchTableProperties() {
@@ -1028,8 +1331,11 @@ public abstract class CatalogTestBase {
 		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
 	}
 
-	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
-		assertEquals(f1.getClassName(), f2.getClassName());
-		assertEquals(f1.getProperties(), f2.getProperties());
+	protected void checkEquals(CatalogFunction f1, CatalogFunction f2){
+			assertEquals(f1.getClassName(), f2.getClassName());
+			assertEquals(f1.getProperties(), f2.getProperties());
+		}
+	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
+		CatalogTestUtil.checkEquals(expected, actual);
 	}
 }
