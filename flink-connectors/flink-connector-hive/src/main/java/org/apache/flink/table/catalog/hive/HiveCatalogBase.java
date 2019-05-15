@@ -319,7 +319,6 @@ public abstract class HiveCatalogBase implements Catalog {
 				if (!ignoreIfNotExists) {
 					throw new TableNotExistException(catalogName, tablePath);
 				}
-<<<<<<< HEAD
 				return;
 			}
 
@@ -334,18 +333,23 @@ public abstract class HiveCatalogBase implements Catalog {
 			} else if (oldTableType == TableType.VIRTUAL_VIEW) {
 				if (!(newCatalogTable instanceof CatalogView)) {
 					throw new CatalogException(
-						String.format("The existing table is a view, but the new catalog base table is not."));
+						String.format("HiveCatalogBase does not support type '%s' of existing Hive table yet.", oldTableType.name()));
+				}
+			} else if (oldTableType == TableType.VIRTUAL_VIEW) {
+				if (!(newCatalogTable instanceof CatalogView)) {
+					throw new CatalogException(
+						String.format("Table types don't match. The existing table is a view, but the new catalog base table is not."));
 				}
 				// Else, do nothing
 			} else if ((oldTableType == TableType.MANAGED_TABLE)) {
 				if (!(newCatalogTable instanceof CatalogTable)) {
 					throw new CatalogException(
-						String.format("The existing table is a table, but the new catalog base table is not."));
+						String.format("Table types don't match. The existing table is a table, but the new catalog base table is not."));
 				}
 				// Else, do nothing
 			} else {
 				throw new CatalogException(
-					String.format("HiveCatalogBase does not recognize Hive table type '%s'", oldTableType.name()));
+					String.format("The existing table is a table, but the new catalog base table is not."));
 			}
 
 			Table newTable = createHiveTable(tablePath, newCatalogTable);
