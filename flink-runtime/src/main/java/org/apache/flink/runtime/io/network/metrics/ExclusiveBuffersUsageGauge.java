@@ -18,35 +18,40 @@
 
 package org.apache.flink.runtime.io.network.metrics;
 
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Gauge metric measuring the input buffer pool usage gauge for {@link SingleInputGate}s.
+ * Gauge metric measuring the exclusive buffers usage gauge for {@link SingleInputGate}s.
  */
-public class InputBufferPoolUsageGauge extends AbstractBuffersUsageGauge {
+public class ExclusiveBuffersUsageGauge extends AbstractBuffersUsageGauge {
 
-	public InputBufferPoolUsageGauge(SingleInputGate[] inputGates) {
+	public ExclusiveBuffersUsageGauge(SingleInputGate[] inputGates) {
 		super(checkNotNull(inputGates));
 	}
 
 	@Override
 	public int calculateUsedBuffers(SingleInputGate inputGate) {
-		BufferPool bufferPool = inputGate.getBufferPool();
-		if (bufferPool != null) {
-			return bufferPool.bestEffortGetNumOfUsedBuffers();
+		int usedBuffers = 0;
+		for (InputChannel ic : inputGate.getInputChannels().values()) {
+			if (ic instanceof RemoteInputChannel) {
+				usedBuffers += ((RemoteInputChannel) ic).unsynchronizedGetExclusiveBuffersUsed();
+			}
 		}
-		return 0;
+		return usedBuffers;
 	}
 
 	@Override
 	public int calculateTotalBuffers(SingleInputGate inputGate) {
-		BufferPool bufferPool = inputGate.getBufferPool();
-		if (bufferPool != null) {
-			return bufferPool.getNumBuffers();
+		int totalExclusiveBuffers = 0;
+		for (InputChannel ic : inputGate.getInputChannels().values()) {
+			if (ic instanceof RemoteInputChannel) {
+				totalExclusiveBuffers += ((RemoteInputChannel) ic).getInitialCredit();
+			}
 		}
-		return 0;
+		return totalExclusiveBuffers;
 	}
 }
