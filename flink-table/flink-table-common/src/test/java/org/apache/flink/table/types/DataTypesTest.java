@@ -49,6 +49,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -96,10 +97,13 @@ import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
 import static org.apache.flink.table.types.TypeTestingUtils.hasLogicalType;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DEFAULT_DAY_PRECISION;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND;
+import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toDataType;
+import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toLogicalType;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link DataTypes}.
+ * Tests for {@link DataTypes} and {@link LogicalTypeDataTypeConverter}.
  */
 @RunWith(Parameterized.class)
 public class DataTypesTest {
@@ -207,5 +211,15 @@ public class DataTypesTest {
 	@Test
 	public void testConversionClass() {
 		assertThat(dataType, hasConversionClass(expectedConversionClass));
+	}
+
+	@Test
+	public void testLogicalTypeToDataTypeConversion() {
+		assertThat(toDataType(expectedLogicalType), equalTo(dataType));
+	}
+
+	@Test
+	public void testDataTypeToLogicalTypeConversion() {
+		assertThat(toLogicalType(dataType), equalTo(expectedLogicalType));
 	}
 }
