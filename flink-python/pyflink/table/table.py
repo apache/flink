@@ -77,6 +77,7 @@ class Table(object):
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
         joining to operations.
+
         Example:
         ::
             >>> tab.alias("a, b")
@@ -90,6 +91,7 @@ class Table(object):
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
+
         Example:
         ::
             >>> tab.filter("name = 'Fred'")
@@ -103,9 +105,9 @@ class Table(object):
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
+
         Example:
         ::
-
             >>> tab.where("name = 'Fred'")
 
         :param predicate: Predicate expression string.
