@@ -29,19 +29,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class GenericCatalogDatabase implements CatalogDatabase {
 	private final Map<String, String> properties;
-	private String comment = "This is a generic catalog database.";
-
-	public GenericCatalogDatabase() {
-		this.properties = new HashMap<>();
-	}
+	private final String comment;
 
 	public GenericCatalogDatabase(Map<String, String> properties) {
-		this.properties = checkNotNull(properties, "properties cannot be null");
+		this(properties, null);
 	}
 
 	public GenericCatalogDatabase(Map<String, String> properties, String comment) {
-		this(properties);
-		this.comment = checkNotNull(comment, "comment cannot be null");
+		this.properties = checkNotNull(properties, "properties cannot be null");
+		this.comment = comment;
 	}
 
 	@Override

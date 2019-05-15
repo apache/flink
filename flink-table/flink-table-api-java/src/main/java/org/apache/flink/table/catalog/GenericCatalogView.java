@@ -19,10 +19,14 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A generic catalog view implementation.
@@ -37,22 +41,27 @@ public class GenericCatalogView implements CatalogView {
 	// Expanded query text takes care of the this, as an example.
 	private final String expandedQuery;
 
-	private final TableSchema schema;
+	// Schema of the view (column names and types)
+	private final TableSchema tableSchema;
+	// Properties of the view
 	private final Map<String, String> properties;
-	private String comment = "This is a generic catalog view";
+	// Comment of the view
+	private final String comment;
 
-	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
-		Map<String, String> properties, String comment) {
-		this(originalQuery, expandedQuery, schema, properties);
-		this.comment = comment;
-	}
+	public GenericCatalogView(
+			String originalQuery,
+			String expandedQuery,
+			TableSchema tableSchema,
+			Map<String, String> properties,
+			String comment) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(originalQuery), "original query cannot be null or empty");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(expandedQuery), "expanded query cannot be null or empty");
 
-	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
-		Map<String, String> properties) {
 		this.originalQuery = originalQuery;
 		this.expandedQuery = expandedQuery;
-		this.schema = schema;
-		this.properties = properties;
+		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
+		this.properties = checkNotNull(properties, "properties cannot be null");
+		this.comment = comment;
 	}
 
 	@Override
@@ -72,7 +81,7 @@ public class GenericCatalogView implements CatalogView {
 
 	@Override
 	public TableSchema getSchema() {
-		return schema;
+		return tableSchema;
 	}
 
 	@Override
@@ -82,7 +91,7 @@ public class GenericCatalogView implements CatalogView {
 
 	@Override
 	public GenericCatalogView copy() {
-		return new GenericCatalogView(this.originalQuery, this.expandedQuery, schema.copy(),
+		return new GenericCatalogView(this.originalQuery, this.expandedQuery, tableSchema.copy(),
 			new HashMap<>(this.properties), comment);
 	}
 

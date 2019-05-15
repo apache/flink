@@ -48,7 +48,7 @@ public class HiveCatalogView implements CatalogView {
 	// Properties of the view
 	private final Map<String, String> properties;
 	// Comment of the view
-	private String comment = "This is a hive catalog view.";
+	private final String comment;
 
 	public HiveCatalogView(
 			String originalQuery,

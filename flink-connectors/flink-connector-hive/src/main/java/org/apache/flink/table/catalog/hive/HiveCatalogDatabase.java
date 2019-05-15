@@ -19,13 +19,11 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogDatabase;
-import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -35,28 +33,18 @@ public class HiveCatalogDatabase implements CatalogDatabase {
 	// Property of the database
 	private final Map<String, String> properties;
 	// HDFS path of the database
-	private String location;
+	private final String location;
 	// Comment of the database
-	private String comment = "This is a hive catalog database.";
-
-	public HiveCatalogDatabase() {
-		properties = new HashMap<>();
-	}
-
-	public HiveCatalogDatabase(Map<String, String> properties) {
-		this.properties = checkNotNull(properties, "properties cannot be null");
-	}
+	private final String comment;
 
 	public HiveCatalogDatabase(Map<String, String> properties, String comment) {
-		this(properties);
-		this.comment = checkNotNull(comment, "comment cannot be null");
+		this(properties, null, comment);
 	}
 
 	public HiveCatalogDatabase(Map<String, String> properties, String location, String comment) {
-		this(properties, comment);
-
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(location), "location cannot be null or empty");
+		this.properties = checkNotNull(properties, "properties cannot be null");
 		this.location = location;
+		this.comment = checkNotNull(comment, "comment cannot be null");
 	}
 
 	@Override
