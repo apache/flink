@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.aggregate;
+package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -34,8 +34,16 @@ import org.apache.flink.util.Collector;
 
 /**
  * Process Function for processing-time unbounded OVER window.
+ *
+ * <p>E.g.:
+ * SELECT currtime, b, c,
+ * min(c) OVER
+ * (PARTITION BY b ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW),
+ * max(c) OVER
+ * (PARTITION BY b ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)
+ * FROM T.
  */
-public class ProcTimeUnboundedOver<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
 	private static final long serialVersionUID = 1L;
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
@@ -45,7 +53,7 @@ public class ProcTimeUnboundedOver<K> extends KeyedProcessFunctionWithCleanupSta
 	private transient ValueState<BaseRow> accState;
 	private transient JoinedRow output;
 
-	public ProcTimeUnboundedOver(
+	public ProcTimeUnboundedPrecedingFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,

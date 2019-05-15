@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.aggregate;
+package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -48,10 +48,10 @@ import java.util.ListIterator;
 /**
  * A basic implementation to support unbounded event-time over-window.
  */
-public abstract class RowTimeUnboundedOver<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(RowTimeUnboundedOver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractRowTimeUnboundedPrecedingOver.class);
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
 	private final InternalType[] accTypes;
@@ -68,7 +68,7 @@ public abstract class RowTimeUnboundedOver<K> extends KeyedProcessFunctionWithCl
 
 	protected transient AggsHandleFunction function;
 
-	public RowTimeUnboundedOver(
+	public AbstractRowTimeUnboundedPrecedingOver(
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,

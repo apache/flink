@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.aggregate;
+package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -47,11 +47,19 @@ import java.util.List;
 
 /**
  * Process Function for ROW clause processing-time bounded OVER window.
+ *
+ * <p>E.g.:
+ * SELECT currtime, b, c,
+ * min(c) OVER
+ * (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+ * max(c) OVER
+ * (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+ * FROM T.
  */
-public class ProcTimeBoundedRowsOver<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeBoundedRowsOver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeRowsBoundedPrecedingFunction.class);
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
 	private final InternalType[] accTypes;
@@ -67,7 +75,7 @@ public class ProcTimeBoundedRowsOver<K> extends KeyedProcessFunctionWithCleanupS
 
 	private transient JoinedRow output;
 
-	public ProcTimeBoundedRowsOver(
+	public ProcTimeRowsBoundedPrecedingFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,

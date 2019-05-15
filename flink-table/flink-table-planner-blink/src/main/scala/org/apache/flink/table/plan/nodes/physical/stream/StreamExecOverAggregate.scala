@@ -23,8 +23,8 @@ import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
+import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
@@ -40,9 +40,8 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.aggregate.{ProcTimeBoundedRangeOver, ProcTimeBoundedRowsOver, ProcTimeUnboundedOver, RowTimeBoundedRangeOver, RowTimeBoundedRowsOver, RowTimeUnboundedRangeOver, RowTimeUnboundedRowsOver}
+import org.apache.flink.table.runtime.over.{ProcTimeRangeBoundedPrecedingFunction, ProcTimeRowsBoundedPrecedingFunction, ProcTimeUnboundedPrecedingFunction, RowTimeRangeBoundedPrecedingFunction, RowTimeRowsBoundedPrecedingFunction, RowTimeRangeUnboundedPrecedingFunction, RowTimeRowsUnboundedPrecedingFunction}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import java.util
 
 import scala.collection.JavaConverters._
@@ -151,7 +150,7 @@ class StreamExecOverAggregate(
           "All aggregates must be computed on the same window.")
     }
 
-    val overWindow: org.apache.calcite.rel.core.Window.Group = logicWindow.groups.get(0)
+    val overWindow: Group = logicWindow.groups.get(0)
 
     val orderKeys = overWindow.orderKeys.getFieldCollations
 
@@ -203,8 +202,7 @@ class StreamExecOverAggregate(
           "OVER windows can only be applied on time attributes.")
     }
 
-    val config = tableEnv.getConfig
-    val codeGenCtx = CodeGeneratorContext(config)
+    val codeGenCtx = CodeGeneratorContext(tableConfig)
     val aggregateCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
     val isRowsClause = overWindow.isRows
     val constants = logicWindow.constants.asScala
@@ -235,7 +233,7 @@ class StreamExecOverAggregate(
         isRowsClause,
         tableConfig,
         tableEnv.getRelBuilder,
-        config.getNullCheck)
+        tableConfig.getNullCheck)
 
     } else if (overWindow.lowerBound.isPreceding
       && !overWindow.lowerBound.isUnbounded
@@ -260,7 +258,7 @@ class StreamExecOverAggregate(
         precedingOffset,
         tableConfig,
         tableEnv.getRelBuilder,
-        config.getNullCheck)
+        tableConfig.getNullCheck)
 
     } else {
       throw new TableException(
@@ -347,7 +345,7 @@ class StreamExecOverAggregate(
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
         // ROWS unbounded over process function
-        new RowTimeUnboundedRowsOver(
+        new RowTimeRowsUnboundedPrecedingFunction(
           tableConfig.getMinIdleStateRetentionTime,
           tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
@@ -356,7 +354,7 @@ class StreamExecOverAggregate(
           rowTimeIdx.get)
       } else {
         // RANGE unbounded over process function
-        new RowTimeUnboundedRangeOver(
+        new RowTimeRangeUnboundedPrecedingFunction(
           tableConfig.getMinIdleStateRetentionTime,
           tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
@@ -365,7 +363,7 @@ class StreamExecOverAggregate(
           rowTimeIdx.get)
       }
     } else {
-      new ProcTimeUnboundedOver(
+      new ProcTimeUnboundedPrecedingFunction(
         tableConfig.getMinIdleStateRetentionTime,
         tableConfig.getMaxIdleStateRetentionTime,
         genAggsHandler,
@@ -427,7 +425,7 @@ class StreamExecOverAggregate(
 
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
-        new RowTimeBoundedRowsOver(
+        new RowTimeRowsBoundedPrecedingFunction(
           tableConfig.getMinIdleStateRetentionTime,
           tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
@@ -436,7 +434,7 @@ class StreamExecOverAggregate(
           precedingOffset,
           rowTimeIdx.get)
       } else {
-        new RowTimeBoundedRangeOver(
+        new RowTimeRangeBoundedPrecedingFunction(
           tableConfig.getMinIdleStateRetentionTime,
           tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
@@ -447,7 +445,7 @@ class StreamExecOverAggregate(
       }
     } else {
       if (isRowsClause) {
-        new ProcTimeBoundedRowsOver(
+        new ProcTimeRowsBoundedPrecedingFunction(
           tableConfig.getMinIdleStateRetentionTime,
           tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,
@@ -455,7 +453,7 @@ class StreamExecOverAggregate(
           fieldTypes,
           precedingOffset)
       } else {
-        new ProcTimeBoundedRangeOver(
+        new ProcTimeRangeBoundedPrecedingFunction(
           tableConfig.getMinIdleStateRetentionTime,
           tableConfig.getMaxIdleStateRetentionTime,
           genAggsHandler,

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.aggregate;
+package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -46,11 +46,21 @@ import java.util.List;
 
 /**
  * Process Function used for the aggregate in bounded proc-time OVER window.
+ *
+ * <p>E.g.:
+ * SELECT currtime, b, c,
+ * min(c) OVER
+ * (PARTITION BY b ORDER BY proctime
+ * RANGE BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW),
+ * max(c) OVER
+ * (PARTITION BY b ORDER BY proctime
+ * RANGE BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW)
+ * FROM T.
  */
-public class ProcTimeBoundedRangeOver<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeBoundedRangeOver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeRangeBoundedPrecedingFunction.class);
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
 	private final InternalType[] accTypes;
@@ -63,7 +73,7 @@ public class ProcTimeBoundedRangeOver<K> extends KeyedProcessFunctionWithCleanup
 	private transient AggsHandleFunction function;
 	private transient JoinedRow output;
 
-	public ProcTimeBoundedRangeOver(
+	public ProcTimeRangeBoundedPrecedingFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,

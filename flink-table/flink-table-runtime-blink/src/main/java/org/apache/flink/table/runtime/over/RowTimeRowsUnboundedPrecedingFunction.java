@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.aggregate;
+package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
@@ -26,14 +26,23 @@ import org.apache.flink.util.Collector;
 import java.util.List;
 
 /**
- * A ProcessFunction to support unbounded RANGE window.
- * The RANGE option includes all the rows within the window frame
- * that have the same ORDER BY values as the current row.
+ * A ProcessFunction to support unbounded ROWS window.
+ * The ROWS clause defines on a physical level how many rows are included in a window frame.
+ *
+ * <p>E.g.:
+ * SELECT rowtime, b, c,
+ * min(c) OVER
+ * (PARTITION BY b ORDER BY rowtime
+ * ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW),
+ * max(c) OVER
+ * (PARTITION BY b ORDER BY rowtime
+ * ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)
+ * FROM T.
  */
-public class RowTimeUnboundedRangeOver<K> extends RowTimeUnboundedOver<K> {
+public class RowTimeRowsUnboundedPrecedingFunction<K> extends AbstractRowTimeUnboundedPrecedingOver<K> {
 	private static final long serialVersionUID = 1L;
 
-	public RowTimeUnboundedRangeOver(
+	public RowTimeRowsUnboundedPrecedingFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,
@@ -48,20 +57,13 @@ public class RowTimeUnboundedRangeOver<K> extends RowTimeUnboundedOver<K> {
 			List<BaseRow> curRowList,
 			Collector<BaseRow> out) throws Exception {
 		int i = 0;
-		// all same timestamp data should have same aggregation value.
 		while (i < curRowList.size()) {
 			BaseRow curRow = curRowList.get(i);
+			// accumulate current row
 			function.accumulate(curRow);
-			i += 1;
-		}
-
-		// emit output row
-		i = 0;
-		BaseRow aggValue = function.getValue();
-		while (i < curRowList.size()) {
-			BaseRow curRow = curRowList.get(i);
 			// prepare output row
-			output.replace(curRow, aggValue);
+			output.replace(curRow, function.getValue());
+			// emit output row
 			out.collect(output);
 			i += 1;
 		}
