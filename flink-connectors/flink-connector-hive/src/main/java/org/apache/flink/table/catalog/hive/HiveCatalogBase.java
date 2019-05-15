@@ -21,6 +21,8 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -320,13 +322,32 @@ public abstract class HiveCatalogBase implements Catalog {
 				return;
 			}
 
-			// TODO: [FLINK-12452] alterTable() in all catalogs should ensure existing base table and the new one are of the same type
+			Table oldTable = getHiveTable(tablePath);
+			TableType oldTableType = TableType.valueOf(oldTable.getTableType());
+
+			if (oldTableType == TableType.VIRTUAL_VIEW) {
+				if (!(newCatalogTable instanceof CatalogView)) {
+					throw new CatalogException(
+						String.format("Table types don't match. The existing table is a view, but the new catalog base table is not."));
+				}
+				// Else, do nothing
+			} else if ((oldTableType == TableType.MANAGED_TABLE)) {
+				if (!(newCatalogTable instanceof CatalogTable)) {
+					throw new CatalogException(
+						String.format("Table types don't match. The existing table is a table, but the new catalog base table is not."));
+				}
+				// Else, do nothing
+			} else {
+				throw new CatalogException(
+					String.format("Hive table type '%s' is not supported yet.",
+						oldTableType.name()));
+			}
+
 			Table newTable = createHiveTable(tablePath, newCatalogTable);
 
 			// client.alter_table() requires a valid location
 			// thus, if new table doesn't have that, it reuses location of the old table
 			if (!newTable.getSd().isSetLocation()) {
-				Table oldTable = getHiveTable(tablePath);
 				newTable.getSd().setLocation(oldTable.getSd().getLocation());
 			}
 

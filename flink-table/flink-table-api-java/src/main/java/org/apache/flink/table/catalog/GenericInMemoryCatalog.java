@@ -209,11 +209,15 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkNotNull(tablePath);
 		checkNotNull(newTable);
 
-		// TODO: validate the new and old CatalogBaseTable must be of the same type. For example, this doesn't
-		//		allow alter a regular table to partitioned table, or alter a view to a table, and vice versa.
-		//		And also add unit tests.
-
 		if (tableExists(tablePath)) {
+			CatalogBaseTable oldTable = tables.get(tablePath);
+
+			if (oldTable.getClass() != newTable.getClass()) {
+				throw new CatalogException(
+					String.format("Table classes don't match. Existing table is '%s' and new table is '%s'. They should be of the same class.",
+						oldTable.getClass().getName(), newTable.getClass().getName()));
+			}
+
 			tables.put(tablePath, newTable.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new TableNotExistException(catalogName, tablePath);

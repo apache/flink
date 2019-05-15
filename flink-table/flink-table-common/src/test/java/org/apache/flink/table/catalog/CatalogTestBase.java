@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -360,6 +361,18 @@ public abstract class CatalogTestBase {
 		catalog.alterTable(path1, newTable, false);
 
 		checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
+
+		// View
+		CatalogView view = createView();
+		catalog.createTable(path3, view, false);
+
+		checkEquals(view, (CatalogView) catalog.getTable(path3));
+
+		CatalogView newView = createAnotherView();
+		catalog.alterTable(path3, newView, false);
+
+		assertNotEquals(view, catalog.getTable(path3));
+		checkEquals(newView, (CatalogView) catalog.getTable(path3));
 	}
 
 	@Test
@@ -375,6 +388,26 @@ public abstract class CatalogTestBase {
 		catalog.alterTable(nonExistObjectPath, createTable(), true);
 
 		assertFalse(catalog.tableExists(nonExistObjectPath));
+	}
+
+	@Test
+	public void testAlterTable_alterTableWithView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage("The existing table is a table, but the new catalog base table is not.");
+		catalog.alterTable(path1, createView(), false);
+	}
+
+	@Test
+	public void testAlterTable_alterViewWithTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createView(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage("The existing table is a view, but the new catalog base table is not.");
+		catalog.alterTable(path1, createTable(), false);
 	}
 
 	@Test

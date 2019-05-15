@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
@@ -106,6 +107,28 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		assertTrue(catalog.partitionExists(path3, catalogPartitionSpec));
 		assertFalse(catalog.tableExists(path1));
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
+	}
+
+	@Test
+	public void testAlterTable_alterTableWithView() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage("Existing table is 'org.apache.flink.table.catalog.GenericCatalogTable' " +
+			"and new table is 'org.apache.flink.table.catalog.GenericCatalogView'. They should be of the same class.");
+		catalog.alterTable(path1, createView(), false);
+	}
+
+	@Test
+	public void testAlterTable_alterViewWithTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createView(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage("Existing table is 'org.apache.flink.table.catalog.GenericCatalogView' " +
+			"and new table is 'org.apache.flink.table.catalog.GenericCatalogTable'. They should be of the same class.");
+		catalog.alterTable(path1, createTable(), false);
 	}
 
 	// ------ partitions ------
