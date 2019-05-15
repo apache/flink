@@ -138,7 +138,7 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         keyword, so we use 'alias' in Python API corresponding 'as' in Java API.
 
         :param python_method_name: Method name of Python API.
-        :return: Method name corresponding to Java API.
+        :return: The corresponding method name of Java API.
         """
         return python_method_name
 
