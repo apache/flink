@@ -18,35 +18,34 @@
 
 package org.apache.flink.runtime.io.network.metrics;
 
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Gauge metric measuring the input buffer pool usage gauge for {@link SingleInputGate}s.
+ * Gauge metric measuring the input buffers usage for {@link SingleInputGate}s under credit based mode.
  */
-public class InputBufferPoolUsageGauge extends AbstractBuffersUsageGauge {
+public class CreditBasedInputBuffersUsageGauge extends AbstractBuffersUsageGauge {
 
-	public InputBufferPoolUsageGauge(SingleInputGate[] inputGates) {
+	private final FloatingBuffersUsageGauge floatingBuffersUsageGauge;
+	private final ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge;
+
+	public CreditBasedInputBuffersUsageGauge(
+		FloatingBuffersUsageGauge floatingBuffersUsageGauge,
+		ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge,
+		SingleInputGate[] inputGates) {
 		super(checkNotNull(inputGates));
+		this.floatingBuffersUsageGauge = checkNotNull(floatingBuffersUsageGauge);
+		this.exclusiveBuffersUsageGauge = checkNotNull(exclusiveBuffersUsageGauge);
 	}
 
 	@Override
 	public int calculateUsedBuffers(SingleInputGate inputGate) {
-		BufferPool bufferPool = inputGate.getBufferPool();
-		if (bufferPool != null) {
-			return bufferPool.bestEffortGetNumOfUsedBuffers();
-		}
-		return 0;
+		return floatingBuffersUsageGauge.calculateUsedBuffers(inputGate) + exclusiveBuffersUsageGauge.calculateUsedBuffers(inputGate);
 	}
 
 	@Override
 	public int calculateTotalBuffers(SingleInputGate inputGate) {
-		BufferPool bufferPool = inputGate.getBufferPool();
-		if (bufferPool != null) {
-			return bufferPool.getNumBuffers();
-		}
-		return 0;
+		return floatingBuffersUsageGauge.calculateTotalBuffers(inputGate) + exclusiveBuffersUsageGauge.calculateTotalBuffers(inputGate);
 	}
 }
