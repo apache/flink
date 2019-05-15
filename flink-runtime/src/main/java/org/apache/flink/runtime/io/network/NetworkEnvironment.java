@@ -26,6 +26,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputBufferPoolUsageGauge;
@@ -37,13 +38,17 @@ import org.apache.flink.runtime.io.network.metrics.OutputBuffersGauge;
 import org.apache.flink.runtime.io.network.metrics.ResultPartitionMetrics;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGateID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskActions;
@@ -54,6 +59,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -84,6 +92,8 @@ public class NetworkEnvironment {
 
 	private final ResultPartitionManager resultPartitionManager;
 
+	private final Map<InputGateID, SingleInputGate> inputGatesById;
+
 	private final TaskEventPublisher taskEventPublisher;
 
 	private final ResultPartitionFactory resultPartitionFactory;
@@ -104,6 +114,7 @@ public class NetworkEnvironment {
 		this.networkBufferPool = networkBufferPool;
 		this.connectionManager = connectionManager;
 		this.resultPartitionManager = resultPartitionManager;
+		this.inputGatesById = new ConcurrentHashMap<>();
 		this.taskEventPublisher = taskEventPublisher;
 		this.resultPartitionFactory = resultPartitionFactory;
 		this.singleInputGateFactory = singleInputGateFactory;
@@ -190,6 +201,11 @@ public class NetworkEnvironment {
 		return config;
 	}
 
+	@VisibleForTesting
+	public Optional<InputGate> getInputGate(InputGateID id) {
+		return Optional.ofNullable(inputGatesById.get(id));
+	}
+
 	/**
 	 * Batch release intermediate result partitions.
 	 *
@@ -231,8 +247,8 @@ public class NetworkEnvironment {
 
 	public SingleInputGate[] createInputGates(
 			String taskName,
-			JobID jobId,
-			TaskActions taskActions,
+			ExecutionAttemptID executionId,
+			PartitionProducerStateProvider partitionProducerStateProvider,
 			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
 			MetricGroup parentGroup,
 			MetricGroup inputGroup,
@@ -245,13 +261,16 @@ public class NetworkEnvironment {
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 			int counter = 0;
 			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
-				inputGates[counter++] = singleInputGateFactory.create(
+				SingleInputGate inputGate = singleInputGateFactory.create(
 					taskName,
-					jobId,
 					igdd,
-					taskActions,
+					partitionProducerStateProvider,
 					inputChannelMetrics,
 					numBytesInCounter);
+				InputGateID id = new InputGateID(igdd.getConsumedResultId(), executionId);
+				inputGatesById.put(id, inputGate);
+				inputGate.getCloseFuture().thenRun(() -> inputGatesById.remove(id));
+				inputGates[counter++] = inputGate;
 			}
 
 			registerInputMetrics(inputGroup, buffersGroup, inputGates);
@@ -273,6 +292,29 @@ public class NetworkEnvironment {
 		}
 		buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
 		buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, new InputBufferPoolUsageGauge(inputGates));
+	}
+
+	/**
+	 * Update consuming gate with newly available partition.
+	 *
+	 * @param consumerID execution id of consumer to identify belonging to it gate.
+	 * @param partitionInfo telling where the partition can be retrieved from
+	 * @return {@code true} if the partition has been updated or {@code false} if the partition is not available anymore.
+	 * @throws IOException IO problem by the update
+	 * @throws InterruptedException potentially blocking operation was interrupted
+	 * @throws IllegalStateException the input gate with the id from the partitionInfo is not found
+	 */
+	public boolean updatePartitionInfo(
+			ExecutionAttemptID consumerID,
+			PartitionInfo partitionInfo) throws IOException, InterruptedException {
+		IntermediateDataSetID intermediateResultPartitionID = partitionInfo.getIntermediateDataSetID();
+		InputGateID id = new InputGateID(intermediateResultPartitionID, consumerID);
+		SingleInputGate inputGate = inputGatesById.get(id);
+		if (inputGate == null) {
+			return false;
+		}
+		inputGate.updateInputChannel(partitionInfo.getInputChannelDeploymentDescriptor());
+		return true;
 	}
 
 	public void start() throws IOException {

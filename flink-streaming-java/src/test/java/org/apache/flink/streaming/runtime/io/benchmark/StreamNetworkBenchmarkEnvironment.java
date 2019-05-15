@@ -44,11 +44,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
@@ -166,7 +166,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			senderEnv.getConnectionManager().getDataPort());
 
 		InputGate receiverGate = createInputGate(
-			jobId,
 			dataSetID,
 			executionAttemptID,
 			senderLocation,
@@ -228,7 +227,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	}
 
 	private InputGate createInputGate(
-			JobID jobId,
 			IntermediateDataSetID dataSetID,
 			ExecutionAttemptID executionAttemptID,
 			final TaskManagerLocation senderLocation,
@@ -258,9 +256,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				environment.getNetworkBufferPool())
 				.create(
 					"receiving task[" + channel + "]",
-					jobId,
 					gateDescriptor,
-					new NoOpTaskActions(),
+					SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 					InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
 					new SimpleCounter());
 
