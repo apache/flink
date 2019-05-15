@@ -72,7 +72,7 @@ Please note that a previously supported pattern where you could assign a value t
 The test runner performs a cleanup after each test case, which includes:
 - Stopping the cluster
 - Killing all task and job managers
-- Reverting config to default (if changed before)
+- Reverting `conf` and `lib` dirs to default
 - Cleaning up log and temp directories
 
 In some cases your test is required to do to some *additional* cleanup, for example shutting down external systems like Kafka or Elasticsearch. In this case it is a common pattern to trap a `test_cleanup` function to `EXIT` like this:

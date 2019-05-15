@@ -39,9 +39,6 @@ function classloader_cleanup() {
 
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
-
-  # remove LibPackage.jar again
-  rm ${FLINK_DIR}/lib/LibPackage.jar
 }
 trap classloader_cleanup INT
 trap classloader_cleanup EXIT

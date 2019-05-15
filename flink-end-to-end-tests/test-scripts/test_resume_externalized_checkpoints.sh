@@ -42,17 +42,6 @@ set_conf "metrics.fetcher.update-interval" "2000"
 setup_flink_slf4j_metric_reporter
 start_cluster
 
-function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
-  rollback_flink_slf4j_metric_reporter
-}
-trap test_cleanup INT
-trap test_cleanup EXIT
-
 CHECKPOINT_DIR="$TEST_DATA_DIR/externalized-chckpt-e2e-backend-dir"
 CHECKPOINT_DIR_URI="file://$CHECKPOINT_DIR"
 
