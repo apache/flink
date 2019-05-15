@@ -130,9 +130,7 @@ public class TestFailoverTopology implements FailoverTopology {
 		private Collection<FailoverVertex> vertices = new ArrayList<>();
 
 		public TestFailoverVertex newVertex() {
-			TestFailoverVertex testFailoverVertex = newVertex(UUID.randomUUID().toString());
-			vertices.add(testFailoverVertex);
-			return testFailoverVertex;
+			return newVertex(UUID.randomUUID().toString());
 		}
 
 		public TestFailoverVertex newVertex(String name) {
@@ -143,6 +141,14 @@ public class TestFailoverTopology implements FailoverTopology {
 
 		public Builder connect(TestFailoverVertex source, TestFailoverVertex target, ResultPartitionType partitionType) {
 			FailoverEdge edge = new TestFailoverEdge(new IntermediateResultPartitionID(), partitionType, source, target);
+			source.addOuputEdge(edge);
+			target.addInputEdge(edge);
+
+			return this;
+		}
+
+		public Builder connect(TestFailoverVertex source, TestFailoverVertex target, ResultPartitionType partitionType, IntermediateResultPartitionID partitionID) {
+			FailoverEdge edge = new TestFailoverEdge(partitionID, partitionType, source, target);
 			source.addOuputEdge(edge);
 			target.addInputEdge(edge);
 
