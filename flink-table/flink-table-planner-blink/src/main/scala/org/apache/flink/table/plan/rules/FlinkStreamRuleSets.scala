@@ -168,6 +168,8 @@ object FlinkStreamRuleSets {
     // push all expressions to handle the time indicator correctly
     new FlinkProjectJoinTransposeRule(
       PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
+    // push a projection to the children of a semi/anti Join
+    ProjectSemiAntiJoinTransposeRule.INSTANCE,
     // merge projections
     ProjectMergeRule.INSTANCE,
     // remove identity project
@@ -220,7 +222,12 @@ object FlinkStreamRuleSets {
     ProjectCalcMergeRule.INSTANCE,
     FilterToCalcRule.INSTANCE,
     ProjectToCalcRule.INSTANCE,
-    FlinkCalcMergeRule.INSTANCE
+    FlinkCalcMergeRule.INSTANCE,
+
+    // semi/anti join transpose rule
+    FlinkSemiAntiJoinJoinTransposeRule.INSTANCE,
+    FlinkSemiAntiJoinProjectTransposeRule.INSTANCE,
+    FlinkSemiAntiJoinFilterTransposeRule.INSTANCE
   )
 
   /**
