@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;

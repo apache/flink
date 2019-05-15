@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
-import org.apache.flink.runtime.jobmaster.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
