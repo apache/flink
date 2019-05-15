@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
@@ -90,6 +91,108 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 		catalog.createTable(path1, table, false);
 
 		checkEquals(table, (CatalogTable) catalog.getTable(path1));
+	}
+
+	// ------ partitions ------
+
+	@Test
+	public void testCreatePartition() throws Exception {
+	}
+
+	@Test
+	public void testCreatePartition_TableNotExistException() throws Exception {
+	}
+
+	@Test
+	public void testCreatePartition_TableNotPartitionedException() throws Exception {
+	}
+
+	@Test
+	public void testCreatePartition_PartitionSpecInvalidException() throws Exception {
+	}
+
+	@Test
+	public void testCreatePartition_PartitionAlreadyExistsException() throws Exception {
+	}
+
+	@Test
+	public void testCreatePartition_PartitionAlreadyExists_ignored() throws Exception {
+	}
+
+	@Test
+	public void testDropPartition() throws Exception {
+	}
+
+	@Test
+	public void testDropPartition_TableNotExist() throws Exception {
+	}
+
+	@Test
+	public void testDropPartition_TableNotPartitioned() throws Exception {
+	}
+
+	@Test
+	public void testDropPartition_PartitionSpecInvalid() throws Exception {
+	}
+
+	@Test
+	public void testDropPartition_PartitionNotExist() throws Exception {
+	}
+
+	@Test
+	public void testDropPartition_PartitionNotExist_ignored() throws Exception {
+	}
+
+	@Test
+	public void testAlterPartition() throws Exception {
+	}
+
+	@Test
+	public void testAlterPartition_TableNotExist() throws Exception {
+	}
+
+	@Test
+	public void testAlterPartition_TableNotPartitioned() throws Exception {
+	}
+
+	@Test
+	public void testAlterPartition_PartitionSpecInvalid() throws Exception {
+	}
+
+	@Test
+	public void testAlterPartition_PartitionNotExist() throws Exception {
+	}
+
+	@Test
+	public void testAlterPartition_PartitionNotExist_ignored() throws Exception {
+	}
+
+	@Test
+	public void testGetPartition_TableNotExist() throws Exception {
+	}
+
+	@Test
+	public void testGetPartition_TableNotPartitioned() throws Exception {
+	}
+
+	@Test
+	public void testGetPartition_PartitionSpecInvalid_invalidPartitionSpec() throws Exception {
+	}
+
+	@Test
+	public void testGetPartition_PartitionSpecInvalid_sizeNotEqual() throws Exception {
+	}
+
+	@Test
+	public void testGetPartition_PartitionNotExist() throws Exception {
+	}
+
+	@Test
+	public void testPartitionExists() throws Exception {
+	}
+
+	@Test
+	public void testListPartitionPartialSpec() throws Exception {
 	}
 
 	// ------ test utils ------
@@ -182,5 +285,10 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	@Override
 	protected CatalogFunction createAnotherFunction() {
 		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
+	}
+
+	@Override
+	public CatalogPartition createPartition() {
+		throw new UnsupportedOperationException();
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
@@ -144,6 +145,11 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	}
 
 	@Override
+	public CatalogPartition createPartition() {
+		return new HiveCatalogPartition(getBatchTableProperties());
+	}
+
+	@Override
 	public void checkEquals(CatalogTable t1, CatalogTable t2) {
 		assertEquals(t1.getSchema(), t2.getSchema());
 		assertEquals(t1.getComment(), t2.getComment());
@@ -155,6 +161,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
 	}
 
+	@Override
 	protected void checkEquals(CatalogView v1, CatalogView v2) {
 		assertEquals(v1.getSchema(), v1.getSchema());
 		assertEquals(v1.getComment(), v2.getComment());
@@ -164,5 +171,16 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		// Hive views may have properties created by itself
 		// thus properties of Hive view is a super set of those in its corresponding Flink view
 		assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
+	}
+
+	@Override
+	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
+		assertTrue(expected instanceof HiveCatalogPartition && actual instanceof HiveCatalogPartition);
+		assertEquals(expected.getClass(), actual.getClass());
+		HiveCatalogPartition hivePartition1 = (HiveCatalogPartition) expected;
+		HiveCatalogPartition hivePartition2 = (HiveCatalogPartition) actual;
+		assertEquals(hivePartition1.getDescription(), hivePartition2.getDescription());
+		assertEquals(hivePartition1.getDetailedDescription(), hivePartition2.getDetailedDescription());
+		assertTrue(hivePartition2.getProperties().entrySet().containsAll(hivePartition1.getProperties().entrySet()));
 	}
 }

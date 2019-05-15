@@ -273,7 +273,7 @@ public interface Catalog {
 	 * @param partitionSpec partition spec of partition to get
 	 * @return the requested partition
 	 *
-	 * @throws PartitionNotExistException thrown if the partition is not partitioned
+	 * @throws PartitionNotExistException thrown if the partition doesn't exist
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)

@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
+import org.apache.flink.table.catalog.GenericCatalogPartition;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -53,6 +54,7 @@ import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -63,6 +65,7 @@ import org.apache.hadoop.hive.metastore.api.FunctionType;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -500,7 +503,7 @@ public class HiveCatalog implements Catalog {
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();
 		if (!hiveTable.getPartitionKeys().isEmpty()) {
-			partitionKeys = hiveTable.getPartitionKeys().stream().map(fs -> fs.getName()).collect(Collectors.toList());
+			partitionKeys = getFieldNames(hiveTable.getPartitionKeys());
 		}
 
 		if (isView) {
@@ -608,44 +611,285 @@ public class HiveCatalog implements Catalog {
 	// ------ partitions ------
 
 	@Override
+	public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+			throws CatalogException {
+		checkNotNull(tablePath, "Table path cannot be null");
+		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+
+		try {
+			return getHivePartition(tablePath, partitionSpec) != null;
+		} catch (NoSuchObjectException | TableNotExistException | PartitionSpecInvalidException e) {
+			return false;
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get partition %s of table %s", partitionSpec, tablePath), e);
+		}
+	}
+
+	@Override
 	public void createPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition partition, boolean ignoreIfExists)
 			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionAlreadyExistsException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(tablePath, "Table path cannot be null");
+		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+		checkNotNull(partition, "Partition cannot be null");
+
+		if (!(partition instanceof HiveCatalogPartition)) {
+			throw new CatalogException("Currently only supports HiveCatalogPartition");
+		}
+
+		Table hiveTable = getHiveTable(tablePath);
+
+		ensureTableAndPartitionMatch(hiveTable, partition);
+
+		ensurePartitionedTable(tablePath, hiveTable);
+
+		try {
+			client.add_partition(instantiateHivePartition(hiveTable, partitionSpec, partition));
+		} catch (AlreadyExistsException e) {
+			if (!ignoreIfExists) {
+				throw new PartitionAlreadyExistsException(catalogName, tablePath, partitionSpec);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to create partition %s of table %s", partitionSpec, tablePath));
+		}
 	}
 
 	@Override
 	public void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
 			throws PartitionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
+		checkNotNull(tablePath, "Table path cannot be null");
+		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 
-	@Override
-	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
-			throws PartitionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		try {
+			Table hiveTable = getHiveTable(tablePath);
+			client.dropPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
+				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath), true);
+		} catch (NoSuchObjectException e) {
+			if (!ignoreIfNotExists) {
+				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
+			}
+		} catch (MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to drop partition %s of table %s", partitionSpec, tablePath));
+		}
 	}
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
 			throws TableNotExistException, TableNotPartitionedException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(tablePath, "Table path cannot be null");
+
+		Table hiveTable = getHiveTable(tablePath);
+
+		ensurePartitionedTable(tablePath, hiveTable);
+
+		try {
+			// pass -1 as max_parts to fetch all partitions
+			return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), (short) -1).stream()
+				.map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to list partitions of table %s", tablePath), e);
+		}
 	}
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
 			throws TableNotExistException, TableNotPartitionedException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(tablePath, "Table path cannot be null");
+		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+
+		Table hiveTable = getHiveTable(tablePath);
+
+		ensurePartitionedTable(tablePath, hiveTable);
+
+		try {
+			// partition spec can be partial
+			List<String> partialVals = MetaStoreUtils.getPvals(hiveTable.getPartitionKeys(), partitionSpec.getPartitionSpec());
+			return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), partialVals,
+				(short) -1).stream().map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to list partitions of table %s", tablePath), e);
+		}
 	}
 
 	@Override
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
 			throws PartitionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(tablePath, "Table path cannot be null");
+		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+
+		try {
+			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
+			return instantiateCatalogPartition(hivePartition);
+		} catch (NoSuchObjectException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get partition %s of table %s", partitionSpec, tablePath), e);
+		}
 	}
 
 	@Override
-	public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException {
-		throw new UnsupportedOperationException();
+	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
+			throws PartitionNotExistException, CatalogException {
+		checkNotNull(tablePath, "Table path cannot be null");
+		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+		checkNotNull(newPartition, "New partition cannot be null");
+
+		if (!(newPartition instanceof HiveCatalogPartition)) {
+			throw new CatalogException("Currently only supports HiveCatalogPartition");
+		}
+
+		// Explicitly check if the partition exists or not
+		// because alter_partition() doesn't throw NoSuchObjectException like dropPartition() when the target doesn't exist
+		try {
+			Table hiveTable = getHiveTable(tablePath);
+			ensureTableAndPartitionMatch(hiveTable, newPartition);
+			Partition oldHivePartition = getHivePartition(hiveTable, partitionSpec);
+			if (oldHivePartition == null) {
+				if (ignoreIfNotExists) {
+					return;
+				}
+				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+			}
+			Partition newHivePartition = instantiateHivePartition(hiveTable, partitionSpec, newPartition);
+			if (newHivePartition.getSd().getLocation() == null) {
+				newHivePartition.getSd().setLocation(oldHivePartition.getSd().getLocation());
+			}
+			client.alter_partition(
+				tablePath.getDatabaseName(),
+				tablePath.getObjectName(),
+				newHivePartition
+			);
+		} catch (NoSuchObjectException e) {
+			if (!ignoreIfNotExists) {
+				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
+			}
+		} catch (InvalidOperationException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to alter existing partition with new partition %s of table %s",
+					partitionSpec, tablePath), e);
+		}
+	}
+
+	// make sure both table and partition are generic, or neither is
+	private static void ensureTableAndPartitionMatch(Table hiveTable, CatalogPartition catalogPartition) {
+		boolean isGeneric = Boolean.valueOf(hiveTable.getParameters().get(FLINK_PROPERTY_IS_GENERIC));
+		if ((isGeneric && catalogPartition instanceof HiveCatalogPartition) ||
+			(!isGeneric && catalogPartition instanceof GenericCatalogPartition)) {
+			throw new CatalogException(String.format("Cannot handle %s partition for %s table",
+				catalogPartition.getClass().getName(), isGeneric ? "generic" : "non-generic"));
+		}
+	}
+
+	private Partition instantiateHivePartition(Table hiveTable, CatalogPartitionSpec partitionSpec, CatalogPartition catalogPartition)
+			throws PartitionSpecInvalidException {
+		Partition partition = new Partition();
+		List<String> partCols = getFieldNames(hiveTable.getPartitionKeys());
+		List<String> partValues = getOrderedFullPartitionValues(
+			partitionSpec, partCols, new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()));
+		// validate partition values
+		for (int i = 0; i < partCols.size(); i++) {
+			if (StringUtils.isNullOrWhitespaceOnly(partValues.get(i))) {
+				throw new PartitionSpecInvalidException(catalogName, partCols,
+					new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()), partitionSpec);
+			}
+		}
+		// TODO: handle GenericCatalogPartition
+		HiveCatalogPartition hiveCatalogPartition = (HiveCatalogPartition) catalogPartition;
+		partition.setValues(partValues);
+		partition.setDbName(hiveTable.getDbName());
+		partition.setTableName(hiveTable.getTableName());
+		partition.setCreateTime((int) (System.currentTimeMillis() / 1000));
+		partition.setParameters(hiveCatalogPartition.getProperties());
+		partition.setSd(hiveTable.getSd().deepCopy());
+		partition.getSd().setLocation(hiveCatalogPartition.getLocation());
+
+		return partition;
+	}
+
+	private static CatalogPartition instantiateCatalogPartition(Partition hivePartition) {
+		// TODO: create GenericCatalogPartition for GenericCatalogTable
+		return new HiveCatalogPartition(hivePartition.getParameters(), hivePartition.getSd().getLocation());
+	}
+
+	private void ensurePartitionedTable(ObjectPath tablePath, Table hiveTable) throws TableNotPartitionedException {
+		if (hiveTable.getPartitionKeysSize() == 0) {
+			throw new TableNotPartitionedException(catalogName, tablePath);
+		}
+	}
+
+	/**
+	 * Get field names from field schemas.
+	 */
+	private static List<String> getFieldNames(List<FieldSchema> fieldSchemas) {
+		List<String> names = new ArrayList<>(fieldSchemas.size());
+		for (FieldSchema fs : fieldSchemas) {
+			names.add(fs.getName());
+		}
+		return names;
+	}
+
+	/**
+	 * Creates a {@link CatalogPartitionSpec} from a Hive partition name string.
+	 * Example of Hive partition name string - "name=bob/year=2019"
+	 */
+	private static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
+		String[] partKeyVals = hivePartitionName.split("/");
+		Map<String, String> spec = new HashMap<>(partKeyVals.length);
+		for (String keyVal : partKeyVals) {
+			String[] kv = keyVal.split("=");
+			spec.put(kv[0], kv[1]);
+		}
+		return new CatalogPartitionSpec(spec);
+	}
+
+	/**
+	 * Get a list of ordered partition values by re-arranging them based on the given list of partition keys.
+	 *
+	 * @param partitionSpec a partition spec.
+	 * @param partitionKeys a list of partition keys.
+	 * @param tablePath path of the table to which the partition belongs.
+	 * @return A list of partition values ordered according to partitionKeys.
+	 * @throws PartitionSpecInvalidException thrown if partitionSpec and partitionKeys have different sizes,
+	 *                                       or any key in partitionKeys doesn't exist in partitionSpec.
+	 */
+	private List<String> getOrderedFullPartitionValues(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
+			throws PartitionSpecInvalidException {
+		Map<String, String> spec = partitionSpec.getPartitionSpec();
+		if (spec.size() != partitionKeys.size()) {
+			throw new PartitionSpecInvalidException(catalogName, partitionKeys, tablePath, partitionSpec);
+		}
+
+		List<String> values = new ArrayList<>(spec.size());
+		for (String key : partitionKeys) {
+			if (!spec.containsKey(key)) {
+				throw new PartitionSpecInvalidException(catalogName, partitionKeys, tablePath, partitionSpec);
+			} else {
+				values.add(spec.get(key));
+			}
+		}
+
+		return values;
+	}
+
+	private Partition getHivePartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+			throws TableNotExistException, PartitionSpecInvalidException, TException {
+		return getHivePartition(getHiveTable(tablePath), partitionSpec);
+	}
+
+	private Partition getHivePartition(Table hiveTable, CatalogPartitionSpec partitionSpec)
+			throws PartitionSpecInvalidException, TException {
+		return client.getPartition(hiveTable.getDbName(), hiveTable.getTableName(),
+			getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()),
+				new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName())));
 	}
 
 	// ------ functions ------

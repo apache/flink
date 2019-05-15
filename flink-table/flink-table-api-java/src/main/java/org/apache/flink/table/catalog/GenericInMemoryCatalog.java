@@ -344,6 +344,12 @@ public class GenericInMemoryCatalog implements Catalog {
 		return databaseExists(tablePath.getDatabaseName()) && tables.containsKey(tablePath);
 	}
 
+	private void ensureTableExists(ObjectPath tablePath) throws TableNotExistException {
+		if (!tableExists(tablePath)) {
+			throw new TableNotExistException(catalogName, tablePath);
+		}
+	}
+
 	// ------ functions ------
 
 	@Override
@@ -437,23 +443,14 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkNotNull(partitionSpec);
 		checkNotNull(partition);
 
-		if (!tableExists(tablePath)) {
-			throw new TableNotExistException(catalogName, tablePath);
-		}
-
-		if (!isPartitionedTable(tablePath)) {
-			throw new TableNotPartitionedException(catalogName, tablePath);
-		}
+		ensureTableExists(tablePath);
+		ensurePartitionedTable(tablePath);
+		ensureFullPartitionSpec(tablePath, partitionSpec);
 
 		if (partitionExists(tablePath, partitionSpec)) {
 			if (!ignoreIfExists) {
 				throw new PartitionAlreadyExistsException(catalogName, tablePath, partitionSpec);
 			}
-		}
-
-		if (!isPartitionSpecValid(tablePath, partitionSpec)) {
-			throw new PartitionSpecInvalidException(catalogName, ((CatalogTable) getTable(tablePath)).getPartitionKeys(),
-				tablePath, partitionSpec);
 		}
 
 		partitions.get(tablePath).put(partitionSpec, partition.copy());
@@ -502,13 +499,8 @@ public class GenericInMemoryCatalog implements Catalog {
 			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		checkNotNull(tablePath);
 
-		if (!tableExists(tablePath)) {
-			throw new TableNotExistException(catalogName, tablePath);
-		}
-
-		if (!isPartitionedTable(tablePath)) {
-			throw new TableNotPartitionedException(catalogName, tablePath);
-		}
+		ensureTableExists(tablePath);
+		ensurePartitionedTable(tablePath);
 
 		return new ArrayList<>(partitions.get(tablePath).keySet());
 	}
@@ -519,15 +511,12 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
 
-		if (!tableExists(tablePath)) {
-			throw new TableNotExistException(catalogName, tablePath);
-		}
+		ensurePartitionedTable(tablePath);
 
-		if (!isPartitionedTable(tablePath)) {
-			throw new TableNotPartitionedException(catalogName, tablePath);
-		}
-
-		if (!isPartitionSpecValid(tablePath, partitionSpec)) {
+		CatalogTable catalogTable = (CatalogTable) getTable(tablePath);
+		List<String> partKeys = catalogTable.getPartitionKeys();
+		Map<String, String> spec = partitionSpec.getPartitionSpec();
+		if (!partKeys.containsAll(spec.keySet())) {
 			return new ArrayList<>();
 		}
 
@@ -558,41 +547,36 @@ public class GenericInMemoryCatalog implements Catalog {
 		return partitions.containsKey(tablePath) && partitions.get(tablePath).containsKey(partitionSpec);
 	}
 
-	/**
-	 * Check if the given partitionSpec is valid for the given table.
-	 * Note that partition spec is considered invalid if the table doesn't exist or isn't partitioned.
-	 */
-	private boolean isPartitionSpecValid(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) {
-		CatalogBaseTable baseTable;
-		try {
-			baseTable = getTable(tablePath);
-		} catch (TableNotExistException e) {
-			return false;
+	private void ensureFullPartitionSpec(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, PartitionSpecInvalidException {
+		if (!isFullPartitionSpec(tablePath, partitionSpec)) {
+			throw new PartitionSpecInvalidException(catalogName, ((CatalogTable) getTable(tablePath)).getPartitionKeys(),
+				tablePath, partitionSpec);
 		}
+	}
+
+	/**
+	 * Check if the given partitionSpec is full partition spec for the given table.
+	 */
+	private boolean isFullPartitionSpec(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws TableNotExistException {
+		CatalogBaseTable baseTable = getTable(tablePath);
 
 		if (!(baseTable instanceof CatalogTable)) {
 			return false;
 		}
 
-		CatalogTable table =  (CatalogTable) baseTable;
+		CatalogTable table = (CatalogTable) baseTable;
 		List<String> partitionKeys = table.getPartitionKeys();
 		Map<String, String> spec = partitionSpec.getPartitionSpec();
 
 		// The size of partition spec should not exceed the size of partition keys
-		if (partitionKeys.size() < spec.size()) {
-			return false;
-		} else {
-			int size = spec.size();
+		return partitionKeys.size() == spec.size() && spec.keySet().containsAll(partitionKeys);
+	}
 
-			// PartitionSpec should contain the first 'size' number of keys in partition key list
-			for (int i = 0; i < size; i++) {
-				if (!spec.containsKey(partitionKeys.get(i))) {
-					return false;
-				}
-			}
+	private void ensurePartitionedTable(ObjectPath tablePath) throws TableNotPartitionedException {
+		if (!isPartitionedTable(tablePath)) {
+			throw new TableNotPartitionedException(catalogName, tablePath);
 		}
-
-		return true;
 	}
 
 	/**
