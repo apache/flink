@@ -22,7 +22,7 @@ from pyflink.table import Table
 
 class TableAPICompletenessTests(PythonAPICompletenessTestCase):
     """
-    Test whether the Python :class:`Table` is consistent with
+    Tests whether the Python :class:`Table` is consistent with
     Java `org.apache.flink.table.api.Table`.
     """
 
@@ -35,7 +35,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase):
         return "org.apache.flink.table.api.Table"
 
     @classmethod
-    def exclude_methods(cls):
+    def excluded_methods(cls):
         # row-based operators should be supported when UDFs supported in python.
         return {'map', 'flatMap', 'flatAggregate',  'aggregate'}
 

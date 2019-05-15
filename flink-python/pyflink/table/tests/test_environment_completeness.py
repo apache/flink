@@ -22,7 +22,7 @@ from pyflink.table import TableEnvironment
 
 class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase):
     """
-    Test whether the Python :class:`TableEnvironment` is consistent with
+    Tests whether the Python :class:`TableEnvironment` is consistent with
     Java `org.apache.flink.table.api.TableEnvironment`.
     """
     @classmethod
@@ -34,7 +34,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase):
         return "org.apache.flink.table.api.TableEnvironment"
 
     @classmethod
-    def exclude_methods(cls):
+    def excluded_methods(cls):
         # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
         # registerExternalCatalog, getRegisteredExternalCatalog and listTables
         # should be supported when catalog supported in python.

@@ -96,8 +96,8 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
 
 class PythonAPICompletenessTestCase(unittest.TestCase):
     """
-    Base class for python api completeness tests, i.e.,
-    python api should be aligned with the Java API as much as possible.
+    Base class for Python API completeness tests, i.e.,
+    Python API should be aligned with the Java API as much as possible.
     """
 
     @classmethod
@@ -111,7 +111,7 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         return output[0].lower() + output[1:]
 
     @staticmethod
-    def get_java_class_method(java_class):
+    def get_java_class_methods(java_class):
         gateway = get_gateway()
         s = set()
         method_arr = gateway.jvm.Class.forName(java_class).getDeclaredMethods()
@@ -121,21 +121,20 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
 
     @classmethod
     def check_methods(cls):
-        java_methods = PythonAPICompletenessTestCase.get_java_class_method(cls.java_class())
+        java_methods = PythonAPICompletenessTestCase.get_java_class_methods(cls.java_class())
         python_methods = cls.get_python_class_methods(cls.python_class())
-        missing_methods = java_methods - python_methods - cls.exclude_methods()
+        missing_methods = java_methods - python_methods - cls.excluded_methods()
         if len(missing_methods) > 0:
             print(missing_methods)
             print('The Exception should be raised after FLINK-12407 is merged.')
             # raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
-            #                % (missing_methods, java_class, python_class))
+            #                % (missing_methods, cls.java_class(), cls.python_class()))
 
     @classmethod
     def java_method_name(cls, python_method_name):
         """
-        This method should be overWrite when the method name of the Python API cannot be
-        consistent with the Java API method name. we need to get the corresponding
-        Java API method name based on the Python method name. e.g.: 'as' is python
+        This method should be overwritten when the method name of the Python API cannot be
+        consistent with the Java API method name. e.g.: 'as' is python
         keyword, so we use 'alias' in Python API corresponding 'as' in Java API.
 
         :param python_method_name: Method name of Python API.
@@ -160,7 +159,7 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         pass
 
     @classmethod
-    def exclude_methods(cls):
+    def excluded_methods(cls):
         """
         Exclude method names that do not need to be checked. When adding excluded methods to the lists
         you should give a good reason in a comment.
@@ -169,5 +168,5 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         return {}
 
     def test_completeness(self):
-        if self.python_class() is not None:
+        if self.python_class() is not None and self.java_class() is not None:
             self.check_methods()
