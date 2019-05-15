@@ -25,18 +25,18 @@ TEST=flink-high-parallelism-iterations-test
 TEST_PROGRAM_NAME=HighParallelismIterationsTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_conf "taskmanager.heap.mb" "52" # 52Mb x 100 TMs = 5Gb total heap
+set_config_key "taskmanager.heap.mb" "52" # 52Mb x 100 TMs = 5Gb total heap
 
-set_conf "taskmanager.memory.size" "8" # 8Mb
-set_conf "taskmanager.network.memory.min" "8mb"
-set_conf "taskmanager.network.memory.max" "8mb"
-set_conf "taskmanager.memory.segment-size" "8kb"
+set_config_key "taskmanager.memory.size" "8" # 8Mb
+set_config_key "taskmanager.network.memory.min" "8mb"
+set_config_key "taskmanager.network.memory.max" "8mb"
+set_config_key "taskmanager.memory.segment-size" "8kb"
 
-set_conf "taskmanager.network.netty.server.numThreads" "1"
-set_conf "taskmanager.network.netty.client.numThreads" "1"
-set_conf "taskmanager.network.request-backoff.max" "60000"
+set_config_key "taskmanager.network.netty.server.numThreads" "1"
+set_config_key "taskmanager.network.netty.client.numThreads" "1"
+set_config_key "taskmanager.network.request-backoff.max" "60000"
 
-set_conf "taskmanager.numberOfTaskSlots" "1"
+set_config_key "taskmanager.numberOfTaskSlots" "1"
 
 print_mem_use
 start_cluster

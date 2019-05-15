@@ -33,7 +33,7 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
 setup_flink_slf4j_metric_reporter
 
-set_conf "metrics.fetcher.update-interval" "2000"
+set_config_key "metrics.fetcher.update-interval" "2000"
 
 start_cluster
 if [ "${PARALLELISM}" -gt "1" ]; then

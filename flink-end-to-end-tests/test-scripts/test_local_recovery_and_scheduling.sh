@@ -81,9 +81,9 @@ function run_local_recovery_test {
     sed -i -e 's/log4j.rootLogger=.*/log4j.rootLogger=DEBUG, file/' "$FLINK_DIR/conf/log4j.properties"
 
     # Enable local recovery
-    set_conf "state.backend.local-recovery" "true"
+    set_config_key "state.backend.local-recovery" "true"
     # Ensure that each TM only has one operator(chain)
-    set_conf "taskmanager.numberOfTaskSlots" "1"
+    set_config_key "taskmanager.numberOfTaskSlots" "1"
 
     rm $FLINK_DIR/log/* 2> /dev/null
 

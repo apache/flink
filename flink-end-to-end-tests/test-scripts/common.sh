@@ -103,22 +103,21 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
-function set_conf() {
-    CONF_NAME=$1
-    VAL=$2
-    echo "$CONF_NAME: $VAL" >> $FLINK_DIR/conf/flink-conf.yaml
-}
-
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
 }
 
-function change_conf() {
-    CONF_NAME=$1
-    OLD_VAL=$2
-    NEW_VAL=$3
-    sed -i -e "s/${CONF_NAME}: ${OLD_VAL}/${CONF_NAME}: ${NEW_VAL}/" ${FLINK_DIR}/conf/flink-conf.yaml
+function delete_config_key() {
+    local config_key=$1
+    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+}
+
+function set_config_key() {
+    local config_key=$1
+    local value=$2
+    delete_config_key ${config_key}
+    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
 }
 
 function create_ha_config() {
@@ -535,8 +534,8 @@ function kill_random_taskmanager {
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
   add_optional_lib "metrics-slf4j"
-  set_conf "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
-  set_conf "metrics.reporter.slf4j.interval" "${INTERVAL}"
+  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
 function get_job_metric {
