@@ -160,6 +160,19 @@ public class JobManagerOptions {
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
 			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+	/**
+	 * Config parameter determining the scheduler implementation.
+	 */
+	@Documentation.ExcludeFromDocumentation("SchedulerNG is still in development.")
+	public static final ConfigOption<String> SCHEDULER =
+		key("jobmanager.scheduler")
+			.defaultValue("legacy")
+			.withDescription(Description.builder()
+				.text("Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
+				.list(
+					text("'legacy': legacy scheduler"),
+					text("'ng': new generation scheduler"))
+				.build());
 
 	// ---------------------------------------------------------------------------------------------
 
