@@ -48,7 +48,7 @@ function out_cleanup {
   s3_delete_by_full_path_prefix $OUT
 }
 if [ "${OUT_TYPE}" == "s3" ]; then
-  trap out_cleanup EXIT
+  on_exit out_cleanup
 fi
 
 TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/StreamingFileSinkProgram.jar"

@@ -53,7 +53,7 @@ function start_kubernetes_if_not_running {
     return $?
 }
 
-trap cleanup EXIT
+on_exit cleanup
 
 mkdir -p $OUTPUT_VOLUME
 

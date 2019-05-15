@@ -55,16 +55,10 @@ esac
 
 # make sure we stop our cluster at the end
 function cluster_shutdown {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
   rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
 }
-trap cluster_shutdown INT
-trap cluster_shutdown EXIT
+on_exit cluster_shutdown
 
 function start_hadoop_cluster() {
     echo "Starting Hadoop cluster"

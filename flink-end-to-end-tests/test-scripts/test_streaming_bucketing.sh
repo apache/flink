@@ -35,8 +35,7 @@ function bucketing_cleanup() {
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
 }
-trap bucketing_cleanup INT
-trap bucketing_cleanup EXIT
+on_exit bucketing_cleanup
 
 JOB_ID=$($FLINK_DIR/bin/flink run -d -p 4 $TEST_PROGRAM_JAR -outputPath $TEST_DATA_DIR/out/result \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')

@@ -26,17 +26,11 @@ FLINK_LIB_DIR=${FLINK_DIR}/lib
 JOB_ID="00000000000000000000000000000000"
 
 function ha_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_watchdogs
   kill_all 'StandaloneJobClusterEntryPoint'
 }
 
-trap ha_cleanup INT
-trap ha_cleanup EXIT
+on_exit ha_cleanup
 
 function run_job() {
     local PARALLELISM=$1

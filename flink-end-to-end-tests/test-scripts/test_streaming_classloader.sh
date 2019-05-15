@@ -32,16 +32,10 @@ echo "Moving fake LibPackage.jar from end-to-end tests to lib/"
 cp ${END_TO_END_DIR}/flink-parent-child-classloading-test-lib-package/target/LibPackage.jar ${FLINK_DIR}/lib/
 
 function classloader_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
 }
-trap classloader_cleanup INT
-trap classloader_cleanup EXIT
+on_exit classloader_cleanup
 
 start_cluster
 
