@@ -153,13 +153,7 @@ abstract class TableTestUtil(test: TableTestBase) {
       types: Array[TypeInformation[_]],
       names: Array[String],
       tableStats: Option[TableStats] = None,
-      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table = {
-    val tableEnv = getTableEnv
-    val schema = new TableSchema(names, types)
-    val tableSource = new TestTableSource(schema)
-    tableEnv.registerTableSource(name, tableSource)
-    tableEnv.scan(name)
-  }
+      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table
 
   /**
     * Create a [[DataStream]] with the given schema,
