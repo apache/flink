@@ -655,6 +655,7 @@ Parameters:
 
 - `host` - the InfluxDB server host
 - `port` - (optional) the InfluxDB server port, defaults to `8086`
+- `scheme` - the InfluxDB scheme to access to influxdb, defaults to `http` (possibles values are `http` and  `https`)
 - `db` - the InfluxDB database to store metrics
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
@@ -666,6 +667,7 @@ Example configuration:
 metrics.reporter.influxdb.class: org.apache.flink.metrics.influxdb.InfluxdbReporter
 metrics.reporter.influxdb.host: localhost
 metrics.reporter.influxdb.port: 8086
+metrics.reporter.influxdb.scheme: http
 metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty

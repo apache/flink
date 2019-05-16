@@ -40,6 +40,7 @@ import java.util.NoSuchElementException;
 
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.DB;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.HOST;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.SCHEME;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PASSWORD;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PORT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
@@ -61,6 +62,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	@Override
 	public void open(MetricConfig config) {
 		String host = getString(config, HOST);
+		String scheme = getString(config, SCHEME);
 		int port = getInteger(config, PORT);
 		if (!isValidHost(host) || !isValidPort(port)) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
@@ -69,7 +71,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		if (database == null) {
 			throw new IllegalArgumentException("'" + DB.key() + "' configuration option is not set");
 		}
-		String url = String.format("http://%s:%d", host, port);
+		String url = String.format("%s://%s:%d", scheme, host, port);
 		String username = getString(config, USERNAME);
 		String password = getString(config, PASSWORD);
 

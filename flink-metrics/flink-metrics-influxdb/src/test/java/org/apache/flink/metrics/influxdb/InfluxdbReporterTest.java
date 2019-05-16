@@ -120,6 +120,7 @@ public class InfluxdbReporterTest extends TestLogger {
 
 	private MetricRegistryImpl createMetricRegistry() {
 		MetricConfig metricConfig = new MetricConfig();
+		metricConfig.setProperty("scheme","http");
 		metricConfig.setProperty("host", "localhost");
 		metricConfig.setProperty("port", String.valueOf(wireMockRule.port()));
 		metricConfig.setProperty("db", TEST_INFLUXDB_DB);

@@ -32,6 +32,12 @@ public class InfluxdbReporterOptions {
 		.noDefaultValue()
 		.withDescription("the InfluxDB server host");
 
+	public static final ConfigOption<Integer> SCHEME = ConfigOptions
+		.key("scheme")
+		.defaultValue("http")
+		.withDescription("the InfluxDB schema (http/https)");
+
+
 	public static final ConfigOption<Integer> PORT = ConfigOptions
 		.key("port")
 		.defaultValue(8086)
