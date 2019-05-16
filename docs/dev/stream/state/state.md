@@ -400,6 +400,35 @@ This option is not applicable for the incremental checkpointing in the RocksDB s
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
 
+#### Cleanup in background
+
+Besides cleanup in full snapshot, you can also activate the cleanup in background. The following option 
+will activate a default background cleanup in StateTtlConfig if it is supported for the used backend:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupInBackground()
+    .build();
+{% endhighlight %}
+</div>
+ <div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupInBackground
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
+Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
+
 ##### Incremental cleanup
 
 Another option is to trigger cleanup of some state entries incrementally.
@@ -435,6 +464,7 @@ val ttlConfig = StateTtlConfig
 This strategy has two parameters. The first one is number of checked state entries per each cleanup triggering.
 If enabled, it is always triggered per each state access.
 The second parameter defines whether to trigger cleanup additionally per each record processing.
+If you enable the default background cleanup then this strategy will be activated for heap backend with 5 checked entries and without cleanup per record processing.
 
 **Notes:**
 - If no access happens to the state or no records are processed, expired state will persist.
@@ -465,7 +495,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter()
+    .cleanupInRocksdbCompactFilter(1000)
     .build();
 {% endhighlight %}
 </div>
@@ -476,18 +506,19 @@ import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter
+    .cleanupInRocksdbCompactFilter(1000)
     .build
 {% endhighlight %}
 </div>
 </div>
 
 RocksDB compaction filter will query current timestamp, used to check expiration, from Flink every time 
-after processing certain number of state entries. This number is 1000 by default. 
-You can optionally change it and pass a custom value to 
+after processing certain number of state entries.
+You can change it and pass a custom value to 
 `StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries)` method. 
 Updating the timestamp more often can improve cleanup speed 
 but it decreases compaction performance because it uses JNI call from native code.
+If you enable the default background cleanup then this strategy will be activated for RocksDB backend and the current timestamp will be queried each time 1000 entries have been processed.
 
 You can activate debug logs from the native code of RocksDB filter 
 by activating debug level for `FlinkCompactionFilter`:
