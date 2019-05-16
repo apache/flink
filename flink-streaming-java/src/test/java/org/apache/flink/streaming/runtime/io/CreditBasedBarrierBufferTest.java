@@ -31,7 +31,7 @@ import static org.junit.Assert.assertEquals;
 public class CreditBasedBarrierBufferTest extends BarrierBufferTestBase {
 
 	@Override
-	public BarrierBuffer createBarrierHandler(InputGate gate) throws IOException {
+	public BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException {
 		return new BarrierBuffer(gate, new CachedBufferBlocker(PAGE_SIZE));
 	}
 

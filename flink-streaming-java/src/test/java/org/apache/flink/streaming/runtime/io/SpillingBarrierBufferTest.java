@@ -23,7 +23,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -50,8 +49,10 @@ public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
 		ioManager.shutdown();
 	}
 
-	@After
-	public void checkNoTempFilesRemain() {
+	@Override
+	public void ensureEmpty() throws Exception {
+		super.ensureEmpty();
+
 		// validate that all temp files have been removed
 		for (File dir : ioManager.getSpillingDirectories()) {
 			for (String file : dir.list()) {
@@ -63,7 +64,7 @@ public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
 	}
 
 	@Override
-	public BarrierBuffer createBarrierHandler(InputGate gate) throws IOException{
+	public BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException{
 		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE));
 	}
 
