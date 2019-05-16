@@ -37,6 +37,7 @@ import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.Arrays;
@@ -111,8 +112,8 @@ public class TypeConverters {
 		itToEti.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
 		itToEti.put(InternalTypes.DATE, SqlTimeTypeInfo.DATE);
 		itToEti.put(InternalTypes.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP);
-		itToEti.put(InternalTypes.PROCTIME_INDICATOR, SqlTimeTypeInfo.TIMESTAMP);
-		itToEti.put(InternalTypes.ROWTIME_INDICATOR, SqlTimeTypeInfo.TIMESTAMP);
+		itToEti.put(InternalTypes.PROCTIME_INDICATOR, TimeIndicatorTypeInfo.PROCTIME_INDICATOR);
+		itToEti.put(InternalTypes.ROWTIME_INDICATOR, TimeIndicatorTypeInfo.ROWTIME_INDICATOR);
 		itToEti.put(InternalTypes.TIME, SqlTimeTypeInfo.TIME);
 		itToEti.put(InternalTypes.BINARY, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
 		INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO = Collections.unmodifiableMap(itToEti);
@@ -132,6 +133,15 @@ public class TypeConverters {
 	 * {@link TupleTypeInfo} (CompositeType) => {@link RowType}.
 	 */
 	public static InternalType createInternalTypeFromTypeInfo(TypeInformation typeInfo) {
+		if (typeInfo instanceof TimeIndicatorTypeInfo) {
+			TimeIndicatorTypeInfo timeIndicatorTypeInfo = (TimeIndicatorTypeInfo) typeInfo;
+			if (timeIndicatorTypeInfo.isEventTime()) {
+				return InternalTypes.ROWTIME_INDICATOR;
+			} else {
+				return InternalTypes.PROCTIME_INDICATOR;
+			}
+		}
+
 		InternalType type = TYPE_INFO_TO_INTERNAL_TYPE.get(typeInfo);
 		if (type != null) {
 			return type;

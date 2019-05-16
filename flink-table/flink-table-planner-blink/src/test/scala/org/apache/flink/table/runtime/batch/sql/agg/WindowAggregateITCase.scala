@@ -39,7 +39,7 @@ import org.apache.flink.types.Row
 
 import org.junit.{Before, Ignore, Test}
 
-class GroupWindowITCase extends BatchTestBase {
+class WindowAggregateITCase extends BatchTestBase {
 
   @Before
   def before(): Unit = {

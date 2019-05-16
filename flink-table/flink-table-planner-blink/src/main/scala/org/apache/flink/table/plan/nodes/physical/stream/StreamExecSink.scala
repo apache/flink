@@ -30,6 +30,7 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -158,12 +159,24 @@ class StreamExecSink[T](
     val rowtimeFields = logicalType.getFieldList
                         .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
 
-    if (rowtimeFields.size > 1) {
+    val convType = if (rowtimeFields.size > 1) {
       throw new TableException(
         s"Found more than one rowtime field: [${rowtimeFields.map(_.getName).mkString(", ")}] in " +
           s"the table that should be converted to a DataStream.\n" +
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
           s"DataStream by casting all other fields to TIMESTAMP.")
+    } else if (rowtimeFields.size == 1) {
+      val origRowType = parTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo]
+      val convFieldTypes = origRowType.getInternalTypes.map { t =>
+        if (t == InternalTypes.ROWTIME_INDICATOR) {
+          InternalTypes.TIMESTAMP
+        } else {
+          t
+        }
+      }
+      new BaseRowTypeInfo(convFieldTypes, origRowType.getFieldNames)
+    } else {
+      parTransformation.getOutputType
     }
     val resultType = sink.getOutputType
     val typeClass = extractTableSinkTypeClass(sink)
@@ -173,7 +186,7 @@ class StreamExecSink[T](
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(tableEnv.getConfig),
         tableEnv.getConfig,
-        parTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo],
+        convType.asInstanceOf[BaseRowTypeInfo],
         "SinkConversion",
         None,
         withChangeFlag,

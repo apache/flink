@@ -27,6 +27,8 @@ import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
 import org.apache.flink.util.StringUtils
 
+import org.apache.calcite.avatica.util.DateTimeUtils
+
 import java.sql.{Date, Time, Timestamp}
 import java.util.TimeZone
 
@@ -46,8 +48,7 @@ object TestSinkUtil {
   def fieldToString(field: Any, tz: TimeZone): String = {
     field match {
       case _: Date | _: Time | _: Timestamp =>
-        // TODO TimeConvertUtils.unixDateTimeToString(field, tz)
-        throw new RuntimeException
+        DateTimeUtils.unixDateTimeToString(field, tz)
       case _ => StringUtils.arrayAwareToString(field)
     }
   }
