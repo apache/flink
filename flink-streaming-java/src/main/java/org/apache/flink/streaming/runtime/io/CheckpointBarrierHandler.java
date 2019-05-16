@@ -25,8 +25,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.io.IOException;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * The CheckpointBarrierHandler reacts to checkpoint barrier arriving from the input channels.
  * Different implementations may either simply track barriers, or block certain inputs on
@@ -34,15 +32,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public interface CheckpointBarrierHandler extends AsyncDataInput<BufferOrEvent> {
-	/**
-	 * Blocking version of {@link #pollNext()}.
-	 */
-	@Deprecated
-	default BufferOrEvent getNextNonBlocked() throws Exception {
-		Optional<BufferOrEvent> bufferOrEvent = pollNext();
-		checkState(bufferOrEvent.isPresent());
-		return bufferOrEvent.get();
-	}
 
 	/**
 	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.
