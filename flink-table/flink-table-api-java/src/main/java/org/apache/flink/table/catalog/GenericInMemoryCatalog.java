@@ -212,7 +212,6 @@ public class GenericInMemoryCatalog implements Catalog {
 		if (tableExists(tablePath)) {
 			CatalogBaseTable oldTable = tables.get(tablePath);
 
-			// make sure old and new tables are of exactly the same class
 			if (oldTable.getClass() != newTable.getClass()) {
 				throw new CatalogException(
 					String.format("Table classes don't match. Existing table is '%s' and new table is '%s'. They should be of the same class.",
