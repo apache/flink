@@ -34,43 +34,40 @@ public abstract class StateListView<N, T> extends ListView<T> implements StateDa
 
 	private static final long serialVersionUID = 1L;
 
-	private final ListState<T> listState;
 	private final Iterable<T> emptyList = Collections.emptyList();
-
-	private StateListView(ListState<T> listState) {
-		this.listState = listState;
-	}
 
 	@Override
 	public Iterable<T> get() throws Exception {
-		Iterable<T> original = listState.get();
+		Iterable<T> original = getListState().get();
 		return original != null ? original : emptyList;
 	}
 
 	@Override
 	public void add(T value) throws Exception {
-		listState.add(value);
+		getListState().add(value);
 	}
 
 	@Override
 	public void addAll(List<T> list) throws Exception {
-		listState.addAll(list);
+		getListState().addAll(list);
 	}
 
 	@Override
 	public boolean remove(T value) throws Exception {
-		List<T> list = (List<T>) listState.get();
+		List<T> list = (List<T>) getListState().get();
 		boolean success = list.remove(value);
 		if (success) {
-			listState.update(list);
+			getListState().update(list);
 		}
 		return success;
 	}
 
 	@Override
 	public void clear() {
-		listState.clear();
+		getListState().clear();
 	}
+
+	protected abstract ListState<T> getListState();
 
 	/**
 	 * {@link KeyedStateListView} is an default implementation of {@link StateListView} whose
@@ -79,14 +76,20 @@ public abstract class StateListView<N, T> extends ListView<T> implements StateDa
 	public static final class KeyedStateListView<N, T> extends StateListView<N, T> {
 
 		private static final long serialVersionUID = 6526065473887440980L;
+		private final ListState<T> listState;
 
 		public KeyedStateListView(ListState<T> listState) {
-			super(listState);
+			this.listState = listState;
 		}
 
 		@Override
 		public void setCurrentNamespace(N namespace) {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		protected ListState<T> getListState() {
+			return listState;
 		}
 	}
 
@@ -97,15 +100,21 @@ public abstract class StateListView<N, T> extends ListView<T> implements StateDa
 	public static final class NamespacedStateListView<N, T> extends StateListView<N, T> {
 		private static final long serialVersionUID = 1423184510190367940L;
 		private final InternalListState<?, N, T> listState;
+		private N namespace;
 
 		public NamespacedStateListView(InternalListState<?, N, T> listState) {
-			super(listState);
 			this.listState = listState;
 		}
 
 		@Override
 		public void setCurrentNamespace(N namespace) {
+			this.namespace = namespace;
+		}
+
+		@Override
+		protected ListState<T> getListState() {
 			listState.setCurrentNamespace(namespace);
+			return listState;
 		}
 	}
 
