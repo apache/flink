@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -52,6 +53,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -59,6 +62,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -517,6 +521,28 @@ public class SingleInputGateTest extends InputGateTestBase {
 		} finally {
 			inputGate.close();
 			network.shutdown();
+		}
+	}
+
+	/**
+	 * Tests that if the {@link PartitionNotFoundException} is set onto one {@link InputChannel},
+	 * then it would be thrown directly via {@link SingleInputGate#getNextBufferOrEvent()}. So we
+	 * could confirm the {@link SingleInputGate} would not swallow or transform the original exception.
+	 */
+	@Test
+	public void testPartitionNotFoundExceptionWhileGetNextBuffer() throws Exception {
+		final SingleInputGate inputGate = createSingleInputGate(1);
+		final LocalInputChannel localChannel = createLocalInputChannel(inputGate, new ResultPartitionManager());
+		final ResultPartitionID partitionId = localChannel.getPartitionId();
+
+		inputGate.setInputChannel(partitionId.getPartitionId(), localChannel);
+		localChannel.setError(new PartitionNotFoundException(partitionId));
+		try {
+			inputGate.getNextBufferOrEvent();
+
+			fail("Should throw a PartitionNotFoundException.");
+		} catch (PartitionNotFoundException notFound) {
+			assertThat(partitionId, is(notFound.getPartitionId()));
 		}
 	}
 

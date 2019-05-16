@@ -18,14 +18,30 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import java.io.IOException;
+
 /**
- * Exception for failed partition requests due to non-existing partitions.
+ * Exception for covering all the scenarios of consuming partition failure
+ * which causes the consumer task failed, and the job master would decide
+ * whether to restart the producer based on this exception.
  */
-public class PartitionNotFoundException extends PartitionException {
+public abstract class PartitionException extends IOException {
 
 	private static final long serialVersionUID = 0L;
 
-	public PartitionNotFoundException(ResultPartitionID partitionId) {
-		super("Partition " + partitionId + " not found.", partitionId);
+	private final ResultPartitionID partitionId;
+
+	public PartitionException(String message, ResultPartitionID partitionId) {
+		this(message, partitionId, null);
+	}
+
+	public PartitionException(String message, ResultPartitionID partitionId, Throwable throwable) {
+		super(message, throwable);
+
+		this.partitionId = partitionId;
+	}
+
+	public ResultPartitionID getPartitionId() {
+		return partitionId;
 	}
 }
