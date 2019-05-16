@@ -20,6 +20,8 @@ package org.apache.flink.table.plan.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 
 import java.util.Iterator;
@@ -189,9 +191,79 @@ public class JavaUserDefinedAggFunctions {
 	 * A WeightedAvg class with merge and reset method.
 	 */
 	public static class WeightedAvgWithMergeAndReset extends WeightedAvgWithMerge {
+		private static final long serialVersionUID = -2721882038448388054L;
+
 		public void resetAccumulator(WeightedAvgAccum acc) {
 			acc.count = 0;
 			acc.sum = 0L;
+		}
+	}
+
+	/**
+	 * Accumulator of ConcatDistinctAgg.
+	 */
+	public static class ConcatAcc {
+		public MapView<String, Boolean> map = new MapView<>(Types.STRING, Types.BOOLEAN);
+		public ListView<String> list = new ListView<>(Types.STRING);
+	}
+
+	/**
+	 * Concat distinct aggregate.
+	 */
+	public static class ConcatDistinctAggFunction extends AggregateFunction<String, ConcatAcc> {
+
+		private static final long serialVersionUID = -2678065132752935739L;
+		private static final String DELIMITER = "|";
+
+		public void accumulate(ConcatAcc acc, String value) throws Exception {
+			if (value != null) {
+				if (!acc.map.contains(value)) {
+					acc.map.put(value, true);
+					acc.list.add(value);
+				}
+			}
+		}
+
+		public void merge(ConcatAcc acc, Iterable<ConcatAcc> its) throws Exception {
+			for (ConcatAcc otherAcc : its) {
+				Iterable<String> accList = otherAcc.list.get();
+				if (accList != null) {
+					for (String value : accList) {
+						if (!acc.map.contains(value)) {
+							acc.map.put(value, true);
+							acc.list.add(value);
+						}
+					}
+				}
+			}
+		}
+
+		@Override
+		public ConcatAcc createAccumulator() {
+			return new ConcatAcc();
+		}
+
+		@Override
+		public String getValue(ConcatAcc acc) {
+			try {
+				Iterable<String> accList = acc.list.get();
+				if (accList == null || !accList.iterator().hasNext()) {
+					return null;
+				} else {
+					StringBuilder builder = new StringBuilder();
+					boolean isFirst = true;
+					for (String value : accList) {
+						if (!isFirst) {
+							builder.append(DELIMITER);
+						}
+						builder.append(value);
+						isFirst = false;
+					}
+					return builder.toString();
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e.getMessage(), e);
+			}
 		}
 	}
 }
