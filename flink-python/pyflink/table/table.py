@@ -525,6 +525,12 @@ class Table(object):
         """
         self._j_table.insertInto(table_name)
 
+    def print_schema(self):
+        """
+        Prints the schema of this table to the console in a tree format.
+        """
+        self._j_table.printSchema()
+
     def __str__(self):
         return self._j_table.toString()
 
