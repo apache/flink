@@ -527,7 +527,7 @@ public class LocalInputChannelTest {
 
 			try {
 				Optional<BufferOrEvent> boe;
-				while ((boe = inputGate.getNextBufferOrEvent()).isPresent()) {
+				while ((boe = inputGate.getNext()).isPresent()) {
 					if (boe.get().isBuffer()) {
 						boe.get().getBuffer().recycleBuffer();
 

@@ -160,7 +160,7 @@ public class BarrierBufferMassiveRandomTest {
 		public void requestPartitions() {}
 
 		@Override
-		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
+		public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 			currentChannel = (currentChannel + 1) % numberOfChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
@@ -179,8 +179,8 @@ public class BarrierBufferMassiveRandomTest {
 		}
 
 		@Override
-		public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
-			return getNextBufferOrEvent();
+		public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
+			return getNext();
 		}
 
 		@Override

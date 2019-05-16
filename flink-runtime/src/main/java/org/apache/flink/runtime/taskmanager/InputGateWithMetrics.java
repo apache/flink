@@ -71,13 +71,13 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
-		return updateMetrics(inputGate.getNextBufferOrEvent());
+	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
+		return updateMetrics(inputGate.getNext());
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
-		return updateMetrics(inputGate.pollNextBufferOrEvent());
+	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
+		return updateMetrics(inputGate.pollNext());
 	}
 
 	@Override

@@ -72,7 +72,7 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> getNextBufferOrEvent() {
+	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
 		if (next == null) {
 			return Optional.empty();
@@ -91,8 +91,8 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() {
-		return getNextBufferOrEvent();
+	public Optional<BufferOrEvent> pollNext() {
+		return getNext();
 	}
 
 	@Override

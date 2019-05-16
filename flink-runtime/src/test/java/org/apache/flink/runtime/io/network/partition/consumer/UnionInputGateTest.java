@@ -100,7 +100,7 @@ public class UnionInputGateTest extends InputGateTestBase {
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(union.isFinished());
-		assertFalse(union.getNextBufferOrEvent().isPresent());
+		assertFalse(union.getNext().isPresent());
 	}
 
 	@Test

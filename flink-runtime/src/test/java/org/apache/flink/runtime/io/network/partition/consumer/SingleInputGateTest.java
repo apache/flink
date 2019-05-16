@@ -260,7 +260,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			@Override
 			public void run() {
 				try {
-					inputGate.getNextBufferOrEvent();
+					inputGate.getNext();
 				} catch (Exception e) {
 					asyncException.set(e);
 				}
@@ -536,7 +536,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		inputGate.setInputChannel(partitionId.getPartitionId(), localChannel);
 		localChannel.setError(new PartitionNotFoundException(partitionId));
 		try {
-			inputGate.getNextBufferOrEvent();
+			inputGate.getNext();
 
 			fail("Should throw a PartitionNotFoundException.");
 		} catch (PartitionNotFoundException notFound) {
@@ -630,13 +630,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 			int expectedChannelIndex,
 			boolean expectedMoreAvailable) throws IOException, InterruptedException {
 
-		final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNextBufferOrEvent();
+		final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
 		assertTrue(bufferOrEvent.isPresent());
 		assertEquals(expectedIsBuffer, bufferOrEvent.get().isBuffer());
 		assertEquals(expectedChannelIndex, bufferOrEvent.get().getChannelIndex());
 		assertEquals(expectedMoreAvailable, bufferOrEvent.get().moreAvailable());
 		if (!expectedMoreAvailable) {
-			assertFalse(inputGate.pollNextBufferOrEvent().isPresent());
+			assertFalse(inputGate.pollNext().isPresent());
 		}
 	}
 }

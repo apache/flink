@@ -271,7 +271,7 @@ public class InputGateConcurrentTest {
 		@Override
 		public void go() throws Exception {
 			for (int i = numBuffers; i > 0; --i) {
-				assertNotNull(gate.getNextBufferOrEvent());
+				assertNotNull(gate.getNext());
 			}
 		}
 	}
