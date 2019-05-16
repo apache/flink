@@ -91,7 +91,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	@Override
 	public BufferOrEvent getNextNonBlocked() throws Exception {
 		while (true) {
-			Optional<BufferOrEvent> next = inputGate.getNextBufferOrEvent();
+			Optional<BufferOrEvent> next = inputGate.getNext();
 			if (!next.isPresent()) {
 				// buffer or input exhausted
 				return null;

@@ -279,7 +279,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			public void run() {
 				try {
 					while (true) {
-						inputGate.getNextBufferOrEvent();
+						inputGate.getNext();
 					}
 				} catch (Exception e) {
 					ASYNC_CONSUMER_EXCEPTION = e;

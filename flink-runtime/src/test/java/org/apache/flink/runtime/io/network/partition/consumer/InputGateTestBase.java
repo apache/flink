@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.io.AsyncDataInput;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
@@ -54,12 +55,12 @@ public abstract class InputGateTestBase {
 			TestInputChannel inputChannelWithNewData) throws Exception {
 
 		assertFalse(inputGateToTest.isAvailable().isDone());
-		assertFalse(inputGateToTest.pollNextBufferOrEvent().isPresent());
+		assertFalse(inputGateToTest.pollNext().isPresent());
 
 		CompletableFuture<?> isAvailable = inputGateToTest.isAvailable();
 
 		assertFalse(inputGateToTest.isAvailable().isDone());
-		assertFalse(inputGateToTest.pollNextBufferOrEvent().isPresent());
+		assertFalse(inputGateToTest.pollNext().isPresent());
 
 		assertEquals(isAvailable, inputGateToTest.isAvailable());
 
@@ -68,6 +69,7 @@ public abstract class InputGateTestBase {
 
 		assertTrue(isAvailable.isDone());
 		assertTrue(inputGateToTest.isAvailable().isDone());
+		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
 	}
 
 	protected SingleInputGate createInputGate() {

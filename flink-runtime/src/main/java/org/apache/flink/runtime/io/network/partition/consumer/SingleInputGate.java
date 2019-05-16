@@ -479,12 +479,12 @@ public class SingleInputGate extends InputGate {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 		return getNextBufferOrEvent(true);
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
 		return getNextBufferOrEvent(false);
 	}
 
@@ -567,7 +567,7 @@ public class SingleInputGate extends InputGate {
 					// 1. releasing inputChannelsWithData lock in this method and reaching this place
 					// 2. empty data notification that re-enqueues a channel
 					// we can end up with moreAvailable flag set to true, while we expect no more data.
-					checkState(!moreAvailable || !pollNextBufferOrEvent().isPresent());
+					checkState(!moreAvailable || !pollNext().isPresent());
 					moreAvailable = false;
 					hasReceivedAllEndOfPartitionEvents = true;
 				}
