@@ -863,43 +863,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(yarnFilesDir, permission); // set permission for path.
 
-		//To support Yarn Secure Integration Test Scenario
-		//In Integration test setup, the Yarn containers created by YarnMiniCluster does not have the Yarn site XML
-		//and KRB5 configuration files. We are adding these files as container local resources for the container
-		//applications (JM/TMs) to have proper secure cluster setup
-		Path remoteKrb5Path = null;
-		Path remoteYarnSiteXmlPath = null;
-		boolean hasKrb5 = false;
-		if (System.getenv("IN_TESTS") != null) {
-			File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
-			LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
-			Path yarnSitePath = new Path(f.getAbsolutePath());
-			remoteYarnSiteXmlPath = setupSingleLocalResource(
-				Utils.YARN_SITE_FILE_NAME,
-				fs,
-				appId,
-				yarnSitePath,
-				localResources,
-				homeDir,
-				"");
-
-			String krb5Config = System.getProperty("java.security.krb5.conf");
-			if (krb5Config != null && krb5Config.length() != 0) {
-				File krb5 = new File(krb5Config);
-				LOG.info("Adding KRB5 configuration {} to the AM container local resource bucket", krb5.getAbsolutePath());
-				Path krb5ConfPath = new Path(krb5.getAbsolutePath());
-				remoteKrb5Path = setupSingleLocalResource(
-					Utils.KRB5_FILE_NAME,
-					fs,
-					appId,
-					krb5ConfPath,
-					localResources,
-					homeDir,
-					"");
-				hasKrb5 = true;
-			}
-		}
-
 		// setup security tokens
 		Path remotePathKeytab = null;
 		String keytab = configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
@@ -919,7 +882,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			yarnClusterEntrypoint,
 			hasLogback,
 			hasLog4j,
-			hasKrb5,
+			false,
 			clusterSpecification.getMasterMemoryMB());
 
 		if (UserGroupInformation.isSecurityEnabled()) {
@@ -957,14 +920,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString());
 			String principal = configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal);
-		}
-
-		//To support Yarn Secure Integration Test Scenario
-		if (remoteYarnSiteXmlPath != null) {
-			appMasterEnv.put(YarnConfigKeys.ENV_YARN_SITE_XML_PATH, remoteYarnSiteXmlPath.toString());
-		}
-		if (remoteKrb5Path != null) {
-			appMasterEnv.put(YarnConfigKeys.ENV_KRB5_PATH, remoteKrb5Path.toString());
 		}
 
 		if (dynamicPropertiesEncoded != null) {

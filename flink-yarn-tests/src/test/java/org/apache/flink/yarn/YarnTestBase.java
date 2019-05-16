@@ -291,7 +291,22 @@ public abstract class YarnTestBase extends TestLogger {
 			yarnClient,
 			true);
 		yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));
-		yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
+		List<File> shipFiles = new ArrayList<>(3);
+
+		File yarnSiteFile = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
+		LOG.info("Adding Yarn configuration {} to the ship files.", yarnSiteFile.getAbsolutePath());
+		shipFiles.add(yarnSiteFile);
+
+		String krb5Config = System.getProperty("java.security.krb5.conf");
+		if (krb5Config != null && krb5Config.length() != 0) {
+			File krb5 = new File(krb5Config);
+			LOG.info("Adding KRB5 configuration {} to the ship files.", krb5.getAbsolutePath());
+			shipFiles.add(krb5);
+		}
+
+		shipFiles.add(flinkLibFolder);
+		yarnClusterDescriptor.addShipFiles(shipFiles);
+
 		return yarnClusterDescriptor;
 	}
 
@@ -636,7 +651,6 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File targetTestClassesFolder = new File("target/test-classes");
 			writeYarnSiteConfigXML(conf, targetTestClassesFolder);
-			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
 			TestBaseUtils.setEnv(map);
 
@@ -933,7 +947,6 @@ public abstract class YarnTestBase extends TestLogger {
 		Map<String, String> map = new HashMap<>(System.getenv());
 		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
 		map.remove("YARN_CONF_DIR");
-		map.remove("IN_TESTS");
 		TestBaseUtils.setEnv(map);
 
 		if (tempConfPathForSecureRun != null) {
