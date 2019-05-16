@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -41,31 +40,39 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DefaultResultPartition implements SchedulingResultPartition {
 
-	private final IntermediateResultPartition resultPartition;
+	private final IntermediateResultPartitionID resultPartitionId;
 
-	private final SchedulingExecutionVertex producer;
+	private final IntermediateDataSetID intermediateDataSetId;
+
+	private final ResultPartitionType partitionType;
+
+	private SchedulingExecutionVertex producer;
 
 	private final List<SchedulingExecutionVertex> consumers;
 
-	DefaultResultPartition(IntermediateResultPartition partition, SchedulingExecutionVertex producer) {
-		this.resultPartition = checkNotNull(partition);
-		this.producer = checkNotNull(producer);
+	DefaultResultPartition(
+			IntermediateResultPartitionID partitionId,
+			IntermediateDataSetID intermediateDataSetId,
+			ResultPartitionType partitionType) {
+		this.resultPartitionId = checkNotNull(partitionId);
+		this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
+		this.partitionType = checkNotNull(partitionType);
 		this.consumers = new ArrayList<>();
 	}
 
 	@Override
 	public IntermediateResultPartitionID getId() {
-		return resultPartition.getPartitionId();
+		return resultPartitionId;
 	}
 
 	@Override
 	public IntermediateDataSetID getResultId() {
-		return resultPartition.getIntermediateResult().getId();
+		return intermediateDataSetId;
 	}
 
 	@Override
 	public ResultPartitionType getPartitionType() {
-		return resultPartition.getResultType();
+		return partitionType;
 	}
 
 	@Override
@@ -96,5 +103,9 @@ public class DefaultResultPartition implements SchedulingResultPartition {
 
 	void addConsumer(SchedulingExecutionVertex vertex) {
 		consumers.add(checkNotNull(vertex));
+	}
+
+	void setProducer(SchedulingExecutionVertex vertex) {
+		producer = checkNotNull(vertex);
 	}
 }

@@ -32,7 +32,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	private final ExecutionVertexID executionVertexId;
 
-	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
+	private final InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
 	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
 		this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);

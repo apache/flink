@@ -20,11 +20,11 @@ package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+
+import javax.xml.ws.Provider;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,27 +38,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
-	private final ExecutionVertex executionVertex;
-
 	private final ExecutionVertexID executionVertexId;
 
 	private final List<SchedulingResultPartition> consumedPartitions;
 
 	private final List<SchedulingResultPartition> producedPartitions;
 
-	private InputDependencyConstraint inputDependencyConstraint;
+	private final InputDependencyConstraint inputDependencyConstraint;
 
-	public DefaultExecutionVertex(ExecutionVertex vertex) {
-		this.executionVertex = checkNotNull(vertex);
-		this.executionVertexId = new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex());
-		this.inputDependencyConstraint = vertex.getJobVertex().getInputDependencyConstraint();
+	private final Provider<ExecutionState> stateProvider;
 
+	public DefaultExecutionVertex(
+			ExecutionVertexID executionVertexId,
+			List<SchedulingResultPartition> producedPartitions,
+			InputDependencyConstraint dependencyConstraint,
+			Provider<ExecutionState> stateProvider) {
+		this.executionVertexId = checkNotNull(executionVertexId);
+		this.inputDependencyConstraint = checkNotNull(dependencyConstraint);
 		this.consumedPartitions = new ArrayList<>();
-		Collection<IntermediateResultPartition> partitions = vertex.getProducedPartitions().values();
-		this.producedPartitions = new ArrayList<>(partitions.size());
-		for (IntermediateResultPartition irp : partitions) {
-			producedPartitions.add(new DefaultResultPartition(irp, this));
-		}
+		this.stateProvider = checkNotNull(stateProvider);
+		this.producedPartitions = checkNotNull(producedPartitions);
 	}
 
 	@Override
@@ -68,7 +67,7 @@ public class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
 	@Override
 	public ExecutionState getState() {
-		return executionVertex.getExecutionState();
+		return stateProvider.invoke(null);
 	}
 
 	@Override

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -40,6 +41,7 @@ import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.junit.Assert.assertEquals;
@@ -90,7 +92,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 	public void testGetResultPartition() {
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
 			for (Map.Entry<IntermediateResultPartitionID, IntermediateResultPartition> entry
-				: vertex.getProducedPartitions().entrySet()) {
+					: vertex.getProducedPartitions().entrySet()) {
 				IntermediateResultPartition partition = entry.getValue();
 				SchedulingResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey())
 					.orElseThrow(() -> new IllegalArgumentException("can not find partition" + entry.getKey()));
@@ -98,6 +100,21 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 				assertEquals(partition.getPartitionId(), schedulingResultPartition.getId());
 				assertEquals(partition.getIntermediateResult().getId(), schedulingResultPartition.getResultId());
 				assertEquals(partition.getResultType(), schedulingResultPartition.getPartitionType());
+			}
+		}
+	}
+
+	@Test
+	public void getExecutionState() {
+		final ExecutionState[] executionStates = ExecutionState.values();
+		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
+			for (ExecutionState state : executionStates) {
+				setVertexState(vertex, state);
+				assertEquals(
+					state,
+					adapter.getVertex(new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()))
+						.orElseThrow(() -> new IllegalArgumentException("can not find vertex"))
+						.getState());
 			}
 		}
 	}
