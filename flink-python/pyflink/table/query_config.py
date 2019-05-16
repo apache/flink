@@ -39,11 +39,10 @@ class StreamQueryConfig(QueryConfig):
     """
 
     def __init__(self, j_stream_query_config=None):
-        self._jvm = get_gateway().jvm
         if j_stream_query_config is not None:
             self._j_stream_query_config = j_stream_query_config
         else:
-            self._j_stream_query_config = self._jvm.StreamQueryConfig()
+            self._j_stream_query_config = get_gateway().jvm.StreamQueryConfig()
         super(StreamQueryConfig, self).__init__(self._j_stream_query_config)
 
     def with_idle_state_retention_time(self, min_time, max_time):
@@ -72,7 +71,7 @@ class StreamQueryConfig(QueryConfig):
         :return: :class:`StreamQueryConfig`
         """
         #  type: (timedelta, timedelta) -> StreamQueryConfig
-        j_time_class = self._jvm.org.apache.flink.api.common.time.Time
+        j_time_class = get_gateway().jvm.org.apache.flink.api.common.time.Time
         j_min_time = j_time_class.milliseconds(long(round(min_time.total_seconds() * 1000)))
         j_max_time = j_time_class.milliseconds(long(round(max_time.total_seconds() * 1000)))
         self._j_stream_query_config = \

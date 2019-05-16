@@ -15,9 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import sys
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TableConfig']
+
+if sys.version > '3':
+    unicode = str
 
 
 class TableConfig(object):
@@ -31,59 +36,50 @@ class TableConfig(object):
         self._is_stream = None  # type: bool
         self._parallelism = None  # type: int
 
-    @property
     def is_stream(self):
         """
         Configures execution mode, "true" for streaming and "false" for batch.
         """
         return self._is_stream
 
-    @is_stream.setter
-    def is_stream(self, is_stream):
+    def _set_stream(self, is_stream):
         self._is_stream = is_stream
 
-    @property
     def parallelism(self):
         """
         The parallelism for all operations.
         """
         return self._parallelism
 
-    @parallelism.setter
-    def parallelism(self, parallelism):
+    def _set_parallelism(self, parallelism):
         self._parallelism = parallelism
 
-    @property
     def timezone(self):
         """
-        The timezone_id for a timezone, either an abbreviation such as "PST", a full name such as
+        Returns the timezone id, either an abbreviation such as "PST", a full name such as
         "America/Los_Angeles", or a custom timezone_id such as "GMT-8:00".
         """
         return self._j_table_config.getTimeZone().getID()
 
-    @timezone.setter
-    def timezone(self, timezone_id):
-        if timezone_id is not None and isinstance(timezone_id, str):
+    def _set_timezone(self, timezone_id):
+        if timezone_id is not None and isinstance(timezone_id, (str, unicode)):
             j_timezone = self._jvm.java.util.TimeZone.getTimeZone(timezone_id)
             self._j_table_config.setTimeZone(j_timezone)
         else:
             raise Exception("TableConfig.timezone should be a string!")
 
-    @property
     def null_check(self):
         """
         A boolean value, "True" enables NULL check and "False" disables NULL check.
         """
         return self._j_table_config.getNullCheck()
 
-    @null_check.setter
-    def null_check(self, null_check):
+    def _set_null_check(self, null_check):
         if null_check is not None and isinstance(null_check, bool):
             self._j_table_config.setNullCheck(null_check)
         else:
             raise Exception("TableConfig.null_check should be a bool value!")
 
-    @property
     def max_generated_code_length(self):
         """
         The current threshold where generated code will be split into sub-function calls. Java has
@@ -92,8 +88,7 @@ class TableConfig(object):
         """
         return self._j_table_config.getMaxGeneratedCodeLength()
 
-    @max_generated_code_length.setter
-    def max_generated_code_length(self, max_generated_code_length):
+    def _set_max_generated_code_length(self, max_generated_code_length):
         if max_generated_code_length is not None and isinstance(max_generated_code_length, int):
             self._j_table_config.setMaxGeneratedCodeLength(max_generated_code_length)
         else:
@@ -181,13 +176,13 @@ class TableConfig(object):
             """
             config = TableConfig()
             if self._parallelism is not None:
-                config.parallelism = self._parallelism
+                config._set_parallelism(self._parallelism)
             if self._is_stream is not None:
-                config.is_stream = self._is_stream
+                config._set_stream(self._is_stream)
             if self._timezone_id is not None:
-                config.timezone = self._timezone_id
+                config._set_timezone(self._timezone_id)
             if self._null_check is not None:
-                config.null_check = self._null_check
+                config._set_null_check(self._null_check)
             if self._max_generated_code_length is not None:
-                config.max_generated_code_length = self._max_generated_code_length
+                config._set_max_generated_code_length(self._max_generated_code_length)
             return config

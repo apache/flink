@@ -217,7 +217,7 @@ class TableEnvironment(object):
         :return: Desired :class:`TableEnvironment`.
         """
         gateway = get_gateway()
-        if table_config.is_stream:
+        if table_config.is_stream():
             j_execution_env = gateway.jvm.StreamExecutionEnvironment.getExecutionEnvironment()
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 j_execution_env, table_config._j_table_config)
@@ -229,7 +229,7 @@ class TableEnvironment(object):
             t_env = BatchTableEnvironment(j_tenv)
 
         if table_config.parallelism is not None:
-            t_env._j_tenv.execEnv().setParallelism(table_config.parallelism)
+            t_env._j_tenv.execEnv().setParallelism(table_config.parallelism())
 
         return t_env
 
@@ -248,8 +248,8 @@ class StreamTableEnvironment(TableEnvironment):
         """
         table_config = TableConfig()
         table_config._j_table_config = self._j_tenv.getConfig()
-        table_config.is_stream = True
-        table_config.parallelism = self._j_tenv.execEnv().getParallelism()
+        table_config._set_stream(True)
+        table_config._set_parallelism(self._j_tenv.execEnv().getParallelism())
         return table_config
 
     def query_config(self):
@@ -276,8 +276,8 @@ class BatchTableEnvironment(TableEnvironment):
         """
         table_config = TableConfig()
         table_config._j_table_config = self._j_tenv.getConfig()
-        table_config.is_stream = False
-        table_config.parallelism = self._j_tenv.execEnv().getParallelism()
+        table_config._set_stream(False)
+        table_config._set_parallelism(self._j_tenv.execEnv().getParallelism())
         return table_config
 
     def query_config(self):

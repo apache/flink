@@ -198,20 +198,19 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         assert query_config.get_min_idle_state_retention_time() == 24 * 3600 * 1000
 
     def test_table_config(self):
-        t_env = self.t_env
-        table_config = t_env.get_config()
 
-        table_config.parallelism = 4
-        table_config.null_check = True
-        table_config.max_generated_code_length = 64000
-        table_config.timezone = "Asia/Shanghai"
-        table_config.is_stream = True
+        table_config = TableConfig.Builder()\
+            .as_streaming_execution()\
+            .set_timezone("Asia/Shanghai")\
+            .set_max_generated_code_length(64000)\
+            .set_null_check(True)\
+            .set_parallelism(4).build()
 
-        assert table_config.parallelism == 4
-        assert table_config.null_check is True
-        assert table_config.max_generated_code_length == 64000
-        assert table_config.timezone == "Asia/Shanghai"
-        assert table_config.is_stream is True
+        assert table_config.parallelism() == 4
+        assert table_config.null_check() is True
+        assert table_config.max_generated_code_length() == 64000
+        assert table_config.timezone() == "Asia/Shanghai"
+        assert table_config.is_stream() is True
 
     def test_create_table_environment(self):
         table_config = TableConfig.Builder()\
@@ -225,11 +224,11 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         t_env = TableEnvironment.create(table_config)
 
         readed_table_config = t_env.get_config()
-        assert readed_table_config.parallelism == 2
-        assert readed_table_config.null_check is False
-        assert readed_table_config.max_generated_code_length == 32000
-        assert readed_table_config.timezone == "Asia/Shanghai"
-        assert readed_table_config.is_stream is True
+        assert readed_table_config.parallelism() == 2
+        assert readed_table_config.null_check() is False
+        assert readed_table_config.max_generated_code_length() == 32000
+        assert readed_table_config.timezone() == "Asia/Shanghai"
+        assert readed_table_config.is_stream() is True
 
 
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
@@ -396,19 +395,19 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
             assert lines == '1,Hi,Hello\n' + '2,Hello,Hello\n'
 
     def test_table_config(self):
-        t_env = self.t_env
 
-        table_config = t_env.get_config()
-        table_config.parallelism = 4
-        table_config.null_check = True
-        table_config.max_generated_code_length = 64000
-        table_config.timezone = "Asia/Shanghai"
+        table_config = TableConfig.Builder()\
+            .as_batch_execution()\
+            .set_timezone("Asia/Shanghai")\
+            .set_max_generated_code_length(64000)\
+            .set_null_check(True)\
+            .set_parallelism(4).build()
 
-        assert table_config.parallelism == 4
-        assert table_config.null_check is True
-        assert table_config.max_generated_code_length == 64000
-        assert table_config.timezone == "Asia/Shanghai"
-        assert table_config.is_stream is False
+        assert table_config.parallelism() == 4
+        assert table_config.null_check() is True
+        assert table_config.max_generated_code_length() == 64000
+        assert table_config.timezone() == "Asia/Shanghai"
+        assert table_config.is_stream() is False
 
     def test_create_table_environment(self):
         table_config = TableConfig.Builder()\
@@ -422,8 +421,8 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         t_env = TableEnvironment.create(table_config)
 
         readed_table_config = t_env.get_config()
-        assert readed_table_config.parallelism == 2
-        assert readed_table_config.null_check is False
-        assert readed_table_config.max_generated_code_length == 32000
-        assert readed_table_config.timezone == "Asia/Shanghai"
-        assert readed_table_config.is_stream is False
+        assert readed_table_config.parallelism() == 2
+        assert readed_table_config.null_check() is False
+        assert readed_table_config.max_generated_code_length() == 32000
+        assert readed_table_config.timezone() == "Asia/Shanghai"
+        assert readed_table_config.is_stream() is False
