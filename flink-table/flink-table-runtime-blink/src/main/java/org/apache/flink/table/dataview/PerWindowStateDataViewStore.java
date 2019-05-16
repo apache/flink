@@ -66,10 +66,7 @@ public class PerWindowStateDataViewStore implements StateDataViewStore {
 		checkNotNull(keyedStateBackend.getKeySerializer(),
 			"State key serializer has not been configured in the config. " +
 			"This operation cannot use partitioned state.");
-		if (!stateDescriptor.isSerializerInitialized()) {
-			stateDescriptor.initializeSerializerUnlessSet(ctx.getExecutionConfig());
-		}
-		return keyedStateBackend.createInternalState(windowSerializer, stateDescriptor);
+		return keyedStateBackend.getOrCreateKeyedState(windowSerializer, stateDescriptor);
 	}
 
 	@Override
