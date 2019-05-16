@@ -120,10 +120,6 @@ jobs:
       env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
       name: core - hadoop 2.4.1
     - if: type = cron
-      script: ./tools/travis_controller.sh python
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
-      name: python - hadoop 2.4.1
-    - if: type = cron
       script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
       name: libraries - hadoop 2.4.1
@@ -155,10 +151,6 @@ jobs:
       script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
       name: core - scala 2.12
-    - if: type = cron
-      script: ./tools/travis_controller.sh python
-      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
-      name: python - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.12"
@@ -197,7 +189,7 @@ jobs:
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh python
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
-      name: python
+      name: python - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh libraries
