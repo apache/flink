@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
+import org.junit.After;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -51,19 +52,23 @@ public class BarrierTrackerTest {
 
 	private static final int PAGE_SIZE = 512;
 
+	private BarrierTracker tracker;
+
+	@After
+	public void ensureEmpty() throws Exception {
+		assertNull(tracker.getNextNonBlocked());
+		assertNull(tracker.getNextNonBlocked());
+		assertTrue(tracker.isEmpty());
+	}
+
 	@Test
 	public void testSingleChannelNoBarriers() throws Exception {
 		BufferOrEvent[] sequence = { createBuffer(0), createBuffer(0), createBuffer(0) };
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, tracker.getNextNonBlocked());
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -72,16 +77,11 @@ public class BarrierTrackerTest {
 				createBuffer(1), createBuffer(0), createBuffer(3),
 				createBuffer(1), createBuffer(1), createBuffer(2)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 4, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, tracker.getNextNonBlocked());
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -95,9 +95,7 @@ public class BarrierTrackerTest {
 				createBarrier(4, 0), createBarrier(5, 0), createBarrier(6, 0),
 				createBuffer(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(1, sequence);
 
 		CheckpointSequenceValidator validator =
 				new CheckpointSequenceValidator(1, 2, 3, 4, 5, 6);
@@ -108,9 +106,6 @@ public class BarrierTrackerTest {
 				assertEquals(boe, tracker.getNextNonBlocked());
 			}
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -124,9 +119,7 @@ public class BarrierTrackerTest {
 				createBarrier(7, 0), createBuffer(0), createBarrier(10, 0),
 				createBuffer(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(1, sequence);
 
 		CheckpointSequenceValidator validator =
 				new CheckpointSequenceValidator(1, 3, 4, 6, 7, 10);
@@ -137,9 +130,6 @@ public class BarrierTrackerTest {
 				assertEquals(boe, tracker.getNextNonBlocked());
 			}
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -162,9 +152,7 @@ public class BarrierTrackerTest {
 
 				createBuffer(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(3, sequence);
 
 		CheckpointSequenceValidator validator =
 				new CheckpointSequenceValidator(1, 2, 3, 4);
@@ -175,9 +163,6 @@ public class BarrierTrackerTest {
 				assertEquals(boe, tracker.getNextNonBlocked());
 			}
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -204,9 +189,7 @@ public class BarrierTrackerTest {
 
 				createBuffer(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(3, sequence);
 
 		CheckpointSequenceValidator validator =
 				new CheckpointSequenceValidator(1, 2, 4);
@@ -217,9 +200,6 @@ public class BarrierTrackerTest {
 				assertEquals(boe, tracker.getNextNonBlocked());
 			}
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	/**
@@ -280,14 +260,15 @@ public class BarrierTrackerTest {
 				createBuffer(1), createBuffer(2), createBarrier(9, 0),
 
 				// trailing data
-				createBuffer(1), createBuffer(0), createBuffer(2)
-		};
+				createBuffer(1), createBuffer(0), createBuffer(2),
 
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+				// complete checkpoint 10
+				createBarrier(10, 0), createBarrier(10, 1),
+		};
+		tracker = createBarrierTracker(3, sequence);
 
 		CheckpointSequenceValidator validator =
-				new CheckpointSequenceValidator(2, 3, 4, 5, 7, 8, 9);
+				new CheckpointSequenceValidator(2, 3, 4, 5, 7, 8, 9, 10);
 		tracker.registerCheckpointEventHandler(validator);
 
 		for (BufferOrEvent boe : sequence) {
@@ -295,9 +276,6 @@ public class BarrierTrackerTest {
 				assertEquals(boe, tracker.getNextNonBlocked());
 			}
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -313,9 +291,7 @@ public class BarrierTrackerTest {
 				createCancellationBarrier(6, 0),
 				createBuffer(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(1, sequence);
 
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
@@ -328,9 +304,6 @@ public class BarrierTrackerTest {
 			}
 			assertTrue(tracker.isEmpty());
 		}
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
 	}
 
 	@Test
@@ -369,9 +342,7 @@ public class BarrierTrackerTest {
 
 				createBuffer(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
+		tracker = createBarrierTracker(3, sequence);
 
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
@@ -383,13 +354,6 @@ public class BarrierTrackerTest {
 				assertEquals(boe, tracker.getNextNonBlocked());
 			}
 		}
-
-		assertTrue(tracker.isEmpty());
-
-		assertNull(tracker.getNextNonBlocked());
-		assertNull(tracker.getNextNonBlocked());
-
-		assertTrue(tracker.isEmpty());
 	}
 
 	/**
@@ -407,9 +371,8 @@ public class BarrierTrackerTest {
 			createCancellationBarrier(2L, 2),
 			createBuffer(0)
 		};
+		tracker = createBarrierTracker(3, sequence);
 
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierTracker tracker = new BarrierTracker(gate);
 		AbstractInvokable statefulTask = mock(AbstractInvokable.class);
 
 		tracker.registerCheckpointEventHandler(statefulTask);
@@ -427,6 +390,11 @@ public class BarrierTrackerTest {
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
+
+	private static BarrierTracker createBarrierTracker(int numberOfChannels, BufferOrEvent[] sequence) {
+		MockInputGate gate = new MockInputGate(PAGE_SIZE, numberOfChannels, Arrays.asList(sequence));
+		return new BarrierTracker(gate);
+	}
 
 	private static BufferOrEvent createBarrier(long id, int channel) {
 		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()), channel);
