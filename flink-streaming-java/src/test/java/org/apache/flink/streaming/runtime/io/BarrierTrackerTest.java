@@ -67,7 +67,7 @@ public class BarrierTrackerTest {
 		tracker = createBarrierTracker(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
-			assertEquals(boe, tracker.getNextNonBlocked());
+			assertEquals(boe, tracker.pollNext().get());
 		}
 	}
 
@@ -80,7 +80,7 @@ public class BarrierTrackerTest {
 		tracker = createBarrierTracker(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
-			assertEquals(boe, tracker.getNextNonBlocked());
+			assertEquals(boe, tracker.pollNext().get());
 		}
 	}
 
@@ -103,7 +103,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 	}
@@ -127,7 +127,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 	}
@@ -160,7 +160,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 	}
@@ -197,7 +197,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 	}
@@ -273,7 +273,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 	}
@@ -300,7 +300,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer()) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 			assertTrue(tracker.isEmpty());
 		}
@@ -351,7 +351,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer()) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 	}
@@ -379,7 +379,7 @@ public class BarrierTrackerTest {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || (boe.getEvent().getClass() != CheckpointBarrier.class && boe.getEvent().getClass() != CancelCheckpointMarker.class)) {
-				assertEquals(boe, tracker.getNextNonBlocked());
+				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
 
