@@ -797,8 +797,6 @@ public abstract class CatalogTestBase {
 		catalog.createTable(path1, createTable(), false);
 
 		exception.expect(TableNotPartitionedException.class);
-		exception.expectMessage(
-			String.format("Table %s in catalog %s is not partitioned.", path1.getFullName(), TEST_CATALOG_NAME));
 		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
 	}
 
