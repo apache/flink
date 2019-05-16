@@ -232,8 +232,7 @@ case class ProctimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr
     }
   }
 
-  override def resultType: TypeInformation[_] =
-    TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+  override def resultType: TypeInformation[_] = TimeIndicatorTypeInfo.PROCTIME_INDICATOR
 
   override def toNamedWindowProperty(name: String): NamedWindowProperty =
     NamedWindowProperty(name, this)

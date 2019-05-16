@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.`type`.InternalTypes._
-import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
+import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo, RowIntervalTypeInfo, TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo, RowIntervalTypeInfo, TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -492,7 +492,7 @@ object AggregateUtil extends Enumeration {
             s"Please re-check the data type.")
       }
     } else {
-      TypeConverters.createExternalTypeInfoFromInternalType(new RowType(argTypes: _*))
+      new BaseRowTypeInfo(argTypes: _*)
     }
   }
 
@@ -699,12 +699,14 @@ object AggregateUtil extends Enumeration {
     (propPos._1, propPos._2, propPos._3)
   }
 
-  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
-    TimeIndicatorTypeInfo.ROWTIME_INDICATOR == fieldType
+  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = fieldType match {
+    case typeInfo: TimeIndicatorTypeInfo => typeInfo.isEventTime
+    case _ => false
   }
 
-  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
-    TimeIndicatorTypeInfo.PROCTIME_INDICATOR == fieldType
+  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = fieldType match {
+    case typeInfo: TimeIndicatorTypeInfo => !typeInfo.isEventTime
+    case _ => false
   }
 
   def isTimeIntervalType(intervalType: TypeInformation[_]): Boolean = {

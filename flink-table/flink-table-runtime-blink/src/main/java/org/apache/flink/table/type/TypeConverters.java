@@ -71,8 +71,6 @@ public class TypeConverters {
 		tiToType.put(SqlTimeTypeInfo.TIME, InternalTypes.TIME);
 		tiToType.put(TimeIntervalTypeInfo.INTERVAL_MONTHS, InternalTypes.INTERVAL_MONTHS);
 		tiToType.put(TimeIntervalTypeInfo.INTERVAL_MILLIS, InternalTypes.INTERVAL_MILLIS);
-		tiToType.put(TimeIndicatorTypeInfo.PROCTIME_INDICATOR, InternalTypes.PROCTIME_INDICATOR);
-		tiToType.put(TimeIndicatorTypeInfo.ROWTIME_INDICATOR, InternalTypes.ROWTIME_INDICATOR);
 
 		// BigDecimal have infinity precision and scale, but we converted it into a limited
 		// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
@@ -135,6 +133,15 @@ public class TypeConverters {
 	 * {@link TupleTypeInfo} (CompositeType) => {@link RowType}.
 	 */
 	public static InternalType createInternalTypeFromTypeInfo(TypeInformation typeInfo) {
+		if (typeInfo instanceof TimeIndicatorTypeInfo) {
+			TimeIndicatorTypeInfo timeIndicatorTypeInfo = (TimeIndicatorTypeInfo) typeInfo;
+			if (timeIndicatorTypeInfo.isEventTime()) {
+				return InternalTypes.ROWTIME_INDICATOR;
+			} else {
+				return InternalTypes.PROCTIME_INDICATOR;
+			}
+		}
+
 		InternalType type = TYPE_INFO_TO_INTERNAL_TYPE.get(typeInfo);
 		if (type != null) {
 			return type;

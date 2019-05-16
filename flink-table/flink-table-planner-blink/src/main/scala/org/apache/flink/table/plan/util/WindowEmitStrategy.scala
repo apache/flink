@@ -115,7 +115,10 @@ class WindowEmitStrategy(
 
 object WindowEmitStrategy {
   def apply(tableConfig: TableConfig, window: LogicalWindow): WindowEmitStrategy = {
-    val isEventTime = window.timeAttribute.getResultType == TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+    val isEventTime = window.timeAttribute.getResultType match {
+      case tpe: TimeIndicatorTypeInfo => tpe.isEventTime
+      case _ => false
+    }
     val isSessionWindow = window.isInstanceOf[SessionGroupWindow]
 
     val allowLateness = if (isSessionWindow) {
