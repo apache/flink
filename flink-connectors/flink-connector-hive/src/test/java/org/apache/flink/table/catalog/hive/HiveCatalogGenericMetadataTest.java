@@ -124,11 +124,11 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testDropPartition_TableNotExistException() throws Exception {
+	public void testDropPartition_TableNotExist() throws Exception {
 	}
 
 	@Test
-	public void testDropPartition_TableNotPartitionedException() throws Exception {
+	public void testDropPartition_TableNotPartitioned() throws Exception {
 	}
 
 	@Test
@@ -136,7 +136,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testDropPartition_PartitionNotExistException() throws Exception {
+	public void testDropPartition_PartitionNotExist() throws Exception {
 	}
 
 	@Test
@@ -148,11 +148,11 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testAlterPartition_TableNotExistException() throws Exception {
+	public void testAlterPartition_TableNotExist() throws Exception {
 	}
 
 	@Test
-	public void testAlterPartition_TableNotPartitionedException() throws Exception {
+	public void testAlterPartition_TableNotPartitioned() throws Exception {
 	}
 
 	@Test
@@ -160,7 +160,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testAlterPartition_PartitionNotExistException() throws Exception {
+	public void testAlterPartition_PartitionNotExist() throws Exception {
 	}
 
 	@Test
@@ -168,11 +168,11 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testGetPartition_TableNotExistException() throws Exception {
+	public void testGetPartition_TableNotExist() throws Exception {
 	}
 
 	@Test
-	public void testGetPartition_TableNotPartitionedException() throws Exception {
+	public void testGetPartition_TableNotPartitioned() throws Exception {
 	}
 
 	@Test
@@ -184,11 +184,15 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	@Test
-	public void testGetPartition_PartitionNotExistException() throws Exception {
+	public void testGetPartition_PartitionNotExist() throws Exception {
 	}
 
 	@Test
 	public void testPartitionExists() throws Exception {
+	}
+
+	@Test
+	public void testListPartitionPartialSpec() throws Exception {
 	}
 
 	// ------ test utils ------

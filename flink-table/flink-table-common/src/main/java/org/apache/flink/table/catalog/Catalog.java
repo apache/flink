@@ -275,12 +275,9 @@ public interface Catalog {
 	 *
 	 * @throws PartitionNotExistException thrown if the partition doesn't exist
 	 * @throws CatalogException	in case of any runtime exception
-	 * @throws TableNotPartitionedException thrown if table is not partitioned
-	 * @throws TableNotExistException thrown if table doesn't exist
-	 * @throws PartitionSpecInvalidException thrown if the partition spec is invalid
 	 */
 	CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-		throws PartitionNotExistException, CatalogException, TableNotPartitionedException, TableNotExistException, PartitionSpecInvalidException;
+		throws PartitionNotExistException, CatalogException;
 
 	/**
 	 * Check whether a partition exists or not.
@@ -288,9 +285,8 @@ public interface Catalog {
 	 * @param tablePath	path of the table
 	 * @param partitionSpec partition spec of the partition to check
 	 * @throws CatalogException in case of any runtime exception
-	 * @throws PartitionSpecInvalidException thrown if the partition spec is invalid
 	 */
-	boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException, PartitionSpecInvalidException;
+	boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException;
 
 	/**
 	 * Create a partition.
@@ -322,12 +318,9 @@ public interface Catalog {
 	 *
 	 * @throws PartitionNotExistException thrown if the target partition does not exist
 	 * @throws CatalogException in case of any runtime exception
-	 * @throws TableNotPartitionedException thrown if the table is not partitioned
-	 * @throws TableNotExistException thrown if the table doesn't exist
-	 * @throws PartitionSpecInvalidException thrown if the partition spec is invalid
 	 */
 	void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
-		throws PartitionNotExistException, CatalogException, TableNotPartitionedException, TableNotExistException, PartitionSpecInvalidException;
+		throws PartitionNotExistException, CatalogException;
 
 	/**
 	 * Alter a partition.
@@ -341,12 +334,9 @@ public interface Catalog {
 	 *
 	 * @throws PartitionNotExistException thrown if the target partition does not exist
 	 * @throws CatalogException in case of any runtime exception
-	 * @throws TableNotPartitionedException thrown if the table is not partitioned
-	 * @throws TableNotExistException thrown if the table doesn't exist
-	 * @throws PartitionSpecInvalidException thrown if the partition spec is invalid
 	 */
 	void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
-		throws PartitionNotExistException, CatalogException, TableNotPartitionedException, TableNotExistException, PartitionSpecInvalidException;
+		throws PartitionNotExistException, CatalogException;
 
 	// ------ functions ------
 

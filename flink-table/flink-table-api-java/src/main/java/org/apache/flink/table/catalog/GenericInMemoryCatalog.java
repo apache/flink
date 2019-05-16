@@ -458,12 +458,9 @@ public class GenericInMemoryCatalog implements Catalog {
 
 	@Override
 	public void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
-		throws PartitionNotExistException, CatalogException, PartitionSpecInvalidException, TableNotExistException, TableNotPartitionedException {
+		throws PartitionNotExistException, CatalogException {
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
-		ensureTableExists(tablePath);
-		ensurePartitionedTable(tablePath);
-		ensureFullPartitionSpec(tablePath, partitionSpec);
 
 		if (partitionExists(tablePath, partitionSpec)) {
 			partitions.get(tablePath).remove(partitionSpec);
@@ -476,13 +473,10 @@ public class GenericInMemoryCatalog implements Catalog {
 
 	@Override
 	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
-		throws PartitionNotExistException, CatalogException, TableNotPartitionedException, PartitionSpecInvalidException, TableNotExistException {
+		throws PartitionNotExistException, CatalogException {
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
 		checkNotNull(newPartition);
-		ensureTableExists(tablePath);
-		ensurePartitionedTable(tablePath);
-		ensureFullPartitionSpec(tablePath, partitionSpec);
 
 		if (partitionExists(tablePath, partitionSpec)) {
 			CatalogPartition existingPartition = partitions.get(tablePath).get(partitionSpec);
@@ -533,12 +527,9 @@ public class GenericInMemoryCatalog implements Catalog {
 
 	@Override
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-		throws PartitionNotExistException, CatalogException, TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException {
+		throws PartitionNotExistException, CatalogException {
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
-		ensureTableExists(tablePath);
-		ensurePartitionedTable(tablePath);
-		ensureFullPartitionSpec(tablePath, partitionSpec);
 
 		if (!partitionExists(tablePath, partitionSpec)) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
