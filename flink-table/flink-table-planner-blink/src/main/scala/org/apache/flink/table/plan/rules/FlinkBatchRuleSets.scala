@@ -229,6 +229,10 @@ object FlinkBatchRuleSets {
 
     // rank rules
     FlinkLogicalRankRule.CONSTANT_RANGE_INSTANCE,
+    // transpose calc past rank to reduce rank input fields
+    CalcRankTransposeRule.INSTANCE,
+    // remove output of rank number when it is a constant
+    RankNumberColumnRemoveRule.INSTANCE,
 
     // calc rules
     FilterCalcMergeRule.INSTANCE,

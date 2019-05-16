@@ -25,7 +25,7 @@ import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.stats._
-import org.apache.flink.table.plan.util.{AggregateUtil, ColumnIntervalUtil, FlinkRelMdUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.util.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
 
@@ -321,7 +321,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       mq: RelMetadataQuery,
       index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
-    val rankFunColumnIndex = FlinkRelMdUtil.getRankFunctionColumnIndex(rank).getOrElse(-1)
+    val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rank).getOrElse(-1)
     if (index == rankFunColumnIndex) {
       rank.rankRange match {
         case r: ConstantRankRange => ValueInterval(r.getRankStart, r.getRankEnd)

@@ -388,7 +388,7 @@ object FlinkRelMdUtil {
   def splitPredicateOnRank(
       rank: Rank,
       predicate: RexNode): (Option[RexNode], Option[RexNode]) = {
-    val rankFunColumnIndex = getRankFunctionColumnIndex(rank).getOrElse(-1)
+    val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rank).getOrElse(-1)
     if (predicate == null || predicate.isAlwaysTrue || rankFunColumnIndex < 0) {
       return (Some(predicate), None)
     }
@@ -417,16 +417,6 @@ object FlinkRelMdUtil {
   def getRankRangeNdv(rankRange: RankRange): JDouble = rankRange match {
     case r: ConstantRankRange => (r.getRankEnd - r.getRankStart + 1).toDouble
     case _ => 100D // default value now
-  }
-
-  def getRankFunctionColumnIndex(rank: Rank): Option[Int] = {
-    if (rank.outputRankNumber) {
-      require(rank.getRowType.getFieldCount == rank.getInput.getRowType.getFieldCount + 1)
-      Some(rank.getRowType.getFieldCount - 1)
-    } else {
-      require(rank.getRowType.getFieldCount == rank.getInput.getRowType.getFieldCount)
-      None
-    }
   }
 
   /**

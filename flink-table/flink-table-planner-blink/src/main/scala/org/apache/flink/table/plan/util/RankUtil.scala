@@ -294,4 +294,14 @@ object RankUtil {
     literals.head
   }
 
+  def getRankNumberColumnIndex(rank: Rank): Option[Int] = {
+    if (rank.outputRankNumber) {
+      require(rank.getRowType.getFieldCount == rank.getInput.getRowType.getFieldCount + 1)
+      Some(rank.getRowType.getFieldCount - 1)
+    } else {
+      require(rank.getRowType.getFieldCount == rank.getInput.getRowType.getFieldCount)
+      None
+    }
+  }
+
 }
