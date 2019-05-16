@@ -21,6 +21,7 @@ from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
 
 from pyflink.table.window import GroupWindow
+from pyflink.util.utils import to_jarray
 
 if sys.version > '3':
     xrange = range
@@ -417,7 +418,7 @@ class Table(object):
             If the :func:`~pyflink.table.GroupWindowedTable.group_by` only references a GroupWindow
             alias, the streamed table will be processed by a single task, i.e., with parallelism 1.
 
-        :param windows: A :class:`GroupWindow` created from :class:`Tumble`, :class:`Session` or
+        :param window: A :class:`GroupWindow` created from :class:`Tumble`, :class:`Session` or
                         :class:`Slide`.
         :return: A :class:`GroupWindowedTable`.
         """
@@ -445,13 +446,12 @@ class Table(object):
         .. note::
             Over-windows for batch tables are currently not supported.
 
-        :param windows: :class:`OverWindow`s created from :class:`Over`.
+        :param over_windows: :class:`OverWindow`s created from :class:`Over`.
         :return: A :class:`OverWindowedTable`.
         """
         gateway = get_gateway()
-        window_array = gateway.new_array(gateway.jvm.OverWindow, len(over_windows))
-        for i in xrange(0, len(over_windows)):
-            window_array[i] = over_windows[i]._java_over_window
+        window_array = to_jarray(gateway.jvm.OverWindow,
+                                 [item._java_over_window for item in over_windows])
         return OverWindowedTable(self._j_table.window(window_array))
 
     def add_columns(self, fields):
