@@ -333,11 +333,6 @@ public abstract class HiveCatalogBase implements Catalog {
 			} else if (oldTableType == TableType.VIRTUAL_VIEW) {
 				if (!(newCatalogTable instanceof CatalogView)) {
 					throw new CatalogException(
-						String.format("HiveCatalogBase does not support type '%s' of existing Hive table yet.", oldTableType.name()));
-				}
-			} else if (oldTableType == TableType.VIRTUAL_VIEW) {
-				if (!(newCatalogTable instanceof CatalogView)) {
-					throw new CatalogException(
 						String.format("Table types don't match. The existing table is a view, but the new catalog base table is not."));
 				}
 				// Else, do nothing
