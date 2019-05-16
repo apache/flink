@@ -38,8 +38,8 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase):
         # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
         # registerExternalCatalog, getRegisteredExternalCatalog and listTables
         # should be supported when catalog supported in python.
-        return {'registerExternalCatalog', 'getRegisteredExternalCatalog',
-                'registerFunction', 'listUserDefinedFunctions', 'listTables'}
+        return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'connect',
+                'registerFunction', 'listUserDefinedFunctions', 'listTables', 'getCompletionHints'}
 
 
 if __name__ == '__main__':

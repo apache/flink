@@ -27,8 +27,6 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from pyflink.table.table_source import CsvTableSource
 
-from pyflink.java_gateway import get_gateway
-
 from pyflink.find_flink_home import _find_flink_home
 from pyflink.table import TableEnvironment, TableConfig
 from pyflink.java_gateway import get_gateway
@@ -157,10 +155,8 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         python_methods = cls.get_python_class_methods(cls.python_class())
         missing_methods = java_methods - python_methods - cls.excluded_methods()
         if len(missing_methods) > 0:
-            print(missing_methods)
-            print('The Exception should be raised after FLINK-12407 is merged.')
-            # raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
-            #                % (missing_methods, cls.java_class(), cls.python_class()))
+            raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
+                            % (missing_methods, cls.java_class(), cls.python_class()))
 
     @classmethod
     def java_method_name(cls, python_method_name):

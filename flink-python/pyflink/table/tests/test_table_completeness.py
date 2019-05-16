@@ -37,7 +37,8 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase):
     @classmethod
     def excluded_methods(cls):
         # row-based operators should be supported when UDFs supported in python.
-        return {'map', 'flatMap', 'flatAggregate',  'aggregate'}
+        return {'map', 'flatMap', 'flatAggregate',  'aggregate', 'leftOuterJoinLateral',
+                'createTemporalTableFunction', 'joinLateral', 'getTableOperation', 'getSchema'}
 
     @classmethod
     def java_method_name(cls, python_method_name):
