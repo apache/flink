@@ -57,10 +57,10 @@ public class CalculatedTableFactory {
 		return callExpr.accept(calculatedTableCreator);
 	}
 
-	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedTableOperation> {
+	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedTableOperation<?>> {
 
 		@Override
-		public CalculatedTableOperation visitCall(CallExpression call) {
+		public CalculatedTableOperation<?> visitCall(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
 				return unwrapFromAlias(call);
@@ -74,7 +74,7 @@ public class CalculatedTableFactory {
 			}
 		}
 
-		private CalculatedTableOperation unwrapFromAlias(CallExpression call) {
+		private CalculatedTableOperation<?> unwrapFromAlias(CallExpression call) {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
@@ -92,11 +92,11 @@ public class CalculatedTableFactory {
 			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getChildren());
 		}
 
-		private CalculatedTableOperation createFunctionCall(
+		private CalculatedTableOperation<?> createFunctionCall(
 				TableFunctionDefinition tableFunctionDefinition,
 				List<String> aliases,
 				List<Expression> parameters) {
-			TypeInformation resultType = tableFunctionDefinition.getResultType();
+			TypeInformation<?> resultType = tableFunctionDefinition.getResultType();
 
 			int callArity = resultType.getTotalFields();
 			int aliasesSize = aliases.size();
@@ -126,7 +126,7 @@ public class CalculatedTableFactory {
 		}
 
 		@Override
-		protected CalculatedTableOperation defaultMethod(Expression expression) {
+		protected CalculatedTableOperation<?> defaultMethod(Expression expression) {
 			throw fail();
 		}
 

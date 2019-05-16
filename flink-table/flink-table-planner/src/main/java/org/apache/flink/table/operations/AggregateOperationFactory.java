@@ -545,7 +545,7 @@ public class AggregateOperationFactory {
 			List<String> aliases,
 			AggregateFunctionDefinition aggFunctionDefinition) {
 
-			TypeInformation resultType = aggFunctionDefinition.getResultTypeInfo();
+			TypeInformation<?> resultType = aggFunctionDefinition.getResultTypeInfo();
 
 			int callArity = resultType.getTotalFields();
 			int aliasesSize = aliases.size();
