@@ -363,7 +363,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
  <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.state.StateTtlConfig
-val ttlConfig = StateTtlCon fig
+val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupIncrementally(10, true)
     .build
