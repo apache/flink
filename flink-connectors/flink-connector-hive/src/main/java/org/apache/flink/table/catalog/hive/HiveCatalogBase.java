@@ -317,19 +317,20 @@ public abstract class HiveCatalogBase implements Catalog {
 				if (!ignoreIfNotExists) {
 					throw new TableNotExistException(catalogName, tablePath);
 				}
-			} else {
-				// TODO: [FLINK-12452] alterTable() in all catalogs should ensure existing base table and the new one are of the same type
-				Table newTable = createHiveTable(tablePath, newCatalogTable);
-
-				// client.alter_table() requires a valid location
-				// thus, if new table doesn't have that, it reuses location of the old table
-				if (!newTable.getSd().isSetLocation()) {
-					Table oldTable = getHiveTable(tablePath);
-					newTable.getSd().setLocation(oldTable.getSd().getLocation());
-				}
-
-				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), newTable);
+				return;
 			}
+
+			// TODO: [FLINK-12452] alterTable() in all catalogs should ensure existing base table and the new one are of the same type
+			Table newTable = createHiveTable(tablePath, newCatalogTable);
+
+			// client.alter_table() requires a valid location
+			// thus, if new table doesn't have that, it reuses location of the old table
+			if (!newTable.getSd().isSetLocation()) {
+				Table oldTable = getHiveTable(tablePath);
+				newTable.getSd().setLocation(oldTable.getSd().getLocation());
+			}
+
+			client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), newTable);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to rename table %s", tablePath.getFullName()), e);
