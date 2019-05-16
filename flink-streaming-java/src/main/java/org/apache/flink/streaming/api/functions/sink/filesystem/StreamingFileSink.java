@@ -170,7 +170,7 @@ public class StreamingFileSink<IN>
 	/**
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
-	public abstract static class BucketsBuilder<IN, BucketID> implements Serializable {
+	protected abstract static class BucketsBuilder<IN, BucketID> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
