@@ -19,26 +19,31 @@
 package org.apache.flink.table.validate
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.calcite.{FlinkTypeFactory, OnDemandSqlOperatorTable}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.util.ListSqlOperatorTable
+import org.apache.flink.table.catalog.{CalciteCatalogFunction, CatalogFunction, CatalogManager, ObjectPath}
+import org.apache.flink.table.util.Logging
 
 import _root_.scala.collection.JavaConversions._
-import _root_.scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
   * TODO Table API.
   */
-class FunctionCatalog() {
+class FunctionCatalog(catalogManager: CatalogManager) extends Logging {
 
-  val sqlFunctions: ListBuffer[SqlFunction] = mutable.ListBuffer[SqlFunction]()
+  private def registerFunction(
+      name: String,
+      catalogFunction: CatalogFunction): Unit = {
+    val functionPath = new ObjectPath(catalogManager.getCurrentDatabase, name)
+    val catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get()
+
+    catalog.createFunction(functionPath, catalogFunction, false)
+  }
 
   def registerScalarFunction(
       name: String,
@@ -46,8 +51,10 @@ class FunctionCatalog() {
       typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
-      new ScalarFunctionDefinition(name, function),
-      createScalarSqlFunction(name, name, function, typeFactory)
+      new CalciteCatalogFunction(
+        new ScalarFunctionDefinition(name, function),
+        createScalarSqlFunction(name, name, function, typeFactory)
+      )
     )
   }
 
@@ -58,8 +65,10 @@ class FunctionCatalog() {
       typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
-      new TableFunctionDefinition(name, function, implicitResultType),
-      createTableSqlFunction(name, name, function, implicitResultType, typeFactory)
+      new CalciteCatalogFunction(
+        new TableFunctionDefinition(name, function, implicitResultType),
+        createTableSqlFunction(name, name, function, implicitResultType, typeFactory)
+      )
     )
   }
 
@@ -71,29 +80,24 @@ class FunctionCatalog() {
       typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
-      new AggregateFunctionDefinition(name, function, resultType, accType),
-      createAggregateSqlFunction(
-        name,
-        name,
-        function,
-        resultType,
-        accType,
-        typeFactory)
+      new CalciteCatalogFunction(
+        new AggregateFunctionDefinition(name, function, resultType, accType),
+        createAggregateSqlFunction(
+          name,
+          name,
+          function,
+          resultType,
+          accType,
+          typeFactory)
+      )
     )
   }
 
-  private def registerFunction(
-      name: String,
-      functionDefinition: FunctionDefinition,
-      sqlFunction: SqlFunction): Unit = {
-    sqlFunctions --= sqlFunctions.filter(_.getName == sqlFunction.getName)
-    sqlFunctions += sqlFunction
-  }
-
   def getUserDefinedFunctions: Seq[String] = {
-    sqlFunctions.map(_.getName)
+    catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get()
+        .listFunctions(catalogManager.getCurrentDatabase)
   }
 
   def getSqlOperatorTable: SqlOperatorTable =
-      new ListSqlOperatorTable(sqlFunctions)
+    new OnDemandSqlOperatorTable(catalogManager)
 }
