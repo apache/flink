@@ -65,9 +65,9 @@ import java.util.List;
  */
 @Internal
 public class PlanningConfigurationBuilder {
-	private static final RelOptCostFactory COST_FACTORY = new DataSetCostFactory();
-	private static final RelDataTypeSystem TYPE_SYSTEM = new FlinkTypeSystem();
-	private static final FlinkTypeFactory TYPE_FACTORY = new FlinkTypeFactory(TYPE_SYSTEM);
+	private final RelOptCostFactory costFactory = new DataSetCostFactory();
+	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
+	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final RelOptPlanner planner;
 	private final ExpressionBridge<PlannerExpression> expressionBridge;
 	private final Context context;
@@ -88,7 +88,7 @@ public class PlanningConfigurationBuilder {
 			new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
 		);
 
-		this.planner = new VolcanoPlanner(COST_FACTORY, context);
+		this.planner = new VolcanoPlanner(costFactory, context);
 		planner.setExecutor(new ExpressionReducer(tableConfig));
 		planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
 
@@ -104,11 +104,11 @@ public class PlanningConfigurationBuilder {
 	 * @return configured rel builder
 	 */
 	public FlinkRelBuilder createRelBuilder(List<String> defaultSchema) {
-		RelOptCluster cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(TYPE_FACTORY));
+		RelOptCluster cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
 		RelOptSchema relOptSchema = new CalciteCatalogReader(
 			rootSchema,
 			defaultSchema,
-			TYPE_FACTORY,
+			typeFactory,
 			CalciteConfig.connectionConfig(getSqlParserConfig(calciteConfig(tableConfig))));
 
 		return new FlinkRelBuilder(context, cluster, relOptSchema, expressionBridge);
@@ -121,7 +121,7 @@ public class PlanningConfigurationBuilder {
 
 	/** Returns the {@link FlinkTypeFactory} that will be used. */
 	public FlinkTypeFactory getTypeFactory() {
-		return TYPE_FACTORY;
+		return typeFactory;
 	}
 
 	public Context getContext() {
@@ -139,8 +139,8 @@ public class PlanningConfigurationBuilder {
 			.newConfigBuilder()
 			.defaultSchema(defaultSchema)
 			.parserConfig(getSqlParserConfig(calciteConfig(tableConfig)))
-			.costFactory(COST_FACTORY)
-			.typeSystem(TYPE_SYSTEM)
+			.costFactory(costFactory)
+			.typeSystem(typeSystem)
 			.operatorTable(getSqlOperatorTable(calciteConfig(tableConfig), functionCatalog))
 			.sqlToRelConverterConfig(getSqlToRelConverterConfig(calciteConfig(tableConfig), expressionBridge))
 			// the converter is needed when calling temporal table functions from SQL, because
