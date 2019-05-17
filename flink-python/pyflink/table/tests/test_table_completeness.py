@@ -37,6 +37,9 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase):
     @classmethod
     def excluded_methods(cls):
         # row-based operators should be supported when UDFs supported in python.
+        # getSchema method returns a TableSchema, the implementation of TableSchema requires a
+        # complete type system, which does not exist currently. It will be implemented after
+        # FLINK-12408 is merged. So we exclude this method for the time being.
         return {'map', 'flatMap', 'flatAggregate',  'aggregate', 'leftOuterJoinLateral',
                 'createTemporalTableFunction', 'joinLateral', 'getTableOperation', 'getSchema'}
 

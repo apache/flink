@@ -38,6 +38,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase):
         # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
         # registerExternalCatalog, getRegisteredExternalCatalog and listTables
         # should be supported when catalog supported in python.
+        # getCompletionHints has been deprecated. It will be removed in the next release.
         return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'connect',
                 'registerFunction', 'listUserDefinedFunctions', 'listTables', 'getCompletionHints'}
 
