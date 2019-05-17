@@ -572,6 +572,9 @@ under the License.
 								<relocation>
 									<pattern>py4j</pattern>
 									<shadedPattern>org.apache.flink.api.python.py4j</shadedPattern>
+									<includes>
+										<include>py4j.*</include>
+									</includes>
 								</relocation>
 							</relocations>
 						</configuration>

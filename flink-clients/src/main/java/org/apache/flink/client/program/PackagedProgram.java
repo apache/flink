@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.client.python.PythonDriver;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -89,6 +90,11 @@ public class PackagedProgram {
 	private Plan plan;
 
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
+
+	/**
+	 * Flag indicating whether the job is a Python job.
+	 */
+	private final boolean isPython;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -169,18 +175,21 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		if (jarFile == null) {
+		// Whether the job is a Python job.
+		isPython = entryPointClassName != null && entryPointClassName.equals(PythonDriver.class.getCanonicalName());
+
+		URL jarFileUrl = null;
+		if (jarFile != null) {
+			try {
+				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
+
+			checkJarFile(jarFileUrl);
+		} else if (!isPython) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
-
-		URL jarFileUrl;
-		try {
-			jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-		} catch (MalformedURLException e1) {
-			throw new IllegalArgumentException("The jar file path is invalid.");
-		}
-
-		checkJarFile(jarFileUrl);
 
 		this.jarFile = jarFileUrl;
 		this.args = args == null ? new String[0] : args;
@@ -191,7 +200,7 @@ public class PackagedProgram {
 		}
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
+		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
 		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 
@@ -233,6 +242,7 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
+		isPython = entryPointClass == PythonDriver.class;
 
 		// if the entry point is a program, instantiate the class and get the plan
 		if (Program.class.isAssignableFrom(this.mainClass)) {

@@ -32,6 +32,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.client.python.PythonDriver;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -185,8 +186,11 @@ public class CliFrontend {
 			return;
 		}
 
-		if (runOptions.getJarFilePath() == null) {
-			throw new CliArgsException("The program JAR file was not specified.");
+		if (!runOptions.isPython()) {
+			// Java program should be specified a JAR file
+			if (runOptions.getJarFilePath() == null) {
+				throw new CliArgsException("Java program should be specified a JAR file.");
+			}
 		}
 
 		final PackagedProgram program;
@@ -771,22 +775,23 @@ public class CliFrontend {
 		String jarFilePath = options.getJarFilePath();
 		List<URL> classpaths = options.getClasspaths();
 
-		if (jarFilePath == null) {
-			throw new IllegalArgumentException("The program JAR file was not specified.");
+		String entryPointClass;
+		File jarFile = null;
+		if (options.isPython()) {
+			// If the job is specified a jar file
+			if (jarFilePath != null) {
+				jarFile = getJarFile(jarFilePath);
+			}
+			// The entry point class of python job is PythonDriver
+			entryPointClass = PythonDriver.class.getCanonicalName();
+		} else {
+			if (jarFilePath == null) {
+				throw new IllegalArgumentException("The program JAR file was not specified.");
+			}
+			jarFile = getJarFile(jarFilePath);
+			// Get assembler class
+			entryPointClass = options.getEntryPointClassName();
 		}
-
-		File jarFile = new File(jarFilePath);
-
-		// Check if JAR file exists
-		if (!jarFile.exists()) {
-			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
-		}
-		else if (!jarFile.isFile()) {
-			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
-		}
-
-		// Get assembler class
-		String entryPointClass = options.getEntryPointClassName();
 
 		PackagedProgram program = entryPointClass == null ?
 				new PackagedProgram(jarFile, classpaths, programArgs) :
@@ -795,6 +800,25 @@ public class CliFrontend {
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;
+	}
+
+	/**
+	 * Gets the JAR file from the path.
+	 *
+	 * @param jarFilePath The path of JAR file
+	 * @return The JAR file
+	 * @throws FileNotFoundException The JAR file does not exist.
+	 */
+	private File getJarFile(String jarFilePath) throws FileNotFoundException {
+		File jarFile = new File(jarFilePath);
+		// Check if JAR file exists
+		if (!jarFile.exists()) {
+			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
+		}
+		else if (!jarFile.isFile()) {
+			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
+		}
+		return jarFile;
 	}
 
 	// --------------------------------------------------------------------------------------------
