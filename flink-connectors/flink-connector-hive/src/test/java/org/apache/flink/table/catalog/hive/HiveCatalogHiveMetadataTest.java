@@ -221,6 +221,8 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 
 	@Override
 	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
+		assertTrue(expected instanceof HiveCatalogPartition && actual instanceof HiveCatalogPartition);
+		assertEquals(expected.getClass(), actual.getClass());
 		HiveCatalogPartition hivePartition1 = (HiveCatalogPartition) expected;
 		HiveCatalogPartition hivePartition2 = (HiveCatalogPartition) actual;
 		assertEquals(hivePartition1.getDescription(), hivePartition2.getDescription());

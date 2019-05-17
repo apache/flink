@@ -620,7 +620,7 @@ public class HiveCatalog implements Catalog {
 		try {
 			Table hiveTable = getHiveTable(tablePath);
 			return client.getPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
-				getFullPartitionValues(tablePath, partitionSpec, getFieldNames(hiveTable.getPartitionKeys()))) != null;
+				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath)) != null;
 		} catch (NoSuchObjectException | TableNotExistException | PartitionSpecInvalidException e) {
 			return false;
 		} catch (TException e) {
@@ -654,18 +654,17 @@ public class HiveCatalog implements Catalog {
 		throws PartitionNotExistException, CatalogException {
 		try {
 			Table hiveTable = getHiveTable(tablePath);
-			ensurePartitionedTable(tablePath, hiveTable);
 			client.dropPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
-				getFullPartitionValues(tablePath, partitionSpec, getFieldNames(hiveTable.getPartitionKeys())), true);
+				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath), true);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
 				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
 			}
+		} catch (MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to drop partition %s of table %s", partitionSpec, tablePath));
-		} catch (TableNotPartitionedException | TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 		}
 	}
 
@@ -708,17 +707,16 @@ public class HiveCatalog implements Catalog {
 		throws PartitionNotExistException, CatalogException {
 		try {
 			Table hiveTable = getHiveTable(tablePath);
-			ensurePartitionedTable(tablePath, hiveTable);
 			Partition hivePartition = client.getPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
-				getFullPartitionValues(tablePath, partitionSpec, getFieldNames(hiveTable.getPartitionKeys())));
+				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath));
 			return createCatalogPartition(hivePartition);
 		} catch (NoSuchObjectException e) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+		} catch (MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to get partition %s of table %s", partitionSpec, tablePath), e);
-		} catch (TableNotPartitionedException | TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 		}
 	}
 
@@ -730,18 +728,17 @@ public class HiveCatalog implements Catalog {
 		if (partitionExists(tablePath, partitionSpec)) {
 			try {
 				Table hiveTable = getHiveTable(tablePath);
-				ensurePartitionedTable(tablePath, hiveTable);
 				client.alter_partition(
 					tablePath.getDatabaseName(),
 					tablePath.getObjectName(),
 					createHivePartition(hiveTable, partitionSpec, newPartition)
 				);
+			} catch (InvalidOperationException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 			} catch (TException e) {
 				throw new CatalogException(
 					String.format("Failed to alter existing partition with new partition %s of table %s",
 						partitionSpec, tablePath), e);
-			} catch (TableNotPartitionedException | TableNotExistException | PartitionSpecInvalidException e) {
-				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 			}
 		} else if (!ignoreIfNotExists) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
@@ -752,8 +749,8 @@ public class HiveCatalog implements Catalog {
 		throws PartitionSpecInvalidException {
 		Partition partition = new Partition();
 		List<String> partCols = getFieldNames(hiveTable.getPartitionKeys());
-		List<String> partValues = getFullPartitionValues(new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()),
-			partitionSpec, partCols);
+		List<String> partValues = getOrderedFullPartitionValues(
+			partitionSpec, partCols, new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()));
 		// validate partition values
 		for (int i = 0; i < partCols.size(); i++) {
 			if (StringUtils.isNullOrWhitespaceOnly(partValues.get(i))) {
@@ -772,6 +769,7 @@ public class HiveCatalog implements Catalog {
 		String location = hiveCatalogPartition.getLocation();
 		if (null == location) {
 			// generate partition location from table location if it's not specified
+			// this is needed when creating new partition for alterPartition
 			if (hiveTable.getSd().getLocation() != null) {
 				try {
 					Path partPath = new Path(hiveTable.getSd().getLocation(),
@@ -827,11 +825,12 @@ public class HiveCatalog implements Catalog {
 	 *
 	 * @param partitionSpec a partition spec.
 	 * @param partitionKeys a list of partition keys.
+	 * @param tablePath path of the table to which the partition belongs.
 	 * @return A list of partition values ordered according to partitionKeys.
 	 * @throws PartitionSpecInvalidException thrown if partitionSpec and partitionKeys have different sizes,
 	 *                                       or any key in partitionKeys doesn't exist in partitionSpec.
 	 */
-	private List<String> getFullPartitionValues(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, List<String> partitionKeys)
+	List<String> getOrderedFullPartitionValues(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
 		throws PartitionSpecInvalidException {
 		Map<String, String> spec = partitionSpec.getPartitionSpec();
 		if (spec.size() != partitionKeys.size()) {

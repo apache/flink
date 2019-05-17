@@ -1410,6 +1410,6 @@ public abstract class CatalogTestBase {
 			assertEquals(f1.getProperties(), f2.getProperties());
 		}
 	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
-		CatalogTestUtil.checkEquals(expected, actual);
+		assertEquals(expected.getProperties(), actual.getProperties());
 	}
 }
