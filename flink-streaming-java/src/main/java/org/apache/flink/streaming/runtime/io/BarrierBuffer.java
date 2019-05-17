@@ -588,6 +588,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 	}
 
+	@Override
+	public int getNumberOfInputChannels() {
+		return totalNumberOfInputChannels;
+	}
+
 	// ------------------------------------------------------------------------
 	// Utilities
 	// ------------------------------------------------------------------------
