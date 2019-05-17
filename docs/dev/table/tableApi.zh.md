@@ -173,7 +173,7 @@ orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
 result = orders.filter("a.isNotNull && b.isNotNull && c.isNotNull") \
                .select("a.lowerCase() as a, b, rowtime") \
                .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow")) \
-               .groupBy("hourlyWindow, a") \
+               .group_by("hourlyWindow, a") \
                .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount")
 {% endhighlight %}
 
