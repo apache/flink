@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -28,6 +29,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -39,6 +42,8 @@ import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -147,6 +152,30 @@ public abstract class HiveCatalogBase implements Catalog {
 	 * @return a Hive database
 	 */
 	protected abstract Database createHiveDatabase(String databaseName, CatalogDatabase catalogDatabase);
+
+	/**
+	 * Create a Hive function from a CatalogFunction.
+	 *
+	 * @param functionPath path of the function
+	 * @param function the CatalogFunction
+	 * @return a Hive function
+	 */
+	protected abstract Function createHiveFunction(ObjectPath functionPath, CatalogFunction function);
+
+	/**
+	 * Create a CatalogFunction from a Hive function.
+	 *
+	 * @param function a Hive function
+	 * @return a CatalogFunction
+	 */
+	protected abstract CatalogFunction createCatalogFunction(Function function);
+
+	/**
+	 * Validate the input catalog function.
+	 * @param catalogFunction
+	 * @throws CatalogException
+	 */
+	protected abstract void validateCatalogFunction(CatalogFunction catalogFunction) throws CatalogException;
 
 	@Override
 	public void open() throws CatalogException {
@@ -427,6 +456,105 @@ public abstract class HiveCatalogBase implements Catalog {
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
+		}
+	}
+
+	// ------ functions ------
+
+	@Override
+	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
+			throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException {
+		validateCatalogFunction(function);
+
+		try {
+			client.createFunction(createHiveFunction(functionPath, function));
+		} catch (NoSuchObjectException e) {
+			throw new DatabaseNotExistException(catalogName, functionPath.getDatabaseName(), e);
+		} catch (AlreadyExistsException e) {
+			if (!ignoreIfExists) {
+				throw new FunctionAlreadyExistException(catalogName, functionPath, e);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to create function %s", functionPath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
+			throws FunctionNotExistException, CatalogException {
+		validateCatalogFunction(newFunction);
+
+		try {
+			client.alterFunction(
+				functionPath.getDatabaseName(),
+				functionPath.getObjectName(),
+				createHiveFunction(functionPath, newFunction));
+		} catch (InvalidObjectException    // thrown when the database doesn't exist
+					| MetaException e) {    // thrown when the function doesn't exist
+			if (!ignoreIfNotExists) {
+				throw new FunctionNotExistException(catalogName, functionPath, e);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to alter function %s", functionPath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
+			throws FunctionNotExistException, CatalogException {
+		try {
+			client.dropFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
+		} catch (NoSuchObjectException e) {
+			if (!ignoreIfNotExists) {
+				throw new FunctionNotExistException(catalogName, functionPath, e);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to drop function %s", functionPath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
+		// client.getFunctions() returns empty list when the database doesn't exist
+		// thus we need to explicitly check whether the database exists or not
+		if (!databaseExists(dbName)) {
+			throw new DatabaseNotExistException(catalogName, dbName);
+		}
+
+		try {
+			return client.getFunctions(dbName, null);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to list functions in database %s", dbName), e);
+		}
+	}
+
+	@Override
+	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
+		try {
+			return createCatalogFunction(
+				client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName()));
+		} catch (NoSuchObjectException e) {
+			throw new FunctionNotExistException(catalogName, functionPath, e);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get function %s", functionPath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
+		try {
+			client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
+			return true;
+		} catch (NoSuchObjectException e) {
+			return false;
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to check whether function %s exists or not", functionPath.getFullName()), e);
 		}
 	}
 }

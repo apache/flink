@@ -19,9 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -37,9 +34,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
-import org.apache.flink.table.functions.ScalarFunction;
 
-import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -49,7 +44,6 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -62,13 +56,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public static void init() {
 		catalog = new GenericInMemoryCatalog(TEST_CATALOG_NAME);
 		catalog.open();
-	}
-
-	@After
-	public void close() throws Exception {
-		if (catalog.functionExists(path1)) {
-			catalog.dropFunction(path1, true);
-		}
 	}
 
 	// ------ tables ------
@@ -455,158 +442,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		assertFalse(catalog.partitionExists(ObjectPath.fromString("non.exist"), createPartitionSpec()));
 	}
 
-	// ------ functions ------
-
-	@Test
-	public void testCreateFunction() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		assertFalse(catalog.functionExists(path1));
-
-		catalog.createFunction(path1, createFunction(), false);
-
-		assertTrue(catalog.functionExists(path1));
-
-		catalog.dropFunction(path1, false);
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
-	public void testCreateFunction_DatabaseNotExistException() throws Exception {
-		assertFalse(catalog.databaseExists(db1));
-
-		exception.expect(DatabaseNotExistException.class);
-		exception.expectMessage("Database db1 does not exist in Catalog");
-		catalog.createFunction(path1, createFunction(), false);
-	}
-
-	@Test
-	public void testCreateFunction_FunctionAlreadyExistException() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createFunction(path1, createFunction(), false);
-
-		exception.expect(FunctionAlreadyExistException.class);
-		exception.expectMessage("Function db1.t1 already exists in Catalog");
-		catalog.createFunction(path1, createFunction(), false);
-	}
-
-	@Test
-	public void testCreateFunction_FunctionAlreadyExist_ignored() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		CatalogFunction func = createFunction();
-		catalog.createFunction(path1, func, false);
-
-		CatalogTestUtil.checkEquals(func, catalog.getFunction(path1));
-
-		catalog.createFunction(path1, createAnotherFunction(), true);
-
-		CatalogTestUtil.checkEquals(func, catalog.getFunction(path1));
-
-		catalog.dropFunction(path1, false);
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
-	public void testAlterFunction() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		CatalogFunction func = createFunction();
-		catalog.createFunction(path1, func, false);
-
-		CatalogTestUtil.checkEquals(func, catalog.getFunction(path1));
-
-		CatalogFunction newFunc = createAnotherFunction();
-		catalog.alterFunction(path1, newFunc, false);
-
-		assertNotEquals(func, catalog.getFunction(path1));
-		CatalogTestUtil.checkEquals(newFunc, catalog.getFunction(path1));
-
-		catalog.dropFunction(path1, false);
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
-	public void testAlterFunction_FunctionNotExistException() throws Exception {
-		exception.expect(FunctionNotExistException.class);
-		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
-		catalog.alterFunction(nonExistObjectPath, createFunction(), false);
-	}
-
-	@Test
-	public void testAlterFunction_FunctionNotExist_ignored() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.alterFunction(nonExistObjectPath, createFunction(), true);
-
-		assertFalse(catalog.functionExists(nonExistObjectPath));
-
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
-	public void testListFunctions() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		CatalogFunction func = createFunction();
-		catalog.createFunction(path1, func, false);
-
-		assertEquals(path1.getObjectName(), catalog.listFunctions(db1).get(0));
-
-		catalog.dropFunction(path1, false);
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
-	public void testListFunctions_DatabaseNotExistException() throws Exception{
-		exception.expect(DatabaseNotExistException.class);
-		exception.expectMessage("Database db1 does not exist in Catalog");
-		catalog.listFunctions(db1);
-	}
-
-	@Test
-	public void testGetFunction_FunctionNotExistException() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		exception.expect(FunctionNotExistException.class);
-		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
-		catalog.getFunction(nonExistObjectPath);
-	}
-
-	@Test
-	public void testGetFunction_FunctionNotExistException_NoDb() throws Exception {
-		exception.expect(FunctionNotExistException.class);
-		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
-		catalog.getFunction(nonExistObjectPath);
-	}
-
-	@Test
-	public void testDropFunction() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createFunction(path1, createFunction(), false);
-
-		assertTrue(catalog.functionExists(path1));
-
-		catalog.dropFunction(path1, false);
-
-		assertFalse(catalog.functionExists(path1));
-
-		catalog.dropDatabase(db1, false);
-	}
-
-	@Test
-	public void testDropFunction_FunctionNotExistException() throws Exception {
-		exception.expect(FunctionNotExistException.class);
-		exception.expectMessage("Function non.exist does not exist in Catalog");
-		catalog.dropFunction(nonExistDbPath, false);
-	}
-
-	@Test
-	public void testDropFunction_FunctionNotExist_ignored() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.dropFunction(nonExistObjectPath, true);
-		catalog.dropDatabase(db1, false);
-	}
-
 	// ------ statistics ------
 
 	@Test
@@ -772,6 +607,16 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			"This is another view");
 	}
 
+	@Override
+	protected CatalogFunction createFunction() {
+		return new GenericCatalogFunction(MyScalarFunction.class.getName());
+	}
+
+	@Override
+	protected CatalogFunction createAnotherFunction() {
+		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
+	}
+
 	private CatalogColumnStatistics createColumnStats() {
 		CatalogColumnStatisticsDataBoolean booleanColStats = new CatalogColumnStatisticsDataBoolean(55L, 45L, 5L);
 		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 79L);
@@ -789,31 +634,4 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		colStatsMap.put("bb6", binaryColStats);
 		return new CatalogColumnStatistics(colStatsMap);
 	}
-
-	protected CatalogFunction createFunction() {
-		return new GenericCatalogFunction(MyScalarFunction.class.getName());
-	}
-
-	protected CatalogFunction createAnotherFunction() {
-		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
-	}
-
-	/**
-	 * Test UDF.
-	 */
-	public static class MyScalarFunction extends ScalarFunction {
-		public Integer eval(Integer i) {
-			return i + 1;
-		}
-	}
-
-	/**
-	 * Test UDF.
-	 */
-	public static class MyOtherScalarFunction extends ScalarFunction {
-		public String eval(Integer i) {
-			return String.valueOf(i);
-		}
-	}
-
 }

@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -91,6 +92,21 @@ public class HiveCatalog extends HiveCatalogBase {
 			catalogDatabase.getComment(),
 			hiveCatalogDatabase.getLocation(),
 			hiveCatalogDatabase.getProperties());
+	}
+
+	@Override
+	protected Function createHiveFunction(ObjectPath functionPath, CatalogFunction function) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	protected CatalogFunction createCatalogFunction(Function function) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	protected void validateCatalogFunction(CatalogFunction catalogFunction) throws CatalogException {
+		throw new UnsupportedOperationException();
 	}
 
 	// ------ tables and views------
@@ -255,10 +271,16 @@ public class HiveCatalog extends HiveCatalogBase {
 	}
 
 	@Override
-	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
-			throws FunctionNotExistException, CatalogException {
+	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
+		throw new UnsupportedOperationException();
+	}
+
+	// ------ stats ------
 
 	@Override
 	public void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
@@ -278,21 +300,6 @@ public class HiveCatalog extends HiveCatalogBase {
 	@Override
 	public void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException {
 
-	}
-
-	@Override
-	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

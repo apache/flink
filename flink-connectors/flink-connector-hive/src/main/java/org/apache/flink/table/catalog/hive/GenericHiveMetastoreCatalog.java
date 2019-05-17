@@ -27,13 +27,11 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -47,6 +45,9 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.FunctionType;
+import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -254,36 +255,32 @@ public class GenericHiveMetastoreCatalog extends HiveCatalogBase {
 	// ------ functions ------
 
 	@Override
-	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
-			throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+	protected Function createHiveFunction(ObjectPath functionPath, CatalogFunction function) {
+		return new Function(
+			functionPath.getObjectName(),
+			functionPath.getDatabaseName(),
+			function.getClassName(),
+			null, 		// Owner name
+			PrincipalType.GROUP,	// Temporarily set to GROUP type because it's required by Hive. May change later
+			(int) (System.currentTimeMillis() / 1000),
+			FunctionType.JAVA,		// FunctionType only has JAVA now
+			new ArrayList<>()		// Resource URIs
+		);
 	}
 
 	@Override
-	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
-			throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+	protected CatalogFunction createCatalogFunction(Function function) {
+		// TODO: extract more properties from Hive function and add to CatalogFunction's properties
+		return new GenericCatalogFunction(function.getClassName());
 	}
 
 	@Override
-	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
-			throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
-		throw new UnsupportedOperationException();
+	protected void validateCatalogFunction(CatalogFunction catalogFunction) throws CatalogException {
+		if (!(catalogFunction instanceof GenericCatalogFunction)) {
+			throw new CatalogException(
+				String.format("GenericHiveMetastoreCatalog can only operate on GenericCatalogFunction, not '%s'.",
+					catalogFunction.getClass().getName()));
+		}
 	}
 
 	// ------ statistics ------
