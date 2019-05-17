@@ -58,9 +58,14 @@ public class MesosTaskManagerParameters {
 		.withDescription(Description.builder().text("Disk space to assign to the Mesos workers in MB.").build());
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_NETWORK_MB_PER_SEC =
-		key("mesos.resourcemanager.tasks.networkBandwidth")
+		key("mesos.resourcemanager.tasks.network.bandwidth")
 			.defaultValue(0)
-			.withDescription(Description.builder().text("Network bandwidth to assign to the Mesos workers in MB per sec").build());
+			.withDescription(Description.builder().text("Network bandwidth to assign to the Mesos workers in MB per sec.").build());
+
+	public static final ConfigOption<String> MESOS_RM_NETWORK_RESOURCE_NAME =
+		key("mesos.resourcemanager.network.resource.name")
+			.defaultValue("network")
+			.withDescription(Description.builder().text("Network resource name on Mesos cluster.").build());
 
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
 		key("mesos.resourcemanager.tasks.cpus")

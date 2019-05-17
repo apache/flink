@@ -15,6 +15,12 @@
             <td>Constraints for task placement on Mesos based on agent attributes. Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target mesos agents. Example: az:eu-west-1a,series:t2</td>
         </tr>
         <tr>
+            <td><h5>mesos.resourcemanager.network.resource.name</h5></td>
+            <td style="word-wrap: break-word;">"network"</td>
+            <td>String</td>
+            <td>Network resource name on Mesos cluster.</td>
+        </tr>
+        <tr>
             <td><h5>mesos.resourcemanager.tasks.bootstrap-cmd</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -73,6 +79,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Optional value to define the TaskManager’s hostname. The pattern _TASK_ is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. _TASK_.flink-service.mesos) for name lookups.</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.tasks.network.bandwidth</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Network bandwidth to assign to the Mesos workers in MB per sec.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.taskmanager-cmd</h5></td>
