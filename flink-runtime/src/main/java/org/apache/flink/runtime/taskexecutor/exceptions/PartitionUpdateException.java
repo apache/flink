@@ -23,19 +23,19 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 /**
  * Exception indicating a problem with the result partitions on the {@link TaskExecutor} side.
  */
-public class PartitionException extends TaskManagerException {
+public class PartitionUpdateException extends TaskManagerException {
 
 	private static final long serialVersionUID = 6248696963418276618L;
 
-	public PartitionException(String message) {
+	public PartitionUpdateException(String message) {
 		super(message);
 	}
 
-	public PartitionException(String message, Throwable cause) {
+	public PartitionUpdateException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public PartitionException(Throwable cause) {
+	public PartitionUpdateException(Throwable cause) {
 		super(cause);
 	}
 }

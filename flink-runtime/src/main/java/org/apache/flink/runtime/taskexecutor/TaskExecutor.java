@@ -80,7 +80,7 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.taskexecutor.exceptions.CheckpointException;
-import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
+import org.apache.flink.runtime.taskexecutor.exceptions.PartitionUpdateException;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
@@ -637,7 +637,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						});
 				} else {
 					return FutureUtils.completedExceptionally(
-						new PartitionException("No reader with ID " + intermediateResultPartitionID +
+						new PartitionUpdateException("No reader with ID " + intermediateResultPartitionID +
 							" for task " + executionAttemptID + " was found."));
 				}
 			}
