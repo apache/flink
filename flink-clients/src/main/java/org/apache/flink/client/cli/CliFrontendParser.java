@@ -118,6 +118,20 @@ public class CliFrontendParser {
 	public static final Option STOP_AND_DRAIN = new Option("d", "drain", false,
 			"Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
 
+	static final Option PY_OPTION = new Option("py", "python", true,
+		"Python script with the program entry point. " +
+			"We can configure dependent resources with the `--py-files` option.");
+
+	static final Option PYFILES_OPTION = new Option("pyfs", "py-files", true,
+		"Attach custom python files for job. " +
+			"Comma can be used as the separator to specify multiple files. " +
+			"The standard python resource file suffixes such as .py/.egg/.zip all also supported." +
+			"(eg: --py-files file:///tmp/myproject.zip,hdfs:///$namenode_address/venv.zip)");
+
+	static final Option PYMODULE_OPTION = new Option("pym", "py-module", true,
+		"Python module with the program entry point. " +
+			"This option must be used in conjunction with ` --py-files`.");
+
 	static {
 		HELP_OPTION.setRequired(false);
 
@@ -165,6 +179,15 @@ public class CliFrontendParser {
 		STOP_WITH_SAVEPOINT.setOptionalArg(true);
 
 		STOP_AND_DRAIN.setRequired(false);
+
+		PY_OPTION.setRequired(false);
+		PY_OPTION.setArgName("python");
+
+		PYFILES_OPTION.setRequired(false);
+		PYFILES_OPTION.setArgName("py-files");
+
+		PYMODULE_OPTION.setRequired(false);
+		PYMODULE_OPTION.setArgName("py-module");
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -186,6 +209,9 @@ public class CliFrontendParser {
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(YARN_DETACHED_OPTION);
+		options.addOption(PY_OPTION);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYMODULE_OPTION);
 		return options;
 	}
 
@@ -196,6 +222,9 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
+		options.addOption(PY_OPTION);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYMODULE_OPTION);
 		return options;
 	}
 

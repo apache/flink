@@ -90,6 +90,9 @@ public class PackagedProgram {
 
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
+	// Whether is the python job.
+	private boolean isPython = false;
+
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
 	 * argument.
@@ -169,18 +172,26 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		if (jarFile == null) {
+		// Whether the job is python job and PythonRunner is the entry point.
+		if (entryPointClassName != null && entryPointClassName.equals("org.apache.flink.client.python.PythonDriver")) {
+			isPython = true;
+		}
+
+		if (jarFile == null && !isPython) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
 
-		URL jarFileUrl;
-		try {
-			jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-		} catch (MalformedURLException e1) {
-			throw new IllegalArgumentException("The jar file path is invalid.");
-		}
+		// If the job is java job
+		URL jarFileUrl = null;
+		if (jarFile != null && !isPython) {
+			try {
+				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
 
-		checkJarFile(jarFileUrl);
+			checkJarFile(jarFileUrl);
+		}
 
 		this.jarFile = jarFileUrl;
 		this.args = args == null ? new String[0] : args;
@@ -191,9 +202,16 @@ public class PackagedProgram {
 		}
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		// if the job is python job, we don't need to extract the jarFile and
+		// use the same classloader to load the PythonRunner.
+		if (isPython) {
+			this.extractedTempLibraries = Collections.emptyList();
+			this.userCodeClassLoader = getClass().getClassLoader();
+		} else {
+			this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
+			this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		}
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);

@@ -36,6 +36,9 @@ import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
 
@@ -62,21 +65,68 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	private final SavepointRestoreSettings savepointSettings;
 
+	// Store whether the job is python.
+	private boolean isPython = false;
+
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
 
 		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
-				line.getOptionValues(ARGS_OPTION.getOpt()) :
-				line.getArgs();
+			line.getOptionValues(ARGS_OPTION.getOpt()) :
+			line.getArgs();
+
+		// If specified the option -py(--python)
+		if (line.hasOption(PY_OPTION.getLongOpt())) {
+			isPython = true;
+			// You can't use option -py and -pym simultaneously.
+			if (line.hasOption(PYMODULE_OPTION.getLongOpt())) {
+				throw new CliArgsException("You can't use option -py and -pym simultaneously.");
+			}
+			// the args format is : python ${python.py} [optional]py-files [optional]${py-files} [optional]other args.
+			// e.g. python wordcount.py
+			// e.g. python wordcount.py py-files file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt
+			String[] newArgs;
+			int copyIndex;
+			if (line.hasOption(PYFILES_OPTION.getLongOpt())) {
+				newArgs = new String[args.length + 4];
+				newArgs[2] = PYFILES_OPTION.getLongOpt();
+				newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
+				copyIndex = 4;
+			} else {
+				newArgs = new String[args.length + 2];
+				copyIndex = 2;
+			}
+			newArgs[0] = PY_OPTION.getLongOpt();
+			newArgs[1] = line.getOptionValue(PY_OPTION.getOpt());
+			System.arraycopy(args, 0, newArgs, copyIndex, args.length);
+			args = newArgs;
+		}
+
+		// If specified the option -pym(--py-module)
+		if (line.hasOption(PYMODULE_OPTION.getLongOpt())) {
+			isPython = true;
+			// If you specify the option -pym, you should specify the option --py-files simultaneously.
+			// --pym must be used in conjunction with ` --py-files`
+			if (!line.hasOption(PYFILES_OPTION.getLongOpt())) {
+				throw new CliArgsException("--pym must be used in conjunction with ` --py-files`");
+			}
+			// the args format is py-module ${py-module} py-files ${py-files} [optional]other args.
+			// e.g. py-module aaa.fun AAA.py, BBB.py
+			String[] newArgs = new String[args.length + 4];
+			newArgs[0] = PYMODULE_OPTION.getLongOpt();
+			newArgs[1] = line.getOptionValue(PYMODULE_OPTION.getOpt());
+			newArgs[2] = PYFILES_OPTION.getLongOpt();
+			newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
+			System.arraycopy(args, 0, newArgs, 4, args.length);
+			args = newArgs;
+		}
 
 		if (line.hasOption(JAR_OPTION.getOpt())) {
 			this.jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
-		}
-		else if (args.length > 0) {
+		} else if (!isPython && args.length > 0) {
 			jarFilePath = args[0];
 			args = Arrays.copyOfRange(args, 1, args.length);
-		}
-		else {
+		} else {
 			jarFilePath = null;
 		}
 
@@ -95,7 +145,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		this.classpaths = classpaths;
 
 		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-				line.getOptionValue(CLASS_OPTION.getOpt()) : null;
+			line.getOptionValue(CLASS_OPTION.getOpt()) : null;
 
 		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
 			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
@@ -104,12 +154,10 @@ public abstract class ProgramOptions extends CommandLineOptions {
 				if (parallelism <= 0) {
 					throw new NumberFormatException();
 				}
-			}
-			catch (NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				throw new CliArgsException("The parallelism must be a positive number: " + parString);
 			}
-		}
-		else {
+		} else {
 			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
@@ -155,5 +203,20 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointSettings;
+	}
+
+	// Whether the job is a java job.
+	public boolean isJava() {
+		return jarFilePath != null;
+	}
+
+	// Whether the job is a python job.
+	public boolean isPython() {
+		return isPython;
+	}
+
+	// Whether the job can be distinguished.i.e. it is a python or java job.
+	boolean isDistinguishedJob() {
+		return isJava() || isPython();
 	}
 }

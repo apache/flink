@@ -51,6 +51,14 @@ available.
 -   Run example program with no arguments:
 
         ./bin/flink run ./examples/batch/WordCount.jar
+                
+-   Run python program with no arguments:
+
+        ./bin/flink run -py WordCount.py
+        
+-   Run example python program with py-files:
+     
+        ./bin/flink run -py WordCount.py -pyfs file:///user.txt,hdfs:///$namenode_address/venv.zip
 
 -   Run example program with arguments for input and result files:
 
@@ -251,6 +259,19 @@ Action "run" compiles and runs a program.
                                           program. Optional flag to override the
                                           default value specified in the
                                           configuration.
+     -py,--python <python-file>           Python script with the program entry 
+                                          point. We can configure dependent 
+                                          resources with the `--py-files` option.
+     -pyfs,--py-files <python-files>      Attach custom python files for job. 
+                                          Comma can be used as the separator to 
+                                          specify multiple files. The standard 
+                                          python resource file suffixes such as 
+                                          .py/.egg/.zip all also supported.
+                                          (eg:--py-files file:///tmp/myproject.zip
+                                          ,hdfs:///$namenode_address/venv.zip)
+     -pym,--py-module <python-module>     Python module with the program entry 
+                                          point. This option must be used in 
+                                          conjunction with ` --py-files`.      
      -q,--sysoutLogging                   If present, suppress logging output to
                                           standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
