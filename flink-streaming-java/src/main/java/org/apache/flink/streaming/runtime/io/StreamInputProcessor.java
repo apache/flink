@@ -143,7 +143,16 @@ public class StreamInputProcessor<IN> {
 	}
 
 	private void processElement(StreamElement recordOrMark, int channel) throws Exception {
-		if (recordOrMark.isWatermark()) {
+		if (recordOrMark.isRecord()) {
+			// now we can do the actual processing
+			StreamRecord<IN> record = recordOrMark.asRecord();
+			synchronized (lock) {
+				numRecordsIn.inc();
+				streamOperator.setKeyContextElement1(record);
+				streamOperator.processElement(record);
+			}
+		}
+		else if (recordOrMark.isWatermark()) {
 			// handle watermark
 			statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), channel);
 		} else if (recordOrMark.isStreamStatus()) {
@@ -155,14 +164,9 @@ public class StreamInputProcessor<IN> {
 				streamOperator.processLatencyMarker(recordOrMark.asLatencyMarker());
 			}
 		} else {
-			// now we can do the actual processing
-			StreamRecord<IN> record = recordOrMark.asRecord();
-			synchronized (lock) {
-				numRecordsIn.inc();
-				streamOperator.setKeyContextElement1(record);
-				streamOperator.processElement(record);
-			}
-		}}
+			throw new UnsupportedOperationException("Unknown type of StreamElement");
+		}
+	}
 
 	private void initializeNumRecordsIn() {
 		if (numRecordsIn == null) {
