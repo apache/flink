@@ -120,17 +120,17 @@ public class CliFrontendParser {
 
 	static final Option PY_OPTION = new Option("py", "python", true,
 		"Python script with the program entry point. " +
-			"We can configure dependent resources with the `--py-files` option.");
+			"The dependent resources can be configured with the `--pyFiles` option.");
 
-	static final Option PYFILES_OPTION = new Option("pyfs", "py-files", true,
+	static final Option PYFILES_OPTION = new Option("pyfs", "pyFiles", true,
 		"Attach custom python files for job. " +
 			"Comma can be used as the separator to specify multiple files. " +
-			"The standard python resource file suffixes such as .py/.egg/.zip all also supported." +
-			"(eg: --py-files file:///tmp/myproject.zip,hdfs:///$namenode_address/venv.zip)");
+			"The standard python resource file suffixes such as .py/.egg/.zip all are supported." +
+			"(eg: --pyFiles file:///tmp/myproject.zip,hdfs:///$namenode_address/jieba-0.39.zip)");
 
-	static final Option PYMODULE_OPTION = new Option("pym", "py-module", true,
+	static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
 		"Python module with the program entry point. " +
-			"This option must be used in conjunction with ` --py-files`.");
+			"This option must be used in conjunction with ` --pyFiles`.");
 
 	static {
 		HELP_OPTION.setRequired(false);
@@ -184,10 +184,10 @@ public class CliFrontendParser {
 		PY_OPTION.setArgName("python");
 
 		PYFILES_OPTION.setRequired(false);
-		PYFILES_OPTION.setArgName("py-files");
+		PYFILES_OPTION.setArgName("pyFiles");
 
 		PYMODULE_OPTION.setRequired(false);
-		PYMODULE_OPTION.setArgName("py-module");
+		PYMODULE_OPTION.setArgName("pyModule");
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();

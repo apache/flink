@@ -33,17 +33,6 @@ while [ -L "$target" ]; do
     iteration=$((iteration + 1))
 done
 
-# Whether is a python job.
-# If the job is a python job, we need to add the ${FLINK_ROOT_DIR}/opt/flink-table*.jar to the classpath.
-isPython() {
-    local libs=("-py " "--python " "-pym " "--py-module ")
-    for (( i = 0; i < ${#libs[@]}; i++ )); do
-        if [[ $1 =~ ${libs[i]} ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
 # Convert relative path to absolute path
 bin=`dirname "$target"`
 
@@ -62,16 +51,20 @@ log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4
 export FLINK_ROOT_DIR
 export FLINK_CONF_DIR
 
-# Get the path of ${FLINK_ROOT_DIR}/opt/flink-table*.jar.
 TABLE_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-table*.jar`
-if [[ $(isPython "$@") -eq 0 ]]; then
+libs=("-py " "--python " "-pym " "--py-module ")
+is_python=
+for (( i = 0; i < ${#libs[@]}; i++ )); do
+    if [[ $@ =~ ${libs[i]} ]]; then
+        is_python=1
+        break
+    fi
+done
+if [[ ${is_python} -eq 1 ]]; then
 	TABLE_JAR_PATH=`echo "$FLINK_ROOT_DIR"/opt/flink-table*.jar`
 	CLASSPATH=`manglePathList "$TABLE_JAR_PATH:$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`
-	# use the -C option to add the flink-table relevant jar to the classpath.
-	arg="-classpath $CLASSPATH org.apache.flink.client.cli.CliFrontend $@ -C file:///$TABLE_JAR_PATH"
 else
 	CLASSPATH=`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`
-	arg="-classpath $CLASSPATH org.apache.flink.client.cli.CliFrontend $@"
 fi
 # Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
-exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" $arg
+exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "${CLASSPATH}" org.apache.flink.client.cli.CliFrontend "$@"

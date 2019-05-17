@@ -41,25 +41,22 @@ public class PythonDriver {
 
 	public static void main(String[] args) {
 		// the python job needs at least 2 args.
-		// e.g. python a.py
-		// e.g. py-module a.b
+		// e.g. python a.py ...
+		// e.g. pyModule a.b -pyFiles a.py ...
 		if (args.length < 2) {
-			LOG.error("Args is invalid");
+			LOG.error("Required at least two arguments, only python file or python module is available.");
 			System.exit(1);
 		}
-		Map<String, List<String>> parseArgs = new HashMap<>();
 		// parse args
-		parseOption(parseArgs, args);
+		Map<String, List<String>> parsedArgs = parseOptions(args);
 		// start gateway server
 		GatewayServer gatewayServer = startGatewayServer();
 		// prepare python env
 
 		// map filename to its Path
 		Map<String, Path> filePathMap = new HashMap<>();
-		// command which will be exec in python progress.
-		List<String> commands = new ArrayList<>();
-		// construct the filePathMap and the commands
-		constructCommand(filePathMap, commands, parseArgs);
+		// commands which will be exec in python progress.
+		List<String> commands = constructCommands(filePathMap, parsedArgs);
 		try {
 			// prepare the exec environment of python progress.
 			PythonUtil.PythonEnvironment pythonEnv = PythonUtil.preparePythonEnvironment(filePathMap);
@@ -71,17 +68,17 @@ public class PythonDriver {
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
 			}
-		} catch (Exception e) {
-			LOG.error("run python process failed {}", e.getMessage());
+		} catch (Throwable e) {
+			LOG.error("Run python process failed", e);
 		} finally {
 			gatewayServer.shutdown();
 		}
 	}
 
 	/**
-	 * Initial gateway server and run in a daemon thread.
+	 * Creates a GatewayServer run in a daemon thread.
 	 *
-	 * @return
+	 * @return The created GatewayServer
 	 */
 	public static GatewayServer startGatewayServer() {
 		InetAddress localhost = InetAddress.getLoopbackAddress();
@@ -96,75 +93,78 @@ public class PythonDriver {
 		try {
 			thread.join();
 		} catch (InterruptedException e) {
-			LOG.error("The gateway server thread join failed. {}", e.getMessage());
+			LOG.error("The gateway server thread join failed.", e);
 			System.exit(1);
 		}
 		return gatewayServer;
 	}
 
 	/**
-	 * construct the filePathMap and the commands.
-	 * filePathMap stores all python files.
+	 * Constructs the commands which will be executed in python process.
 	 *
-	 * @param filePathMap python file name to its path
-	 * @param commands
-	 * @param parseArgs
+	 * @param filePathMap stores python file name to its path
+	 * @param parsedArgs  parsed args
 	 */
-	public static void constructCommand(Map<String, Path> filePathMap, List<String> commands, Map<String, List<String>> parseArgs) {
-		if (parseArgs.containsKey("python")) {
-			String pythonFile = parseArgs.get("python").get(0);
+	public static List<String> constructCommands(Map<String, Path> filePathMap, Map<String, List<String>> parsedArgs) {
+		List<String> commands = new ArrayList<>();
+		if (parsedArgs.containsKey("python")) {
+			String pythonFile = parsedArgs.get("python").get(0);
 			Path pythonFilePath = new Path(pythonFile);
 			filePathMap.put(pythonFilePath.getName(), pythonFilePath);
 			commands.add(pythonFilePath.getName());
 		}
-		if (parseArgs.containsKey("py-module")) {
-			String pyModule = parseArgs.get("py-module").get(0);
+		if (parsedArgs.containsKey("pyModule")) {
+			String pyModule = parsedArgs.get("pyModule").get(0);
 			commands.add("-m");
 			commands.add(pyModule);
 		}
-		if (parseArgs.containsKey("py-files")) {
-			List<String> pyFiles = parseArgs.get("py-files");
+		if (parsedArgs.containsKey("pyFiles")) {
+			List<String> pyFiles = parsedArgs.get("pyFiles");
 			for (String pyFile : pyFiles) {
 				Path pyFilePath = new Path(pyFile);
 				filePathMap.put(pyFilePath.getName(), pyFilePath);
 			}
 		}
-		if (parseArgs.containsKey("args")) {
-			commands.addAll(parseArgs.get("args"));
+		if (parsedArgs.containsKey("args")) {
+			commands.addAll(parsedArgs.get("args"));
 		}
+		return commands;
 	}
 
 	/**
-	 * parse the args to the map format.
+	 * Parses the args to the map format.
 	 *
-	 * @param parseArgs {"python"->List("xxx.py"),
-	 *                  "py-files"->List("a.py","b.py","c.py"),
-	 *                  "args"->List("--input","in.txt")
-	 *                  }
-	 * @param args      ["python", "xxx.py",
-	 *                  "py-files", "a.py,b.py,c.py",
-	 *                  "--input", "in.txt"]
+	 * @param args ["python", "xxx.py",
+	 *             "pyFiles", "a.py,b.py,c.py",
+	 *             "--input", "in.txt"]
+	 * @return {"python"->List("xxx.py"),"pyFiles"->List("a.py","b.py","c.py"),"args"->List("--input","in.txt")}
 	 */
-	public static void parseOption(Map<String, List<String>> parseArgs, String[] args) {
+	public static Map<String, List<String>> parseOptions(String[] args) {
+		Map<String, List<String>> parsedArgs = new HashMap<>();
 		int argIndex = 0;
-		if (args[0].equals("python") || args[0].equals("py-module")) {
-			parseArgs.put(args[0], Collections.singletonList(args[1]));
+		boolean isValidPythonFile = false;
+		// valid args should include python or pyModule field and their value.
+		if (args[0].equals("python") || args[0].equals("pyModule")) {
+			parsedArgs.put(args[0], Collections.singletonList(args[1]));
 			argIndex = 2;
+			isValidPythonFile = true;
 		}
-		if (argIndex == 2 && args.length > 2 && args[2].equals("py-files")) {
+		if (isValidPythonFile && args.length > 2 && args[2].equals("pyFiles")) {
 			List<String> pyFilesList = new ArrayList<>(Arrays.asList(args[3].split(",")));
-			parseArgs.put(args[2], pyFilesList);
+			parsedArgs.put(args[2], pyFilesList);
 			argIndex = 4;
 		}
-		if (argIndex == 0) {
-			throw new RuntimeException("Args is invalid");
+		if (!isValidPythonFile) {
+			throw new RuntimeException("Args is invalid, the args is required to include python main file or pyModule");
 		}
+		// if arg include other args, the key "args" will map to other args.
 		if (args.length > argIndex) {
 			List<String> otherArgList = new ArrayList<>(args.length - argIndex);
 			for (int i = argIndex; i < args.length; i++) {
 				otherArgList.add(args[i]);
 			}
-			parseArgs.put("args", otherArgList);
+			parsedArgs.put("args", otherArgList);
 		}
+		return parsedArgs;
 	}
 }

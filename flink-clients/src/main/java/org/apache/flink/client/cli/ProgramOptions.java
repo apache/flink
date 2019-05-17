@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -65,8 +66,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	private final SavepointRestoreSettings savepointSettings;
 
-	// Store whether the job is python.
-	private boolean isPython = false;
+	// Store whether the job is a Python job.
+	private final boolean isPython;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -75,43 +76,41 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			line.getOptionValues(ARGS_OPTION.getOpt()) :
 			line.getArgs();
 
+		isPython = line.hasOption(PY_OPTION.getLongOpt()) | line.hasOption(PYMODULE_OPTION.getLongOpt());
 		// If specified the option -py(--python)
 		if (line.hasOption(PY_OPTION.getLongOpt())) {
-			isPython = true;
-			// You can't use option -py and -pym simultaneously.
+			// Cannot use option -py and -pym simultaneously.
 			if (line.hasOption(PYMODULE_OPTION.getLongOpt())) {
 				throw new CliArgsException("You can't use option -py and -pym simultaneously.");
 			}
-			// the args format is : python ${python.py} [optional]py-files [optional]${py-files} [optional]other args.
+			// The args format is : python ${python.py} [optional]pyFiles [optional]${py-files} [optional]other args.
 			// e.g. python wordcount.py
-			// e.g. python wordcount.py py-files file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt
+			// e.g. python wordcount.py pyFiles file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt
 			String[] newArgs;
-			int copyIndex;
+			int argIndex;
 			if (line.hasOption(PYFILES_OPTION.getLongOpt())) {
 				newArgs = new String[args.length + 4];
 				newArgs[2] = PYFILES_OPTION.getLongOpt();
 				newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
-				copyIndex = 4;
+				argIndex = 4;
 			} else {
 				newArgs = new String[args.length + 2];
-				copyIndex = 2;
+				argIndex = 2;
 			}
 			newArgs[0] = PY_OPTION.getLongOpt();
 			newArgs[1] = line.getOptionValue(PY_OPTION.getOpt());
-			System.arraycopy(args, 0, newArgs, copyIndex, args.length);
+			System.arraycopy(args, 0, newArgs, argIndex, args.length);
 			args = newArgs;
 		}
 
-		// If specified the option -pym(--py-module)
+		// If specified the option -pym(--pyModule)
 		if (line.hasOption(PYMODULE_OPTION.getLongOpt())) {
-			isPython = true;
-			// If you specify the option -pym, you should specify the option --py-files simultaneously.
-			// --pym must be used in conjunction with ` --py-files`
+			// If you specify the option -pym, you should specify the option --pyFiles simultaneously.
 			if (!line.hasOption(PYFILES_OPTION.getLongOpt())) {
-				throw new CliArgsException("--pym must be used in conjunction with ` --py-files`");
+				throw new CliArgsException("-pym must be used in conjunction with `--pyFiles`");
 			}
-			// the args format is py-module ${py-module} py-files ${py-files} [optional]other args.
-			// e.g. py-module aaa.fun AAA.py, BBB.py
+			// The args format is pyModule ${py-module} pyFiles ${py-files} [optional]other args.
+			// e.g. pyModule aaa.fun AAA.py, BBB.py
 			String[] newArgs = new String[args.length + 4];
 			newArgs[0] = PYMODULE_OPTION.getLongOpt();
 			newArgs[1] = line.getOptionValue(PYMODULE_OPTION.getOpt());
@@ -126,7 +125,29 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		} else if (!isPython && args.length > 0) {
 			jarFilePath = args[0];
 			args = Arrays.copyOfRange(args, 1, args.length);
-		} else {
+		} else if (isPython) {
+			//If the job is a python job which needs flink-table jar
+			//The temperal way is putting flink-table jar in jarFilePath
+			//so that flink-table jar will be distributed to all nodes.
+			String flinkOptDirName = System.getenv("FLINK_OPT_DIR");
+			File flinkOptDir = new File(flinkOptDirName);
+			File flinkTableJar = null;
+			if (flinkOptDir.isDirectory()) {
+				File[] flinkOptFiles = flinkOptDir.listFiles();
+				for (File flinkOptFile : flinkOptFiles) {
+					if (flinkOptFile.getName().startsWith("flink-table")) {
+						flinkTableJar = flinkOptFile;
+						break;
+					}
+				}
+			}
+			if (flinkTableJar != null) {
+				jarFilePath = flinkTableJar.toString();
+			} else {
+				jarFilePath = null;
+			}
+		}
+		else {
 			jarFilePath = null;
 		}
 
@@ -154,10 +175,12 @@ public abstract class ProgramOptions extends CommandLineOptions {
 				if (parallelism <= 0) {
 					throw new NumberFormatException();
 				}
-			} catch (NumberFormatException e) {
+			}
+			catch (NumberFormatException e) {
 				throw new CliArgsException("The parallelism must be a positive number: " + parString);
 			}
-		} else {
+		}
+		else {
 			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
@@ -205,17 +228,17 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		return savepointSettings;
 	}
 
-	// Whether the job is a java job.
+	// Whether the job is a Java job.
 	public boolean isJava() {
 		return jarFilePath != null;
 	}
 
-	// Whether the job is a python job.
+	// Whether the job is a Python job.
 	public boolean isPython() {
 		return isPython;
 	}
 
-	// Whether the job can be distinguished.i.e. it is a python or java job.
+	// Whether the job can be distinguished.i.e. it is a Python or Java job.
 	boolean isDistinguishedJob() {
 		return isJava() || isPython();
 	}

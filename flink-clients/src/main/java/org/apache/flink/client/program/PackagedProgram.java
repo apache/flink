@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.client.python.PythonDriver;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -90,8 +91,8 @@ public class PackagedProgram {
 
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
-	// Whether is the python job.
-	private boolean isPython = false;
+	// Whether is a Python job.
+	private final boolean isPython;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -172,18 +173,19 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		// Whether the job is python job and PythonRunner is the entry point.
-		if (entryPointClassName != null && entryPointClassName.equals("org.apache.flink.client.python.PythonDriver")) {
+		// Whether the job is a Python job and PythonRunner is the entry point.
+		if (entryPointClassName != null && entryPointClassName.equals(PythonDriver.class.getCanonicalName())) {
 			isPython = true;
+		} else {
+			isPython = false;
 		}
 
 		if (jarFile == null && !isPython) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
 
-		// If the job is java job
 		URL jarFileUrl = null;
-		if (jarFile != null && !isPython) {
+		if (jarFile != null) {
 			try {
 				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
 			} catch (MalformedURLException e1) {
@@ -251,6 +253,11 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
+		if (entryPointClass == PythonDriver.class) {
+			isPython = true;
+		} else {
+			isPython = false;
+		}
 
 		// if the entry point is a program, instantiate the class and get the plan
 		if (Program.class.isAssignableFrom(this.mainClass)) {

@@ -69,47 +69,6 @@ public class PythonUtilTest {
 	}
 
 	@Test
-	public void testCopyPyflinkLibToTarget() {
-		try {
-			Path aFilePath = new Path(sourceTmpDirPath, "a.txt");
-			sourceFs.create(aFilePath, FileSystem.WriteMode.OVERWRITE);
-			Path targetFilePath = new Path(targetTmpDirPath, "a.txt");
-			PythonUtil.copyPyflinkLibToTarget(aFilePath.toString(), targetFilePath.toString());
-			Assert.assertTrue(targetFs.exists(targetFilePath));
-			sourceFs.delete(aFilePath, true);
-			targetFs.delete(targetFilePath, true);
-		} catch (IOException e) {
-			throw new RuntimeException("test copy lib to tmp dir failed.");
-		}
-	}
-
-	@Test
-	public void testCopy() {
-		Path aDirPath = new Path(sourceTmpDirPath, "a");
-		Path aFilePath = new Path(aDirPath, "a.txt");
-		Path aSubDirPath = new Path(aDirPath, "sub");
-		Path aSubFilePath = new Path(aSubDirPath, "sub.txt");
-		try {
-			sourceFs.mkdirs(aSubDirPath);
-			sourceFs.create(aFilePath, FileSystem.WriteMode.OVERWRITE);
-			sourceFs.create(aSubFilePath, FileSystem.WriteMode.OVERWRITE);
-			Path targetDirPath = new Path(targetTmpDirPath, "a");
-			PythonUtil.copy(aDirPath, targetDirPath);
-			Path targetFilePath = new Path(targetDirPath, "a.txt");
-			Path targetSubDirPath = new Path(targetDirPath, "sub");
-			Path targetSubFilePath = new Path(targetSubDirPath, "sub.txt");
-			Assert.assertTrue(targetFs.exists(targetDirPath));
-			Assert.assertTrue(targetFs.exists(targetFilePath));
-			Assert.assertTrue(targetFs.exists(targetSubDirPath));
-			Assert.assertTrue(targetFs.exists(targetSubFilePath));
-			sourceFs.delete(aDirPath, true);
-			targetFs.delete(targetDirPath, true);
-		} catch (IOException e) {
-			throw new RuntimeException("test copy source path to tmp dir failed " + e.getMessage());
-		}
-	}
-
-	@Test
 	public void testStartPythonProcess() {
 		PythonUtil.PythonEnvironment pythonEnv = new PythonUtil.PythonEnvironment();
 		pythonEnv.workingDirectory = targetTmpDirPath.toString();

@@ -32,6 +32,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.client.python.PythonDriver;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -787,7 +788,8 @@ public class CliFrontend {
 			// Check if JAR file exists
 			if (!jarFile.exists()) {
 				throw new FileNotFoundException("JAR file does not exist: " + jarFile);
-			} else if (!jarFile.isFile()) {
+			}
+			else if (!jarFile.isFile()) {
 				throw new FileNotFoundException("JAR file is not a file: " + jarFile);
 			}
 		}
@@ -796,7 +798,7 @@ public class CliFrontend {
 		String entryPointClass = options.getEntryPointClassName();
 		// If the job is a python job, the entry point class is PythonDriver.
 		if (entryPointClass == null && options.isPython()) {
-			entryPointClass = "org.apache.flink.client.python.PythonDriver";
+			entryPointClass = PythonDriver.class.getCanonicalName();
 		}
 
 		PackagedProgram program = entryPointClass == null ?

@@ -43,28 +43,27 @@ public class PythonDriverTest {
 			Socket socket = new Socket("localhost", gatewayServer.getListeningPort());
 			assert socket.isConnected();
 		} catch (IOException e) {
-			throw new RuntimeException("connect Gateway Server failed");
+			throw new RuntimeException("Connect Gateway Server failed");
 		} finally {
 			gatewayServer.shutdown();
 		}
 	}
 
 	@Test
-	public void testConstructCommand() {
+	public void testConstructCommands() {
 		Map<String, Path> filePathMap = new HashMap<>();
-		List<String> commands = new ArrayList<>();
 		Map<String, List<String>> parseArgs = new HashMap<>();
 		parseArgs.put("python", Collections.singletonList("xxx.py"));
 		List<String> pyFilesList = new ArrayList<>();
 		pyFilesList.add("a.py");
 		pyFilesList.add("b.py");
 		pyFilesList.add("c.py");
-		parseArgs.put("py-files", pyFilesList);
+		parseArgs.put("pyFiles", pyFilesList);
 		List<String> otherArgs = new ArrayList<>();
 		otherArgs.add("--input");
 		otherArgs.add("in.txt");
 		parseArgs.put("args", otherArgs);
-		PythonDriver.constructCommand(filePathMap, commands, parseArgs);
+		List<String> commands = PythonDriver.constructCommands(filePathMap, parseArgs);
 		Path pythonPath = filePathMap.get("xxx.py");
 		Assert.assertNotNull(pythonPath);
 		Assert.assertEquals(pythonPath.getName(), "xxx.py");
@@ -84,21 +83,20 @@ public class PythonDriverTest {
 	}
 
 	@Test
-	public void testParseOption() {
-		Map<String, List<String>> parseArgs = new HashMap<>();
-		String[] args = {"python", "xxx.py", "py-files", "a.py,b.py,c.py", "--input", "in.txt"};
-		PythonDriver.parseOption(parseArgs, args);
-		List<String> pythonMainFile = parseArgs.get("python");
+	public void testParseOptions() {
+		String[] args = {"python", "xxx.py", "pyFiles", "a.py,b.py,c.py", "--input", "in.txt"};
+		Map<String, List<String>> parsedArgs = PythonDriver.parseOptions(args);
+		List<String> pythonMainFile = parsedArgs.get("python");
 		Assert.assertNotNull(pythonMainFile);
 		Assert.assertEquals(1, pythonMainFile.size());
 		Assert.assertEquals(pythonMainFile.get(0), args[1]);
-		List<String> pyFilesList = parseArgs.get("py-files");
+		List<String> pyFilesList = parsedArgs.get("pyFiles");
 		Assert.assertEquals(3, pyFilesList.size());
 		String[] pyFiles = args[3].split(",");
 		for (int i = 0; i < pyFiles.length; i++) {
 			assert pyFilesList.get(i).equals(pyFiles[i]);
 		}
-		List<String> otherArgs = parseArgs.get("args");
+		List<String> otherArgs = parsedArgs.get("args");
 		for (int i = 4; i < args.length; i++) {
 			Assert.assertEquals(otherArgs.get(i - 4), args[i]);
 		}
