@@ -95,7 +95,7 @@ val result = orders
 </div>
 <div data-lang="python" markdown="1">
 
-The Python Table API is enabled by `from pyflink.table import *`
+The Python Table API is enabled by `from pyflink.table import *`.
 
 The following example shows how a Python Table API program is constructed and how expressions are specified as strings.
 
@@ -172,7 +172,7 @@ orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
 
 result = orders.filter("a.isNotNull && b.isNotNull && c.isNotNull") \
                .select("a.lowerCase() as a, b, rowtime") \
-               .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow")) \
+               .window(Tumble.over("1.hour").on("rowtime").alias("hourlyWindow")) \
                .group_by("hourlyWindow, a") \
                .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount")
 {% endhighlight %}
@@ -916,7 +916,7 @@ result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \
        <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
 {% highlight python %}
 orders = table_env.scan("Orders")
-result = orders.window(Over.partition_by("a").order_by("rowtime") \
+result = orders.over_window(Over.partition_by("a").order_by("rowtime") \
       	       .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE") \
                .alias("w")) \
                .select("a, b.avg over w, b.max over w, b.min over w")
@@ -942,7 +942,7 @@ group_by_window_distinct_result = orders.window(
     Tumble.over("5.minutes").on("rowtime").alias("w")).groupBy("a, w") \
     .select("a, b.sum.distinct as d")
 # Distinct aggregation on over window
-result = orders.window(Over
+result = orders.over_window(Over
                        .partition_by("a")
                        .order_by("rowtime")
                        .preceding("UNBOUNDED_RANGE")
@@ -2300,7 +2300,7 @@ A session window is defined by using the `Session` class as follows:
 
 Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows. 
 
-Over windows are defined using the `window(w: OverWindow*)` clause and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
+Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -2322,7 +2322,7 @@ val table = input
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # define over window with alias w and aggregate over the over window w
-table = input.window([OverWindow w].alias("w")) \
+table = input.over_window([OverWindow w].alias("w")) \
              .select("a, b.sum over w, c.min over w")
 {% endhighlight %}
 </div>
@@ -2436,16 +2436,16 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Unbounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w"))
+.over_window(Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w"))
 
 # Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partition_by("a").order_by("proctime").preceding("unbounded_range").alias("w"))
+.over_window(Over.partition_by("a").order_by("proctime").preceding("unbounded_range").alias("w"))
 
 # Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over.partition_by("a").order_by("rowtime").preceding("unbounded_row").alias("w"))
+.over_window(Over.partition_by("a").order_by("rowtime").preceding("unbounded_row").alias("w"))
  
 # Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over.partition_by("a").order_by("proctime").preceding("unbounded_row").alias("w"))
+.over_window(Over.partition_by("a").order_by("proctime").preceding("unbounded_row").alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2487,16 +2487,16 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partition_by("a").order_by("rowtime").preceding("1.minutes").alias("w"))
+.over_window(Over.partition_by("a").order_by("rowtime").preceding("1.minutes").alias("w"))
 
 # Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partition_by("a").order_by("proctime").preceding("1.minutes").alias("w"))
+.over_window(Over.partition_by("a").order_by("proctime").preceding("1.minutes").alias("w"))
 
 # Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over.partition_by("a").order_by("rowtime").preceding("10.rows").alias("w"))
+.over_window(Over.partition_by("a").order_by("rowtime").preceding("10.rows").alias("w"))
  
 # Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over.partition_by("a").order_by("proctime").preceding("10.rows").alias("w"))
+.over_window(Over.partition_by("a").order_by("proctime").preceding("10.rows").alias("w"))
 {% endhighlight %}
 </div>
 </div>
