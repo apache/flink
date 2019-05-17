@@ -218,7 +218,7 @@ public abstract class HiveCatalogBase implements Catalog {
 			client.dropDatabase(name, true, ignoreIfNotExists);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new DatabaseNotExistException(catalogName, name);
+				throw new DatabaseNotExistException(catalogName, name, e);
 			}
 		} catch (InvalidOperationException e) {
 			throw new DatabaseNotEmptyException(catalogName, name);
@@ -234,7 +234,7 @@ public abstract class HiveCatalogBase implements Catalog {
 			client.createDatabase(createHiveDatabase(name, database));
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new DatabaseAlreadyExistException(catalogName, name);
+				throw new DatabaseAlreadyExistException(catalogName, name, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create database %s", name), e);
@@ -275,7 +275,7 @@ public abstract class HiveCatalogBase implements Catalog {
 				client.createTable(createHiveTable(tablePath, table));
 			} catch (AlreadyExistsException e) {
 				if (!ignoreIfExists) {
-					throw new TableAlreadyExistException(catalogName, tablePath);
+					throw new TableAlreadyExistException(catalogName, tablePath, e);
 				}
 			} catch (TException e) {
 				throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
@@ -371,7 +371,7 @@ public abstract class HiveCatalogBase implements Catalog {
 				ignoreIfNotExists);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new TableNotExistException(catalogName, tablePath);
+				throw new TableNotExistException(catalogName, tablePath, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(
@@ -385,7 +385,7 @@ public abstract class HiveCatalogBase implements Catalog {
 		try {
 			return client.getAllTables(databaseName);
 		} catch (UnknownDBException e) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
+			throw new DatabaseNotExistException(catalogName, databaseName, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list tables in database %s", databaseName), e);
@@ -400,7 +400,7 @@ public abstract class HiveCatalogBase implements Catalog {
 				null, // table pattern
 				TableType.VIRTUAL_VIEW);
 		} catch (UnknownDBException e) {
-			throw new DatabaseNotExistException(catalogName, databaseName);
+			throw new DatabaseNotExistException(catalogName, databaseName, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list views in database %s", databaseName), e);
@@ -423,7 +423,7 @@ public abstract class HiveCatalogBase implements Catalog {
 		try {
 			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
 		} catch (NoSuchObjectException e) {
-			throw new TableNotExistException(catalogName, tablePath);
+			throw new TableNotExistException(catalogName, tablePath, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
