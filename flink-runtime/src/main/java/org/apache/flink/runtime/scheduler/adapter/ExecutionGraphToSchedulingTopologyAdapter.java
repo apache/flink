@@ -29,9 +29,6 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
-import org.apache.flink.util.Preconditions;
-
-import javax.xml.ws.Provider;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +36,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}.
@@ -52,7 +52,7 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 	private final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitions;
 
 	public ExecutionGraphToSchedulingTopologyAdapter(ExecutionGraph graph) {
-		Preconditions.checkNotNull(graph, "execution graph can not be null");
+		checkNotNull(graph, "execution graph can not be null");
 
 		final int totalVertexCnt = graph.getTotalNumberOfVertices();
 		int totalPartitionCnt = 0;
@@ -78,7 +78,7 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 				new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()),
 				schedulingPartitions,
 				vertex.getInputDependencyConstraint(),
-				new ExecutionStateProvider(vertex));
+				new ExecutionStateSupplier(vertex));
 			this.executionVertices.put(scheduleVertex.getId(), scheduleVertex);
 			verticesList.add(scheduleVertex);
 			executionVertexMap.put(vertex, scheduleVertex);
@@ -120,16 +120,16 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 		return Optional.ofNullable(resultPartitions.get(intermediateResultPartitionId));
 	}
 
-	private static class ExecutionStateProvider implements Provider<ExecutionState> {
+	private static class ExecutionStateSupplier implements Supplier<ExecutionState> {
 
 		private final ExecutionVertex executionVertex;
 
-		ExecutionStateProvider(ExecutionVertex vertex) {
-			executionVertex = vertex;
+		ExecutionStateSupplier(ExecutionVertex vertex) {
+			executionVertex = checkNotNull(vertex);
 		}
 
 		@Override
-		public ExecutionState invoke(ExecutionState request) {
+		public ExecutionState get() {
 			return executionVertex.getExecutionState();
 		}
 	}

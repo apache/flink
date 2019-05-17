@@ -24,12 +24,11 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 
-import javax.xml.ws.Provider;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,17 +45,17 @@ public class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
 	private final InputDependencyConstraint inputDependencyConstraint;
 
-	private final Provider<ExecutionState> stateProvider;
+	private final Supplier<ExecutionState> stateSupplier;
 
 	public DefaultExecutionVertex(
 			ExecutionVertexID executionVertexId,
 			List<SchedulingResultPartition> producedPartitions,
 			InputDependencyConstraint dependencyConstraint,
-			Provider<ExecutionState> stateProvider) {
+			Supplier<ExecutionState> stateSupplier) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.inputDependencyConstraint = checkNotNull(dependencyConstraint);
 		this.consumedPartitions = new ArrayList<>();
-		this.stateProvider = checkNotNull(stateProvider);
+		this.stateSupplier = checkNotNull(stateSupplier);
 		this.producedPartitions = checkNotNull(producedPartitions);
 	}
 
@@ -67,7 +66,7 @@ public class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
 	@Override
 	public ExecutionState getState() {
-		return stateProvider.invoke(null);
+		return stateSupplier.get();
 	}
 
 	@Override
