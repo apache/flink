@@ -61,4 +61,9 @@ public interface CheckpointBarrierHandler extends AsyncDataInput<BufferOrEvent> 
 	 * @return The duration in nanoseconds
 	 */
 	long getAlignmentDurationNanos();
+
+	/**
+	 * @return number of underlying input channels.
+	 */
+	int getNumberOfInputChannels();
 }
