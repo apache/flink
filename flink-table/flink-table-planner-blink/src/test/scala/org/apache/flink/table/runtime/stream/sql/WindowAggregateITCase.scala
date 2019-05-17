@@ -39,7 +39,7 @@ import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
 
 @RunWith(classOf[Parameterized])
-class GroupWindowITCase(mode: StateBackendMode)
+class WindowAggregateITCase(mode: StateBackendMode)
   extends StreamingWithStateTestBase(mode) {
 
   val data = List(

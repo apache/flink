@@ -320,9 +320,11 @@ public class DateTimeUtils {
 			time = time + UTC_ZONE.getOffset(time);
 			if (o instanceof java.sql.Date) {
 				return unixDateToString((int) (time / MILLIS_PER_DAY) + offset);
-			} else if (o instanceof java.sql.Time) {
+			}
+			if (o instanceof java.sql.Time) {
 				return unixTimeToString(((int) (time % MILLIS_PER_DAY) + offset) % (int) MILLIS_PER_DAY);
-			} else if (o instanceof java.sql.Timestamp) {
+			}
+			if (o instanceof java.sql.Timestamp) {
 				return unixTimestampToString(time + offset, 3);
 			}
 		}
