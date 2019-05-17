@@ -53,7 +53,7 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
+import org.apache.flink.runtime.taskexecutor.exceptions.PartitionUpdateException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
@@ -495,7 +495,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				updateFuture.get();
 				fail();
 			} catch (Exception e) {
-				assertTrue(ExceptionUtils.findThrowable(e, PartitionException.class).isPresent());
+				assertTrue(ExceptionUtils.findThrowable(e, PartitionUpdateException.class).isPresent());
 			}
 		}
 	}
