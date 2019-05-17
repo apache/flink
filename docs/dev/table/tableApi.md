@@ -93,6 +93,31 @@ val result = orders
 {% endhighlight %}
 
 </div>
+<div data-lang="python" markdown="1">
+
+The Python Table API is enabled by `from pyflink.table import *`
+
+The following example shows how a Python Table API program is constructed and how expressions are specified as strings.
+
+{% highlight python %}
+from pyflink.table import *
+
+# environment configuration
+t_env = TableEnvironment.create(TableConfig.Builder().as_batch_execution().build())
+
+# register Orders table and Result table sink in table environment
+# ...
+
+# specify table program
+orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
+
+orders.group_by("a").select("a, b.count as cnt").insert_into("result")
+
+t_env.execute()
+
+{% endhighlight %}
+
+</div>
 </div>
 
 The next example shows a more complex Table API program. The program scans again the `Orders` table. It filters null values, normalizes the field `a` of type String, and calculates for each hour and product `a` the average billing amount `b`.
@@ -132,6 +157,24 @@ val result: Table = orders
         .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
         .groupBy('hourlyWindow, 'a)
         .select('a, 'hourlyWindow.end as 'hour, 'b.avg as 'avgBillingAmount)
+{% endhighlight %}
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+{% highlight python %}
+# environment configuration
+# ...
+
+# specify table program
+orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
+
+result = orders.filter("a.isNotNull && b.isNotNull && c.isNotNull") \
+               .select("a.lowerCase() as a, b, rowtime") \
+               .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow")) \
+               .groupBy("hourlyWindow, a") \
+               .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount")
 {% endhighlight %}
 
 </div>

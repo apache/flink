@@ -93,6 +93,31 @@ val result = orders
 {% endhighlight %}
 
 </div>
+<div data-lang="python" markdown="1">
+
+使用`from pyflink.table import *`来导入Python Table API
+
+下面这个例子演示了如何组织一个Python Table API程序，以及字符串形式的表达式用法。
+
+{% highlight python %}
+from pyflink.table import *
+
+# environment configuration
+t_env = TableEnvironment.create(TableConfig.Builder().as_batch_execution().build())
+
+# register Orders table and Result table sink in table environment
+# ...
+
+# specify table program
+orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
+
+orders.group_by("a").select("a, b.count as cnt").insert_into("result")
+
+t_env.execute()
+
+{% endhighlight %}
+
+</div>
 </div>
 
 The next example shows a more complex Table API program. The program scans again the `Orders` table. It filters null values, normalizes the field `a` of type String, and calculates for each hour and product `a` the average billing amount `b`.
@@ -132,6 +157,24 @@ val result: Table = orders
         .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
         .groupBy('hourlyWindow, 'a)
         .select('a, 'hourlyWindow.end as 'hour, 'b.avg as 'avgBillingAmount)
+{% endhighlight %}
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+{% highlight python %}
+# environment configuration
+# ...
+
+# specify table program
+orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
+
+result = orders.filter("a.isNotNull && b.isNotNull && c.isNotNull") \
+               .select("a.lowerCase() as a, b, rowtime") \
+               .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow")) \
+               .groupBy("hourlyWindow, a") \
+               .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount")
 {% endhighlight %}
 
 </div>
@@ -567,7 +610,7 @@ result = orders.drop_columns("b, c")
                     <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
                   </td>
                   <td>
-                  <p>执行重命名字段操作。参数必须是字段别名(例：xxx as xxx)列表，并且必须是已经存在的字段才能被重命名。</p>
+                  <p>执行重命名字段操作。参数必须是字段别名(例：b as b2)列表，并且必须是已经存在的字段才能被重命名。</p>
 {% highlight python %}
 orders = table_env.scan("Orders")
 result = orders.rename_columns("b as b2, c as c2")
