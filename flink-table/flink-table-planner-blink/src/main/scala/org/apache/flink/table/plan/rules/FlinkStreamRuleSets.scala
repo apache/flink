@@ -239,6 +239,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalDataStreamTableScan.CONVERTER,
+    FlinkLogicalIntermediateTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
@@ -258,7 +259,7 @@ object FlinkStreamRuleSets {
     ).asJava)
 
   /**
-    * RuleSet to od rewrite on FlinkLogicalRel for Stream
+    * RuleSet to do rewrite on FlinkLogicalRel for Stream
     */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transform over window to topn node
@@ -278,6 +279,7 @@ object FlinkStreamRuleSets {
     FlinkExpandConversionRule.STREAM_INSTANCE,
     StreamExecDataStreamScanRule.INSTANCE,
     StreamExecTableSourceScanRule.INSTANCE,
+    StreamExecIntermediateTableScanRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
     StreamExecCalcRule.INSTANCE,
     StreamExecUnionRule.INSTANCE,

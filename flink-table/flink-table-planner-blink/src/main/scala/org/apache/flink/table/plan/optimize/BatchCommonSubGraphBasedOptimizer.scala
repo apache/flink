@@ -18,21 +18,54 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableImpl}
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
+import org.apache.flink.table.plan.schema.IntermediateRelTable
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelNode
 
 /**
-  * Query optimizer for Batch.
+  * A [[CommonSubGraphBasedOptimizer]] for Batch.
   */
-class BatchOptimizer(tEnv: BatchTableEnvironment) extends Optimizer {
+class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
+  extends CommonSubGraphBasedOptimizer {
 
-  override def optimize(roots: Seq[RelNode]): Seq[RelNode] = {
-    // TODO optimize multi-roots as a whole DAG
-    roots.map(optimizeTree)
+  override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
+    // build RelNodeBlock plan
+    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv)
+    // optimize recursively RelNodeBlock
+    rootBlocks.foreach(optimizeBlock)
+    rootBlocks
+  }
+
+  private def optimizeBlock(block: RelNodeBlock): Unit = {
+    block.children.foreach { child =>
+      if (child.getNewOutputNode.isEmpty) {
+        optimizeBlock(child)
+      }
+    }
+
+    val originTree = block.getPlan
+    val optimizedTree = optimizeTree(originTree)
+
+    optimizedTree match {
+      case _: BatchExecSink[_] => // ignore
+      case _ =>
+        val name = tEnv.createUniqueTableName()
+        registerIntermediateTable(name, optimizedTree)
+        val newTable = tEnv.scan(name)
+        block.setNewOutputNode(newTable.asInstanceOf[TableImpl].getRelNode)
+        block.setOutputTableName(name)
+    }
+    block.setOptimizedPlan(optimizedTree)
+  }
+
+  private def registerIntermediateTable(name: String, relNode: RelNode): Unit = {
+    val table = new IntermediateRelTable(relNode)
+    tEnv.registerTableInternal(name, table)
   }
 
   /**

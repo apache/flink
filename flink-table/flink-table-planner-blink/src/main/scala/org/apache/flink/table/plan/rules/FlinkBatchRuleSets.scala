@@ -251,6 +251,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalDataStreamTableScan.CONVERTER,
+    FlinkLogicalIntermediateTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
     FlinkLogicalRank.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
@@ -269,11 +270,15 @@ object FlinkBatchRuleSets {
       LOGICAL_CONVERTERS.asScala
     ).asJava)
 
+  /**
+    * RuleSet to do rewrite on FlinkLogicalRel for batch
+    */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transpose calc past snapshot
     CalcSnapshotTransposeRule.INSTANCE,
     // merge calc after calc transpose
-    CalcMergeRule.INSTANCE)
+    FlinkCalcMergeRule.INSTANCE
+  )
 
   /**
     * RuleSet to do physical optimize for batch
@@ -282,6 +287,7 @@ object FlinkBatchRuleSets {
     FlinkExpandConversionRule.BATCH_INSTANCE,
     BatchExecBoundedStreamScanRule.INSTANCE,
     BatchExecScanTableSourceRule.INSTANCE,
+    BatchExecIntermediateTableScanRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
     BatchExecCalcRule.INSTANCE,
     BatchExecUnionRule.INSTANCE,

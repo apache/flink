@@ -205,7 +205,9 @@ class BatchExecExchange(
             CodeGeneratorContext(tableEnv.config),
             new RowType(inputType.getInternalTypes: _*),
             "HashPartitioner",
-            keys.map(_.intValue()).toArray))
+            keys.map(_.intValue()).toArray),
+          keys.map(getInput.getRowType.getFieldNames.get(_)).toArray
+        )
         val transformation = new PartitionTransformation(
           input,
           partitioner)

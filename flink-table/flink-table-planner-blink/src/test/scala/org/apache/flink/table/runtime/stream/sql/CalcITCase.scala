@@ -217,7 +217,7 @@ class CalcITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sqlQuery)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.writeToSink(result, sink)
-    env.execute()
+    tEnv.execute()
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
