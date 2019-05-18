@@ -25,6 +25,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputBufferPoolUsageGauge;
 import org.apache.flink.runtime.io.network.metrics.InputBuffersGauge;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.Preconditions;
 
@@ -60,6 +62,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The implementation of {@link ShuffleEnvironment} based on netty network communication, local memory and disk files.
@@ -70,8 +73,30 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleEnvironment.class);
 
+	// deprecated metric groups
+
+	@SuppressWarnings("DeprecatedIsStillUsed")
+	@Deprecated
+	static final String METRIC_GROUP_NETWORK_DEPRECATED = "Network";
+	@SuppressWarnings("DeprecatedIsStillUsed")
+	@Deprecated
+	private static final String METRIC_GROUP_BUFFERS_DEPRECATED = "buffers";
+
+	// task level metric group structure: Shuffle.Netty.<Input|Output>.Buffers
+
+	static final String METRIC_GROUP_SHUFFLE = "Shuffle";
+	static final String METRIC_GROUP_NETTY = "Netty";
+	private static final String METRIC_GROUP_OUTPUT = "Output";
+	private static final String METRIC_GROUP_INPUT = "Input";
+	private static final String METRIC_GROUP_BUFFERS = "Buffers";
+
+	// task level output metrics: Shuffle.Netty.Output.*
+
 	private static final String METRIC_OUTPUT_QUEUE_LENGTH = "outputQueueLength";
 	private static final String METRIC_OUTPUT_POOL_USAGE = "outPoolUsage";
+
+	// task level input metrics: Shuffle.Netty.Input.*
+
 	private static final String METRIC_INPUT_QUEUE_LENGTH = "inputQueueLength";
 	private static final String METRIC_INPUT_POOL_USAGE = "inPoolUsage";
 
@@ -166,54 +191,68 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Collection<ResultPartition> createResultPartitionWriters(
+	public ShuffleIOOwnerContext createShuffleIOOwnerContext(
 			String ownerName,
 			ExecutionAttemptID executionAttemptID,
-			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-			MetricGroup outputGroup,
-			MetricGroup buffersGroup) {
+			MetricGroup parentGroup) {
+		MetricGroup nettyGroup = checkNotNull(parentGroup).addGroup(METRIC_GROUP_SHUFFLE).addGroup(METRIC_GROUP_NETTY);
+		return new ShuffleIOOwnerContext(
+			checkNotNull(ownerName),
+			checkNotNull(executionAttemptID),
+			parentGroup,
+			nettyGroup.addGroup(METRIC_GROUP_INPUT),
+			nettyGroup.addGroup(METRIC_GROUP_OUTPUT));
+	}
+
+	@Override
+	public Collection<ResultPartition> createResultPartitionWriters(
+			ShuffleIOOwnerContext ownerContext,
+			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter++] = resultPartitionFactory.create(ownerName, executionAttemptID, rpdd);
+				resultPartitions[counter++] = resultPartitionFactory.create(
+					ownerContext.getOwnerName(),
+					ownerContext.getExecutionAttemptID(),
+					rpdd);
 			}
 
-			registerOutputMetrics(outputGroup, buffersGroup, resultPartitions);
-			return Arrays.asList(resultPartitions);
+			MetricGroup outputMetricGroup = ownerContext.getOutputGroup();
+			registerOutputMetrics(outputMetricGroup, outputMetricGroup.addGroup(METRIC_GROUP_BUFFERS), resultPartitions);
+			return  Arrays.asList(resultPartitions);
 		}
 	}
 
 	@Override
 	public Collection<SingleInputGate> createInputGates(
-			String ownerName,
-			ExecutionAttemptID executionAttemptID,
+			ShuffleIOOwnerContext ownerContext,
 			PartitionProducerStateProvider partitionProducerStateProvider,
-			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
-			MetricGroup parentGroup,
-			MetricGroup inputGroup,
-			MetricGroup buffersGroup) {
+			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
-			InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(parentGroup);
+			MetricGroup networkInputGroup = ownerContext.getInputGroup();
+			@SuppressWarnings("deprecation")
+			InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(networkInputGroup, ownerContext.getParentGroup());
+
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 			int counter = 0;
 			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
 				SingleInputGate inputGate = singleInputGateFactory.create(
-					ownerName,
+					ownerContext.getOwnerName(),
 					igdd,
 					partitionProducerStateProvider,
 					inputChannelMetrics);
-				InputGateID id = new InputGateID(igdd.getConsumedResultId(), executionAttemptID);
+				InputGateID id = new InputGateID(igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
 				inputGatesById.put(id, inputGate);
 				inputGate.getCloseFuture().thenRun(() -> inputGatesById.remove(id));
 				inputGates[counter++] = inputGate;
 			}
 
-			registerInputMetrics(inputGroup, buffersGroup, inputGates);
+			registerInputMetrics(networkInputGroup, networkInputGroup.addGroup(METRIC_GROUP_BUFFERS), inputGates);
 			return Arrays.asList(inputGates);
 		}
 	}
@@ -232,6 +271,34 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 		}
 		buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
 		buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, new InputBufferPoolUsageGauge(inputGates));
+	}
+
+	/**
+	 * Registers legacy network metric groups before shuffle service refactoring.
+	 *
+	 * <p>Registers legacy metric groups if shuffle service implementation is original default one.
+	 *
+	 * @deprecated should be removed in future
+	 */
+	@SuppressWarnings("DeprecatedIsStillUsed")
+	@Deprecated
+	public void registerLegacyNetworkMetrics(
+			MetricGroup metricGroup,
+			ResultPartitionWriter[] producedPartitions,
+			InputGate[] inputGates) {
+		// add metrics for buffers
+		final MetricGroup buffersGroup = metricGroup.addGroup(METRIC_GROUP_BUFFERS_DEPRECATED);
+
+		// similar to MetricUtils.instantiateNetworkMetrics() but inside this IOMetricGroup (metricGroup)
+		final MetricGroup networkGroup = metricGroup.addGroup(METRIC_GROUP_NETWORK_DEPRECATED);
+		final MetricGroup outputGroup = networkGroup.addGroup(METRIC_GROUP_OUTPUT);
+		final MetricGroup inputGroup = networkGroup.addGroup(METRIC_GROUP_INPUT);
+
+		ResultPartition[] resultPartitions = Arrays.copyOf(producedPartitions, producedPartitions.length, ResultPartition[].class);
+		registerOutputMetrics(outputGroup, buffersGroup, resultPartitions);
+
+		SingleInputGate[] singleInputGates = Arrays.copyOf(inputGates, inputGates.length, SingleInputGate[].class);
+		registerInputMetrics(inputGroup, buffersGroup, singleInputGates);
 	}
 
 	@Override

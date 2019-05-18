@@ -38,6 +38,8 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
+import static org.apache.flink.runtime.io.network.NettyShuffleEnvironment.METRIC_GROUP_NETTY;
+import static org.apache.flink.runtime.io.network.NettyShuffleEnvironment.METRIC_GROUP_SHUFFLE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -45,7 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
-	private static final String METRIC_GROUP_NETWORK = "Network";
+	// shuffle environment level metrics: Shuffle.Netty.*
+
 	private static final String METRIC_TOTAL_MEMORY_SEGMENT = "TotalMemorySegments";
 	private static final String METRIC_AVAILABLE_MEMORY_SEGMENT = "AvailableMemorySegments";
 
@@ -96,7 +99,9 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.networkBufferSize(),
 			config.networkBuffersPerChannel());
 
-		registerNetworkMetrics(metricGroup, networkBufferPool);
+		//noinspection deprecation
+		registerNetworkMetrics(NettyShuffleEnvironment.METRIC_GROUP_NETWORK_DEPRECATED, metricGroup, networkBufferPool);
+		registerNetworkMetrics(METRIC_GROUP_NETTY, metricGroup.addGroup(METRIC_GROUP_SHUFFLE), networkBufferPool);
 
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			resultPartitionManager,
@@ -124,8 +129,11 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			singleInputGateFactory);
 	}
 
-	private static void registerNetworkMetrics(MetricGroup metricGroup, NetworkBufferPool networkBufferPool) {
-		MetricGroup networkGroup = metricGroup.addGroup(METRIC_GROUP_NETWORK);
+	private static void registerNetworkMetrics(
+			String groupName,
+			MetricGroup metricGroup,
+			NetworkBufferPool networkBufferPool) {
+		MetricGroup networkGroup = metricGroup.addGroup(groupName);
 		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_TOTAL_MEMORY_SEGMENT,
 			networkBufferPool::getTotalNumberOfMemorySegments);
 		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_AVAILABLE_MEMORY_SEGMENT,
