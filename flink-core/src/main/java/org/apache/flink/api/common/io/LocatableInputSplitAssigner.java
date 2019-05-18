@@ -220,7 +220,9 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 			return false;
 		}
 		for (String h : hosts) {
-			if (h != null && NetUtils.getHostnameFromFQDN(h.toLowerCase()).equals(flinkHost)) {
+			if (h != null &&
+				NetUtils.getHostnameFromFQDN(h.toLowerCase()).equals(
+					NetUtils.getHostnameFromFQDN(flinkHost.toLowerCase()))) {
 				return true;
 			}
 		}

@@ -69,6 +69,31 @@ public class LocatableSplitAssignerTest {
 	}
 
 	@Test
+	public void testLocalSplitAssignmentForHostWithDomainName() {
+		try {
+			String hostNameWithDot = "host.domain";
+
+			// load one split
+			Set<LocatableInputSplit> splits =
+				new HashSet<LocatableInputSplit>();
+			splits.add(new LocatableInputSplit(0, hostNameWithDot));
+
+			// get next split for host with same name
+			LocatableInputSplitAssigner ia =
+				new LocatableInputSplitAssigner(splits);
+			InputSplit is = null;
+			ia.getNextInputSplit(hostNameWithDot, 0);
+
+			// the one split should be assigned locally
+			assertEquals(0, ia.getNumberOfRemoteAssignments());
+			assertEquals(1, ia.getNumberOfLocalAssignments());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
 	public void testSerialSplitAssignmentAllForSameHost() {
 		try {
 			final int NUM_SPLITS = 50;
