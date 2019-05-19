@@ -18,61 +18,46 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.AbstractCatalogDatabase;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A hive catalog database implementation.
  */
-public class HiveCatalogDatabase implements CatalogDatabase {
-	// Property of the database
-	private final Map<String, String> properties;
+public class HiveCatalogDatabase extends AbstractCatalogDatabase {
 	// HDFS path of the database
 	private final String location;
-	// Comment of the database
-	private final String comment;
 
 	public HiveCatalogDatabase(Map<String, String> properties, String comment) {
-		this(properties, null, comment);
+		super(properties, comment);
+		location = null;
 	}
 
 	public HiveCatalogDatabase(Map<String, String> properties, String location, String comment) {
-		this.properties = checkNotNull(properties, "properties cannot be null");
+		super(properties, comment);
 		this.location = location;
-		this.comment = checkNotNull(comment, "comment cannot be null");
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	@Override
-	public String getComment() {
-		return comment;
 	}
 
 	@Override
 	public HiveCatalogDatabase copy() {
-		return new HiveCatalogDatabase(new HashMap<>(properties), location, comment);
+		return new HiveCatalogDatabase(new HashMap<>(getProperties()), location, getComment());
 	}
 
 	@Override
 	public Optional<String> getDescription() {
-		return Optional.of(comment);
+		return Optional.ofNullable(getComment());
 	}
 
 	@Override
 	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a Hive catalog database stored in memory only");
+		return Optional.of("This is a Hive catalog database");
 	}
 
 	public String getLocation() {
 		return location;
 	}
+
 }

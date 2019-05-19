@@ -19,8 +19,8 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.AbstractCatalogTable;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogTable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,30 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A Hive catalog table implementation.
  */
-public class HiveCatalogTable implements CatalogTable {
-	// Schema of the table (column names and types)
-	private final TableSchema tableSchema;
-	// Partition keys if this is a partitioned table. It's an empty set if the table is not partitioned
-	private final List<String> partitionKeys;
-	// Properties of the table
-	private final Map<String, String> properties;
-	// Comment of the table
-	private final String comment;
+public class HiveCatalogTable extends AbstractCatalogTable {
 
 	public HiveCatalogTable(
 			TableSchema tableSchema,
 			List<String> partitionKeys,
 			Map<String, String> properties,
 			String comment) {
-		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
-		this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
-		this.properties = checkNotNull(properties, "properties cannot be null");
-		this.comment = comment;
+		super(tableSchema, partitionKeys, properties, comment);
 	}
 
 	public HiveCatalogTable(
@@ -62,44 +49,27 @@ public class HiveCatalogTable implements CatalogTable {
 	}
 
 	@Override
-	public boolean isPartitioned() {
-		return !partitionKeys.isEmpty();
-	}
-
-	@Override
-	public List<String> getPartitionKeys() {
-		return partitionKeys;
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	@Override
-	public TableSchema getSchema() {
-		return tableSchema;
-	}
-
-	@Override
-	public String getComment() {
-		return comment;
-	}
-
-	@Override
 	public CatalogBaseTable copy() {
 		return new HiveCatalogTable(
-			tableSchema.copy(), new ArrayList<>(partitionKeys), new HashMap<>(properties), comment);
+			getSchema().copy(), new ArrayList<>(getPartitionKeys()), new HashMap<>(getProperties()), getComment());
 	}
 
 	@Override
 	public Optional<String> getDescription() {
-		return Optional.ofNullable(comment);
+		return Optional.ofNullable(getComment());
 	}
 
 	@Override
 	public Optional<String> getDetailedDescription() {
 		// TODO: return a detailed description
-		return Optional.ofNullable(comment);
+		return Optional.ofNullable(getComment());
 	}
+
+	@Override
+	public Map<String, String> toProperties() {
+		// TODO: output properties that are used to auto-discover TableFactory for Hive tables.
+		Map<String, String> properties = new HashMap<>();
+		return properties;
+	}
+
 }
