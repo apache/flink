@@ -741,15 +741,15 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	private CatalogPartition createPartition() {
-		return new GenericCatalogPartition(getBatchTableProperties());
+		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
 	}
 
 	private CatalogPartition createAnotherPartition() {
-		return new GenericCatalogPartition(getBatchTableProperties());
+		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
 	}
 
 	private CatalogPartition createPartition(Map<String, String> props) {
-		return new GenericCatalogPartition(props);
+		return new GenericCatalogPartition(props, "Generic catalog table");
 	}
 
 	@Override
@@ -791,11 +791,11 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	protected CatalogFunction createFunction() {
-		return new GenericCatalogFunction(MyScalarFunction.class.getName());
+		return new GenericCatalogFunction(MyScalarFunction.class.getName(), new HashMap<>());
 	}
 
 	protected CatalogFunction createAnotherFunction() {
-		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
+		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName(), new HashMap<>());
 	}
 
 	/**

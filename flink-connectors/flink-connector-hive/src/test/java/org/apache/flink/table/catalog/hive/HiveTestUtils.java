@@ -34,13 +34,6 @@ public class HiveTestUtils {
 	private static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	/**
-	 * Create a GenericHiveMetastoreCatalog with an embedded Hive Metastore.
-	 */
-	public static GenericHiveMetastoreCatalog createGenericHiveMetastoreCatalog() throws IOException {
-		return new GenericHiveMetastoreCatalog(CatalogTestBase.TEST_CATALOG_NAME, getHiveConf());
-	}
-
-	/**
 	 * Create a HiveCatalog with an embedded Hive Metastore.
 	 */
 	public static HiveCatalog createHiveCatalog() throws IOException {

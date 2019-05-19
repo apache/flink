@@ -19,89 +19,36 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A generic catalog view implementation.
  */
-public class GenericCatalogView implements CatalogView {
-	// Original text of the view definition.
-	private final String originalQuery;
+public class GenericCatalogView extends AbstractCatalogView {
 
-	// Expanded text of the original view definition
-	// This is needed because the context such as current DB is
-	// lost after the session, in which view is defined, is gone.
-	// Expanded query text takes care of the this, as an example.
-	private final String expandedQuery;
-
-	// Schema of the view (column names and types)
-	private final TableSchema tableSchema;
-	// Properties of the view
-	private final Map<String, String> properties;
-	// Comment of the view
-	private final String comment;
-
-	public GenericCatalogView(
-			String originalQuery,
-			String expandedQuery,
-			TableSchema tableSchema,
-			Map<String, String> properties,
-			String comment) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(originalQuery), "original query cannot be null or empty");
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(expandedQuery), "expanded query cannot be null or empty");
-
-		this.originalQuery = originalQuery;
-		this.expandedQuery = expandedQuery;
-		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
-		this.properties = checkNotNull(properties, "properties cannot be null");
-		this.comment = comment;
-	}
-
-	@Override
-	public String getOriginalQuery() {
-		return this.originalQuery;
-	}
-
-	@Override
-	public String getExpandedQuery() {
-		return this.expandedQuery;
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	@Override
-	public TableSchema getSchema() {
-		return tableSchema;
-	}
-
-	@Override
-	public String getComment() {
-		return comment;
+	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
+		Map<String, String> properties, String comment) {
+		super(originalQuery, expandedQuery, schema, properties, comment);
+		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
 	}
 
 	@Override
 	public GenericCatalogView copy() {
-		return new GenericCatalogView(this.originalQuery, this.expandedQuery, tableSchema.copy(),
-			new HashMap<>(this.properties), comment);
+		return new GenericCatalogView(getOriginalQuery(), getExpandedQuery(), getSchema().copy(),
+			new HashMap<>(getProperties()), getComment());
 	}
 
 	@Override
 	public Optional<String> getDescription() {
-		return Optional.of(comment);
+		return Optional.of(getComment());
 	}
 
 	@Override
 	public Optional<String> getDetailedDescription() {
 		return Optional.of("This is a catalog view in an im-memory catalog");
 	}
+
 }

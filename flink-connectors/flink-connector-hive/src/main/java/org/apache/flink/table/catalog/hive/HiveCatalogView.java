@@ -19,36 +19,17 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.AbstractCatalogView;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A Hive catalog view implementation.
  */
-public class HiveCatalogView implements CatalogView {
-	// Original text of the view definition.
-	private final String originalQuery;
-
-	// Expanded text of the original view definition
-	// This is needed because the context such as current DB is
-	// lost after the session, in which view is defined, is gone.
-	// Expanded query text takes care of the this, as an example.
-	private final String expandedQuery;
-
-	// Schema of the view (column names and types)
-	private final TableSchema tableSchema;
-	// Properties of the view
-	private final Map<String, String> properties;
-	// Comment of the view
-	private final String comment;
+public class HiveCatalogView extends AbstractCatalogView {
 
 	public HiveCatalogView(
 			String originalQuery,
@@ -56,55 +37,24 @@ public class HiveCatalogView implements CatalogView {
 			TableSchema tableSchema,
 			Map<String, String> properties,
 			String comment) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(originalQuery), "original query cannot be null or empty");
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(expandedQuery), "expanded query cannot be null or empty");
-
-		this.originalQuery = originalQuery;
-		this.expandedQuery = expandedQuery;
-		this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
-		this.properties = checkNotNull(properties, "properties cannot be null");
-		this.comment = comment;
-	}
-
-	@Override
-	public String getOriginalQuery() {
-		return originalQuery;
-	}
-
-	@Override
-	public String getExpandedQuery() {
-		return expandedQuery;
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	@Override
-	public TableSchema getSchema() {
-		return tableSchema;
-	}
-
-	@Override
-	public String getComment() {
-		return comment;
+		super(originalQuery, expandedQuery, tableSchema, properties, comment);
 	}
 
 	@Override
 	public CatalogBaseTable copy() {
 		return new HiveCatalogView(
-			originalQuery, expandedQuery, tableSchema.copy(), new HashMap<>(properties), comment);
+			this.getOriginalQuery(), this.getExpandedQuery(), this.getSchema().copy(), new HashMap<>(this.getProperties()), getComment());
 	}
 
 	@Override
 	public Optional<String> getDescription() {
-		return Optional.ofNullable(comment);
+		return Optional.ofNullable(getComment());
 	}
 
 	@Override
 	public Optional<String> getDetailedDescription() {
 		// TODO: return a detailed description
-		return Optional.ofNullable(comment);
+		return Optional.ofNullable(getComment());
 	}
+
 }

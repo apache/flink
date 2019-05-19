@@ -18,33 +18,35 @@
 
 package org.apache.flink.table.catalog;
 
-import java.util.HashMap;
+import org.apache.flink.util.StringUtils;
+
 import java.util.Map;
-import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A generic catalog partition implementation.
+ * An abstract catalog function implementation.
  */
-public class GenericCatalogPartition extends AbstractCatalogPartition {
+public abstract class AbstractCatalogFunction implements CatalogFunction {
+	private final String className; // Fully qualified class name of the function
+	private final Map<String, String> properties;
 
-	public GenericCatalogPartition(Map<String, String> properties, String comment) {
-		super(properties, comment);
-		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
+	public AbstractCatalogFunction(String className, Map<String, String> properties) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
+
+		this.className = className;
+		this.properties = checkNotNull(properties, "properties cannot be null");
 	}
 
 	@Override
-	public CatalogPartition copy() {
-		return new GenericCatalogPartition(new HashMap<>(getProperties()), getComment());
+	public String getClassName() {
+		return this.className;
 	}
 
 	@Override
-	public Optional<String> getDescription() {
-		return Optional.of(getComment());
-	}
-
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a generic catalog partition with detailed description");
+	public Map<String, String> getProperties() {
+		return this.properties;
 	}
 
 }

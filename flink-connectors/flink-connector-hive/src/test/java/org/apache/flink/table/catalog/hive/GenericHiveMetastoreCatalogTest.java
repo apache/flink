@@ -44,7 +44,7 @@ public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
 
 	@BeforeClass
 	public static void init() throws IOException {
-		catalog = HiveTestUtils.createGenericHiveMetastoreCatalog();
+		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
 	}
 
