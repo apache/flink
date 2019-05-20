@@ -164,19 +164,6 @@ class WindowAggregateITCase(mode: StateBackendMode)
     tEnv.registerTable("T1", table)
     tEnv.registerFunction("weightAvgFun", new WeightedAvg)
 
-    val fieldTypes: Array[TypeInformation[_]] = Array(
-      Types.STRING,
-      Types.SQL_TIMESTAMP,
-      Types.SQL_TIMESTAMP,
-      Types.LONG,
-      Types.LONG,
-      Types.INT,
-      Types.LONG,
-      Types.INT,
-      Types.INT,
-      Types.INT)
-    val fieldNames = fieldTypes.indices.map("f" + _).toArray
-
     val sql =
       """
         |SELECT
@@ -195,21 +182,30 @@ class WindowAggregateITCase(mode: StateBackendMode)
       """.stripMargin
 
     val result = tEnv.sqlQuery(sql)
-    val sink = new TestingUpsertTableSink(Array(0, 1)).
-      configure(fieldNames, fieldTypes)
+
+    val fieldTypes: Array[TypeInformation[_]] = Array(
+      Types.STRING,
+      Types.SQL_TIMESTAMP,
+      Types.SQL_TIMESTAMP,
+      Types.LONG,
+      Types.LONG,
+      Types.INT,
+      Types.LONG,
+      Types.INT,
+      Types.INT,
+      Types.INT)
+    val fieldNames = fieldTypes.indices.map("f" + _).toArray
+
+    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
     tEnv.writeToSink(result, sink)
-    env.execute()
+    tEnv.execute()
 
     val expected = Seq(
-      "(true,Hello,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,2,2,2,3,2,2,4)",
-      "(true,Hi,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,1,1,1,1,1,1,1)",
-      "(true,Hello world,1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,1,1,3,8,3,3,3)",
-      "(true,Hello,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,2,3,2,3,2,3,7)",
-      "(true,Hello world,1970-01-01 00:00:00.015,1970-01-01 00:00:00.020,1,1,3,16,3,3,3)",
-    "(false,Hello world,1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,1,1,3,8,3,3,3)",
-    "(false,Hello,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,2,2,2,3,2,2,4)",
-    "(true,Hello world,1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,2,2,3,8,3,4,7)")
-    assertEquals(expected.sorted.mkString("\n"), sink.getRawResults.sorted.mkString("\n"))
+      "Hi,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,1,1,1,1,1,1,1",
+      "Hello,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,2,3,2,3,2,3,7",
+      "Hello world,1970-01-01 00:00:00.015,1970-01-01 00:00:00.020,1,1,3,16,3,3,3",
+      "Hello world,1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,2,2,3,8,3,4,7")
+    assertEquals(expected.sorted.mkString("\n"), sink.getUpsertResults.sorted.mkString("\n"))
   }
 
   @Test

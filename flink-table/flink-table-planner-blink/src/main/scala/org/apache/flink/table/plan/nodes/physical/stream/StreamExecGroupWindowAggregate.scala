@@ -179,9 +179,9 @@ class StreamExecGroupWindowAggregate(
     val timeIdx = if (isRowtimeIndicatorType(window.timeAttribute.getResultType)) {
       if (inputTimestampIndex < 0) {
         throw new TableException(
-          "Group Window Agg: Time attribute could not be found. \n" +
-          "Time attribute could not be found. This is a bug.\n" +
-            "please contact customer support for this"
+          "Group window aggregate must defined on a time attribute, " +
+            "but the time attribute can't be found.\n" +
+          "This should never happen. Please file an issue."
         )
       }
       inputTimestampIndex

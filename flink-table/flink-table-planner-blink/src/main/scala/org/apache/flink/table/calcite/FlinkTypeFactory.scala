@@ -190,11 +190,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     buildRelDataType(
       tableSchema.getFieldNames.toSeq,
       tableSchema.getFieldTypes map {
-        case tp: TimeIndicatorTypeInfo
-          if !tp.isEventTime && isStreaming.isDefined && !isStreaming.get =>
-          InternalTypes.TIMESTAMP
-        case tp: TimeIndicatorTypeInfo
-          if tp.isEventTime && isStreaming.isDefined && !isStreaming.get =>
+        case _: TimeIndicatorTypeInfo if isStreaming.isDefined && !isStreaming.get =>
           InternalTypes.TIMESTAMP
         case tpe: TypeInformation[_] => createInternalTypeFromTypeInfo(tpe)
       })
