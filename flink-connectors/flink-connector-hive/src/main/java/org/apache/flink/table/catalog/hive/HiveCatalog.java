@@ -551,7 +551,7 @@ public class HiveCatalog implements Catalog {
 
 		// Hive table's StorageDescriptor
 		// TODO: This is very basic Hive table.
-		//  [FLINK-11479] Add input/output format and SerDeLib information for Hive tables in HiveCatalogUtil#instantiateHiveTable
+		//  [FLINK-11479] Add input/output format and SerDeLib information for Hive tables.
 		StorageDescriptor sd = new StorageDescriptor();
 		hiveTable.setSd(sd);
 		sd.setSerdeInfo(new SerDeInfo(null, null, new HashMap<>()));

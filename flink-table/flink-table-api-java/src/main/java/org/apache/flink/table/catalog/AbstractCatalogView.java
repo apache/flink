@@ -62,12 +62,12 @@ public abstract class AbstractCatalogView implements CatalogView {
 
 	@Override
 	public Map<String, String> getProperties() {
-		return properties;
+		return this.properties;
 	}
 
 	@Override
 	public TableSchema getSchema() {
-		return schema;
+		return this.schema;
 	}
 
 	public String getComment() {

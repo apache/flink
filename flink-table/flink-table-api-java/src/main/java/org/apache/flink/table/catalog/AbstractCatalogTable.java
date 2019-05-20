@@ -74,7 +74,7 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 
 	@Override
 	public TableSchema getSchema() {
-		return this.tableSchema;
+		return tableSchema;
 	}
 
 	@Override

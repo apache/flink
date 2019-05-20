@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.util.StringUtils;
+
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -30,7 +33,8 @@ public abstract class AbstractCatalogFunction implements CatalogFunction {
 	private final Map<String, String> properties;
 
 	public AbstractCatalogFunction(String className, Map<String, String> properties) {
-		this.className = checkNotNull(className, "className cannot be null");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className));
+		this.className = className;
 		this.properties = checkNotNull(properties, "properties cannot be null");
 	}
 
