@@ -604,7 +604,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			TestRestartStrategy restartStrategy =
 				new TestRestartStrategy(numRestarts, false);
 
-
 			final ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
 				TEST_JOB_ID, scheduler, restartStrategy, executor, source, sink);
 
