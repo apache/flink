@@ -42,7 +42,7 @@ class BatchExecLocalHashWindowAggregate(
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     window: LogicalWindow,
-    inputTimeFieldIndex: Int,
+    val inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
     namedProperties: Seq[NamedWindowProperty],
     enableAssignPane: Boolean = false)

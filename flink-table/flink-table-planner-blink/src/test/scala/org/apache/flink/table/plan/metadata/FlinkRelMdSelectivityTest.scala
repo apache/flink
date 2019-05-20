@@ -20,7 +20,10 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.nodes.calcite.LogicalExpand
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalDataStreamTableScan, FlinkLogicalExpand, FlinkLogicalOverWindow}
+import org.apache.flink.table.plan.nodes.logical.{
+  FlinkLogicalDataStreamTableScan,
+  FlinkLogicalExpand, FlinkLogicalOverAggregate
+}
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCalc, BatchExecRank}
 import org.apache.flink.table.plan.util.ExpandUtil
 
@@ -355,7 +358,58 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetSelectivityOnOverWindow(): Unit = {
+  def testGetSelectivityOnWindowAgg(): Unit = {
+    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithoutLocalAgg,
+      batchGlobalWindowAggWithLocalAgg).foreach { agg =>
+      relBuilder.clear()
+      relBuilder.push(agg)
+      // predicate without time fields and aggCall fields
+      // a > 15
+      val predicate1 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(15))
+      assertEquals(0.75D, mq.getSelectivity(agg, predicate1))
+
+      // predicate with time fields only
+      // a > 15 and w$end = 1000000
+      val predicate2 = relBuilder.and(
+        relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(15)),
+        relBuilder.call(EQUALS, relBuilder.field(4), relBuilder.literal(1000000))
+      )
+      assertEquals(0.75D * 0.15D, mq.getSelectivity(agg, predicate2))
+
+      // predicate with time fields and aggCall fields
+      // a > 15 and count(c) > 100 and w$end = 1000000
+      val predicate3 = relBuilder.and(
+        relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(15)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2), relBuilder.literal(100)),
+        relBuilder.call(EQUALS, relBuilder.field(4), relBuilder.literal(1000000))
+      )
+      assertEquals(0.75D * 0.15D * 0.01D, mq.getSelectivity(agg, predicate3))
+    }
+
+    Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
+      batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
+      relBuilder.clear()
+      relBuilder.push(agg)
+      // a > 15
+      val predicate4 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(15))
+      assertEquals(0.8D, mq.getSelectivity(agg, predicate4))
+      // b > 15
+      val predicate5 = relBuilder.call(GREATER_THAN, relBuilder.field(1), relBuilder.literal(15))
+      assertEquals(0.7D, mq.getSelectivity(agg, predicate5))
+      // a > 15 and b > 15 and count(c) > 100 and w$end = 1000000
+      val predicate6 = relBuilder.and(
+        relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(15)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(1), relBuilder.literal(15)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2), relBuilder.literal(100)),
+        relBuilder.call(EQUALS, relBuilder.field(4), relBuilder.literal(1000000))
+      )
+      assertEquals(0.8D * 0.7D * 0.15D * 0.01D, mq.getSelectivity(agg, predicate6))
+    }
+  }
+
+  @Test
+  def testGetSelectivityOnOverAgg(): Unit = {
     // select a, b, c, d,
     // rank() over (partition by c order by d) as rk,
     // max(d) over(partition by c order by d) as max_d from MyTable4
@@ -363,7 +417,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       ImmutableList.of(), -1, longType, "rk")
     val maxAggCall = AggregateCall.create(SqlStdOperatorTable.MAX, false,
       ImmutableList.of(Integer.valueOf(3)), -1, doubleType, "max_d")
-    val overWindowGroups = ImmutableList.of(new Window.Group(
+    val overAggGroups = ImmutableList.of(new Window.Group(
       ImmutableBitSet.of(2),
       true,
       RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
@@ -383,8 +437,8 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     scan.getRowType.getFieldList.foreach(f => builder.add(f.getName, f.getType))
     builder.add(rankAggCall.getName, rankAggCall.getType)
     builder.add(maxAggCall.getName, maxAggCall.getType)
-    val overWindow = new FlinkLogicalOverWindow(cluster, flinkLogicalTraits, scan,
-      ImmutableList.of(), builder.build(), overWindowGroups)
+    val overWindow = new FlinkLogicalOverAggregate(cluster, flinkLogicalTraits, scan,
+      ImmutableList.of(), builder.build(), overAggGroups)
 
     relBuilder.push(overWindow)
     //  a <= 10
@@ -401,7 +455,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       relBuilder.call(LESS_THAN, relBuilder.field(4), relBuilder.literal(2)))
     assertEquals(1 / 25.0 * ((10.0 - 1.0) / (50.0 - 1)) * 0.5, mq.getSelectivity(overWindow, pred3))
 
-    Array(flinkLogicalOverWindow, batchOverWindowAgg).foreach { agg =>
+    Array(flinkLogicalOverAgg, batchOverAgg).foreach { agg =>
       relBuilder.clear()
       relBuilder.push(agg)
 

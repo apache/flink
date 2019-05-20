@@ -19,10 +19,11 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.JDouble
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
-import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecGroupAggregateBase
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.sort.BinaryIndexedSortable
 import org.apache.flink.table.typeutils.BinaryRowSerializer
@@ -148,6 +149,80 @@ object FlinkRelMdUtil {
     1.0 - math.exp(-0.1 * groupingLength)
 
   /**
+    * Creates a RexNode that stores a selectivity value corresponding to the
+    * selectivity of a NamedProperties predicate.
+    *
+    * @param winAgg  window aggregate node
+    * @param predicate a RexNode
+    * @return constructed rexNode including non-NamedProperties predicates and
+    *         a predicate that stores NamedProperties predicate's selectivity
+    */
+  def makeNamePropertiesSelectivityRexNode(
+      winAgg: WindowAggregate,
+      predicate: RexNode): RexNode = {
+    val fullGroupSet = AggregateUtil.checkAndGetFullGroupSet(winAgg)
+    makeNamePropertiesSelectivityRexNode(winAgg, fullGroupSet, winAgg.getNamedProperties, predicate)
+  }
+
+  /**
+    * Creates a RexNode that stores a selectivity value corresponding to the
+    * selectivity of a NamedProperties predicate.
+    *
+    * @param globalWinAgg global window aggregate node
+    * @param predicate a RexNode
+    * @return constructed rexNode including non-NamedProperties predicates and
+    *         a predicate that stores NamedProperties predicate's selectivity
+    */
+  def makeNamePropertiesSelectivityRexNode(
+      globalWinAgg: BatchExecWindowAggregateBase,
+      predicate: RexNode): RexNode = {
+    require(globalWinAgg.isFinal, "local window agg does not contain NamedProperties!")
+    val fullGrouping = globalWinAgg.getGrouping ++ globalWinAgg.getAuxGrouping
+    makeNamePropertiesSelectivityRexNode(
+      globalWinAgg, fullGrouping, globalWinAgg.getNamedProperties, predicate)
+  }
+
+  /**
+    * Creates a RexNode that stores a selectivity value corresponding to the
+    * selectivity of a NamedProperties predicate.
+    *
+    * @param winAgg window aggregate node
+    * @param fullGrouping full groupSets
+    * @param namedProperties NamedWindowProperty list
+    * @param predicate a RexNode
+    * @return constructed rexNode including non-NamedProperties predicates and
+    *         a predicate that stores NamedProperties predicate's selectivity
+    */
+  def makeNamePropertiesSelectivityRexNode(
+      winAgg: SingleRel,
+      fullGrouping: Array[Int],
+      namedProperties: Seq[NamedWindowProperty],
+      predicate: RexNode): RexNode = {
+    if (predicate == null || predicate.isAlwaysTrue || namedProperties.isEmpty) {
+      return predicate
+    }
+    val rexBuilder = winAgg.getCluster.getRexBuilder
+    val namePropertiesStartIdx = winAgg.getRowType.getFieldCount - namedProperties.size
+    // split non-nameProperties predicates and nameProperties predicates
+    val pushable = new util.ArrayList[RexNode]
+    val notPushable = new util.ArrayList[RexNode]
+    RelOptUtil.splitFilters(
+      ImmutableBitSet.range(0, namePropertiesStartIdx),
+      predicate,
+      pushable,
+      notPushable)
+    if (notPushable.nonEmpty) {
+      val pred = RexUtil.composeConjunction(rexBuilder, notPushable, true)
+      val selectivity = RelMdUtil.guessSelectivity(pred)
+      val fun = rexBuilder.makeCall(
+        RelMdUtil.ARTIFICIAL_SELECTIVITY_FUNC,
+        rexBuilder.makeApproxLiteral(new BigDecimal(selectivity)))
+      pushable.add(fun)
+    }
+    RexUtil.composeConjunction(rexBuilder, pushable, true)
+  }
+
+  /**
     * Estimates outputRowCount of local aggregate.
     *
     * output rowcount of local agg is (1 - pow((1 - 1/x) , n/m)) * m * x, based on two assumption:
@@ -212,10 +287,34 @@ object FlinkRelMdUtil {
     setChildKeysOfAgg(groupKey, aggRel)
   }
 
+  /**
+    * Takes a bitmap representing a set of input references and extracts the
+    * ones that reference the group by columns in an aggregate.
+    *
+    * @param groupKey the original bitmap
+    * @param aggRel   the aggregate
+    */
+  def setAggChildKeys(
+      groupKey: ImmutableBitSet,
+      aggRel: BatchExecWindowAggregateBase): (ImmutableBitSet, Array[AggregateCall]) = {
+    require(!aggRel.isFinal || !aggRel.isMerge, "Cannot handle global agg which has local agg!")
+    setChildKeysOfAgg(groupKey, aggRel)
+  }
+
   private def setChildKeysOfAgg(
       groupKey: ImmutableBitSet,
       agg: SingleRel): (ImmutableBitSet, Array[AggregateCall]) = {
     val (aggCalls, fullGroupSet) = agg match {
+      case agg: BatchExecLocalSortWindowAggregate =>
+        // grouping + assignTs + auxGrouping
+        (agg.getAggCallList,
+          agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping)
+      case agg: BatchExecLocalHashWindowAggregate =>
+        // grouping + assignTs + auxGrouping
+        (agg.getAggCallList,
+          agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping)
+      case agg: BatchExecWindowAggregateBase =>
+        (agg.getAggCallList, agg.getGrouping ++ agg.getAuxGrouping)
       case agg: BatchExecGroupAggregateBase =>
         (agg.getAggCallList, agg.getGrouping ++ agg.getAuxGrouping)
       case _ => throw new IllegalArgumentException(s"Unknown aggregate: ${agg.getRelTypeName}")
@@ -234,6 +333,33 @@ object FlinkRelMdUtil {
       }
     }
     (childKeyBuilder.build(), aggs.toArray)
+  }
+
+  /**
+    * Takes a bitmap representing a set of local window aggregate references.
+    *
+    * global win-agg output type: groupSet + auxGroupSet + aggCall + namedProperties
+    * local win-agg output type: groupSet + assignTs + auxGroupSet + aggCalls
+    *
+    * Skips `assignTs` when mapping `groupKey` to `childKey`.
+    *
+    * @param groupKey the original bitmap
+    * @param globalWinAgg the global window aggregate
+    */
+  def setChildKeysOfWinAgg(
+      groupKey: ImmutableBitSet,
+      globalWinAgg: BatchExecWindowAggregateBase): ImmutableBitSet = {
+    require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local agg!")
+    val childKeyBuilder = ImmutableBitSet.builder
+    groupKey.toArray.foreach { key =>
+      if (key < globalWinAgg.getGrouping.length) {
+        childKeyBuilder.set(key)
+      } else {
+        // skips `assignTs`
+        childKeyBuilder.set(key + 1)
+      }
+    }
+    childKeyBuilder.build()
   }
 
   /**
@@ -271,6 +397,10 @@ object FlinkRelMdUtil {
         val (childKeys, aggCalls) = setAggChildKeys(groupKey, rel)
         val childKeyExcludeAuxKey = removeAuxKey(childKeys, rel.getGrouping, rel.getAuxGrouping)
         (childKeyExcludeAuxKey, aggCalls)
+      case rel: BatchExecWindowAggregateBase =>
+        val (childKeys, aggCalls) = setAggChildKeys(groupKey, rel)
+        val childKeyExcludeAuxKey = removeAuxKey(childKeys, rel.getGrouping, rel.getAuxGrouping)
+        (childKeyExcludeAuxKey, aggCalls)
       case _ => throw new IllegalArgumentException(s"Unknown aggregate: ${agg.getRelTypeName}.")
     }
   }
@@ -304,6 +434,44 @@ object FlinkRelMdUtil {
       agg: BatchExecGroupAggregateBase,
       predicate: RexNode): (Option[RexNode], Option[RexNode]) = {
     splitPredicateOnAgg(agg.getGrouping ++ agg.getAuxGrouping, agg, predicate)
+  }
+
+  /**
+    * Split a predicate on WindowAggregateBatchExecBase into two parts,
+    * the first one is pushable part, the second one is rest part.
+    *
+    * @param agg       Aggregate which to analyze
+    * @param predicate Predicate which to analyze
+    * @return a tuple, first element is pushable part, second element is rest part.
+    *         Note, pushable condition will be converted based on the input field position.
+    */
+  def splitPredicateOnAggregate(
+      agg: BatchExecWindowAggregateBase,
+      predicate: RexNode): (Option[RexNode], Option[RexNode]) = {
+    splitPredicateOnAgg(agg.getGrouping ++ agg.getAuxGrouping, agg, predicate)
+  }
+
+  /**
+    * Shifts every [[RexInputRef]] in an expression higher than length of full grouping
+    * (for skips `assignTs`).
+    *
+    * global win-agg output type: groupSet + auxGroupSet + aggCall + namedProperties
+    * local win-agg output type: groupSet + assignTs + auxGroupSet + aggCalls
+    *
+    * @param predicate a RexNode
+    * @param globalWinAgg the global window aggregate
+    */
+  def setChildPredicateOfWinAgg(
+      predicate: RexNode,
+      globalWinAgg: BatchExecWindowAggregateBase): RexNode = {
+    require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local agg!")
+    if (predicate == null) {
+      return null
+    }
+    // grouping + assignTs + auxGrouping
+    val fullGrouping = globalWinAgg.getGrouping ++ globalWinAgg.getAuxGrouping
+    // skips `assignTs`
+    RexUtil.shift(predicate, fullGrouping.length, 1)
   }
 
   private def splitPredicateOnAgg(

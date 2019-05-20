@@ -231,16 +231,16 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
   }
 
   def averageColumnSizes(overWindow: Window, mq: RelMetadataQuery): JList[JDouble] =
-    averageColumnSizesOfOverWindow(overWindow, mq)
+    averageColumnSizesOfOverAgg(overWindow, mq)
 
   def averageColumnSizes(rel: BatchExecOverAggregate, mq: RelMetadataQuery): JList[JDouble] =
-    averageColumnSizesOfOverWindow(rel, mq)
+    averageColumnSizesOfOverAgg(rel, mq)
 
-  private def averageColumnSizesOfOverWindow(
-      overWindow: SingleRel,
+  private def averageColumnSizesOfOverAgg(
+      overAgg: SingleRel,
       mq: RelMetadataQuery): JList[JDouble] = {
-    val inputFieldCount = overWindow.getInput.getRowType.getFieldCount
-    getColumnSizesFromInputOrType(overWindow, mq, (0 until inputFieldCount).zipWithIndex.toMap)
+    val inputFieldCount = overAgg.getInput.getRowType.getFieldCount
+    getColumnSizesFromInputOrType(overAgg, mq, (0 until inputFieldCount).zipWithIndex.toMap)
   }
 
   def averageColumnSizes(rel: Join, mq: RelMetadataQuery): JList[JDouble] = {

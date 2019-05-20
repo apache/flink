@@ -272,7 +272,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: FlinkLogicalOverWindow,
+      rel: FlinkLogicalOverAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = constants(rel.getRowType.getFieldCount)
 
   def getRelModifiedMonotonicity(

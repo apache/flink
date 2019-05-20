@@ -62,7 +62,7 @@ class StreamExecGroupWindowAggregate(
     val aggCalls: Seq[AggregateCall],
     val window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
-    inputTimestampIndex: Int,
+    inputTimeFieldIndex: Int,
     val emitStrategy: WindowEmitStrategy)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
@@ -86,7 +86,7 @@ class StreamExecGroupWindowAggregate(
     case _ => false
   }
 
-  def getGroupings: Array[Int] = grouping
+  def getGrouping: Array[Int] = grouping
 
   def getWindowProperties: Seq[NamedWindowProperty] = namedProperties
 
@@ -103,7 +103,7 @@ class StreamExecGroupWindowAggregate(
       aggCalls,
       window,
       namedProperties,
-      inputTimestampIndex,
+      inputTimeFieldIndex,
       emitStrategy)
   }
 
