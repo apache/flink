@@ -23,11 +23,13 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
@@ -51,6 +53,7 @@ import java.util.concurrent.Future;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -988,6 +991,28 @@ public class RemoteInputChannelTest {
 			thrown = t;
 		} finally {
 			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
+		}
+	}
+
+	/**
+	 * Tests that {@link RemoteInputChannel#retriggerSubpartitionRequest(int)} would throw
+	 * the {@link PartitionNotFoundException} if backoff is 0.
+	 */
+	@Test
+	public void testPartitionNotFoundExceptionWhileRetriggeringRequest() throws Exception {
+		final RemoteInputChannel inputChannel = InputChannelTestUtils.createRemoteInputChannel(
+			createSingleInputGate(1), 0, new TestingConnectionManager());
+
+		// Request partition to initialize client to avoid illegal state after retriggering partition
+		inputChannel.requestSubpartition(0);
+		// The default backoff is 0 then it would set PartitionNotFoundException on this channel
+		inputChannel.retriggerSubpartitionRequest(0);
+		try {
+			inputChannel.checkError();
+
+			fail("Should throw a PartitionNotFoundException.");
+		} catch (PartitionNotFoundException notFound) {
+			assertThat(inputChannel.getPartitionId(), is(notFound.getPartitionId()));
 		}
 	}
 
