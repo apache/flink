@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
@@ -41,9 +42,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for {@link PartitionRequestClient}.
+ * Tests for {@link NettyPartitionRequestClient}.
  */
-public class PartitionRequestClientTest {
+public class NettyPartitionRequestClientTest {
 
 	@Test
 	public void testRetriggerPartitionRequest() throws Exception {
@@ -51,7 +52,7 @@ public class PartitionRequestClientTest {
 
 		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
-		final PartitionRequestClient client = new PartitionRequestClient(
+		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final int numExclusiveBuffers = 2;
@@ -110,7 +111,7 @@ public class PartitionRequestClientTest {
 	public void testDoublePartitionRequest() throws Exception {
 		final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
-		final PartitionRequestClient client = new PartitionRequestClient(
+		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final int numExclusiveBuffers = 2;

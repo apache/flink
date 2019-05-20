@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-
 import java.io.IOException;
 
 /**

@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -47,9 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This client is shared by all remote input channels, which request a partition
  * from the same {@link ConnectionID}.
  */
-public class PartitionRequestClient {
+public class NettyPartitionRequestClient implements PartitionRequestClient {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestClient.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NettyPartitionRequestClient.class);
 
 	private final Channel tcpChannel;
 
@@ -62,7 +63,7 @@ public class PartitionRequestClient {
 	/** If zero, the underlying TCP channel can be safely closed. */
 	private final AtomicDisposableReferenceCounter closeReferenceCounter = new AtomicDisposableReferenceCounter();
 
-	PartitionRequestClient(
+	NettyPartitionRequestClient(
 			Channel tcpChannel,
 			NetworkClientHandler clientHandler,
 			ConnectionID connectionId,
@@ -94,7 +95,8 @@ public class PartitionRequestClient {
 	 * <p>The request goes to the remote producer, for which this partition
 	 * request client instance has been created.
 	 */
-	public ChannelFuture requestSubpartition(
+	@Override
+	public void requestSubpartition(
 			final ResultPartitionID partitionId,
 			final int subpartitionIndex,
 			final RemoteInputChannel inputChannel,
@@ -128,7 +130,6 @@ public class PartitionRequestClient {
 		if (delayMs == 0) {
 			ChannelFuture f = tcpChannel.writeAndFlush(request);
 			f.addListener(listener);
-			return f;
 		} else {
 			final ChannelFuture[] f = new ChannelFuture[1];
 			tcpChannel.eventLoop().schedule(new Runnable() {
@@ -138,19 +139,18 @@ public class PartitionRequestClient {
 					f[0].addListener(listener);
 				}
 			}, delayMs, TimeUnit.MILLISECONDS);
-
-			return f[0];
 		}
 	}
 
 	/**
 	 * Sends a task event backwards to an intermediate result partition producer.
-	 * <p>
-	 * Backwards task events flow between readers and writers and therefore
+	 *
+	 * <p>Backwards task events flow between readers and writers and therefore
 	 * will only work when both are running at the same time, which is only
 	 * guaranteed to be the case when both the respective producer and
 	 * consumer task run pipelined.
 	 */
+	@Override
 	public void sendTaskEvent(ResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
 		checkNotClosed();
 
@@ -170,10 +170,12 @@ public class PartitionRequestClient {
 						});
 	}
 
+	@Override
 	public void notifyCreditAvailable(RemoteInputChannel inputChannel) {
 		clientHandler.notifyCreditAvailable(inputChannel);
 	}
 
+	@Override
 	public void close(RemoteInputChannel inputChannel) throws IOException {
 
 		clientHandler.removeInputChannel(inputChannel);

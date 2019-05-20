@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-
 /**
  * A connection manager implementation to bypass setup overhead for task managers running in local
  * execution mode.
