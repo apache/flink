@@ -32,7 +32,7 @@ public class GenericCatalogView extends AbstractCatalogView {
 	public GenericCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
 		Map<String, String> properties, String comment) {
 		super(originalQuery, expandedQuery, schema, properties, comment);
-		properties.put(GenericInMemoryCatalog.FLINK_META_PROPERTY_KEY, GenericInMemoryCatalog.FLINK_META_PROPERTY_VALUE);
+		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
 	}
 
 	@Override

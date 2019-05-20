@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -79,7 +80,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base class for catalogs backed by Hive metastore.
+ * A catalog implementation for Hive.
  */
 public class HiveCatalog implements Catalog {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
@@ -88,7 +89,7 @@ public class HiveCatalog implements Catalog {
 	// Prefix used to distinguish properties created by Hive and Flink,
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	private static final String FLINK_PROPERTY_PREFIX = "flink.";
-	private static final String GENERC_META_PROPERTY_KEY = "flink.is_generic";
+	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY;
 
 	protected final String catalogName;
 	protected final HiveConf hiveConf;
@@ -168,7 +169,7 @@ public class HiveCatalog implements Catalog {
 		Database hiveDatabase = getHiveDatabase(databaseName);
 
 		Map<String, String> properties = hiveDatabase.getParameters();
-		boolean isGeneric = Boolean.valueOf(properties.get(GENERC_META_PROPERTY_KEY));
+		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
 		return !isGeneric ? new HiveCatalogDatabase(properties, hiveDatabase.getLocationUri(), hiveDatabase.getDescription()) :
 			new GenericCatalogDatabase(retrieveFlinkProperties(properties), hiveDatabase.getDescription());
 	}
@@ -199,7 +200,6 @@ public class HiveCatalog implements Catalog {
 	}
 
 	private static Database instantiateHiveDatabase(String databaseName, GenericCatalogDatabase database) {
-		// Add a property to make it as a generic catalog database
 		Map<String, String> properties = database.getProperties();
 
 		return new Database(databaseName,
@@ -215,12 +215,23 @@ public class HiveCatalog implements Catalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
+		Database newHiveDatabase;
 		if (newDatabase instanceof HiveCatalogDatabase) {
-			alterHiveDatabase(databaseName, instantiateHiveDatabase(databaseName, (HiveCatalogDatabase) newDatabase), ignoreIfNotExists);
+			newHiveDatabase = instantiateHiveDatabase(databaseName, (HiveCatalogDatabase) newDatabase);
 		} else if (newDatabase instanceof GenericCatalogDatabase) {
-			alterHiveDatabase(databaseName, instantiateHiveDatabase(databaseName, (GenericCatalogDatabase) newDatabase), ignoreIfNotExists);
+			newHiveDatabase = instantiateHiveDatabase(databaseName, (GenericCatalogDatabase) newDatabase);
 		} else {
 			throw new CatalogException(String.format("Unsupported catalog database type %s", newDatabase.getClass()), null);
+		}
+
+		try {
+			if (databaseExists(databaseName)) {
+				client.alterDatabase(databaseName, newHiveDatabase);
+			} else if (!ignoreIfNotExists) {
+				throw new DatabaseNotExistException(catalogName, databaseName);
+			}
+		} catch (TException e) {
+			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
 	}
 
@@ -283,19 +294,6 @@ public class HiveCatalog implements Catalog {
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create database %s", hiveDatabase.getName()), e);
-		}
-	}
-
-	private void alterHiveDatabase(String name, Database newHiveDatabase, boolean ignoreIfNotExists)
-			throws DatabaseNotExistException, CatalogException {
-		try {
-			if (databaseExists(name)) {
-				client.alterDatabase(name, newHiveDatabase);
-			} else if (!ignoreIfNotExists) {
-				throw new DatabaseNotExistException(catalogName, name);
-			}
-		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to alter database %s", name), e);
 		}
 	}
 
@@ -493,7 +491,7 @@ public class HiveCatalog implements Catalog {
 
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
-		boolean isGeneric = Boolean.valueOf(properties.get(GENERC_META_PROPERTY_KEY));
+		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
 		}
@@ -615,37 +613,37 @@ public class HiveCatalog implements Catalog {
 
 	@Override
 	public void createPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition partition, boolean ignoreIfExists)
-		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionAlreadyExistsException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, PartitionAlreadyExistsException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void dropPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, boolean ignoreIfNotExists)
-		throws PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void alterPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogPartition newPartition, boolean ignoreIfNotExists)
-		throws PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath)
-		throws TableNotExistException, TableNotPartitionedException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-		throws TableNotExistException, TableNotPartitionedException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-		throws PartitionNotExistException, CatalogException {
+			throws PartitionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -658,19 +656,19 @@ public class HiveCatalog implements Catalog {
 
 	@Override
 	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
-		throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException {
+			throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
-		throws FunctionNotExistException, CatalogException {
+			throws FunctionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
-		throws FunctionNotExistException, CatalogException {
+			throws FunctionNotExistException, CatalogException {
 		throw new UnsupportedOperationException();
 	}
 

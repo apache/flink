@@ -44,7 +44,7 @@ public class GenericCatalogTable extends AbstractCatalogTable {
 			Map<String, String> properties,
 			String comment) {
 		super(tableSchema, partitionKeys, properties, comment);
-		properties.put(GenericInMemoryCatalog.FLINK_META_PROPERTY_KEY, GenericInMemoryCatalog.FLINK_META_PROPERTY_VALUE);
+		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
 	}
 
 	@Override
