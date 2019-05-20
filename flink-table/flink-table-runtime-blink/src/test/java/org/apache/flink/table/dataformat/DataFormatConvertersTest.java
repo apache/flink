@@ -46,12 +46,10 @@ import org.apache.flink.types.Row;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.TimeZone;
 
 import static org.apache.flink.table.dataformat.DataFormatConverters.getConverterForTypeInfo;
 
@@ -171,25 +169,6 @@ public class DataFormatConvertersTest {
 				BinaryMap.valueOf(
 						BinaryArray.fromPrimitiveArray(new int[]{1, 5}),
 						BinaryArray.fromPrimitiveArray(new int[]{6, 7})));
-	}
-
-	@Test
-	public void testParseToTimeMillis() throws Exception {
-		String time1 = "1999-12-31 12:34:56.123";
-		TimeZone tz = TimeZone.getDefault();
-
-		// call private method by reflection.
-		Class<?> clazz = SqlDateTimeUtils.class;
-		Method method = clazz.getDeclaredMethod("parseToTimeMillis", String.class, TimeZone.class);
-		method.setAccessible(true);
-		Long result = (Long) method.invoke(null, time1, tz);
-
-		Assert.assertEquals(123L, result % 1000);
-
-		String time2 = "1999-12-31 12:34:56.123456";
-		result = (Long) method.invoke(null, time2, tz);
-
-		Assert.assertEquals(123, result % 1000);
 	}
 
 	/**
