@@ -18,20 +18,29 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.Properties;
 
+import static org.apache.flink.container.entrypoint.StandaloneJobClusterConfigurationParserFactory.DEFAULT_JOB_ID;
 import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.core.IsNull.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link StandaloneJobClusterConfigurationParserFactory}.
@@ -63,19 +72,25 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 		assertThat(clusterConfiguration.getArgs(), arrayContaining(arg1, arg2));
 
 		assertThat(clusterConfiguration.getSavepointRestoreSettings(), is(equalTo(SavepointRestoreSettings.none())));
+
+		assertThat(clusterConfiguration.getJobId(), is(equalTo(DEFAULT_JOB_ID)));
 	}
 
 	@Test
 	public void testOnlyRequiredArguments() throws FlinkParseException {
 		final String configDir = "/foo/bar";
-		final String jobClassName = "foobar";
-		final String[] args = {"--configDir", configDir, "--job-classname", jobClassName};
+		final String[] args = {"--configDir", configDir};
 
 		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(jobClassName)));
+		assertThat(clusterConfiguration.getDynamicProperties(), is(equalTo(new Properties())));
+		assertThat(clusterConfiguration.getArgs(), is(new String[0]));
 		assertThat(clusterConfiguration.getRestPort(), is(equalTo(-1)));
+		assertThat(clusterConfiguration.getHostname(), is(nullValue()));
+		assertThat(clusterConfiguration.getSavepointRestoreSettings(), is(equalTo(SavepointRestoreSettings.none())));
+		assertThat(clusterConfiguration.getJobId(), is(not(nullValue())));
+		assertThat(clusterConfiguration.getJobClassName(),  is(nullValue()));
 	}
 
 	@Test(expected = FlinkParseException.class)
@@ -97,4 +112,56 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 		assertThat(savepointRestoreSettings.getRestorePath(), is(equalTo(restorePath)));
 		assertThat(savepointRestoreSettings.allowNonRestoredState(), is(true));
 	}
+
+	@Test
+	public void testSetJobIdManually() throws FlinkParseException {
+		final JobID jobId = new JobID();
+		final String[] args = {"--configDir", "/foo/bar", "--job-classname", "foobar", "--job-id", jobId.toString()};
+
+		final StandaloneJobClusterConfiguration standaloneJobClusterConfiguration = commandLineParser.parse(args);
+
+		assertThat(standaloneJobClusterConfiguration.getJobId(), is(equalTo(jobId)));
+	}
+
+	@Test
+	public void testInvalidJobIdThrows() {
+		final String invalidJobId = "0xINVALID";
+		final String[] args = {"--configDir", "/foo/bar", "--job-classname", "foobar", "--job-id", invalidJobId};
+
+		try {
+			commandLineParser.parse(args);
+			fail("Did not throw expected FlinkParseException");
+		} catch (FlinkParseException e) {
+			Optional<IllegalArgumentException> cause = ExceptionUtils.findThrowable(e, IllegalArgumentException.class);
+			assertTrue(cause.isPresent());
+			assertThat(cause.get().getMessage(), containsString(invalidJobId));
+		}
+	}
+
+	@Test
+	public void testShortOptions() throws FlinkParseException {
+		final String configDir = "/foo/bar";
+		final String jobClassName = "foobar";
+		final JobID jobId = new JobID();
+		final String savepointRestorePath = "s3://foo/bar";
+
+		final String[] args = {
+			"-c", configDir,
+			"-j", jobClassName,
+			"-jid", jobId.toString(),
+			"-s", savepointRestorePath,
+			"-n"};
+
+		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+
+		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
+		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(jobClassName)));
+		assertThat(clusterConfiguration.getJobId(), is(equalTo(jobId)));
+
+		final SavepointRestoreSettings savepointRestoreSettings = clusterConfiguration.getSavepointRestoreSettings();
+		assertThat(savepointRestoreSettings.restoreSavepoint(), is(true));
+		assertThat(savepointRestoreSettings.getRestorePath(), is(equalTo(savepointRestorePath)));
+		assertThat(savepointRestoreSettings.allowNonRestoredState(), is(true));
+	}
+
 }

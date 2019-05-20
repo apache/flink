@@ -20,6 +20,7 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Serializable;
@@ -42,21 +43,41 @@ final class MonotonicTTLTimeProvider implements TtlTimeProvider, Serializable {
 	 * the time, but the backend would not be notified about it, resulting in inconsistent
 	 * state.
 	 *
-	 * If the number of task slots per TM changes, then we may need to add also synchronization.
+	 * We have to add synchronization because the time provider is also accessed concurrently
+	 * from RocksDB compaction filter threads.
 	 */
 
 	private static boolean timeIsFrozen = false;
 
 	private static long lastReturnedProcessingTime = Long.MIN_VALUE;
 
-	@Override
-	public long currentTimestamp() {
-		if (timeIsFrozen && lastReturnedProcessingTime != Long.MIN_VALUE) {
-			return lastReturnedProcessingTime;
+	private static final Object lock = new Object();
+
+	@GuardedBy("lock")
+	static long freeze() {
+		synchronized (lock) {
+			if (!timeIsFrozen || lastReturnedProcessingTime == Long.MIN_VALUE) {
+				timeIsFrozen = true;
+				return getCurrentTimestamp();
+			} else {
+				return lastReturnedProcessingTime;
+			}
 		}
+	}
 
-		timeIsFrozen = true;
+	@Override
+	@GuardedBy("lock")
+	public long currentTimestamp() {
+		synchronized (lock) {
+			if (timeIsFrozen && lastReturnedProcessingTime != Long.MIN_VALUE) {
+				return lastReturnedProcessingTime;
+			}
+			return getCurrentTimestamp();
+		}
+	}
 
+	@GuardedBy("lock")
+	private static long getCurrentTimestamp() {
 		final long currentProcessingTime = System.currentTimeMillis();
 		if (currentProcessingTime < lastReturnedProcessingTime) {
 			return lastReturnedProcessingTime;
@@ -66,8 +87,11 @@ final class MonotonicTTLTimeProvider implements TtlTimeProvider, Serializable {
 		return lastReturnedProcessingTime;
 	}
 
-	long unfreezeTime() {
-		timeIsFrozen = false;
-		return lastReturnedProcessingTime;
+	@GuardedBy("lock")
+	static long unfreezeTime() {
+		synchronized (lock) {
+			timeIsFrozen = false;
+			return lastReturnedProcessingTime;
+		}
 	}
 }

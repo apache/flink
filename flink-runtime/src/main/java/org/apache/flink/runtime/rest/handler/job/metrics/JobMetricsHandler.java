@@ -32,7 +32,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nullable;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Request handler that returns for a given job a list of all available metrics or the values for a set of metrics.
@@ -40,13 +39,11 @@ import java.util.concurrent.CompletableFuture;
 public class JobMetricsHandler extends AbstractMetricsHandler<JobMetricsMessageParameters> {
 
 	public JobMetricsHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> headers,
 			final MetricFetcher metricFetcher) {
-		super(localRestAddress, leaderRetriever, timeout, headers, JobMetricsHeaders.getInstance(),
-			metricFetcher);
+		super(leaderRetriever, timeout, headers, JobMetricsHeaders.getInstance(), metricFetcher);
 	}
 
 	@Nullable

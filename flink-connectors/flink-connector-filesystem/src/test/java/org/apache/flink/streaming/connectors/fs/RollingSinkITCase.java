@@ -101,6 +101,8 @@ public class RollingSinkITCase extends TestLogger {
 
 	protected static File dataDir;
 
+	private final int maxParallelism = 10;
+
 	@BeforeClass
 	public static void setup() throws Exception {
 
@@ -747,9 +749,15 @@ public class RollingSinkITCase extends TestLogger {
 		// state of the previous testHarness3 and testHarness1 while testHarness5
 		// will take that of the previous testHarness1
 
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 3, 2, 0);
+
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 3, 2, 1);
+
 		OneInputStreamOperatorTestHarness<String, Object> testHarness4 = createRescalingTestSink(outDir, 2, 0);
 		testHarness4.setup();
-		testHarness4.initializeState(mergedSnapshot);
+		testHarness4.initializeState(initState1);
 		testHarness4.open();
 
 		// we do not have a length file for part-2-0 because bucket part-2-0
@@ -758,7 +766,7 @@ public class RollingSinkITCase extends TestLogger {
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness5 = createRescalingTestSink(outDir, 2, 1);
 		testHarness5.setup();
-		testHarness5.initializeState(mergedSnapshot);
+		testHarness5.initializeState(initState2);
 		testHarness5.open();
 
 		checkLocalFs(outDir, 0, 0, 8, 3);
@@ -793,23 +801,32 @@ public class RollingSinkITCase extends TestLogger {
 			testHarness1.snapshot(0, 0)
 		);
 
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 3, 0);
+
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 3, 1);
+
+		OperatorSubtaskState initState3 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 3, 2);
+
 		testHarness1 = createRescalingTestSink(outDir, 3, 0);
 		testHarness1.setup();
-		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.initializeState(initState1);
 		testHarness1.open();
 
 		checkLocalFs(outDir, 1, 1, 3, 1);
 
 		testHarness2 = createRescalingTestSink(outDir, 3, 1);
 		testHarness2.setup();
-		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.initializeState(initState2);
 		testHarness2.open();
 
 		checkLocalFs(outDir, 0, 0, 5, 2);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness3 = createRescalingTestSink(outDir, 3, 2);
 		testHarness3.setup();
-		testHarness3.initializeState(mergedSnapshot);
+		testHarness3.initializeState(initState3);
 		testHarness3.open();
 
 		checkLocalFs(outDir, 0, 0, 5, 2);
@@ -851,7 +868,7 @@ public class RollingSinkITCase extends TestLogger {
 
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
 		RollingSink<T> sink, int totalParallelism, int taskIdx) throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), maxParallelism, totalParallelism, taskIdx);
 	}
 
 	private static class TestSourceFunction implements SourceFunction<Tuple2<Integer, String>> {

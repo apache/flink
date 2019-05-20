@@ -36,22 +36,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  * The facade for the provided I/O manager services.
  */
 public abstract class IOManager {
-
-	public enum IOMode {
-
-		SYNC(true), ASYNC(false);
-
-		private final boolean isSynchronous;
-
-		IOMode(boolean isSynchronous) {
-			this.isSynchronous = isSynchronous;
-		}
-
-		public boolean isSynchronous() {
-			return isSynchronous;
-		}
-	}
-
 	/** Logging */
 	protected static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 

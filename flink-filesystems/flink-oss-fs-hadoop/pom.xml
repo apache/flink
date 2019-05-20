@@ -21,14 +21,14 @@ under the License.
 	<parent>
 		<artifactId>flink-filesystems</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-oss-fs-hadoop</artifactId>
 
 	<properties>
-		<fs.oss.sdk.version>3.1.0</fs.oss.sdk.version>
+		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
 	</properties>
 
 	<dependencies>
@@ -72,6 +72,23 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<!-- for the behavior test suite -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>

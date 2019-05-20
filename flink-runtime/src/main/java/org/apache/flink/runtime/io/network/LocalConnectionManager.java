@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 public class LocalConnectionManager implements ConnectionManager {
 
 	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) {
+	public void start(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher) {
 	}
 
 	@Override

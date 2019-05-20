@@ -94,7 +94,7 @@ public class BufferSpiller implements BufferBlocker {
 	/**
 	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
 	 *
-	 * @param ioManager The I/O manager for access to teh temp directories.
+	 * @param ioManager The I/O manager for access to the temp directories.
 	 * @param pageSize The page size used to re-create spilled buffers.
 	 * @throws IOException Thrown if the temp files for spilling cannot be initialized.
 	 */

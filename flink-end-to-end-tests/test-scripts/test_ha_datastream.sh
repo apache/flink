@@ -51,6 +51,7 @@ function run_ha_test() {
     # change the pid dir to start log files always from 0, this is important for checks in the
     # jm killing loop
     set_conf "env.pid.dir" "${TEST_DATA_DIR}"
+    set_conf "env.java.opts" "-ea"
     start_local_zk
     start_cluster
 

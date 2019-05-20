@@ -20,7 +20,6 @@ package org.apache.flink.mesos.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.configuration.description.LinkElement;
 import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -29,31 +28,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options relating to mesos settings.
  */
 public class MesosOptions {
-
-	/**
-	 * The initial number of Mesos tasks to allocate.
-	 */
-	public static final ConfigOption<Integer> INITIAL_TASKS =
-		key("mesos.initial-tasks")
-			.defaultValue(0)
-			.withDescription(Description.builder()
-				.text("The initial workers to bring up when the master starts. ")
-				.text("This option is ignored unless Flink is in %s.", LinkElement.link("#legacy", "legacy mode"))
-				.build());
-
-	/**
-	 * The maximum number of failed Mesos tasks before entirely stopping
-	 * the Mesos session / job on Mesos.
-	 *
-	 * <p>By default, we take the number of initially requested tasks.
-	 */
-	public static final ConfigOption<Integer> MAX_FAILED_TASKS =
-		key("mesos.maximum-failed-tasks")
-			.defaultValue(-1)
-			.withDescription(Description.builder()
-				.text("The maximum number of failed workers before the cluster fails. May be set to -1 to disable this feature. ")
-				.text("This option is ignored unless Flink is in %s.", LinkElement.link("#legacy", "legacy mode"))
-				.build());
 
 	/**
 	 * The Mesos master URL.

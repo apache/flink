@@ -22,7 +22,6 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,9 +62,6 @@ public class ZooKeeperTestUtils {
 		checkNotNull(config, "Configuration");
 		checkNotNull(zooKeeperQuorum, "ZooKeeper quorum");
 		checkNotNull(fsStateHandlePath, "File state handle backend path");
-
-		// Web frontend, you have been dismissed. Sorry.
-		config.setInteger(WebOptions.PORT, -1);
 
 		// ZooKeeper recovery mode
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");

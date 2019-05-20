@@ -24,6 +24,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -422,6 +423,17 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		if (exception != null) {
 			throw new Exception("Could not properly release all state nodes.", exception);
 		}
+	}
+
+	/**
+	 * Recursively deletes all children.
+	 *
+	 * @throws Exception ZK errors
+	 */
+	public void deleteChildren() throws Exception {
+		final String path = "/" + client.getNamespace();
+		LOG.info("Removing {} from ZooKeeper", path);
+		ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, true);
 	}
 
 	// ---------------------------------------------------------------------------------------------------------

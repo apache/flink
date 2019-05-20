@@ -187,7 +187,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
-			if (len < writeBuffer.length / 2) {
+			if (len < writeBuffer.length) {
 				// copy it into our write buffer first
 				final int remaining = writeBuffer.length - pos;
 				if (len > remaining) {

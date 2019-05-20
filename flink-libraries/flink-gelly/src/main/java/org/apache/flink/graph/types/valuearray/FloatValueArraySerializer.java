@@ -19,8 +19,9 @@
 
 package org.apache.flink.graph.types.valuearray;
 
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -80,14 +81,21 @@ public final class FloatValueArraySerializer extends TypeSerializerSingleton<Flo
 		FloatValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof FloatValueArraySerializer;
-	}
+	// -----------------------------------------------------------------------------------
 
 	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(LongPrimitiveArraySerializer.class.getCanonicalName());
+	public TypeSerializerSnapshot<FloatValueArray> snapshotConfiguration() {
+		return new FloatValueArraySerializerSnapshot();
+	}
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class FloatValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<FloatValueArray> {
+
+		public FloatValueArraySerializerSnapshot() {
+			super(FloatValueArraySerializer::new);
+		}
 	}
 }

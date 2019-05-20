@@ -41,8 +41,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
-import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.createConfigWithOneReporter;
+import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.createReporterSetup;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.pollMetrics;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -80,7 +81,9 @@ public class PrometheusReporterTaskScopeTest {
 
 	@Before
 	public void setupReporter() {
-		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		registry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Collections.singletonList(createReporterSetup("test1", "9400-9500")));
 		reporter = (PrometheusReporter) registry.getReporters().get(0);
 
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(registry, TASK_MANAGER_HOST, TASK_MANAGER_ID);

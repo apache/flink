@@ -76,7 +76,8 @@ public class HistoryServerOptions {
 	 */
 	public static final ConfigOption<Long> HISTORY_SERVER_WEB_REFRESH_INTERVAL =
 		key("historyserver.web.refresh-interval")
-			.defaultValue(10000L);
+			.defaultValue(10000L)
+			.withDescription("The refresh interval for the HistoryServer web-frontend in milliseconds.");
 
 	/**
 	 * Enables/Disables SSL support for the HistoryServer web-frontend. Only relevant if

@@ -31,7 +31,6 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the {@link Handover} between Kafka Consumer Thread and the fetcher's main thread.
@@ -285,9 +284,8 @@ public class HandoverTest {
 		producer.sync();
 	}
 
-	@SuppressWarnings("unchecked")
 	private static ConsumerRecords<byte[], byte[]> createTestRecords() {
-		return mock(ConsumerRecords.class);
+		return ConsumerRecords.empty();
 	}
 
 	// ------------------------------------------------------------------------

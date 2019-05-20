@@ -101,5 +101,9 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 		flushAll();
 	}
 
+	@Override
+	public void close() {
+	}
+
 	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;
 }

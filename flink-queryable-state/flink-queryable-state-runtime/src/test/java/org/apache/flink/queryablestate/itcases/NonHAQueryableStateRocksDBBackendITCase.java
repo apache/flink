@@ -25,7 +25,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
@@ -60,7 +60,7 @@ public class NonHAQueryableStateRocksDBBackendITCase extends AbstractQueryableSt
 			.build());
 
 	@Override
-	protected AbstractStateBackend createStateBackend() throws Exception {
+	protected StateBackend createStateBackend() throws Exception {
 		return new RocksDBStateBackend(temporaryFolder.newFolder().toURI().toString());
 	}
 
@@ -78,6 +78,7 @@ public class NonHAQueryableStateRocksDBBackendITCase extends AbstractQueryableSt
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
+		config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);

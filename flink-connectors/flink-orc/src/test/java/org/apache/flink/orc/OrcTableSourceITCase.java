@@ -21,7 +21,6 @@ package org.apache.flink.orc;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.Row;
@@ -49,7 +48,7 @@ public class OrcTableSourceITCase extends MultipleProgramsTestBase {
 	public void testFullScan() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 		OrcTableSource orc = OrcTableSource.builder()
 			.path(getPath(TEST_FILE_FLAT))
@@ -84,7 +83,7 @@ public class OrcTableSourceITCase extends MultipleProgramsTestBase {
 	public void testScanWithProjectionAndFilter() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 		OrcTableSource orc = OrcTableSource.builder()
 			.path(getPath(TEST_FILE_FLAT))

@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -33,9 +32,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.Test;
@@ -51,6 +48,8 @@ import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -90,19 +89,11 @@ public class InputGateFairnessTest {
 
 		ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		for (int i = 0; i < numberOfChannels; i++) {
-			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+			LocalInputChannel channel = createLocalInputChannel(gate, i, resultPartitionManager);
+			gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
 		}
 
 		// read all the buffers and the EOF event
@@ -144,19 +135,11 @@ public class InputGateFairnessTest {
 
 			ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
-			SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+			final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 			for (int i = 0; i < numberOfChannels; i++) {
-				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+				LocalInputChannel channel = createLocalInputChannel(gate, i, resultPartitionManager);
+				gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
 			}
 
 			// seed one initial buffer
@@ -195,24 +178,14 @@ public class InputGateFairnessTest {
 
 		// ----- create some source channels and fill them with buffers -----
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
 		final RemoteInputChannel[] channels = new RemoteInputChannel[numberOfChannels];
 
 		for (int i = 0; i < numberOfChannels; i++) {
-			RemoteInputChannel channel = new RemoteInputChannel(
-					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-
+			RemoteInputChannel channel = createRemoteInputChannel(gate, i, connManager);
 			channels[i] = channel;
 
 			for (int p = 0; p < buffersPerChannel; p++) {
@@ -220,7 +193,7 @@ public class InputGateFairnessTest {
 			}
 			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
 
-			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+			gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
 		}
 
 		// read all the buffers and the EOF event
@@ -251,14 +224,7 @@ public class InputGateFairnessTest {
 
 		// ----- create some source channels and fill them with buffers -----
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numberOfChannels,
-				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-				true);
+		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -266,12 +232,9 @@ public class InputGateFairnessTest {
 		final int[] channelSequenceNums = new int[numberOfChannels];
 
 		for (int i = 0; i < numberOfChannels; i++) {
-			RemoteInputChannel channel = new RemoteInputChannel(
-					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-
+			RemoteInputChannel channel = createRemoteInputChannel(gate, i, connManager);
 			channels[i] = channel;
-			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+			gate.setInputChannel(channel.getPartitionId().getPartitionId(), channel);
 		}
 
 		channels[11].onBuffer(mockBuffer, 0, -1);
@@ -302,6 +265,17 @@ public class InputGateFairnessTest {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
+
+	private SingleInputGate createFairnessVerifyingInputGate(int numberOfChannels) {
+		return new FairnessVerifyingInputGate(
+			"Test Task Name",
+			new JobID(),
+			new IntermediateDataSetID(),
+			0,
+			numberOfChannels,
+			new NoOpTaskActions(),
+			true);
+	}
 
 	private void fillRandom(PipelinedSubpartition[] partitions, int numPerPartition, BufferConsumer buffer) throws Exception {
 		ArrayList<Integer> poss = new ArrayList<>(partitions.length * numPerPartition);
@@ -356,12 +330,10 @@ public class InputGateFairnessTest {
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels,
 				TaskActions taskActions,
-				TaskIOMetricGroup metrics,
 				boolean isCreditBased) {
 
 			super(owningTaskName, jobId, consumedResultId, ResultPartitionType.PIPELINED,
-				consumedSubpartitionIndex,
-					numberOfInputChannels, taskActions, metrics, isCreditBased);
+				consumedSubpartitionIndex, numberOfInputChannels, taskActions, new SimpleCounter(), isCreditBased);
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");

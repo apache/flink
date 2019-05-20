@@ -38,8 +38,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-
 import org.apache.flink.types.Value;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,7 +47,9 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class OutputEmitterTest {
@@ -105,7 +107,7 @@ public class OutputEmitterTest {
 			if (toTaskIndex <= i || i < toTaskIndex+extraRecords - numberOfChannels) {
 				assertTrue(hits[i] == (numRecords / numberOfChannels) + 1);
 			} else {
-				assertTrue(hits[i] == numRecords/numberOfChannels);
+				assertTrue(hits[i] == numRecords / numberOfChannels);
 			}
 			totalHitCount += hits[i];
 		}
@@ -160,10 +162,8 @@ public class OutputEmitterTest {
 			record.setField(3, new DoubleValue(i * 3.141d));
 			delegate.setInstance(record);
 
-			int[] channels = selector.selectChannels(delegate);
-			for (int channel : channels) {
-				hits[channel]++;
-			}
+			int channel = selector.selectChannel(delegate);
+			hits[channel]++;
 		}
 
 		int totalHitCount = 0;
@@ -209,7 +209,7 @@ public class OutputEmitterTest {
 
 		try {
 			delegate.setInstance(record);
-			selector.selectChannels(delegate);
+			selector.selectChannel(delegate);
 		} catch (DeserializationException re) {
 			return;
 		}
@@ -237,11 +237,13 @@ public class OutputEmitterTest {
 	}
 
 	private void verifyBroadcastSelectedChannels(int numRecords, int numberOfChannels, Enum recordType) {
-		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.BROADCAST, numRecords, numberOfChannels, recordType);
-
-		for (int hit : hits) {
-			assertTrue(hit + "", hit == numRecords);
+		try {
+			getSelectedChannelsHitCount(ShipStrategyType.BROADCAST, numRecords, numberOfChannels, recordType);
+		} catch (UnsupportedOperationException ex) {
+			return;
 		}
+
+		fail("Broadcast selector does not support select channels.");
 	}
 
 	private boolean verifyWrongPartitionHashKey(int position, int fieldNum) {
@@ -256,7 +258,7 @@ public class OutputEmitterTest {
 		delegate.setInstance(record);
 
 		try {
-			selector.selectChannels(delegate);
+			selector.selectChannel(delegate);
 		} catch (NullKeyFieldException re) {
 			Assert.assertEquals(position, re.getFieldNumber());
 			return true;
@@ -283,6 +285,7 @@ public class OutputEmitterTest {
 			int numberOfChannels) {
 		final ChannelSelector selector = new OutputEmitter<>(shipStrategyType, comparator);
 		selector.setup(numberOfChannels);
+		assertEquals(shipStrategyType == ShipStrategyType.BROADCAST, selector.isBroadcast());
 		return selector;
 	}
 
@@ -303,10 +306,8 @@ public class OutputEmitterTest {
 			Record record = new Record(value);
 			delegate.setInstance(record);
 
-			int[] channels = selector.selectChannels(delegate);
-			for (int channel : channels) {
-				hits[channel]++;
-			}
+			int channel = selector.selectChannel(delegate);
+			hits[channel]++;
 		}
 		return hits;
 	}
@@ -317,10 +318,9 @@ public class OutputEmitterTest {
 			int record,
 			int numberOfChannels) {
 		serializationDelegate.setInstance(record);
-		int[] selectedChannels = selector.selectChannels(serializationDelegate);
+		int selectedChannel = selector.selectChannel(serializationDelegate);
 
-		assertTrue(selectedChannels.length == 1);
-		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numberOfChannels - 1);
+		assertTrue(selectedChannel >= 0 && selectedChannel <= numberOfChannels - 1);
 	}
 
 	private static class TestIntComparator extends TypeComparator<Integer> {

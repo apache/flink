@@ -21,7 +21,9 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -31,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -118,6 +122,12 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	private static final int MAXIMUM_CAPACITY = 1 << 30;
 
 	/**
+	 * Default capacity for a {@link CopyOnWriteStateTable}. Must be a power of two,
+	 * greater than {@code MINIMUM_CAPACITY} and less than {@code MAXIMUM_CAPACITY}.
+	 */
+	public static final int DEFAULT_CAPACITY = 1024;
+
+	/**
 	 * Minimum number of entries that one step of incremental rehashing migrates from the old to the new sub-table.
 	 */
 	private static final int MIN_TRANSFERRED_PER_INCREMENTAL_REHASH = 4;
@@ -199,26 +209,35 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	private int modCount;
 
 	/**
-	 * Constructs a new {@code StateTable} with default capacity of 1024.
+	 * Constructs a new {@code StateTable} with default capacity of {@code DEFAULT_CAPACITY}.
 	 *
-	 * @param keyContext the key context.
-	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
+	 * @param keyContext    the key context.
+	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
+	 * @param keySerializer the serializer of the key.
 	 */
-	CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
-		this(keyContext, metaInfo, 1024);
+	CopyOnWriteStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		TypeSerializer<K> keySerializer) {
+		this(keyContext, metaInfo, DEFAULT_CAPACITY, keySerializer);
 	}
 
 	/**
 	 * Constructs a new {@code StateTable} instance with the specified capacity.
 	 *
-	 * @param keyContext the key context.
-	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
-	 * @param capacity   the initial capacity of this hash map.
+	 * @param keyContext    the key context.
+	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
+	 * @param capacity      the initial capacity of this hash map.
+	 * @param keySerializer the serializer of the key.
 	 * @throws IllegalArgumentException when the capacity is less than zero.
 	 */
 	@SuppressWarnings("unchecked")
-	private CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo, int capacity) {
-		super(keyContext, metaInfo);
+	private CopyOnWriteStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+		int capacity,
+		TypeSerializer<K> keySerializer) {
+		super(keyContext, metaInfo, keySerializer);
 
 		// initialized tables to EMPTY_TABLE.
 		this.primaryTable = (StateTableEntry<K, N, S>[]) EMPTY_TABLE;
@@ -1032,52 +1051,84 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 
 	// StateEntryIterator  ---------------------------------------------------------------------------------------------
 
-	/**
-	 * Iterator over the entries in a {@link CopyOnWriteStateTable}.
-	 */
-	class StateEntryIterator implements Iterator<StateEntry<K, N, S>> {
-		private StateTableEntry<K, N, S>[] activeTable;
-		private int nextTablePosition;
-		private StateTableEntry<K, N, S> nextEntry;
-		private int expectedModCount;
+	@Override
+	public StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		return new StateIncrementalVisitorImpl(recommendedMaxNumberOfReturnedRecords);
+	}
 
-		StateEntryIterator() {
+	/**
+	 * Iterator over state entry chains in a {@link CopyOnWriteStateTable}.
+	 */
+	class StateEntryChainIterator implements Iterator<StateTableEntry<K, N, S>> {
+		StateTableEntry<K, N, S>[] activeTable;
+		private int nextTablePosition;
+		private final int maxTraversedTablePositions;
+
+		StateEntryChainIterator() {
+			this(Integer.MAX_VALUE);
+		}
+
+		StateEntryChainIterator(int maxTraversedTablePositions) {
+			this.maxTraversedTablePositions = maxTraversedTablePositions;
 			this.activeTable = primaryTable;
 			this.nextTablePosition = 0;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return size() > 0 && (nextTablePosition < activeTable.length || activeTable == primaryTable);
+		}
+
+		@Override
+		public StateTableEntry<K, N, S> next() {
+			StateTableEntry<K, N, S> next;
+			// consider both sub-tables to cover the case of rehash
+			while (true) { // current is empty
+				// try get next in active table or
+				// iteration is done over primary and rehash table
+				// or primary was swapped with rehash when rehash is done
+				next = nextActiveTablePosition();
+				if (next != null ||
+					nextTablePosition < activeTable.length ||
+					activeTable == incrementalRehashTable ||
+					activeTable != primaryTable) {
+					return next;
+				} else {
+					// switch to rehash (empty if no rehash)
+					activeTable = incrementalRehashTable;
+					nextTablePosition = 0;
+				}
+			}
+		}
+
+		private StateTableEntry<K, N, S> nextActiveTablePosition() {
+			StateTableEntry<K, N, S>[] tab = activeTable;
+			int traversedPositions = 0;
+			while (nextTablePosition < tab.length && traversedPositions < maxTraversedTablePositions) {
+				StateTableEntry<K, N, S> next = tab[nextTablePosition++];
+				if (next != null) {
+					return next;
+				}
+				traversedPositions++;
+			}
+			return null;
+		}
+	}
+
+	/**
+	 * Iterator over state entries in a {@link CopyOnWriteStateTable} which does not tolerate concurrent modifications.
+	 */
+	class StateEntryIterator implements Iterator<StateEntry<K, N, S>> {
+
+		private final StateEntryChainIterator chainIterator;
+		private StateTableEntry<K, N, S> nextEntry;
+		private final int expectedModCount;
+
+		StateEntryIterator() {
+			this.chainIterator = new StateEntryChainIterator();
 			this.expectedModCount = modCount;
 			this.nextEntry = getBootstrapEntry();
 			advanceIterator();
-		}
-
-		private StateTableEntry<K, N, S> advanceIterator() {
-
-			StateTableEntry<K, N, S> entryToReturn = nextEntry;
-			StateTableEntry<K, N, S> next = entryToReturn.next;
-
-			// consider both sub-tables tables to cover the case of rehash
-			while (next == null) {
-
-				StateTableEntry<K, N, S>[] tab = activeTable;
-
-				while (nextTablePosition < tab.length) {
-					next = tab[nextTablePosition++];
-
-					if (next != null) {
-						nextEntry = next;
-						return entryToReturn;
-					}
-				}
-
-				if (activeTable == incrementalRehashTable) {
-					break;
-				}
-
-				activeTable = incrementalRehashTable;
-				nextTablePosition = 0;
-			}
-
-			nextEntry = next;
-			return entryToReturn;
 		}
 
 		@Override
@@ -1086,21 +1137,67 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		@Override
-		public StateTableEntry<K, N, S> next() {
+		public StateEntry<K, N, S> next() {
 			if (modCount != expectedModCount) {
 				throw new ConcurrentModificationException();
 			}
-
-			if (nextEntry == null) {
+			if (!hasNext()) {
 				throw new NoSuchElementException();
 			}
-
 			return advanceIterator();
 		}
 
+		StateTableEntry<K, N, S> advanceIterator() {
+			StateTableEntry<K, N, S> entryToReturn = nextEntry;
+			StateTableEntry<K, N, S> next = nextEntry.next;
+			if (next == null) {
+				next = chainIterator.next();
+			}
+			nextEntry = next;
+			return entryToReturn;
+		}
+	}
+
+	/**
+	 * Incremental visitor over state entries in a {@link CopyOnWriteStateTable}.
+	 */
+	class StateIncrementalVisitorImpl implements StateIncrementalVisitor<K, N, S> {
+
+		private final StateEntryChainIterator chainIterator;
+		private final Collection<StateEntry<K, N, S>> chainToReturn = new ArrayList<>(5);
+
+		StateIncrementalVisitorImpl(int recommendedMaxNumberOfReturnedRecords) {
+			chainIterator = new StateEntryChainIterator(recommendedMaxNumberOfReturnedRecords);
+		}
+
 		@Override
-		public void remove() {
-			throw new UnsupportedOperationException("Read-only iterator");
+		public boolean hasNext() {
+			return chainIterator.hasNext();
+		}
+
+		@Override
+		public Collection<StateEntry<K, N, S>> nextEntries() {
+			if (!hasNext()) {
+				return null;
+			}
+
+			chainToReturn.clear();
+			for (StateTableEntry<K, N, S> nextEntry = chainIterator.next();
+				 nextEntry != null;
+				 nextEntry = nextEntry.next) {
+				chainToReturn.add(nextEntry);
+			}
+			return chainToReturn;
+		}
+
+		@Override
+		public void remove(StateEntry<K, N, S> stateEntry) {
+			CopyOnWriteStateTable.this.remove(stateEntry.getKey(), stateEntry.getNamespace());
+		}
+
+		@Override
+		public void update(StateEntry<K, N, S> stateEntry, S newValue) {
+			CopyOnWriteStateTable.this.put(stateEntry.getKey(), stateEntry.getNamespace(), newValue);
 		}
 	}
 }

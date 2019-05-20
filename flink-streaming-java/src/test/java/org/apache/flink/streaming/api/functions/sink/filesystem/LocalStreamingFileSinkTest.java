@@ -456,12 +456,15 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			);
 		}
 
+		final OperatorSubtaskState initState = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, TestUtils.MAX_PARALLELISM, 2, 1, 0);
+
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createRescalingTestSink(
 						outDir, 1, 0, 100L, 10L)
 		) {
 			testHarness.setup();
-			testHarness.initializeState(mergedSnapshot);
+			testHarness.initializeState(initState);
 			testHarness.open();
 
 			// still everything in-progress but the in-progress for prev task 1 should be put in pending now

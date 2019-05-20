@@ -640,7 +640,6 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 			timeout,
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			1000,
 			VoidBlobWriter.getInstance(),
 			timeout,
 			log);

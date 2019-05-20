@@ -30,7 +30,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -69,7 +69,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			config,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new TestingSlotProvider(ignore -> new CompletableFuture<>()),
 			Thread.currentThread().getContextClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),
@@ -98,7 +98,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			config,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new TestingSlotProvider(ignore -> new CompletableFuture<>()),
 			Thread.currentThread().getContextClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),
@@ -127,7 +127,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			config,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new TestingSlotProvider(ignore -> new CompletableFuture<>()),
 			Thread.currentThread().getContextClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),
@@ -169,7 +169,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				config,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
-				new Scheduler(TestingUtils.defaultExecutionContext()),
+				new TestingSlotProvider(ignore -> new CompletableFuture<>()),
 				Thread.currentThread().getContextClassLoader(),
 				new StandaloneCheckpointRecoveryFactory(),
 				AkkaUtils.getDefaultTimeout(),

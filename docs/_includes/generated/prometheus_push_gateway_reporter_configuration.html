@@ -13,6 +13,11 @@
             <td>Specifies whether to delete metrics from the PushGateway on shutdown.</td>
         </tr>
         <tr>
+            <td><h5>filterLabelValueCharacters</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Specifies whether to filter label value characters. If enabled, all characters not matching [a-zA-Z0-9:_] will be removed, otherwise no characters will be removed. Before disabling this option please ensure that your label values meet the <a href="https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels">Prometheus requirements</a>.</td>
+        </tr>
+        <tr>
             <td><h5>host</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The PushGateway server host.</td>

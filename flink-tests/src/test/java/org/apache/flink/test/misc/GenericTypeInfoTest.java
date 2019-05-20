@@ -26,6 +26,8 @@ import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.hamcrest.core.IsEqual.equalTo;
+
 /**
  * Test TypeInfo serializer tree.
  */
@@ -38,39 +40,27 @@ public class GenericTypeInfoTest {
 				(TypeInformation<CollectionDataSets.PojoWithCollectionGeneric>)
 						TypeExtractor.createTypeInfo(CollectionDataSets.PojoWithCollectionGeneric.class);
 
-		String serTree = Utils.getSerializerTree(ti);
-		// We can not test against the entire output because the fields of 'String' differ
-		// between java versions
-		Assert.assertTrue(serTree.startsWith("GenericTypeInfo (PojoWithCollectionGeneric)\n" +
+		final String serTree = Utils.getSerializerTree(ti)
+			// normalize String/BigInteger representations as they vary across java versions
+			// do 2 passes for BigInteger since they occur at different indentations
+			.replaceAll("(java\\.lang\\.String\\R)( {12}\\S*\\R)+", "$1")
+			.replaceAll("( {4}[a-zA-Z]+:java\\.math\\.BigInteger\\R)( {8}\\S*\\R)+", "$1")
+			.replaceAll("( {8}[a-zA-Z]+:java\\.math\\.BigInteger\\R)( {12}\\S*\\R)+", "$1");
+
+		Assert.assertThat(serTree, equalTo("GenericTypeInfo (PojoWithCollectionGeneric)\n" +
 				"    pojos:java.util.List\n" +
 				"    key:int\n" +
 				"    sqlDate:java.sql.Date\n" +
 				"    bigInt:java.math.BigInteger\n" +
-				"        signum:int\n" +
-				"        mag:[I\n" +
-				"        bitCount:int\n" +
-				"        bitLength:int\n" +
-				"        lowestSetBit:int\n" +
-				"        firstNonzeroIntNum:int\n" +
 				"    bigDecimalKeepItNull:java.math.BigDecimal\n" +
 				"        intVal:java.math.BigInteger\n" +
-				"            signum:int\n" +
-				"            mag:[I\n" +
-				"            bitCount:int\n" +
-				"            bitLength:int\n" +
-				"            lowestSetBit:int\n" +
-				"            firstNonzeroIntNum:int\n" +
 				"        scale:int\n" +
 				"    scalaBigInt:scala.math.BigInt\n" +
 				"        bigInteger:java.math.BigInteger\n" +
-				"            signum:int\n" +
-				"            mag:[I\n" +
-				"            bitCount:int\n" +
-				"            bitLength:int\n" +
-				"            lowestSetBit:int\n" +
-				"            firstNonzeroIntNum:int\n" +
 				"    mixed:java.util.List\n" +
 				"    makeMeGeneric:org.apache.flink.test.operators.util.CollectionDataSets$PojoWithDateAndEnum\n" +
-				"        group:java.lang.String\n"));
+				"        group:java.lang.String\n" +
+				"        date:java.util.Date\n" +
+				"        cat:org.apache.flink.test.operators.util.CollectionDataSets$Category (is enum)\n"));
 	}
 }

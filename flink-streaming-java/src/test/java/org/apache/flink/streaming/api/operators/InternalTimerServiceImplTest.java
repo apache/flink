@@ -620,10 +620,14 @@ public class InternalTimerServiceImplTest {
 		Map<Integer, byte[]> snapshot = new HashMap<>();
 		for (Integer keyGroupIndex : testKeyGroupRange) {
 			try (ByteArrayOutputStream outStream = new ByteArrayOutputStream()) {
-				InternalTimersSnapshot<?, ?> timersSnapshot = timerService.snapshotTimersForKeyGroup(keyGroupIndex);
+				InternalTimersSnapshot<Integer, String> timersSnapshot = timerService.snapshotTimersForKeyGroup(keyGroupIndex);
 
 				InternalTimersSnapshotReaderWriters
-					.getWriterForVersion(snapshotVersion, timersSnapshot)
+					.getWriterForVersion(
+						snapshotVersion,
+						timersSnapshot,
+						timerService.getKeySerializer(),
+						timerService.getNamespaceSerializer())
 					.writeTimersSnapshot(new DataOutputViewStreamWrapper(outStream));
 
 				snapshot.put(keyGroupIndex, outStream.toByteArray());
@@ -701,10 +705,14 @@ public class InternalTimerServiceImplTest {
 		Map<Integer, byte[]> snapshot2 = new HashMap<>();
 		for (Integer keyGroupIndex : testKeyGroupRange) {
 			try (ByteArrayOutputStream outStream = new ByteArrayOutputStream()) {
-				InternalTimersSnapshot<?, ?> timersSnapshot = timerService.snapshotTimersForKeyGroup(keyGroupIndex);
+				InternalTimersSnapshot<Integer, String> timersSnapshot = timerService.snapshotTimersForKeyGroup(keyGroupIndex);
 
 				InternalTimersSnapshotReaderWriters
-					.getWriterForVersion(snapshotVersion, timersSnapshot)
+					.getWriterForVersion(
+						snapshotVersion,
+						timersSnapshot,
+						timerService.getKeySerializer(),
+						timerService.getNamespaceSerializer())
 					.writeTimersSnapshot(new DataOutputViewStreamWrapper(outStream));
 
 				if (subKeyGroupRange1.contains(keyGroupIndex)) {

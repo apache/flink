@@ -206,6 +206,11 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @return true if the requirement is matched, otherwise false
 	 */
 	public boolean isMatching(ResourceProfile required) {
+
+		if (required == UNKNOWN) {
+			return true;
+		}
+
 		if (cpuCores >= required.getCpuCores() &&
 				heapMemoryInMB >= required.getHeapMemoryInMB() &&
 				directMemoryInMB >= required.getDirectMemoryInMB() &&

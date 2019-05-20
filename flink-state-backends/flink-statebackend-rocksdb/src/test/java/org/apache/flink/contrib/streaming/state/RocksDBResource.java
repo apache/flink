@@ -94,7 +94,7 @@ public class RocksDBResource extends ExternalResource {
 				try {
 					currentOptions.close();
 				} catch (Exception e) {
-					LOG.error("Close previous DBOptions's instance failed.", e);
+					LOG.error("Close previous ColumnOptions's instance failed.", e);
 				}
 
 				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions();

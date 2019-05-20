@@ -81,9 +81,9 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
@@ -113,7 +113,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		final List<String> properties = new ArrayList<>();
 
 		// streaming properties
-		properties.add(UPDATE_MODE());
+		properties.add(UPDATE_MODE);
 
 		// Elasticsearch
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_HOSTNAME);
@@ -136,8 +136,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(CONNECTOR_CONNECTION_PATH_PREFIX);
 
 		// schema
-		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
-		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
+		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 
 		// format wildcard
 		properties.add(FORMAT + ".*");
@@ -150,8 +150,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
 		return createElasticsearchUpsertTableSink(
-			descriptorProperties.isValue(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()),
-			descriptorProperties.getTableSchema(SCHEMA()),
+			descriptorProperties.isValue(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND),
+			descriptorProperties.getTableSchema(SCHEMA),
 			getHosts(descriptorProperties),
 			descriptorProperties.getString(CONNECTOR_INDEX),
 			descriptorProperties.getString(CONNECTOR_DOCUMENT_TYPE),

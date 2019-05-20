@@ -42,7 +42,7 @@ import org.rocksdb.ColumnFamilyHandle;
  */
 @Deprecated
 class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBAppendingState<K, N, T, ACC, ACC, FoldingState<T, ACC>>
+	extends AbstractRocksDBAppendingState<K, N, T, ACC, ACC>
 	implements InternalFoldingState<K, N, T, ACC> {
 
 	/** User-specified fold function. */

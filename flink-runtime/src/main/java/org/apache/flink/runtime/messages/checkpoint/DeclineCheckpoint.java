@@ -29,8 +29,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.SerializedThrowable;
 
 /**
- * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
- * {@link org.apache.flink.runtime.jobmanager.JobManager} to tell the checkpoint coordinator
+ * This message is sent from the {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} to the
+ * {@link org.apache.flink.runtime.jobmaster.JobMaster} to tell the checkpoint coordinator
  * that a checkpoint request could not be heeded. This can happen if a Task is already in
  * RUNNING state but is internally not yet ready to perform checkpoints.
  */
@@ -38,7 +38,7 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 
 	private static final long serialVersionUID = 2094094662279578953L;
 
-	/** The reason why the checkpoint was declined */
+	/** The reason why the checkpoint was declined. */
 	private final Throwable reason;
 
 	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
@@ -47,15 +47,14 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 
 	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, Throwable reason) {
 		super(job, taskExecutionId, checkpointId);
-		
+
 		if (reason == null ||
 			reason.getClass() == AlignmentLimitExceededException.class ||
 			reason.getClass() == CheckpointDeclineOnCancellationBarrierException.class ||
 			reason.getClass() == CheckpointDeclineSubsumedException.class ||
 			reason.getClass() == CheckpointDeclineTaskNotCheckpointingException.class ||
 			reason.getClass() == CheckpointDeclineTaskNotReadyException.class ||
-			reason.getClass() == InputEndOfStreamException.class)
-		{
+			reason.getClass() == InputEndOfStreamException.class) {
 			// null or known common exceptions that cannot reference any dynamically loaded code
 			this.reason = reason;
 		} else {
@@ -68,7 +67,7 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 
 	/**
 	 * Gets the reason why the checkpoint was declined.
-	 * 
+	 *
 	 * @return The reason why the checkpoint was declined
 	 */
 	public Throwable getReason() {

@@ -34,7 +34,7 @@ import java.util.stream.StreamSupport;
 class TtlListStateVerifier extends AbstractTtlStateVerifier<
 	ListStateDescriptor<String>, ListState<String>, List<String>, String, List<String>> {
 	TtlListStateVerifier() {
-		super(new ListStateDescriptor<>("TtlListStateVerifier", StringSerializer.INSTANCE));
+		super(new ListStateDescriptor<>(TtlListStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
 	}
 
 	@Override

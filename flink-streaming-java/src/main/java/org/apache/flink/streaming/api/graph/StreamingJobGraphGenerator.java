@@ -48,9 +48,9 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -180,13 +180,7 @@ public class StreamingJobGraphGenerator {
 		for (StreamEdge edge : physicalEdgesInOrder) {
 			int target = edge.getTargetId();
 
-			List<StreamEdge> inEdges = physicalInEdgesInOrder.get(target);
-
-			// create if not set
-			if (inEdges == null) {
-				inEdges = new ArrayList<>();
-				physicalInEdgesInOrder.put(target, inEdges);
-			}
+			List<StreamEdge> inEdges = physicalInEdgesInOrder.computeIfAbsent(target, k -> new ArrayList<>());
 
 			inEdges.add(edge);
 		}
@@ -277,12 +271,8 @@ public class StreamingJobGraphGenerator {
 				config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
 			} else {
+				chainedConfigs.computeIfAbsent(startNodeId, k -> new HashMap<Integer, StreamConfig>());
 
-				Map<Integer, StreamConfig> chainedConfs = chainedConfigs.get(startNodeId);
-
-				if (chainedConfs == null) {
-					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
-				}
 				config.setChainIndex(chainIndex);
 				StreamNode node = streamGraph.getStreamNode(currentNodeId);
 				config.setOperatorName(node.getOperatorName());
@@ -404,6 +394,9 @@ public class StreamingJobGraphGenerator {
 			LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);
 		}
 
+		// TODO: inherit InputDependencyConstraint from the head operator
+		jobVertex.setInputDependencyConstraint(streamGraph.getExecutionConfig().getDefaultInputDependencyConstraint());
+
 		jobVertices.put(streamNodeId, jobVertex);
 		builtVertices.add(streamNodeId);
 		jobGraph.addVertex(jobVertex);
@@ -442,7 +435,7 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
-		config.setStreamOperator(vertex.getOperator());
+		config.setStreamOperatorFactory(vertex.getOperatorFactory());
 		config.setOutputSelectors(vertex.getOutputSelectors());
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
@@ -474,9 +467,6 @@ public class StreamingJobGraphGenerator {
 			config.setIterationId(streamGraph.getBrokerID(vertexID));
 			config.setIterationWaitTime(streamGraph.getLoopTimeout(vertexID));
 		}
-
-		List<StreamEdge> allOutputs = new ArrayList<StreamEdge>(chainableOutputs);
-		allOutputs.addAll(nonChainableOutputs);
 
 		vertexConfigs.put(vertexID, config);
 	}
@@ -517,11 +507,11 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = edge.getSourceVertex();
-		StreamNode downStreamVertex = edge.getTargetVertex();
+		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
+		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
-		StreamOperator<?> headOperator = upStreamVertex.getOperator();
-		StreamOperator<?> outOperator = downStreamVertex.getOperator();
+		StreamOperatorFactory<?> headOperator = upStreamVertex.getOperatorFactory();
+		StreamOperatorFactory<?> outOperator = downStreamVertex.getOperatorFactory();
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
@@ -658,9 +648,8 @@ public class StreamingJobGraphGenerator {
 		final ArrayList<MasterTriggerRestoreHook.Factory> hooks = new ArrayList<>();
 
 		for (StreamNode node : streamGraph.getStreamNodes()) {
-			StreamOperator<?> op = node.getOperator();
-			if (op instanceof AbstractUdfStreamOperator) {
-				Function f = ((AbstractUdfStreamOperator<?, ?>) op).getUserFunction();
+			if (node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
+				Function f = ((UdfStreamOperatorFactory) node.getOperatorFactory()).getUserFunction();
 
 				if (f instanceof WithMasterCheckpointHook) {
 					hooks.add(new FunctionMasterCheckpointHookFactory((WithMasterCheckpointHook<?>) f));
@@ -711,7 +700,8 @@ public class StreamingJobGraphGenerator {
 				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				retentionAfterTermination,
-				isExactlyOnce),
+				isExactlyOnce,
+				cfg.isPreferCheckpointForRecovery()),
 			serializedStateBackend,
 			serializedHooks);
 

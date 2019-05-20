@@ -88,6 +88,8 @@ public class BucketingSinkTest extends TestLogger {
 	private static org.apache.hadoop.fs.FileSystem dfs;
 	private static String hdfsURI;
 
+	private final int maxParallelism = 10;
+
 	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSink(
 		File outDir, int totalParallelism, int taskIdx, long inactivityInterval) throws Exception {
 
@@ -137,7 +139,7 @@ public class BucketingSinkTest extends TestLogger {
 
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
 			BucketingSink<T> sink, int totalParallelism, int taskIdx) throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), maxParallelism, totalParallelism, taskIdx);
 	}
 
 	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSinkWithRollover(
@@ -329,18 +331,24 @@ public class BucketingSinkTest extends TestLogger {
 		testHarness2.processElement(new StreamRecord<>("test3", 0L));
 		checkLocalFs(outDir, 3, 0, 0, 0);
 
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 2, 0);
+
 		testHarness1 = createRescalingTestSink(outDir, 2, 0, 100);
 		testHarness1.setup();
-		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.initializeState(initState1);
 		testHarness1.open();
 
 		// the one in-progress will be the one assigned to the next instance,
 		// the other is the test3 which is just not cleaned up
 		checkLocalFs(outDir, 2, 0, 1, 1);
 
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 2, 1);
+
 		testHarness2 = createRescalingTestSink(outDir, 2, 1, 100);
 		testHarness2.setup();
-		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.initializeState(initState2);
 		testHarness2.open();
 
 		checkLocalFs(outDir, 1, 0, 2, 2);
@@ -385,16 +393,22 @@ public class BucketingSinkTest extends TestLogger {
 			testHarness2.snapshot(0, 0)
 		);
 
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 3, 2, 0);
+
 		testHarness1 = createRescalingTestSink(outDir, 2, 0, 100);
 		testHarness1.setup();
-		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.initializeState(initState1);
 		testHarness1.open();
 
 		checkLocalFs(outDir, 1, 0, 3, 3);
 
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 3, 2, 1);
+
 		testHarness2 = createRescalingTestSink(outDir, 2, 1, 100);
 		testHarness2.setup();
-		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.initializeState(initState2);
 		testHarness2.open();
 
 		checkLocalFs(outDir, 0, 0, 4, 4);
@@ -429,23 +443,32 @@ public class BucketingSinkTest extends TestLogger {
 			testHarness1.snapshot(0, 0)
 		);
 
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 3, 0);
+
 		testHarness1 = createRescalingTestSink(outDir, 3, 0, 100);
 		testHarness1.setup();
-		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.initializeState(initState1);
 		testHarness1.open();
 
 		checkLocalFs(outDir, 2, 0, 3, 3);
 
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 3, 1);
+
 		testHarness2 = createRescalingTestSink(outDir, 3, 1, 100);
 		testHarness2.setup();
-		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.initializeState(initState2);
 		testHarness2.open();
 
 		checkLocalFs(outDir, 0, 0, 5, 5);
 
+		OperatorSubtaskState initState3 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 3, 2);
+
 		OneInputStreamOperatorTestHarness<String, Object> testHarness3 = createRescalingTestSink(outDir, 3, 2, 100);
 		testHarness3.setup();
-		testHarness3.initializeState(mergedSnapshot);
+		testHarness3.initializeState(initState3);
 		testHarness3.open();
 
 		checkLocalFs(outDir, 0, 0, 5, 5);

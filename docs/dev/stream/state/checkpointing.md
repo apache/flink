@@ -76,6 +76,8 @@ Other parameters for checkpointing include:
 
   - *fail/continue task on checkpoint errors*: This determines if a task will be failed if an error occurs in the execution of the task's checkpoint procedure. This is the default behaviour. Alternatively, when this is disabled, the task will simply decline the checkpoint to the checkpoint coordinator and continue running.
 
+  - *prefer checkpoint for recovery*: This determines if a job will fallback to latest checkpoint even when there are more recent savepoints available to potentially reduce recovery time.
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -100,6 +102,9 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained after job cancellation
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+
+// allow job recovery fallback to checkpoint when there is a more recent savepoint
+env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -153,7 +158,7 @@ See [state backends]({{ site.baseurl }}/ops/state/state_backends.html) for more 
 
 ## State Checkpoints in Iterative Jobs
 
-Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, force = true)`.
+Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 

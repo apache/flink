@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -79,7 +78,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatTimeout,
 			ownResourceID,
 			heartbeatListener,
-			new DirectExecutorService(),
+			Executors.directExecutor(),
 			scheduledExecutor,
 			LOG);
 
@@ -122,7 +121,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatTimeout,
 			ownResourceID,
 			heartbeatListener,
-			new DirectExecutorService(),
+			Executors.directExecutor(),
 			scheduledExecutor,
 			LOG);
 
@@ -163,7 +162,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatTimeout,
 			ownResourceID,
 			heartbeatListener,
-			new DirectExecutorService(),
+			Executors.directExecutor(),
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 
@@ -215,7 +214,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatTimeout,
 			resourceID,
 			heartbeatListener,
-			new DirectExecutorService(),
+			Executors.directExecutor(),
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 
@@ -224,7 +223,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatTimeout,
 			resourceID2,
 			heartbeatListener2,
-			new DirectExecutorService(),
+			Executors.directExecutor(),
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 
@@ -264,7 +263,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatTimeout,
 			resourceID,
 			heartbeatListener,
-			new DirectExecutorService(),
+			Executors.directExecutor(),
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 

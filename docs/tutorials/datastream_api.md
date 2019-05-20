@@ -71,9 +71,7 @@ wiki-edits/
         ├── java
         │   └── wikiedits
         │       ├── BatchJob.java
-        │       ├── SocketTextStreamWordCount.java
-        │       ├── StreamingJob.java
-        │       └── WordCount.java
+        │       └── StreamingJob.java
         └── resources
             └── log4j.properties
 {% endhighlight %}
@@ -180,18 +178,33 @@ that we want to aggregate the sum of edited bytes for every five seconds:
 {% highlight java %}
 DataStream<Tuple2<String, Long>> result = keyedEdits
     .timeWindow(Time.seconds(5))
-    .fold(new Tuple2<>("", 0L), new FoldFunction<WikipediaEditEvent, Tuple2<String, Long>>() {
+    .aggregate(new AggregateFunction<WikipediaEditEvent, Tuple2<String, Long>, Tuple2<String, Long>>() {
         @Override
-        public Tuple2<String, Long> fold(Tuple2<String, Long> acc, WikipediaEditEvent event) {
-            acc.f0 = event.getUser();
-            acc.f1 += event.getByteDiff();
-            return acc;
+        public Tuple2<String, Long> createAccumulator() {
+            return new Tuple2<>("", 0L);
+        }
+
+        @Override
+        public Tuple2<String, Long> add(WikipediaEditEvent value, Tuple2<String, Long> accumulator) {
+            accumulator.f0 = value.getUser();
+            accumulator.f1 += value.getByteDiff();
+            return accumulator;
+        }
+
+        @Override
+        public Tuple2<String, Long> getResult(Tuple2<String, Long> accumulator) {
+            return accumulator;
+        }
+
+        @Override
+        public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
+            return new Tuple2<>(a.f0, a.f1 + b.f1);
         }
     });
 {% endhighlight %}
 
 The first call, `.timeWindow()`, specifies that we want to have tumbling (non-overlapping) windows
-of five seconds. The second call specifies a *Fold transformation* on each window slice for
+of five seconds. The second call specifies a *Aggregate transformation* on each window slice for
 each unique key. In our case we start from an initial value of `("", 0L)` and add to it the byte
 difference of every edit in that time window for a user. The resulting Stream now contains
 a `Tuple2<String, Long>` for every user which gets emitted every five seconds.
@@ -214,7 +227,7 @@ The complete code so far is this:
 {% highlight java %}
 package wikiedits;
 
-import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -242,13 +255,28 @@ public class WikipediaAnalysis {
 
     DataStream<Tuple2<String, Long>> result = keyedEdits
       .timeWindow(Time.seconds(5))
-      .fold(new Tuple2<>("", 0L), new FoldFunction<WikipediaEditEvent, Tuple2<String, Long>>() {
+      .aggregate(new AggregateFunction<WikipediaEditEvent, Tuple2<String, Long>, Tuple2<String, Long>>() {
         @Override
-        public Tuple2<String, Long> fold(Tuple2<String, Long> acc, WikipediaEditEvent event) {
-          acc.f0 = event.getUser();
-          acc.f1 += event.getByteDiff();
-          return acc;
-        }
+      	public Tuple2<String, Long> createAccumulator() {
+      	  return new Tuple2<>("", 0L);
+      	}
+
+      	@Override
+      	public Tuple2<String, Long> add(WikipediaEditEvent value, Tuple2<String, Long> accumulator) {
+      	  accumulator.f0 = value.getUser();
+      	  accumulator.f1 += value.getByteDiff();
+          return accumulator;
+      	}
+
+      	@Override
+      	public Tuple2<String, Long> getResult(Tuple2<String, Long> accumulator) {
+      	  return accumulator;
+      	}
+
+      	@Override
+      	public Tuple2<String, Long> merge(Tuple2<String, Long> a, Tuple2<String, Long> b) {
+      	  return new Tuple2<>(a.f0, a.f1 + b.f1);
+      	}
       });
 
     result.print();
@@ -294,7 +322,7 @@ your own machine and writing results to [Kafka](http://kafka.apache.org).
 ## Bonus Exercise: Running on a Cluster and Writing to Kafka
 
 Please follow our [local setup tutorial](local_setup.html) for setting up a Flink distribution
-on your machine and refer to the [Kafka quickstart](https://kafka.apache.org/documentation.html#quickstart)
+on your machine and refer to the [Kafka quickstart](https://kafka.apache.org/0110/documentation.html#quickstart)
 for setting up a Kafka installation before we proceed.
 
 As a first step, we have to add the Flink Kafka connector as a dependency so that we can
@@ -303,7 +331,7 @@ use the Kafka sink. Add this to the `pom.xml` file in the dependencies section:
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-connector-kafka-0.8_2.11</artifactId>
+    <artifactId>flink-connector-kafka-0.11_2.11</artifactId>
     <version>${flink.version}</version>
 </dependency>
 {% endhighlight %}
@@ -320,12 +348,12 @@ result
             return tuple.toString();
         }
     })
-    .addSink(new FlinkKafkaProducer08<>("localhost:9092", "wiki-result", new SimpleStringSchema()));
+    .addSink(new FlinkKafkaProducer011<>("localhost:9092", "wiki-result", new SimpleStringSchema()));
 {% endhighlight %}
 
 The related classes also need to be imported:
 {% highlight java %}
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.functions.MapFunction;
 {% endhighlight %}
@@ -355,7 +383,7 @@ We also have to create the Kafka Topic, so that our program can write to it:
 
 {% highlight bash %}
 $ cd my/kafka/directory
-$ bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic wiki-results
+$ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic wiki-results
 {% endhighlight %}
 
 Now we are ready to run our jar file on the local Flink cluster:
@@ -370,9 +398,9 @@ The output of that command should look similar to this, if everything went accor
 03/08/2016 15:09:27 Job execution switched to status RUNNING.
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to SCHEDULED
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to DEPLOYING
-03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to SCHEDULED
-03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to DEPLOYING
-03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to RUNNING
+03/08/2016 15:09:27 Window(TumblingProcessingTimeWindows(5000), ProcessingTimeTrigger, AggregateFunction$3, PassThroughWindowFunction) -> Sink: Print to Std. Out (1/1) switched from CREATED to SCHEDULED
+03/08/2016 15:09:27 Window(TumblingProcessingTimeWindows(5000), ProcessingTimeTrigger, AggregateFunction$3, PassThroughWindowFunction) -> Sink: Print to Std. Out (1/1) switched from SCHEDULED to DEPLOYING
+03/08/2016 15:09:27 Window(TumblingProcessingTimeWindows(5000), ProcessingTimeTrigger, AggregateFunction$3, PassThroughWindowFunction) -> Sink: Print to Std. Out (1/1) switched from DEPLOYING to RUNNING
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to RUNNING
 {% endhighlight %}
 

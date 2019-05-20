@@ -25,6 +25,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -213,7 +214,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			private final RecordWriter<LongValue> recordWriter;
 
 			public ProducerThread(ResultPartitionWriter partitionWriter) {
-				this.recordWriter = new RecordWriter<>(partitionWriter);
+				this.recordWriter = new RecordWriterBuilder().build(partitionWriter);
 			}
 
 			@Override

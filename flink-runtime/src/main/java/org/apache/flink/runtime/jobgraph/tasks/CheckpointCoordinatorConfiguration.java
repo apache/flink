@@ -54,13 +54,16 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 	 */
 	private final boolean isExactlyOnce;
 
+	private final boolean isPreferCheckpointForRecovery;
+
 	public CheckpointCoordinatorConfiguration(
 			long checkpointInterval,
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
 			CheckpointRetentionPolicy checkpointRetentionPolicy,
-			boolean isExactlyOnce) {
+			boolean isExactlyOnce,
+			boolean isPerfetCheckpointForRecovery) {
 
 		// sanity checks
 		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
@@ -74,6 +77,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
 		this.isExactlyOnce = isExactlyOnce;
+		this.isPreferCheckpointForRecovery = isPerfetCheckpointForRecovery;
 	}
 
 	public long getCheckpointInterval() {
@@ -100,6 +104,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		return isExactlyOnce;
 	}
 
+	public boolean isPreferCheckpointForRecovery() {
+		return isPreferCheckpointForRecovery;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -114,7 +122,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			minPauseBetweenCheckpoints == that.minPauseBetweenCheckpoints &&
 			maxConcurrentCheckpoints == that.maxConcurrentCheckpoints &&
 			isExactlyOnce == that.isExactlyOnce &&
-			checkpointRetentionPolicy == that.checkpointRetentionPolicy;
+			checkpointRetentionPolicy == that.checkpointRetentionPolicy &&
+			isPreferCheckpointForRecovery == that.isPreferCheckpointForRecovery;
 	}
 
 	@Override
@@ -125,7 +134,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 				minPauseBetweenCheckpoints,
 				maxConcurrentCheckpoints,
 				checkpointRetentionPolicy,
-				isExactlyOnce);
+				isExactlyOnce,
+				isPreferCheckpointForRecovery);
 	}
 
 	@Override

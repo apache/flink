@@ -105,6 +105,36 @@ public class SlidingEventTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
+	public void testWindowAssignmentWithNegativeOffset() {
+		WindowAssigner.WindowAssignerContext mockContext =
+			mock(WindowAssigner.WindowAssignerContext.class);
+
+		SlidingEventTimeWindows assigner =
+			SlidingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(-100));
+
+		assertThat(assigner.assignWindows("String", 0L, mockContext), containsInAnyOrder(
+			timeWindow(-4100, 900),
+			timeWindow(-3100, 1900),
+			timeWindow(-2100, 2900),
+			timeWindow(-1100, 3900),
+			timeWindow(-100, 4900)));
+
+		assertThat(assigner.assignWindows("String", 4899L, mockContext), containsInAnyOrder(
+			timeWindow(-100, 4900),
+			timeWindow(900, 5900),
+			timeWindow(1900, 6900),
+			timeWindow(2900, 7900),
+			timeWindow(3900, 8900)));
+
+		assertThat(assigner.assignWindows("String", 4900L, mockContext), containsInAnyOrder(
+			timeWindow(900, 5900),
+			timeWindow(1900, 6900),
+			timeWindow(2900, 7900),
+			timeWindow(3900, 8900),
+			timeWindow(4900, 9900)));
+	}
+
+	@Test
 	public void testTimeUnits() {
 		// sanity check with one other time unit
 
@@ -141,21 +171,35 @@ public class SlidingEventTimeWindowsTest extends TestLogger {
 			SlidingEventTimeWindows.of(Time.seconds(-2), Time.seconds(1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < slide and size > 0"));
+			assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
 		}
 
 		try {
 			SlidingEventTimeWindows.of(Time.seconds(2), Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < slide and size > 0"));
+			assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
 		}
 
 		try {
-			SlidingEventTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(-1));
+			SlidingEventTimeWindows.of(Time.seconds(-20), Time.seconds(10), Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < slide and size > 0"));
+			assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
+		}
+
+		try {
+			SlidingEventTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(-11));
+			fail("should fail");
+		} catch (IllegalArgumentException e) {
+			assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
+		}
+
+		try {
+			SlidingEventTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(11));
+			fail("should fail");
+		} catch (IllegalArgumentException e) {
+			assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
 		}
 	}
 

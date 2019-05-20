@@ -99,8 +99,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.configuration);
 
-		if (!configuration.contains(RestOptions.PORT)) {
-			configuration.setInteger(RestOptions.PORT, 0);
+		if (!configuration.contains(RestOptions.BIND_PORT)) {
+			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
 		int numSlotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
@@ -118,7 +118,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		try {
 			miniCluster.start();
-			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
 			return miniCluster.executeJobBlocking(jobGraph);
 		}

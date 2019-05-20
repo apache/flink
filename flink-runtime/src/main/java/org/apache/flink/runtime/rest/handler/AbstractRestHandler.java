@@ -19,17 +19,14 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
-import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -39,7 +36,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -57,12 +53,11 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	private final MessageHeaders<R, P, M> messageHeaders;
 
 	protected AbstractRestHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<R, P, M> messageHeaders) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.messageHeaders = Preconditions.checkNotNull(messageHeaders);
 	}
 
@@ -80,25 +75,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			response = FutureUtils.completedExceptionally(e);
 		}
 
-		return response.handle((resp, throwable) -> throwable != null ?
-			errorResponse(throwable) : Tuple2.of(resp, messageHeaders.getResponseStatusCode()))
-			.thenCompose(r -> HandlerUtils.sendResponse(ctx, httpRequest, r.f0, r.f1, responseHeaders));
-	}
-
-	private Tuple2<ResponseBody, HttpResponseStatus> errorResponse(Throwable throwable) {
-		Throwable error = ExceptionUtils.stripCompletionException(throwable);
-		if (error instanceof RestHandlerException) {
-			final RestHandlerException rhe = (RestHandlerException) error;
-			log.error("Exception occurred in REST handler.", rhe);
-			return Tuple2.of(new ErrorResponseBody(rhe.getMessage()), rhe.getHttpResponseStatus());
-		} else {
-			log.error("Implementation error: Unhandled exception.", error);
-			String stackTrace = String.format("<Exception on server side:%n%s%nEnd of exception on server side>",
-				ExceptionUtils.stringifyException(throwable));
-			return Tuple2.of(
-				new ErrorResponseBody(Arrays.asList("Internal server error.", stackTrace)),
-				HttpResponseStatus.INTERNAL_SERVER_ERROR);
-		}
+		return response.thenAccept(resp -> HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode(), responseHeaders));
 	}
 
 	/**

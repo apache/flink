@@ -533,26 +533,33 @@ public class RollingSink<T> extends RichSinkFunction<T>
 			}
 
 			// verify that truncate actually works
-			Path testPath = new Path(UUID.randomUUID().toString());
-			try (FSDataOutputStream outputStream = fs.create(testPath)) {
-				outputStream.writeUTF("hello");
-			} catch (IOException e) {
-				LOG.error("Could not create file for checking if truncate works.", e);
-				throw new RuntimeException("Could not create file for checking if truncate works.", e);
-			}
-
+			Path testPath = new Path(basePath, UUID.randomUUID().toString());
 			try {
-				m.invoke(fs, testPath, 2);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				LOG.debug("Truncate is not supported.", e);
-				m = null;
-			}
+				try (FSDataOutputStream outputStream = fs.create(testPath)) {
+					outputStream.writeUTF("hello");
+				} catch (IOException e) {
+					LOG.error("Could not create file for checking if truncate works.", e);
+					throw new RuntimeException(
+							"Could not create file for checking if truncate works. " +
+									"You can disable support for truncate() completely via " +
+									"BucketingSink.setUseTruncate(false).", e);
+				}
 
-			try {
-				fs.delete(testPath, false);
-			} catch (IOException e) {
-				LOG.error("Could not delete truncate test file.", e);
-				throw new RuntimeException("Could not delete truncate test file.", e);
+				try {
+					m.invoke(fs, testPath, 2);
+				} catch (IllegalAccessException | InvocationTargetException e) {
+					LOG.debug("Truncate is not supported.", e);
+					m = null;
+				}
+			} finally {
+				try {
+					fs.delete(testPath, false);
+				} catch (IOException e) {
+					LOG.error("Could not delete truncate test file.", e);
+					throw new RuntimeException("Could not delete truncate test file. " +
+							"You can disable support for truncate() completely via " +
+							"BucketingSink.setUseTruncate(false).", e);
+				}
 			}
 		}
 		return m;

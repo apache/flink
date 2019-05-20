@@ -38,11 +38,11 @@ import org.apache.flink.runtime.jobmanager.Tasks.ExceptionReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.ExceptionSender;
 import org.apache.flink.runtime.jobmanager.Tasks.Forwarder;
 import org.apache.flink.runtime.jobmanager.Tasks.InstantiationErrorSender;
-import org.apache.flink.runtime.jobmanager.Tasks.Receiver;
-import org.apache.flink.runtime.jobmanager.Tasks.Sender;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
@@ -66,11 +66,12 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -78,17 +79,18 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -96,7 +98,7 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
@@ -569,7 +571,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	private Configuration getDefaultConfiguration() {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		return configuration;
 	}

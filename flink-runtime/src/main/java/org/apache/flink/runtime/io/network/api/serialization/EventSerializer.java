@@ -63,6 +63,8 @@ public class EventSerializer {
 
 	private static final int CHECKPOINT_TYPE_SAVEPOINT = 1;
 
+	private static final int CHECKPOINT_TYPE_SYNC_SAVEPOINT = 2;
+
 	// ------------------------------------------------------------------------
 	//  Serialization Logic
 	// ------------------------------------------------------------------------
@@ -215,6 +217,8 @@ public class EventSerializer {
 			typeInt = CHECKPOINT_TYPE_CHECKPOINT;
 		} else if (checkpointType == CheckpointType.SAVEPOINT) {
 			typeInt = CHECKPOINT_TYPE_SAVEPOINT;
+		} else if (checkpointType == CheckpointType.SYNC_SAVEPOINT) {
+			typeInt = CHECKPOINT_TYPE_SYNC_SAVEPOINT;
 		} else {
 			throw new IOException("Unknown checkpoint type: " + checkpointType);
 		}
@@ -247,6 +251,8 @@ public class EventSerializer {
 			checkpointType = CheckpointType.CHECKPOINT;
 		} else if (checkpointTypeCode == CHECKPOINT_TYPE_SAVEPOINT) {
 			checkpointType = CheckpointType.SAVEPOINT;
+		} else if (checkpointTypeCode == CHECKPOINT_TYPE_SYNC_SAVEPOINT) {
+			checkpointType = CheckpointType.SYNC_SAVEPOINT;
 		} else {
 			throw new IOException("Unknown checkpoint type code: " + checkpointTypeCode);
 		}

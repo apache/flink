@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -46,10 +46,10 @@ under the License.
 		<module>flink-connector-kafka-0.10</module>
 		<module>flink-connector-kafka-0.11</module>
 		<module>flink-connector-elasticsearch-base</module>
-		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-elasticsearch2</module>
 		<module>flink-connector-elasticsearch5</module>
 		<module>flink-connector-elasticsearch6</module>
+		<module>flink-connector-hive</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
@@ -93,6 +93,10 @@ under the License.
 			</activation>
 			<modules>
 				<module>flink-sql-connector-elasticsearch6</module>
+				<module>flink-sql-connector-kafka-0.9</module>
+				<module>flink-sql-connector-kafka-0.10</module>
+				<module>flink-sql-connector-kafka-0.11</module>
+				<module>flink-sql-connector-kafka</module>
 			</modules>
 		</profile>
 

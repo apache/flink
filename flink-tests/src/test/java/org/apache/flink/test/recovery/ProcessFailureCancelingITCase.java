@@ -32,6 +32,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -51,13 +52,15 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.test.recovery.AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint;
+import org.apache.flink.test.util.TestProcessBuilder;
+import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -65,8 +68,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.StringWriter;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,7 +75,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertFalse;
@@ -100,11 +100,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
 	@Test
 	public void testCancelingOnProcessFailure() throws Exception {
-		final StringWriter processOutput = new StringWriter();
 		final Time timeout = Time.minutes(2L);
 
 		RestClusterClient<String> clusterClient = null;
-		Process taskManagerProcess = null;
+		TestProcess taskManagerProcess = null;
 		final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
 		Configuration config = new Configuration();
@@ -116,6 +115,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
+		config.setInteger(RestOptions.PORT, 0);
 
 		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
 		final int jobManagerPort = rpcService.getPort();
@@ -134,16 +134,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
 			// check that we run this test only if the java command
 			// is available on this machine
-			String javaCommand = getJavaCommandPath();
-			if (javaCommand == null) {
+			if (getJavaCommandPath() == null) {
 				System.out.println("---- Skipping Process Failure test : Could not find java executable ----");
 				return;
 			}
-
-			// create a logging file for the process
-			File tempLogFile = File.createTempFile(getClass().getSimpleName() + "-", "-log4j.properties");
-			tempLogFile.deleteOnExit();
-			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
 			dispatcherResourceManagerComponent = resourceManagerComponentFactory.create(
 				config,
@@ -159,24 +153,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			final Map<String, String> keyValues = config.toMap();
 			final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
 
-			// the TaskManager java command
-			commands.add(javaCommand);
-			commands.add("-Dlog.level=DEBUG");
-			commands.add("-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath());
-			commands.add("-Xms80m");
-			commands.add("-Xmx80m");
-			commands.add("-classpath");
-			commands.add(getCurrentClasspath());
-			commands.add(AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint.class.getName());
+			TestProcessBuilder taskManagerProcessBuilder = new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
+			taskManagerProcessBuilder.addConfigAsMainClassArgs(config);
 
-			for (Map.Entry<String, String> keyValue: keyValues.entrySet()) {
-				commands.add("--" + keyValue.getKey());
-				commands.add(keyValue.getValue());
-			}
-
-			// start the first two TaskManager processes
-			taskManagerProcess = new ProcessBuilder(commands).start();
-			new CommonTestUtils.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
+			taskManagerProcess = taskManagerProcessBuilder.start();
 
 			final Throwable[] errorRef = new Throwable[1];
 
@@ -250,11 +230,11 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			// all seems well :-)
 		}
 		catch (Exception e) {
-			printProcessLog("TaskManager", processOutput.toString());
+			printProcessLog("TaskManager", taskManagerProcess.getOutput().toString());
 			throw e;
 		}
 		catch (Error e) {
-			printProcessLog("TaskManager 1", processOutput.toString());
+			printProcessLog("TaskManager 1", taskManagerProcess.getOutput().toString());
 			throw e;
 		}
 		finally {
@@ -268,11 +248,11 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
 			}
 
-			haServices.closeAndCleanupAllData();
-
 			fatalErrorHandler.rethrowError();
 
 			RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+
+			haServices.closeAndCleanupAllData();
 		}
 	}
 

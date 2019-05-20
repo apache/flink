@@ -68,7 +68,6 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 		final TestingRestfulGateway testingRestfulGateway = TestingRestfulGateway.newBuilder().build();
 
 		jobExecutionResultHandler = new JobExecutionResultHandler(
-			CompletableFuture.completedFuture("localhost:12345"),
 			() -> CompletableFuture.completedFuture(testingRestfulGateway),
 			Time.seconds(10),
 			Collections.emptyMap());

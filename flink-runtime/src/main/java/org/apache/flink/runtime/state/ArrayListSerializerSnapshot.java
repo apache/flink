@@ -18,72 +18,46 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
 import java.util.ArrayList;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Snapshot class for the {@link ArrayListSerializer}.
  */
-public class ArrayListSerializerSnapshot<T> implements TypeSerializerSnapshot<ArrayList<T>> {
+public class ArrayListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ArrayList<T>, ArrayListSerializer<T>> {
 
 	private static final int CURRENT_VERSION = 1;
-
-	private CompositeSerializerSnapshot nestedElementSerializerSnapshot;
 
 	/**
 	 * Constructor for read instantiation.
 	 */
-	public ArrayListSerializerSnapshot() {}
+	public ArrayListSerializerSnapshot() {
+		super(ArrayListSerializer.class);
+	}
 
 	/**
 	 * Constructor for creating the snapshot for writing.
 	 */
-	public ArrayListSerializerSnapshot(TypeSerializer<T> elementSerializer) {
-		this.nestedElementSerializerSnapshot = new CompositeSerializerSnapshot(elementSerializer);
+	public ArrayListSerializerSnapshot(ArrayListSerializer<T> arrayListSerializer) {
+		super(arrayListSerializer);
 	}
 
 	@Override
-	public int getCurrentVersion() {
+	public int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
 	}
 
 	@Override
-	public TypeSerializer<ArrayList<T>> restoreSerializer() {
-		return new ArrayListSerializer<>(nestedElementSerializerSnapshot.getRestoreSerializer(0));
+	protected ArrayListSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		@SuppressWarnings("unchecked")
+		TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
+		return new ArrayListSerializer<>(elementSerializer);
 	}
 
 	@Override
-	public TypeSerializerSchemaCompatibility<ArrayList<T>> resolveSchemaCompatibility(TypeSerializer<ArrayList<T>> newSerializer) {
-		checkState(nestedElementSerializerSnapshot != null);
-
-		if (newSerializer instanceof ArrayListSerializer) {
-			ArrayListSerializer<T> serializer = (ArrayListSerializer<T>) newSerializer;
-
-			return nestedElementSerializerSnapshot.resolveCompatibilityWithNested(
-				TypeSerializerSchemaCompatibility.compatibleAsIs(),
-				serializer.getElementSerializer());
-		}
-		else {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-	}
-
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		nestedElementSerializerSnapshot.writeCompositeSnapshot(out);
-	}
-
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		this.nestedElementSerializerSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, userCodeClassLoader);
+	protected TypeSerializer<?>[] getNestedSerializers(ArrayListSerializer<T> outerSerializer) {
+		return new TypeSerializer<?>[] { outerSerializer.getElementSerializer() };
 	}
 }

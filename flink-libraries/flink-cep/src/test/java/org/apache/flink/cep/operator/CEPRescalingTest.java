@@ -112,10 +112,16 @@ public class CEPRescalingTest {
 			// so we initialize the two tasks and we put the rest of
 			// the valid elements for the pattern on task 0.
 
+			OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 1, 2, 0);
+
+			OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 1, 2, 1);
+
 			harness1 = getTestHarness(maxParallelism, 2, 0);
 
 			harness1.setup();
-			harness1.initializeState(snapshot);
+			harness1.initializeState(initState1);
 			harness1.open();
 
 			// if element timestamps are not correctly checkpointed/restored this will lead to
@@ -137,7 +143,7 @@ public class CEPRescalingTest {
 			harness2 = getTestHarness(maxParallelism, 2, 1);
 
 			harness2.setup();
-			harness2.initializeState(snapshot);
+			harness2.initializeState(initState2);
 			harness2.open();
 
 			// now we move to the second parallel task
@@ -281,14 +287,20 @@ public class CEPRescalingTest {
 				harness3.snapshot(0, 0)
 			);
 
+			OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 3, 2, 0);
+
+			OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 3, 2, 1);
+
 			harness4 = getTestHarness(maxParallelism, 2, 0);
 			harness4.setup();
-			harness4.initializeState(snapshot);
+			harness4.initializeState(initState1);
 			harness4.open();
 
 			harness5 = getTestHarness(maxParallelism, 2, 1);
 			harness5.setup();
-			harness5.initializeState(snapshot);
+			harness5.initializeState(initState2);
 			harness5.open();
 
 			harness5.processElement(new StreamRecord<>(endEvent2, 11));

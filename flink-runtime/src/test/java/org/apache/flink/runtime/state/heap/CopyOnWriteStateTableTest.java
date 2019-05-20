@@ -28,8 +28,10 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,6 +45,7 @@ import java.util.Map;
 import java.util.Random;
 
 public class CopyOnWriteStateTableTest extends TestLogger {
+	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 
 	/**
 	 * Testing the basic map operations.
@@ -56,10 +59,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		ArrayList<Integer> state_1_1 = new ArrayList<>();
 		state_1_1.add(41);
@@ -128,10 +131,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		int insert = 0;
 		int remove = 0;
@@ -173,10 +176,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		final HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap = new HashMap<>();
 
@@ -208,6 +211,9 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				}
 			};
 
+		StateIncrementalVisitor<Integer, Integer, ArrayList<Integer>> updatingIterator =
+			stateTable.getStateIncrementalVisitor(5);
+
 		// the main loop for modifications
 		for (int i = 0; i < 10_000_000; ++i) {
 
@@ -215,7 +221,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 			int namespace = random.nextInt(4);
 			Tuple2<Integer, Integer> compositeKey = new Tuple2<>(key, namespace);
 
-			int op = random.nextInt(7);
+			int op = random.nextInt(10);
 
 			ArrayList<Integer> state = null;
 			ArrayList<Integer> referenceState = null;
@@ -260,6 +266,18 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 						referenceMap.remove(compositeKey), updateValue));
 					break;
 				}
+				case 7:
+				case 8:
+				case 9:
+					if (!updatingIterator.hasNext()) {
+						updatingIterator = stateTable.getStateIncrementalVisitor(5);
+						if (!updatingIterator.hasNext()) {
+							break;
+						}
+					}
+					testStateIteratorWithUpdate(
+						updatingIterator, stateTable, referenceMap, op == 8, op == 9);
+					break;
 				default: {
 					Assert.fail("Unknown op-code " + op);
 				}
@@ -316,6 +334,40 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	}
 
 	/**
+	 * Test operations specific for StateIncrementalVisitor in {@code testRandomModificationsAndCopyOnWriteIsolation()}.
+	 *
+	 * <p>Check next, update and remove during global iteration of StateIncrementalVisitor.
+	 */
+	private static void testStateIteratorWithUpdate(
+		StateIncrementalVisitor<Integer, Integer, ArrayList<Integer>> updatingIterator,
+		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable,
+		HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap,
+		boolean update, boolean remove) {
+
+		for (StateEntry<Integer, Integer, ArrayList<Integer>> stateEntry : updatingIterator.nextEntries()) {
+			Integer key = stateEntry.getKey();
+			Integer namespace = stateEntry.getNamespace();
+			Tuple2<Integer, Integer> compositeKey = new Tuple2<>(key, namespace);
+			Assert.assertEquals(referenceMap.get(compositeKey), stateEntry.getState());
+
+			if (update) {
+				ArrayList<Integer> newState = new ArrayList<>(stateEntry.getState());
+				if (!newState.isEmpty()) {
+					newState.remove(0);
+				}
+				updatingIterator.update(stateEntry, newState);
+				referenceMap.put(compositeKey, new ArrayList<>(newState));
+				Assert.assertEquals(newState, stateTable.get(key, namespace));
+			}
+
+			if (remove) {
+				updatingIterator.remove(stateEntry);
+				referenceMap.remove(compositeKey);
+			}
+		}
+	}
+
+	/**
 	 * This tests for the copy-on-write contracts, e.g. ensures that no copy-on-write is active after all snapshots are
 	 * released.
 	 */
@@ -328,10 +380,10 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		ArrayList<Integer> originalState1 = new ArrayList<>(1);
 		ArrayList<Integer> originalState2 = new ArrayList<>(1);
@@ -403,36 +455,9 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 				namespaceSerializer,
 				stateSerializer);
 
-		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
-		InternalKeyContext<Integer> mockKeyContext = new InternalKeyContext<Integer>() {
-			@Override
-			public Integer getCurrentKey() {
-				return 0;
-			}
-
-			@Override
-			public int getCurrentKeyGroupIndex() {
-				return 0;
-			}
-
-			@Override
-			public int getNumberOfKeyGroups() {
-				return 1;
-			}
-
-			@Override
-			public KeyGroupRange getKeyGroupRange() {
-				return keyGroupRange;
-			}
-
-			@Override
-			public TypeSerializer<Integer> getKeySerializer() {
-				return keySerializer;
-			}
-		};
-
+		InternalKeyContext<Integer> mockKeyContext = new MockInternalKeyContext<>();
 		CopyOnWriteStateTable<Integer, Integer, Integer> table =
-			new CopyOnWriteStateTable<>(mockKeyContext, metaInfo);
+			new CopyOnWriteStateTable<>(mockKeyContext, metaInfo, keySerializer);
 
 		table.put(0, 0, 0, 0);
 		table.put(1, 0, 0, 1);
@@ -519,44 +544,9 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		}
 	}
 
-	static class MockInternalKeyContext<T> implements InternalKeyContext<T> {
-
-		private T key;
-		private final TypeSerializer<T> serializer;
-		private final KeyGroupRange keyGroupRange;
-
-		public MockInternalKeyContext(TypeSerializer<T> serializer) {
-			this.serializer = serializer;
-			this.keyGroupRange = new KeyGroupRange(0, 0);
-		}
-
-		public void setKey(T key) {
-			this.key = key;
-		}
-
-		@Override
-		public T getCurrentKey() {
-			return key;
-		}
-
-		@Override
-		public int getCurrentKeyGroupIndex() {
-			return 0;
-		}
-
-		@Override
-		public int getNumberOfKeyGroups() {
-			return 1;
-		}
-
-		@Override
-		public KeyGroupRange getKeyGroupRange() {
-			return keyGroupRange;
-		}
-
-		@Override
-		public TypeSerializer<T> getKeySerializer() {
-			return serializer;
+	static class MockInternalKeyContext<T> extends InternalKeyContextImpl<T> {
+		MockInternalKeyContext() {
+			super(new KeyGroupRange(0,0),1);
 		}
 	}
 

@@ -19,9 +19,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -55,16 +54,24 @@ public class InternalTimersSnapshotReaderWriters {
 	//  Writers
 	//   - pre-versioned: Flink 1.4.0
 	//   - v1: Flink 1.4.1
+	//   - v2: Flink 1.8.0
 	// -------------------------------------------------------------------------------
 
-	public static <K, N> InternalTimersSnapshotWriter getWriterForVersion(int version, InternalTimersSnapshot<K, N> timersSnapshot) {
+	public static <K, N> InternalTimersSnapshotWriter getWriterForVersion(
+			int version,
+			InternalTimersSnapshot<K, N> timersSnapshot,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer) {
 
 		switch (version) {
 			case NO_VERSION:
-				return new InternalTimersSnapshotWriterPreVersioned<>(timersSnapshot);
+				return new InternalTimersSnapshotWriterPreVersioned<>(timersSnapshot, keySerializer, namespaceSerializer);
+
+			case 1:
+				return new InternalTimersSnapshotWriterV1<>(timersSnapshot, keySerializer, namespaceSerializer);
 
 			case InternalTimerServiceSerializationProxy.VERSION:
-				return new InternalTimersSnapshotWriterV1<>(timersSnapshot);
+				return new InternalTimersSnapshotWriterV2<>(timersSnapshot, keySerializer, namespaceSerializer);
 
 			default:
 				// guard for future
@@ -91,8 +98,16 @@ public class InternalTimersSnapshotReaderWriters {
 
 		protected final InternalTimersSnapshot<K, N> timersSnapshot;
 
-		public AbstractInternalTimersSnapshotWriter(InternalTimersSnapshot<K, N> timersSnapshot) {
+		protected final TypeSerializer<K> keySerializer;
+		protected final TypeSerializer<N> namespaceSerializer;
+
+		public AbstractInternalTimersSnapshotWriter(
+				InternalTimersSnapshot<K, N> timersSnapshot,
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer) {
 			this.timersSnapshot = checkNotNull(timersSnapshot);
+			this.keySerializer = checkNotNull(keySerializer);
+			this.namespaceSerializer = checkNotNull(namespaceSerializer);
 		}
 
 		protected abstract void writeKeyAndNamespaceSerializers(DataOutputView out) throws IOException;
@@ -102,8 +117,8 @@ public class InternalTimersSnapshotReaderWriters {
 			writeKeyAndNamespaceSerializers(out);
 
 			LegacyTimerSerializer<K, N> timerSerializer = new LegacyTimerSerializer<>(
-				timersSnapshot.getKeySerializer(),
-				timersSnapshot.getNamespaceSerializer());
+				keySerializer,
+				namespaceSerializer);
 
 			// write the event time timers
 			Set<TimerHeapInternalTimer<K, N>> eventTimers = timersSnapshot.getEventTimeTimers();
@@ -131,16 +146,19 @@ public class InternalTimersSnapshotReaderWriters {
 
 	private static class InternalTimersSnapshotWriterPreVersioned<K, N> extends AbstractInternalTimersSnapshotWriter<K, N> {
 
-		public InternalTimersSnapshotWriterPreVersioned(InternalTimersSnapshot<K, N> timersSnapshot) {
-			super(timersSnapshot);
+		public InternalTimersSnapshotWriterPreVersioned(
+				InternalTimersSnapshot<K, N> timersSnapshot,
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer) {
+			super(timersSnapshot, keySerializer, namespaceSerializer);
 		}
 
 		@Override
 		protected void writeKeyAndNamespaceSerializers(DataOutputView out) throws IOException {
 			// the pre-versioned format only serializes the serializers, without their configuration snapshots
 			try (ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos()) {
-				InstantiationUtil.serializeObject(stream, timersSnapshot.getKeySerializer());
-				InstantiationUtil.serializeObject(stream, timersSnapshot.getNamespaceSerializer());
+				InstantiationUtil.serializeObject(stream, keySerializer);
+				InstantiationUtil.serializeObject(stream, namespaceSerializer);
 
 				out.write(stream.getBuf(), 0, stream.getPosition());
 			}
@@ -149,8 +167,11 @@ public class InternalTimersSnapshotReaderWriters {
 
 	private static class InternalTimersSnapshotWriterV1<K, N> extends AbstractInternalTimersSnapshotWriter<K, N> {
 
-		public InternalTimersSnapshotWriterV1(InternalTimersSnapshot<K, N> timersSnapshot) {
-			super(timersSnapshot);
+		public InternalTimersSnapshotWriterV1(
+				InternalTimersSnapshot<K, N> timersSnapshot,
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer) {
+			super(timersSnapshot, keySerializer, namespaceSerializer);
 		}
 
 		@Override
@@ -159,8 +180,24 @@ public class InternalTimersSnapshotReaderWriters {
 			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 				out,
 				Arrays.asList(
-					Tuple2.of(timersSnapshot.getKeySerializer(), timersSnapshot.getKeySerializerConfigSnapshot()),
-					Tuple2.of(timersSnapshot.getNamespaceSerializer(), timersSnapshot.getNamespaceSerializerConfigSnapshot())));
+					Tuple2.of(keySerializer, timersSnapshot.getKeySerializerSnapshot()),
+					Tuple2.of(namespaceSerializer, timersSnapshot.getNamespaceSerializerSnapshot())));
+		}
+	}
+
+	private static class InternalTimersSnapshotWriterV2<K, N> extends AbstractInternalTimersSnapshotWriter<K, N> {
+
+		public InternalTimersSnapshotWriterV2(
+				InternalTimersSnapshot<K, N> timersSnapshot,
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer) {
+			super(timersSnapshot, keySerializer, namespaceSerializer);
+		}
+
+		@Override
+		protected void writeKeyAndNamespaceSerializers(DataOutputView out) throws IOException {
+			TypeSerializerSnapshot.writeVersionedSnapshot(out, timersSnapshot.getKeySerializerSnapshot());
+			TypeSerializerSnapshot.writeVersionedSnapshot(out, timersSnapshot.getNamespaceSerializerSnapshot());
 		}
 	}
 
@@ -177,8 +214,11 @@ public class InternalTimersSnapshotReaderWriters {
 			case NO_VERSION:
 				return new InternalTimersSnapshotReaderPreVersioned<>(userCodeClassLoader);
 
-			case InternalTimerServiceSerializationProxy.VERSION:
+			case 1:
 				return new InternalTimersSnapshotReaderV1<>(userCodeClassLoader);
+
+			case InternalTimerServiceSerializationProxy.VERSION:
+				return new InternalTimersSnapshotReaderV2<>(userCodeClassLoader);
 
 			default:
 				// guard for future
@@ -222,8 +262,8 @@ public class InternalTimersSnapshotReaderWriters {
 
 			LegacyTimerSerializer<K, N> timerSerializer =
 				new LegacyTimerSerializer<>(
-					restoredTimersSnapshot.getKeySerializer(),
-					restoredTimersSnapshot.getNamespaceSerializer());
+					restoredTimersSnapshot.getKeySerializerSnapshot().restoreSerializer(),
+					restoredTimersSnapshot.getNamespaceSerializerSnapshot().restoreSerializer());
 
 			// read the event time timers
 			int sizeOfEventTimeTimers = in.readInt();
@@ -265,8 +305,11 @@ public class InternalTimersSnapshotReaderWriters {
 
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
-				restoredTimersSnapshot.setKeySerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true));
-				restoredTimersSnapshot.setNamespaceSerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true));
+				final TypeSerializer<K> keySerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true);
+				final TypeSerializer<N> namespaceSerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true);
+
+				restoredTimersSnapshot.setKeySerializerSnapshot(new BackwardsCompatibleSerializerSnapshot<>(keySerializer));
+				restoredTimersSnapshot.setNamespaceSerializerSnapshot(new BackwardsCompatibleSerializerSnapshot<>(namespaceSerializer));
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
 			}
@@ -288,10 +331,25 @@ public class InternalTimersSnapshotReaderWriters {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
-			restoredTimersSnapshot.setKeySerializer((TypeSerializer<K>) serializersAndConfigs.get(0).f0);
-			restoredTimersSnapshot.setKeySerializerConfigSnapshot((TypeSerializerSnapshot<K>) serializersAndConfigs.get(0).f1);
-			restoredTimersSnapshot.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(1).f0);
-			restoredTimersSnapshot.setNamespaceSerializerConfigSnapshot((TypeSerializerSnapshot<N>) serializersAndConfigs.get(1).f1);
+			restoredTimersSnapshot.setKeySerializerSnapshot((TypeSerializerSnapshot<K>) serializersAndConfigs.get(0).f1);
+			restoredTimersSnapshot.setNamespaceSerializerSnapshot((TypeSerializerSnapshot<N>) serializersAndConfigs.get(1).f1);
+		}
+	}
+
+	private static class InternalTimersSnapshotReaderV2<K, N> extends AbstractInternalTimersSnapshotReader<K, N> {
+
+		public InternalTimersSnapshotReaderV2(ClassLoader userCodeClassLoader) {
+			super(userCodeClassLoader);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected void restoreKeyAndNamespaceSerializers(
+			InternalTimersSnapshot<K, N> restoredTimersSnapshot,
+			DataInputView in) throws IOException {
+
+			restoredTimersSnapshot.setKeySerializerSnapshot(TypeSerializerSnapshot.readVersionedSnapshot(in, userCodeClassLoader));
+			restoredTimersSnapshot.setNamespaceSerializerSnapshot(TypeSerializerSnapshot.readVersionedSnapshot(in, userCodeClassLoader));
 		}
 	}
 
@@ -391,22 +449,12 @@ public class InternalTimersSnapshotReaderWriters {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
-		@Override
 		public int hashCode() {
 			return getClass().hashCode();
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
-		}
-
-		@Override
-		public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public TypeSerializerSnapshot<TimerHeapInternalTimer<K, N>> snapshotConfiguration() {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

@@ -24,8 +24,11 @@ import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Utilities to create class loaders.
@@ -33,13 +36,21 @@ import java.net.URLClassLoader;
 public class ClassLoaderUtils {
 	public static URLClassLoader compileAndLoadJava(File root, String filename, String source) throws
 		IOException {
-		File file = writeSourceFile(root, filename, source);
+		return withRoot(root)
+			.addClass(filename.replaceAll("\\.java", ""), source)
+			.build();
+	}
 
-		compileClass(file);
-
+	private static URLClassLoader createClassLoader(File root) throws MalformedURLException {
 		return new URLClassLoader(
 			new URL[]{root.toURI().toURL()},
 			Thread.currentThread().getContextClassLoader());
+	}
+
+	private static void writeAndCompile(File root, String filename, String source) throws IOException {
+		File file = writeSourceFile(root, filename, source);
+
+		compileClass(file);
 	}
 
 	private static File writeSourceFile(File root, String filename, String source) throws IOException {
@@ -52,8 +63,45 @@ public class ClassLoaderUtils {
 		return file;
 	}
 
+	public static ClassLoaderBuilder withRoot(File root) {
+		return new ClassLoaderBuilder(root);
+	}
+
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
+	}
+
+	public static class ClassLoaderBuilder {
+
+		private final File root;
+		private final Map<String, String> classes;
+
+		private ClassLoaderBuilder(File root) {
+			this.root = root;
+			this.classes = new HashMap<>();
+		}
+
+		public ClassLoaderBuilder addClass(String className, String source) {
+			String oldValue = classes.putIfAbsent(className, source);
+
+			if (oldValue != null) {
+				throw new RuntimeException(String.format("Class with name %s already registered.", className));
+			}
+
+			return this;
+		}
+
+		public URLClassLoader build() throws IOException {
+			for (Map.Entry<String, String> classInfo : classes.entrySet()) {
+				writeAndCompile(root, createFileName(classInfo.getKey()), classInfo.getValue());
+			}
+
+			return createClassLoader(root);
+		}
+
+		private String createFileName(String className) {
+			return className + ".java";
+		}
 	}
 }

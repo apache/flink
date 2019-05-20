@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge.SharedBufferEdgeSerializer;
@@ -27,6 +30,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An entry in {@link SharedBuffer} that allows to store relations between different entries.
@@ -63,8 +68,15 @@ public class SharedBufferNode {
 
 		private static final long serialVersionUID = -6687780732295439832L;
 
-		private final ListSerializer<SharedBufferEdge> edgesSerializer =
-			new ListSerializer<>(SharedBufferEdgeSerializer.INSTANCE);
+		private final ListSerializer<SharedBufferEdge> edgesSerializer;
+
+		public SharedBufferNodeSerializer() {
+			this.edgesSerializer = new ListSerializer<>(new SharedBufferEdgeSerializer());
+		}
+
+		private SharedBufferNodeSerializer(ListSerializer<SharedBufferEdge> edgesSerializer) {
+			this.edgesSerializer = checkNotNull(edgesSerializer);
+		}
 
 		@Override
 		public boolean isImmutableType() {
@@ -112,9 +124,45 @@ public class SharedBufferNode {
 			edgesSerializer.copy(source, target);
 		}
 
+		// -----------------------------------------------------------------------------------
+
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(SharedBufferNodeSerializer.class);
+		public TypeSerializerSnapshot<SharedBufferNode> snapshotConfiguration() {
+			return new SharedBufferNodeSerializerSnapshot(this);
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class SharedBufferNodeSerializerSnapshot
+				extends CompositeTypeSerializerSnapshot<SharedBufferNode, SharedBufferNodeSerializer> {
+
+			private static final int VERSION = 1;
+
+			public SharedBufferNodeSerializerSnapshot() {
+				super(SharedBufferNodeSerializer.class);
+			}
+
+			public SharedBufferNodeSerializerSnapshot(SharedBufferNodeSerializer sharedBufferNodeSerializer) {
+				super(sharedBufferNodeSerializer);
+			}
+
+			@Override
+			protected int getCurrentOuterSnapshotVersion() {
+				return VERSION;
+			}
+
+			@Override
+			@SuppressWarnings("unchecked")
+			protected SharedBufferNodeSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+				return new SharedBufferNodeSerializer((ListSerializer<SharedBufferEdge>) nestedSerializers[0]);
+			}
+
+			@Override
+			protected TypeSerializer<?>[] getNestedSerializers(SharedBufferNodeSerializer outerSerializer) {
+				return new TypeSerializer<?>[]{ outerSerializer.edgesSerializer };
+			}
 		}
 	}
 }

@@ -33,6 +33,7 @@ public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCas
 	@ClassRule
 	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(2)
 			.setNumberSlotsPerTaskManager(2)
 			.build());

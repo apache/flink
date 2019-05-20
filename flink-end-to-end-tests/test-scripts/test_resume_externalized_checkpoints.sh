@@ -38,6 +38,7 @@ else
 fi
 
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
+set_conf "metrics.fetcher.update-interval" "2000"
 setup_flink_slf4j_metric_reporter
 start_cluster
 

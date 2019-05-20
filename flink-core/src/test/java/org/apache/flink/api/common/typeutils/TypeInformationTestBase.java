@@ -54,7 +54,6 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
 
 			// compare among test data
 			for (T otherTypeInfo : testData) {
-				assertTrue("canEqual() returns inconsistent results.", typeInfo.canEqual(otherTypeInfo));
 				// test equality
 				if (typeInfo == otherTypeInfo) {
 					assertTrue("hashCode() returns inconsistent results.", typeInfo.hashCode() == otherTypeInfo.hashCode());

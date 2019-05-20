@@ -21,6 +21,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertFalse;
+
 /**
  * Tests for {@link ForwardPartitioner}.
  */
@@ -28,7 +30,9 @@ public class ForwardPartitionerTest extends StreamPartitionerTest {
 
 	@Override
 	public StreamPartitioner<Tuple> createPartitioner() {
-		return new ForwardPartitioner<>();
+		StreamPartitioner<Tuple> partitioner = new ForwardPartitioner<>();
+		assertFalse(partitioner.isBroadcast());
+		return partitioner;
 	}
 
 	@Test

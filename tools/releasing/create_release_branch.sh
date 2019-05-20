@@ -57,7 +57,7 @@ fi
 git checkout -b $target_branch
 
 #change version in all pom files
-find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(.*)</version>#<version>${1}'$NEW_VERSION'${2}</version>#' {} \;
 
 #change version of documentation
 cd docs

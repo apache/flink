@@ -171,7 +171,7 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	}
 
 	void errorOnGrantLeadership(LeaderContender contender, Throwable error) {
-		LOG.warn("Error notifying leader listener about new leader", error);
+		LOG.warn("Error granting leadership to contender", error);
 		contender.handleError(error instanceof Exception ? (Exception) error : new Exception(error));
 
 		synchronized (lock) {

@@ -32,7 +32,7 @@ public class HtmlFormatter extends Formatter {
 
 	@Override
 	protected void formatLineBreak(StringBuilder state) {
-		state.append("<br/>");
+		state.append("<br />");
 	}
 
 	@Override

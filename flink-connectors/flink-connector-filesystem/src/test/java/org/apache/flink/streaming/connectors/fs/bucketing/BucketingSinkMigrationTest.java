@@ -28,8 +28,7 @@ import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.fs.Path;
@@ -69,6 +68,7 @@ public class BucketingSinkMigrationTest {
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
@@ -90,7 +90,8 @@ public class BucketingSinkMigrationTest {
 			Tuple2.of(MigrationVersion.v1_3, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit4273542175898623023/junit3801102997056424640/1970-01-01--01/part-0-"),
 			Tuple2.of(MigrationVersion.v1_4, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit3198043255809479705/junit8947526563966405708/1970-01-01--01/part-0-"),
 			Tuple2.of(MigrationVersion.v1_5, "/tmp/junit4927100426019463155/junit2465610012100182280/1970-01-01--00/part-0-"),
-			Tuple2.of(MigrationVersion.v1_6, "/tmp/junit3459711376354834545/junit5114611885650086135/1970-01-01--00/part-0-"));
+			Tuple2.of(MigrationVersion.v1_6, "/tmp/junit3459711376354834545/junit5114611885650086135/1970-01-01--00/part-0-"),
+			Tuple2.of(MigrationVersion.v1_7, "/var/folders/r2/tdhx810x7yxb7q9_brnp49x40000gp/T/junit4288325607215628863/junit8132783417241536320/1970-01-01--08/part-0-"));
 	}
 
 	private final MigrationVersion testMigrateVersion;
@@ -165,11 +166,9 @@ public class BucketingSinkMigrationTest {
 			new StreamSink<>(sink), 10, 1, 0);
 		testHarness.setup();
 
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"bucketing-sink-migration-test-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"bucketing-sink-migration-test-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 

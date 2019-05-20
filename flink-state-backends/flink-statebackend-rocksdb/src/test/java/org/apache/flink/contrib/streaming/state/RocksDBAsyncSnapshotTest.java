@@ -25,12 +25,15 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -55,6 +58,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream.StreamFactory;
 import org.apache.flink.runtime.state.testutils.TestCheckpointStreamFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
@@ -66,7 +70,6 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -84,6 +87,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -222,7 +226,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation());
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -338,7 +342,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		task.triggerCheckpoint(
 			new CheckpointMetaData(42, 17),
-			CheckpointOptions.forCheckpointWithDefaultLocation());
+			CheckpointOptions.forCheckpointWithDefaultLocation(),
+			false);
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		blockerCheckpointStreamFactory.getWaiterLatch().await();
@@ -396,12 +401,13 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			VoidSerializer.INSTANCE,
 			1,
 			new KeyGroupRange(0, 0),
-			null);
+			null,
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 
 		try {
-
-			keyedStateBackend.restore(null);
-
 			// register a state so that the state backend has to checkpoint something
 			keyedStateBackend.getPartitionedState(
 				"namespace",
@@ -414,7 +420,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 				CheckpointOptions.forCheckpointWithDefaultLocation());
 
 			try {
-				FutureUtil.runIfNotDoneAndGet(snapshotFuture);
+				FutureUtils.runIfNotDoneAndGet(snapshotFuture);
 				fail("Expected an exception to be thrown here.");
 			} catch (ExecutionException e) {
 				Assert.assertEquals(testException, e.getCause());

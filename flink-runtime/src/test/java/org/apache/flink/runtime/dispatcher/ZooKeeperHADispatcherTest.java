@@ -302,10 +302,10 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				dispatcherGateway.submitJob(nonEmptyJobGraph, TIMEOUT).get();
 
 				if (dispatcher1.getAddress().equals(leaderConnectionInfo.getAddress())) {
-					dispatcher1.shutDown();
+					dispatcher1.closeAsync();
 					assertThat(jobGraphFuture2.get().getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 				} else {
-					dispatcher2.shutDown();
+					dispatcher2.closeAsync();
 					assertThat(jobGraphFuture1.get().getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 				}
 			} finally {
@@ -325,13 +325,14 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 	}
 
 	@Nonnull
-	private TestingDispatcher createDispatcher(HighAvailabilityServices highAvailabilityServices, Dispatcher.JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
+	private TestingDispatcher createDispatcher(HighAvailabilityServices highAvailabilityServices, JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
+		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName() + UUID.randomUUID(),
 			configuration,
 			highAvailabilityServices,
-			new TestingResourceManagerGateway(),
+			() -> CompletableFuture.completedFuture(resourceManagerGateway),
 			blobServer,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),

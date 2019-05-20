@@ -33,7 +33,7 @@ import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -190,7 +190,7 @@ public abstract class KafkaTableSourceBase implements
 
 	@Override
 	public String explainSource() {
-		return TableConnectorUtil.generateRuntimeName(this.getClass(), schema.getFieldNames());
+		return TableConnectorUtils.generateRuntimeName(this.getClass(), schema.getFieldNames());
 	}
 
 	/**

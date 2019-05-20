@@ -35,7 +35,7 @@ import org.apache.flink.util.Collector
   *   The file format is specified [http://svmlight.joachims.org/ here].
   *
   * - writeLibSVM:
-  *   Writes a data set of [[LabeledVector]] in libSVM/SVMLight format to disk. THe file format
+  *   Writes a data set of [[LabeledVector]] in libSVM/SVMLight format to disk. The file format
   *   is specified [http://svmlight.joachims.org/ here].
   */
 object MLUtils {

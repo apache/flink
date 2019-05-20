@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -51,21 +53,37 @@ public class DatadogHttpClient {
 	private final OkHttpClient client;
 	private final String apiKey;
 
-	public DatadogHttpClient(String dgApiKey) {
+	private final String proxyHost;
+	private final int proxyPort;
+
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
-
 		apiKey = dgApiKey;
+		proxyHost = dgProxyHost;
+		proxyPort = dgProxyPort;
+
+		Proxy proxy = getProxy();
+
 		client = new OkHttpClient.Builder()
 			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
 			.writeTimeout(TIMEOUT, TimeUnit.SECONDS)
 			.readTimeout(TIMEOUT, TimeUnit.SECONDS)
+			.proxy(proxy)
 			.build();
 
 		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
 		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
 		validateApiKey();
+	}
+
+	Proxy getProxy() {
+		if (proxyHost == null) {
+			return Proxy.NO_PROXY;
+		} else {
+			return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
+		}
 	}
 
 	private void validateApiKey() {

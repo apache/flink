@@ -224,8 +224,8 @@ public class HadoopFileSystem extends FileSystem {
 	static FileSystemKind getKindForScheme(String scheme) {
 		scheme = scheme.toLowerCase(Locale.US);
 
-		if (scheme.startsWith("s3") || scheme.startsWith("emr")) {
-			// the Amazon S3 storage
+		if (scheme.startsWith("s3") || scheme.startsWith("emr") || scheme.startsWith("oss")) {
+			// the Amazon S3 storage or Aliyun OSS storage
 			return FileSystemKind.OBJECT_STORE;
 		}
 		else if (scheme.startsWith("http") || scheme.startsWith("ftp")) {

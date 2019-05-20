@@ -85,11 +85,6 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof IntSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
 		return new IntSerializerSnapshot();
 	}
@@ -101,8 +96,9 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	 */
 	public static final class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
 
+		@SuppressWarnings("WeakerAccess")
 		public IntSerializerSnapshot() {
-			super(IntSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

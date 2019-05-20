@@ -141,7 +141,7 @@ object AkkaUtils {
     * @param configuration containing the user provided configuration values
     * @param hostname to bind against. If null, then the loopback interface is used
     * @param port to bind against
-    * @param executorMode containing the user specified mode of executor
+    * @param executorConfig containing the user specified config of executor
     * @return A remote Akka config
     */
   def getAkkaConfig(configuration: Configuration,
@@ -841,7 +841,7 @@ object AkkaUtils {
     *
     * @param akkaURL The URL to extract the host and port from.
     * @throws java.lang.Exception Thrown, if the given string does not represent a proper url
-    * @return The InetSocketAddress with teh extracted host and port.
+    * @return The InetSocketAddress with the extracted host and port.
     */
   @throws(classOf[Exception])
   def getInetSocketAddressFromAkkaURL(akkaURL: String): InetSocketAddress = {

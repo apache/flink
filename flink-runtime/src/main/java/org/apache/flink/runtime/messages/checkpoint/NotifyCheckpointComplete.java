@@ -22,15 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 /**
- * This message is sent from the {@link org.apache.flink.runtime.jobmanager.JobManager} to the
- * {@link org.apache.flink.runtime.taskmanager.TaskManager} to tell a task that the checkpoint
+ * This message is sent from the {@link org.apache.flink.runtime.jobmaster.JobMaster} to the
+ * {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} to tell a task that the checkpoint
  * has been confirmed and that the task can commit the checkpoint to the outside world.
  */
 public class NotifyCheckpointComplete extends AbstractCheckpointMessage implements java.io.Serializable {
 
 	private static final long serialVersionUID = 2094094662279578953L;
 
-	/** The timestamp associated with the checkpoint */
+	/** The timestamp associated with the checkpoint. */
 	private final long timestamp;
 
 	public NotifyCheckpointComplete(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, long timestamp) {
@@ -67,7 +67,10 @@ public class NotifyCheckpointComplete extends AbstractCheckpointMessage implemen
 
 	@Override
 	public String toString() {
-		return String.format("ConfirmCheckpoint %d for (%s/%s)", 
-				getCheckpointId(), getJob(), getTaskExecutionId());
+		return String.format(
+			"ConfirmCheckpoint %d for (%s/%s)",
+			getCheckpointId(),
+			getJob(),
+			getTaskExecutionId());
 	}
 }

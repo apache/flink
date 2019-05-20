@@ -132,21 +132,6 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 		AllocationID oldAllocationId);
 
 	/**
-	 * Registers an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to register to this resource manager
-	 */
-	void registerInfoMessageListener(String infoMessageListenerAddress);
-
-	/**
-	 * Unregisters an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to unregister from this resource manager
-	 *
-	 */
-	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
-
-	/**
 	 * Deregister Flink from the underlying resource management system.
 	 *
 	 * @param finalStatus final status with which to deregister the Flink application
@@ -224,7 +209,7 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the collection of resource ids and the corresponding metric query service path
 	 */
-	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
 	/**
 	 * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link BlobServer}. The

@@ -20,9 +20,7 @@ package org.apache.flink.cep;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Map;
@@ -42,16 +40,5 @@ public abstract class RichPatternFlatSelectFunction<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public void setRuntimeContext(RuntimeContext runtimeContext) {
-		Preconditions.checkNotNull(runtimeContext);
-
-		if (runtimeContext instanceof CepRuntimeContext) {
-			super.setRuntimeContext(runtimeContext);
-		} else {
-			super.setRuntimeContext(new CepRuntimeContext(runtimeContext));
-		}
-	}
-
-	public abstract void flatSelect(Map<String, List<IN>> pattern, Collector<OUT> out) throws Exception;
+	public abstract void flatSelect(final Map<String, List<IN>> pattern, final Collector<OUT> out) throws Exception;
 }

@@ -46,7 +46,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -71,10 +70,11 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 	@Test
 	public void testReinterpretAsKeyedStream() throws Exception {
 
-		final int numEventsPerInstance = 100;
 		final int maxParallelism = 8;
+		final int numEventsPerInstance = 100;
 		final int parallelism = 3;
-		final int numUniqueKeys = 12;
+		final int numTotalEvents = numEventsPerInstance * parallelism;
+		final int numUniqueKeys = 100;
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
@@ -102,7 +102,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 			.timeWindow(Time.seconds(1)) // test that also timers and aggregated state work as expected
 			.reduce((ReduceFunction<Tuple2<Integer, Integer>>) (value1, value2) ->
 				new Tuple2<>(value1.f0, value1.f1 + value2.f1))
-			.addSink(new ValidatingSink(numEventsPerInstance * parallelism)).setParallelism(1);
+			.addSink(new ValidatingSink(numTotalEvents)).setParallelism(1);
 
 		env.execute();
 	}
@@ -110,10 +110,10 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 	private static class RandomTupleSource implements ParallelSourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
-		private int numKeys;
+		private final int numKeys;
 		private int remainingEvents;
 
-		public RandomTupleSource(int numEvents, int numKeys) {
+		RandomTupleSource(int numEvents, int numKeys) {
 			this.numKeys = numKeys;
 			this.remainingEvents = numEvents;
 		}
@@ -121,9 +121,10 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
 			Random random = new Random(42);
-			while (--remainingEvents >= 0) {
+			while (remainingEvents > 0) {
 				synchronized (out.getCheckpointLock()) {
 					out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
+					--remainingEvents;
 				}
 			}
 		}
@@ -141,7 +142,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		private final List<File> allPartitions;
 		private DataOutputStream dos;
 
-		public ToPartitionFileSink(List<File> allPartitions) {
+		ToPartitionFileSink(List<File> allPartitions) {
 			this.allPartitions = allPartitions;
 		}
 
@@ -171,17 +172,19 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 	implements CheckpointedFunction, CheckpointListener {
 		private static final long serialVersionUID = 1L;
 
-		private List<File> allPartitions;
+		private final List<File> allPartitions;
 		private DataInputStream din;
 		private volatile boolean running;
 
+		private long fileLength;
+		private long waitForFailurePos;
 		private long position;
 		private transient ListState<Long> positionState;
 		private transient boolean isRestored;
 
 		private transient volatile boolean canFail;
 
-		public FromPartitionFileSource(List<File> allPartitions) {
+		FromPartitionFileSource(List<File> allPartitions) {
 			this.allPartitions = allPartitions;
 		}
 
@@ -189,9 +192,12 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+			File partitionFile = allPartitions.get(subtaskIdx);
+			fileLength = partitionFile.length();
+			waitForFailurePos = fileLength * 3 / 4;
 			din = new DataInputStream(
 				new BufferedInputStream(
-					new FileInputStream(allPartitions.get(subtaskIdx))));
+					new FileInputStream(partitionFile)));
 
 			long toSkip = position;
 			while (toSkip > 0L) {
@@ -207,33 +213,35 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
-			this.running = true;
-			try {
-				while (running) {
 
-					checkFail();
+			running = true;
 
-					synchronized (out.getCheckpointLock()) {
-						Integer key = din.readInt();
-						Integer val = din.readInt();
-						out.collect(new Tuple2<>(key, val));
+			while (running && hasMoreDataToRead()) {
 
-						position += 2 * Integer.BYTES;
-					}
+				synchronized (out.getCheckpointLock()) {
+					Integer key = din.readInt();
+					Integer val = din.readInt();
+					out.collect(new Tuple2<>(key, val));
+
+					position += 2 * Integer.BYTES;
 				}
-			} catch (EOFException ignore) {
-				if (!isRestored) {
-					while (true) {
-						checkFail();
+
+				if (shouldWaitForCompletedCheckpointAndFailNow()) {
+					while (!canFail) {
+						// wait for a checkpoint to complete
+						Thread.sleep(10L);
 					}
+					throw new Exception("Artificial failure.");
 				}
 			}
 		}
 
-		private void checkFail() throws Exception {
-			if (canFail) {
-				throw new Exception("Artificial failure.");
-			}
+		private boolean shouldWaitForCompletedCheckpointAndFailNow() {
+			return !isRestored && position > waitForFailurePos;
+		}
+
+		private boolean hasMoreDataToRead() {
+			return position < fileLength;
 		}
 
 		@Override
@@ -248,6 +256,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			positionState.clear();
 			positionState.add(position);
 		}
 
@@ -260,8 +269,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 				new ListStateDescriptor<>("posState", Long.class));
 
 			if (isRestored) {
-
-				for (Long value : positionState.get()) {
+				for (long value : positionState.get()) {
 					position += value;
 				}
 			}
@@ -300,6 +308,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			sumState.clear();
 			sumState.add(runningSum);
 		}
 
@@ -309,7 +318,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 				new ListStateDescriptor<>("sumState", Integer.class));
 
 			if (context.isRestored()) {
-				for (Integer value : sumState.get()) {
+				for (int value : sumState.get()) {
 					runningSum += value;
 				}
 			}

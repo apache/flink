@@ -32,9 +32,9 @@ import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
@@ -66,6 +66,9 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 	static final long NUM_STRINGS = 16_000;
 
+	// this is already the default, but we explicitly set it to make the test explicit
+	static final String PART_PREFIX = "part";
+
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -74,8 +77,8 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 	private static String outPath;
 
-	@BeforeClass
-	public static void createHDFS() throws IOException {
+	@Before
+	public void createHDFS() throws IOException {
 		Configuration conf = new Configuration();
 
 		File dataDir = tempFolder.newFolder();
@@ -91,8 +94,8 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 				+ "/string-non-rolling-out";
 	}
 
-	@AfterClass
-	public static void destroyHDFS() {
+	@After
+	public void destroyHDFS() {
 		if (hdfsCluster != null) {
 			hdfsCluster.shutdown();
 		}
@@ -115,6 +118,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 				.setBucketer(new BasePathBucketer<String>())
 				.setBatchSize(10000)
 				.setValidLengthPrefix("")
+				.setPartPrefix(PART_PREFIX)
 				.setPendingPrefix("")
 				.setPendingSuffix(PENDING_SUFFIX)
 				.setInProgressSuffix(IN_PROGRESS_SUFFIX);
@@ -144,6 +148,10 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 		while (files.hasNext()) {
 			LocatedFileStatus file = files.next();
+			if (!file.getPath().getName().startsWith(PART_PREFIX)) {
+				// ignore files that don't match with our expected part prefix
+				continue;
+			}
 
 			if (!file.getPath().toString().endsWith(".valid-length")) {
 				int validLength = (int) file.getLen();
@@ -179,7 +187,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 						int messageId = Integer.parseInt(matcher.group(1));
 						readNumbers.add(messageId);
 					} else {
-						Assert.fail("Read line does not match expected pattern.");
+						Assert.fail("Read line does not match expected pattern. Line: " + line);
 					}
 					line = br.readLine();
 				}

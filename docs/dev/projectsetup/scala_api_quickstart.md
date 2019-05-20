@@ -30,7 +30,7 @@ under the License.
 ## Build Tools
 
 Flink projects can be built with different build tools.
-In order to get quickly started, Flink provides project templates for the following build tools:
+In order to get started quickly, Flink provides project templates for the following build tools:
 
 - [SBT](#sbt)
 - [Maven](#maven)

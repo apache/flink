@@ -20,24 +20,37 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Collection;
 
 /**
  * Migration test for the {@link LockableTypeSerializerSnapshot}.
  */
+@RunWith(Parameterized.class)
 public class LockableTypeSerializerSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTestBase<Lockable<String>> {
 
-	private static final String DATA = "flink-1.6-lockable-type-serializer-data";
-	private static final String SNAPSHOT = "flink-1.6-lockable-type-serializer-snapshot";
+	private static final String SPEC_NAME = "lockable-type-serializer";
 
-	public LockableTypeSerializerSnapshotMigrationTest() {
-		super(
-			TestSpecification.<Lockable<String>>builder(
-					"1.6-lockable-type-serializer",
-					Lockable.LockableTypeSerializer.class,
-					LockableTypeSerializerSnapshot.class)
-				.withSerializerProvider(() -> new Lockable.LockableTypeSerializer<>(StringSerializer.INSTANCE))
-				.withSnapshotDataLocation(SNAPSHOT)
-				.withTestData(DATA, 10)
-		);
+	public LockableTypeSerializerSnapshotMigrationTest(TestSpecification<Lockable<String>> testSpecification) {
+		super(testSpecification);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Parameterized.Parameters(name = "Test Specification = {0}")
+	public static Collection<TestSpecification<?>> testSpecifications() {
+
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
+
+		testSpecifications.add(
+			SPEC_NAME,
+			Lockable.LockableTypeSerializer.class,
+			LockableTypeSerializerSnapshot.class,
+			() -> new Lockable.LockableTypeSerializer<>(StringSerializer.INSTANCE));
+
+		return testSpecifications.get();
 	}
 }

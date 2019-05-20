@@ -49,13 +49,11 @@ import java.util.concurrent.CompletableFuture;
 public class JobsOverviewHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> implements JsonArchivist {
 
 	public JobsOverviewHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> messageHeaders) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

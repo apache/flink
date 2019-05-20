@@ -169,12 +169,13 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 
 	private static <T> List<T> readParquetFile(File file, GenericData dataModel) throws IOException {
 		InputFile inFile = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
-		ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build();
 
 		ArrayList<T> results = new ArrayList<>();
-		T next;
-		while ((next = reader.read()) != null) {
-			results.add(next);
+		try (ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
+			T next;
+			while ((next = reader.read()) != null) {
+				results.add(next);
+			}
 		}
 
 		return results;

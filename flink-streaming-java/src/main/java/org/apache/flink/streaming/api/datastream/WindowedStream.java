@@ -90,7 +90,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * When using an evictor window performance will degrade significantly, since
  * incremental aggregation of window results cannot be used.
  *
- * <p>Note that the {@code WindowedStream} is purely and API construct, during runtime the
+ * <p>Note that the {@code WindowedStream} is purely an API construct, during runtime the
  * {@code WindowedStream} will be collapsed together with the {@code KeyedStream} and the operation
  * over the window into one single operation.
  *

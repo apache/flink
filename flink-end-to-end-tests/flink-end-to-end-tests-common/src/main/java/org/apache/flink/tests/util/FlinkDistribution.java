@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExternalResource;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,8 +30,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
-import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ import java.util.stream.Stream;
 /**
  * A wrapper around a Flink distribution.
  */
-public final class FlinkDistribution extends ExternalResource {
+public final class FlinkDistribution implements ExternalResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkDistribution.class);
 
@@ -67,6 +68,8 @@ public final class FlinkDistribution extends ExternalResource {
 	private static final Path FLINK_CONF_YAML_BACKUP = Paths.get("flink-conf.yaml.bak");
 
 	private final List<AutoClosablePath> filesToDelete = new ArrayList<>(4);
+
+	private final Optional<Path> logBackupDir;
 
 	private final Path opt;
 	private final Path lib;
@@ -81,6 +84,10 @@ public final class FlinkDistribution extends ExternalResource {
 		if (distDirProperty == null) {
 			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
 		}
+		final String backupDirProperty = System.getProperty("logBackupDir");
+		logBackupDir = backupDirProperty == null
+			? Optional.empty()
+			: Optional.of(Paths.get(backupDirProperty));
 		final Path flinkDir = Paths.get(distDirProperty);
 		bin = flinkDir.resolve("bin");
 		opt = flinkDir.resolve("opt");
@@ -90,7 +97,7 @@ public final class FlinkDistribution extends ExternalResource {
 	}
 
 	@Override
-	protected void before() throws IOException {
+	public void before() throws IOException {
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
 		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
 		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
@@ -99,7 +106,7 @@ public final class FlinkDistribution extends ExternalResource {
 	}
 
 	@Override
-	protected void after() {
+	public void afterTestSuccess() {
 		try {
 			stopFlinkCluster();
 		} catch (IOException e) {
@@ -124,8 +131,24 @@ public final class FlinkDistribution extends ExternalResource {
 		}
 	}
 
+	@Override
+	public void afterTestFailure() {
+		logBackupDir.ifPresent(backupLocation -> {
+			LOG.info("Backing up logs to {}.", backupLocation);
+			try {
+				Files.createDirectories(backupLocation);
+				FileUtils.copyDirectory(log.toFile(), backupLocation.toFile());
+			} catch (IOException e) {
+				LOG.warn("An error occurred while backing up logs.", e);
+			}
+		});
+
+		afterTestSuccess();
+	}
+
 	public void startFlinkCluster() throws IOException {
-		AutoClosableProcess.runBlocking("Start Flink cluster", bin.resolve("start-cluster.sh").toAbsolutePath().toString());
+		LOG.info("Starting Flink cluster.");
+		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
 
 		final OkHttpClient client = new OkHttpClient();
 
@@ -163,7 +186,8 @@ public final class FlinkDistribution extends ExternalResource {
 	}
 
 	public void stopFlinkCluster() throws IOException {
-		AutoClosableProcess.runBlocking("Stop Flink Cluster", bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
+		LOG.info("Stopping Flink cluster.");
+		AutoClosableProcess.runBlocking(bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {

@@ -106,8 +106,8 @@ import java.util.concurrent.TimeUnit;
 import scala.Option;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractGoalState;
-import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractResourceID;
+import static org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager.extractGoalState;
+import static org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager.extractResourceID;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
@@ -279,7 +279,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1.0, 1, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
+				1.0, 1, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
 				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(), false,
 				Collections.<ConstraintEvaluator>emptyList(), "", Option.<String>empty(),
 				Option.<String>empty(), Collections.<String>emptyList());

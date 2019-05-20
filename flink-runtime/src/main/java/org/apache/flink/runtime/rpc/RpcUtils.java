@@ -74,8 +74,7 @@ public class RpcUtils {
 	 * @throws TimeoutException if a timeout occurred
 	 */
 	public static void terminateRpcEndpoint(RpcEndpoint rpcEndpoint, Time timeout) throws ExecutionException, InterruptedException, TimeoutException {
-		rpcEndpoint.shutDown();
-		rpcEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		rpcEndpoint.closeAsync().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**

@@ -31,6 +31,8 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import javax.annotation.Nullable;
+
 import java.net.URISyntaxException;
 import java.net.URL;
 
@@ -54,7 +56,7 @@ public class PackagedProgramUtils {
 			PackagedProgram packagedProgram,
 			Configuration configuration,
 			int defaultParallelism,
-			JobID jobID) throws ProgramInvocationException {
+			@Nullable JobID jobID) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
 		final Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
 		final FlinkPlan flinkPlan;

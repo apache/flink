@@ -45,3 +45,5 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 {% endhighlight %}
 
 in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath.
+
+{% top %}

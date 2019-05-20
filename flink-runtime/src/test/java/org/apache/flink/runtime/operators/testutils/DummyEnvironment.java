@@ -42,6 +42,8 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 
@@ -58,6 +60,7 @@ public class DummyEnvironment implements Environment {
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
 	private TaskStateManager taskStateManager;
+	private final GlobalAggregateManager aggregateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 	private ClassLoader userClassLoader;
 
@@ -77,6 +80,7 @@ public class DummyEnvironment implements Environment {
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
 		this.taskStateManager = new TestTaskStateManager();
+		this.aggregateManager = new TestGlobalAggregateManager();
 	}
 
 	public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
@@ -169,6 +173,11 @@ public class DummyEnvironment implements Environment {
 	@Override
 	public TaskStateManager getTaskStateManager() {
 		return taskStateManager;
+	}
+
+	@Override
+	public GlobalAggregateManager getGlobalAggregateManager() {
+		return aggregateManager;
 	}
 
 	@Override

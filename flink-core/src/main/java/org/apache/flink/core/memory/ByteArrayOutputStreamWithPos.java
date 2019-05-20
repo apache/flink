@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
@@ -112,7 +111,7 @@ public class ByteArrayOutputStreamWithPos extends OutputStream {
 	}
 
 	@Override
-	public void close() throws IOException {
+	public void close() {
 	}
 
 	public byte[] getBuf() {

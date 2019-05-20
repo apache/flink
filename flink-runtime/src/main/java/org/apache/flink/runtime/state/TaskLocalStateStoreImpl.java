@@ -357,7 +357,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 		return "TaskLocalStateStore{" +
 			"jobID=" + jobID +
 			", jobVertexID=" + jobVertexID +
-			", allocationID=" + allocationID +
+			", allocationID=" + allocationID.toHexString() +
 			", subtaskIndex=" + subtaskIndex +
 			", localRecoveryConfig=" + localRecoveryConfig +
 			", storedCheckpointIDs=" + storedTaskStateByCheckpointID.keySet() +

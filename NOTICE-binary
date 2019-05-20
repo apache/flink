@@ -4,41 +4,19 @@
 // ------------------------------------------------------------------
 
 Apache Flink
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.chuusai:shapeless_2.11:2.3.2
-- com.google.guava:guava:14.0.1
-- com.twitter:hbc-core:2.2.0
-- com.twitter:joauth:6.0.2
 - log4j:log4j:1.2.17
-- net.sf.opencsv:opencsv:2.3
-- org.apache.kafka:kafka-clients:jar:0.10.2.1
-- org.scalanlp:breeze_2.11:0.13
-- org.scalanlp:breeze-macros_2.11:0.13
-- org.typelevel:macro-compat_2.11:1.1.1
-
-This project bundles the following dependencies under the BSD license.
-See bundled license files for details.
-
-- com.github.fommil.netlib:core:1.1.2
-- net.sourceforge.f2j:arpack_combined_all:0.1
 
 This project bundles the following dependencies under the MIT/X11 license.
 See bundled license files for details.
 
 - org.slf4j:slf4j-log4j12:1.7.15
-- org.spire-math:spire-macros_2.11:0.13.0
-- org.spire-math:spire_2.11:0.13.0
-- org.typelevel:machinist_2.11:0.6.1
-
-This project bundles the following dependencies under the Mozilla Public license.
-
-- com.github.rwl:jtransforms:2.4.0 (https://sourceforge.net/projects/jtransforms/)
 
 flink-metrics-datadog
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -46,25 +24,26 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.squareup.okio:okio:1.12.0
 
 flink-dist
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
+- com.data-artisans:frocksdbjni:5.17.2-artisans-1.0
 - com.google.code.findbugs:jsr305:1.3.9
 - com.twitter:chill-java:0.7.6
 - com.twitter:chill_2.11:0.7.6
 - com.typesafe:config:1.3.0
-- com.typesafe:ssl-config-core_2.11:0.2.1
-- com.typesafe.akka:akka-actor_2.11:2.4.20
-- com.typesafe.akka:akka-camel_2.11:2.4.20
-- com.typesafe.akka:akka-protobuf_2.11:2.4.20
-- com.typesafe.akka:akka-slf4j_2.11:2.4.20
-- com.typesafe.akka:akka-stream_2.11:2.4.20
+- com.typesafe:ssl-config-core_2.11:0.3.7
+- com.typesafe.akka:akka-actor_2.11:2.5.1
+- com.typesafe.akka:akka-camel_2.11:2.5.21
+- com.typesafe.akka:akka-protobuf_2.11:2.5.21
+- com.typesafe.akka:akka-slf4j_2.11:2.5.21
+- com.typesafe.akka:akka-stream_2.11:2.5.21
 - commons-cli:commons-cli:1.3.1
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.4
 - org.apache.camel:camel-core:2.17.7
-- org.apache.commons:commons-compress:1.4.1
+- org.apache.commons:commons-compress:1.18
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.commons:commons-math3:3.5
 - org.javassist:javassist:3.19.0-GA
@@ -85,7 +64,7 @@ The following dependencies all share the same BSD license which you find under l
 - org.scala-lang:scala-library:2.11.12
 - org.scala-lang:scala-reflect:2.11.12
 - org.scala-lang.modules:scala-java8-compat_2.11:0.7.0
-- org.scala-lang.modules:scala-parser-combinators_2.11:1.0.4
+- org.scala-lang.modules:scala-parser-combinators_2.11:1.1.1
 - org.scala-lang.modules:scala-xml_2.11:1.0.5
 
 This project bundles the following dependencies under the MIT/X11 license.
@@ -101,7 +80,7 @@ but some files are heavily based on public domain code written by Igor Pavlov.
 
 This project bundles the following dependencies under the Creative Commons CC0 "No Rights Reserved".
 
-- org.reactivestreams:reactive-streams:1.0.0
+- org.reactivestreams:reactive-streams:1.0.2
 
 This product includes software from the Spring Framework,
 under the Apache License 2.0 (see: StringUtils.containsWhitespace())
@@ -123,11 +102,11 @@ CS Systèmes d'Information (http://www.c-s.fr/)
 Copyright 2010-2012 CS Systèmes d'Information
 
 flink-runtime
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.typesafe.akka:akka-remote_2.11:2.4.20
+- com.typesafe.akka:akka-remote_2.11:2.5.21
 - io.netty:netty:3.10.6.Final
 - org.apache.zookeeper:zookeeper:3.4.10
 - org.uncommons.maths:uncommons-maths:1.2.2a
@@ -168,7 +147,7 @@ WebSocket and HTTP server:
     * https://github.com/joewalnes/webbit
 
 flink-shaded-curator
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 - com.google.guava:guava:16.0.1
 - org.apache.curator:curator-client:2.12.0
@@ -188,7 +167,7 @@ Apache Commons IO
 Copyright 2002-2012 The Apache Software Foundation
 
 flink-shaded-jackson-2
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 # Jackson JSON processor
 
@@ -220,7 +199,7 @@ Apache Commons CLI
 Copyright 2001-2015 The Apache Software Foundation
 
 flink-mesos
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 - com.netflix.fenzo:fenzo-core:0.10.1
 - org.apache.mesos:mesos:1.0.1
@@ -234,7 +213,7 @@ mesos
 Copyright 2016 The Apache Software Foundation
 
 flink-yarn
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 Camel :: Core
 Copyright 2007-2017 The Apache Software Foundation
@@ -255,7 +234,7 @@ Objenesis
 Copyright 2006-2013 Joe Walnes, Henri Tremblay, Leonardo Mesquita
 
 flink-table
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -289,7 +268,7 @@ This product includes software developed by
 Joda.org (http://www.joda.org/).
 
 flink-runtime-web
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -327,7 +306,7 @@ See bundled license files for details.
 - font-awesome:4.5.0 (Font)
 
 flink-swift-fs-hadoop
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -344,7 +323,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.htrace:htrace-core4:4.0.1-incubating
 - org.apache.httpcomponents:httpclient:4.5.3
 - org.apache.httpcomponents:httpcore:4.4.6
-- org.apache.commons:commons-compress:1.4.1
+- org.apache.commons:commons-compress:1.18
 - org.apache.commons:commons-math3:3.5
 - commons-beanutils:commons-beanutils:1.8.3
 - commons-cli:commons-cli:1.3.1
@@ -1876,7 +1855,7 @@ Apache Commons Compress
 Copyright 2002-2012 The Apache Software Foundation
 
 flink-hadoop-fs
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This product includes software developed by The Apache Software
 Foundation (http://www.apache.org/).
@@ -2395,7 +2374,7 @@ Apache Commons Logging
 Copyright 2003-2013 The Apache Software Foundation
 
 flink-shaded-hadoop2-uber
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -2412,7 +2391,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-logging:commons-logging:1.1.3
 - commons-net:commons-net:3.1
 - org.apache.avro:avro:1.8.2
-- org.apache.commons:commons-compress:1.4.1
+- org.apache.commons:commons-compress:1.18
 - org.apache.commons:commons-math3:3.5
 - org.apache.zookeeper:zookeeper:3.4.10
 - org.codehaus.jackson:jackson-core-asl:1.9.13
@@ -2446,7 +2425,7 @@ but some files are heavily based on public domain code written by Igor Pavlov.
 
 
 flink-shaded-hadoop2
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 - com.google.guava:guava:11.0.2
 - net.java.dev.jets3t:jets3t:0.9.0
@@ -2548,19 +2527,19 @@ Apache Commons Daemon
 Copyright 1999-2013 The Apache Software Foundation
 
 flink-s3-fs-presto
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.facebook.presto:presto-hive:0.185
+- com.facebook.presto:presto-hive:0.187
 - com.facebook.presto.hadoop:hadoop-apache2:2.7.3-1
 - com.google.guava:guava:21.0
-- io.airlift:configuration:0.148
-- io.airlift:log:0.148
-- io.airlift:stats:0.148
+- io.airlift:configuration:0.153
+- io.airlift:log:0.153
+- io.airlift:stats:0.153
 - io.airlift:units:1.0
 - io.airlift:slice:0.31
 - com.fasterxml.jackson.core:jackson-annotations:2.8.1
@@ -2576,7 +2555,7 @@ See bundled license files for details.
 
 
 flink-s3-fs-base
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 - org.apache.hadoop:hadoop-aws:3.1.0
 - org.apache.httpcomponents:httpcore:4.4.6
@@ -2596,7 +2575,7 @@ Copyright 2014-2018 The Apache Software Foundation
 - joda-time:joda-time:2.5
 
 flink-fs-hadoop-shaded
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 - org.apache.hadoop:hadoop-annotations:3.1.0
 - org.apache.hadoop:hadoop-auth:3.1.0
@@ -5641,7 +5620,7 @@ force-shading
 Copyright 2018 The Apache Software Foundation
 
 flink-hadoop-fs
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 Apache HttpClient
 Copyright 1999-2017 The Apache Software Foundation
@@ -5671,7 +5650,7 @@ This product includes software developed by
 Joda.org (http://www.joda.org/).
 
 flink-metrics-prometheus
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -5681,7 +5660,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.prometheus:simpleclient_pushgateway:0.3.0
 
 flink-s3-fs-base
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -5706,7 +5685,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - joda-time:joda-time:2.5
 
 flink-fs-hadoop-shaded
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 - org.apache.hadoop:hadoop-annotations:3.1.0
 - org.apache.hadoop:hadoop-auth:3.1.0
@@ -5736,7 +5715,7 @@ See bundled license files for details.
 - org.codehaus.woodstox:stax2-api:3.1.4 (https://github.com/FasterXML/stax2-api/tree/stax2-api-3.1.4)
 
 flink-sql-client
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
@@ -5746,7 +5725,7 @@ See bundled license files for details.
 
 
 flink-table
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -5765,7 +5744,7 @@ See bundled license files for details
 - org.codehaus.janino:commons-compiler:3.0.7
 
 flink-table-common
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 Calcite Core
 Copyright 2012-2018 The Apache Software Foundation
@@ -5786,10 +5765,10 @@ force-shading
 Copyright 2018 The Apache Software Foundation
 
 flink-cep
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 flink-streaming-python
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -5797,12 +5776,71 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Python Software Foundation License. (https://opensource.org/licenses/PythonSoftFoundation.php)
 See bundled license files for details.
 
-- org.python:jython-standalone:2.7.0
+- org.python:jython-standalone:2.7.1
 
 flink-metrics-graphite
-Copyright 2014-2018 The Apache Software Foundation
+Copyright 2014-2019 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - io.dropwizard.metrics:metrics-core:3.1.5
 - io.dropwizard.metrics:metrics-graphite:3.1.5
+
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+flink-examples-streaming-state-machine
+Copyright 2014-2019 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- org.apache.kafka:kafka-clients:0.10.2.1
+
+
+flink-connector-kafka-0.10
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-connector-kafka-0.9
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-connector-kafka-base
+Copyright 2014-2019 The Apache Software Foundation
+
+// ------------------------------------------------------------------
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+
+flink-examples-streaming-twitter
+Copyright 2014-2019 The Apache Software Foundation
+
+Apache HttpCore
+Copyright 2005-2017 The Apache Software Foundation
+
+flink-connector-twitter
+Copyright 2014-2019 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:14.0.1
+- com.twitter:hbc-core:2.2.0
+- com.twitter:joauth:6.0.2
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+
+Apache HttpClient
+Copyright 1999-2017 The Apache Software Foundation

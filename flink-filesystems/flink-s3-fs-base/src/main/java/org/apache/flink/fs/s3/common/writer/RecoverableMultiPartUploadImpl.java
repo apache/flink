@@ -30,7 +30,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -173,8 +172,8 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		// first, upload the trailing data file. during that time, other in-progress uploads may complete.
 		final String incompletePartObjectName = createIncompletePartObjectName();
 		file.retain();
-		try (InputStream inputStream = file.getInputStream()) {
-			s3AccessHelper.putObject(incompletePartObjectName, inputStream, file.getPos());
+		try {
+			s3AccessHelper.putObject(incompletePartObjectName, file.getInputFile());
 		}
 		finally {
 			file.release();
@@ -315,8 +314,8 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
 		@Override
 		public void run() {
-			try (final InputStream inputStream = file.getInputStream()) {
-				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, inputStream, file.getPos());
+			try {
+				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, file.getInputFile(), file.getPos());
 				future.complete(new PartETag(result.getPartNumber(), result.getETag()));
 				file.release();
 			}

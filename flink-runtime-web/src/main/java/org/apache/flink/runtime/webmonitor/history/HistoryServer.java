@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -57,6 +58,7 @@ import java.nio.file.Files;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -109,11 +111,8 @@ public class HistoryServer {
 		LOG.info("Loading configuration from {}", configDir);
 		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
 
-		try {
-			FileSystem.initialize(flinkConfig);
-		} catch (IOException e) {
-			throw new Exception("Error while setting the default filesystem scheme from configuration.", e);
-		}
+		//TODO provide plugin path.
+		FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
 
 		// run the history server
 		SecurityUtils.install(new SecurityConfiguration(flinkConfig));
@@ -145,7 +144,7 @@ public class HistoryServer {
 		Preconditions.checkNotNull(numFinishedPolls);
 
 		this.config = config;
-		if (config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED) && SSLUtils.isRestSSLEnabled(config)) {
+		if (HistoryServerUtils.isSSLEnabled(config)) {
 			LOG.info("Enabling SSL for the history server.");
 			try {
 				this.serverSSLFactory = SSLUtils.createRestServerSSLEngineFactory(config);

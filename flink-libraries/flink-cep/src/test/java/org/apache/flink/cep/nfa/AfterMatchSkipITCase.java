@@ -22,10 +22,10 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.aftermatch.SkipPastLastStrategy;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -40,9 +40,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
-import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
-import static org.apache.flink.cep.utils.NFAUtils.compile;
+import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -77,9 +75,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(3);
 
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3),
@@ -141,9 +139,11 @@ public class AfterMatchSkipITCase extends TestLogger{
 					}
 				});
 
-			NFA<Event> nfa = compile(pattern, false);
+			NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern)
+				.withAfterMatchSkipStrategy(skipStrategy)
+				.build();
 
-			return feedNFA(streamEvents, nfa, skipStrategy);
+			return nfaTestHarness.feedRecords(streamEvents);
 		}
 	}
 
@@ -198,9 +198,11 @@ public class AfterMatchSkipITCase extends TestLogger{
 					}
 				}).oneOrMore();
 
-			NFA<Event> nfa = compile(pattern, false);
+			NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern)
+				.withAfterMatchSkipStrategy(skipStrategy)
+				.build();
 
-			return feedNFA(streamEvents, nfa, skipStrategy);
+			return nfaTestHarness.feedRecords(streamEvents);
 		}
 	}
 
@@ -231,9 +233,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(3);
 
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3),
@@ -275,9 +277,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(2);
 
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, ab2, ab3, ab4),
@@ -318,9 +320,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("b");
 			}
 		}).times(2);
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, ab2, ab3, ab4),
@@ -376,9 +378,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("d");
 				}
 		});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Collections.singletonList(
 			Lists.newArrayList(a1, b1, c1, d1)
@@ -415,9 +417,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}
 		);
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a2, b2)
@@ -459,9 +461,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("c");
 			}
 		});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, c1),
@@ -498,9 +500,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("c");
 			}
 		});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(ab1, c1),
@@ -543,9 +545,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("b");
 			}
 		}).oneOrMore().consecutive();
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, b1),
@@ -573,9 +575,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}
 		);
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		//skip to first element of a match should throw exception if they are enabled,
 		//this mode is used in MATCH RECOGNIZE which assumes that skipping to first element
@@ -645,9 +647,11 @@ public class AfterMatchSkipITCase extends TestLogger{
 						return value.getName().contains("c");
 					}
 				});
-			NFA<Event> nfa = compile(pattern, false);
+			NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern)
+				.withAfterMatchSkipStrategy(skipStrategy)
+				.build();
 
-			return feedNFA(streamEvents, nfa, skipStrategy);
+			return nfaTestHarness.feedRecords(streamEvents);
 		}
 	}
 
@@ -686,9 +690,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("b");
 			}
 		}).oneOrMore().consecutive();
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, b1),
@@ -728,9 +732,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("b");
 				}
 			});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Collections.singletonList(
 			Lists.newArrayList(a1, a2, a3, b1)
@@ -768,9 +772,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("b");
 				}
 			});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3, b1),
@@ -809,9 +813,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("b");
 				}
 			});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3, b1),
@@ -851,9 +855,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("b");
 				}
 			});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, a2, a3, b1),
@@ -913,9 +917,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("d");
 				}
 			});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a, b, c1, c2, c3, d),
@@ -962,9 +966,9 @@ public class AfterMatchSkipITCase extends TestLogger{
 					ctx.getEventsForPattern("a").iterator().next().getPrice() == value.getPrice();
 			}
 		});
-		NFA<Event> nfa = compile(pattern, false);
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
 		compareMaps(resultingPatterns, Lists.newArrayList(
 			Lists.newArrayList(a1, c1, b2),
@@ -991,22 +995,10 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(2);
 
-		NFA<Event> nfa = compile(pattern, false);
-
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
-				nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp());
-				nfa.process(
-					sharedBufferAccessor,
-					nfaState,
-					inputEvent.getValue(),
-					inputEvent.getTimestamp(),
-					matchSkipStrategy);
-			}
-		}
+		nfaTestHarness.feedRecords(inputEvents);
 
 		assertThat(sharedBuffer.isEmpty(), Matchers.is(true));
 	}

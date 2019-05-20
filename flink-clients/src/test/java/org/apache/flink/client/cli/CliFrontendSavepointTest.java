@@ -20,11 +20,11 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -134,10 +134,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		replaceStdOutAndStdErr();
 
 		try {
-			CliFrontend frontend = new MockedCliFrontend(new StandaloneClusterClient(
-				getConfiguration(),
-				new TestingHighAvailabilityServices(),
-				false));
+			CliFrontend frontend = new MockedCliFrontend(new RestClusterClient<>(getConfiguration(), StandaloneClusterId.getInstance()));
 
 			String[] parameters = { "invalid job id" };
 			try {
@@ -282,12 +279,14 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
 	// ------------------------------------------------------------------------
 
-	private static final class DisposeSavepointClusterClient extends StandaloneClusterClient {
+	private static final class DisposeSavepointClusterClient extends RestClusterClient<StandaloneClusterId> {
 
 		private final Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		DisposeSavepointClusterClient(Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction, Configuration configuration) {
-			super(configuration, new TestingHighAvailabilityServices(), false);
+		DisposeSavepointClusterClient(
+			Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction,
+			Configuration configuration) throws Exception {
+			super(configuration, StandaloneClusterId.getInstance());
 
 			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
 		}

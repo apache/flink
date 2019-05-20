@@ -106,7 +106,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -138,7 +137,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -167,7 +165,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -198,7 +195,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(dispatcherGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -244,7 +240,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),

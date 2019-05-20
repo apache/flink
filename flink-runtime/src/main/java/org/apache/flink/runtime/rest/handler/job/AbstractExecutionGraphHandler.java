@@ -56,14 +56,13 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody, M ex
 	private final Executor executor;
 
 	protected AbstractExecutionGraphHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.executionGraphCache = Preconditions.checkNotNull(executionGraphCache);
 		this.executor = Preconditions.checkNotNull(executor);

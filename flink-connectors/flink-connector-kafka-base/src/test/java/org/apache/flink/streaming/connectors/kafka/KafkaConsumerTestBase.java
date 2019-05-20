@@ -58,17 +58,16 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
@@ -80,6 +79,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import kafka.server.KafkaServer;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
@@ -119,7 +119,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka consumer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaConsumerTestBase extends KafkaTestBase {
+public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 	@Rule
 	public RetryRule retryRule = new RetryRule();
@@ -421,8 +421,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedSerializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-			new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KafkaDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// setup and run the latest-consuming job
@@ -1417,7 +1417,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 
-		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
+		KafkaDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1865,8 +1865,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				new KeyedSerializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-				new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+				new KafkaDeserializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		final int maxNumAttempts = 10;
@@ -1963,8 +1963,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedSerializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-			new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KafkaDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// -------- Write the append sequence --------
@@ -2025,7 +2025,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	private boolean validateSequence(
 			final String topic,
 			final int parallelism,
-			KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
+			KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
 			final int totalNumElements) throws Exception {
 
 		final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -2194,7 +2194,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
+	private static class Tuple2WithTopicSchema implements KafkaDeserializationSchema<Tuple3<Integer, Integer, String>>,
 		KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
 
 		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
@@ -2204,10 +2204,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		@Override
-		public Tuple3<Integer, Integer, String> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+		public Tuple3<Integer, Integer, String> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Tuple2<Integer, Integer> t2 = ts.deserialize(in);
-			return new Tuple3<>(t2.f0, t2.f1, topic);
+			return new Tuple3<>(t2.f0, t2.f1, record.topic());
 		}
 
 		@Override

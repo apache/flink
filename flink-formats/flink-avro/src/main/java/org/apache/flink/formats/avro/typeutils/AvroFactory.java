@@ -86,9 +86,9 @@ final class AvroFactory<T> {
 		return fromReflective(type, cl, Optional.ofNullable(previousSchema));
 	}
 
-	static <T> AvroFactory<T> createFromTypeAndSchemaString(Class<T> type, @Nullable String schemaString) {
-		Schema schema = (schemaString != null) ? new Schema.Parser().parse(schemaString) : null;
-		return create(type, schema, null);
+	@Nullable
+	static Schema parseSchemaString(@Nullable String schemaString) {
+		return (schemaString == null) ? null : new Schema.Parser().parse(schemaString);
 	}
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")

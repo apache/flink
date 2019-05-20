@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -82,7 +82,7 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 				.setClusterBuilder(this.builder)
 				.setQuery(this.cql)
 				.build()
-				.name(TableConnectorUtil.generateRuntimeName(this.getClass(), fieldNames));
+				.name(TableConnectorUtils.generateRuntimeName(this.getClass(), fieldNames));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

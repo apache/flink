@@ -135,7 +135,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		this.executionMode = executionMode;
 	}
 
-	@Parameterized.Parameters
+	@Parameterized.Parameters(name = "ExecutionMode {0}")
 	public static Collection<Object[]> executionMode() {
 		return Arrays.asList(new Object[][]{
 				{ ExecutionMode.PIPELINED},

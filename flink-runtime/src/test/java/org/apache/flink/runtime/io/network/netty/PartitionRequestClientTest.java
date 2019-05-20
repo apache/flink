@@ -30,7 +30,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createRemoteInputChannel;
-import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createSingleInputGate;
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -53,7 +53,7 @@ public class PartitionRequestClientTest {
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client, 1, 2);
 
 		try {
@@ -92,7 +92,7 @@ public class PartitionRequestClientTest {
 			assertNull(channel.readOutbound());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
@@ -107,7 +107,7 @@ public class PartitionRequestClientTest {
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate();
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 
 		try {
@@ -127,7 +127,7 @@ public class PartitionRequestClientTest {
 			assertNull(channel.readOutbound());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();

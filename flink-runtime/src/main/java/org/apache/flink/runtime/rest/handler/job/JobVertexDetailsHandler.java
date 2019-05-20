@@ -51,26 +51,23 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
  * Request handler for the job vertex details.
  */
 public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters> implements JsonArchivist {
-	private final MetricFetcher<? extends RestfulGateway> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	public JobVertexDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobVertexDetailsInfo, JobVertexMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<? extends RestfulGateway> metricFetcher) {
+			MetricFetcher metricFetcher) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -109,7 +106,7 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 		return archive;
 	}
 
-	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
+	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		List<JobVertexDetailsInfo.VertexTaskDetail> subtasks = new ArrayList<>();
 		final long now = System.currentTimeMillis();
 		int num = 0;
@@ -141,8 +138,8 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 				endTime,
 				duration,
 				new IOMetricsInfo(
-					counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-					counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+					counts.getNumBytesIn(),
+					counts.isNumBytesInComplete(),
 					counts.getNumBytesOut(),
 					counts.isNumBytesOutComplete(),
 					counts.getNumRecordsIn(),

@@ -49,7 +49,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link Scheduler} when scheduling individual tasks.
+ * Tests for scheduling individual tasks.
  */
 public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 	
@@ -111,15 +111,12 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		assertEquals(5, testingSlotProvider.getNumberOfAvailableSlots());
 	}
-	
+
 	@Test
 	public void testScheduleQueueing() throws Exception {
 		final int NUM_INSTANCES = 50;
 		final int NUM_SLOTS_PER_INSTANCE = 3;
 		final int NUM_TASKS_TO_SCHEDULE = 2000;
-
-		// note: since this test asynchronously releases slots, the executor needs release workers.
-		// doing the release call synchronous can lead to a deadlock
 
 		for (int i = 0; i < NUM_INSTANCES; i++) {
 			testingSlotProvider.addTaskManager((int) (Math.random() * NUM_SLOTS_PER_INSTANCE) + 1);
@@ -136,36 +133,6 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		// flag to track errors in the concurrent thread
 		final AtomicBoolean errored = new AtomicBoolean(false);
 
-		// thread to asynchronously release slots
-		Runnable disposer = new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					int recycled = 0;
-					while (recycled < NUM_TASKS_TO_SCHEDULE) {
-						synchronized (toRelease) {
-							while (toRelease.isEmpty()) {
-								toRelease.wait();
-							}
-
-							Iterator<LogicalSlot> iter = toRelease.iterator();
-							LogicalSlot next = iter.next();
-							iter.remove();
-
-							next.releaseSlot();
-							recycled++;
-						}
-					}
-				} catch (Throwable t) {
-					errored.set(true);
-				}
-			}
-		};
-
-		Thread disposeThread = new Thread(disposer);
-		disposeThread.start();
-
 		for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
 			CompletableFuture<LogicalSlot> future = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), true, SlotProfile.noRequirements(), TestingUtils.infiniteTime());
 			future.thenAcceptAsync(
@@ -179,7 +146,25 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 			allAllocatedSlots.add(future);
 		}
 
-		disposeThread.join();
+		try {
+			int recycled = 0;
+			while (recycled < NUM_TASKS_TO_SCHEDULE) {
+				synchronized (toRelease) {
+					while (toRelease.isEmpty()) {
+						toRelease.wait();
+					}
+
+					Iterator<LogicalSlot> iter = toRelease.iterator();
+					LogicalSlot next = iter.next();
+					iter.remove();
+
+					next.releaseSlot();
+					recycled++;
+				}
+			}
+		} catch (Throwable t) {
+			errored.set(true);
+		}
 
 		assertFalse("The slot releasing thread caused an error.", errored.get());
 
@@ -301,6 +286,6 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation... location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Arrays.asList(location), Collections.emptyList());
+		return new SlotProfile(ResourceProfile.UNKNOWN, Arrays.asList(location), Collections.emptySet());
 	}
 }

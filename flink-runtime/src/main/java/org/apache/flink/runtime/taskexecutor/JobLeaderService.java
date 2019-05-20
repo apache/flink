@@ -31,6 +31,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -64,6 +66,8 @@ public class JobLeaderService {
 	/** The leader retrieval service and listener for each registered job. */
 	private final Map<JobID, Tuple2<LeaderRetrievalService, JobLeaderService.JobManagerLeaderListener>> jobLeaderServices;
 
+	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
+
 	/** Internal state of the service. */
 	private volatile JobLeaderService.State state;
 
@@ -79,8 +83,11 @@ public class JobLeaderService {
 	/** Job leader listener listening for job leader changes. */
 	private JobLeaderListener jobLeaderListener;
 
-	public JobLeaderService(TaskManagerLocation location) {
+	public JobLeaderService(
+			TaskManagerLocation location,
+			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 		this.ownLocation = Preconditions.checkNotNull(location);
+		this.retryingRegistrationConfiguration = Preconditions.checkNotNull(retryingRegistrationConfiguration);
 
 		// Has to be a concurrent hash map because tests might access this service
 		// concurrently via containsJob
@@ -347,10 +354,10 @@ public class JobLeaderService {
 		private final class JobManagerRegisteredRpcConnection extends RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> {
 
 			JobManagerRegisteredRpcConnection(
-				Logger log,
-				String targetAddress,
-				JobMasterId jobMasterId,
-				Executor executor) {
+					Logger log,
+					String targetAddress,
+					JobMasterId jobMasterId,
+					Executor executor) {
 				super(log, targetAddress, jobMasterId, executor);
 			}
 
@@ -363,6 +370,7 @@ public class JobLeaderService {
 						JobMasterGateway.class,
 						getTargetAddress(),
 						getTargetLeaderId(),
+						retryingRegistrationConfiguration,
 						ownerAddress,
 						ownLocation);
 			}
@@ -409,9 +417,17 @@ public class JobLeaderService {
 				Class<JobMasterGateway> targetType,
 				String targetAddress,
 				JobMasterId jobMasterId,
+				RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 				String taskManagerRpcAddress,
 				TaskManagerLocation taskManagerLocation) {
-			super(log, rpcService, targetName, targetType, targetAddress, jobMasterId);
+			super(
+				log,
+				rpcService,
+				targetName,
+				targetType,
+				targetAddress,
+				jobMasterId,
+				retryingRegistrationConfiguration);
 
 			this.taskManagerRpcAddress = taskManagerRpcAddress;
 			this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);

@@ -93,12 +93,20 @@ You can also specify a specific Hadoop version to build against:
 mvn clean install -DskipTests -Dhadoop.version=2.6.1
 {% endhighlight %}
 
-### Vendor-specific Versions
+### Packaging Hadoop into the Flink distribution
 
+If you want to build a Flink distribution that has a shaded Hadoop pre-packaged in the lib folder you can use the `include-hadoop` profile to do so. You would build Flink as described above but include the profile:
+
+{% highlight bash %}
+mvn clean install -DskipTests -Pinclude-hadoop
+{% endhighlight %}
+
+### Vendor-specific Versions
+To check the list of supported vendor versions, look in https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera
 To build Flink against a vendor specific Hadoop version, issue the following command:
 
 {% highlight bash %}
-mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.1-cdh5.0.0
+mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
 {% endhighlight %}
 
 The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
@@ -111,9 +119,12 @@ The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/g
 
 Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version of their projects (because Scala is not strictly backwards compatible).
 
-Flink 1.4 currently builds only with Scala version 2.11.
+Since version 1.7 Flink builds with Scala version 2.11 (default) and 2.12.
 
-We are working on supporting Scala 2.12, but certain breaking changes in Scala 2.12 make this a more involved effort. Please check out [this JIRA issue](https://issues.apache.org/jira/browse/FLINK-7811) for updates.
+To build FLink against Scala 2.12, issue the following command:
+{% highlight bash %}
+mvn clean install -DskipTests -Dscala-2.12
+{% endhighlight %}
 
 {% top %}
 

@@ -19,12 +19,12 @@
 package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
@@ -39,6 +39,7 @@ import com.codahale.metrics.Timer;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,16 +100,16 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		long timeout = 30000;
 		int size = 10;
 		String histogramMetricName = "histogram";
-		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestingReporter.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, reportingInterval + " MILLISECONDS");
+
+		MetricConfig config = new MetricConfig();
+		config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, reportingInterval + " MILLISECONDS");
 
 		MetricRegistryImpl registry = null;
 
-		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
-
 		try {
-			registry = new MetricRegistryImpl(metricRegistryConfiguration);
+			registry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+				Collections.singletonList(ReporterSetup.forReporter("test", config, new TestingReporter())));
 			DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(
 				new com.codahale.metrics.Histogram(new SlidingWindowReservoir(size)));
 

@@ -113,7 +113,6 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	public synchronized boolean contains(JobID jobId) {
-		verifyIsStarted();
 		return storedJobs.containsKey(jobId);
 	}
 

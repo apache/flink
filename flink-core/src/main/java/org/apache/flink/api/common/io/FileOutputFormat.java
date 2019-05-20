@@ -69,7 +69,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 
 	/**
 	 * Initialize defaults for output format. Needs to be a static method because it is configured for local
-	 * cluster execution, see LocalFlinkMiniCluster.
+	 * cluster execution.
 	 * @param configuration The configuration to load defaults from
 	 */
 	public static void initDefaultsFromConfiguration(Configuration configuration) {

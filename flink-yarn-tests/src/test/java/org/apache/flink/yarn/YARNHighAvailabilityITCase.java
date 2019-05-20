@@ -18,43 +18,79 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
+import org.apache.flink.yarn.testjob.YarnTestJob;
+import org.apache.flink.yarn.util.YarnTestUtils;
 
-import akka.actor.ActorSystem;
-import akka.actor.PoisonPill;
-import akka.testkit.JavaTestKit;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.test.TestingServer;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.security.NMTokenIdentifier;
+import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.junit.AfterClass;
-import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
+import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
-import scala.concurrent.duration.FiniteDuration;
-
+import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -62,30 +98,28 @@ import static org.junit.Assume.assumeTrue;
  */
 public class YARNHighAvailabilityITCase extends YarnTestBase {
 
+	@ClassRule
+	public static final TemporaryFolder FOLDER = new TemporaryFolder();
+
+	private static final String LOG_DIR = "flink-yarn-tests-ha";
+	private static final Duration TIMEOUT = Duration.ofSeconds(200L);
+
 	private static TestingServer zkServer;
+	private static String storageDir;
 
-	private static ActorSystem actorSystem;
-
-	private static final int numberApplicationAttempts = 3;
-
-	@Rule
-	public TemporaryFolder temp = new TemporaryFolder();
+	private YarnTestJob.StopJobSignal stopJobSignal;
+	private JobGraph job;
 
 	@BeforeClass
-	public static void setup() {
-		actorSystem = AkkaUtils.createDefaultActorSystem();
+	public static void setup() throws Exception {
+		zkServer = new TestingServer();
 
-		try {
-			zkServer = new TestingServer();
-			zkServer.start();
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("Could not start ZooKeeper testing cluster.");
-		}
+		storageDir = FOLDER.newFolder().getAbsolutePath();
 
-		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-ha");
-		YARN_CONFIGURATION.set(YarnConfiguration.RM_AM_MAX_ATTEMPTS, "" + numberApplicationAttempts);
-
+		// startYARNWithConfig should be implemented by subclass
+		YARN_CONFIGURATION.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
+		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, LOG_DIR);
+		YARN_CONFIGURATION.setInt(YarnConfiguration.NM_PMEM_MB, 4096);
 		startYARNWithConfig(YARN_CONFIGURATION);
 	}
 
@@ -93,123 +127,243 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	public static void teardown() throws Exception {
 		if (zkServer != null) {
 			zkServer.stop();
+			zkServer = null;
 		}
+	}
 
-		JavaTestKit.shutdownActorSystem(actorSystem);
-		actorSystem = null;
+	@Before
+	public void setUp() throws Exception {
+		initJobGraph();
+	}
+
+	private void initJobGraph() throws IOException {
+		stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
+		job = YarnTestJob.stoppableJob(stopJobSignal);
+		final File testingJar =
+			YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
+
+		assertThat(testingJar, notNullValue());
+
+		job.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 	}
 
 	/**
-	 * Tests that the application master can be killed multiple times and that the surviving
-	 * TaskManager successfully reconnects to the newly started JobManager.
-	 * @throws Exception
+	 * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then resume
+	 * a persisted {@link JobGraph}.
 	 */
 	@Test
-	public void testMultipleAMKill() throws Exception {
-		assumeTrue("This test only works with the old actor based code.", !isNewMode);
-		final int numberKillingAttempts = numberApplicationAttempts - 1;
-		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		final Configuration configuration = GlobalConfiguration.loadConfiguration();
-		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			confDirPath,
-			getYarnClient(),
-			true);
+	public void testKillYarnSessionClusterEntrypoint() throws Exception {
+		assumeTrue(
+			"This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.",
+			OperatingSystem.isLinux() || OperatingSystem.isMac() || OperatingSystem.isFreeBSD() || OperatingSystem.isSolaris());
 
-		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
-		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
+		yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
 
-		String fsStateHandlePath = temp.getRoot().getPath();
-
-		// load the configuration
-		File configDirectory = new File(confDirPath);
-		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-
-		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
-			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
-			"@@" + CheckpointingOptions.STATE_BACKEND.key() + "=FILESYSTEM" +
-			"@@" + CheckpointingOptions.CHECKPOINTS_DIRECTORY + "=" + fsStateHandlePath + "/checkpoints" +
-			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
-
-		ClusterClient<ApplicationId> yarnClusterClient = null;
-
-		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
-
-		HighAvailabilityServices highAvailabilityServices = null;
-
-		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(768)
-			.setTaskManagerMemoryMB(1024)
-			.setNumberTaskManagers(1)
-			.setSlotsPerTaskManager(1)
-			.createClusterSpecification();
+		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 
 		try {
-			yarnClusterClient = flinkYarnClient.deploySessionCluster(clusterSpecification);
+			final JobID jobId = submitJob(restClusterClient);
+			final ApplicationId id = restClusterClient.getClusterId();
 
-			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				yarnClusterClient.getFlinkConfiguration(),
-				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+			waitUntilJobIsRunning(restClusterClient, jobId);
 
-			final HighAvailabilityServices finalHighAvailabilityServices = highAvailabilityServices;
+			killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
+			waitForApplicationAttempt(id, 2);
 
-			new JavaTestKit(actorSystem) {{
-				for (int attempt = 0; attempt < numberKillingAttempts; attempt++) {
-					new Within(timeout) {
-						@Override
-						protected void run() {
-							try {
-								ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(
-									finalHighAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-									actorSystem,
-									timeout);
-								ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID());
+			waitForJobTermination(restClusterClient, jobId);
 
-								gateway.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
-
-								expectMsgEquals(Acknowledge.get());
-
-								gateway.tell(PoisonPill.getInstance());
-							} catch (Exception e) {
-								throw new AssertionError("Could not complete test.", e);
-							}
-						}
-					};
-				}
-
-				new Within(timeout) {
-					@Override
-					protected void run() {
-						try {
-							ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(
-								finalHighAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-								actorSystem,
-								timeout);
-							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID());
-
-							gateway.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
-
-							expectMsgEquals(Acknowledge.get());
-						} catch (Exception e) {
-							throw new AssertionError("Could not complete test.", e);
-						}
-					}
-				};
-
-			}};
+			killApplicationAndWait(id);
 		} finally {
-			if (yarnClusterClient != null) {
-				log.info("Shutting down the Flink Yarn application.");
-				yarnClusterClient.shutDownCluster();
-				yarnClusterClient.shutdown();
-			}
+			restClusterClient.shutdown();
+		}
+	}
 
-			if (highAvailabilityServices != null) {
-				highAvailabilityServices.closeAndCleanupAllData();
+	@Test
+	public void testJobRecoversAfterKillingTaskManager() throws Exception {
+		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
+		yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
+
+		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
+		try {
+			final JobID jobId = submitJob(restClusterClient);
+			waitUntilJobIsRunning(restClusterClient, jobId);
+
+			stopTaskManagerContainer();
+			waitUntilJobIsRestarted(restClusterClient, jobId, 1);
+
+			waitForJobTermination(restClusterClient, jobId);
+
+			killApplicationAndWait(restClusterClient.getClusterId());
+		} finally {
+			restClusterClient.shutdown();
+		}
+	}
+
+	private void waitForApplicationAttempt(final ApplicationId applicationId, final int attemptId) throws Exception {
+		final YarnClient yarnClient = getYarnClient();
+		checkState(yarnClient != null, "yarnClient must be initialized");
+
+		CommonTestUtils.waitUntilCondition(() -> {
+			final ApplicationReport applicationReport = yarnClient.getApplicationReport(applicationId);
+			return applicationReport.getCurrentApplicationAttemptId().getAttemptId() >= attemptId;
+		}, Deadline.fromNow(TIMEOUT));
+	}
+
+	/**
+	 * Stops a container running {@link YarnTaskExecutorRunner}.
+	 */
+	private void stopTaskManagerContainer() throws Exception {
+		// find container id of taskManager:
+		ContainerId taskManagerContainer = null;
+		NodeManager nodeManager = null;
+		NMTokenIdentifier nmIdent = null;
+		UserGroupInformation remoteUgi = UserGroupInformation.getCurrentUser();
+
+		for (int nmId = 0; nmId < NUM_NODEMANAGERS; nmId++) {
+			NodeManager nm = yarnCluster.getNodeManager(nmId);
+			ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
+			for (Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
+				String command = StringUtils.join(entry.getValue().getLaunchContext().getCommands(), " ");
+				if (command.contains(YarnTaskExecutorRunner.class.getSimpleName())) {
+					taskManagerContainer = entry.getKey();
+					nodeManager = nm;
+					nmIdent = new NMTokenIdentifier(taskManagerContainer.getApplicationAttemptId(), null, "", 0);
+					// allow myself to do stuff with the container
+					// remoteUgi.addCredentials(entry.getValue().getCredentials());
+					remoteUgi.addTokenIdentifier(nmIdent);
+				}
 			}
 		}
+
+		assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
+		assertNotNull("Illegal state", nodeManager);
+
+		StopContainersRequest scr = StopContainersRequest.newInstance(Collections.singletonList(taskManagerContainer));
+
+		nodeManager.getNMContext().getContainerManager().stopContainers(scr);
+
+		// cleanup auth for the subsequent tests.
+		remoteUgi.getTokenIdentifiers().remove(nmIdent);
+	}
+
+	private void killApplicationAndWait(final ApplicationId id) throws Exception {
+		final YarnClient yarnClient = getYarnClient();
+		checkState(yarnClient != null, "yarnClient must be initialized");
+
+		yarnClient.killApplication(id);
+
+		CommonTestUtils.waitUntilCondition(() -> !yarnClient.getApplications(EnumSet.of(YarnApplicationState.KILLED, YarnApplicationState.FINISHED)).isEmpty(),
+			Deadline.fromNow(TIMEOUT));
+	}
+
+	private void waitForJobTermination(
+			final RestClusterClient<ApplicationId> restClusterClient,
+			final JobID jobId) throws Exception {
+		stopJobSignal.signal();
+		final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
+		jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+	}
+
+	@Nonnull
+	private YarnClusterDescriptor setupYarnClusterDescriptor() {
+		final Configuration flinkConfiguration = new Configuration();
+		flinkConfiguration.setString(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
+		flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
+		flinkConfiguration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+		flinkConfiguration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 1000);
+
+		flinkConfiguration.setString(ConfigConstants.RESTART_STRATEGY, "fixed-delay");
+		flinkConfiguration.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+
+		final int minMemory = 100;
+		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, minMemory);
+
+		return createYarnClusterDescriptor(flinkConfiguration);
+	}
+
+	private RestClusterClient<ApplicationId> deploySessionCluster(YarnClusterDescriptor yarnClusterDescriptor) throws ClusterDeploymentException {
+		final int containerMemory = 256;
+		final ClusterClient<ApplicationId> yarnClusterClient = yarnClusterDescriptor.deploySessionCluster(
+			new ClusterSpecification.ClusterSpecificationBuilder()
+				.setMasterMemoryMB(containerMemory)
+				.setTaskManagerMemoryMB(containerMemory)
+				.setSlotsPerTaskManager(1)
+				.createClusterSpecification());
+
+		assertThat(yarnClusterClient, is(instanceOf(RestClusterClient.class)));
+		return (RestClusterClient<ApplicationId>) yarnClusterClient;
+	}
+
+	private JobID submitJob(RestClusterClient<ApplicationId> restClusterClient) throws InterruptedException, java.util.concurrent.ExecutionException {
+		final CompletableFuture<JobSubmissionResult> jobSubmissionResultCompletableFuture =
+			restClusterClient.submitJob(job);
+
+		final JobSubmissionResult jobSubmissionResult = jobSubmissionResultCompletableFuture.get();
+		return jobSubmissionResult.getJobID();
+	}
+
+	private void killApplicationMaster(final String processName) throws IOException, InterruptedException {
+		final Process exec = Runtime.getRuntime().exec("pkill -f " + processName);
+		assertThat(exec.waitFor(), is(0));
+	}
+
+	private static void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
+		CommonTestUtils.waitUntilCondition(
+			() -> {
+				final JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).get();
+				return jobDetails.getJobVertexInfos()
+					.stream()
+					.map(toExecutionState())
+					.allMatch(isRunning());
+			},
+			Deadline.fromNow(TIMEOUT));
+	}
+
+	private static Function<JobDetailsInfo.JobVertexDetailsInfo, ExecutionState> toExecutionState() {
+		return JobDetailsInfo.JobVertexDetailsInfo::getExecutionState;
+	}
+
+	private static Predicate<ExecutionState> isRunning() {
+		return executionState -> executionState == ExecutionState.RUNNING;
+	}
+
+	private static void waitUntilJobIsRestarted(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId,
+		final int expectedFullRestarts) throws Exception {
+		CommonTestUtils.waitUntilCondition(
+			() -> getJobFullRestarts(restClusterClient, jobId) >= expectedFullRestarts,
+			Deadline.fromNow(TIMEOUT));
+	}
+
+	private static int getJobFullRestarts(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId) throws Exception {
+
+		return getJobMetric(restClusterClient, jobId, "fullRestarts")
+			.map(Metric::getValue)
+			.map(Integer::parseInt)
+			.orElse(0);
+	}
+
+	private static Optional<Metric> getJobMetric(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId,
+		final String metricName) throws Exception {
+
+		final JobMetricsMessageParameters messageParameters = new JobMetricsMessageParameters();
+		messageParameters.jobPathParameter.resolve(jobId);
+		messageParameters.metricsFilterParameter.resolveFromString(metricName);
+
+		final Collection<Metric> metrics = restClusterClient.sendRequest(
+			JobMetricsHeaders.getInstance(),
+			messageParameters,
+			EmptyRequestBody.getInstance()).get().getMetrics();
+
+		final Metric metric = Iterables.getOnlyElement(metrics, null);
+		checkState(metric == null || metric.getId().equals(metricName));
+		return Optional.ofNullable(metric);
 	}
 }

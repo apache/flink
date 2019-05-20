@@ -543,7 +543,7 @@ public class PackagedProgram {
 			} else if (exceptionInMethod instanceof ProgramInvocationException) {
 				throw (ProgramInvocationException) exceptionInMethod;
 			} else {
-				throw new ProgramInvocationException("The main method caused an error.", exceptionInMethod);
+				throw new ProgramInvocationException("The main method caused an error: " + exceptionInMethod.getMessage(), exceptionInMethod);
 			}
 		}
 		catch (Throwable t) {

@@ -116,9 +116,7 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 		when(clusterClient.listJobs()).thenReturn(CompletableFuture.completedFuture(Arrays.asList(
 			new JobStatusMessage(new JobID(), "job1", JobStatus.RUNNING, 1L),
 			new JobStatusMessage(new JobID(), "job2", JobStatus.CREATED, 1L),
-			new JobStatusMessage(new JobID(), "job3", JobStatus.SUSPENDING, 3L),
-			new JobStatusMessage(new JobID(), "job4", JobStatus.SUSPENDING, 2L),
-			new JobStatusMessage(new JobID(), "job5", JobStatus.FINISHED, 3L)
+			new JobStatusMessage(new JobID(), "job3", JobStatus.FINISHED, 3L)
 		)));
 		return clusterClient;
 	}

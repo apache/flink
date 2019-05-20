@@ -56,7 +56,7 @@ public class ClosureCleaner {
 	 *                                 not serializable after the closure cleaning.
 	 *
 	 * @throws RuntimeException A RuntimeException may be thrown, if the code of the class could not
-	 *                          be loaded, in order to process during teh closure cleaning.
+	 *                          be loaded, in order to process during the closure cleaning.
 	 */
 	public static void clean(Object func, boolean checkSerializable) {
 		if (func == null) {
@@ -176,7 +176,7 @@ class This0AccessFinder extends ClassVisitor {
 	private boolean isThis0Accessed;
 
 	public This0AccessFinder(String this0Name) {
-		super(Opcodes.ASM5);
+		super(Opcodes.ASM6);
 		this.this0Name = this0Name;
 	}
 
@@ -186,7 +186,7 @@ class This0AccessFinder extends ClassVisitor {
 
 	@Override
 	public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
-		return new MethodVisitor(Opcodes.ASM5) {
+		return new MethodVisitor(Opcodes.ASM6) {
 
 			@Override
 			public void visitFieldInsn(int op, String owner, String name, String desc) {

@@ -1,6 +1,6 @@
 /*
  * Copyright 2012 The Netty Project
- * Copy from netty 4.1.24.Final
+ * Copy from netty 4.1.32.Final
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.CharBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -77,7 +78,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * An abstract test class for channel buffers.
  *
- * Copy from netty 4.1.24.Final.
+ * Copy from netty 4.1.32.Final.
  */
 public abstract class AbstractByteBufTest extends TestLogger {
 
@@ -3656,11 +3657,23 @@ public abstract class AbstractByteBufTest extends TestLogger {
         testSetGetCharSequence(CharsetUtil.UTF_16);
     }
 
+    private static final CharBuffer EXTENDED_ASCII_CHARS, ASCII_CHARS;
+
+    static {
+        char[] chars = new char[256];
+        for (char c = 0; c < chars.length; c++) {
+            chars[c] = c;
+        }
+        EXTENDED_ASCII_CHARS = CharBuffer.wrap(chars);
+        ASCII_CHARS = CharBuffer.wrap(chars, 0, 128);
+    }
+
     private void testSetGetCharSequence(Charset charset) {
-        ByteBuf buf = newBuffer(16);
-        String sequence = "AB";
+        ByteBuf buf = newBuffer(1024);
+        CharBuffer sequence = CharsetUtil.US_ASCII.equals(charset)
+                ? ASCII_CHARS : EXTENDED_ASCII_CHARS;
         int bytes = buf.setCharSequence(1, sequence, charset);
-        assertEquals(sequence, buf.getCharSequence(1, bytes, charset));
+        assertEquals(sequence, CharBuffer.wrap(buf.getCharSequence(1, bytes, charset)));
         buf.release();
     }
 
@@ -3685,12 +3698,13 @@ public abstract class AbstractByteBufTest extends TestLogger {
     }
 
     private void testWriteReadCharSequence(Charset charset) {
-        ByteBuf buf = newBuffer(16);
-        String sequence = "AB";
+        ByteBuf buf = newBuffer(1024);
+        CharBuffer sequence = CharsetUtil.US_ASCII.equals(charset)
+                ? ASCII_CHARS : EXTENDED_ASCII_CHARS;
         buf.writerIndex(1);
         int bytes = buf.writeCharSequence(sequence, charset);
         buf.readerIndex(1);
-        assertEquals(sequence, buf.readCharSequence(bytes, charset));
+        assertEquals(sequence, CharBuffer.wrap(buf.readCharSequence(bytes, charset)));
         buf.release();
     }
 

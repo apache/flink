@@ -23,13 +23,21 @@ and all nightly tests via
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-nightly-tests.sh
 ```
 
-where <flink dir> is a Flink distribution directory.
+where \<flink dir\> is a Flink distribution directory.
 
 You can also run tests individually via
 
 ```
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh arg1 arg2
 ```
+
+**NOTICE**: Please _DON'T_ run the scripts with explicit command like ```sh run-nightly-tests.sh``` since ```#!/usr/bin/env bash``` is specified as the header of the scripts to assure flexibility on different systems.
+
+### Streaming bucketing test
+
+Before running this nightly test case (test_streaming_bucketing.sh), please make sure to run `mvn -DskipTests install` in the `flink-end-to-end-tests` directory, so jar files necessary for the test like `BucketingSinkTestProgram.jar` could be generated.
+
+What's more, starting from 1.8.0 release it's required to make sure that `HADOOP_CLASSPATH` is [correctly set](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/hadoop.html) or the pre-bundled hadoop jar has been put into the `lib` folder of the `FLINK_DIR` (You can find the binaries from the [Downloads page](http://flink.apache.org/downloads.html) on the Flink project site).
 
 ### Kubernetes test
 

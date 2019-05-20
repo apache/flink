@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -31,6 +33,7 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
@@ -38,10 +41,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -214,6 +220,33 @@ public class MetricGroupTest extends TestLogger {
 		String logicalScope = ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
 		assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
 		assertFalse("Value is present in logical scope.", logicalScope.contains(value));
+	}
+
+	/**
+	 * Verifies that calling {@link AbstractMetricGroup#getLogicalScope(CharacterFilter, char, int)} on {@link GenericValueMetricGroup}
+	 * should ignore value as well.
+	 */
+	@Test
+	public void testLogicalScopeShouldIgnoreValueGroupName() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		try {
+			GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+
+			String key = "key";
+			String value = "value";
+
+			MetricGroup group = root.addGroup(key, value);
+
+			String logicalScope = ((AbstractMetricGroup) group)
+				.getLogicalScope(new DummyCharacterFilter(), registry.getDelimiter(), 0);
+			assertThat("Key is missing from logical scope.", logicalScope, containsString(key));
+			assertThat("Value is present in logical scope.", logicalScope, not(containsString(value)));
+		} finally {
+			registry.shutdown().get();
+		}
 	}
 
 	@Test

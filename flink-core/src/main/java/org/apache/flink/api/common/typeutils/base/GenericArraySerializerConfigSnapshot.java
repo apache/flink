@@ -19,7 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -38,8 +39,12 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Point-in-time configuration of a {@link GenericArraySerializer}.
  *
  * @param <C> The component type.
+ *
+ * @deprecated this is deprecated and no longer used by the {@link GenericArraySerializer}.
+ *             It has been replaced by {@link GenericArraySerializerSnapshot}.
  */
 @Internal
+@Deprecated
 public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerializerSnapshot<C[]> {
 
 	private static final int CURRENT_VERSION = 2;
@@ -50,7 +55,7 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
 
 	/** Snapshot handling for the component serializer snapshot. */
 	@Nullable
-	private CompositeSerializerSnapshot nestedSnapshot;
+	private NestedSerializersSnapshotDelegate nestedSnapshot;
 
 	/**
 	 * Constructor for read instantiation.
@@ -63,7 +68,7 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
 	 */
 	public GenericArraySerializerConfigSnapshot(GenericArraySerializer<C> serializer) {
 		this.componentClass = serializer.getComponentClass();
-		this.nestedSnapshot = new CompositeSerializerSnapshot(serializer.getComponentSerializer());
+		this.nestedSnapshot = new NestedSerializersSnapshotDelegate(serializer.getComponentSerializer());
 	}
 
 	// ------------------------------------------------------------------------
@@ -77,7 +82,7 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
 	public void writeSnapshot(DataOutputView out) throws IOException {
 		checkState(componentClass != null && nestedSnapshot != null);
 		out.writeUTF(componentClass.getName());
-		nestedSnapshot.writeCompositeSnapshot(out);
+		nestedSnapshot.writeNestedSerializerSnapshots(out);
 	}
 
 	@Override
@@ -95,7 +100,7 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
 	}
 
 	private void readV1(DataInputView in, ClassLoader classLoader) throws IOException {
-		nestedSnapshot = CompositeSerializerSnapshot.legacyReadProductSnapshots(in, classLoader);
+		nestedSnapshot = NestedSerializersSnapshotDelegate.legacyReadNestedSerializerSnapshots(in, classLoader);
 
 		try (DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
 			componentClass = InstantiationUtil.deserializeObject(inViewWrapper, classLoader);
@@ -107,30 +112,27 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
 
 	private void readV2(DataInputView in, ClassLoader classLoader) throws IOException {
 		componentClass = InstantiationUtil.resolveClassByName(in, classLoader);
-		nestedSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, classLoader);
+		nestedSnapshot = NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(in, classLoader);
 	}
 
 	@Override
-	public TypeSerializer<C[]> restoreSerializer() {
+	public GenericArraySerializer<C> restoreSerializer() {
 		checkState(componentClass != null && nestedSnapshot != null);
-		return new GenericArraySerializer<>(componentClass, nestedSnapshot.getRestoreSerializer(0));
+		return new GenericArraySerializer<>(componentClass, nestedSnapshot.getRestoredNestedSerializer(0));
 	}
 
 	@Override
 	public TypeSerializerSchemaCompatibility<C[]> resolveSchemaCompatibility(TypeSerializer<C[]> newSerializer) {
-		checkState(componentClass != null && nestedSnapshot != null);
+		checkState(nestedSnapshot != null);
 
-		if (newSerializer instanceof GenericArraySerializer) {
-			GenericArraySerializer<C> serializer = (GenericArraySerializer<C>) newSerializer;
-			TypeSerializerSchemaCompatibility<C> compat = serializer.getComponentClass() == componentClass ?
-					TypeSerializerSchemaCompatibility.compatibleAsIs() :
-					TypeSerializerSchemaCompatibility.incompatible();
-
-			return nestedSnapshot.resolveCompatibilityWithNested(
-					compat, serializer.getComponentSerializer());
-		}
-		else {
+		if (!(newSerializer instanceof GenericArraySerializer)) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
+
+		// delegate to the new snapshot class
+		return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+			newSerializer,
+			new GenericArraySerializerSnapshot<>(componentClass),
+			nestedSnapshot.getNestedSerializerSnapshots());
 	}
 }

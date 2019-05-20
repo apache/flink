@@ -45,30 +45,34 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.WrappingRuntimeException;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -97,7 +101,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -112,6 +115,8 @@ public class TaskTest extends TestLogger {
 	private static OneShotLatch awaitLatch;
 	private static OneShotLatch triggerLatch;
 
+	private NetworkEnvironment networkEnvironment;
+
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -119,12 +124,21 @@ public class TaskTest extends TestLogger {
 	public void setup() {
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
+
+		networkEnvironment = new NetworkEnvironmentBuilder().build();
+	}
+
+	@After
+	public void teardown() {
+		if (networkEnvironment != null) {
+			networkEnvironment.shutdown();
+		}
 	}
 
 	@Test
 	public void testRegularExecution() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setTaskManagerActions(taskManagerActions)
 			.build();
 
@@ -149,7 +163,7 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testCancelRightAway() throws Exception {
-		final Task task = new TaskBuilder().build();
+		final Task task = createTaskBuilder().build();
 		task.cancelExecution();
 
 		assertEquals(ExecutionState.CANCELING, task.getExecutionState());
@@ -164,7 +178,7 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testFailExternallyRightAway() throws Exception {
-		final Task task = new TaskBuilder().build();
+		final Task task = createTaskBuilder().build();
 		task.failExternally(new Exception("fail externally"));
 
 		assertEquals(ExecutionState.FAILED, task.getExecutionState());
@@ -178,7 +192,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testLibraryCacheRegistrationFailed() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setTaskManagerActions(taskManagerActions)
 			.setLibraryCacheManager(mock(LibraryCacheManager.class)) // inactive manager
 			.build();
@@ -224,7 +238,7 @@ public class TaskTest extends TestLogger {
 				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 				new String[0]);
 
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setRequiredJarFileBlobKeys(Collections.singletonList(missingKey))
 			.setLibraryCacheManager(libraryCacheManager)
 			.build();
@@ -249,25 +263,18 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testExecutionFailsInNetworkRegistration() throws Exception {
-		// mock a network manager that rejects registration
-		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
-		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-
-		final NetworkEnvironment network = mock(NetworkEnvironment.class);
-		when(network.getResultPartitionManager()).thenReturn(partitionManager);
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
-		doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
 
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = new TaskBuilder(networkEnvironment)
 			.setTaskManagerActions(taskManagerActions)
 			.setConsumableNotifier(consumableNotifier)
 			.setPartitionProducerStateChecker(partitionProducerStateChecker)
-			.setNetworkEnvironment(network)
 			.build();
+
+		// shut down the network to make the following task registration failure
+		networkEnvironment.shutdown();
 
 		// should fail
 		task.run();
@@ -275,16 +282,16 @@ public class TaskTest extends TestLogger {
 		// verify final state
 		assertEquals(ExecutionState.FAILED, task.getExecutionState());
 		assertTrue(task.isCanceledOrFailed());
-		assertTrue(task.getFailureCause().getMessage().contains("buffers"));
+		assertTrue(task.getFailureCause().getMessage().contains("NetworkEnvironment is shut down"));
 
 		taskManagerActions.validateListenerMessage(
-			ExecutionState.FAILED, task, new RuntimeException("buffers"));
+			ExecutionState.FAILED, task, new IllegalStateException("NetworkEnvironment is shut down"));
 	}
 
 	@Test
 	public void testInvokableInstantiationFailed() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setTaskManagerActions(taskManagerActions)
 			.setInvokable(InvokableNonInstantiable.class)
 			.build();
@@ -304,7 +311,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testExecutionFailsInInvoke() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableWithExceptionInInvoke.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -324,7 +331,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testFailWithWrappedException() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(FailingInvokableWithChainedException.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -344,7 +351,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testCancelDuringInvoke() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableBlockingInInvoke.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -372,7 +379,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testFailExternallyDuringInvoke() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableBlockingInInvoke.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -398,7 +405,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testCanceledAfterExecutionFailedInInvoke() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableWithExceptionInInvoke.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -419,7 +426,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testExecutionFailsAfterCanceling() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableWithExceptionOnTrigger.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -450,7 +457,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testExecutionFailsAfterTaskMarkedFailed() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableWithExceptionOnTrigger.class)
 			.setTaskManagerActions(taskManagerActions)
 			.build();
@@ -479,7 +486,7 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testCancelTaskException() throws Exception {
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableWithCancelTaskExceptionInInvoke.class)
 			.build();
 
@@ -493,7 +500,7 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testCancelTaskExceptionAfterTaskMarkedFailed() throws Exception {
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableWithCancelTaskExceptionInInvoke.class)
 			.build();
 
@@ -524,7 +531,7 @@ public class TaskTest extends TestLogger {
 		final SingleInputGate inputGate = mock(SingleInputGate.class);
 		when(inputGate.getConsumedResultId()).thenReturn(resultId);
 
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableBlockingInInvoke.class)
 			.build();
 
@@ -570,15 +577,8 @@ public class TaskTest extends TestLogger {
 		final ResultPartitionID partitionId = new ResultPartitionID();
 
 		final PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
-		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
-		final NetworkEnvironment network = mock(NetworkEnvironment.class);
-		when(network.getResultPartitionManager()).thenReturn(mock(ResultPartitionManager.class));
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-			.thenReturn(mock(TaskKvStateRegistry.class));
-		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		// Test all branches of trigger partition state check
 		{
@@ -586,9 +586,8 @@ public class TaskTest extends TestLogger {
 			setup();
 
 			// PartitionProducerDisposedException
-			final Task task =  new TaskBuilder()
+			final Task task = createTaskBuilder()
 				.setInvokable(InvokableBlockingInInvoke.class)
-				.setNetworkEnvironment(network)
 				.setConsumableNotifier(consumableNotifier)
 				.setPartitionProducerStateChecker(partitionChecker)
 				.setExecutor(Executors.directExecutor())
@@ -608,9 +607,8 @@ public class TaskTest extends TestLogger {
 			setup();
 
 			// Any other exception
-			final Task task =  new TaskBuilder()
+			final Task task = createTaskBuilder()
 				.setInvokable(InvokableBlockingInInvoke.class)
-				.setNetworkEnvironment(network)
 				.setConsumableNotifier(consumableNotifier)
 				.setPartitionProducerStateChecker(partitionChecker)
 				.setExecutor(Executors.directExecutor())
@@ -632,9 +630,8 @@ public class TaskTest extends TestLogger {
 
 			// TimeoutException handled special => retry
 			// Any other exception
-			final Task task =  new TaskBuilder()
+			final Task task = createTaskBuilder()
 				.setInvokable(InvokableBlockingInInvoke.class)
-				.setNetworkEnvironment(network)
 				.setConsumableNotifier(consumableNotifier)
 				.setPartitionProducerStateChecker(partitionChecker)
 				.setExecutor(Executors.directExecutor())
@@ -670,9 +667,8 @@ public class TaskTest extends TestLogger {
 			setup();
 
 			// Success
-			final Task task =  new TaskBuilder()
+			final Task task =  createTaskBuilder()
 				.setInvokable(InvokableBlockingInInvoke.class)
-				.setNetworkEnvironment(network)
 				.setConsumableNotifier(consumableNotifier)
 				.setPartitionProducerStateChecker(partitionChecker)
 				.setExecutor(Executors.directExecutor())
@@ -717,7 +713,7 @@ public class TaskTest extends TestLogger {
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), 5);
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 60 * 1000);
 
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableBlockingInCancel.class)
 			.setTaskManagerConfig(config)
 			.setTaskManagerActions(taskManagerActions)
@@ -744,7 +740,7 @@ public class TaskTest extends TestLogger {
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
 
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableInterruptibleSharedLockInInvokeAndCancel.class)
 			.setTaskManagerConfig(config)
 			.setTaskManagerActions(taskManagerActions)
@@ -771,7 +767,7 @@ public class TaskTest extends TestLogger {
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
 
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableUnInterruptibleBlockingInvoke.class)
 			.setTaskManagerConfig(config)
 			.setTaskManagerActions(taskManagerActions)
@@ -810,7 +806,7 @@ public class TaskTest extends TestLogger {
 		executionConfig.setTaskCancellationInterval(interval + 1337);
 		executionConfig.setTaskCancellationTimeout(timeout - 1337);
 
-		final Task task = new TaskBuilder()
+		final Task task = createTaskBuilder()
 			.setInvokable(InvokableBlockingInInvoke.class)
 			.setTaskManagerConfig(config)
 			.setExecutionConfig(executionConfig)
@@ -923,13 +919,18 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
-	private final class TaskBuilder {
+	private TaskBuilder createTaskBuilder() {
+		return new TaskBuilder(networkEnvironment);
+	}
+
+	private static final class TaskBuilder {
 		private Class<? extends AbstractInvokable> invokable;
 		private TaskManagerActions taskManagerActions;
 		private LibraryCacheManager libraryCacheManager;
 		private ResultPartitionConsumableNotifier consumableNotifier;
 		private PartitionProducerStateChecker partitionProducerStateChecker;
-		private NetworkEnvironment networkEnvironment;
+		private final NetworkEnvironment networkEnvironment;
+		private KvStateService kvStateService;
 		private Executor executor;
 		private Configuration taskManagerConfig;
 		private ExecutionConfig executionConfig;
@@ -945,14 +946,7 @@ public class TaskTest extends TestLogger {
 			consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 			partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 
-			final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-			final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-			networkEnvironment = mock(NetworkEnvironment.class);
-			when(networkEnvironment.getResultPartitionManager()).thenReturn(partitionManager);
-			when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
-			when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-				.thenReturn(mock(TaskKvStateRegistry.class));
-			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+			kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 
 			executor = TestingUtils.defaultExecutor();
 
@@ -960,6 +954,10 @@ public class TaskTest extends TestLogger {
 			executionConfig = new ExecutionConfig();
 
 			requiredJarFileBlobKeys = Collections.emptyList();
+		}
+
+		private TaskBuilder(NetworkEnvironment networkEnvironment) {
+			this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
 		}
 
 		TaskBuilder setInvokable(Class<? extends AbstractInvokable> invokable) {
@@ -987,8 +985,8 @@ public class TaskTest extends TestLogger {
 			return this;
 		}
 
-		TaskBuilder setNetworkEnvironment(NetworkEnvironment networkEnvironment) {
-			this.networkEnvironment = networkEnvironment;
+		TaskBuilder setKvStateService(KvStateService kvStateService) {
+			this.kvStateService = kvStateService;
 			return this;
 		}
 
@@ -1039,8 +1037,7 @@ public class TaskTest extends TestLogger {
 				mock(PermanentBlobCache.class),
 				mock(TransientBlobCache.class));
 
-			final TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
-			when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
+			final TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 
 			return new Task(
 				jobInformation,
@@ -1055,11 +1052,14 @@ public class TaskTest extends TestLogger {
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
+				kvStateService,
 				mock(BroadcastVariableManager.class),
+				new TaskEventDispatcher(),
 				new TestTaskStateManager(),
 				taskManagerActions,
 				new MockInputSplitProvider(),
 				new TestCheckpointResponder(),
+				new TestGlobalAggregateManager(),
 				blobCacheService,
 				libraryCacheManager,
 				mock(FileCache.class),

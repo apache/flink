@@ -27,6 +27,8 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 
@@ -36,6 +38,7 @@ public class MockEnvironmentBuilder {
 	private MockInputSplitProvider inputSplitProvider = null;
 	private int bufferSize = 16;
 	private TaskStateManager taskStateManager = new TestTaskStateManager();
+	private GlobalAggregateManager aggregateManager= new TestGlobalAggregateManager();
 	private Configuration taskConfiguration = new Configuration();
 	private ExecutionConfig executionConfig = new ExecutionConfig();
 	private int maxParallelism = 1;
@@ -133,6 +136,7 @@ public class MockEnvironmentBuilder {
 			taskConfiguration,
 			executionConfig,
 			taskStateManager,
+			aggregateManager,
 			maxParallelism,
 			parallelism,
 			subtaskIndex,

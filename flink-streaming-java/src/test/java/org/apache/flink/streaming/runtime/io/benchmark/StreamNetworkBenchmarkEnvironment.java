@@ -20,39 +20,36 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
-import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -60,7 +57,6 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
-import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Context for network benchmarks executed by the external
@@ -182,9 +178,9 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		return receiver;
 	}
 
-	public StreamRecordWriter<T> createRecordWriter(int partitionIndex, long flushTimeout) throws Exception {
+	public RecordWriter<T> createRecordWriter(int partitionIndex, long flushTimeout) throws Exception {
 		ResultPartitionWriter sender = createResultPartition(jobId, partitionIds[partitionIndex], senderEnv, channels);
-		return new StreamRecordWriter<>(sender,  new RoundRobinChannelSelector<T>(), flushTimeout);
+		return new RecordWriterBuilder().setTimeout(flushTimeout).build(sender);
 	}
 
 	private void generatePartitionIds() throws Exception {
@@ -196,38 +192,17 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	private NetworkEnvironment createNettyNetworkEnvironment(
 			@SuppressWarnings("SameParameterValue") int bufferPoolSize, Configuration config) throws Exception {
 
-		int segmentSize =
-			checkedDownCast(
-				MemorySize.parse(config.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE))
-					.getBytes());
-
-		// we need this because many configs have been written with a "-1" entry
-		// similar to TaskManagerServicesConfiguration#fromConfiguration()
-		// -> please note that this directly influences the number of netty threads!
-		int slots = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		if (slots == -1) {
-			slots = 1;
-		}
-
-		final NetworkBufferPool bufferPool = new NetworkBufferPool(bufferPoolSize, segmentSize);
-
-		final NettyConnectionManager nettyConnectionManager = new NettyConnectionManager(
-			new NettyConfig(LOCAL_ADDRESS, 0, segmentSize, slots, config));
-
-		return new NetworkEnvironment(
-			bufferPool,
-			nettyConnectionManager,
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOMode.SYNC,
-			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
-			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
-			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue(),
-			true);
+		final NettyConfig nettyConfig = new NettyConfig(
+			LOCAL_ADDRESS,
+			0,
+			NetworkEnvironmentConfiguration.getPageSize(config),
+			// please note that the number of slots directly influences the number of netty threads!
+			ConfigurationParserUtils.getSlot(config),
+			config);
+		return new NetworkEnvironmentBuilder()
+			.setNumNetworkBuffers(bufferPoolSize)
+			.setNettyConfig(nettyConfig)
+			.build();
 	}
 
 	protected ResultPartitionWriter createResultPartition(
@@ -280,11 +255,12 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			SingleInputGate gate = SingleInputGate.create(
 				"receiving task[" + channel + "]",
 				jobId,
-				executionAttemptID,
 				gateDescriptor,
 				environment,
+				new TaskEventDispatcher(),
 				new NoOpTaskActions(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
+				new SimpleCounter());
 
 			environment.setupInputGate(gate);
 			gates[channel] = gate;
@@ -295,25 +271,5 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		} else {
 			return gates[0];
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Mocks
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A dummy implementation of the {@link TaskActions}. We implement this here rather than using Mockito
-	 * to avoid using mockito in this benchmark class.
-	 */
-	private static final class NoOpTaskActions implements TaskActions {
-
-		@Override
-		public void triggerPartitionProducerStateCheck(
-			JobID jobId,
-			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionID resultPartitionId) {}
-
-		@Override
-		public void failExternally(Throwable cause) {}
 	}
 }

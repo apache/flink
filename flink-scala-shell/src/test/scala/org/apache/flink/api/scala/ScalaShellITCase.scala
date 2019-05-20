@@ -183,9 +183,9 @@ class ScalaShellITCase extends TestLogger {
         |:q
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
     Assert.assertTrue(output.contains("1,Hi"))
     Assert.assertTrue(output.contains("3,Hello world"))
   }
@@ -218,9 +218,9 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertTrue(output.contains("6,1"))
     Assert.assertTrue(output.contains("1,2"))
     Assert.assertTrue(output.contains("2,1"))
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
   }
 
   /**
@@ -362,6 +362,83 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertFalse(output.contains("ERROR"))
     Assert.assertFalse(output.contains("Exception"))
   }
+
+  @Test
+  def testImportJavaCollection(): Unit = {
+    val input = """
+      import java.util.List
+      val jul: List[Int] = new java.util.ArrayList[Int]()
+      jul.add(2)
+      jul.add(4)
+      jul.add(6)
+      jul.add(8)
+      jul.add(10)
+      val str = "the java list size is: " + jul.size
+    """.stripMargin
+
+    val output = processInShell(input)
+
+    Assert.assertTrue(output.contains("the java list size is: 5"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
+
+  }
+
+  @Test
+  def testImplicitConversionBetweenJavaAndScala(): Unit = {
+    val input =
+      """
+        import collection.JavaConversions._
+        import scala.collection.mutable.ArrayBuffer
+        val jul:java.util.List[Int] = ArrayBuffer(1,2,3,4,5)
+        val buf: Seq[Int] = jul
+        var sum = 0
+        buf.foreach(num => sum += num)
+        val str = "sum is: " + sum
+        val scala2jul = List(1,2,3)
+        scala2jul.add(7)
+      """.stripMargin
+
+    val output = processInShell(input)
+
+    Assert.assertTrue(output.contains("sum is: 15"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException"))
+  }
+
+  @Test
+  def testImportPackageConflict(): Unit = {
+    val input =
+      """
+        import org.apache.flink.table.api._
+        import java.util.List
+        val jul: List[Int] = new java.util.ArrayList[Int]()
+        jul.add(2)
+        jul.add(4)
+        jul.add(6)
+        jul.add(8)
+        jul.add(10)
+        val str = "the java list size is: " + jul.size
+      """.stripMargin
+
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("error: object util is not a member of package org.apache." +
+      "flink.table.api.java"))
+  }
+
+  @Test
+  def testGetMultiExecutionEnvironment(): Unit = {
+    val input =
+      """
+        |val newEnv = ExecutionEnvironment.getExecutionEnvironment
+      """.stripMargin
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException: Execution " +
+      "Environment is already defined for this shell."))
+  }
+
 }
 
 object ScalaShellITCase {
