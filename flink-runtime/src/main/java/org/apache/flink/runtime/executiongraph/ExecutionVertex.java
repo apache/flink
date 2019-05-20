@@ -84,7 +84,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
-	private static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
+	public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
 	// --------------------------------------------------------------------------------------------
 
