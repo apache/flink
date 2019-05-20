@@ -486,7 +486,7 @@ public class SqlDateTimeUtils {
 			return Integer.parseInt(dateStr.substring(20)) * 10;
 		} else if (length >= 23 && length <= 26) {
 			// "1999-12-31 12:34:56.123" ~ "1999-12-31 12:34:56.123456"
-			return Integer.parseInt(dateStr.substring(20, 23)) * 10;
+			return Integer.parseInt(dateStr.substring(20, 23));
 		} else {
 			return 0;
 		}
