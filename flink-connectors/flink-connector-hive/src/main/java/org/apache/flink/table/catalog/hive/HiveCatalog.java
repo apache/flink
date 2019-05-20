@@ -50,7 +50,6 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -69,7 +68,6 @@ import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -618,9 +616,7 @@ public class HiveCatalog implements Catalog {
 	public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
 		throws CatalogException {
 		try {
-			Table hiveTable = getHiveTable(tablePath);
-			return client.getPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
-				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath)) != null;
+			return getHivePartition(tablePath, partitionSpec) != null;
 		} catch (NoSuchObjectException | TableNotExistException | PartitionSpecInvalidException e) {
 			return false;
 		} catch (TException e) {
@@ -658,7 +654,7 @@ public class HiveCatalog implements Catalog {
 				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath), true);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
+				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 			}
 		} catch (MetaException | TableNotExistException | PartitionSpecInvalidException e) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
@@ -706,13 +702,9 @@ public class HiveCatalog implements Catalog {
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
 		throws PartitionNotExistException, CatalogException {
 		try {
-			Table hiveTable = getHiveTable(tablePath);
-			Partition hivePartition = client.getPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
-				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath));
+			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			return createCatalogPartition(hivePartition);
-		} catch (NoSuchObjectException e) {
-			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
-		} catch (MetaException | TableNotExistException | PartitionSpecInvalidException e) {
+		} catch (NoSuchObjectException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
@@ -728,10 +720,15 @@ public class HiveCatalog implements Catalog {
 		if (partitionExists(tablePath, partitionSpec)) {
 			try {
 				Table hiveTable = getHiveTable(tablePath);
+				Partition newHivePartition = createHivePartition(hiveTable, partitionSpec, newPartition);
+				if (newHivePartition.getSd().getLocation() == null) {
+					Partition oldHivePartition = getHivePartition(tablePath, partitionSpec);
+					newHivePartition.getSd().setLocation(oldHivePartition.getSd().getLocation());
+				}
 				client.alter_partition(
 					tablePath.getDatabaseName(),
 					tablePath.getObjectName(),
-					createHivePartition(hiveTable, partitionSpec, newPartition)
+					newHivePartition
 				);
 			} catch (InvalidOperationException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
 				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
@@ -765,22 +762,7 @@ public class HiveCatalog implements Catalog {
 		partition.setCreateTime((int) (System.currentTimeMillis() / 1000));
 		partition.setParameters(hiveCatalogPartition.getProperties());
 		partition.setSd(hiveTable.getSd().deepCopy());
-
-		String location = hiveCatalogPartition.getLocation();
-		if (null == location) {
-			// generate partition location from table location if it's not specified
-			// this is needed when creating new partition for alterPartition
-			if (hiveTable.getSd().getLocation() != null) {
-				try {
-					Path partPath = new Path(hiveTable.getSd().getLocation(),
-						Warehouse.makePartName(hiveTable.getPartitionKeys(), partValues));
-					location = partPath.toString();
-				} catch (MetaException e) {
-					throw new CatalogException("Failed to generate partition location path", e);
-				}
-			}
-		}
-		partition.getSd().setLocation(location);
+		partition.getSd().setLocation(hiveCatalogPartition.getLocation());
 
 		return partition;
 	}
@@ -847,6 +829,13 @@ public class HiveCatalog implements Catalog {
 		}
 
 		return values;
+	}
+
+	private Partition getHivePartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+			throws TableNotExistException, PartitionSpecInvalidException, TException {
+		Table hiveTable = getHiveTable(tablePath);
+		return client.getPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
+			getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath));
 	}
 
 	// ------ functions ------
