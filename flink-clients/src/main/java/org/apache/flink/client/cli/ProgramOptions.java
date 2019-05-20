@@ -23,7 +23,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -125,27 +124,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		} else if (!isPython && args.length > 0) {
 			jarFilePath = args[0];
 			args = Arrays.copyOfRange(args, 1, args.length);
-		} else if (isPython) {
-			//If the job is a python job which needs flink-table jar
-			//The temperal way is putting flink-table jar in jarFilePath
-			//so that flink-table jar will be distributed to all nodes.
-			String flinkOptDirName = System.getenv("FLINK_OPT_DIR");
-			File flinkOptDir = new File(flinkOptDirName);
-			File flinkTableJar = null;
-			if (flinkOptDir.isDirectory()) {
-				File[] flinkOptFiles = flinkOptDir.listFiles();
-				for (File flinkOptFile : flinkOptFiles) {
-					if (flinkOptFile.getName().startsWith("flink-table")) {
-						flinkTableJar = flinkOptFile;
-						break;
-					}
-				}
-			}
-			if (flinkTableJar != null) {
-				jarFilePath = flinkTableJar.toString();
-			} else {
-				jarFilePath = null;
-			}
 		}
 		else {
 			jarFilePath = null;

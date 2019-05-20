@@ -476,6 +476,31 @@ public class PackagedProgram {
 		if (jarFile != null) {
 			libs.add(jarFile);
 		}
+
+		if (isPython) {
+			String flinkOptDirName = System.getenv("FLINK_OPT_DIR");
+			File flinkOptDir = new File(flinkOptDirName);
+			File flinkTableJar = null;
+			if (flinkOptDir.isDirectory()) {
+				File[] flinkOptFiles = flinkOptDir.listFiles();
+				if (flinkOptFiles != null) {
+					for (File flinkOptFile : flinkOptFiles) {
+						if (flinkOptFile.getName().startsWith("flink-table")) {
+							flinkTableJar = flinkOptFile;
+							break;
+						}
+					}
+				}
+			}
+			if (flinkTableJar != null) {
+				try {
+					libs.add(flinkTableJar.toURI().toURL());
+				} catch (MalformedURLException e) {
+					throw new RuntimeException("URL is invalid. This should not happen.", e);
+				}
+			}
+		}
+
 		for (File tmpLib : this.extractedTempLibraries) {
 			try {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());

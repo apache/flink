@@ -52,15 +52,15 @@ available.
 
         ./bin/flink run ./examples/batch/WordCount.jar
                 
--   Run python program with no arguments:
+-   提交一个没有参数的Python的作业:
 
         ./bin/flink run -py WordCount.py
         
--   Run example python program with pyFiles:
+-   提交一个带pyfiles的Python作业:
      
         ./bin/flink run -py WordCount.py -pyfs file:///user.txt,hdfs:///$namenode_address/jieba-0.39.zip
 
--   Run python program with pyFiles and pyModule:
+-   提交一个带pyfiles和指定运行pythonModule的Python作业:
 
         ./bin/flink run -pym examples.wordcount -pyfs file:///examples.zip;
 
@@ -263,19 +263,15 @@ Action "run" compiles and runs a program.
                                           program. Optional flag to override the
                                           default value specified in the
                                           configuration.
-     -py,--python <python-file>           Python script with the program entry 
-                                          point. The dependent resources can be 
-                                          configured with the `--pyFiles` option.
-     -pyfs,--pyFiles <python-files>       Attach custom python files for job. 
-                                          Comma can be used as the separator to 
-                                          specify multiple files. The standard 
-                                          python resource file suffixes such as 
-                                          .py/.egg/.zip are all supported.
-                                          (eg:--pyFiles file:///tmp/myproject.zip
+     -py,--python <python-file>           指定Python的作业的入口，依赖的资源文件可以通过
+                                          `--pyFiles`进行指定。
+     -pyfs,--pyFiles <python-files>       指定Python作业依赖的一些自定义的python文件，
+                                          如果有多个文件，可以通过逗号(,)进行隔开。支持
+                                          各种格式的python资源文件，例如(.py/.egg/.zip)。
+                                          (例如:--pyFiles file:///tmp/myproject.zip
                                           ,hdfs:///$namenode_address/jieba-0.39.zip)
-     -pym,--pyModule <python-module>     Python module with the program entry 
-                                          point. This option must be used in 
-                                          conjunction with ` --pyFiles`.      
+     -pym,--pyModule <python-module>      指定python程序的运行的模块入口，这个选项必须配合
+                                          `--pyFiles`一起进行使用。
      -q,--sysoutLogging                   If present, suppress logging output to
                                           standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
