@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.python;
+package org.apache.flink.python.client;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
@@ -41,10 +42,10 @@ import java.util.UUID;
 /**
  * The util class help to prepare Python env and run the python process.
  */
-public final class PythonUtil {
-	private static final Logger LOG = LoggerFactory.getLogger(PythonUtil.class);
+public final class PythonEnvUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
 
-	private static final String FLINK_OPT_DIR = System.getenv("FLINK_OPT_DIR");
+	private static final String FLINK_OPT_DIR = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
 
 	private static final String FLINK_OPT_DIR_PYTHON = FLINK_OPT_DIR + File.separator + "python";
 

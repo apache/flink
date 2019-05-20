@@ -15,9 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import os
+import tempfile
 from abc import ABCMeta, abstractmethod
 
+from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDescriptor,
@@ -25,7 +27,8 @@ from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDesc
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
-from pyflink.table.types import _to_java_type
+from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
+    _infer_schema_from_data, _create_converter
 from pyflink.util import utils
 
 __all__ = [
@@ -42,8 +45,9 @@ class TableEnvironment(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, j_tenv):
+    def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
+        self._serializer = serializer
 
     def from_table_source(self, table_source):
         """
@@ -379,12 +383,95 @@ class TableEnvironment(object):
 
         return t_env
 
+    def from_elements(self, elements, schema=None, verify_schema=True):
+        """
+        Creates a table from a collection of elements.
+
+        :param elements: The elements to create a table from.
+        :param schema: The schema of the table.
+        :param verify_schema: Whether to verify the elements against the schema.
+        :return: A Table.
+        """
+
+        # verifies the elements against the specified schema
+        if isinstance(schema, RowType):
+            verify_func = _create_type_verifier(schema) if verify_schema else lambda _: True
+
+            def verify_obj(obj):
+                verify_func(obj)
+                return obj
+        elif isinstance(schema, DataType):
+            data_type = schema
+            schema = RowType().add("value", schema)
+
+            verify_func = _create_type_verifier(
+                data_type, name="field value") if verify_schema else lambda _: True
+
+            def verify_obj(obj):
+                verify_func(obj)
+                return obj
+        else:
+            def verify_obj(obj):
+                return obj
+
+        if "__len__" not in dir(elements):
+            elements = list(elements)
+
+        # infers the schema if not specified
+        if schema is None or isinstance(schema, (list, tuple)):
+            schema = _infer_schema_from_data(elements, names=schema)
+            converter = _create_converter(schema)
+            elements = map(converter, elements)
+            if isinstance(schema, (list, tuple)):
+                for i, name in enumerate(schema):
+                    schema.fields[i].name = name
+                    schema.names[i] = name
+
+        elif not isinstance(schema, RowType):
+            raise TypeError(
+                "schema should be RowType, list, tuple or None, but got: %s" % schema)
+
+        # converts python data to sql data
+        elements = [schema.to_sql_type(element) for element in elements]
+        return self._from_elements(map(verify_obj, elements), schema)
+
+    def _from_elements(self, elements, schema):
+        """
+        Creates a table from a collection of elements.
+
+        :param elements: The elements to create a table from.
+        :return: A table.
+        """
+
+        # serializes to a file, and we read the file in java
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = BatchedSerializer(self._serializer)
+        try:
+            try:
+                serializer.dump_to_stream(elements, temp_file)
+            finally:
+                temp_file.close()
+            return self._from_file(temp_file.name, schema)
+        finally:
+            os.unlink(temp_file.name)
+
+    @abstractmethod
+    def _from_file(self, filename, schema):
+        pass
+
 
 class StreamTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
         self._j_tenv = j_tenv
         super(StreamTableEnvironment, self).__init__(j_tenv)
+
+    def _from_file(self, filename, schema):
+        gateway = get_gateway()
+        jds = gateway.jvm.PythonBridgeUtils.createDataStreamFromFile(
+            self._j_tenv.execEnv(), filename, True)
+        return Table(gateway.jvm.PythonTableUtils.fromDataStream(
+            self._j_tenv, jds, _to_java_type(schema)))
 
     def get_config(self):
         """
@@ -443,6 +530,13 @@ class BatchTableEnvironment(TableEnvironment):
     def __init__(self, j_tenv):
         self._j_tenv = j_tenv
         super(BatchTableEnvironment, self).__init__(j_tenv)
+
+    def _from_file(self, filename, schema):
+        gateway = get_gateway()
+        jds = gateway.jvm.PythonBridgeUtils.createDataSetFromFile(
+            self._j_tenv.execEnv(), filename, True)
+        return Table(gateway.jvm.PythonTableUtils.fromDataSet(
+            self._j_tenv, jds, _to_java_type(schema)))
 
     def get_config(self):
         """

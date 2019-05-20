@@ -46,11 +46,11 @@ def word_count():
             f.flush()
         f.close()
 
-    t_config = TableConfig.Builder().as_batch_execution().set_parallelism(1).build()
+    t_config = TableConfig.Builder().as_batch_execution().build()
     t_env = TableEnvironment.create(t_config)
 
     field_names = ["word", "cout"]
-    field_types = [DataTypes.STRING, DataTypes.LONG]
+    field_types = [DataTypes.STRING(), DataTypes.BIGINT()]
 
     # register Orders table in table environment
     t_env.register_table_source(

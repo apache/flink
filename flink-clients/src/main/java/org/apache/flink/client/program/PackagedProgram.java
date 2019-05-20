@@ -21,7 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.client.python.PythonDriver;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -44,6 +44,12 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -176,7 +182,7 @@ public class PackagedProgram {
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		// Whether the job is a Python job.
-		isPython = entryPointClassName != null && entryPointClassName.equals(PythonDriver.class.getCanonicalName());
+		isPython = entryPointClassName != null && entryPointClassName.equals("org.apache.flink.python.client.PythonDriver");
 
 		URL jarFileUrl = null;
 		if (jarFile != null) {
@@ -242,7 +248,7 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
-		isPython = entryPointClass == PythonDriver.class;
+		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.python.client.PythonDriver");
 
 		// if the entry point is a program, instantiate the class and get the plan
 		if (Program.class.isAssignableFrom(this.mainClass)) {
@@ -466,6 +472,36 @@ public class PackagedProgram {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
 			}
 			catch (MalformedURLException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+
+		if (isPython) {
+			String flinkOptPath = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
+			final List<Path> pythonJarPath = new ArrayList<>();
+			try {
+				Files.walkFileTree(FileSystems.getDefault().getPath(flinkOptPath), new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						FileVisitResult result = super.visitFile(file, attrs);
+						if (file.getFileName().toString().startsWith("flink-python-")) {
+							pythonJarPath.add(file);
+						}
+						return result;
+					}
+				});
+			} catch (IOException e) {
+				throw new RuntimeException(
+					"Exception encountered during finding the flink-python jar. This should not happen.", e);
+			}
+
+			if (pythonJarPath.size() != 1) {
+				throw new RuntimeException("Found " + pythonJarPath.size() + " flink-python jar.");
+			}
+
+			try {
+				libs.add(pythonJarPath.get(0).toUri().toURL());
+			} catch (MalformedURLException e) {
 				throw new RuntimeException("URL is invalid. This should not happen.", e);
 			}
 		}

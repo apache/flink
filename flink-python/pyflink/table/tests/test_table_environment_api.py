@@ -23,7 +23,7 @@ from py4j.compat import unicode
 from pyflink.table.table_environment import TableEnvironment
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_sink import CsvTableSink
-from pyflink.table.types import DataTypes
+from pyflink.table.types import DataTypes, RowType
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase
 
@@ -31,21 +31,15 @@ from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, PyFlinkSt
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
     def test_register_scan(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestAppendSink())
 
-        result = t_env.scan("Source")
-        result.insert_into("Results")
+        t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])\
+            .insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
 
@@ -53,18 +47,14 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_register_table_source_sink(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
-
-        t_env.register_table_source("Orders", csv_source)
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Sinks",
             field_names, field_types, source_sink_utils.TestAppendSink())
-        t_env.scan("Orders").insert_into("Sinks")
+
+        t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).insert_into("Sinks")
         t_env.execute()
         actual = source_sink_utils.results()
 
@@ -72,18 +62,15 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_from_table_source(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
         t_env = self.t_env
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Sinks",
             field_names, field_types, source_sink_utils.TestAppendSink())
 
-        source = t_env.from_table_source(csv_source)
-        source.insert_into("Sinks")
+        t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello")], ["a", "b", "c"])\
+            .insert_into("Sinks")
         t_env.execute()
         actual = source_sink_utils.results()
 
@@ -111,15 +98,13 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_explain(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = []
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+        schema = RowType()\
+            .add('a', DataTypes.INT())\
+            .add('b', DataTypes.STRING())\
+            .add('c', DataTypes.STRING())
         t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
-        source = t_env.scan("Source")
-        result = source.alias("a, b, c").select("1 + a, b, c")
+        t = t_env.from_elements([], schema)
+        result = t.select("1 + a, b, c")
 
         actual = t_env.explain(result)
 

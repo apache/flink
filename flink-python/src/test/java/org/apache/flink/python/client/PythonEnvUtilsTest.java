@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.python;
+package org.apache.flink.python.client;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -35,9 +35,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Tests for the {@link PythonUtil}.
+ * Tests for the {@link PythonEnvUtils}.
  */
-public class PythonUtilTest {
+public class PythonEnvUtilsTest {
 	private Path sourceTmpDirPath;
 	private Path targetTmpDirPath;
 	private FileSystem sourceFs;
@@ -70,7 +70,7 @@ public class PythonUtilTest {
 
 	@Test
 	public void testStartPythonProcess() {
-		PythonUtil.PythonEnvironment pythonEnv = new PythonUtil.PythonEnvironment();
+		PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
 		pythonEnv.workingDirectory = targetTmpDirPath.toString();
 		pythonEnv.pythonPath = targetTmpDirPath.toString();
 		List<String> commands = new ArrayList<>();
@@ -91,7 +91,7 @@ public class PythonUtilTest {
 			Path result = new Path(targetTmpDirPath, "word_count_result.txt");
 			commands.add(pyFile.getName());
 			commands.add(result.getName());
-			Process pythonProcess = PythonUtil.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);

@@ -32,7 +32,6 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.client.program.ProgramParametrizationException;
-import org.apache.flink.client.python.PythonDriver;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -783,7 +782,7 @@ public class CliFrontend {
 				jarFile = getJarFile(jarFilePath);
 			}
 			// The entry point class of python job is PythonDriver
-			entryPointClass = PythonDriver.class.getCanonicalName();
+			entryPointClass = "org.apache.flink.python.client.PythonDriver";
 		} else {
 			if (jarFilePath == null) {
 				throw new IllegalArgumentException("Java program should be specified a JAR file.");

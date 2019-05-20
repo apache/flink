@@ -16,8 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-import os
-
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
@@ -26,28 +24,17 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 class StreamTableJoinTests(PyFlinkStreamTableTestCase):
 
     def test_join_without_where(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
-        field_names2 = ["d", "e"]
-        field_types2 = [DataTypes.INT(), DataTypes.STRING()]
-        data2 = [(2, "Flink"), (3, "Python"), (3, "Flink")]
-        csv_source2 = self.prepare_csv_source(source_path2, data2, field_types2, field_names2)
         t_env = self.t_env
-        t_env.register_table_source("Source1", csv_source)
-        t_env.register_table_source("Source2", csv_source2)
-        source1 = t_env.scan("Source1")
-        source2 = t_env.scan("Source2")
+        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
+                                 ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
 
-        result = source1.join(source2, "a = d").select("a, b + e")
+        result = t1.join(t2, "a = d").select("a, b + e")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
@@ -56,28 +43,17 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_join_with_where(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
-        field_names2 = ["d", "e"]
-        field_types2 = [DataTypes.INT(), DataTypes.STRING()]
-        data2 = [(2, "Flink"), (3, "Python"), (3, "Flink")]
-        csv_source2 = self.prepare_csv_source(source_path2, data2, field_types2, field_names2)
         t_env = self.t_env
-        t_env.register_table_source("Source1", csv_source)
-        t_env.register_table_source("Source2", csv_source2)
-        source1 = t_env.scan("Source1")
-        source2 = t_env.scan("Source2")
+        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
+                                 ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
 
-        result = source1.join(source2).where("a = d").select("a, b + e")
+        result = t1.join(t2).where("a = d").select("a, b + e")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
@@ -86,28 +62,17 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_left_outer_join_without_where(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
-        field_names2 = ["d", "e"]
-        field_types2 = [DataTypes.INT(), DataTypes.STRING()]
-        data2 = [(2, "Flink"), (3, "Python"), (3, "Flink")]
-        csv_source2 = self.prepare_csv_source(source_path2, data2, field_types2, field_names2)
         t_env = self.t_env
-        t_env.register_table_source("Source1", csv_source)
-        t_env.register_table_source("Source2", csv_source2)
-        source1 = t_env.scan("Source1")
-        source2 = t_env.scan("Source2")
+        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
+                                 ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
 
-        result = source1.left_outer_join(source2, "a = d").select("a, b + e")
+        result = t1.left_outer_join(t2, "a = d").select("a, b + e")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
@@ -116,28 +81,17 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_left_outer_join_with_where(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
-        field_names2 = ["d", "e"]
-        field_types2 = [DataTypes.INT(), DataTypes.STRING()]
-        data2 = [(2, "Flink"), (3, "Python"), (3, "Flink")]
-        csv_source2 = self.prepare_csv_source(source_path2, data2, field_types2, field_names2)
         t_env = self.t_env
-        t_env.register_table_source("Source1", csv_source)
-        t_env.register_table_source("Source2", csv_source2)
-        source1 = t_env.scan("Source1")
-        source2 = t_env.scan("Source2")
+        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
+                                 ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
 
-        result = source1.left_outer_join(source2).where("a = d").select("a, b + e")
+        result = t1.left_outer_join(t2).where("a = d").select("a, b + e")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
@@ -146,28 +100,17 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_right_outer_join(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
-        field_names2 = ["d", "e"]
-        field_types2 = [DataTypes.INT(), DataTypes.STRING()]
-        data2 = [(2, "Flink"), (3, "Python"), (4, "Flink")]
-        csv_source2 = self.prepare_csv_source(source_path2, data2, field_types2, field_names2)
         t_env = self.t_env
-        t_env.register_table_source("Source1", csv_source)
-        t_env.register_table_source("Source2", csv_source2)
-        source1 = t_env.scan("Source1")
-        source2 = t_env.scan("Source2")
+        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
+                                 ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (4, "Flink")], ['d', 'e'])
         field_names = ["a", "b"]
-        field_types = [DataTypes.INT(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
 
-        result = source1.right_outer_join(source2, "a = d").select("d, b + e")
+        result = t1.right_outer_join(t2, "a = d").select("d, b + e")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
@@ -176,28 +119,17 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_full_outer_join(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        source_path2 = os.path.join(self.tempdir + '/streaming2.csv')
-        field_names2 = ["d", "e"]
-        field_types2 = [DataTypes.INT(), DataTypes.STRING()]
-        data2 = [(2, "Flink"), (3, "Python"), (4, "Flink")]
-        csv_source2 = self.prepare_csv_source(source_path2, data2, field_types2, field_names2)
         t_env = self.t_env
-        t_env.register_table_source("Source1", csv_source)
-        t_env.register_table_source("Source2", csv_source2)
-        source1 = t_env.scan("Source1")
-        source2 = t_env.scan("Source2")
+        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
+                                 ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (4, "Flink")], ['d', 'e'])
         field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.INT(), DataTypes.STRING()]
+        field_types = [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Results",
             field_names, field_types, source_sink_utils.TestRetractSink())
 
-        result = source1.full_outer_join(source2, "a = d").select("a, d, b + e")
+        result = t1.full_outer_join(t2, "a = d").select("a, d, b + e")
         result.insert_into("Results")
         t_env.execute()
         actual = source_sink_utils.results()
