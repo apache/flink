@@ -124,7 +124,7 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
         return string_result
 
 
-class PythonAPICompletenessTestCase(unittest.TestCase):
+class PythonAPICompletenessTestCase(object):
     """
     Base class for Python API completeness tests, i.e.,
     Python API should be aligned with the Java API as much as possible.
@@ -196,5 +196,4 @@ class PythonAPICompletenessTestCase(unittest.TestCase):
         return {}
 
     def test_completeness(self):
-        if self.python_class() is not None and self.java_class() is not None:
-            self.check_methods()
+        self.check_methods()

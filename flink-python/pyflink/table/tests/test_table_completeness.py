@@ -16,11 +16,13 @@
 # limitations under the License.
 ################################################################################
 
+import unittest
+
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
 from pyflink.table import Table
 
 
-class TableAPICompletenessTests(PythonAPICompletenessTestCase):
+class TableAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):
     """
     Tests whether the Python :class:`Table` is consistent with
     Java `org.apache.flink.table.api.Table`.
