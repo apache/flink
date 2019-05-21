@@ -20,6 +20,8 @@ from abc import ABCMeta, abstractmethod
 
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
+from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDescriptor,
+                                            BatchTableDescriptor)
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
@@ -207,6 +209,35 @@ class TableEnvironment(object):
     def query_config(self):
         pass
 
+    @abstractmethod
+    def connect(self, connector_descriptor):
+        """
+        Creates a table source and/or table sink from a descriptor.
+
+        Descriptors allow for declaring the communication to external systems in an
+        implementation-agnostic way. The classpath is scanned for suitable table factories that
+        match the desired configuration.
+
+        The following example shows how to read from a connector using a JSON format and
+        registering a table source as "MyTable":
+        ::
+            >>> table_env\
+            ...     .connect(ExternalSystemXYZ()
+            ...              .version("0.11"))\
+            ...     .with_format(Json()
+            ...                  .json_schema("{...}")
+            ...                 .fail_on_missing_field(False))\
+            ...     .with_schema(Schema()
+            ...                 .field("user-name", "VARCHAR")
+            ...                 .from_origin_field("u_name")
+            ...                 .field("count", "DECIMAL"))\
+            ...     .register_table_source("MyTable")
+
+        :param connector_descriptor: Connector descriptor describing the external system.
+        :return: A :class:`ConnectTableDescriptor` used to build the table source/sink.
+        """
+        pass
+
     @classmethod
     def create(cls, table_config):
         """
@@ -261,6 +292,36 @@ class StreamTableEnvironment(TableEnvironment):
         """
         return StreamQueryConfig(self._j_tenv.queryConfig())
 
+    def connect(self, connector_descriptor):
+        """
+        Creates a table source and/or table sink from a descriptor.
+
+        Descriptors allow for declaring the communication to external systems in an
+        implementation-agnostic way. The classpath is scanned for suitable table factories that
+        match the desired configuration.
+
+        The following example shows how to read from a connector using a JSON format and
+        registering a table source as "MyTable":
+        ::
+            >>> table_env\
+            ...     .connect(ExternalSystemXYZ()
+            ...              .version("0.11"))\
+            ...     .with_format(Json()
+            ...                  .json_schema("{...}")
+            ...                 .fail_on_missing_field(False))\
+            ...     .with_schema(Schema()
+            ...                 .field("user-name", "VARCHAR")
+            ...                 .from_origin_field("u_name")
+            ...                 .field("count", "DECIMAL"))\
+            ...     .register_table_source("MyTable")
+
+        :param connector_descriptor: Connector descriptor describing the external system.
+        :return: A :class:`StreamTableDescriptor` used to build the table source/sink.
+        """
+        # type: (ConnectorDescriptor) -> StreamTableDescriptor
+        return StreamTableDescriptor(
+            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
+
 
 class BatchTableEnvironment(TableEnvironment):
 
@@ -288,3 +349,33 @@ class BatchTableEnvironment(TableEnvironment):
         :return: A new :class:`BatchQueryConfig`.
         """
         return BatchQueryConfig(self._j_tenv.queryConfig())
+
+    def connect(self, connector_descriptor):
+        """
+        Creates a table source and/or table sink from a descriptor.
+
+        Descriptors allow for declaring the communication to external systems in an
+        implementation-agnostic way. The classpath is scanned for suitable table factories that
+        match the desired configuration.
+
+        The following example shows how to read from a connector using a JSON format and
+        registering a table source as "MyTable":
+        ::
+            >>> table_env\
+            ...     .connect(ExternalSystemXYZ()
+            ...              .version("0.11"))\
+            ...     .with_format(Json()
+            ...                  .json_schema("{...}")
+            ...                 .fail_on_missing_field(False))\
+            ...     .with_schema(Schema()
+            ...                 .field("user-name", "VARCHAR")
+            ...                 .from_origin_field("u_name")
+            ...                 .field("count", "DECIMAL"))\
+            ...     .register_table_source("MyTable")
+
+        :param connector_descriptor: Connector descriptor describing the external system.
+        :return: A :class:`BatchTableDescriptor` used to build the table source/sink.
+        """
+        # type: (ConnectorDescriptor) -> BatchTableDescriptor
+        return BatchTableDescriptor(
+            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
