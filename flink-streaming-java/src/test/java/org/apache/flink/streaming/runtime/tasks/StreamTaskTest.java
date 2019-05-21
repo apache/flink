@@ -153,9 +153,6 @@ import java.util.concurrent.TimeoutException;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.startsWith;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -786,25 +783,6 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * Test set user code ClassLoader before calling ProcessingTimeCallback.
-	 */
-	@Test
-	public void testSetsUserCodeClassLoaderForTimerThreadFactory() throws Throwable {
-		syncLatch = new OneShotLatch();
-
-		try (MockEnvironment mockEnvironment =
-			new MockEnvironmentBuilder()
-				.setUserCodeClassLoader(new TestUserCodeClassLoader())
-				.build()) {
-			RunningTask<TimeServiceTask> task = runTask(() -> new TimeServiceTask(mockEnvironment));
-			task.waitForTaskCompletion(false);
-
-			assertThat(task.streamTask.getClassLoaders(), hasSize(greaterThanOrEqualTo(1)));
-			assertThat(task.streamTask.getClassLoaders(), everyItem(instanceOf(TestUserCodeClassLoader.class)));
-		}
-	}
-
-	/**
 	 * Tests that some StreamTask methods are called only in the main task's thread.
 	 * Currently, the main task's thread is the thread that creates the task.
 	 */
@@ -1390,44 +1368,13 @@ public class StreamTaskTest extends TestLogger {
 
 	}
 
-	/**
-	 * A task that register a processing time service callback.
-	 */
-	public static class TimeServiceTask extends NoOpStreamTask<String, AbstractStreamOperator<String>> {
-
-		private final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
-
-		public TimeServiceTask(Environment env) {
-			super(env);
-		}
-
-		public List<ClassLoader> getClassLoaders() {
-			return classLoaders;
-		}
-
-		@Override
-		protected void init() throws Exception {
-			super.init();
-			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
-				@Override
-				public void onProcessingTime(long timestamp) throws Exception {
-					classLoaders.add(Thread.currentThread().getContextClassLoader());
-					syncLatch.trigger();
-				}
-			});
-		}
-
-		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
-			syncLatch.await();
-			super.processInput(context);
-		}
-	}
-
 	private static class ThreadInspectingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
 		private final long taskThreadId;
 		private final ClassLoader taskClassLoader;
+
+		/** Flag to wait until time trigger has been called. */
+		private transient boolean hasTimerTriggered;
 
 		ThreadInspectingTask(Environment env) {
 			super(env, null);
@@ -1444,12 +1391,23 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		protected void init() throws Exception {
 			checkTaskThreadInfo();
+
+			// Create a time trigger to validate that it would also be invoked in the task's thread.
+			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
+				@Override
+				public void onProcessingTime(long timestamp) throws Exception {
+					hasTimerTriggered = true;
+					checkTaskThreadInfo();
+				}
+			});
 		}
 
 		@Override
 		protected void processInput(DefaultActionContext context) throws Exception {
 			checkTaskThreadInfo();
-			context.allActionsCompleted();
+			if (hasTimerTriggered) {
+				context.allActionsCompleted();
+			}
 		}
 
 		@Override
