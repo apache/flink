@@ -19,6 +19,11 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -34,6 +39,7 @@ public class FunctionDefinition {
 	 */
 	public enum Type {
 		AGGREGATE_FUNCTION,
+		TABLE_AGGREGATE_FUNCTION,
 		SCALAR_FUNCTION,
 		TABLE_FUNCTION,
 		OTHER_FUNCTION
@@ -75,5 +81,23 @@ public class FunctionDefinition {
 	@Override
 	public String toString() {
 		return name;
+	}
+
+	/**
+	 * Util method to get {@link FunctionDefinition.Type} according to a {@link UserDefinedFunction}.
+	 */
+	public static FunctionDefinition.Type getFunctionType(UserDefinedFunction userDefinedFunction) {
+		Preconditions.checkNotNull(userDefinedFunction);
+		if (userDefinedFunction instanceof TableFunction) {
+			return Type.TABLE_FUNCTION;
+		} else if (userDefinedFunction instanceof ScalarFunction) {
+			return Type.SCALAR_FUNCTION;
+		} else if (userDefinedFunction instanceof AggregateFunction) {
+			return Type.AGGREGATE_FUNCTION;
+		} else if (userDefinedFunction instanceof TableAggregateFunction) {
+			return Type.TABLE_AGGREGATE_FUNCTION;
+		} else {
+			return Type.OTHER_FUNCTION;
+		}
 	}
 }

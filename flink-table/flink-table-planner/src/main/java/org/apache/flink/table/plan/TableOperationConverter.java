@@ -81,6 +81,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_AGGREGATE_FUNCTION;
 
 /**
  * Converter from Flink's specific relational representation: {@link TableOperation} to Calcite's specific relational
@@ -379,7 +380,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 	private class TableAggregateVisitor extends AggregateVisitor {
 		@Override
 		public AggCall visitCall(CallExpression call) {
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfType(call, TABLE_AGGREGATE_FUNCTION)) {
 				AggFunctionCall aggFunctionCall = (AggFunctionCall) expressionBridge.bridge(call);
 				return aggFunctionCall.toAggCall(aggFunctionCall.toString(), false, relBuilder);
 			}

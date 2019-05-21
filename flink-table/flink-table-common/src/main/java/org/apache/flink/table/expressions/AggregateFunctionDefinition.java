@@ -23,10 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
-
 /**
- * The function definition of an user-defined aggregate function.
+ * The function definition of an user-defined aggregate or a table aggregate function.
  */
 @PublicEvolving
 public final class AggregateFunctionDefinition extends FunctionDefinition {
@@ -40,7 +38,7 @@ public final class AggregateFunctionDefinition extends FunctionDefinition {
 			UserDefinedAggregateFunction<?, ?> aggregateFunction,
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
-		super(name, AGGREGATE_FUNCTION);
+		super(name, FunctionDefinition.getFunctionType(aggregateFunction));
 		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
 		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);

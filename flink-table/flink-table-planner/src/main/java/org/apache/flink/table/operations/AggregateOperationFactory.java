@@ -66,6 +66,7 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_AGGREGATE_FUNCTION;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
@@ -409,7 +410,7 @@ public class AggregateOperationFactory {
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfType(call, TABLE_AGGREGATE_FUNCTION) || isFunctionOfType(call, AGGREGATE_FUNCTION)) {
 				if (functionDefinition == BuiltInFunctionDefinitions.DISTINCT) {
 					call.getChildren().forEach(expr -> expr.accept(validateDistinct));
 				} else {
@@ -476,7 +477,7 @@ public class AggregateOperationFactory {
 
 		@Override
 		public Void visitCall(CallExpression call) {
-			if (call.getFunctionDefinition().getType() == AGGREGATE_FUNCTION) {
+			if (isFunctionOfType(call, TABLE_AGGREGATE_FUNCTION) || isFunctionOfType(call, AGGREGATE_FUNCTION)) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
 			}
@@ -524,10 +525,7 @@ public class AggregateOperationFactory {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
 				return unwrapFromAlias(call);
-			} else if (definition instanceof AggregateFunctionDefinition) {
-				if (!isTableAggFunctionCall(call)) {
-					throw fail();
-				}
+			} else if (TABLE_AGGREGATE_FUNCTION == definition.getType()) {
 				return call;
 			} else {
 				return defaultMethod(call);
@@ -587,11 +585,7 @@ public class AggregateOperationFactory {
 	 * Return true if the input {@link Expression} is a {@link CallExpression} of table aggregate function.
 	 */
 	public static boolean isTableAggFunctionCall(Expression expression) {
-		return Stream.of(expression)
-			.filter(p -> p instanceof CallExpression)
-			.map(p -> (CallExpression) p)
-			.filter(p -> p.getFunctionDefinition() instanceof AggregateFunctionDefinition)
-			.map(p -> (AggregateFunctionDefinition) p.getFunctionDefinition())
-			.anyMatch(p -> p.getAggregateFunction() instanceof TableAggregateFunction);
+		return (expression instanceof CallExpression) &&
+			(TABLE_AGGREGATE_FUNCTION == ((CallExpression) expression).getFunctionDefinition().getType());
 	}
 }
