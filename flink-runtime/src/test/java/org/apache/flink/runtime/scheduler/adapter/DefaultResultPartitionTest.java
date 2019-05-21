@@ -69,7 +69,7 @@ public class DefaultResultPartitionTest extends TestLogger {
 		resultPartition.setProducer(producerVertex);
 		consumerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
-			java.util.Collections.emptyList(),
+			Collections.emptyList(),
 			ALL,
 			stateProvider);
 		resultPartition.addConsumer(consumerVertex);

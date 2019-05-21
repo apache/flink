@@ -97,9 +97,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 				SchedulingResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey())
 					.orElseThrow(() -> new IllegalArgumentException("can not find partition" + entry.getKey()));
 
-				assertEquals(partition.getPartitionId(), schedulingResultPartition.getId());
-				assertEquals(partition.getIntermediateResult().getId(), schedulingResultPartition.getResultId());
-				assertEquals(partition.getResultType(), schedulingResultPartition.getPartitionType());
+				assertPartitionEqual(partition, schedulingResultPartition);
 			}
 		}
 	}
@@ -118,4 +116,14 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 			}
 		}
 	}
+
+	private void assertPartitionEqual(
+		IntermediateResultPartition intermediateResultPartition,
+		SchedulingResultPartition schedulingResultPartition) {
+
+		assertEquals(intermediateResultPartition.getPartitionId(), schedulingResultPartition.getId());
+		assertEquals(intermediateResultPartition.getIntermediateResult().getId(), schedulingResultPartition.getResultId());
+		assertEquals(intermediateResultPartition.getResultType(), schedulingResultPartition.getPartitionType());
+	}
+
 }
