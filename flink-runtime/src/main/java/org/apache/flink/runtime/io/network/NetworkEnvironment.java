@@ -187,6 +187,7 @@ public class NetworkEnvironment {
 		return resultPartitionManager;
 	}
 
+	@VisibleForTesting
 	public ConnectionManager getConnectionManager() {
 		return connectionManager;
 	}
@@ -317,7 +318,12 @@ public class NetworkEnvironment {
 		return true;
 	}
 
-	public void start() throws IOException {
+	/*
+	 * Starts the internal related components for network connection and communication.
+	 *
+	 * @return a port to connect to the task executor for shuffle data exchange, -1 if only local connection is possible.
+	 */
+	public int start() throws IOException {
 		synchronized (lock) {
 			Preconditions.checkState(!isShutdown, "The NetworkEnvironment has already been shut down.");
 
@@ -325,7 +331,7 @@ public class NetworkEnvironment {
 
 			try {
 				LOG.debug("Starting network connection manager");
-				connectionManager.start();
+				return connectionManager.start();
 			} catch (IOException t) {
 				throw new IOException("Failed to instantiate network connection manager.", t);
 			}
