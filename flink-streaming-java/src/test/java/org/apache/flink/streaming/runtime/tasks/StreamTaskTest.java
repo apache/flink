@@ -110,6 +110,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.CloseableIterable;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -122,6 +123,8 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -137,13 +140,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.concurrent.Executors.newDirectExecutorService;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -794,23 +796,24 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * Test set user code ClassLoader before calling ProcessingTimeCallback.
-	 */
 	@Test
-	public void testSetsUserCodeClassLoaderForTimerThreadFactory() throws Throwable {
-		syncLatch = new OneShotLatch();
-
+	public void testThreadInvariants() throws Throwable {
 		try (MockEnvironment mockEnvironment =
 			new MockEnvironmentBuilder()
-				.setUserCodeClassLoader(new TestUserCodeClassLoader())
 				.build()) {
-			TimeServiceTask timerServiceTask = new TimeServiceTask(mockEnvironment);
+			ThreadInspectingTask threadInspectingTask = new ThreadInspectingTask(mockEnvironment);
+
+			AtomicLong invokeThreadId = new AtomicLong();
+			ClassLoader taskClassLoader = new TestUserCodeClassLoader();
 
 			CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
 				() -> {
 					try {
-						timerServiceTask.invoke();
+						Thread currentThread = Thread.currentThread();
+						invokeThreadId.set(currentThread.getId());
+						currentThread.setContextClassLoader(taskClassLoader);
+
+						threadInspectingTask.invoke();
 					} catch (Exception e) {
 						throw new CompletionException(e);
 					}
@@ -819,8 +822,9 @@ public class StreamTaskTest extends TestLogger {
 
 			invokeFuture.get();
 
-			assertThat(timerServiceTask.getClassLoaders(), hasSize(greaterThanOrEqualTo(1)));
-			assertThat(timerServiceTask.getClassLoaders(), everyItem(instanceOf(TestUserCodeClassLoader.class)));
+			assertThat("Task's execution thread is the invoke thread",
+				threadInspectingTask.getTaskThreadId(), is(invokeThreadId.get()));
+			assertThat(threadInspectingTask.getTaskClassLoader(), is(sameInstance(taskClassLoader)));
 		}
 	}
 
@@ -1239,45 +1243,78 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * A task that register a processing time service callback.
+	 * A task that checks that some StreamTask are called only in the main (invocation) thread.
 	 */
-	public static class TimeServiceTask extends StreamTask<String, AbstractStreamOperator<String>> {
+	public static class ThreadInspectingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
-		private final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
+		private long taskThreadId = -1;
+		@Nullable
+		private ClassLoader taskClassLoader;
 
-		public TimeServiceTask(Environment env) {
+		/** Flag to wait until time trigger has been called. */
+		private transient boolean hasTimerTriggered;
+
+		public ThreadInspectingTask(Environment env) {
 			super(env, null);
 		}
 
-		public List<ClassLoader> getClassLoaders() {
-			return classLoaders;
+		long getTaskThreadId() {
+			return taskThreadId;
+		}
+
+		@Nullable
+		ClassLoader getTaskClassLoader() {
+			return taskClassLoader;
 		}
 
 		@Override
 		protected void init() throws Exception {
+			initTaskThreadInfo();
+
+			// Create a time trigger to validate that it would also be invoked in the task's thread.
 			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
-					classLoaders.add(Thread.currentThread().getContextClassLoader());
-					syncLatch.trigger();
+					hasTimerTriggered = true;
+					checkTaskThreadInfo();
 				}
 			});
 		}
 
 		@Override
 		protected void performDefaultAction(ActionContext context) throws Exception {
-			syncLatch.await();
-			context.allActionsCompleted();
+			checkTaskThreadInfo();
+			if (!hasTimerTriggered) {
+				context.actionsUnavailable();
+			} else {
+				context.allActionsCompleted();
+			}
 		}
 
 		@Override
 		protected void cleanup() throws Exception {
-
+			checkTaskThreadInfo();
 		}
 
 		@Override
 		protected void cancelTask() throws Exception {
 
+		}
+
+		private void initTaskThreadInfo() {
+			Preconditions.checkState(taskThreadId == -1);
+			Preconditions.checkState(taskClassLoader == null);
+			Thread currentThread = Thread.currentThread();
+			taskThreadId = currentThread.getId();
+			taskClassLoader = currentThread.getContextClassLoader();
+		}
+
+		private void checkTaskThreadInfo() {
+			Thread currentThread = Thread.currentThread();
+			Preconditions.checkState(taskThreadId == currentThread.getId(),
+					"Task's method was called in non task thread.");
+			Preconditions.checkState(taskClassLoader == currentThread.getContextClassLoader(),
+				"Task's context class loader has been changed during invocation.");
 		}
 	}
 
