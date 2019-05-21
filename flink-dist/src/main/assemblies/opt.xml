@@ -200,4 +200,14 @@
 			<fileMode>0644</fileMode>
 		</fileSet>
 	</fileSets>
+	<dependencySets>
+		<dependencySet>
+			<unpack>false</unpack>
+			<outputDirectory>opt</outputDirectory>
+			<includes>
+				<include>org.apache.flink:flink-shaded-netty-tcnative-dynamic</include>
+			</includes>
+			<scope>provided</scope>
+		</dependencySet>
+	</dependencySets>
 </assembly>
