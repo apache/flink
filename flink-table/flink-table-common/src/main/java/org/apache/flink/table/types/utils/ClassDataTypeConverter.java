@@ -56,7 +56,7 @@ public final class ClassDataTypeConverter {
 		addDefaultDataType(double.class, DataTypes.DOUBLE());
 		addDefaultDataType(java.sql.Date.class, DataTypes.DATE());
 		addDefaultDataType(java.time.LocalDate.class, DataTypes.DATE());
-		addDefaultDataType(java.sql.Time.class, DataTypes.TIME(9));
+		addDefaultDataType(java.sql.Time.class, DataTypes.TIME(3));
 		addDefaultDataType(java.time.LocalTime.class, DataTypes.TIME(9));
 		addDefaultDataType(java.sql.Timestamp.class, DataTypes.TIMESTAMP(9));
 		addDefaultDataType(java.time.LocalDateTime.class, DataTypes.TIMESTAMP(9));
