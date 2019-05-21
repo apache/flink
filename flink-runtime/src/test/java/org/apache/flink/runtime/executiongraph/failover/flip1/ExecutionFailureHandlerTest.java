@@ -32,6 +32,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -67,7 +68,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		// verify results
 		assertTrue(result.canRestart());
 		assertEquals(restartDelayMs, result.getRestartDelayMS());
-		assertEquals(tasksToBeRestarted, result.getVerticesToBeRestarted());
+		assertEquals(tasksToBeRestarted, result.getVerticesToRestart());
 		assertNull(result.getError());
 	}
 
@@ -96,9 +97,19 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 		// verify results
 		assertFalse(result.canRestart());
-		assertTrue(result.getRestartDelayMS() < 0);
-		assertNull(result.getVerticesToBeRestarted());
 		assertNotNull(result.getError());
+		try {
+			result.getVerticesToRestart();
+			fail("get tasks to restart is not allowed when restarting is suppressed");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
+		try {
+			result.getRestartDelayMS();
+			fail("get restart delay is not allowed when restarting is suppressed");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
 	}
 
 	/**
@@ -126,9 +137,19 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 		// verify results
 		assertFalse(result.canRestart());
-		assertTrue(result.getRestartDelayMS() < 0);
-		assertNull(result.getVerticesToBeRestarted());
 		assertNotNull(result.getError());
+		try {
+			result.getVerticesToRestart();
+			fail("get tasks to restart is not allowed when restarting is suppressed");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
+		try {
+			result.getRestartDelayMS();
+			fail("get restart delay is not allowed when restarting is suppressed");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
 	}
 
 	// ------------------------------------------------------------------------

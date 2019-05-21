@@ -25,31 +25,31 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Result containing the tasks to be restarted upon a task failure.
+ * Result containing the tasks to restart upon a task failure.
  * Also contains the reason if the failure is not recoverable(non-recoverable
  * failure type or restarting suppressed by restart strategy).
  */
 public class FailureHandlingResult {
 
-	/** Task vertices to be restarted to recover from the failure. */
-	private Set<ExecutionVertexID> verticesToBeRestarted;
+	/** Task vertices to restart to recover from the failure. */
+	private Set<ExecutionVertexID> verticesToRestart;
 
-	/** Delay before the restarting can be conducted. Negative values means no restart should be conducted. */
-	private long restartDelayMS = -1;
+	/** Delay before the restarting can be conducted. */
+	private long restartDelayMS;
 
 	/** Reason why the failure is not recoverable. */
 	private Throwable error;
 
 	/**
-	 * Creates a result of a set of tasks to be restarted to recover from the failure.
+	 * Creates a result of a set of tasks to restart to recover from the failure.
 	 *
-	 * @param verticesToBeRestarted containing task vertices to be restarted to recover from the failure
+	 * @param verticesToRestart containing task vertices to restart to recover from the failure
 	 * @param restartDelayMS indicate a delay before conducting the restart
 	 */
-	public FailureHandlingResult(Set<ExecutionVertexID> verticesToBeRestarted, long restartDelayMS) {
+	public FailureHandlingResult(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
 		checkState(restartDelayMS >= 0);
 
-		this.verticesToBeRestarted = checkNotNull(verticesToBeRestarted);
+		this.verticesToRestart = checkNotNull(verticesToRestart);
 		this.restartDelayMS = restartDelayMS;
 	}
 
@@ -63,12 +63,16 @@ public class FailureHandlingResult {
 	}
 
 	/**
-	 * Returns the tasks to be restarted.
+	 * Returns the tasks to restart.
 	 *
-	 * @return the tasks to be restarted
+	 * @return the tasks to restart
 	 */
-	public Set<ExecutionVertexID> getVerticesToBeRestarted() {
-		return verticesToBeRestarted;
+	public Set<ExecutionVertexID> getVerticesToRestart() {
+		if (canRestart()) {
+			return verticesToRestart;
+		} else {
+			throw new IllegalStateException("Cannot get vertices to restart when the restarting is suppressed.");
+		}
 	}
 
 	/**
@@ -77,7 +81,11 @@ public class FailureHandlingResult {
 	 * @return the delay before the restarting
 	 */
 	public long getRestartDelayMS() {
-		return restartDelayMS;
+		if (canRestart()) {
+			return restartDelayMS;
+		} else {
+			throw new IllegalStateException("Cannot get restart delay when the restarting is suppressed.");
+		}
 	}
 
 	/**
@@ -86,7 +94,7 @@ public class FailureHandlingResult {
 	 * @return whether the restarting can be conducted
 	 */
 	public boolean canRestart() {
-		return error == null && restartDelayMS >= 0;
+		return error == null;
 	}
 
 	/**

@@ -29,6 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link FailureHandlingResult}.
@@ -47,7 +48,7 @@ public class FailureHandlingResultTest extends TestLogger {
 
 		assertTrue(result.canRestart());
 		assertEquals(delay, result.getRestartDelayMS());
-		assertEquals(tasks, result.getVerticesToBeRestarted());
+		assertEquals(tasks, result.getVerticesToRestart());
 		assertNull(result.getError());
 	}
 
@@ -61,7 +62,18 @@ public class FailureHandlingResultTest extends TestLogger {
 		FailureHandlingResult result = new FailureHandlingResult(error);
 
 		assertFalse(result.canRestart());
-		assertTrue(result.getRestartDelayMS() < 0);
 		assertEquals(error, result.getError());
+		try {
+			result.getVerticesToRestart();
+			fail("get tasks to restart is not allowed when restarting is suppressed");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
+		try {
+			result.getRestartDelayMS();
+			fail("get restart delay is not allowed when restarting is suppressed");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
 	}
 }

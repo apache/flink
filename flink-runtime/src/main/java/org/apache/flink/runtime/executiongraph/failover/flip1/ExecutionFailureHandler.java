@@ -27,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This handler deals with task failures to return a {@link FailureHandlingResult} which contains tasks
- * to be restarted to recover from failures.
+ * to restart to recover from failures.
  */
 public class ExecutionFailureHandler {
 
@@ -54,7 +54,7 @@ public class ExecutionFailureHandler {
 	}
 
 	/**
-	 * Return result of failure handling. Can be a set of task vertices to be restarted
+	 * Return result of failure handling. Can be a set of task vertices to restart
 	 * and a delay of the restarting. Or that the failure is not recoverable and the reason for it.
 	 *
 	 * @param failedTask is the ID of the failed task vertex
