@@ -104,20 +104,18 @@ public class VectorizedColumnBatchTest {
 		// all null
 		HeapIntVector col0 = new HeapIntVector(VECTOR_SIZE);
 		for (int i = 0; i < VECTOR_SIZE; i++) {
-			col0.isNull[i] = true;
+			col0.setNullAt(i);
 		}
-		col0.noNulls = false;
 
 		// some null
 		HeapIntVector col1 = new HeapIntVector(VECTOR_SIZE);
 		for (int i = 0; i < VECTOR_SIZE; i++) {
 			if (i % 2 == 0) {
-				col1.isNull[i] = true;
+				col1.setNullAt(i);
 			} else {
 				col1.vector[i] = i;
 			}
 		}
-		col1.noNulls = false;
 
 		VectorizedColumnBatch batch = new VectorizedColumnBatch(new ColumnVector[]{col0, col1});
 
@@ -162,11 +160,6 @@ public class VectorizedColumnBatchTest {
 
 		public TestDictionary(int[] dictionary) {
 			this.intDictionary = dictionary;
-		}
-
-		@Override
-		public boolean decodeToBoolean(int id) {
-			throw new UnsupportedOperationException("Dictionary encoding does not support float");
 		}
 
 		@Override

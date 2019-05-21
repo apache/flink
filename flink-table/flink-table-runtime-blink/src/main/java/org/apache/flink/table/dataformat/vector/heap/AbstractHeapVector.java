@@ -36,7 +36,7 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 	 * is null, otherwise false. The array is always allocated, so a batch can be re-used
 	 * later and nulls added.
 	 */
-	public boolean[] isNull;
+	protected boolean[] isNull;
 
 	/**
 	 * Reusable column for ids of dictionary.
@@ -60,14 +60,17 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		noNulls = true;
 	}
 
+	public void setNullAt(int i) {
+		isNull[i] = true;
+		noNulls = false;
+	}
+
 	@Override
 	public boolean isNullAt(int i) {
 		return !noNulls && isNull[i];
 	}
 
-	/**
-	 * Reserve a integer column for ids of dictionary.
-	 */
+	@Override
 	public HeapIntVector reserveDictionaryIds(int capacity) {
 		if (dictionaryIds == null) {
 			dictionaryIds = new HeapIntVector(capacity);

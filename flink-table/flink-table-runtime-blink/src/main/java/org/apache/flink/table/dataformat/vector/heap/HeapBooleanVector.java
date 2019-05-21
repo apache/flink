@@ -35,11 +35,17 @@ public class HeapBooleanVector extends AbstractHeapVector implements BooleanColu
 	}
 
 	@Override
+	public HeapIntVector reserveDictionaryIds(int capacity) {
+		throw new RuntimeException("HeapBooleanVector has no dictionary.");
+	}
+
+	@Override
+	public HeapIntVector getDictionaryIds() {
+		throw new RuntimeException("HeapBooleanVector has no dictionary.");
+	}
+
+	@Override
 	public boolean getBoolean(int i) {
-		if (dictionary == null) {
-			return vector[i];
-		} else {
-			return dictionary.decodeToBoolean(dictionaryIds.vector[i]);
-		}
+		return vector[i];
 	}
 }

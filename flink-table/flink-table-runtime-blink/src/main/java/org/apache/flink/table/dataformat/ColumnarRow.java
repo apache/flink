@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
 
 /**
- * Source directly return columnRow in order to reduce Row convert times.
+ * Columnar row to support access to vector column data. It is a row view in {@link VectorizedColumnBatch}.
  */
 public final class ColumnarRow implements BaseRow {
 	private byte header;
@@ -45,6 +43,7 @@ public final class ColumnarRow implements BaseRow {
 	public void setVectorizedColumnBatch(
 			VectorizedColumnBatch vectorizedColumnBatch) {
 		this.vectorizedColumnBatch = vectorizedColumnBatch;
+		this.rowId = 0;
 	}
 
 	public void setRowId(int rowId) {
@@ -109,8 +108,7 @@ public final class ColumnarRow implements BaseRow {
 	@Override
 	public BinaryString getString(int ordinal) {
 		Bytes byteArray = vectorizedColumnBatch.getByteArray(rowId, ordinal);
-		MemorySegment memorySegment = MemorySegmentFactory.wrap(byteArray.data);
-		return BinaryString.fromAddress(new MemorySegment[]{memorySegment}, byteArray.offset, byteArray.len);
+		return BinaryString.fromBytes(byteArray.data, byteArray.offset, byteArray.len);
 	}
 
 	@Override
@@ -137,16 +135,19 @@ public final class ColumnarRow implements BaseRow {
 
 	@Override
 	public BaseRow getRow(int ordinal, int numFields) {
+		// TODO
 		throw new UnsupportedOperationException("Row is not supported.");
 	}
 
 	@Override
 	public BinaryArray getArray(int ordinal) {
+		// TODO
 		throw new UnsupportedOperationException("Array is not supported.");
 	}
 
 	@Override
 	public BinaryMap getMap(int ordinal) {
+		// TODO
 		throw new UnsupportedOperationException("Map is not supported.");
 	}
 

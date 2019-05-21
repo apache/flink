@@ -29,7 +29,7 @@ public abstract class AbstractColumnVector implements ColumnVector, Serializable
 	private static final long serialVersionUID = 5340018531388047747L;
 
 	// If the whole column vector has no nulls, this is true, otherwise false.
-	public boolean noNulls = true;
+	protected boolean noNulls = true;
 
 	/**
 	 * The Dictionary for this column.
@@ -45,10 +45,18 @@ public abstract class AbstractColumnVector implements ColumnVector, Serializable
 	}
 
 	/**
+	 * Reserve a integer column for ids of dictionary.
+	 * DictionaryIds maybe inconsistent with {@link #setDictionary}. Suppose a ColumnVector's data
+	 * comes from two pages. Perhaps one page uses a dictionary and the other page does not use a
+	 * dictionary. The first page that uses a field will have dictionaryIds, which requires
+	 * decoding the first page (Out batch does not support a mix of dictionary).
+	 */
+	public abstract IntColumnVector reserveDictionaryIds(int capacity);
+
+	/**
 	 * Returns true if this column has a dictionary.
 	 */
 	public boolean hasDictionary() {
 		return this.dictionary != null;
 	}
-
 }

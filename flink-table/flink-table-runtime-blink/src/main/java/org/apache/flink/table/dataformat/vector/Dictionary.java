@@ -22,8 +22,6 @@ package org.apache.flink.table.dataformat.vector;
  */
 public interface Dictionary {
 
-	boolean decodeToBoolean(int id);
-
 	int decodeToInt(int id);
 
 	long decodeToLong(int id);
