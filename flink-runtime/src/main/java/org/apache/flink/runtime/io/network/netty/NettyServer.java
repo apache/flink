@@ -64,7 +64,7 @@ class NettyServer {
 		localAddress = null;
 	}
 
-	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
+	int init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty server has already been initialized.");
 
 		final long start = System.nanoTime();
@@ -164,6 +164,8 @@ class NettyServer {
 
 		final long duration = (System.nanoTime() - start) / 1_000_000;
 		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", duration, localAddress);
+
+		return localAddress.getPort();
 	}
 
 	NettyConfig getConfig() {
@@ -172,10 +174,6 @@ class NettyServer {
 
 	ServerBootstrap getBootstrap() {
 		return bootstrap;
-	}
-
-	public InetSocketAddress getLocalAddress() {
-		return localAddress;
 	}
 
 	void shutdown() {

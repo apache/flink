@@ -25,7 +25,8 @@ package org.apache.flink.runtime.io.network;
 public class LocalConnectionManager implements ConnectionManager {
 
 	@Override
-	public void start() {
+	public int start() {
+		return -1;
 	}
 
 	@Override
@@ -39,11 +40,6 @@ public class LocalConnectionManager implements ConnectionManager {
 	@Override
 	public int getNumberOfActiveConnections() {
 		return 0;
-	}
-
-	@Override
-	public int getDataPort() {
-		return -1;
 	}
 
 	@Override

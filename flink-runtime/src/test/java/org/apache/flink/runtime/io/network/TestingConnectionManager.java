@@ -27,7 +27,9 @@ import java.io.IOException;
 public class TestingConnectionManager implements ConnectionManager {
 
 	@Override
-	public void start() {}
+	public int start() {
+		return -1;
+	}
 
 	@Override
 	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
@@ -40,11 +42,6 @@ public class TestingConnectionManager implements ConnectionManager {
 	@Override
 	public int getNumberOfActiveConnections() {
 		return 0;
-	}
-
-	@Override
-	public int getDataPort() {
-		return -1;
 	}
 
 	@Override

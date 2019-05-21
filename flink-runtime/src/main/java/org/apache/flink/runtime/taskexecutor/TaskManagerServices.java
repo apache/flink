@@ -248,7 +248,7 @@ public class TaskManagerServices {
 
 		final NetworkEnvironment network = NetworkEnvironment.create(
 			taskManagerServicesConfiguration.getNetworkConfig(), taskEventDispatcher, taskManagerMetricGroup, ioManager);
-		network.start();
+		int dataPort = network.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
 		kvStateService.start();
@@ -256,7 +256,7 @@ public class TaskManagerServices {
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(
 			resourceID,
 			taskManagerServicesConfiguration.getTaskManagerAddress(),
-			network.getConnectionManager().getDataPort());
+			dataPort);
 
 		// this call has to happen strictly after the network stack has been initialized
 		final MemoryManager memoryManager = createMemoryManager(taskManagerServicesConfiguration, freeHeapMemoryWithDefrag, maxJvmHeapMemory);

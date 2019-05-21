@@ -89,6 +89,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	protected ResultPartitionID[] partitionIds;
 
+	private int dataPort;
+
 	public void setUp(
 			int writers,
 			int channels,
@@ -141,7 +143,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		ioManager = new IOManagerAsync();
 
 		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize, config);
-		senderEnv.start();
+		this.dataPort = senderEnv.start();
 		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
 			receiverEnv = senderEnv;
 		}
@@ -163,7 +165,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		TaskManagerLocation senderLocation = new TaskManagerLocation(
 			ResourceID.generate(),
 			LOCAL_ADDRESS,
-			senderEnv.getConnectionManager().getDataPort());
+			dataPort);
 
 		InputGate receiverGate = createInputGate(
 			dataSetID,
