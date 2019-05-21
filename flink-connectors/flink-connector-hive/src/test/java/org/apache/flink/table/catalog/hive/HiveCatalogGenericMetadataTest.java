@@ -38,7 +38,7 @@ import java.io.IOException;
 import java.util.HashMap;
 
 /**
- * Test for HiveCatalog on Flink generic metadata.
+ * Test for HiveCatalog on generic metadata.
  */
 public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 
