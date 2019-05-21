@@ -67,6 +67,7 @@ class RankNumberColumnRemoveRuleTest extends TableTestBase {
 
   @Test
   def testCannotRemoveRankNumberColumn3(): Unit = {
+    // the Rank does not output rank number, so this rule will not be matched
     val sql =
       """
         |SELECT a FROM (
