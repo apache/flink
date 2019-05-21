@@ -55,6 +55,7 @@ run_test "Streaming Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scri
 run_test "Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh file"
 run_test "Shaded Hadoop S3A end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop"
 run_test "Shaded Presto S3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh presto"
+run_test "Custom FS plugin end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh dummy-fs"
 run_test "Kafka 0.10 end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_kafka010.sh"
 run_test "Kafka 0.11 end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_kafka011.sh"
 run_test "Modern Kafka end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_kafka.sh"
