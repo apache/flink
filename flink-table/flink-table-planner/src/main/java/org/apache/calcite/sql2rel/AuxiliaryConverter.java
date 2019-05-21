@@ -53,6 +53,25 @@ public interface AuxiliaryConverter {
 		public RexNode convert(RexBuilder rexBuilder, RexNode groupCall,
 			RexNode e) {
 			return rexBuilder.makeCall(this.f, e);
+			// FLINK QUICK FIX
+			// we do not use this logic right now
+//      switch (f.getKind()) {
+//      case TUMBLE_START:
+//      case HOP_START:
+//      case SESSION_START:
+//      case SESSION_END: // TODO: ?
+//        return e;
+//      case TUMBLE_END:
+//        return rexBuilder.makeCall(
+//            SqlStdOperatorTable.PLUS, e,
+//            ((RexCall) groupCall).operands.get(1));
+//      case HOP_END:
+//        return rexBuilder.makeCall(
+//            SqlStdOperatorTable.PLUS, e,
+//            ((RexCall) groupCall).operands.get(2));
+//      default:
+//        throw new AssertionError("unknown: " + f);
+//      }
 		}
 	}
 }
