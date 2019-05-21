@@ -18,24 +18,21 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.catalog.AbstractCatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartition;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A CatalogPartition implementation that represents a Partition in Hive.
  */
-public class HiveCatalogPartition implements CatalogPartition {
-
-	private final Map<String, String> properties;
+public class HiveCatalogPartition extends AbstractCatalogPartition {
 	private final String location;
 
 	public HiveCatalogPartition(Map<String, String> properties, String location) {
-		this.properties = checkNotNull(properties);
+		super(properties, null);
 		this.location = location;
 	}
 
@@ -48,13 +45,8 @@ public class HiveCatalogPartition implements CatalogPartition {
 	}
 
 	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	@Override
 	public CatalogPartition copy() {
-		return new HiveCatalogPartition(new HashMap<>(properties), location);
+		return new HiveCatalogPartition(new HashMap<>(getProperties()), location);
 	}
 
 	@Override

@@ -755,6 +755,7 @@ public class HiveCatalog implements Catalog {
 					new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()), partitionSpec);
 			}
 		}
+		// TODO: handle GenericCatalogPartition
 		HiveCatalogPartition hiveCatalogPartition = (HiveCatalogPartition) catalogPartition;
 		partition.setValues(partValues);
 		partition.setDbName(hiveTable.getDbName());
@@ -768,6 +769,7 @@ public class HiveCatalog implements Catalog {
 	}
 
 	private CatalogPartition createCatalogPartition(Partition hivePartition) {
+		// TODO: create GenericCatalogPartition for GenericCatalogTable
 		return new HiveCatalogPartition(hivePartition.getParameters(), hivePartition.getSd().getLocation());
 	}
 
@@ -780,7 +782,7 @@ public class HiveCatalog implements Catalog {
 	/**
 	 * Get field names from field schemas.
 	 */
-	static List<String> getFieldNames(List<FieldSchema> fieldSchemas) {
+	private static List<String> getFieldNames(List<FieldSchema> fieldSchemas) {
 		List<String> names = new ArrayList<>(fieldSchemas.size());
 		for (FieldSchema fs : fieldSchemas) {
 			names.add(fs.getName());
@@ -812,7 +814,7 @@ public class HiveCatalog implements Catalog {
 	 * @throws PartitionSpecInvalidException thrown if partitionSpec and partitionKeys have different sizes,
 	 *                                       or any key in partitionKeys doesn't exist in partitionSpec.
 	 */
-	List<String> getOrderedFullPartitionValues(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
+	private List<String> getOrderedFullPartitionValues(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
 		throws PartitionSpecInvalidException {
 		Map<String, String> spec = partitionSpec.getPartitionSpec();
 		if (spec.size() != partitionKeys.size()) {
