@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
@@ -38,7 +39,10 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -71,6 +75,49 @@ public class StreamTaskTimerTest extends TestLogger {
 		});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+	}
+
+	@Test
+	public void timeTriggerIsCalledWithAcquiredCheckpointLock() throws Exception {
+		AtomicReference<Throwable> errorRef = new AtomicReference<>();
+		OneShotLatch latch = new OneShotLatch();
+		Object checkpointLock = testHarness.getTask().getCheckpointLock();
+		ProcessingTimeCallback callback = timestamp -> {
+			try {
+				assertTrue(Thread.holdsLock(checkpointLock));
+				latch.trigger();
+			}
+			catch (Throwable t) {
+				errorRef.compareAndSet(null, t);
+				latch.trigger();
+			}
+		};
+
+		timeService.registerTimer(System.currentTimeMillis(), callback);
+		latch.await();
+		verifyNoException(errorRef.get());
+
+		timeService.scheduleAtFixedRate(callback, 0, 100);
+		latch.await();
+		verifyNoException(errorRef.get());
+	}
+
+	@Test
+	public void testErrorReporting() throws Exception {
+		AtomicReference<Throwable> errorRef = new AtomicReference<>();
+		OneShotLatch latch = new OneShotLatch();
+		testHarness.getEnvironment().setExternalExceptionHandler(ex -> {
+			errorRef.set(ex);
+			latch.trigger();
+		});
+
+		ProcessingTimeCallback callback = timestamp -> {
+			throw new Exception("Exception in Timer");
+		};
+
+		timeService.registerTimer(System.currentTimeMillis(), callback);
+		latch.await();
+		assertThat(errorRef.get(), instanceOf(Exception.class));
 	}
 
 	@Test

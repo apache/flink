@@ -143,6 +143,10 @@ public class StreamTaskTestHarness<OUT> {
 		this.taskStateManager = new TestTaskStateManager(localRecoveryConfig);
 	}
 
+	public StreamMockEnvironment getEnvironment() {
+		return mockEnv;
+	}
+
 	public ProcessingTimeService getProcessingTimeService() {
 		return taskThread.task.getProcessingTimeService();
 	}
