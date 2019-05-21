@@ -41,7 +41,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
         # registerExternalCatalog, getRegisteredExternalCatalog and listTables
         # should be supported when catalog supported in python.
         # getCompletionHints has been deprecated. It will be removed in the next release.
-        return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'connect',
+        return {'registerExternalCatalog', 'getRegisteredExternalCatalog',
                 'registerFunction', 'listUserDefinedFunctions', 'listTables', 'getCompletionHints'}
 
 

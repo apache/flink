@@ -101,6 +101,7 @@ def launch_gateway():
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
+    java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.TypeInformation")
