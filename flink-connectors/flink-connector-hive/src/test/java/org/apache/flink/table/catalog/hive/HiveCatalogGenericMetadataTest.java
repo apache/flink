@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.AbstractCatalogFunction;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -40,7 +39,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Optional;
 
 /**
  * Test for HiveCatalog on generic metadata.
@@ -106,7 +104,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 		exception.expectMessage(
 			"Function types don't match. " +
 				"Existing function is 'org.apache.flink.table.catalog.GenericCatalogFunction' and " +
-				"new function is 'org.apache.flink.table.catalog.hive.GenericHiveMetastoreCatalogTest$TestFunction'.");
+				"new function is 'org.apache.flink.table.catalog.CatalogTestBase$TestFunction'.");
 		catalog.alterFunction(path1, new TestFunction(), false);
 	}
 
@@ -200,29 +198,5 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	@Override
 	protected CatalogFunction createAnotherFunction() {
 		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
-	}
-
-	/**
-	 * Test function used to assert on function of different class.
-	 */
-	private static class TestFunction extends AbstractCatalogFunction {
-		public TestFunction() {
-			super("test", new HashMap<>());
-		}
-
-		@Override
-		public CatalogFunction copy() {
-			return null;
-		}
-
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
-
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
-		}
 	}
 }

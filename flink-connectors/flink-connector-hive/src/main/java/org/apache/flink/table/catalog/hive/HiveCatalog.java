@@ -741,23 +741,27 @@ public class HiveCatalog implements Catalog {
 	}
 
 	@Override
-	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
+	public List<String> listFunctions(String databaseName) throws DatabaseNotExistException, CatalogException {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+
 		// client.getFunctions() returns empty list when the database doesn't exist
 		// thus we need to explicitly check whether the database exists or not
-		if (!databaseExists(dbName)) {
-			throw new DatabaseNotExistException(catalogName, dbName);
+		if (!databaseExists(databaseName)) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
 		}
 
 		try {
-			return client.getFunctions(dbName, null);
+			return client.getFunctions(databaseName, null);
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to list functions in database %s", dbName), e);
+				String.format("Failed to list functions in database %s", databaseName), e);
 		}
 	}
 
 	@Override
 	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
+		checkNotNull(functionPath, "functionPath cannot be null or empty");
+
 		try {
 			Function function = client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
 
@@ -782,6 +786,8 @@ public class HiveCatalog implements Catalog {
 
 	@Override
 	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
+		checkNotNull(functionPath, "functionPath cannot be null or empty");
+
 		try {
 			return client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName()) != null;
 		} catch (NoSuchObjectException e) {

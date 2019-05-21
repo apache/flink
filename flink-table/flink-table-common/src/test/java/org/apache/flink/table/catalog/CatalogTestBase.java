@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -860,6 +861,36 @@ public abstract class CatalogTestBase {
 	public static class MyOtherScalarFunction extends ScalarFunction {
 		public String eval(Integer i) {
 			return String.valueOf(i);
+		}
+	}
+
+	/**
+	 * Test function used to assert on function of different class.
+	 */
+	public static class TestFunction implements CatalogFunction {
+		@Override
+		public String getClassName() {
+			return null;
+		}
+
+		@Override
+		public Map<String, String> getProperties() {
+			return null;
+		}
+
+		@Override
+		public CatalogFunction copy() {
+			return null;
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
 		}
 	}
 
