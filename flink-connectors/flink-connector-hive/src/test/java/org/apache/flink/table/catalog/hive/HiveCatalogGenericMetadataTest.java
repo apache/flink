@@ -18,23 +18,29 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.GenericCatalogTable;
+import org.apache.flink.table.catalog.GenericCatalogView;
 
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 /**
- * Test for HiveCatalog.
+ * Test for HiveCatalog on generic metadata.
  */
-public class HiveCatalogTest extends CatalogTestBase {
+public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 
 	@BeforeClass
 	public static void init() throws IOException {
@@ -42,61 +48,93 @@ public class HiveCatalogTest extends CatalogTestBase {
 		catalog.open();
 	}
 
-	// =====================
-	// HiveCatalog doesn't support streaming table operation. Ignore this test in CatalogTestBase.
-	// =====================
+	// ------ data types ------
 
-	public void testCreateTable_Streaming() throws Exception {
+	@Test
+	public void testDataTypes() throws Exception {
+		// TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
+		//	  [FLINK-12386] Support complete mapping between Flink and Hive data types
+		TypeInformation[] types = new TypeInformation[] {
+			BasicTypeInfo.BYTE_TYPE_INFO,
+			BasicTypeInfo.SHORT_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.LONG_TYPE_INFO,
+			BasicTypeInfo.FLOAT_TYPE_INFO,
+			BasicTypeInfo.DOUBLE_TYPE_INFO,
+			BasicTypeInfo.BOOLEAN_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO,
+			BasicTypeInfo.DATE_TYPE_INFO,
+			SqlTimeTypeInfo.TIMESTAMP
+		};
+
+		verifyDataTypes(types);
 	}
 
-	// ------ utils ------
+	private void verifyDataTypes(TypeInformation[] types) throws Exception {
+		String[] colNames = new String[types.length];
+
+		for (int i = 0; i < types.length; i++) {
+			colNames[i] = types[i].toString().toLowerCase() + "_col";
+		}
+
+		CatalogTable table = new GenericCatalogTable(
+			new TableSchema(colNames, types),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
+
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, table, false);
+
+		checkEquals(table, (CatalogTable) catalog.getTable(path1));
+	}
 
 	@Override
 	public CatalogDatabase createDb() {
-		return new HiveCatalogDatabase(
+		return new GenericCatalogDatabase(
 			new HashMap<String, String>() {{
 				put("k1", "v1");
 			}},
-			TEST_COMMENT
-		);
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogDatabase createAnotherDb() {
-		return new HiveCatalogDatabase(
+		return new GenericCatalogDatabase(
 			new HashMap<String, String>() {{
 				put("k2", "v2");
 			}},
-			TEST_COMMENT
-		);
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogTable createTable() {
-		return new HiveCatalogTable(
+		return new GenericCatalogTable(
 			createTableSchema(),
 			getBatchTableProperties(),
-			TEST_COMMENT
-		);
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogTable createAnotherTable() {
-		return new HiveCatalogTable(
+		return new GenericCatalogTable(
 			createAnotherTableSchema(),
 			getBatchTableProperties(),
-			TEST_COMMENT
-		);
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogTable createStreamingTable() {
-		throw new UnsupportedOperationException("HiveCatalog doesn't support streaming tables.");
+		return new GenericCatalogTable(
+			createTableSchema(),
+			getStreamingTableProperties(),
+			TEST_COMMENT);
 	}
 
 	@Override
 	public CatalogTable createPartitionedTable() {
-		return new HiveCatalogTable(
+		return new GenericCatalogTable(
 			createTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),
@@ -105,7 +143,7 @@ public class HiveCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createAnotherPartitionedTable() {
-		return new HiveCatalogTable(
+		return new GenericCatalogTable(
 			createAnotherTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),
@@ -114,44 +152,21 @@ public class HiveCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogView createView() {
-		return new HiveCatalogView(
+		return new GenericCatalogView(
 			String.format("select * from %s", t1),
 			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
 			createTableSchema(),
 			new HashMap<>(),
-			"This is a hive view");
+			"This is a view");
 	}
 
 	@Override
 	public CatalogView createAnotherView() {
-		return new HiveCatalogView(
+		return new GenericCatalogView(
 			String.format("select * from %s", t2),
 			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
 			createAnotherTableSchema(),
 			new HashMap<>(),
-			"This is another hive view");
-	}
-
-	@Override
-	public void checkEquals(CatalogTable t1, CatalogTable t2) {
-		assertEquals(t1.getSchema(), t2.getSchema());
-		assertEquals(t1.getComment(), t2.getComment());
-		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
-		assertEquals(t1.isPartitioned(), t2.isPartitioned());
-
-		// Hive tables may have properties created by itself
-		// thus properties of Hive table is a super set of those in its corresponding Flink table
-		assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
-	}
-
-	protected void checkEquals(CatalogView v1, CatalogView v2) {
-		assertEquals(v1.getSchema(), v1.getSchema());
-		assertEquals(v1.getComment(), v2.getComment());
-		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
-		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
-
-		// Hive views may have properties created by itself
-		// thus properties of Hive view is a super set of those in its corresponding Flink view
-		assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
+			"This is another view");
 	}
 }
