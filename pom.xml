@@ -274,6 +274,13 @@ under the License.
 				<version>4.1.32.Final-${flink.shaded.version}</version>
 			</dependency>
 
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
+				<version>2.0.25.Final-${flink.shaded.version}</version>
+				<scope>test</scope>
+			</dependency>
+
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
 			<dependency>
 				<groupId>com.google.code.findbugs</groupId>
