@@ -27,6 +27,10 @@ import org.apache.calcite.rex._
 
 /**
   * Planner rule that apply various simplifying transformations on join condition.
+  * e.g.
+  * reduce same expressions: a=b AND b=a -> a=b,
+  * simplify boolean expressions: x = 1 AND FALSE -> FALSE,
+  * simplify cast expressions: CAST('123' as integer) -> 123
   */
 class SimplifyJoinConditionRule
   extends RelOptRule(

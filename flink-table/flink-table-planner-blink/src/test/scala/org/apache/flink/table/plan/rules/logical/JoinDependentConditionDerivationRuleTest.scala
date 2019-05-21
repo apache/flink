@@ -28,9 +28,9 @@ import org.junit.{Before, Test}
 
 
 /**
-  * Test for [[JoinDependentConditionPushDownRule]].
+  * Test for [[JoinDependentConditionDerivationRule]].
   */
-class JoinDependentConditionPushDownRuleTest extends TableTestBase {
+class JoinDependentConditionDerivationRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -45,7 +45,7 @@ class JoinDependentConditionPushDownRuleTest extends TableTestBase {
         .add(RuleSets.ofList(
           FlinkFilterJoinRule.FILTER_ON_JOIN,
           FlinkFilterJoinRule.JOIN,
-          JoinDependentConditionPushDownRule.INSTANCE))
+          JoinDependentConditionDerivationRule.INSTANCE))
         .build()
     )
 

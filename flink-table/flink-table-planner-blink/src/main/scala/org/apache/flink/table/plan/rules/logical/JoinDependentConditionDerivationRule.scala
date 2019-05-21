@@ -22,7 +22,7 @@ import org.apache.flink.table.plan.util.FlinkRexUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
-import org.apache.calcite.rel.core.Join
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rex.RexNode
 
@@ -52,10 +52,16 @@ import scala.collection.mutable
   *
   * <p>Note: This class can only be used in HepPlanner with RULE_SEQUENCE.
   */
-class JoinDependentConditionPushDownRule
+class JoinDependentConditionDerivationRule
   extends RelOptRule(
     operand(classOf[LogicalJoin], any()),
-    "JoinDependentFilterPushDownRule") {
+    "JoinDependentConditionDerivationRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val join: LogicalJoin = call.rel(0)
+    // TODO supports more join type
+    join.getJoinType == JoinRelType.INNER
+  }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join: LogicalJoin = call.rel(0)
@@ -134,6 +140,6 @@ class JoinDependentConditionPushDownRule
 
 }
 
-object JoinDependentConditionPushDownRule {
-  val INSTANCE = new JoinDependentConditionPushDownRule
+object JoinDependentConditionDerivationRule {
+  val INSTANCE = new JoinDependentConditionDerivationRule
 }

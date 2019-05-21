@@ -136,7 +136,7 @@ object FlinkBatchRuleSets {
   )
 
   val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList(
-    JoinDependentConditionPushDownRule.INSTANCE,
+    JoinDependentConditionDerivationRule.INSTANCE,
     JoinDeriveNullFilterRule.INSTANCE
   )
 

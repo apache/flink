@@ -36,7 +36,7 @@ import scala.collection.mutable
   * the filter to below.
   *
   * <p>e.g. join condition: l_a = r_b and l_a = r_c.
-  * The l_a is a field from left input, both l_b and l_c are fields from the right input.
+  * The l_a is a field from left input, both r_b and r_c are fields from the right input.
   * After rewrite, condition will be: l_a = r_b and r_b = r_c.
   * r_b = r_c can be pushed down to the right input.
   */
