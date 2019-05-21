@@ -228,6 +228,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		try {
 			upload.executeBatch();
 			batchCount = 0;
+			lastInsertTime = System.currentTimeMillis();
 		} catch (SQLException e) {
 			throw new RuntimeException("Execution of JDBC statement failed.", e);
 		}
