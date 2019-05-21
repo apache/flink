@@ -61,7 +61,22 @@ class OverAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testDiffPartitionKeysWithDiffOrderKeys(): Unit = {
+  def testDiffPartitionKeysWithDiffOrderKeys1(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |    SUM(a) OVER (PARTITION BY b ORDER BY a),
+        |    MAX(a) OVER (PARTITION BY b ORDER BY c),
+        |    AVG(a) OVER (PARTITION BY c ORDER BY a),
+        |    RANK() OVER (PARTITION BY b ORDER BY a),
+        |    MIN(a) OVER (PARTITION BY c ORDER BY a)
+        |FROM MyTable
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testDiffPartitionKeysWithDiffOrderKeys2(): Unit = {
     val sqlQuery =
       """
         |SELECT
@@ -76,7 +91,22 @@ class OverAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testSamePartitionKeysWithDiffOrderKeys(): Unit = {
+  def testSamePartitionKeysWithDiffOrderKeys1(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |    SUM(a) OVER (PARTITION BY b ORDER BY c),
+        |    MAX(a) OVER (PARTITION BY b ORDER BY b),
+        |    AVG(a) OVER (PARTITION BY b ORDER BY a),
+        |    RANK() OVER (PARTITION BY b ORDER BY c),
+        |    MIN(a) OVER (PARTITION BY b ORDER BY b)
+        |FROM MyTable
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSamePartitionKeysWithDiffOrderKeys2(): Unit = {
     val sqlQuery =
       """
         |SELECT
@@ -116,7 +146,22 @@ class OverAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testSamePartitionKeysWithSameOrderKeysDiffDirection(): Unit = {
+  def testSamePartitionKeysWithSameOrderKeysDiffDirection1(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |    SUM(a) OVER (PARTITION BY b ORDER BY a ASC),
+        |    MAX(a) OVER (PARTITION BY b ORDER BY a ASC),
+        |    AVG(a) OVER (PARTITION BY b ORDER BY a DESC),
+        |    RANK() OVER (PARTITION BY b ORDER BY a ASC),
+        |    MIN(a) OVER (PARTITION BY b ORDER BY a DESC)
+        |FROM MyTable
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSamePartitionKeysWithSameOrderKeysDiffDirection2(): Unit = {
     val sqlQuery =
       """
         |SELECT

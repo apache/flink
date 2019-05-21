@@ -82,6 +82,7 @@ class BatchExecNestedLoopJoin(
     if (leftRowCnt == null || rightRowCnt == null) {
       return null
     }
+
     val buildRel = if (leftIsBuild) getLeft else getRight
     val buildRows = mq.getRowCount(buildRel)
     val buildRowSize = mq.getAverageRowSize(buildRel)
@@ -102,6 +103,11 @@ class BatchExecNestedLoopJoin(
       Math.max(1,
         (rowCount * probeRowSize / FlinkCost.SQL_DEFAULT_PARALLELISM_WORKER_PROCESS_SIZE).toInt)
     }
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    // Assume NestedLoopJoin always broadcast data from child which smaller.
+    satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
   }
 
   //~ ExecNode methods -----------------------------------------------------------

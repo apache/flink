@@ -293,27 +293,39 @@ object FlinkStreamRuleSets {
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     FlinkExpandConversionRule.STREAM_INSTANCE,
+    // source
     StreamExecDataStreamScanRule.INSTANCE,
     StreamExecTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
+    // calc
     StreamExecCalcRule.INSTANCE,
+    // union
     StreamExecUnionRule.INSTANCE,
+    // sort
     StreamExecSortRule.INSTANCE,
     StreamExecLimitRule.INSTANCE,
     StreamExecSortLimitRule.INSTANCE,
-    StreamExecRankRule.INSTANCE,
     StreamExecTemporalSortRule.INSTANCE,
+    // rank
+    StreamExecRankRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
-    StreamExecGroupAggregateRule.INSTANCE,
-    StreamExecOverAggregateRule.INSTANCE,
-    StreamExecGroupWindowAggregateRule.INSTANCE,
+    // expand
     StreamExecExpandRule.INSTANCE,
+    // group agg
+    StreamExecGroupAggregateRule.INSTANCE,
+    // over agg
+    StreamExecOverAggregateRule.INSTANCE,
+    // window agg
+    StreamExecGroupWindowAggregateRule.INSTANCE,
+    // join
     StreamExecJoinRule.INSTANCE,
     StreamExecWindowJoinRule.INSTANCE,
-    StreamExecCorrelateRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    // correlate
+    StreamExecCorrelateRule.INSTANCE,
+    // sink
     StreamExecSinkRule.INSTANCE
   )
 

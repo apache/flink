@@ -21,7 +21,9 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.join.HashJoinType
@@ -125,6 +127,37 @@ class BatchExecHashJoin(
     } else {
       1
     }
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    if (!isBroadcast) {
+      satisfyTraitsOnNonBroadcastHashJoin(requiredTraitSet)
+    } else {
+      satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
+    }
+  }
+
+  private def satisfyTraitsOnNonBroadcastHashJoin(
+      requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
+      satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
+    if (!canSatisfyDistribution) {
+      return None
+    }
+
+    val toRestrictHashDistributionByKeys = (distribution: FlinkRelDistribution) =>
+      getCluster.getPlanner
+        .emptyTraitSet
+        .replace(FlinkConventions.BATCH_PHYSICAL)
+        .replace(distribution)
+    val leftRequiredTraits = toRestrictHashDistributionByKeys(leftRequiredDistribution)
+    val rightRequiredTraits = toRestrictHashDistributionByKeys(rightRequiredDistribution)
+    val newLeft = RelOptRule.convert(getLeft, leftRequiredTraits)
+    val newRight = RelOptRule.convert(getRight, rightRequiredTraits)
+    val providedTraits = getTraitSet.replace(requiredDistribution)
+    // HashJoin can not satisfy collation.
+    Some(copy(providedTraits, Seq(newLeft, newRight)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------
