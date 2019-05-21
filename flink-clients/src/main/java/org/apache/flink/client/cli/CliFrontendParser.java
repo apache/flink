@@ -125,12 +125,12 @@ public class CliFrontendParser {
 	static final Option PYFILES_OPTION = new Option("pyfs", "pyFiles", true,
 		"Attach custom python files for job. " +
 			"Comma can be used as the separator to specify multiple files. " +
-			"The standard python resource file suffixes such as .py/.egg/.zip all are supported." +
-			"(eg: --pyFiles file:///tmp/myproject.zip,hdfs:///$namenode_address/jieba-0.39.zip)");
+			"The standard python resource file suffixes such as .py/.egg/.zip are all supported." +
+			"(eg: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip)");
 
 	static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
 		"Python module with the program entry point. " +
-			"This option must be used in conjunction with ` --pyFiles`.");
+			"This option must be used in conjunction with `--pyFiles`.");
 
 	static {
 		HELP_OPTION.setRequired(false);

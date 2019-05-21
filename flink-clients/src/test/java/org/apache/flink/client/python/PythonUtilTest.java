@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Test important methods of PythonUtil.
+ * Tests for the {@link PythonUtil}.
  */
 public class PythonUtilTest {
 	private Path sourceTmpDirPath;

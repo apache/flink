@@ -43,10 +43,11 @@ def get_gateway():
                 gateway_port = int(os.environ['PYFLINK_GATEWAY_PORT'])
                 gateway_param = GatewayParameters(port=gateway_port, auto_convert=True)
                 _gateway = JavaGateway(gateway_parameters=gateway_param)
-                # import the flink view
-                import_flink_view(_gateway)
             else:
                 _gateway = launch_gateway()
+
+            # import the flink view
+            import_flink_view(_gateway)
     return _gateway
 
 
@@ -97,8 +98,6 @@ def launch_gateway():
     # Connect to the gateway
     gateway = JavaGateway(
         gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True))
-
-    import_flink_view(gateway)
 
     return gateway
 

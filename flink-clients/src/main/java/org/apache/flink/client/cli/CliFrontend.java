@@ -186,8 +186,8 @@ public class CliFrontend {
 			return;
 		}
 
-		// the job can be distinguished. i.e. java or python.
-		if (!runOptions.isDistinguishedJob()) {
+		// the job is not specified a jar file or a Python job.
+		if (!(runOptions.getJarFilePath() != null || runOptions.isPython())) {
 			throw new CliArgsException("The program should be specified a JAR file " +
 				"or a python file(or module)");
 		}
@@ -774,31 +774,22 @@ public class CliFrontend {
 		String jarFilePath = options.getJarFilePath();
 		List<URL> classpaths = options.getClasspaths();
 
-		// The job can be distinguished. i.e. python or java.
-		if (!options.isDistinguishedJob()) {
-			throw new IllegalArgumentException("The program should be specified a JAR file " +
-				"or a python file(or module)");
-		}
-
+		String entryPointClass;
 		File jarFile = null;
-		// If the job is java job, it should be checked whether jar file exists.
-		if (options.isJava()) {
-			jarFile = new File(jarFilePath);
-
-			// Check if JAR file exists
-			if (!jarFile.exists()) {
-				throw new FileNotFoundException("JAR file does not exist: " + jarFile);
+		if (options.isPython()) {
+			// If the job is specified a jar file
+			if (jarFilePath != null) {
+				jarFile = getJarFile(jarFilePath);
 			}
-			else if (!jarFile.isFile()) {
-				throw new FileNotFoundException("JAR file is not a file: " + jarFile);
-			}
-		}
-
-		// Get assembler class
-		String entryPointClass = options.getEntryPointClassName();
-		// If the job is a python job, the entry point class is PythonDriver.
-		if (entryPointClass == null && options.isPython()) {
+			// The entry point class of python job is PythonDriver
 			entryPointClass = PythonDriver.class.getCanonicalName();
+		} else {
+			if (jarFilePath == null) {
+				throw new IllegalArgumentException("The program JAR file was not specified.");
+			}
+			jarFile = getJarFile(jarFilePath);
+			// Get assembler class
+			entryPointClass = options.getEntryPointClassName();
 		}
 
 		PackagedProgram program = entryPointClass == null ?
@@ -808,6 +799,25 @@ public class CliFrontend {
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;
+	}
+
+	/**
+	 * Gets the JAR file from the path.
+	 *
+	 * @param jarFilePath The path of JAR file
+	 * @return The JAR file
+	 * @throws FileNotFoundException The JAR file does not exist.
+	 */
+	private File getJarFile(String jarFilePath) throws FileNotFoundException {
+		File jarFile = new File(jarFilePath);
+		// Check if JAR file exists
+		if (!jarFile.exists()) {
+			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
+		}
+		else if (!jarFile.isFile()) {
+			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
+		}
+		return jarFile;
 	}
 
 	// --------------------------------------------------------------------------------------------

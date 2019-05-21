@@ -41,8 +41,8 @@ public class PythonDriver {
 
 	public static void main(String[] args) {
 		// the python job needs at least 2 args.
-		// e.g. python a.py ...
-		// e.g. pyModule a.b -pyFiles a.py ...
+		// e.g. py a.py ...
+		// e.g. pym a.b -pyfs a.zip ...
 		if (args.length < 2) {
 			LOG.error("Required at least two arguments, only python file or python module is available.");
 			System.exit(1);
@@ -56,7 +56,7 @@ public class PythonDriver {
 		// map filename to its Path
 		Map<String, Path> filePathMap = new HashMap<>();
 		// commands which will be exec in python progress.
-		List<String> commands = constructCommands(filePathMap, parsedArgs);
+		List<String> commands = constructPythonCommands(filePathMap, parsedArgs);
 		try {
 			// prepare the exec environment of python progress.
 			PythonUtil.PythonEnvironment pythonEnv = PythonUtil.preparePythonEnvironment(filePathMap);
@@ -87,7 +87,7 @@ public class PythonDriver {
 			.javaAddress(localhost)
 			.build();
 		Thread thread = new Thread(gatewayServer::start);
-		thread.setName("py4j-gateway-init");
+		thread.setName("py4j-gateway");
 		thread.setDaemon(true);
 		thread.start();
 		try {
@@ -100,26 +100,26 @@ public class PythonDriver {
 	}
 
 	/**
-	 * Constructs the commands which will be executed in python process.
+	 * Constructs the Python commands which will be executed in python process.
 	 *
 	 * @param filePathMap stores python file name to its path
 	 * @param parsedArgs  parsed args
 	 */
-	public static List<String> constructCommands(Map<String, Path> filePathMap, Map<String, List<String>> parsedArgs) {
+	public static List<String> constructPythonCommands(Map<String, Path> filePathMap, Map<String, List<String>> parsedArgs) {
 		List<String> commands = new ArrayList<>();
-		if (parsedArgs.containsKey("python")) {
-			String pythonFile = parsedArgs.get("python").get(0);
+		if (parsedArgs.containsKey("py")) {
+			String pythonFile = parsedArgs.get("py").get(0);
 			Path pythonFilePath = new Path(pythonFile);
 			filePathMap.put(pythonFilePath.getName(), pythonFilePath);
 			commands.add(pythonFilePath.getName());
 		}
-		if (parsedArgs.containsKey("pyModule")) {
-			String pyModule = parsedArgs.get("pyModule").get(0);
+		if (parsedArgs.containsKey("pym")) {
+			String pyModule = parsedArgs.get("pym").get(0);
 			commands.add("-m");
 			commands.add(pyModule);
 		}
-		if (parsedArgs.containsKey("pyFiles")) {
-			List<String> pyFiles = parsedArgs.get("pyFiles");
+		if (parsedArgs.containsKey("pyfs")) {
+			List<String> pyFiles = parsedArgs.get("pyfs");
 			for (String pyFile : pyFiles) {
 				Path pyFilePath = new Path(pyFile);
 				filePathMap.put(pyFilePath.getName(), pyFilePath);
@@ -134,35 +134,33 @@ public class PythonDriver {
 	/**
 	 * Parses the args to the map format.
 	 *
-	 * @param args ["python", "xxx.py",
-	 *             "pyFiles", "a.py,b.py,c.py",
+	 * @param args ["py", "xxx.py",
+	 *             "pyfs", "a.py,b.py,c.py",
 	 *             "--input", "in.txt"]
-	 * @return {"python"->List("xxx.py"),"pyFiles"->List("a.py","b.py","c.py"),"args"->List("--input","in.txt")}
+	 * @return {"py"->List("xxx.py"),"pyfs"->List("a.py","b.py","c.py"),"args"->List("--input","in.txt")}
 	 */
 	public static Map<String, List<String>> parseOptions(String[] args) {
 		Map<String, List<String>> parsedArgs = new HashMap<>();
 		int argIndex = 0;
-		boolean isValidPythonFile = false;
+		boolean isEntrypointSpecified = false;
 		// valid args should include python or pyModule field and their value.
-		if (args[0].equals("python") || args[0].equals("pyModule")) {
+		if (args[0].equals("py") || args[0].equals("pym")) {
 			parsedArgs.put(args[0], Collections.singletonList(args[1]));
 			argIndex = 2;
-			isValidPythonFile = true;
+			isEntrypointSpecified = true;
 		}
-		if (isValidPythonFile && args.length > 2 && args[2].equals("pyFiles")) {
+		if (isEntrypointSpecified && args.length > 2 && args[2].equals("pyfs")) {
 			List<String> pyFilesList = new ArrayList<>(Arrays.asList(args[3].split(",")));
 			parsedArgs.put(args[2], pyFilesList);
 			argIndex = 4;
 		}
-		if (!isValidPythonFile) {
-			throw new RuntimeException("Args is invalid, the args is required to include python main file or pyModule");
+		if (!isEntrypointSpecified) {
+			throw new RuntimeException("The Python entrypoint has not been specified. It can be specified with option -py or -pym");
 		}
 		// if arg include other args, the key "args" will map to other args.
 		if (args.length > argIndex) {
 			List<String> otherArgList = new ArrayList<>(args.length - argIndex);
-			for (int i = argIndex; i < args.length; i++) {
-				otherArgList.add(args[i]);
-			}
+			otherArgList.addAll(Arrays.asList(args).subList(argIndex, args.length));
 			parsedArgs.put("args", otherArgList);
 		}
 		return parsedArgs;

@@ -91,7 +91,9 @@ public class PackagedProgram {
 
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
-	// Whether is a Python job.
+	/**
+	 * Flag indicating whether the job is a Python job.
+	 */
 	private final boolean isPython;
 
 	/**
@@ -173,16 +175,8 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		// Whether the job is a Python job and PythonRunner is the entry point.
-		if (entryPointClassName != null && entryPointClassName.equals(PythonDriver.class.getCanonicalName())) {
-			isPython = true;
-		} else {
-			isPython = false;
-		}
-
-		if (jarFile == null && !isPython) {
-			throw new IllegalArgumentException("The jar file must not be null.");
-		}
+		// Whether the job is a Python job.
+		isPython = entryPointClassName != null && entryPointClassName.equals(PythonDriver.class.getCanonicalName());
 
 		URL jarFileUrl = null;
 		if (jarFile != null) {
@@ -193,6 +187,8 @@ public class PackagedProgram {
 			}
 
 			checkJarFile(jarFileUrl);
+		} else if (!isPython) {
+			throw new IllegalArgumentException("The jar file must not be null.");
 		}
 
 		this.jarFile = jarFileUrl;
@@ -204,16 +200,9 @@ public class PackagedProgram {
 		}
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
+		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		// if the job is python job, we don't need to extract the jarFile and
-		// use the same classloader to load the PythonRunner.
-		if (isPython) {
-			this.extractedTempLibraries = Collections.emptyList();
-			this.userCodeClassLoader = getClass().getClassLoader();
-		} else {
-			this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
-			this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
-		}
+		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -253,11 +242,7 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
-		if (entryPointClass == PythonDriver.class) {
-			isPython = true;
-		} else {
-			isPython = false;
-		}
+		isPython = entryPointClass == PythonDriver.class;
 
 		// if the entry point is a program, instantiate the class and get the plan
 		if (Program.class.isAssignableFrom(this.mainClass)) {
@@ -476,31 +461,6 @@ public class PackagedProgram {
 		if (jarFile != null) {
 			libs.add(jarFile);
 		}
-
-		if (isPython) {
-			String flinkOptDirName = System.getenv("FLINK_OPT_DIR");
-			File flinkOptDir = new File(flinkOptDirName);
-			File flinkTableJar = null;
-			if (flinkOptDir.isDirectory()) {
-				File[] flinkOptFiles = flinkOptDir.listFiles();
-				if (flinkOptFiles != null) {
-					for (File flinkOptFile : flinkOptFiles) {
-						if (flinkOptFile.getName().startsWith("flink-table")) {
-							flinkTableJar = flinkOptFile;
-							break;
-						}
-					}
-				}
-			}
-			if (flinkTableJar != null) {
-				try {
-					libs.add(flinkTableJar.toURI().toURL());
-				} catch (MalformedURLException e) {
-					throw new RuntimeException("URL is invalid. This should not happen.", e);
-				}
-			}
-		}
-
 		for (File tmpLib : this.extractedTempLibraries) {
 			try {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());

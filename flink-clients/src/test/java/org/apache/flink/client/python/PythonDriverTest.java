@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Test important methods of PythonDriver.
+ * Tests for the {@link PythonDriver}.
  */
 public class PythonDriverTest {
 	@Test
@@ -53,17 +53,17 @@ public class PythonDriverTest {
 	public void testConstructCommands() {
 		Map<String, Path> filePathMap = new HashMap<>();
 		Map<String, List<String>> parseArgs = new HashMap<>();
-		parseArgs.put("python", Collections.singletonList("xxx.py"));
+		parseArgs.put("py", Collections.singletonList("xxx.py"));
 		List<String> pyFilesList = new ArrayList<>();
 		pyFilesList.add("a.py");
 		pyFilesList.add("b.py");
 		pyFilesList.add("c.py");
-		parseArgs.put("pyFiles", pyFilesList);
+		parseArgs.put("pyfs", pyFilesList);
 		List<String> otherArgs = new ArrayList<>();
 		otherArgs.add("--input");
 		otherArgs.add("in.txt");
 		parseArgs.put("args", otherArgs);
-		List<String> commands = PythonDriver.constructCommands(filePathMap, parseArgs);
+		List<String> commands = PythonDriver.constructPythonCommands(filePathMap, parseArgs);
 		Path pythonPath = filePathMap.get("xxx.py");
 		Assert.assertNotNull(pythonPath);
 		Assert.assertEquals(pythonPath.getName(), "xxx.py");
@@ -84,13 +84,13 @@ public class PythonDriverTest {
 
 	@Test
 	public void testParseOptions() {
-		String[] args = {"python", "xxx.py", "pyFiles", "a.py,b.py,c.py", "--input", "in.txt"};
+		String[] args = {"py", "xxx.py", "pyfs", "a.py,b.py,c.py", "--input", "in.txt"};
 		Map<String, List<String>> parsedArgs = PythonDriver.parseOptions(args);
-		List<String> pythonMainFile = parsedArgs.get("python");
+		List<String> pythonMainFile = parsedArgs.get("py");
 		Assert.assertNotNull(pythonMainFile);
 		Assert.assertEquals(1, pythonMainFile.size());
 		Assert.assertEquals(pythonMainFile.get(0), args[1]);
-		List<String> pyFilesList = parsedArgs.get("pyFiles");
+		List<String> pyFilesList = parsedArgs.get("pyfs");
 		Assert.assertEquals(3, pyFilesList.size());
 		String[] pyFiles = args[3].split(",");
 		for (int i = 0; i < pyFiles.length; i++) {

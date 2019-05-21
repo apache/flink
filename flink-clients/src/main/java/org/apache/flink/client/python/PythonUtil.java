@@ -28,7 +28,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,19 +41,15 @@ import java.util.UUID;
 /**
  * The util class help to prepare Python env and run the python process.
  */
-public class PythonUtil {
+public final class PythonUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonUtil.class);
 
 	private static final String FLINK_OPT_DIR = System.getenv("FLINK_OPT_DIR");
 
 	private static final String FLINK_OPT_DIR_PYTHON = FLINK_OPT_DIR + File.separator + "python";
 
-	private static final String PYFLINK_LIB_ZIP_FILENAME = "pyflink.zip";
-
-	private static final String PYFLINK_PY4J_FILENAME = "py4j-0.10.8.1-src.zip";
-
 	/**
-	 * Wrap Python exec environment.
+	 * Wraps Python exec environment.
 	 */
 	public static class PythonEnvironment {
 		public String workingDirectory;
@@ -86,7 +86,7 @@ public class PythonUtil {
 
 
 	/**
-	 * Prepare PythonEnvironment to start python process.
+	 * Prepares PythonEnvironment to start python process.
 	 *
 	 * @param filePathMap map file name to its file path.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
@@ -116,13 +116,13 @@ public class PythonUtil {
 		pythonPathEnv.append(env.workingDirectory);
 
 		// 2. create symbolLink in the working directory for the pyflink dependency libs.
-		final String[] libs = {PYFLINK_PY4J_FILENAME, PYFLINK_LIB_ZIP_FILENAME};
-		for (String lib : libs) {
-			String libFilePath = FLINK_OPT_DIR_PYTHON + File.separator + lib;
-			String symbolicLinkFilePath = env.workingDirectory + File.separator + lib;
-			createSymbolicLinkForPyflinkLib(libFilePath, symbolicLinkFilePath);
+		List<java.nio.file.Path> pythonLibs = getLibFiles(FLINK_OPT_DIR_PYTHON);
+		for (java.nio.file.Path libPath : pythonLibs) {
+			java.nio.file.Path symbolicLinkFilePath = FileSystems.getDefault().getPath(env.workingDirectory,
+				libPath.getFileName().toString());
+			createSymbolicLinkForPyflinkLib(libPath, symbolicLinkFilePath);
 			pythonPathEnv.append(File.pathSeparator);
-			pythonPathEnv.append(symbolicLinkFilePath);
+			pythonPathEnv.append(symbolicLinkFilePath.toString());
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.
@@ -144,18 +144,47 @@ public class PythonUtil {
 	}
 
 	/**
+	 * Gets pyflink dependent libs in specified directory.
+	 *
+	 * @param libDir The lib directory
+	 */
+	public static List<java.nio.file.Path> getLibFiles(String libDir) {
+		final List<java.nio.file.Path> libFiles = new ArrayList<>();
+		SimpleFileVisitor<java.nio.file.Path> finder = new SimpleFileVisitor<java.nio.file.Path>() {
+			@Override
+			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+				// exclude .txt file
+				if (!file.toString().endsWith(".txt")) {
+					libFiles.add(file);
+				}
+				return FileVisitResult.CONTINUE;
+			}
+		};
+		try {
+			Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
+		} catch (IOException e) {
+			LOG.error("Gets pyflink dependent libs failed.", e);
+		}
+		return libFiles;
+	}
+
+	/**
 	 * Creates symbolLink in working directory for pyflink lib.
 	 *
-	 * @param libFilePath          the pyflink lib file path.
-	 * @param symbolicLinkFilePath the symbolic to pyflink lib.
+	 * @param libPath          the pyflink lib file path.
+	 * @param symbolicLinkPath the symbolic link to pyflink lib.
 	 */
-	public static void createSymbolicLinkForPyflinkLib(String libFilePath, String symbolicLinkFilePath) {
-		java.nio.file.Path libPath = FileSystems.getDefault().getPath(libFilePath);
-		java.nio.file.Path symbolicLinkPath = FileSystems.getDefault().getPath(symbolicLinkFilePath);
+	public static void createSymbolicLinkForPyflinkLib(java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath) {
 		try {
 			Files.createSymbolicLink(symbolicLinkPath, libPath);
 		} catch (IOException e) {
 			LOG.error("Create symbol link for pyflink lib failed.", e);
+			LOG.info("Try to copy pyflink lib to working directory");
+			try {
+				Files.copy(libPath, symbolicLinkPath);
+			} catch (IOException ex) {
+				LOG.error("Copy pylink lib to working directory failed", ex);
+			}
 		}
 	}
 

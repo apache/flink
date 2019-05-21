@@ -47,22 +47,16 @@ available.
 {:toc}
 
 ## Examples
+### Job Submission Examples
+-----------------------------
+
+These examples about how to submit a job in CLI.
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 -   Run example program with no arguments:
 
         ./bin/flink run ./examples/batch/WordCount.jar
-        
--   Run python program with no arguments:
-
-        ./bin/flink run -py WordCount.py
-        
--   Run python program with pyFiles:
-     
-        ./bin/flink run -py WordCount.py -pyfs file:///user.txt,hdfs:///$namenode_address/jieba-0.39.zip;
-        
--   Run python program with pyFiles and pyModule:
-             
-        ./bin/flink run -pym examples.wordcount -pyfs file:///examples.zip;
 
 -   Run example program with arguments for input and result files:
 
@@ -99,6 +93,53 @@ available.
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/batch/WordCount.jar \
                                --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+-   Run Python Table program:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   Run Python Table program with pyFiles:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar> \
+                                -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
+
+-   Run Python Table program with pyFiles and pyModule:
+
+        ./bin/flink run -pym batch.word_count.py -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
+
+-   Run Python Table program with parallelism 16:
+
+        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   Run Python Table program with flink log output disabled:
+
+        ./bin/flink run -q -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   Run Python Table program in detached mode:
+
+        ./bin/flink run -d examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   Run Python Table program on a specific JobManager:
+
+        ./bin/flink run -m myJMHost:8081 \
+                               -py examples/python/table/batch/word_count.py \
+                               -j <path/to/flink-table.jar>
+
+-   Run Python Table program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+
+        ./bin/flink run -m yarn-cluster -yn 2 \
+                               -py examples/python/table/batch/word_count.py \
+                               -j <path/to/flink-table.jar>
+</div>
+
+### Job Management Examples
+-----------------------------
+
+These examples about how to manage a job in CLI.
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
@@ -271,8 +312,8 @@ Action "run" compiles and runs a program.
                                           specify multiple files. The standard 
                                           python resource file suffixes such as 
                                           .py/.egg/.zip are all supported.
-                                          (eg:--pyFiles file:///tmp/myproject.zip
-                                          ,hdfs:///$namenode_address/jieba-0.39.zip)
+                                          (eg:--pyFiles file:///tmp/myresource.zip
+                                          ,hdfs:///$namenode_address/myresource2.zip)
      -pym,--pyModule <python-module>      Python module with the program entry 
                                           point. This option must be used in 
                                           conjunction with ` --pyFiles`.                                                                                                                

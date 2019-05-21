@@ -65,7 +65,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	private final SavepointRestoreSettings savepointSettings;
 
-	// Store whether the job is a Python job.
+	/**
+	 * Flag indicating whether the job is a Python job.
+	 */
 	private final boolean isPython;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
@@ -75,45 +77,51 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			line.getOptionValues(ARGS_OPTION.getOpt()) :
 			line.getArgs();
 
-		isPython = line.hasOption(PY_OPTION.getLongOpt()) | line.hasOption(PYMODULE_OPTION.getLongOpt());
+		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt());
 		// If specified the option -py(--python)
-		if (line.hasOption(PY_OPTION.getLongOpt())) {
+		if (line.hasOption(PY_OPTION.getOpt())) {
 			// Cannot use option -py and -pym simultaneously.
-			if (line.hasOption(PYMODULE_OPTION.getLongOpt())) {
-				throw new CliArgsException("You can't use option -py and -pym simultaneously.");
+			if (line.hasOption(PYMODULE_OPTION.getOpt())) {
+				throw new CliArgsException("Cannot use option -py and -pym simultaneously.");
 			}
-			// The args format is : python ${python.py} [optional]pyFiles [optional]${py-files} [optional]other args.
-			// e.g. python wordcount.py
-			// e.g. python wordcount.py pyFiles file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt
+			// The cli cmd args which will be transferred to PythonDriver will be transformed as follows:
+			// CLI cmd : -py ${python.py} pyfs [optional] ${py-files} [optional] ${other args}.
+			// PythonDriver args: py ${python.py} [optional] pyfs [optional] ${py-files} [optional] ${other args}.
+			// -------------------------------transformed-------------------------------------------------------
+			// e.g. -py wordcount.py(CLI cmd) -----------> py wordcount.py(PythonDriver args)
+			// e.g. -py wordcount.py -pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(CLI cmd)
+			// 	-----> py wordcount.py pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(PythonDriver args)
 			String[] newArgs;
 			int argIndex;
-			if (line.hasOption(PYFILES_OPTION.getLongOpt())) {
+			if (line.hasOption(PYFILES_OPTION.getOpt())) {
 				newArgs = new String[args.length + 4];
-				newArgs[2] = PYFILES_OPTION.getLongOpt();
+				newArgs[2] = PYFILES_OPTION.getOpt();
 				newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
 				argIndex = 4;
 			} else {
 				newArgs = new String[args.length + 2];
 				argIndex = 2;
 			}
-			newArgs[0] = PY_OPTION.getLongOpt();
+			newArgs[0] = PY_OPTION.getOpt();
 			newArgs[1] = line.getOptionValue(PY_OPTION.getOpt());
 			System.arraycopy(args, 0, newArgs, argIndex, args.length);
 			args = newArgs;
 		}
 
 		// If specified the option -pym(--pyModule)
-		if (line.hasOption(PYMODULE_OPTION.getLongOpt())) {
+		if (line.hasOption(PYMODULE_OPTION.getOpt())) {
 			// If you specify the option -pym, you should specify the option --pyFiles simultaneously.
-			if (!line.hasOption(PYFILES_OPTION.getLongOpt())) {
+			if (!line.hasOption(PYFILES_OPTION.getOpt())) {
 				throw new CliArgsException("-pym must be used in conjunction with `--pyFiles`");
 			}
-			// The args format is pyModule ${py-module} pyFiles ${py-files} [optional]other args.
-			// e.g. pyModule aaa.fun AAA.py, BBB.py
+			// The cli cmd args which will be transferred to PythonDriver will be transformed as follows:
+			// CLI cmd : -pym ${py-module} -pyfs ${py-files} [optional] ${other args}.
+			// PythonDriver args: pym ${py-module} pyfs ${py-files} [optional] ${other args}.
+			// e.g. -pym AAA.fun -pyfs AAA.zip(CLI cmd) ----> pym AAA.fun -pyfs AAA.zip(PythonDriver args)
 			String[] newArgs = new String[args.length + 4];
-			newArgs[0] = PYMODULE_OPTION.getLongOpt();
+			newArgs[0] = PYMODULE_OPTION.getOpt();
 			newArgs[1] = line.getOptionValue(PYMODULE_OPTION.getOpt());
-			newArgs[2] = PYFILES_OPTION.getLongOpt();
+			newArgs[2] = PYFILES_OPTION.getOpt();
 			newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
 			System.arraycopy(args, 0, newArgs, 4, args.length);
 			args = newArgs;
@@ -206,18 +214,10 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		return savepointSettings;
 	}
 
-	// Whether the job is a Java job.
-	public boolean isJava() {
-		return jarFilePath != null;
-	}
-
-	// Whether the job is a Python job.
+	/**
+	 * Indicates whether the job is a Python job.
+	 */
 	public boolean isPython() {
 		return isPython;
-	}
-
-	// Whether the job can be distinguished.i.e. it is a Python or Java job.
-	boolean isDistinguishedJob() {
-		return isJava() || isPython();
 	}
 }
