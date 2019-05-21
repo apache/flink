@@ -107,7 +107,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
-      term("window", "TumblingGroupWindow('w, 'proctime, 2.rows)"),
+      term("window", "TumblingGroupWindow('w, 'proctime, 2)"),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -201,7 +201,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "int", "string", "proctime")
       ),
       term("groupBy", "string"),
-      term("window", "SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)"),
+      term("window", "SlidingGroupWindow('w, 'proctime, 2, 1)"),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -364,7 +364,7 @@ class GroupWindowTest extends TableTestBase {
         streamTableNode(0),
         term("select", "int", "proctime")
       ),
-      term("window", "TumblingGroupWindow('w, 'proctime, 2.rows)"),
+      term("window", "TumblingGroupWindow('w, 'proctime, 2)"),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -461,7 +461,7 @@ class GroupWindowTest extends TableTestBase {
         streamTableNode(0),
         term("select", "int", "proctime")
       ),
-      term("window", "SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)"),
+      term("window", "SlidingGroupWindow('w, 'proctime, 2, 1)"),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -595,7 +595,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           streamTableNode(0),
           term("groupBy", "string, int2, int3"),
-          term("window", "SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)"),
+          term("window", "SlidingGroupWindow('w, 'proctime, 2, 1)"),
           term(
             "select",
             "string",
