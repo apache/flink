@@ -59,8 +59,6 @@ function _set_conf_ssl_helper {
     openssl pkcs12 -passin pass:${password} -in "${ssl_dir}/node.keystore" -out "${ssl_dir}/node.pem" -nodes
 
     # adapt config
-    # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
-    # external communication channels)
     set_config_key security.ssl.${type}.enabled true
     set_config_key security.ssl.${type}.keystore ${ssl_dir}/node.keystore
     set_config_key security.ssl.${type}.keystore-password ${password}
