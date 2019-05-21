@@ -41,6 +41,7 @@ import java.sql.SQLException;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
+	static final int DEFAULT_TIME_INTERVAL = 5000;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -50,6 +51,8 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private String dbURL;
 	private String query;
 	private int batchInterval = DEFAULT_BATCH_INTERVAL;
+	private int timeInterval = DEFAULT_BATCH_INTERVAL;
+	private long lastInsertTime = -1;
 
 	private Connection dbConn;
 	private PreparedStatement upload;
@@ -77,6 +80,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		try {
 			establishConnection();
 			upload = dbConn.prepareStatement(query);
+			lastInsertTime = System.currentTimeMillis();
 		} catch (SQLException sqe) {
 			throw new IllegalArgumentException("open() failed.", sqe);
 		} catch (ClassNotFoundException cnfe) {
@@ -214,7 +218,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			throw new RuntimeException("Preparation of JDBC statement failed.", e);
 		}
 
-		if (batchCount >= batchInterval) {
+		if (batchCount >= batchInterval || (System.currentTimeMillis() - lastInsertTime >= timeInterval)) {
 			// execute batch
 			flush();
 		}
@@ -304,6 +308,11 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		public JDBCOutputFormatBuilder setBatchInterval(int batchInterval) {
 			format.batchInterval = batchInterval;
+			return this;
+		}
+
+		public JDBCOutputFormatBuilder setTimeInterval(int timeInterval) {
+			format.timeInterval = timeInterval;
 			return this;
 		}
 
