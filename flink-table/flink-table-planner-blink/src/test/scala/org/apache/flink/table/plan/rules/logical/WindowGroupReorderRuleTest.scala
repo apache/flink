@@ -18,17 +18,9 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.calcite.CalciteConfig
-import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.plan.optimize.program._
-import org.apache.flink.table.plan.rules.FlinkBatchRuleSets
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.util.TableTestBase
 
-import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules._
-import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**

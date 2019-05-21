@@ -26,7 +26,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 
 /**
-  * There maybe exists a subTree like localHashAggregate -> globalHashAggregate which the middle
+  * There maybe exist a subTree like localHashAggregate -> globalHashAggregate which the middle
   * shuffle is removed. The rule could remove redundant localHashAggregate node.
   */
 class RemoveRedundantLocalHashAggRule extends RelOptRule(

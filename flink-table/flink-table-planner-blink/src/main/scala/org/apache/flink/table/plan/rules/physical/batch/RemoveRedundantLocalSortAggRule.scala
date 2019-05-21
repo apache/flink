@@ -26,7 +26,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 
 /**
-  * There maybe exists a subTree like localSortAggregate -> globalSortAggregate, or
+  * There maybe exist a subTree like localSortAggregate -> globalSortAggregate, or
   * localSortAggregate -> sort -> globalSortAggregate which the middle shuffle is removed.
   * The rule could remove redundant localSortAggregate node.
   */

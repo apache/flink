@@ -32,7 +32,7 @@ import java.util.Comparator
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that makes the window groups which have the same shuffle keys and order keys
+  * Planner rule that makes the over window groups which have the same shuffle keys and order keys
   * together.
   */
 class WindowGroupReorderRule extends RelOptRule(
