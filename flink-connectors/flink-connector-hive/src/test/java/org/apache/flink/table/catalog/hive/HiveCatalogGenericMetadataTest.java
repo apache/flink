@@ -23,19 +23,24 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.AbstractCatalogFunction;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Optional;
 
 /**
  * Test for HiveCatalog on generic metadata.
@@ -89,6 +94,23 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 
 		checkEquals(table, (CatalogTable) catalog.getTable(path1));
 	}
+
+	// ------ functions ------
+
+	@Test
+	public void testAlterFunction_differentTypedFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createFunction(path1, createFunction(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage(
+			"Function types don't match. " +
+				"Existing function is 'org.apache.flink.table.catalog.GenericCatalogFunction' and " +
+				"new function is 'org.apache.flink.table.catalog.hive.GenericHiveMetastoreCatalogTest$TestFunction'.");
+		catalog.alterFunction(path1, new TestFunction(), false);
+	}
+
+	// ------ test utils ------
 
 	@Override
 	public CatalogDatabase createDb() {
@@ -168,5 +190,39 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 			createAnotherTableSchema(),
 			new HashMap<>(),
 			"This is another view");
+	}
+
+	@Override
+	protected CatalogFunction createFunction() {
+		return new GenericCatalogFunction(MyScalarFunction.class.getName());
+	}
+
+	@Override
+	protected CatalogFunction createAnotherFunction() {
+		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
+	}
+
+	/**
+	 * Test function used to assert on function of different class.
+	 */
+	private static class TestFunction extends AbstractCatalogFunction {
+		public TestFunction() {
+			super("test", new HashMap<>());
+		}
+
+		@Override
+		public CatalogFunction copy() {
+			return null;
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
+		}
 	}
 }
