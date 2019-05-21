@@ -21,7 +21,9 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.join.HashJoinType
@@ -125,6 +127,35 @@ class BatchExecHashJoin(
     } else {
       1
     }
+  }
+
+  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+    if (!isBroadcast) {
+      pushDownTraitsIntoNonBroadcastHashJoin(requiredTraitSet)
+    } else {
+      pushDownTraitsIntoBroadcastJoin(requiredTraitSet, leftIsBuild)
+    }
+  }
+
+  private def pushDownTraitsIntoNonBroadcastHashJoin(requiredTraitSet: RelTraitSet): RelNode = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val (canPushDown, leftDistribution, rightDistribution) =
+      pushDownHashDistributionIntoNonBroadcastJoin(requiredDistribution)
+    if (!canPushDown) {
+      return null
+    }
+
+    val toRestrictHashDistributionByKeys = (distribution: FlinkRelDistribution) =>
+      getCluster.getPlanner
+        .emptyTraitSet
+        .replace(FlinkConventions.BATCH_PHYSICAL)
+        .replace(distribution)
+    val leftRequiredTrait = toRestrictHashDistributionByKeys(leftDistribution)
+    val rightRequiredTrait = toRestrictHashDistributionByKeys(rightDistribution)
+    val newLeft = RelOptRule.convert(getLeft, leftRequiredTrait)
+    val newRight = RelOptRule.convert(getRight, rightRequiredTrait)
+    // Can not push down collation into HashJoin.
+    copy(getTraitSet.replace(requiredDistribution), Seq(newLeft, newRight))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

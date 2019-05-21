@@ -21,9 +21,11 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{StreamTransformation, UnionTransformation}
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.RelDistribution.Type.{ANY, BROADCAST_DISTRIBUTED, HASH_DISTRIBUTED, RANDOM_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, SINGLETON}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.{RelNode, RelWriter}
@@ -56,6 +58,31 @@ class BatchExecUnion(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("union", getRowType.getFieldNames.mkString(", "))
+  }
+
+  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+    // union will destroy collation trait. So does not push down collation requirement.
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val pushDownDistribution = requiredDistribution.getType match {
+      case RANDOM_DISTRIBUTED | ROUND_ROBIN_DISTRIBUTED | BROADCAST_DISTRIBUTED =>
+        requiredDistribution
+      // apply strict hash distribution of each child to avoid inconsistent of shuffle of each child
+      case HASH_DISTRIBUTED => FlinkRelDistribution.hash(requiredDistribution.getKeys)
+      // range distribution cannot push down because partition's [lower, upper]  of each union child
+      // may be different
+      case RANGE_DISTRIBUTED => null
+      // Singleton cannot push down. Singleton exchange limit the parallelism of later RelNode to 1.
+      // Push down Singleton into input of union will destroy the limitation.
+      case SINGLETON => null
+      // there is no need to push down Any distribution
+      case ANY => null
+    }
+    if (pushDownDistribution == null) {
+      null
+    } else {
+      val relNodes = getInputs.map(RelOptRule.convert(_, pushDownDistribution))
+      copy(getTraitSet.replace(pushDownDistribution), relNodes)
+    }
   }
 
   //~ ExecNode methods -----------------------------------------------------------

@@ -192,7 +192,8 @@ object FlinkBatchRuleSets {
   val WINDOW_RULES: RuleSet = RuleSets.ofList(
     // slices a project into sections which contain window agg functions and sections which do not.
     ProjectToWindowRule.PROJECT,
-    // TODO add ExchangeWindowGroupRule
+    //adjust the sequence of window's groups.
+    WindowGroupReorderRule.INSTANCE,
     // Transform window to LogicalWindowAggregate
     WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
     WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE
@@ -311,28 +312,44 @@ object FlinkBatchRuleSets {
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     FlinkExpandConversionRule.BATCH_INSTANCE,
+    // source
     BatchExecBoundedStreamScanRule.INSTANCE,
     BatchExecScanTableSourceRule.INSTANCE,
     BatchExecIntermediateTableScanRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
+    // calc
     BatchExecCalcRule.INSTANCE,
+    // union
     BatchExecUnionRule.INSTANCE,
+    // sort
     BatchExecSortRule.INSTANCE,
     BatchExecLimitRule.INSTANCE,
     BatchExecSortLimitRule.INSTANCE,
+    // rank
     BatchExecRankRule.INSTANCE,
+    RemoveRedundantLocalRankRule.INSTANCE,
+    // expand
     BatchExecExpandRule.INSTANCE,
+    // group agg
     BatchExecHashAggRule.INSTANCE,
     BatchExecSortAggRule.INSTANCE,
+    RemoveRedundantLocalSortAggRule.WITHOUT_SORT,
+    RemoveRedundantLocalSortAggRule.WITH_SORT,
+    RemoveRedundantLocalHashAggRule.INSTANCE,
+    // over agg
+    BatchExecOverAggregateRule.INSTANCE,
+    // window agg
+    BatchExecWindowAggregateRule.INSTANCE,
+    // join
     BatchExecHashJoinRule.INSTANCE,
     BatchExecSortMergeJoinRule.INSTANCE,
     BatchExecNestedLoopJoinRule.INSTANCE,
     BatchExecSingleRowJoinRule.INSTANCE,
-    BatchExecCorrelateRule.INSTANCE,
-    BatchExecOverAggregateRule.INSTANCE,
-    BatchExecWindowAggregateRule.INSTANCE,
     BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     BatchExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    // correlate
+    BatchExecCorrelateRule.INSTANCE,
+    // sink
     BatchExecSinkRule.INSTANCE
   )
 }

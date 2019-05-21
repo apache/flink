@@ -19,18 +19,23 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.{ImmutableIntList, Util}
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for (global) hash-based aggregate operator.
@@ -92,6 +97,46 @@ class BatchExecHashAggregate(
         aggCallToAggFunction,
         isMerge,
         isGlobal = true))
+  }
+
+  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val pushDownDistribution = requiredDistribution.getType match {
+      case SINGLETON => if (grouping.length == 0) requiredDistribution else null
+      case HASH_DISTRIBUTED =>
+        val shuffleKeys = requiredDistribution.getKeys
+        val groupKeysList = ImmutableIntList.of(grouping.indices.toArray: _*)
+        if (requiredDistribution.requireStrict) {
+          if (shuffleKeys == groupKeysList) {
+            FlinkRelDistribution.hash(grouping, requireStrict = true)
+          } else {
+            null
+          }
+        } else if (Util.startsWith(shuffleKeys, groupKeysList)) {
+          // If required distribution is not strict, Hash[a] can satisfy Hash[a, b].
+          // If partitionKeys satisfies shuffleKeys (the shuffle between this node and
+          // its output is not necessary), just push down partitionKeys into input.
+          FlinkRelDistribution.hash(grouping, requireStrict = false)
+        } else {
+          val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+          if (tableConfig.getConf.getBoolean(
+            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED) &&
+            groupKeysList.containsAll(shuffleKeys)) {
+            // If partialKey is enabled, push down partialKey requirement into input.
+            FlinkRelDistribution.hash(
+              shuffleKeys.map(k => grouping(k)).toArray, requireStrict = false)
+          } else {
+            null
+          }
+        }
+      case _ => null
+    }
+    if (pushDownDistribution == null) {
+      return null
+    }
+    val newInput = RelOptRule.convert(getInput, pushDownDistribution)
+    val newProvidedTraitSet = getTraitSet.replace(requiredDistribution)
+    copy(newProvidedTraitSet, Seq(newInput))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

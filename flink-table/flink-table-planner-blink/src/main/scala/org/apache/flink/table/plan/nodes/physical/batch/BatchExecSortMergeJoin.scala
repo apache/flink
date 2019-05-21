@@ -26,16 +26,17 @@ import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil, SortUtil}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.join.{FlinkJoinType, SortMergeJoinOperator}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
 import java.util
@@ -140,6 +141,55 @@ class BatchExecSortMergeJoin(
     }
     val rowCount = mq.getRowCount(this)
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
+  }
+
+  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val (canDistributionPushDown, leftDistribution, rightDistribution) =
+      pushDownHashDistributionIntoNonBroadcastJoin(requiredDistribution)
+    if (!canDistributionPushDown) {
+      return null
+    }
+
+    val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    val requiredFieldCollations = requiredCollation.getFieldCollations
+    val shuffleKeysSize = leftDistribution.getKeys.size
+
+    val newLeft = RelOptRule.convert(getLeft, leftDistribution)
+    val newRight = RelOptRule.convert(getRight, rightDistribution)
+
+    // SortMergeJoin can provide collation trait, check whether provided collation can satisfy
+    // required collations
+    val canCollationPushDown = if (requiredCollation.getFieldCollations.isEmpty) {
+      false
+    } else if (requiredFieldCollations.size > shuffleKeysSize) {
+      // Sort by [a, b] can satisfy [a], but cannot satisfy [a, b, c]
+      false
+    } else {
+      val leftKeys = leftDistribution.getKeys
+      val leftFieldCnt = getLeft.getRowType.getFieldCount
+      val rightKeys = rightDistribution.getKeys.map(_ + leftFieldCnt)
+      requiredFieldCollations.zipWithIndex.forall { case (fc, index) =>
+        val cfi = fc.getFieldIndex
+        if (cfi < leftFieldCnt && joinType != JoinRelType.RIGHT) {
+          val fieldCollationOnLeftSortKey = FlinkRelOptUtil.ofRelFieldCollation(leftKeys.get(index))
+          fc == fieldCollationOnLeftSortKey
+        } else if (cfi >= leftFieldCnt &&
+          (joinType == JoinRelType.RIGHT ||
+            joinType == JoinRelType.INNER)) {
+          val fieldCollationOnRightSortKey =
+            FlinkRelOptUtil.ofRelFieldCollation(rightKeys.get(index))
+          fc == fieldCollationOnRightSortKey
+        } else {
+          false
+        }
+      }
+    }
+    var newProvidedTraitSet = getTraitSet.replace(requiredDistribution)
+    if (canCollationPushDown) {
+      newProvidedTraitSet = newProvidedTraitSet.replace(requiredCollation)
+    }
+    copy(newProvidedTraitSet, Seq(newLeft, newRight))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

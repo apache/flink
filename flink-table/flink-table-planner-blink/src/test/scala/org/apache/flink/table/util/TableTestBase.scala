@@ -53,6 +53,7 @@ import _root_.java.util.{Set => JSet}
 
 import _root_.scala.collection.JavaConversions._
 
+
 /**
   * Test base for testing Table API / SQL plans.
   */

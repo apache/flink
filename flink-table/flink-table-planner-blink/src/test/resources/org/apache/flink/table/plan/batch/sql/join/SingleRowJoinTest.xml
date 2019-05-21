@@ -187,36 +187,6 @@ Calc(select=[a2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleRowEquiJoin">
-    <Resource name="sql">
-      <![CDATA[SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 = cnt]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a1=[$0], a2=[$1])
-+- LogicalFilter(condition=[=(CAST($0):BIGINT, $2)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[A, source: [TestTableSource(a1, a2)]]])
-      +- LogicalAggregate(group=[{}], cnt=[COUNT($0)])
-         +- LogicalProject(a1=[$0])
-            +- LogicalTableScan(table=[[A, source: [TestTableSource(a1, a2)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a1, a2])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=(CAST(a1), cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- Exchange(distribution=[any], exchange_mode=[BATCH])
-   :  +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
-   +- Exchange(distribution=[broadcast])
-      +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
-         +- Exchange(distribution=[single])
-            +- LocalHashAggregate(select=[Partial_COUNT(a1) AS count$0])
-               +- Calc(select=[a1])
-                  +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSingleRowJoinWithComplexPredicate">
     <Resource name="sql">
       <![CDATA[
@@ -274,13 +244,12 @@ Calc(select=[a2, EXPR$1])
    :        +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- SortAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
-         +- Exchange(distribution=[single])
-            +- Calc(select=[*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0])
-               +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
-                  +- Exchange(distribution=[single])
-                     +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0])
-                        +- Calc(select=[a1])
-                           +- Reused(reference_id=[1])
+         +- Calc(select=[*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0])
+            +- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
+               +- Exchange(distribution=[single])
+                  +- LocalSortAggregate(select=[Partial_SUM(a1) AS sum$0])
+                     +- Calc(select=[a1])
+                        +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
