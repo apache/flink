@@ -404,6 +404,33 @@ under the License.
 									</excludes>
 								</filter>
 							</filters>
+							<relocations combine.children="override">
+								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
+								<relocation>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.org.apache.commons</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.jolbox</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.com.jolbox</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.thrift</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.org.apache.thrift</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.datanucleus</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.org.datanucleus</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.antlr</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.org.antlr</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
