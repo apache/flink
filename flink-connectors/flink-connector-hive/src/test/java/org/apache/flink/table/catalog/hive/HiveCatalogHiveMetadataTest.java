@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
@@ -47,6 +48,50 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	// =====================
 
 	public void testCreateTable_Streaming() throws Exception {
+	}
+
+	// ------ functions ------
+
+	public void testCreateFunction() throws Exception {
+	}
+
+	public void testCreateFunction_DatabaseNotExistException() throws Exception {
+	}
+
+	public void testCreateFunction_FunctionAlreadyExistException() throws Exception {
+	}
+
+	public void testCreateFunction_FunctionAlreadyExist_ignored() throws Exception {
+	}
+
+	public void testAlterFunction() throws Exception {
+	}
+
+	public void testAlterFunction_FunctionNotExistException() throws Exception {
+	}
+
+	public void testAlterFunction_FunctionNotExist_ignored() throws Exception {
+	}
+
+	public void testListFunctions() throws Exception {
+	}
+
+	public void testListFunctions_DatabaseNotExistException() throws Exception{
+	}
+
+	public void testGetFunction_FunctionNotExistException() throws Exception {
+	}
+
+	public void testGetFunction_FunctionNotExistException_NoDb() throws Exception {
+	}
+
+	public void testDropFunction() throws Exception {
+	}
+
+	public void testDropFunction_FunctionNotExistException() throws Exception {
+	}
+
+	public void testDropFunction_FunctionNotExist_ignored() throws Exception {
 	}
 
 	// ------ utils ------
@@ -130,6 +175,16 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 			createAnotherTableSchema(),
 			new HashMap<>(),
 			"This is another hive view");
+	}
+
+	@Override
+	protected CatalogFunction createFunction() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	protected CatalogFunction createAnotherFunction() {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

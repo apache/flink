@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -59,9 +60,12 @@ import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.FunctionType;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -90,6 +94,11 @@ public class HiveCatalog implements Catalog {
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	private static final String FLINK_PROPERTY_PREFIX = "flink.";
 	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY;
+
+	// Prefix used to distinguish Flink functions from Hive functions.
+	// It's appended to Flink function's class name
+	// because Hive's Function object doesn't have properties or other place to store the flag for Flink functions.
+	private static final String FLINK_FUNCTION_PREFIX = "flink:";
 
 	protected final String catalogName;
 	protected final HiveConf hiveConf;
@@ -652,20 +661,157 @@ public class HiveCatalog implements Catalog {
 	@Override
 	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
 			throws FunctionAlreadyExistException, DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(functionPath, "functionPath cannot be null");
+		checkNotNull(function, "function cannot be null");
+
+		Function hiveFunction;
+		if (function instanceof GenericCatalogFunction) {
+			hiveFunction = instantiateHiveFunction(functionPath, (GenericCatalogFunction) function);
+		} else {
+			throw new CatalogException(
+				String.format("Unsupported catalog function type %s", function.getClass().getName()));
+		}
+
+		try {
+			client.createFunction(hiveFunction);
+		} catch (NoSuchObjectException e) {
+			throw new DatabaseNotExistException(catalogName, functionPath.getDatabaseName(), e);
+		} catch (AlreadyExistsException e) {
+			if (!ignoreIfExists) {
+				throw new FunctionAlreadyExistException(catalogName, functionPath, e);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to create function %s", functionPath.getFullName()), e);
+		}
 	}
 
 	@Override
 	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
 			throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(functionPath, "functionPath cannot be null");
+		checkNotNull(newFunction, "newFunction cannot be null");
+
+		try {
+			CatalogFunction existingFunction = getFunction(functionPath);
+
+			if (existingFunction.getClass() != newFunction.getClass()) {
+				throw new CatalogException(
+					String.format("Function types don't match. Existing function is '%s' and new function is '%s'.",
+						existingFunction.getClass().getName(), newFunction.getClass().getName()));
+			}
+
+			Function hiveFunction;
+			if (existingFunction instanceof GenericCatalogFunction && newFunction instanceof GenericCatalogFunction) {
+					hiveFunction = instantiateHiveFunction(functionPath, (GenericCatalogFunction) newFunction);
+			} else {
+				throw new CatalogException(
+					String.format("Unsupported catalog function type %s", newFunction.getClass().getName()));
+			}
+
+			client.alterFunction(
+				functionPath.getDatabaseName(),
+				functionPath.getObjectName(),
+				hiveFunction);
+		} catch (FunctionNotExistException e) {
+			if (!ignoreIfNotExists) {
+				throw e;
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to alter function %s", functionPath.getFullName()), e);
+		}
 	}
 
 	@Override
 	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
 			throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		checkNotNull(functionPath, "functionPath cannot be null");
+
+		try {
+			client.dropFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
+		} catch (NoSuchObjectException e) {
+			if (!ignoreIfNotExists) {
+				throw new FunctionNotExistException(catalogName, functionPath, e);
+			}
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to drop function %s", functionPath.getFullName()), e);
+		}
 	}
+
+	@Override
+	public List<String> listFunctions(String databaseName) throws DatabaseNotExistException, CatalogException {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+
+		// client.getFunctions() returns empty list when the database doesn't exist
+		// thus we need to explicitly check whether the database exists or not
+		if (!databaseExists(databaseName)) {
+			throw new DatabaseNotExistException(catalogName, databaseName);
+		}
+
+		try {
+			return client.getFunctions(databaseName, null);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to list functions in database %s", databaseName), e);
+		}
+	}
+
+	@Override
+	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
+		checkNotNull(functionPath, "functionPath cannot be null or empty");
+
+		try {
+			Function function = client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
+
+			if (function.getClassName().startsWith(FLINK_FUNCTION_PREFIX)) {
+				// TODO: extract more properties from Hive function and add to CatalogFunction's properties
+
+				Map<String, String> properties = new HashMap<>();
+				properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
+
+				return new GenericCatalogFunction(
+					function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()), properties);
+			} else {
+				throw new CatalogException("Hive function is not supported yet");
+			}
+		} catch (NoSuchObjectException e) {
+			throw new FunctionNotExistException(catalogName, functionPath, e);
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to get function %s", functionPath.getFullName()), e);
+		}
+	}
+
+	@Override
+	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
+		checkNotNull(functionPath, "functionPath cannot be null or empty");
+
+		try {
+			return client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName()) != null;
+		} catch (NoSuchObjectException e) {
+			return false;
+		} catch (TException e) {
+			throw new CatalogException(
+				String.format("Failed to check whether function %s exists or not", functionPath.getFullName()), e);
+		}
+	}
+
+	private static Function instantiateHiveFunction(ObjectPath functionPath, GenericCatalogFunction function) {
+		return new Function(
+			functionPath.getObjectName(),
+			functionPath.getDatabaseName(),
+			FLINK_FUNCTION_PREFIX + function.getClassName(),
+			null,			// Owner name
+			PrincipalType.GROUP,	// Temporarily set to GROUP type because it's required by Hive. May change later
+			(int) (System.currentTimeMillis() / 1000),
+			FunctionType.JAVA,		// FunctionType only has JAVA now
+			new ArrayList<>()		// Resource URIs
+		);
+	}
+
+	// ------ stats ------
 
 	@Override
 	public void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
@@ -685,21 +831,6 @@ public class HiveCatalog implements Catalog {
 	@Override
 	public void alterPartitionColumnStatistics(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws PartitionNotExistException, CatalogException {
 
-	}
-
-	@Override
-	public List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

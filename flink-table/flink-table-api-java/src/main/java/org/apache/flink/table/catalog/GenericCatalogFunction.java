@@ -27,6 +27,10 @@ import java.util.Optional;
  */
 public class GenericCatalogFunction extends AbstractCatalogFunction {
 
+	public GenericCatalogFunction(String className) {
+		this(className, new HashMap<>());
+	}
+
 	public GenericCatalogFunction(String className, Map<String, String> properties) {
 		super(className, properties);
 		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
