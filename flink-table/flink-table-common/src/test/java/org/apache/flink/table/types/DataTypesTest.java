@@ -144,14 +144,26 @@ public class DataTypesTest {
 
 				{TIME(3), new TimeType(3), java.time.LocalTime.class},
 
+				{TIME(), new TimeType(0), java.time.LocalTime.class},
+
 				{TIMESTAMP(3), new TimestampType(3), java.time.LocalDateTime.class},
+
+				{TIMESTAMP(), new TimestampType(6), java.time.LocalDateTime.class},
 
 				{TIMESTAMP_WITH_TIME_ZONE(3),
 					new ZonedTimestampType(3),
 					java.time.OffsetDateTime.class},
 
+				{TIMESTAMP_WITH_TIME_ZONE(),
+					new ZonedTimestampType(6),
+					java.time.OffsetDateTime.class},
+
 				{TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
 					new LocalZonedTimestampType(3),
+					java.time.Instant.class},
+
+				{TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
+					new LocalZonedTimestampType(6),
 					java.time.Instant.class},
 
 				{INTERVAL(MINUTE(), SECOND(3)),
