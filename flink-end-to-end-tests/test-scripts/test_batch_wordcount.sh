@@ -34,6 +34,10 @@ case $INPUT_TYPE in
         s3_setup presto
         INPUT_LOCATION="${S3_TEST_DATA_WORDS_URI}"
     ;;
+    (dummy-fs)
+        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        INPUT_LOCATION="dummy://localhost/words"
+    ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"
         exit 1

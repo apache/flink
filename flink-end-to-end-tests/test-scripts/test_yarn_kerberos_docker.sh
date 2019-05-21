@@ -34,6 +34,25 @@ echo "End-to-end directory $END_TO_END_DIR"
 docker --version
 docker-compose --version
 
+# Configure Flink dir before making tarball.
+INPUT_TYPE=${1:-default-input}
+EXPECTED_RESULT_LOG_CONTAINS=()
+case $INPUT_TYPE in
+    (default-input)
+        INPUT_ARGS=""
+        EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
+    ;;
+    (dummy-fs)
+        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        INPUT_ARGS="--input dummy://localhost/words"
+        EXPECTED_RESULT_LOG_CONTAINS=("my,1" "dear,2" "world,2")
+    ;;
+    (*)
+        echo "Unknown input type $INPUT_TYPE"
+        exit 1
+    ;;
+esac
+
 # make sure we stop our cluster at the end
 function cluster_shutdown {
   # don't call ourselves again for another signal interruption
@@ -135,7 +154,7 @@ start_time=$(date +%s)
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
 if docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 \
-   -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH";
+   -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
 then
     docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
     docker exec -it master bash -c "hdfs dfs -ls $OUTPUT_PATH"
@@ -148,7 +167,6 @@ else
     exit 1
 fi
 
-EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
 for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
     if [[ ! "$OUTPUT" =~ $expected_result ]]; then
         echo "Output does not contain '$expected_result' as required"
