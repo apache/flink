@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.Arrays;
@@ -124,10 +123,10 @@ public final class ApiExpressionUtils {
 
 	public static Expression toRowInterval(Expression e) {
 		final Optional<Expression> intInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
-			.map((v) -> valueLiteral((long) v, RowIntervalTypeInfo.INTERVAL_ROWS));
+			.map((v) -> valueLiteral((long) v, BasicTypeInfo.LONG_TYPE_INFO));
 
 		final Optional<Expression> longInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
-			.map((v) -> valueLiteral(v, RowIntervalTypeInfo.INTERVAL_ROWS));
+			.map((v) -> valueLiteral(v, BasicTypeInfo.LONG_TYPE_INFO));
 
 		if (intInterval.isPresent()) {
 			return intInterval.get();

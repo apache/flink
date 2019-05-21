@@ -49,7 +49,6 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
-import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
@@ -69,7 +68,6 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGA
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
-import static org.apache.flink.table.typeutils.RowIntervalTypeInfo.INTERVAL_ROWS;
 import static org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS;
 
 /**
@@ -204,7 +202,7 @@ public class AggregateOperationFactory {
 	 *     <li>The alias is represented with an unresolved reference</li>
 	 *     <li>The time attribute is a single field reference of a {@link TimeIndicatorTypeInfo}(stream),
 	 *     {@link SqlTimeTypeInfo}(batch), or {@link BasicTypeInfo#LONG_TYPE_INFO}(batch) type</li>
-	 *     <li>The size & slide are value literals of either {@link RowIntervalTypeInfo#INTERVAL_ROWS},
+	 *     <li>The size & slide are value literals of either {@link BasicTypeInfo#LONG_TYPE_INFO},
 	 *     or {@link TimeIntervalTypeInfo} type</li>
 	 *     <li>The size & slide are of the same type</li>
 	 *     <li>The gap is a value literal of a {@link TimeIntervalTypeInfo} type</li>
@@ -292,7 +290,7 @@ public class AggregateOperationFactory {
 			"A tumble window expects a size value literal.");
 
 		TypeInformation<?> sizeType = windowSize.getType();
-		if (sizeType != INTERVAL_ROWS && sizeType != INTERVAL_MILLIS) {
+		if (sizeType != LONG_TYPE_INFO && sizeType != INTERVAL_MILLIS) {
 			throw new ValidationException(
 				"Tumbling window expects size literal of type Interval of Milliseconds or Interval of Rows.");
 		}
@@ -316,7 +314,7 @@ public class AggregateOperationFactory {
 
 		TypeInformation<?> windowSizeType = windowSize.getType();
 
-		if (windowSizeType != INTERVAL_ROWS && windowSizeType != INTERVAL_MILLIS) {
+		if (windowSizeType != LONG_TYPE_INFO && windowSizeType != INTERVAL_MILLIS) {
 			throw new ValidationException(
 				"A sliding window expects size literal of type Interval of Milliseconds or Interval of Rows.");
 		}
@@ -353,7 +351,7 @@ public class AggregateOperationFactory {
 	}
 
 	private void validateWindowIntervalType(FieldReferenceExpression timeField, TypeInformation<?> intervalType) {
-		if (isRowTimeIndicator(timeField) && intervalType == INTERVAL_ROWS) {
+		if (isRowTimeIndicator(timeField) && intervalType == LONG_TYPE_INFO) {
 			// unsupported row intervals on event-time
 			throw new ValidationException(
 				"Event-time grouping windows on row intervals in a stream environment " +
@@ -377,7 +375,7 @@ public class AggregateOperationFactory {
 		if (!windowProperties.isEmpty()) {
 			if (window.getType() == TUMBLE || window.getType() == SLIDE) {
 				TypeInformation<?> resultType = window.getSize().map(expressionBridge::bridge).get().resultType();
-				if (resultType == INTERVAL_ROWS) {
+				if (resultType == LONG_TYPE_INFO) {
 					throw new ValidationException(String.format("Window start and Window end cannot be selected " +
 						"for a row-count %s window.", window.getType().toString().toLowerCase()));
 				}

@@ -115,7 +115,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           term("select", "a", "b", "c", "e")
         ),
         term("groupBy", "c"),
-        term("window", "TumblingGroupWindow('w, 'e, 2.rows)"),
+        term("window", "TumblingGroupWindow('w, 'e, 2)"),
         term("select",  "c", "EmptyTableAggFunc(a, b) AS (f0, f1)")
       )
 
@@ -191,7 +191,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           term("select", "a", "b", "c", "e")
         ),
         term("groupBy", "c"),
-        term("window", "SlidingGroupWindow('w, 'e, 2.rows, 1.rows)"),
+        term("window", "SlidingGroupWindow('w, 'e, 2, 1)"),
         term("select",  "c", "EmptyTableAggFunc(a, b) AS (f0, f1)")
       )
 
@@ -285,7 +285,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           streamTableNode(0),
           term("select", "a", "b", "e")
         ),
-        term("window", "TumblingGroupWindow('w, 'e, 2.rows)"),
+        term("window", "TumblingGroupWindow('w, 'e, 2)"),
         term("select",  "EmptyTableAggFunc(a, b) AS (f0, f1)")
       )
 
@@ -355,7 +355,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           streamTableNode(0),
           term("select", "a", "b", "e")
         ),
-        term("window", "SlidingGroupWindow('w, 'e, 2.rows, 1.rows)"),
+        term("window", "SlidingGroupWindow('w, 'e, 2, 1)"),
         term("select",  "EmptyTableAggFunc(a, b) AS (f0, f1)")
       )
 

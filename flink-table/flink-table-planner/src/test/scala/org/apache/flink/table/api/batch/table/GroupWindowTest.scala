@@ -48,7 +48,7 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", "TumblingGroupWindow('w, 'long, 2.rows)"),
+      term("window", "TumblingGroupWindow('w, 'long, 2)"),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -140,7 +140,7 @@ class GroupWindowTest extends TableTestBase {
         batchTableNode(0),
         term("select", "long", "int")
       ),
-      term("window", "TumblingGroupWindow('w, 'long, 2.rows)"),
+      term("window", "TumblingGroupWindow('w, 'long, 2)"),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -230,7 +230,7 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", "SlidingGroupWindow('w, 'long, 2.rows, 1.rows)"),
+      term("window", "SlidingGroupWindow('w, 'long, 2, 1)"),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -301,7 +301,7 @@ class GroupWindowTest extends TableTestBase {
         batchTableNode(0),
         term("select", "long", "int")
       ),
-      term("window", "SlidingGroupWindow('w, 'long, 2.rows, 1.rows)"),
+      term("window", "SlidingGroupWindow('w, 'long, 2, 1)"),
       term("select", "COUNT(int) AS TMP_0")
     )
 
