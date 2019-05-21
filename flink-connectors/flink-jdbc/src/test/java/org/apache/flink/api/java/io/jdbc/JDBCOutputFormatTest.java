@@ -184,12 +184,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		) {
 			int recordCount = 0;
 			while (resultSet.next()) {
-				assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-				assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-				assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-				assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-				assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
-
+				assertTestData(recordCount, resultSet);
 				recordCount++;
 			}
 			assertEquals(TEST_DATA.length, recordCount);
@@ -197,12 +192,13 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
-	public void testFlush() throws SQLException, IOException {
+	public void testFlush() throws SQLException, IOException, InterruptedException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 			.setDrivername(DRIVER_CLASS)
 			.setDBUrl(DB_URL)
 			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_2))
 			.setBatchInterval(3)
+			.setTimeInterval(50)
 			.finish();
 		try (
 			Connection dbConn = DriverManager.getConnection(DB_URL);
@@ -219,18 +215,34 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 			try (ResultSet resultSet = statement.executeQuery()) {
 				int recordCount = 0;
 				while (resultSet.next()) {
-					assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-					assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-					assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-					assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-					assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+					assertTestData(recordCount, resultSet);
 					recordCount++;
 				}
 				assertEquals(3, recordCount);
 			}
+
+			jdbcOutputFormat.writeRecord(toRow(TEST_DATA[3]));
+			Thread.sleep(50);
+			jdbcOutputFormat.writeRecord(toRow(TEST_DATA[4]));
+			try (ResultSet resultSet = statement.executeQuery()) {
+				int recordCount = 0;
+				while (resultSet.next()) {
+					assertTestData(recordCount, resultSet);
+					recordCount++;
+				}
+				assertEquals(5, recordCount);
+			}
 		} finally {
 			jdbcOutputFormat.close();
 		}
+	}
+
+	private void assertTestData(int recordCount, ResultSet resultSet) throws SQLException {
+		assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+		assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+		assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+		assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+		assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
 	}
 
 	@After

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_BATCH_INTERVAL;
+import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_TIME_INTERVAL;
 
 /**
  * A builder to configure and build the JDBCAppendTableSink.
@@ -33,6 +34,7 @@ public class JDBCAppendTableSinkBuilder {
 	private String dbURL;
 	private String query;
 	private int batchSize = DEFAULT_BATCH_INTERVAL;
+	private int timeInterval = DEFAULT_TIME_INTERVAL;
 	private int[] parameterTypes;
 
 	/**
@@ -94,6 +96,15 @@ public class JDBCAppendTableSinkBuilder {
 	}
 
 	/**
+	 * Specify the interval of flush time.
+	 * @param timeInterval the interval of time(ms) to flush
+	 */
+	public JDBCAppendTableSinkBuilder setTimeInterval(int timeInterval) {
+		this.timeInterval = timeInterval;
+		return this;
+	}
+
+	/**
 	 * Specify the type of the rows that the sink will be accepting.
 	 * @param types the type of each field
 	 */
@@ -132,6 +143,7 @@ public class JDBCAppendTableSinkBuilder {
 			.setQuery(query)
 			.setDrivername(driverName)
 			.setBatchInterval(batchSize)
+			.setTimeInterval(timeInterval)
 			.setSqlTypes(parameterTypes)
 			.finish();
 
