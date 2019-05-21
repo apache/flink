@@ -28,7 +28,7 @@ import org.junit.Test
 import java.sql.Timestamp
 
 
-class OverWindowAggregateTest extends TableTestBase {
+class OverAggregateTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
