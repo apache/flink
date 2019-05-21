@@ -32,9 +32,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for HiveCatalog.
+ * Test for HiveCatalog on Hive metadata.
  */
-public class HiveCatalogTest extends CatalogTestBase {
+public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 
 	@BeforeClass
 	public static void init() throws IOException {

@@ -38,9 +38,9 @@ import java.io.IOException;
 import java.util.HashMap;
 
 /**
- * Test for GenericHiveMetastoreCatalog.
+ * Test for HiveCatalog on Flink generic metadata.
  */
-public class GenericHiveMetastoreCatalogTest extends CatalogTestBase {
+public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 
 	@BeforeClass
 	public static void init() throws IOException {
