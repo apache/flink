@@ -67,6 +67,9 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	public void testAlterFunction() throws Exception {
 	}
 
+	public void testAlterFunction_differentTypedFunction() throws Exception {
+	}
+
 	public void testAlterFunction_FunctionNotExistException() throws Exception {
 	}
 
