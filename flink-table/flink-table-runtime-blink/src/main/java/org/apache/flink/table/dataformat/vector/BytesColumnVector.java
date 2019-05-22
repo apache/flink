@@ -19,8 +19,8 @@
 package org.apache.flink.table.dataformat.vector;
 
 /**
- * Bytes column vector to get {@link Bytes}, it include origin data and offset and length. The data
- * in {@link Bytes} maybe reuse.
+ * Bytes column vector to get {@link Bytes}, it include original data and offset and length.
+ * The data in {@link Bytes} maybe reuse.
  */
 public interface BytesColumnVector extends ColumnVector {
 	Bytes getBytes(int i);
