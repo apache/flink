@@ -38,6 +38,7 @@ import java.util.Collections;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.notMatching;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -102,6 +103,10 @@ public class InfluxdbReporterTest extends TestLogger {
 			Counter counter = registerTestMetric(metricName, metricRegistry);
 			counter.inc(42);
 
+			// infinite value should not be sent to Influx after all (as influxDB doesn't support the data type)
+			final String gaugeName = "InfinityGaugelet";
+			new TaskManagerMetricGroup(metricRegistry, METRIC_HOSTNAME, METRIC_TM_ID).gauge("InfinityGaugelet", () -> Double.POSITIVE_INFINITY);
+
 			stubFor(post(urlPathEqualTo("/write"))
 				.willReturn(aResponse()
 					.withStatus(200)));
@@ -112,7 +117,8 @@ public class InfluxdbReporterTest extends TestLogger {
 			verify(postRequestedFor(urlPathEqualTo("/write"))
 				.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
 				.withHeader("Content-Type", containing("text/plain"))
-				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
+				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i"))
+				.withRequestBody(notMatching("^.*" + gaugeName + ".*$")));
 		} finally {
 			metricRegistry.shutdown().get();
 		}

@@ -27,12 +27,11 @@ import org.apache.flink.metrics.Meter;
 import org.influxdb.dto.Point;
 
 import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 
 class MetricMapper {
 
 	static Point map(MeasurementInfo info, Instant timestamp, Gauge<?> gauge) {
-		Point.Builder builder = builder(info, timestamp);
+		InfluxPointBuilder builder = new InfluxPointBuilder(info, timestamp);
 		Object value = gauge.getValue();
 		if (value instanceof Number) {
 			builder.addField("value", (Number) value);
@@ -43,14 +42,14 @@ class MetricMapper {
 	}
 
 	static Point map(MeasurementInfo info, Instant timestamp, Counter counter) {
-		return builder(info, timestamp)
+		return new InfluxPointBuilder(info, timestamp)
 			.addField("count", counter.getCount())
 			.build();
 	}
 
 	static Point map(MeasurementInfo info, Instant timestamp, Histogram histogram) {
 		HistogramStatistics statistics = histogram.getStatistics();
-		return builder(info, timestamp)
+		return new InfluxPointBuilder(info, timestamp)
 			.addField("count", statistics.size())
 			.addField("min", statistics.getMin())
 			.addField("max", statistics.getMax())
@@ -66,15 +65,9 @@ class MetricMapper {
 	}
 
 	static Point map(MeasurementInfo info, Instant timestamp, Meter meter) {
-		return builder(info, timestamp)
+		return new InfluxPointBuilder(info, timestamp)
 			.addField("count", meter.getCount())
 			.addField("rate", meter.getRate())
 			.build();
-	}
-
-	private static Point.Builder builder(MeasurementInfo info, Instant timestamp) {
-		return Point.measurement(info.getName())
-			.tag(info.getTags())
-			.time(timestamp.toEpochMilli(), TimeUnit.MILLISECONDS);
 	}
 }

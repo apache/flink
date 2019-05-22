@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.BatchPoints;
+import org.influxdb.dto.Point;
 
 import javax.annotation.Nullable;
 
@@ -105,19 +106,31 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		report.retentionPolicy("");
 		try {
 			for (Map.Entry<Gauge<?>, MeasurementInfo> entry : gauges.entrySet()) {
-				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
+				Point point = MetricMapper.map(entry.getValue(), timestamp, entry.getKey());
+				if (point != null) {
+					report.point(point);
+				}
 			}
 
 			for (Map.Entry<Counter, MeasurementInfo> entry : counters.entrySet()) {
-				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
+				Point point = MetricMapper.map(entry.getValue(), timestamp, entry.getKey());
+				if (point != null) {
+					report.point(point);
+				}
 			}
 
 			for (Map.Entry<Histogram, MeasurementInfo> entry : histograms.entrySet()) {
-				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
+				Point point = MetricMapper.map(entry.getValue(), timestamp, entry.getKey());
+				if (point != null) {
+					report.point(point);
+				}
 			}
 
 			for (Map.Entry<Meter, MeasurementInfo> entry : meters.entrySet()) {
-				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
+				Point point = MetricMapper.map(entry.getValue(), timestamp, entry.getKey());
+				if (point != null) {
+					report.point(point);
+				}
 			}
 		}
 		catch (ConcurrentModificationException | NoSuchElementException e) {
