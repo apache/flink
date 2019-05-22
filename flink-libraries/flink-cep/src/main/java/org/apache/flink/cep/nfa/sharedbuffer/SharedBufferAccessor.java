@@ -236,7 +236,6 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 	 */
 	public void releaseNode(final NodeId node) throws Exception {
 		// the stack used to detect all nodes that needs to be released.
-		// a node needs to be released, if it is not null and have reference count equal to 1.
 		Stack<NodeId> nodesToExamine = new Stack<>();
 		nodesToExamine.push(node);
 
@@ -248,20 +247,10 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 				break;
 			}
 
-			if (curBufferNode.getRefCounter() > 1) {
-				// in this case the release method will return false,
-				// so the node is not really released, and there no need to further examine
-				// downstream nodes.
-				boolean result = curBufferNode.release();
-				assert !result;
+			if (!curBufferNode.release()) {
 				sharedBuffer.upsertEntry(curNode, curBufferNode);
 			} else {
-				// in this case, the release method will return true
-				// so we need to release this node, and further examine downstream nodes.
-
 				// first release the current node
-				boolean result = curBufferNode.release();
-				assert  result;
 				sharedBuffer.removeEntry(curNode);
 				releaseEvent(curNode.getEventId());
 
