@@ -558,13 +558,8 @@ public class GenericInMemoryCatalog implements Catalog {
 	/**
 	 * Check if the given partitionSpec is full partition spec for the given table.
 	 */
-	private boolean isFullPartitionSpec(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) {
-		CatalogBaseTable baseTable;
-		try {
-			baseTable = getTable(tablePath);
-		} catch (TableNotExistException e) {
-			return false;
-		}
+	private boolean isFullPartitionSpec(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws TableNotExistException {
+		CatalogBaseTable baseTable = getTable(tablePath);
 
 		if (!(baseTable instanceof CatalogTable)) {
 			return false;
