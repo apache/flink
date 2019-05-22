@@ -20,9 +20,8 @@ package org.apache.flink.table.dataformat.vector.heap;
 
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.vector.AbstractColumnVector;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
 
@@ -87,7 +86,7 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		return dictionaryIds;
 	}
 
-	public static AbstractHeapVector[] allocateHeapVectors(InternalType[] fieldTypes, int maxRows) {
+	public static AbstractHeapVector[] allocateHeapVectors(LogicalType[] fieldTypes, int maxRows) {
 		AbstractHeapVector[] columns = new AbstractHeapVector[fieldTypes.length];
 		for (int i = 0; i < fieldTypes.length; i++) {
 			columns[i] = createHeapColumn(fieldTypes[i], maxRows);
@@ -95,36 +94,39 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 		return columns;
 	}
 
-	public static AbstractHeapVector createHeapColumn(InternalType fieldType, int maxRows) {
-		if (fieldType.equals(InternalTypes.BOOLEAN)) {
-			return new HeapBooleanVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.BYTE)) {
-			return new HeapByteVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.DOUBLE)) {
-			return new HeapDoubleVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.FLOAT)) {
-			return new HeapFloatVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.INT) || (fieldType instanceof DecimalType &&
-				Decimal.is32BitDecimal(((DecimalType) fieldType).precision()))) {
-			return new HeapIntVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.LONG) || (fieldType instanceof DecimalType &&
-				Decimal.is64BitDecimal(((DecimalType) fieldType).precision()))) {
-			return new HeapLongVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.SHORT)) {
-			return new HeapShortVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.STRING)) {
-			return new HeapBytesVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.BINARY) || (fieldType instanceof DecimalType &&
-				Decimal.isByteArrayDecimal(((DecimalType) fieldType).precision()))) {
-			return new HeapBytesVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.DATE)) {
-			return new HeapIntVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.TIME)) {
-			return new HeapIntVector(maxRows);
-		} else if (fieldType.equals(InternalTypes.TIMESTAMP)) {
-			return new HeapLongVector(maxRows);
-		} else {
-			throw new UnsupportedOperationException(fieldType  + " is not supported now.");
+	public static AbstractHeapVector createHeapColumn(LogicalType fieldType, int maxRows) {
+		switch (fieldType.getTypeRoot()) {
+			case BOOLEAN:
+				return new HeapBooleanVector(maxRows);
+			case TINYINT:
+				return new HeapByteVector(maxRows);
+			case DOUBLE:
+				return new HeapDoubleVector(maxRows);
+			case FLOAT:
+				return new HeapFloatVector(maxRows);
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+				return new HeapIntVector(maxRows);
+			case BIGINT:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return new HeapLongVector(maxRows);
+			case DECIMAL:
+				DecimalType decimalType = (DecimalType) fieldType;
+				if (Decimal.is32BitDecimal(decimalType.getPrecision())) {
+					return new HeapIntVector(maxRows);
+				} else if (Decimal.is64BitDecimal(decimalType.getPrecision())) {
+					return new HeapLongVector(maxRows);
+				} else {
+					return new HeapBytesVector(maxRows);
+				}
+			case SMALLINT:
+				return new HeapShortVector(maxRows);
+			case VARCHAR:
+			case VARBINARY:
+				return new HeapBytesVector(maxRows);
+			default:
+				throw new UnsupportedOperationException(fieldType  + " is not supported now.");
 		}
 	}
 }
