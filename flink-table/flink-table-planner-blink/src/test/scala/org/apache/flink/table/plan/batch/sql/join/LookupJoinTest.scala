@@ -23,8 +23,9 @@ import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.util.TableTestBase
+
 import org.junit.Assert.{assertTrue, fail}
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 class LookupJoinTest extends TableTestBase {
   private val testUtil = batchTestUtil()
@@ -120,6 +121,9 @@ class LookupJoinTest extends TableTestBase {
     val calciteConfig = CalciteConfig.createBuilder(testUtil.tableEnv.getConfig.getCalciteConfig)
       .replaceBatchProgram(programs).build()
     testUtil.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("VARCHAR(65536) and INTEGER does not have common type now")
 
     testUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN temporalTest "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
@@ -248,8 +252,7 @@ class LookupJoinTest extends TableTestBase {
   private def expectExceptionThrown(
     sql: String,
     keywords: String,
-    clazz: Class[_ <: Throwable] = classOf[ValidationException])
-  : Unit = {
+    clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
     try {
       testUtil.verifyExplain(sql)
       fail(s"Expected a $clazz, but no exception is thrown.")

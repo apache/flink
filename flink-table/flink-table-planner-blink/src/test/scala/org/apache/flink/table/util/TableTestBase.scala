@@ -26,13 +26,15 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.`type`.{InternalType, TypeConverters}
 import org.apache.flink.table.api._
-import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
+import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable}
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, CollectRowTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
@@ -46,6 +48,8 @@ import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
+
+import _root_.java.util.{Set => JSet}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -134,24 +138,22 @@ abstract class TableTestUtil(test: TableTestBase) {
   }
 
   /**
-    * Create a [[TestTableSource]] with the given schema,
+    * Create a [[TestTableSource]] with the given schema, table stats and unique keys,
     * and registers this TableSource under given name into the TableEnvironment's catalog.
     *
     * @param name table name
     * @param types field types
     * @param names field names
+    * @param tableStats table stats
+    * @param uniqueKeys unique keys
     * @return returns the registered [[Table]].
     */
   def addTableSource(
       name: String,
       types: Array[TypeInformation[_]],
-      names: Array[String]): Table = {
-    val tableEnv = getTableEnv
-    val schema = new TableSchema(names, types)
-    val tableSource = new TestTableSource(schema)
-    tableEnv.registerTableSource(name, tableSource)
-    tableEnv.scan(name)
-  }
+      names: Array[String],
+      tableStats: Option[TableStats] = None,
+      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table
 
   /**
     * Create a [[DataStream]] with the given schema,
@@ -472,6 +474,24 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
     tableEnv.scan(name)
   }
 
+  override def addTableSource(
+      name: String,
+      types: Array[TypeInformation[_]],
+      names: Array[String],
+      tableStats: Option[TableStats] = None,
+      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table = {
+    val tableEnv = getTableEnv
+    val schema = new TableSchema(names, types)
+    val tableSource = new TestTableSource(schema)
+    val statistic = FlinkStatistic.builder()
+      .tableStats(tableStats.orNull)
+      .uniqueKeys(uniqueKeys.orNull)
+      .build()
+    val table = new StreamTableSourceTable[BaseRow](tableSource, statistic)
+    tableEnv.registerTableInternal(name, table)
+    tableEnv.scan(name)
+  }
+
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
@@ -569,6 +589,24 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
       Seq(),
       typeInfo,
       fields.map(_.name).mkString(", "))
+    tableEnv.scan(name)
+  }
+
+  override def addTableSource(
+      name: String,
+      types: Array[TypeInformation[_]],
+      names: Array[String],
+      tableStats: Option[TableStats] = None,
+      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table = {
+    val tableEnv = getTableEnv
+    val schema = new TableSchema(names, types)
+    val tableSource = new TestTableSource(schema)
+    val statistic = FlinkStatistic.builder()
+      .tableStats(tableStats.orNull)
+      .uniqueKeys(uniqueKeys.orNull)
+      .build()
+    val table = new BatchTableSourceTable[BaseRow](tableSource, statistic)
+    tableEnv.registerTableInternal(name, table)
     tableEnv.scan(name)
   }
 

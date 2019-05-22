@@ -2067,13 +2067,14 @@ LogicalFilter(condition=[<($cor0.a, 10)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[LeftAntiJoin], where=[true], select=[a, b, c])
-:- Exchange(distribution=[single])
-:  +- Calc(select=[a, b, c], where=[<(a, 10)])
-:     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[single])
-   +- Calc(select=[])
-      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Calc(select=[a, b, c])
++- Join(joinType=[LeftAntiJoin], where=[$f3], select=[a, b, c, $f3])
+   :- Exchange(distribution=[single])
+   :  +- Calc(select=[a, b, c, <(a, 10) AS $f3])
+   :     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2380,13 +2381,14 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[LeftAntiJoin], where=[OR(=(a, d), IS NULL(a), IS NULL(d))], select=[a, b, c])
-:- Exchange(distribution=[single])
-:  +- Calc(select=[a, b, c], where=[>(b, 10)])
-:     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[single])
-   +- Calc(select=[d])
-      +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Calc(select=[a, b, c])
++- Join(joinType=[LeftAntiJoin], where=[AND(OR(=(a, d), IS NULL(a), IS NULL(d)), $f3)], select=[a, b, c, $f3])
+   :- Exchange(distribution=[single])
+   :  +- Calc(select=[a, b, c, >(b, 10) AS $f3])
+   :     +- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[d])
+         +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

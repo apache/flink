@@ -48,7 +48,7 @@ import static org.apache.calcite.plan.RelOptUtil.conjunctions;
  * This rules is copied from Calcite's {@link org.apache.calcite.rel.rules.FilterJoinRule}.
  * Modification:
  * - Use `FlinkRelOptUtil.classifyFilters` to support SEMI/ANTI join
- * - TODO Handles the ON condition of anti-join can not be pushed down
+ * - Handles the ON condition of anti-join can not be pushed down
  */
 
 /**
@@ -192,10 +192,13 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 			}
 		}
 
+		boolean isAntiJoin = joinType == JoinRelType.ANTI;
+
 		// Try to push down filters in ON clause. A ON clause filter can only be
 		// pushed down if it does not affect the non-matching set, i.e. it is
 		// not on the side which is preserved.
-		if (FlinkRelOptUtil.classifyFilters(
+		// A ON clause filter of anti-join can not be pushed down.
+		if (!isAntiJoin && FlinkRelOptUtil.classifyFilters(
 				join,
 				joinFilters,
 				joinType,

@@ -1794,13 +1794,15 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[semi])
-   :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject(EXPR$0=[$1], f=[$0])
-      +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
-         +- LogicalProject(f=[$2], e=[$1])
-            +- LogicalFilter(condition=[true])
-               +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalJoin(condition=[AND(=($3, $4), =($2, $5))], joinType=[semi])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], b0=[CAST($1):DOUBLE])
+      :  +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(EXPR$0=[$1], f=[$0])
+         +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
+            +- LogicalProject(f=[$2], e=[$1])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -1825,14 +1827,15 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(=($1, $3), >($2, $4))], joinType=[semi])
++- LogicalJoin(condition=[AND(=($1, $5), >($2, $4))], joinType=[semi])
    :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject(d=[$0], f=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalProject(d=[$1], f=[$0])
-            +- LogicalAggregate(group=[{0}], d=[MAX($1)])
-               +- LogicalProject(f=[$2], d=[$0])
-                  +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+   +- LogicalProject(d=[$0], f=[$1], d0=[CAST($0):BIGINT])
+      +- LogicalProject(d=[$0], f=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalProject(d=[$1], f=[$0])
+               +- LogicalAggregate(group=[{0}], d=[MAX($1)])
+                  +- LogicalProject(f=[$2], d=[$0])
+                     +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -2175,11 +2178,13 @@ LogicalProject(d=[$1])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(=($0, $2), =($2, $1))], joinType=[semi])
-   :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
-   +- LogicalProject(d=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[AND(=($2, $3), =($3, $1))], joinType=[semi])
+      :- LogicalProject(a=[$0], b=[$1], a0=[CAST($0):BIGINT])
+      :  +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(d=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -2204,14 +2209,15 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(c=[$2])
-+- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[semi])
++- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[semi])
    :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject(d=[$0], k=[$4])
-      +- LogicalJoin(condition=[=($1, $3)], joinType=[inner])
-         :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-         +- LogicalProject(j=[$1], k=[$2])
-            +- LogicalFilter(condition=[>($0, 10)])
-               +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+   +- LogicalProject(d=[$0], k=[$1], d0=[CAST($0):BIGINT])
+      +- LogicalProject(d=[$0], k=[$4])
+         +- LogicalJoin(condition=[=($1, $3)], joinType=[inner])
+            :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+            +- LogicalProject(j=[$1], k=[$2])
+               +- LogicalFilter(condition=[>($0, 10)])
+                  +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -2498,14 +2504,15 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(c=[$2])
-+- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[semi])
++- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[semi])
    :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject(d=[$0], k=[$4])
-      +- LogicalJoin(condition=[=($1, $3)], joinType=[right])
-         :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-         +- LogicalProject(j=[$1], k=[$2])
-            +- LogicalFilter(condition=[>($0, 10)])
-               +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+   +- LogicalProject(d=[$0], k=[$1], d0=[CAST($0):BIGINT])
+      +- LogicalProject(d=[$0], k=[$4])
+         +- LogicalJoin(condition=[=($1, $3)], joinType=[right])
+            :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+            +- LogicalProject(j=[$1], k=[$2])
+               +- LogicalFilter(condition=[>($0, 10)])
+                  +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -3503,27 +3510,29 @@ LogicalProject(d=[$0], e=[$1])
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(=($3, $5), =($4, $6))], joinType=[semi])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(AND(<>($3, 0), IS NOT NULL($6), IS NOT NULL($0)), 1, 2)], $f4=[CASE(AND(<>($7, 0), IS NOT NULL($10), IS NOT NULL($1)), 3, 4)])
-      :  +- LogicalJoin(condition=[=($1, $9)], joinType=[left])
-      :     :- LogicalJoin(condition=[true], joinType=[inner])
-      :     :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
-      :     :  :  :- LogicalJoin(condition=[true], joinType=[inner])
-      :     :  :  :  :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
-      :     :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
-      :     :  :  :     +- LogicalProject(i=[$0])
-      :     :  :  :        +- LogicalTableScan(table=[[t1, source: [TestTableSource(i)]]])
-      :     :  :  +- LogicalAggregate(group=[{0, 1}])
-      :     :  :     +- LogicalProject(i=[$0], i0=[true])
-      :     :  :        +- LogicalTableScan(table=[[t1, source: [TestTableSource(i)]]])
-      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
-      :     :     +- LogicalProject(j=[$0])
-      :     :        +- LogicalTableScan(table=[[t2, source: [TestTableSource(j)]]])
-      :     +- LogicalAggregate(group=[{0, 1}])
-      :        +- LogicalProject(j=[$0], i=[true])
-      :           +- LogicalTableScan(table=[[t2, source: [TestTableSource(j)]]])
-      +- LogicalProject(d=[$0], e=[$1])
-         +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[$4])
+      +- LogicalJoin(condition=[AND(=($3, $6), =($5, $7))], joinType=[semi])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[$4], $f40=[CAST($4):BIGINT NOT NULL])
+         :  +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(AND(<>($3, 0), IS NOT NULL($6), IS NOT NULL($0)), 1, 2)], $f4=[CASE(AND(<>($7, 0), IS NOT NULL($10), IS NOT NULL($1)), 3, 4)])
+         :     +- LogicalJoin(condition=[=($1, $9)], joinType=[left])
+         :        :- LogicalJoin(condition=[true], joinType=[inner])
+         :        :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+         :        :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+         :        :  :  :  :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
+         :        :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+         :        :  :  :     +- LogicalProject(i=[$0])
+         :        :  :  :        +- LogicalTableScan(table=[[t1, source: [TestTableSource(i)]]])
+         :        :  :  +- LogicalAggregate(group=[{0, 1}])
+         :        :  :     +- LogicalProject(i=[$0], i0=[true])
+         :        :  :        +- LogicalTableScan(table=[[t1, source: [TestTableSource(i)]]])
+         :        :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+         :        :     +- LogicalProject(j=[$0])
+         :        :        +- LogicalTableScan(table=[[t2, source: [TestTableSource(j)]]])
+         :        +- LogicalAggregate(group=[{0, 1}])
+         :           +- LogicalProject(j=[$0], i=[true])
+         :              +- LogicalTableScan(table=[[t2, source: [TestTableSource(j)]]])
+         +- LogicalProject(d=[$0], e=[$1])
+            +- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -3573,14 +3582,15 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(c=[$2])
-+- LogicalJoin(condition=[=($1, $3)], joinType=[semi])
++- LogicalJoin(condition=[=($1, $4)], joinType=[semi])
    :- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject(d=[$0])
-      +- LogicalJoin(condition=[=($1, $3)], joinType=[full])
-         :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-         +- LogicalProject(j=[$1])
-            +- LogicalFilter(condition=[>($0, 10)])
-               +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
+   +- LogicalProject(d=[$0], d0=[CAST($0):BIGINT])
+      +- LogicalProject(d=[$0])
+         +- LogicalJoin(condition=[=($1, $3)], joinType=[full])
+            :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
+            +- LogicalProject(j=[$1])
+               +- LogicalFilter(condition=[>($0, 10)])
+                  +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -3665,10 +3675,12 @@ LogicalProject(d=[$1])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
-   :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
-   +- LogicalProject(d=[$1])
-      +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($2, $3)], joinType=[semi])
+      :- LogicalProject(a=[$0], b=[$1], a0=[CAST($0):BIGINT])
+      :  +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(d=[$1])
+         +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -4385,14 +4397,15 @@ LogicalProject(e=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(=($1, $2), =($3, $1))], joinType=[semi])
++- LogicalJoin(condition=[AND(=($1, $4), =($3, $1))], joinType=[semi])
    :- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
    :  :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
    :  +- LogicalProject(c=[$0])
    :     +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
-   +- LogicalProject(e=[$0], f=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalTableScan(table=[[z, source: [TestTableSource(e, f)]]])
+   +- LogicalProject(e=[$0], f=[$1], e0=[CAST($0):BIGINT])
+      +- LogicalProject(e=[$0], f=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[z, source: [TestTableSource(e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -4480,13 +4493,14 @@ LogicalProject(e=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[=($1, $2)], joinType=[semi])
++- LogicalJoin(condition=[=($1, $3)], joinType=[semi])
    :- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
    :  :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b)]]])
    :  +- LogicalProject(c=[$0])
    :     +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
-   +- LogicalProject(e=[$0])
-      +- LogicalTableScan(table=[[z, source: [TestTableSource(e, f)]]])
+   +- LogicalProject(e=[$0], e0=[CAST($0):BIGINT])
+      +- LogicalProject(e=[$0])
+         +- LogicalTableScan(table=[[z, source: [TestTableSource(e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -4544,7 +4558,7 @@ LogicalProject(e=[$0])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalJoin(condition=[=($3, $4)], joinType=[semi])
+   +- LogicalJoin(condition=[=($3, $5)], joinType=[semi])
       :- LogicalProject(a=[$0], b=[$1], $f2=[$2], $f3=[*($1, 2)])
       :  +- LogicalJoin(condition=[=($2, $3)], joinType=[semi])
       :     :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
@@ -4552,9 +4566,10 @@ LogicalProject(a=[$0], b=[$1])
       :     +- LogicalProject(c=[$0])
       :        +- LogicalFilter(condition=[>($1, 10)])
       :           +- LogicalTableScan(table=[[y, source: [TestTableSource(c, d)]]])
-      +- LogicalProject(e=[$0])
-         +- LogicalFilter(condition=[<($1, 10)])
-            +- LogicalTableScan(table=[[z, source: [TestTableSource(e, f)]]])
+      +- LogicalProject(e=[$0], e0=[CAST($0):BIGINT])
+         +- LogicalProject(e=[$0])
+            +- LogicalFilter(condition=[<($1, 10)])
+               +- LogicalTableScan(table=[[z, source: [TestTableSource(e, f)]]])
 ]]>
     </Resource>
   </TestCase>

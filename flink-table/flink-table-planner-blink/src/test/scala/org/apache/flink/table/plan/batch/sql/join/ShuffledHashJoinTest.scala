@@ -32,13 +32,6 @@ class ShuffledHashJoinTest extends JoinTestBase {
   }
 
   @Test
-  override def testJoinNonMatchingKeyTypes(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Equality join predicate on incompatible types")
-    super.testJoinNonMatchingKeyTypes()
-  }
-
-  @Test
   override def testInnerJoinWithoutJoinPred(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
