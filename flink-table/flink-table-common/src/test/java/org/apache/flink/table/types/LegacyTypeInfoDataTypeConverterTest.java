@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -59,7 +61,10 @@ public class LegacyTypeInfoDataTypeConverterTest {
 
 				{
 					Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class),
-					DataTypes.ANY(Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class))
+					new AtomicDataType(
+						new LegacyTypeInformationType<>(
+							LogicalTypeRoot.ANY,
+							Types.GENERIC(LegacyTypeInfoDataTypeConverterTest.class)))
 				},
 
 				{
@@ -91,6 +96,20 @@ public class LegacyTypeInfoDataTypeConverterTest {
 						DataTypes.ARRAY(DataTypes.FLOAT().notNull().bridgedTo(float.class))
 							.bridgedTo(float[].class))
 						.bridgedTo(float[][].class)
+				},
+
+				{
+					BasicArrayTypeInfo.getInfoFor(String[].class),
+					new AtomicDataType(
+						new LegacyTypeInformationType<>(
+							LogicalTypeRoot.ARRAY,
+							Types.OBJECT_ARRAY(Types.STRING)))
+				},
+
+				{
+					ObjectArrayTypeInfo.getInfoFor(Types.STRING),
+					DataTypes.ARRAY(DataTypes.STRING())
+						.bridgedTo(String[].class)
 				},
 
 				{

@@ -51,6 +51,9 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+
 /**
  * Converter between {@link TypeInformation} and {@link DataType} that reflects the behavior before
  * Flink 1.9. The conversion is a 1:1 mapping that allows back-and-forth conversion.
@@ -70,6 +73,8 @@ import java.util.stream.Stream;
  * <p>Let POJOs, case classes, and tuples pass through the planner.
  *
  * <p>Inconsistent nullability. Most types are nullable even though type information does not support it.
+ *
+ * <p>Distinction between {@link BasicArrayTypeInfo} and {@link ObjectArrayTypeInfo}.
  */
 @Internal
 public final class LegacyTypeInfoDataTypeConverter {
@@ -146,9 +151,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 		}
 
 		else if (typeInfo instanceof BasicArrayTypeInfo) {
-			return convertToArrayType(
-				typeInfo.getTypeClass(),
-				((BasicArrayTypeInfo) typeInfo).getComponentInfo());
+			return createLegacyType(LogicalTypeRoot.ARRAY, typeInfo);
 		}
 
 		else if (typeInfo instanceof MultisetTypeInfo) {
@@ -163,7 +166,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return createLegacyType(LogicalTypeRoot.STRUCTURED_TYPE, typeInfo);
 		}
 
-		return DataTypes.ANY(typeInfo);
+		return createLegacyType(LogicalTypeRoot.ANY, typeInfo);
 	}
 
 	public static TypeInformation<?> toLegacyTypeInfo(DataType dataType) {
@@ -177,10 +180,15 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return foundTypeInfo;
 		}
 
-		if (canConvertToRowTypeInfo(dataType)) {
+		if (canConvertToLegacyTypeInfo(dataType)) {
+			return convertToLegacyTypeInfo(dataType);
+		}
+
+		else if (canConvertToRowTypeInfo(dataType)) {
 			return convertToRowTypeInfo((FieldsDataType) dataType);
 		}
 
+		// this could also match for basic array type info but this is covered by legacy type info
 		else if (canConvertToObjectArrayTypeInfo(dataType)) {
 			return convertToObjectArrayTypeInfo((CollectionDataType) dataType);
 		}
@@ -193,10 +201,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return convertToMapTypeInfo((KeyValueDataType) dataType);
 		}
 
-		else  if (canConvertToLegacyTypeInfo(dataType)) {
-			return convertToLegacyTypeInfo(dataType);
-		}
-
+		// makes the any type accessible in the legacy planner
 		else if (canConvertToAnyTypeInfo(dataType)) {
 			return convertToAnyTypeInfo(dataType);
 		}
@@ -225,13 +230,13 @@ public final class LegacyTypeInfoDataTypeConverter {
 	}
 
 	private static boolean canConvertToTimeAttributeTypeInfo(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE &&
+		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
 			dataTypeTypeInfoMap.containsKey(dataType) && // checks precision and conversion
 			((TimestampType) dataType.getLogicalType()).getKind() != TimestampKind.REGULAR;
 	}
 
 	private static TypeInformation<?> convertToTimeAttributeTypeInfo(TimestampType timestampType) {
-		if (timestampType.getKind() == TimestampKind.ROWTIME) {
+		if (isRowtimeAttribute(timestampType)) {
 			return TimeIndicatorTypeInfo.ROWTIME_INDICATOR;
 		} else {
 			return TimeIndicatorTypeInfo.PROCTIME_INDICATOR;
@@ -242,7 +247,6 @@ public final class LegacyTypeInfoDataTypeConverter {
 		final String[] fieldNames = rowTypeInfo.getFieldNames();
 		final DataTypes.Field[] fields = IntStream.range(0, rowTypeInfo.getArity())
 			.mapToObj(i -> {
-				final String fieldName = fieldNames[i];
 				DataType fieldType = toDataType(rowTypeInfo.getTypeAt(i));
 
 				return DataTypes.FIELD(
@@ -255,7 +259,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 	}
 
 	private static boolean canConvertToRowTypeInfo(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.ROW &&
+		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW) &&
 			dataType.getConversionClass().equals(Row.class) &&
 			((RowType) dataType.getLogicalType()).getFields().stream()
 				.noneMatch(f -> f.getDescription().isPresent());
@@ -282,12 +286,13 @@ public final class LegacyTypeInfoDataTypeConverter {
 	}
 
 	private static boolean canConvertToObjectArrayTypeInfo(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.ARRAY &&
+		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ARRAY) &&
 			dataType.getConversionClass().isArray();
 	}
 
 	private static TypeInformation<?> convertToObjectArrayTypeInfo(CollectionDataType collectionDataType) {
-		return Types.OBJECT_ARRAY(
+		// Types.OBJECT_ARRAY would return a basic type info for strings
+		return ObjectArrayTypeInfo.getInfoFor(
 			toLegacyTypeInfo(collectionDataType.getElementDataType()));
 	}
 
@@ -296,7 +301,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 	}
 
 	private static boolean canConvertToMultisetTypeInfo(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.MULTISET &&
+		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.MULTISET) &&
 			dataType.getConversionClass() == Map.class;
 	}
 
@@ -313,7 +318,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 	}
 
 	private static boolean canConvertToMapTypeInfo(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.MAP &&
+		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.MAP) &&
 			dataType.getConversionClass() == Map.class;
 	}
 
