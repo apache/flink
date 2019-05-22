@@ -51,7 +51,7 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 
 ## 外部资源
 
-- **Flink Forward**: 已举办的所有大会演讲均可在 [Flink Forward](http://flink-forward.org/) 官网以及 [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA)找到。[使用 Apache Flink 进行高可靠的流处理](http://2016.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) 可以作为你第一个学习的资源。
+- **Flink Forward**: 已举办的所有大会演讲均可在 [Flink Forward](https://flink-forward.org/) 官网以及 [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA)找到。[使用 Apache Flink 进行高可靠的流处理](https://2016.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) 可以作为你第一个学习的资源。
 
 - **培训**: [培训资料](https://training.ververica.com/) 包含讲义，练习以及示例程序。
 

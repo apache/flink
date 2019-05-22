@@ -50,7 +50,7 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 <div class="codetabs" markdown="1">
 
 <div data-lang="Download and Unpack" markdown="1">
-1. Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
+1. Download a binary from the [downloads page](https://flink.apache.org/downloads.html). You can pick
    any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
    version will work fine.
 2. Go to the download directory.
@@ -78,7 +78,7 @@ Version: 1.2.0, Commit ID: 1c659cf
 
 {% else %}
 ### Download and Compile
-Clone the source code from one of our [repositories](http://flink.apache.org/community.html#source-code), e.g.:
+Clone the source code from one of our [repositories](https://flink.apache.org/community.html#source-code), e.g.:
 
 {% highlight bash %}
 $ git clone https://github.com/apache/flink.git

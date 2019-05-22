@@ -54,7 +54,7 @@ Release notes cover important changes between Flink versions. Please carefully r
 
 ## External Resources
 
-- **Flink Forward**: Talks from past conferences are available at the [Flink Forward](http://flink-forward.org/) website and on [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA). [Robust Stream Processing with Apache Flink](http://2016.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) is a good place to start.
+- **Flink Forward**: Talks from past conferences are available at the [Flink Forward](https://flink-forward.org/) website and on [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA). [Robust Stream Processing with Apache Flink](https://2016.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) is a good place to start.
 
 - **Training**: The [training materials](https://training.ververica.com/) from data Artisans include slides, exercises, and sample solutions.
 

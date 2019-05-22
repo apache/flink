@@ -55,7 +55,7 @@ $ mvn archetype:generate \
 
 {% unless site.is_stable %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="https://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
 </p>
 {% endunless %}
 
@@ -317,7 +317,7 @@ you can check out our guides
 about [basic concepts]({{ site.baseurl }}/dev/api_concepts.html) and the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html). Stick
 around for the bonus exercise if you want to learn about setting up a Flink cluster on
-your own machine and writing results to [Kafka](http://kafka.apache.org).
+your own machine and writing results to [Kafka](https://kafka.apache.org).
 
 ## Bonus Exercise: Running on a Cluster and Writing to Kafka
 
@@ -425,6 +425,6 @@ and, for example, see the number of processed elements:
 
 <a href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-job.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-job.png" alt="Example Job View"/></a>
 
-This concludes our little tour of Flink. If you have any questions, please don't hesitate to ask on our [Mailing Lists](http://flink.apache.org/community.html#mailing-lists).
+This concludes our little tour of Flink. If you have any questions, please don't hesitate to ask on our [Mailing Lists](https://flink.apache.org/community.html#mailing-lists).
 
 {% top %}

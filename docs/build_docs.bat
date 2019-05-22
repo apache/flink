@@ -21,7 +21,7 @@
 call jekyll -version >nul 2>&1
 if "%errorlevel%"=="0" goto check_redcarpet
 echo ERROR: Could not find jekyll.
-echo Please install with 'gem install jekyll' (see http://jekyllrb.com).
+echo Please install with 'gem install jekyll' (see https://jekyllrb.com).
 exit /b 1
 
 :check_redcarpet
@@ -36,7 +36,7 @@ goto check_pygments
 call python -c "import pygments" >nul 2>&1
 if "%errorlevel%"=="0" goto execute
 echo WARN: Could not find pygments.
-echo Please install with 'sudo easy_install Pygments' (requires Python; see http://pygments.org). 
+echo Please install with 'sudo easy_install Pygments' (requires Python; see https://pygments.org).
 echo Pygments is needed for syntax highlighting of the code examples.
 goto execute
 

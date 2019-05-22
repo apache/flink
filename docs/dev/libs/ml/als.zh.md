@@ -41,7 +41,7 @@ $$\arg\min_{U,V} \sum_{\{i,j\mid r_{i,j} \not= 0\}} \left(r_{i,j} - u_{i}^Tv_{j}
 
 with $\lambda$ being the regularization factor, $$n_{u_i}$$ being the number of items the user $i$ has rated and $$n_{v_j}$$ being the number of times the item $j$ has been rated.
 This regularization scheme to avoid overfitting is called weighted-$\lambda$-regularization.
-Details can be found in the work of [Zhou et al.](http://dx.doi.org/10.1007/978-3-540-68880-8_32).
+Details can be found in the work of [Zhou et al.](https://dx.doi.org/10.1007/978-3-540-68880-8_32).
 
 By fixing one of the matrices $U$ or $V$, we obtain a quadratic form which can be solved directly.
 The solution of the modified problem is guaranteed to monotonically decrease the overall cost function.

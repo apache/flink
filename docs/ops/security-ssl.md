@@ -69,7 +69,7 @@ The REST endpoints can be configured to require SSL connections. The server will
 Simple mutual authentication may be enabled by configuration if authentication of connections to the REST endpoint is required, but we recommend to deploy a "side car proxy":
 Bind the REST endpoint to the loopback interface (or the pod-local interface in Kubernetes) and start a REST proxy that authenticates and forwards the requests to Flink.
 Examples for proxies that Flink users have deployed are [Envoy Proxy](https://www.envoyproxy.io/) or
-[NGINX with MOD_AUTH](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html).
+[NGINX with MOD_AUTH](https://nginx.org/en/docs/http/ngx_http_auth_request_module.html).
 
 The rationale behind delegating authentication to a proxy is that such proxies offer a wide variety of authentication options and thus better integration into existing infrastructures.
 

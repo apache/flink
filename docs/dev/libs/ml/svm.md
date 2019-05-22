@@ -55,7 +55,7 @@ The local SDCA iterations are embarrassingly parallel once the individual data p
 distributed across the cluster.
 
 The implementation of this algorithm is based on the work of
-[Jaggi et al.](http://arxiv.org/abs/1409.1458)
+[Jaggi et al.](https://arxiv.org/abs/1409.1458)
 
 ## Operations
 

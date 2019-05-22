@@ -108,7 +108,7 @@ With hyper-threading, each slot then takes 2 or more hardware thread contexts.
 ## State Backends
 
 The exact data structures in which the key/values indexes are stored depends on the chosen [state backend](../ops/state/state_backends.html). One state backend
-stores data in an in-memory hash map, another state backend uses [RocksDB](http://rocksdb.org) as the key/value store.
+stores data in an in-memory hash map, another state backend uses [RocksDB](https://rocksdb.org) as the key/value store.
 In addition to defining the data structure that holds the state, the state backends also implement the logic to
 take a point-in-time snapshot of the key/value state and store that snapshot as part of a checkpoint.
 

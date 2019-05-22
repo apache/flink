@@ -68,7 +68,7 @@ In order to control the logging level of `org.apache.flink.runtime.jobgraph.JobG
 <logger name="org.apache.flink.runtime.jobgraph.JobGraph" level="DEBUG"/>
 {% endhighlight %}
 
-For further information on configuring logback see [LOGback's manual](http://logback.qos.ch/manual/configuration.html).
+For further information on configuring logback see [LOGback's manual](https://logback.qos.ch/manual/configuration.html).
 
 ## Best practices for developers
 

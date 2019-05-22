@@ -74,7 +74,7 @@ Use one of the following commands to __create a project__:
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="https://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
     </p>
     {% endunless %}
 </div>
@@ -106,8 +106,8 @@ The _main_ method is the entry point of the program, both for in-IDE testing/exe
 
 We recommend you __import this project into your IDE__ to develop and
 test it. IntelliJ IDEA supports Maven projects out of the box.
-If you use Eclipse, the [m2e plugin](http://www.eclipse.org/m2e/)
-allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import).
+If you use Eclipse, the [m2e plugin](https://www.eclipse.org/m2e/)
+allows to [import Maven projects](https://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import).
 Some Eclipse bundles include that plugin by default, others require you
 to install it manually. 
 
@@ -348,7 +348,7 @@ For a complete overview over the APIs, have a look at the
 [Here]({{ site.baseurl }}/tutorials/local_setup.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
-[Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
+[Mailing List](https://mail-archives.apache.org/mod_mbox/flink-user/).
 We are happy to provide help.
 
 {% top %}

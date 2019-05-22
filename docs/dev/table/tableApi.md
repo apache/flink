@@ -69,7 +69,7 @@ result.print();
 
 The Scala Table API is enabled by importing `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._`.
 
-The following example shows how a Scala Table API program is constructed. Table attributes are referenced using [Scala Symbols](http://scala-lang.org/files/archive/spec/2.12/01-lexical-syntax.html#symbol-literals), which start with an apostrophe character (`'`).
+The following example shows how a Scala Table API program is constructed. Table attributes are referenced using [Scala Symbols](https://scala-lang.org/files/archive/spec/2.12/01-lexical-syntax.html#symbol-literals), which start with an apostrophe character (`'`).
 
 {% highlight scala %}
 import org.apache.flink.api.scala._

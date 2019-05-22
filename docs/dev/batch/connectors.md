@@ -45,9 +45,9 @@ interface. There are Hadoop `FileSystem` implementations for
 
 - [S3](https://aws.amazon.com/s3/) (tested)
 - [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
-- [Alluxio](http://alluxio.org/) (tested)
-- [XtreemFS](http://www.xtreemfs.org/) (tested)
-- FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
+- [Alluxio](https://alluxio.org/) (tested)
+- [XtreemFS](https://www.xtreemfs.org/) (tested)
+- FTP via [Hftp](https://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
 - and many more.
 
 In order to use a Hadoop file system with Flink, make sure that
@@ -86,7 +86,7 @@ This section shows some examples for connecting Flink to other systems.
 
 ## Avro support in Flink
 
-Flink has extensive built-in support for [Apache Avro](http://avro.apache.org/). This allows to easily read from Avro files with Flink.
+Flink has extensive built-in support for [Apache Avro](https://avro.apache.org/). This allows to easily read from Avro files with Flink.
 Also, the serialization framework of Flink is able to handle classes generated from Avro schemas. Be sure to include the Flink Avro dependency to the pom.xml of your project.
 
 {% highlight xml %}

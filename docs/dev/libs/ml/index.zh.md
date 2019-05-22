@@ -113,7 +113,7 @@ val predictions: DataSet[LabeledVector] = mlr.predict(testingData)
 
 ## Pipelines
 
-A key concept of FlinkML is its [scikit-learn](http://scikit-learn.org) inspired pipelining mechanism.
+A key concept of FlinkML is its [scikit-learn](https://scikit-learn.org) inspired pipelining mechanism.
 It allows you to quickly build complex data analysis pipelines how they appear in every data scientist's daily work.
 An in-depth description of FlinkML's pipelines and their internal workings can be found [here](pipelines.html).
 

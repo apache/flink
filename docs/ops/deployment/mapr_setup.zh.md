@@ -59,7 +59,7 @@ the `hadoop.version` and `zookeeper.version` properties.
 For different MapR versions, simply override these properties to appropriate
 values. The corresponding Hadoop / Zookeeper distributions for each MapR version
 can be found on MapR documentations such as
-[here](http://maprdocs.mapr.com/home/DevelopmentGuide/MavenArtifacts.html).
+[here](https://maprdocs.mapr.com/home/DevelopmentGuide/MavenArtifacts.html).
 
 ### Job Submission Client Setup
 
@@ -117,7 +117,7 @@ versions in order to use Flink with a secured MapR cluster. For more details,
 please see [FLINK-5949](https://issues.apache.org/jira/browse/FLINK-5949).*
 
 Flink's [Kerberos authentication]({{ site.baseurl }}/ops/security-kerberos.html) is independent of
-[MapR's Security authentication](http://maprdocs.mapr.com/home/SecurityGuide/Configuring-MapR-Security.html).
+[MapR's Security authentication](https://maprdocs.mapr.com/home/SecurityGuide/Configuring-MapR-Security.html).
 With the above build procedures and environment variable setups, Flink
 does not require any additional configuration to work with MapR Security.
 

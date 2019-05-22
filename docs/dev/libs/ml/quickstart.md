@@ -76,7 +76,7 @@ member which represents the label, which could be the class in a classification 
 variable for a regression problem.
 
 As an example, we can use Haberman's Survival Data Set , which you can
-[download from the UCI ML repository](http://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data).
+[download from the UCI ML repository](https://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data).
 This dataset *"contains cases from a study conducted on the survival of patients who had undergone
 surgery for breast cancer"*. The data comes in a comma-separated file, where the first 3 columns
 are the features and last column is the class, and the 4th column indicates whether the patient
@@ -119,13 +119,13 @@ building a learner; that will allow us to show how we can import other dataset f
 **LibSVM files**
 
 A common format for ML datasets is the LibSVM format and a number of datasets using that format can be
-found [in the LibSVM datasets website](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/). FlinkML provides utilities for loading
+found [in the LibSVM datasets website](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/). FlinkML provides utilities for loading
 datasets using the LibSVM format through the `readLibSVM` function available through the `MLUtils`
 object.
 You can also save datasets in the LibSVM format using the `writeLibSVM` function.
 Let's import the svmguide1 dataset. You can download the
-[training set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1)
-and the [test set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1.t).
+[training set here](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1)
+and the [test set here](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1.t).
 This is an astroparticle binary classification dataset, used by Hsu et al. [[3]](#hsu) in their
 practical Support Vector Machine (SVM) guide. It contains 4 numerical features, and the class label.
 
@@ -243,7 +243,7 @@ algorithms.
 A very good way to get started is to play around with interesting datasets from the UCI ML
 repository and the LibSVM datasets.
 Tackling an interesting problem from a website like [Kaggle](https://www.kaggle.com) or
-[DrivenData](http://www.drivendata.org/) is also a great way to learn by competing with other
+[DrivenData](https://www.drivendata.org/) is also a great way to learn by competing with other
 data scientists.
 If you would like to contribute some new algorithms take a look at our
 [contribution guide](contribution_guide.html).

@@ -141,6 +141,6 @@ knn.fit(trainingSet)
 val result = knn.predict(testingSet).collect()
 {% endhighlight %}
 
-For more details on the computing KNN with and without and quadtree, here is a presentation: [http://danielblazevski.github.io/](http://danielblazevski.github.io/)
+For more details on the computing KNN with and without and quadtree, here is a presentation: [https://danielblazevski.github.io/](https://danielblazevski.github.io/)
 
 {% top %}

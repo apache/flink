@@ -62,7 +62,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>FlinkKafkaConsumer09<br>
         FlinkKafkaProducer09</td>
         <td>0.9.x</td>
-        <td>Uses the new <a href="http://kafka.apache.org/documentation.html#newconsumerapi">Consumer API</a> Kafka.</td>
+        <td>Uses the new <a href="https://kafka.apache.org/documentation.html#newconsumerapi">Consumer API</a> Kafka.</td>
     </tr>
     <tr>
         <td>flink-connector-kafka-0.10{{ site.scala_version_suffix }}</td>
@@ -762,7 +762,7 @@ Flink's Kafka connectors provide some metrics through Flink's [metrics system]({
 the behavior of the connector.
 The producers export Kafka's internal metrics through Flink's metric system for all supported versions. The consumers export 
 all metrics starting from Kafka version 0.9. The Kafka documentation lists all exported metrics 
-in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
+in its [documentation](https://kafka.apache.org/documentation/#selector_monitoring).
 
 In addition to these metrics, all consumers expose the `current-offsets` and `committed-offsets` for each topic partition.
 The `current-offsets` refers to the current offset in the partition. This refers to the offset of the last element that

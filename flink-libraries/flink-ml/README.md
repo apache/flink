@@ -19,4 +19,4 @@ Therefore, Flink will support the Mahout DSL as a execution engine and provide t
 
 Flink-ML has just been recently started.
 As part of Apache Flink, it heavily relies on the active work and contributions of its community and others.
-Thus, if you want to add a new algorithm to the library, then find out [how to contribute]((http://flink.apache.org/how-to-contribute.html)) and open a pull request!
+Thus, if you want to add a new algorithm to the library, then find out [how to contribute]((https://flink.apache.org/how-to-contribute.html)) and open a pull request!

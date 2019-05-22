@@ -34,7 +34,7 @@ that serves the new web pages and additional background requests.
 
 ## Server Backend
 
-The server side of the dashboard is implemented using [Netty](http://netty.io) with
+The server side of the dashboard is implemented using [Netty](https://netty.io) with
 [Netty Router](https://github.com/sinetja/netty-router) for REST paths.
 The framework has very lightweight dependencies.
 
@@ -62,7 +62,7 @@ Verify that the installed version is at least *10.9.0*, via `npm -version`.
 
 #### MacOS
 
-First install *brew* by following [these instructions](http://brew.sh/).
+First install *brew* by following [these instructions](https://brew.sh/).
 
 Install *node.js* via:
 

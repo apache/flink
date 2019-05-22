@@ -74,8 +74,8 @@ val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDime
 
 ## Circulant Graph
 
-A [circulant graph](http://mathworld.wolfram.com/CirculantGraph.html) is an
-[oriented graph](http://mathworld.wolfram.com/OrientedGraph.html) configured
+A [circulant graph](httpx://mathworld.wolfram.com/CirculantGraph.html) is an
+[oriented graph](httpx://mathworld.wolfram.com/OrientedGraph.html) configured
 with one or more contiguous ranges of offsets. Edges connect integer vertex IDs
 whose difference equals a configured offset. The circulant graph with no offsets
 is the [empty graph](#empty-graph) and the graph with the maximum range is the
@@ -231,7 +231,7 @@ val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
 
 ## Echo Graph
 
-An [echo graph](http://mathworld.wolfram.com/EchoGraph.html) is a
+An [echo graph](https://mathworld.wolfram.com/EchoGraph.html) is a
 [circulant graph](#circulant-graph) with `n` vertices defined by the width of a
 single range of offsets centered at `n/2`. A vertex is connected to 'far'
 vertices, which connect to 'near' vertices, which connect to 'far' vertices, ....
@@ -518,7 +518,7 @@ val graph = new PathGraph(env.getJavaEnv, vertexCount).generate()
 ## RMat Graph
 
 A directed power-law multigraph generated using the
-[Recursive Matrix (R-Mat)](http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model.
+[Recursive Matrix (R-Mat)](https://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model.
 
 RMat is a stochastic generator configured with a source of randomness implementing the
 `RandomGenerableFactory` interface. Provided implementations are `JDKRandomGeneratorFactory`

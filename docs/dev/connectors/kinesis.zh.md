@@ -26,7 +26,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws.amazon.com/kinesis/streams/).
+The Kinesis connector provides access to [Amazon AWS Kinesis Streams](https://aws.amazon.com/kinesis/streams/).
 
 To use the connector, add the following Maven dependency to your project:
 
@@ -137,7 +137,7 @@ a custom implementation of `KinesisShardAssigner` can be set on the consumer.
 ### Configuring Starting Position
 
 The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
-one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
+one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
 
 - `LATEST`: read all shards of all streams starting from the latest record.
 - `TRIM_HORIZON`: read all shards of all streams starting from the earliest record possible (data may be trimmed by Kinesis depending on the retention settings).
@@ -237,13 +237,13 @@ one thread per open shard.
 
 ### Internally Used Kinesis APIs
 
-The Flink Kinesis Consumer uses the [AWS Java SDK](http://aws.amazon.com/sdk-for-java/) internally to call Kinesis APIs
-for shard discovery and data consumption. Due to Amazon's [service limits for Kinesis Streams](http://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html)
+The Flink Kinesis Consumer uses the [AWS Java SDK](https://aws.amazon.com/sdk-for-java/) internally to call Kinesis APIs
+for shard discovery and data consumption. Due to Amazon's [service limits for Kinesis Streams](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html)
 on the APIs, the consumer will be competing with other non-Flink consuming applications that the user may be running.
 Below is a list of APIs called by the consumer with description of how the consumer uses the API, as well as information
 on how to deal with any errors or warnings that the Flink Kinesis Consumer may have due to these service limits.
 
-- *[DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html)*: this is constantly called
+- *[DescribeStream](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html)*: this is constantly called
 by a single thread in each parallel consumer subtask to discover any new shards as a result of stream resharding. By default,
 the consumer performs the shard discovery at an interval of 10 seconds, and will retry indefinitely until it gets a result
 from Kinesis. If this interferes with other non-Flink consuming applications, users can slow down the consumer of
@@ -251,14 +251,14 @@ calling this API by setting a value for `ConsumerConfigConstants.SHARD_DISCOVERY
 configuration properties. This sets the discovery interval to a different value. Note that this setting directly impacts
 the maximum delay of discovering a new shard and starting to consume it, as shards will not be discovered during the interval.
 
-- *[GetShardIterator](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html)*: this is called
+- *[GetShardIterator](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html)*: this is called
 only once when per shard consuming threads are started, and will retry if Kinesis complains that the transaction limit for the
 API has exceeded, up to a default of 3 attempts. Note that since the rate limit for this API is per shard (not per stream),
 the consumer itself should not exceed the limit. Usually, if this happens, users can either try to slow down any other
 non-Flink consuming applications of calling this API, or modify the retry behaviour of this API call in the consumer by
 setting keys prefixed by `ConsumerConfigConstants.SHARD_GETITERATOR_*` in the supplied configuration properties.
 
-- *[GetRecords](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html)*: this is constantly called
+- *[GetRecords](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html)*: this is constantly called
 by per shard consuming threads to fetch records from Kinesis. When a shard has multiple concurrent consumers (when there
 are any other non-Flink consuming applications running), the per shard rate limit may be exceeded. By default, on each call
 of this API, the consumer will retry if Kinesis complains that the data size / transaction limit for the API has exceeded,
@@ -271,9 +271,9 @@ consumer when calling this API can also be modified by using the other keys pref
 
 ## Kinesis Producer
 
-The `FlinkKinesisProducer` uses [Kinesis Producer Library (KPL)](http://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-kpl.html) to put data from a Flink stream into a Kinesis stream.
+The `FlinkKinesisProducer` uses [Kinesis Producer Library (KPL)](https://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-kpl.html) to put data from a Flink stream into a Kinesis stream.
 
-Note that the producer is not participating in Flink's checkpointing and doesn't provide exactly-once processing guarantees. Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details).
+Note that the producer is not participating in Flink's checkpointing and doesn't provide exactly-once processing guarantees. Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details).
 
 In case of a failure or a resharding, data will be written again to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 

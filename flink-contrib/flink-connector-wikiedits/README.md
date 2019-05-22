@@ -10,7 +10,7 @@ The purpose of this source is to ease the setup of demos of the `DataStream`
 API with live data.
 
 The original idea is from the [Hello Samza](https://samza.apache.org/startup/hello-samza/latest/)
-project of [Apache Samza](http://samza.apache.org). The Samza code for this is located in the
+project of [Apache Samza](https://samza.apache.org). The Samza code for this is located in the
 [samza-hello-samza](https://github.com/apache/samza-hello-samza) repository.
 
 ## Example

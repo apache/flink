@@ -54,7 +54,7 @@ You can scaffold a new project via either of the following two methods:
     $ sbt new tillrohrmann/flink-project.g8
     {% endhighlight %}
     This will prompt you for a couple of parameters (project name, flink version...) and then create a Flink project from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
-    You need sbt >= 0.13.13 to execute this command. You can follow this <a href="http://www.scala-sbt.org/download.html">installation guide</a> to obtain it if necessary.
+    You need sbt >= 0.13.13 to execute this command. You can follow this <a href="https://www.scala-sbt.org/download.html">installation guide</a> to obtain it if necessary.
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
     {% highlight bash %}
@@ -148,7 +148,7 @@ Use one of the following commands to __create a project__:
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="https://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
     </p>
     {% endunless %}
 </div>
@@ -187,12 +187,12 @@ From our experience, IntelliJ provides the best experience for developing Flink 
 For Eclipse, you need the following plugins, which you can install from the provided Eclipse Update Sites:
 
 * _Eclipse 4.x_
-  * [Scala IDE](http://download.scala-ide.org/sdk/lithium/e44/scala211/stable/site)
-  * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
+  * [Scala IDE](https://download.scala-ide.org/sdk/lithium/e44/scala211/stable/site)
+  * [m2eclipse-scala](https://alchim31.free.fr/m2e-scala/update-site)
   * [Build Helper Maven Plugin](https://repo1.maven.org/maven2/.m2e/connectors/m2eclipse-buildhelper/0.15.0/N/0.15.0.201207090124/)
 * _Eclipse 3.8_
-  * [Scala IDE for Scala 2.11](http://download.scala-ide.org/sdk/helium/e38/scala211/stable/site) or [Scala IDE for Scala 2.10](http://download.scala-ide.org/sdk/helium/e38/scala210/stable/site)
-  * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
+  * [Scala IDE for Scala 2.11](https://download.scala-ide.org/sdk/helium/e38/scala211/stable/site) or [Scala IDE for Scala 2.10](https://download.scala-ide.org/sdk/helium/e38/scala210/stable/site)
+  * [m2eclipse-scala](https://alchim31.free.fr/m2e-scala/update-site)
   * [Build Helper Maven Plugin](https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.14.0/N/0.14.0.201109282148/)
 
 ### Build Project
@@ -224,7 +224,7 @@ For a complete overview over the APIa, have a look at the
 [Here]({{ site.baseurl }}/tutorials/local_setup.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
-[Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
+[Mailing List](https://mail-archives.apache.org/mod_mbox/flink-user/).
 We are happy to provide help.
 
 {% top %}

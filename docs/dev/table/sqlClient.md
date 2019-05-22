@@ -159,7 +159,7 @@ Mode "embedded" submits Flink jobs from the local machine.
 
 A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available table sources and sinks, external catalogs, user-defined functions, and other properties required for execution and deployment.
 
-Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
+Every environment file is a regular [YAML file](https://yaml.org/). An example of such a file is presented below.
 
 {% highlight yaml %}
 # Define tables here such as sources, sinks, views, or temporal tables.

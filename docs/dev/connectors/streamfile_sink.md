@@ -37,7 +37,7 @@ too big. This is also configurable but the default policy rolls files based on
 file size and a timeout, *i.e* if no new data was written to a part file. 
 
 The `StreamingFileSink` supports both row-wise encoding formats and
-bulk-encoding formats, such as [Apache Parquet](http://parquet.apache.org).
+bulk-encoding formats, such as [Apache Parquet](https://parquet.apache.org).
 
 #### Using Row-encoded Output Formats
 
@@ -102,7 +102,7 @@ interactions of bucket assigners and rolling policies.
 
 In the above example we used an `Encoder` that can encode or serialize each
 record individually. The streaming file sink also supports bulk-encoded output
-formats such as [Apache Parquet](http://parquet.apache.org). To use these,
+formats such as [Apache Parquet](https://parquet.apache.org). To use these,
 instead of `StreamingFileSink.forRowFormat()` you would use
 `StreamingFileSink.forBulkFormat()` and specify a `BulkWriter.Factory`.
 

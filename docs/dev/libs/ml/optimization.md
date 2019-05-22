@@ -80,7 +80,7 @@ The $L_1$ penalty can be used to drive a number of the solution coefficients to 
 producing sparse solutions.
 The regularization constant $\lambda$ in $\eqref{eq:objectiveFunc}$ determines the amount of regularization applied to the model,
 and is usually determined through model cross-validation.
-A good comparison of regularization types can be found in [this](http://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
+A good comparison of regularization types can be found in [this](https://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
 Which regularization type is supported depends on the actually used optimization algorithm.
 
 ## Stochastic Gradient Descent
@@ -99,7 +99,7 @@ the average of the gradients computed from each mini-batch.
 
 An important parameter is the learning rate $\eta$, or step size, which can be determined by one of five methods, listed below. The setting of the initial step size can significantly affect the performance of the
 algorithm. For some practical tips on tuning SGD see Leon Botou's
-"[Stochastic Gradient Descent Tricks](http://research.microsoft.com/pubs/192769/tricks-2012.pdf)".
+"[Stochastic Gradient Descent Tricks](https://research.microsoft.com/pubs/192769/tricks-2012.pdf)".
 
 The current implementation of SGD  uses the whole partition, making it
 effectively a batch gradient descent. Once a sampling operator has been introduced in Flink, true
@@ -377,7 +377,7 @@ Where:
         <td><strong>Wei Xu's Method</strong></td>
         <td>
           <p>
-            Method proposed by Wei Xu in <a href="http://arxiv.org/pdf/1107.2490.pdf">Towards Optimal One Pass Large Scale Learning with
+            Method proposed by Wei Xu in <a href="https://arxiv.org/pdf/1107.2490.pdf">Towards Optimal One Pass Large Scale Learning with
             Averaged Stochastic Gradient Descent</a>
           </p>
         </td>
