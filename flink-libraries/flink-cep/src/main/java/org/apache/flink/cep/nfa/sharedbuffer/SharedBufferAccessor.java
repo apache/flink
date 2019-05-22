@@ -235,31 +235,43 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void releaseNode(final NodeId node) throws Exception {
-		Lockable<SharedBufferNode> sharedBufferNode = sharedBuffer.getEntry(node);
-		if (sharedBufferNode != null) {
-			if (sharedBufferNode.release()) {
-				removeNode(node, sharedBufferNode.getElement());
-			} else {
-				sharedBuffer.upsertEntry(node, sharedBufferNode);
+		// the stack used to detect all nodes that needs to be released.
+		// a node needs to be released, if it is not null and have reference count equal to 1.
+		Stack<NodeId> nodesToExamine = new Stack<>();
+		nodesToExamine.push(node);
+
+		while (!nodesToExamine.isEmpty()) {
+			NodeId curNode = nodesToExamine.pop();
+			Lockable<SharedBufferNode> curBufferNode = sharedBuffer.getEntry(curNode);
+
+			if (curBufferNode == null) {
+				break;
 			}
-		}
-	}
 
-	/**
-	 * Removes the {@code SharedBufferNode}, when the ref is decreased to zero, and also
-	 * decrease the ref of the edge on this node.
-	 *
-	 * @param node id of the entry
-	 * @param sharedBufferNode the node body to be removed
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	private void removeNode(NodeId node, SharedBufferNode sharedBufferNode) throws Exception {
-		sharedBuffer.removeEntry(node);
-		EventId eventId = node.getEventId();
-		releaseEvent(eventId);
+			if (curBufferNode.getRefCounter() > 1) {
+				// in this case the release method will return false,
+				// so the node is not really released, and there no need to further examine
+				// downstream nodes.
+				boolean result = curBufferNode.release();
+				assert !result;
+				sharedBuffer.upsertEntry(curNode, curBufferNode);
+			} else {
+				// in this case, the release method will return true
+				// so we need to release this node, and further examine downstream nodes.
 
-		for (SharedBufferEdge sharedBufferEdge : sharedBufferNode.getEdges()) {
-			releaseNode(sharedBufferEdge.getTarget());
+				// first release the current node
+				boolean result = curBufferNode.release();
+				assert  result;
+				sharedBuffer.removeEntry(curNode);
+				releaseEvent(curNode.getEventId());
+
+				for (SharedBufferEdge sharedBufferEdge : curBufferNode.getElement().getEdges()) {
+					NodeId targetId = sharedBufferEdge.getTarget();
+					if (targetId != null) {
+						nodesToExamine.push(targetId);
+					}
+				}
+			}
 		}
 	}
 

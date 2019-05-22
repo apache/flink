@@ -68,6 +68,10 @@ public final class Lockable<T> {
 		return element;
 	}
 
+	public int getRefCounter() {
+		return refCounter;
+	}
+
 	@Override
 	public String toString() {
 		return "Lock{" +
