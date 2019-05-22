@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -64,22 +65,16 @@ public class HiveTypeUtil {
 			return serdeConstants.DOUBLE_TYPE_NAME;
 		} else if (type == BasicTypeInfo.STRING_TYPE_INFO) {
 			return serdeConstants.STRING_TYPE_NAME;
-		} else if (type == BasicTypeInfo.DATE_TYPE_INFO) {
+		} else if (type == SqlTimeTypeInfo.DATE) {
 			return serdeConstants.DATE_TYPE_NAME;
-		} else if (type == BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO) {
+		} else if (type == PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO) {
 			return serdeConstants.BINARY_TYPE_NAME;
-		} else if (type instanceof SqlTimeTypeInfo) {
+		} else if (type == SqlTimeTypeInfo.TIMESTAMP) {
 			return serdeConstants.TIMESTAMP_TYPE_NAME;
-		} else if (type instanceof BasicArrayTypeInfo) {
-			return toHiveArrayType((BasicArrayTypeInfo) type);
 		} else {
 			throw new UnsupportedOperationException(
 				String.format("Flink doesn't support converting type %s to Hive type yet.", type.toString()));
 		}
-	}
-
-	private static String toHiveArrayType(BasicArrayTypeInfo arrayTypeInfo) {
-		return String.format(HIVE_ARRAY_TYPE_NAME_FORMAT, toHiveType(arrayTypeInfo.getComponentInfo()));
 	}
 
 	/**
@@ -127,11 +122,11 @@ public class HiveTypeUtil {
 			case DOUBLE:
 				return BasicTypeInfo.DOUBLE_TYPE_INFO;
 			case DATE:
-				return BasicTypeInfo.DATE_TYPE_INFO;
+				return SqlTimeTypeInfo.DATE;
 			case TIMESTAMP:
 				return SqlTimeTypeInfo.TIMESTAMP;
 			case BINARY:
-				return BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO;
+				return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 			default:
 				throw new UnsupportedOperationException(
 					String.format("Flink doesn't support Hive primitive type %s yet", hiveType));
