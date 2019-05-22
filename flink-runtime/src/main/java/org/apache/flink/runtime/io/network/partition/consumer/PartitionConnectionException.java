@@ -16,37 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network;
+package org.apache.flink.runtime.io.network.partition.consumer;
 
-import java.io.IOException;
+import org.apache.flink.runtime.io.network.partition.PartitionException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 /**
- * A dummy implementation of the {@link ConnectionManager} which is mainly used for creating
- * {@link PartitionRequestClient} instance in tests.
+ * Exception for failed partition requests due to connection failure
+ * with unreachable producer.
  */
-public class TestingConnectionManager implements ConnectionManager {
+public class PartitionConnectionException extends PartitionException {
 
-	@Override
-	public void start() {}
+	private static final long serialVersionUID = 0L;
 
-	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
-		return new TestingPartitionRequestClient();
+	public PartitionConnectionException(ResultPartitionID partitionId, Throwable throwable) {
+		super("Connection for partition " + partitionId + " not reachable.", partitionId, throwable);
 	}
-
-	@Override
-	public void closeOpenChannelConnections(ConnectionID connectionId) {}
-
-	@Override
-	public int getNumberOfActiveConnections() {
-		return 0;
-	}
-
-	@Override
-	public int getDataPort() {
-		return -1;
-	}
-
-	@Override
-	public void shutdown() {}
 }
