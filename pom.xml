@@ -1502,8 +1502,8 @@ under the License.
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<!-- enforce at least mvn version 3.0.3 -->
-									<version>[3.0.3,)</version>
+									<!-- enforce at least mvn version 3.1.1 (see FLINK-12447) -->
+									<version>[3.1.1,)</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
 									<version>${java.version}</version>

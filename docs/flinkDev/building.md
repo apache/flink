@@ -64,7 +64,7 @@ Flink [shades away](https://maven.apache.org/plugins/maven-shade-plugin/) some o
 
 The dependency shading mechanism was recently changed in Maven and requires users to build Flink slightly differently, depending on their Maven version:
 
-**Maven 3.0.x, 3.1.x, and 3.2.x**
+**Maven 3.1.x and 3.2.x**
 It is sufficient to call `mvn clean install -DskipTests` in the root directory of Flink code base.
 
 **Maven 3.3.x**
