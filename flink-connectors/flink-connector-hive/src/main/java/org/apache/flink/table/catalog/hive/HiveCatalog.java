@@ -746,6 +746,9 @@ public class HiveCatalog implements Catalog {
 			ensureTableAndPartitionMatch(hiveTable, newPartition);
 			Partition oldHivePartition = getHivePartition(hiveTable, partitionSpec);
 			if (oldHivePartition == null) {
+				if (ignoreIfNotExists) {
+					return;
+				}
 				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
 			}
 			Partition newHivePartition = instantiateHivePartition(hiveTable, partitionSpec, newPartition);

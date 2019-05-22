@@ -50,11 +50,6 @@ public class CatalogTestUtil {
 		assertEquals(d1.getProperties(), d2.getProperties());
 	}
 
-	public static void checkEquals(CatalogFunction f1, CatalogFunction f2) {
-		assertEquals(f1.getClassName(), f2.getClassName());
-		assertEquals(f1.getProperties(), f2.getProperties());
-	}
-
 	static void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {
 		assertEquals(ts1.getRowCount(), ts2.getRowCount());
 		assertEquals(ts1.getFileCount(), ts2.getFileCount());
