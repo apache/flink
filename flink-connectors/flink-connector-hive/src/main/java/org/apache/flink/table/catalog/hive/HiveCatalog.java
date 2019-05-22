@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
+import org.apache.flink.table.catalog.GenericCatalogPartition;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -631,7 +632,11 @@ public class HiveCatalog implements Catalog {
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 		checkNotNull(partition, "Partition cannot be null");
 
+		checkArgument(partition instanceof HiveCatalogPartition, "Currently only supports HiveCatalogPartition");
+
 		Table hiveTable = getHiveTable(tablePath);
+
+		ensureTableAndPartitionMatch(hiveTable, partition);
 
 		ensurePartitionedTable(tablePath, hiveTable);
 
@@ -732,10 +737,13 @@ public class HiveCatalog implements Catalog {
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 		checkNotNull(newPartition, "New partition cannot be null");
 
+		checkArgument(newPartition instanceof HiveCatalogPartition, "Currently only supports HiveCatalogPartition");
+
 		// Explicitly check if the partition exists or not
 		// because alter_partition() doesn't throw NoSuchObjectException like dropPartition() when the target doesn't exist
 		try {
 			Table hiveTable = getHiveTable(tablePath);
+			ensureTableAndPartitionMatch(hiveTable, newPartition);
 			Partition oldHivePartition = getHivePartition(hiveTable, partitionSpec);
 			if (oldHivePartition == null) {
 				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
@@ -759,6 +767,16 @@ public class HiveCatalog implements Catalog {
 			throw new CatalogException(
 				String.format("Failed to alter existing partition with new partition %s of table %s",
 					partitionSpec, tablePath), e);
+		}
+	}
+
+	// make sure both table and partition are generic, or neither is
+	private void ensureTableAndPartitionMatch(Table hiveTable, CatalogPartition catalogPartition) {
+		boolean isGeneric = Boolean.valueOf(hiveTable.getParameters().get(FLINK_PROPERTY_IS_GENERIC));
+		if ((isGeneric && catalogPartition instanceof HiveCatalogPartition) ||
+			(!isGeneric && catalogPartition instanceof GenericCatalogPartition)) {
+			throw new IllegalArgumentException(String.format("Cannot handle %s partition for %s table",
+				catalogPartition.getClass().getName(), isGeneric ? "generic" : "non-generic"));
 		}
 	}
 
