@@ -200,6 +200,19 @@ public abstract class CatalogTestBase {
 	}
 
 	@Test
+	public void testAlterDb_differentTypedDb() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage(
+			String.format("Database types don't match. " +
+					"Existing database is '%s' and " +
+					"new database is 'org.apache.flink.table.catalog.CatalogTestBase$TestDatabase'.",
+				createDb().getClass().getName()));
+		catalog.alterDatabase(db1, new TestDatabase(), false);
+	}
+
+	@Test
 	public void testAlterDb_DatabaseNotExistException() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database nonexistent does not exist in Catalog");
@@ -382,6 +395,22 @@ public abstract class CatalogTestBase {
 	}
 
 	@Test
+	public void testAlterTable_differentTypedTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogTable table = createTable();
+		catalog.createTable(path1, table, false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage(
+			String.format("Table types don't match. " +
+					"Existing table is '%s' and " +
+					"new table is 'org.apache.flink.table.catalog.CatalogTestBase$TestTable'.",
+				table.getClass().getName()));
+		catalog.alterTable(path1, new TestTable(), false);
+	}
+
+	@Test
 	public void testAlterTable_TableNotExistException() throws Exception {
 		exception.expect(TableNotExistException.class);
 		exception.expectMessage("Table (or view) non.exist does not exist in Catalog");
@@ -394,26 +423,6 @@ public abstract class CatalogTestBase {
 		catalog.alterTable(nonExistObjectPath, createTable(), true);
 
 		assertFalse(catalog.tableExists(nonExistObjectPath));
-	}
-
-	@Test
-	public void testAlterTable_alterTableWithView() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createTable(), false);
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage("The existing table is a table, but the new catalog base table is not.");
-		catalog.alterTable(path1, createView(), false);
-	}
-
-	@Test
-	public void testAlterTable_alterViewWithTable() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createView(), false);
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage("The existing table is a view, but the new catalog base table is not.");
-		catalog.alterTable(path1, createTable(), false);
 	}
 
 	@Test
@@ -656,6 +665,21 @@ public abstract class CatalogTestBase {
 	}
 
 	@Test
+	public void testAlterFunction_differentTypedFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogFunction function = createFunction();
+		catalog.createFunction(path1, createFunction(), false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage(
+			String.format("Function types don't match. " +
+				"Existing function is '%s' and " +
+				"new function is 'org.apache.flink.table.catalog.CatalogTestBase$TestFunction'.",
+				function.getClass().getName()));
+		catalog.alterFunction(path1, new TestFunction(), false);
+	}
+
+	@Test
 	public void testAlterFunction_FunctionNotExistException() throws Exception {
 		exception.expect(FunctionNotExistException.class);
 		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
@@ -861,6 +885,97 @@ public abstract class CatalogTestBase {
 	public static class MyOtherScalarFunction extends ScalarFunction {
 		public String eval(Integer i) {
 			return String.valueOf(i);
+		}
+	}
+
+	/**
+	 * Test database used to assert on database of different class.
+	 */
+	public static class TestDatabase implements CatalogDatabase {
+		@Override
+		public Map<String, String> getProperties() {
+			return null;
+		}
+
+		@Override
+		public String getComment() {
+			return null;
+		}
+
+		@Override
+		public CatalogDatabase copy() {
+			return null;
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Test table used to assert on table of different class.
+	 */
+	public static class TestTable implements CatalogBaseTable {
+
+		@Override
+		public Map<String, String> getProperties() {
+			return null;
+		}
+
+		@Override
+		public TableSchema getSchema() {
+			return null;
+		}
+
+		@Override
+		public String getComment() {
+			return null;
+		}
+
+		@Override
+		public CatalogBaseTable copy() {
+			return null;
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Test partition used to assert on partition of different class.
+	 */
+	public static class TestPartition implements CatalogPartition {
+		@Override
+		public Map<String, String> getProperties() {
+			return null;
+		}
+
+		@Override
+		public CatalogPartition copy() {
+			return null;
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
 		}
 	}
 

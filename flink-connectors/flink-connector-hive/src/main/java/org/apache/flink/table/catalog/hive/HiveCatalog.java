@@ -27,8 +27,6 @@ import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
@@ -230,14 +228,27 @@ public class HiveCatalog implements Catalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
+		CatalogDatabase existingDatabase;
+		try {
+			existingDatabase = getDatabase(databaseName);
+		} catch (DatabaseNotExistException e) {
+			if (!ignoreIfNotExists) {
+				throw e;
+			}
+			return;
+		}
+
+		if (existingDatabase.getClass() != newDatabase.getClass()) {
+			throw new CatalogException(
+				String.format("Database types don't match. Existing database is '%s' and new database is '%s'.",
+					existingDatabase.getClass().getName(), newDatabase.getClass().getName())
+			);
+		}
+
 		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
 
 		try {
-			if (databaseExists(databaseName)) {
-				client.alterDatabase(databaseName, newHiveDatabase);
-			} else if (!ignoreIfNotExists) {
-				throw new DatabaseNotExistException(catalogName, databaseName);
-			}
+			client.alterDatabase(databaseName, newHiveDatabase);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
@@ -360,32 +371,22 @@ public class HiveCatalog implements Catalog {
 		checkNotNull(tablePath, "tablePath cannot be null");
 		checkNotNull(newCatalogTable, "newCatalogTable cannot be null");
 
-		if (!tableExists(tablePath)) {
+		Table hiveTable;
+		try {
+			hiveTable = getHiveTable(tablePath);
+		} catch (TableNotExistException e) {
 			if (!ignoreIfNotExists) {
-				throw new TableNotExistException(catalogName, tablePath);
+				throw e;
 			}
 			return;
 		}
 
-		Table oldTable = getHiveTable(tablePath);
-		TableType oldTableType = TableType.valueOf(oldTable.getTableType());
+		CatalogBaseTable existingTable = instantiateHiveCatalogTable(hiveTable);
 
-		if (oldTableType == TableType.VIRTUAL_VIEW) {
-			if (!(newCatalogTable instanceof CatalogView)) {
-				throw new CatalogException(
-					String.format("Table types don't match. The existing table is a view, but the new catalog base table is not."));
-			}
-			// Else, do nothing
-		} else if ((oldTableType == TableType.MANAGED_TABLE)) {
-			if (!(newCatalogTable instanceof CatalogTable)) {
-				throw new CatalogException(
-					String.format("Table types don't match. The existing table is a table, but the new catalog base table is not."));
-			}
-			// Else, do nothing
-		} else {
+		if (existingTable.getClass() != newCatalogTable.getClass()) {
 			throw new CatalogException(
-				String.format("Hive table type '%s' is not supported yet.",
-					oldTableType.name()));
+				String.format("Table types don't match. Existing table is '%s' and new table is '%s'.",
+					existingTable.getClass().getName(), newCatalogTable.getClass().getName()));
 		}
 
 		Table newTable = instantiateHiveTable(tablePath, newCatalogTable);
@@ -393,7 +394,7 @@ public class HiveCatalog implements Catalog {
 		// client.alter_table() requires a valid location
 		// thus, if new table doesn't have that, it reuses location of the old table
 		if (!newTable.getSd().isSetLocation()) {
-			newTable.getSd().setLocation(oldTable.getSd().getLocation());
+			newTable.getSd().setLocation(hiveTable.getSd().getLocation());
 		}
 
 		try {

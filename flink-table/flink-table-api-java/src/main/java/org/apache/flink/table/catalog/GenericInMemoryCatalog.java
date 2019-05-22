@@ -149,7 +149,16 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
 		checkNotNull(newDatabase);
 
-		if (databaseExists(databaseName)) {
+		CatalogDatabase existingDatabase = databases.get(databaseName);
+
+		if (existingDatabase != null) {
+			if (existingDatabase.getClass() != newDatabase.getClass()) {
+				throw new CatalogException(
+					String.format("Database types don't match. Existing database is '%s' and new database is '%s'.",
+						existingDatabase.getClass().getName(), newDatabase.getClass().getName())
+				);
+			}
+
 			databases.put(databaseName, newDatabase.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new DatabaseNotExistException(catalogName, databaseName);
@@ -212,13 +221,13 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkNotNull(tablePath);
 		checkNotNull(newTable);
 
-		if (tableExists(tablePath)) {
-			CatalogBaseTable oldTable = tables.get(tablePath);
+		CatalogBaseTable existingTable = tables.get(tablePath);
 
-			if (oldTable.getClass() != newTable.getClass()) {
+		if (existingTable != null) {
+			if (existingTable.getClass() != newTable.getClass()) {
 				throw new CatalogException(
-					String.format("Table classes don't match. Existing table is '%s' and new table is '%s'. They should be of the same class.",
-						oldTable.getClass().getName(), newTable.getClass().getName()));
+					String.format("Table types don't match. Existing table is '%s' and new table is '%s'.",
+						existingTable.getClass().getName(), newTable.getClass().getName()));
 			}
 
 			tables.put(tablePath, newTable.copy());
@@ -362,7 +371,16 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkNotNull(functionPath);
 		checkNotNull(newFunction);
 
-		if (functionExists(functionPath)) {
+		CatalogFunction existingFunction = functions.get(functionPath);
+
+		if (existingFunction != null) {
+			if (existingFunction.getClass() != newFunction.getClass()) {
+				throw new CatalogException(
+					String.format("Function types don't match. Existing function is '%s' and new function is '%s'.",
+						existingFunction.getClass().getName(), newFunction.getClass().getName())
+				);
+			}
+
 			functions.put(functionPath, newFunction.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new FunctionNotExistException(catalogName, functionPath);
@@ -464,6 +482,15 @@ public class GenericInMemoryCatalog implements Catalog {
 		checkNotNull(newPartition);
 
 		if (partitionExists(tablePath, partitionSpec)) {
+			CatalogPartition existingPartition = partitions.get(tablePath).get(partitionSpec);
+
+			if (existingPartition.getClass() != newPartition.getClass()) {
+				throw new CatalogException(
+					String.format("Partition types don't match. Existing partition is '%s' and new partition is '%s'.",
+						existingPartition.getClass().getName(), newPartition.getClass().getName())
+				);
+			}
+
 			partitions.get(tablePath).put(partitionSpec, newPartition.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec);
