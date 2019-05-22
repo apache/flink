@@ -199,7 +199,7 @@ class Schema(Descriptor):
         Specifies the origin of the previously defined field. The origin field is defined by a
         connector or format.
 
-        E.g. from_origin_field("myString", Types.STRING).from("CSV_MY_STRING")
+        E.g. field("myString", Types.STRING).from_origin_field("CSV_MY_STRING")
 
         ..note::
             Field names are matched by the exact name by default (case sensitive).
@@ -255,6 +255,9 @@ class OldCsv(FormatDescriptor):
         descriptor will be replaced by a proper RFC-compliant version. Use the RFC-compliant `Csv`
         format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use
         the old one for stream/batch filesystem operations for now.
+
+    .. note::
+        Deprecated: use the RFC-compliant `Csv` format instead when writing to Kafka.
     """
 
     def __init__(self):

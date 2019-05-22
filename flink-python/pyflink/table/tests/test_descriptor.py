@@ -605,3 +605,14 @@ class StreamDescriptorEndToEndTests(PyFlinkStreamTableTestCase):
         with open(sink_path, 'r') as f:
             lines = f.read()
             assert lines == '2,hi,hello\n' + '3,hi,world!,hello\n'
+
+
+if __name__ == '__main__':
+    import unittest
+
+    try:
+        import xmlrunner
+        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+    except ImportError:
+        testRunner = None
+    unittest.main(testRunner=testRunner, verbosity=2)
