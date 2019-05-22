@@ -48,7 +48,7 @@ setup(
     packages=['pyflink',
               'pyflink.table',
               'pyflink.util'],
-    url='http://flink.apache.org',
+    url='https://flink.apache.org',
     license='http://www.apache.org/licenses/LICENSE-2.0',
     author='Flink Developers',
     author_email='dev@flink.apache.org',
