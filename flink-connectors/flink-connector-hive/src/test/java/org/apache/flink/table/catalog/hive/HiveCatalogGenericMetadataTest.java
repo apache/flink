@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
@@ -65,8 +65,8 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
 			BasicTypeInfo.BOOLEAN_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO,
-			BasicTypeInfo.DATE_TYPE_INFO,
+			PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+			SqlTimeTypeInfo.DATE,
 			SqlTimeTypeInfo.TIMESTAMP
 		};
 
