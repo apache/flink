@@ -50,53 +50,6 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	public void testCreateTable_Streaming() throws Exception {
 	}
 
-	// ------ functions ------
-
-	public void testCreateFunction() throws Exception {
-	}
-
-	public void testCreateFunction_DatabaseNotExistException() throws Exception {
-	}
-
-	public void testCreateFunction_FunctionAlreadyExistException() throws Exception {
-	}
-
-	public void testCreateFunction_FunctionAlreadyExist_ignored() throws Exception {
-	}
-
-	public void testAlterFunction() throws Exception {
-	}
-
-	public void testAlterFunction_differentTypedFunction() throws Exception {
-	}
-
-	public void testAlterFunction_FunctionNotExistException() throws Exception {
-	}
-
-	public void testAlterFunction_FunctionNotExist_ignored() throws Exception {
-	}
-
-	public void testListFunctions() throws Exception {
-	}
-
-	public void testListFunctions_DatabaseNotExistException() throws Exception{
-	}
-
-	public void testGetFunction_FunctionNotExistException() throws Exception {
-	}
-
-	public void testGetFunction_FunctionNotExistException_NoDb() throws Exception {
-	}
-
-	public void testDropFunction() throws Exception {
-	}
-
-	public void testDropFunction_FunctionNotExistException() throws Exception {
-	}
-
-	public void testDropFunction_FunctionNotExist_ignored() throws Exception {
-	}
-
 	// ------ utils ------
 
 	@Override
@@ -182,12 +135,12 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 
 	@Override
 	protected CatalogFunction createFunction() {
-		throw new UnsupportedOperationException();
+		return new HiveCatalogFunction("test.class.name");
 	}
 
 	@Override
 	protected CatalogFunction createAnotherFunction() {
-		throw new UnsupportedOperationException();
+		return new HiveCatalogFunction("test.another.class.name");
 	}
 
 	@Override
