@@ -25,8 +25,7 @@ import java.io.Serializable;
 
 /**
  * A VectorizedColumnBatch is a set of rows, organized with each column as a vector. It is the
- * unit of query execution, organized to minimize the cost per row and achieve high
- * cycles-per-instruction.
+ * unit of query execution, organized to minimize the cost per row.
  *
  * <p>{@code VectorizedColumnBatch}s are influenced by Apache Hive VectorizedRowBatch.
  */
@@ -37,16 +36,11 @@ public class VectorizedColumnBatch implements Serializable {
 	 * This number is carefully chosen to minimize overhead and typically allows
 	 * one VectorizedColumnBatch to fit in cache.
 	 */
-	public static final int MAX_SIZE = 2048;
+	public static final int DEFAULT_SIZE = 2048;
 
 	private int numRows;
 	public final ColumnVector[] columns;
 
-	/**
-	 * Return a batch with the specified number of columns and rows.
-	 * Only call this constructor directly for testing purposes.
-	 * Batch size should normally always be defaultSize.
-	 */
 	public VectorizedColumnBatch(ColumnVector[] vectors) {
 		this.columns = vectors;
 	}
