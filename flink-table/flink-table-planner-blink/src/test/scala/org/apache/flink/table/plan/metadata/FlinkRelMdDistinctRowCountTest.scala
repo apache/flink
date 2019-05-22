@@ -465,6 +465,14 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       assertEquals(25D * 0.15D * 1.0D,
         mq.getDistinctRowCount(agg, ImmutableBitSet.of(0, 1), pred1), 1e-2)
     }
+    assertEquals(30D, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(0), null))
+    assertEquals(5D, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(1), null))
+    assertEquals(50D, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(0, 1), null))
+    assertEquals(null, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(0, 2), null))
+    assertEquals(10D, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(3), null))
+    assertEquals(50D, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(0, 3), null))
+    assertEquals(50.0, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(1, 3), null))
+    assertEquals(null, mq.getDistinctRowCount(batchLocalWindowAgg, ImmutableBitSet.of(2, 3), null))
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
@@ -499,7 +507,17 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
         mq.getDistinctRowCount(agg, ImmutableBitSet.of(1), pred1), 1e-6)
       assertEquals(40D * 0.15D * 1.0D, mq.getDistinctRowCount(agg, ImmutableBitSet.of(0, 1), pred1))
     }
-
+    assertEquals(50D,
+      mq.getDistinctRowCount(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0), null))
+    assertNull(mq.getDistinctRowCount(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(1), null))
+    assertNull(
+      mq.getDistinctRowCount(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 1), null))
+    assertEquals(50D,
+      mq.getDistinctRowCount(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 2), null))
+    assertNull(
+      mq.getDistinctRowCount(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(1, 2), null))
+    assertEquals(10D,
+      mq.getDistinctRowCount(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(3), null))
   }
 
   @Test

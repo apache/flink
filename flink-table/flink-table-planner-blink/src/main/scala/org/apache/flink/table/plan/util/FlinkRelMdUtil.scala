@@ -349,7 +349,7 @@ object FlinkRelMdUtil {
   def setChildKeysOfWinAgg(
       groupKey: ImmutableBitSet,
       globalWinAgg: BatchExecWindowAggregateBase): ImmutableBitSet = {
-    require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local agg!")
+    require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local window agg!")
     val childKeyBuilder = ImmutableBitSet.builder
     groupKey.toArray.foreach { key =>
       if (key < globalWinAgg.getGrouping.length) {
@@ -363,7 +363,7 @@ object FlinkRelMdUtil {
   }
 
   /**
-    * Split groupKeys on Agregate/ BatchExecGroupAggregateBase/ BatchExecWindowAggregateBase
+    * Split groupKeys on Aggregate/ BatchExecGroupAggregateBase/ BatchExecWindowAggregateBase
     * into keys on aggregate's groupKey and aggregate's aggregateCalls.
     *
     * @param agg      the aggregate
@@ -464,7 +464,7 @@ object FlinkRelMdUtil {
   def setChildPredicateOfWinAgg(
       predicate: RexNode,
       globalWinAgg: BatchExecWindowAggregateBase): RexNode = {
-    require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local agg!")
+    require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local window agg!")
     if (predicate == null) {
       return null
     }

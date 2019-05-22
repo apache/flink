@@ -140,12 +140,16 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       batchGlobalWindowAggWithLocalAgg).foreach { agg =>
       assertEquals(Seq(4D, 32D, 8D, 12D, 12D, 12D, 12D), mq.getAverageColumnSizes(agg).toSeq)
     }
+    assertEquals(Seq(4.0, 32.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(batchLocalWindowAgg).toSeq)
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
       assertEquals(Seq(8D, 4D, 8D, 12D, 12D, 12D, 12D), mq.getAverageColumnSizes(agg).toSeq)
     }
+    assertEquals(Seq(8D, 8D, 4D, 8D),
+      mq.getAverageColumnSizes(batchLocalWindowAggWithAuxGroup).toSeq)
   }
 
   @Test

@@ -22,49 +22,38 @@ import org.apache.flink.table.`type`.{InternalType, InternalTypes, TypeConverter
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute,
-  RowtimeAttribute, ValueLiteralExpression, WindowReference, WindowStart}
+import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RowtimeAttribute, ValueLiteralExpression, WindowReference, WindowStart}
 import org.apache.flink.table.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction,
-  RowNumberAggFunction}
+import org.apache.flink.table.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.functions.sql.internal.SqlAuxiliaryGroupAggFunction
 import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank,
-  LogicalWindowAggregate}
+import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalWindowAggregate}
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
-import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil,
-  FlinkRelOptUtil, SortUtil, WindowEmitStrategy}
+import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, FlinkRelOptUtil, SortUtil, WindowEmitStrategy}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS
 import org.apache.flink.table.util.CountAggFunction
 
 import com.google.common.collect.{ImmutableList, Lists}
-import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelOptCost,
-  RelOptPlanner, RelTraitSet}
+import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinRelType, Project, Window}
-import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort,
-  LogicalTableScan, LogicalValues}
+import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
-import org.apache.calcite.rel.{RelCollationImpl, RelCollationTraitDef, RelCollations,
-  RelFieldCollation, RelNode, SingleRel}
-import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode, RexProgram, RexUtil,
-  RexWindowBound}
+import org.apache.calcite.rel.{RelCollationImpl, RelCollationTraitDef, RelCollations, RelFieldCollation, RelNode, SingleRel}
+import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode, RexProgram, RexUtil, RexWindowBound}
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME,
-  TIMESTAMP, VARCHAR}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN,
-  LESS_THAN, MINUS, MULTIPLY, PLUS}
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, PLUS}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.FrameworkConfig
@@ -105,17 +94,11 @@ class FlinkRelMdHandlerTestBase {
 
     logicalTraits = cluster.traitSetOf(Convention.NONE)
 
-    flinkLogicalTraits = cluster
-      .traitSetOf(Convention.NONE)
-      .replace(FlinkConventions.LOGICAL)
+    flinkLogicalTraits = cluster.traitSetOf(FlinkConventions.LOGICAL)
 
-    batchPhysicalTraits = cluster
-      .traitSetOf(Convention.NONE)
-      .replace(FlinkConventions.BATCH_PHYSICAL)
+    batchPhysicalTraits = cluster.traitSetOf(FlinkConventions.BATCH_PHYSICAL)
 
-    streamPhysicalTraits = cluster
-      .traitSetOf(Convention.NONE)
-      .replace(FlinkConventions.STREAM_PHYSICAL)
+    streamPhysicalTraits = cluster.traitSetOf(FlinkConventions.STREAM_PHYSICAL)
   }
 
   protected val intType: RelDataType = typeFactory.createTypeFromInternalType(
@@ -975,7 +958,7 @@ class FlinkRelMdHandlerTestBase {
       new ValueLiteralExpression(900000, INTERVAL_MILLIS)
     )
 
-  protected lazy val namedPropertiesOfWindowAgg =
+  protected lazy val namedPropertiesOfWindowAgg: Seq[NamedWindowProperty] =
     Seq(NamedWindowProperty("w$start", WindowStart(windowRef)),
       NamedWindowProperty("w$end", WindowStart(windowRef)),
       NamedWindowProperty("w$rowtime", RowtimeAttribute(windowRef)),
@@ -1036,12 +1019,22 @@ class FlinkRelMdHandlerTestBase {
         flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
 
+    val localWindowAggTypes =
+      (Array(0, 1).map(batchCalc.getRowType.getFieldList.get(_).getType) ++ // grouping
+        Array(longType) ++ // assignTs
+        aggCallOfWindowAgg.map(_.getType)).toList // agg calls
+    val localWindowAggNames =
+      (Array(0, 1).map(batchCalc.getRowType.getFieldNames.get(_)) ++ // grouping
+        Array("assignedWindow$") ++ // assignTs
+        Array("count$0")).toList // agg calls
+    val localWindowAggRowType = typeFactory.createStructType(
+      localWindowAggTypes, localWindowAggNames)
     val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
       batchCalc.getCluster,
       relBuilder,
       batchPhysicalTraits,
       batchCalc,
-      flinkLogicalWindowAgg.getRowType,
+      localWindowAggRowType,
       batchCalc.getRowType,
       Array(0, 1),
       Array.empty,
@@ -1171,12 +1164,22 @@ class FlinkRelMdHandlerTestBase {
         flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
 
+    val localWindowAggTypes =
+      (Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // grouping
+        Array(longType) ++ // assignTs
+        aggCallOfWindowAgg.map(_.getType)).toList // agg calls
+    val localWindowAggNames =
+      (Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // grouping
+        Array("assignedWindow$") ++ // assignTs
+        Array("count$0")).toList // agg calls
+    val localWindowAggRowType = typeFactory.createStructType(
+      localWindowAggTypes, localWindowAggNames)
     val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
       batchCalc.getCluster,
       relBuilder,
       batchPhysicalTraits,
       batchCalc,
-      flinkLogicalWindowAgg.getRowType,
+      localWindowAggRowType,
       batchCalc.getRowType,
       Array(1),
       Array.empty,
@@ -1309,12 +1312,24 @@ class FlinkRelMdHandlerTestBase {
         aggCallsWithoutAuxGroup, batchExchange1.getRowType)
     val aggCallToAggFunction = aggCallsWithoutAuxGroup.zip(aggregates)
 
+    val localWindowAggTypes =
+      (Array(batchCalc.getRowType.getFieldList.get(0).getType) ++ // grouping
+        Array(longType) ++ // assignTs
+        Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // auxGrouping
+        aggCallsWithoutAuxGroup.map(_.getType)).toList // agg calls
+    val localWindowAggNames =
+      (Array(batchCalc.getRowType.getFieldNames.get(0)) ++ // grouping
+        Array("assignedWindow$") ++ // assignTs
+        Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // auxGrouping
+        Array("count$0")).toList // agg calls
+    val localWindowAggRowType = typeFactory.createStructType(
+      localWindowAggTypes, localWindowAggNames)
     val batchLocalWindowAggWithAuxGroup = new BatchExecLocalHashWindowAggregate(
       batchCalc.getCluster,
       relBuilder,
       batchPhysicalTraits,
       batchCalc,
-      flinkLogicalWindowAggWithAuxGroup.getRowType,
+      localWindowAggRowType,
       batchCalc.getRowType,
       Array(0),
       Array(1),

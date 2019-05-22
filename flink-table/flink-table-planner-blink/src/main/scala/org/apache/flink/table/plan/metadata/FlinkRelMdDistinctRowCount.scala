@@ -19,8 +19,7 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.api.{PlannerConfigOptions, TableException}
-import org.apache.flink.table.plan.nodes.calcite.{Expand, LogicalWindowAggregate, Rank, WindowAggregate}
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, FlinkRexUtil, RankUtil}
@@ -455,6 +454,12 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
         newPredicate
       }
     } else {
+      // local window aggregate
+      val assignTsFieldIndex = rel.getGrouping.length
+      if (groupKey.toList.contains(assignTsFieldIndex)) {
+        // groupKey contains `assignTs` fields
+        return null
+      }
       predicate
     }
     getDistinctRowCountOfAggregate(rel, mq, groupKey, newPredicate)

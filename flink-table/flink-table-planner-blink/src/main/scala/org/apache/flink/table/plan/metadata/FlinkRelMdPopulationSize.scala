@@ -304,6 +304,13 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
         val localWinAggGroupKey = FlinkRelMdUtil.setChildKeysOfWinAgg(groupKey, rel)
         return mq.getPopulationSize(rel.getInput, localWinAggGroupKey)
       }
+    } else {
+      // local window aggregate
+      val assignTsFieldIndex = rel.getGrouping.length
+      if (groupKey.toList.contains(assignTsFieldIndex)) {
+        // groupKey contains `assignTs` fields
+        return null
+      }
     }
     getPopulationSizeOfAggregate(rel, mq, groupKey)
   }

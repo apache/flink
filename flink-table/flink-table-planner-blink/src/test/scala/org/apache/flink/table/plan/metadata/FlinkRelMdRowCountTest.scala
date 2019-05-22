@@ -142,12 +142,14 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetRowCountOnWindowAgg(): Unit = {
-    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithoutLocalAgg,
+    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchLocalWindowAgg,
+      batchGlobalWindowAggWithoutLocalAgg,
       batchGlobalWindowAggWithLocalAgg, streamWindowAgg).foreach { agg =>
       assertEquals(50D, mq.getRowCount(agg))
     }
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchLocalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
       assertEquals(50D, mq.getRowCount(agg))

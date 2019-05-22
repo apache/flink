@@ -312,7 +312,9 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetUniqueGroupsOnWindowAgg(): Unit = {
-    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithoutLocalAgg,
+    Array(logicalWindowAgg, flinkLogicalWindowAgg,
+      batchLocalWindowAgg,
+      batchGlobalWindowAggWithoutLocalAgg,
       batchGlobalWindowAggWithLocalAgg).foreach { agg =>
       assertEquals(ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6),
         mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6)))
@@ -327,6 +329,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     }
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchLocalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
       assertEquals(ImmutableBitSet.of(1),

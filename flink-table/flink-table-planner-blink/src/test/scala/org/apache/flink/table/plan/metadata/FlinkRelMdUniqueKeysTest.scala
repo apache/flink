@@ -176,6 +176,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(0, 1, 5), ImmutableBitSet.of(0, 1, 6)),
         mq.getUniqueKeys(agg))
     }
+    assertNull(mq.getUniqueKeys(batchLocalWindowAgg))
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
@@ -184,6 +185,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(0, 5), ImmutableBitSet.of(0, 6)),
         mq.getUniqueKeys(agg))
     }
+    assertNull(mq.getUniqueKeys(batchLocalWindowAggWithAuxGroup))
   }
 
   @Test

@@ -369,6 +369,8 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
       assertTrue(mq.areColumnsUnique(agg, ImmutableBitSet.of(0, 1, 3, 4, 5, 6)))
       assertFalse(mq.areColumnsUnique(agg, ImmutableBitSet.of(0, 2, 3)))
     }
+    assertNull(mq.areColumnsUnique(batchLocalWindowAgg, ImmutableBitSet.of(0, 1)))
+    assertNull(mq.areColumnsUnique(batchLocalWindowAgg, ImmutableBitSet.of(0, 1, 3)))
 
     Array(logicalWindowAgg2, flinkLogicalWindowAgg2, batchGlobalWindowAggWithLocalAgg2,
       batchGlobalWindowAggWithoutLocalAgg2, streamWindowAgg2).foreach { agg =>
@@ -381,6 +383,8 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
       assertFalse(mq.areColumnsUnique(agg, ImmutableBitSet.of(1, 2)))
       assertFalse(mq.areColumnsUnique(agg, ImmutableBitSet.of(1, 3)))
     }
+    assertNull(mq.areColumnsUnique(batchLocalWindowAgg2, ImmutableBitSet.of(0, 1)))
+    assertNull(mq.areColumnsUnique(batchLocalWindowAgg2, ImmutableBitSet.of(0, 2)))
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup, batchGlobalWindowAggWithoutLocalAggWithAuxGroup
@@ -395,6 +399,8 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
       assertTrue(mq.areColumnsUnique(agg, ImmutableBitSet.of(0, 3, 4, 5, 6)))
       assertFalse(mq.areColumnsUnique(agg, ImmutableBitSet.of(1, 3)))
     }
+    assertNull(mq.areColumnsUnique(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 1)))
+    assertNull(mq.areColumnsUnique(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 3)))
   }
 
   @Test

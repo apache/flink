@@ -456,6 +456,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       assertEquals(RightSemiInfiniteValueInterval(0), mq.getColumnInterval(agg, 2))
       assertEquals(null, mq.getColumnInterval(agg, 3))
     }
+    assertEquals(ValueInterval(5, 45), mq.getColumnInterval(batchLocalWindowAgg, 0))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 1))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 2))
+    assertEquals(RightSemiInfiniteValueInterval(0), mq.getColumnInterval(batchLocalWindowAgg, 3))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 4))
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup,
@@ -465,6 +470,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 2))
       assertEquals(null, mq.getColumnInterval(agg, 3))
     }
+    assertEquals(ValueInterval(5, 55), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 0))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 1))
+    assertEquals(ValueInterval(0, 50), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 2))
+    assertEquals(ValueInterval(0, null), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 3))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 4))
   }
 
   @Test
