@@ -24,10 +24,12 @@ import java.sql.{Date, Time, Timestamp}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{WITH_COLUMNS, RANGE_TO, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import _root_.scala.language.implicitConversions
 
@@ -262,14 +264,21 @@ trait ImplicitExpressionOperations {
   def collect: Expression = call(COLLECT, expr)
 
   /**
-    * Converts a value to a given type.
+    * Converts a value to a given data type.
     *
-    * e.g. "42".cast(Types.INT) leads to 42.
+    * e.g. "42".cast(DataTypes.INT()) leads to 42.
     *
     * @return casted expression
     */
-  def cast(toType: TypeInformation[_]): Expression =
+  def cast(toType: DataType): Expression =
     call(CAST, expr, typeLiteral(toType))
+
+  /**
+    * @deprecated Use [[cast(DataType)]] instead.
+    */
+  @deprecated
+  def cast(toType: TypeInformation[_]): Expression =
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(toType)))
 
   /**
     * Specifies a name for an expression i.e. a field.
@@ -683,18 +692,20 @@ trait ImplicitExpressionOperations {
   /**
     * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
     */
-  def toDate: Expression = call(CAST, expr, typeLiteral(SqlTimeTypeInfo.DATE))
+  def toDate: Expression =
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.DATE)))
 
   /**
     * Parses a time string in the form "HH:mm:ss" to a SQL Time.
     */
-  def toTime: Expression = call(CAST, expr, typeLiteral(SqlTimeTypeInfo.TIME))
+  def toTime: Expression =
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIME)))
 
   /**
     * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
     */
   def toTimestamp: Expression =
-    call(CAST, expr, typeLiteral(SqlTimeTypeInfo.TIMESTAMP))
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIMESTAMP)))
 
   /**
     * Extracts parts of a time point or time interval. Returns the part as a long value.

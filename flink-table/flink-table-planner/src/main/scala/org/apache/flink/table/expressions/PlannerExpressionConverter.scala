@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import _root_.scala.collection.JavaConverters._
 
@@ -39,7 +40,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         assert(children.size == 2)
         return Cast(
           children.head.accept(this),
-          children(1).asInstanceOf[TypeLiteralExpression].getType)
+          fromDataTypeToLegacyInfo(children(1).asInstanceOf[TypeLiteralExpression].getDataType))
 
       case WINDOW_START =>
         assert(children.size == 1)

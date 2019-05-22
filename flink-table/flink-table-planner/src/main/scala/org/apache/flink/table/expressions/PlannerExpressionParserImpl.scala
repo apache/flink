@@ -23,6 +23,7 @@ import _root_.java.util.{List => JList}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ApiExpressionUtils._
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.language.implicitConversions
@@ -260,7 +261,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val suffixCast: PackratParser[Expression] =
     composite ~ "." ~ CAST ~ "(" ~ dataType ~ ")" ^^ {
       case e ~ _ ~ _ ~ _ ~ dt ~ _ =>
-        call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(dt))
+        call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(fromLegacyInfoToDataType(dt)))
     }
 
   lazy val suffixTrim: PackratParser[Expression] =
@@ -331,17 +332,26 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
 
   lazy val suffixToDate: PackratParser[Expression] =
     composite <~ "." ~ TO_DATE ~ opt("()") ^^ { e =>
-      call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(SqlTimeTypeInfo.DATE))
+      call(
+        BuiltInFunctionDefinitions.CAST,
+        e,
+        typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.DATE)))
     }
 
   lazy val suffixToTimestamp: PackratParser[Expression] =
     composite <~ "." ~ TO_TIMESTAMP ~ opt("()") ^^ { e =>
-      call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(SqlTimeTypeInfo.TIMESTAMP))
+      call(
+        BuiltInFunctionDefinitions.CAST,
+        e,
+        typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIMESTAMP)))
     }
 
   lazy val suffixToTime: PackratParser[Expression] =
     composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e =>
-      call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(SqlTimeTypeInfo.TIME))
+      call(
+        BuiltInFunctionDefinitions.CAST,
+        e,
+        typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIME)))
     }
 
   lazy val suffixTimeInterval : PackratParser[Expression] =
@@ -420,7 +430,10 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val prefixCast: PackratParser[Expression] =
     CAST ~ "(" ~ expression ~ "," ~ dataType ~ ")" ^^ {
       case _ ~ _ ~ e ~ _ ~ dt ~ _ =>
-        call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(dt))
+        call(
+          BuiltInFunctionDefinitions.CAST,
+          e,
+          typeLiteral(fromLegacyInfoToDataType(dt)))
     }
 
   lazy val prefixIf: PackratParser[Expression] =
@@ -500,17 +513,26 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
 
   lazy val prefixToDate: PackratParser[Expression] =
     TO_DATE ~ "(" ~> expression <~ ")" ^^ { e =>
-      call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(SqlTimeTypeInfo.DATE))
+      call(
+        BuiltInFunctionDefinitions.CAST,
+        e,
+        typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.DATE)))
     }
 
   lazy val prefixToTimestamp: PackratParser[Expression] =
     TO_TIMESTAMP ~ "(" ~> expression <~ ")" ^^ { e =>
-      call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(SqlTimeTypeInfo.TIMESTAMP))
+      call(
+        BuiltInFunctionDefinitions.CAST,
+        e,
+        typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIMESTAMP)))
     }
 
   lazy val prefixToTime: PackratParser[Expression] =
     TO_TIME ~ "(" ~> expression <~ ")" ^^ { e =>
-      call(BuiltInFunctionDefinitions.CAST, e, typeLiteral(SqlTimeTypeInfo.TIME))
+      call(
+        BuiltInFunctionDefinitions.CAST,
+        e,
+        typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIME)))
     }
 
   lazy val prefixDistinct: PackratParser[Expression] =

@@ -18,15 +18,6 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.`type`.TypeConverters
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.`type`.InternalTypes.{BYTE, PROCTIME_BATCH_MARKER, PROCTIME_INDICATOR, PROCTIME_STREAM_MARKER, ROWTIME_BATCH_MARKER, ROWTIME_INDICATOR, ROWTIME_STREAM_MARKER}
-import org.apache.flink.table.expressions.{BuiltInFunctionDefinitions, CallExpression, PlannerResolvedFieldReference, ResolvedFieldReference, RexNodeConverter, TypeLiteralExpression}
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -34,6 +25,14 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.table.`type`.InternalTypes._
+import org.apache.flink.table.`type`.{InternalType, TypeConverters}
+import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import scala.collection.JavaConversions._
 
@@ -277,7 +276,7 @@ object TableSourceUtil {
       // add cast to requested type and convert expression to RexNode
       val castExpression = new CallExpression(
         BuiltInFunctionDefinitions.CAST,
-        List(expression, new TypeLiteralExpression(resultType)))
+        List(expression, new TypeLiteralExpression(fromLegacyInfoToDataType(resultType))))
       val rexExpression = castExpression.accept(new RexNodeConverter(relBuilder))
       relBuilder.clear()
       rexExpression
