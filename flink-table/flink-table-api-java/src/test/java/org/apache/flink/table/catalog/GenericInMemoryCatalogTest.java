@@ -19,14 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
-import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
-import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -45,10 +37,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -203,16 +192,9 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 			TEST_COMMENT);
 	}
 
+	@Override
 	public CatalogPartition createPartition() {
 		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
-	}
-
-	private CatalogPartition createAnotherPartition() {
-		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
-	}
-
-	private CatalogPartition createPartition(Map<String, String> props) {
-		return new GenericCatalogPartition(props, "Generic catalog table");
 	}
 
 	@Override

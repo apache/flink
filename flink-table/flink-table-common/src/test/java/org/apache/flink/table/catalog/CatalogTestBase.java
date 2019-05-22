@@ -27,15 +27,13 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -1405,13 +1403,12 @@ public abstract class CatalogTestBase {
 		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
 	}
 
-	protected void checkEquals(CatalogFunction f1, CatalogFunction f2){
-			assertEquals(f1.getClassName(), f2.getClassName());
-			assertEquals(f1.getProperties(), f2.getProperties());
-		}
+	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
+		assertEquals(f1.getClassName(), f2.getClassName());
+		assertEquals(f1.getProperties(), f2.getProperties());
+	}
+
 	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
 		assertEquals(expected.getProperties(), actual.getProperties());
-		assertEquals(expected.getDescription(), actual.getDescription());
-		assertEquals(expected.getDetailedDescription(), actual.getDetailedDescription());
 	}
 }

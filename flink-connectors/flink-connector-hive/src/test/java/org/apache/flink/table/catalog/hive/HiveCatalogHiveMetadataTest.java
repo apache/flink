@@ -191,6 +191,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public CatalogPartition createPartition() {
 		return new HiveCatalogPartition(getBatchTableProperties());
 	}

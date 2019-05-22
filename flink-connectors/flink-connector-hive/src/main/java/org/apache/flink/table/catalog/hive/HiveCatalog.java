@@ -64,11 +64,8 @@ import org.apache.hadoop.hive.metastore.api.FunctionType;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.metastore.api.PrincipalType;
-import org.apache.hadoop.hive.metastore.Warehouse;
-import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -752,6 +749,10 @@ public class HiveCatalog implements Catalog {
 				tablePath.getObjectName(),
 				newHivePartition
 			);
+		} catch (NoSuchObjectException e) {
+			if (!ignoreIfNotExists) {
+				throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
+			}
 		} catch (InvalidOperationException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
 			throw new PartitionNotExistException(catalogName, tablePath, partitionSpec, e);
 		} catch (TException e) {

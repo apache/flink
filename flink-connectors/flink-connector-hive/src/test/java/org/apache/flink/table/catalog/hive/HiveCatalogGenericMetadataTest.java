@@ -287,6 +287,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
 	}
 
+	@Override
 	public CatalogPartition createPartition() {
 		throw new UnsupportedOperationException();
 	}
