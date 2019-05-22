@@ -80,6 +80,7 @@ public final class LogicalTypeChecks {
 
 		@Override
 		protected TimestampKind defaultMethod(LogicalType logicalType) {
+			// we don't verify that type is actually a timestamp
 			return TimestampKind.REGULAR;
 		}
 	}
