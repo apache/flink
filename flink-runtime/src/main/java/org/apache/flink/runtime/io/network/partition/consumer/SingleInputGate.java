@@ -570,6 +570,7 @@ public class SingleInputGate extends InputGate {
 					checkState(!moreAvailable || !pollNext().isPresent());
 					moreAvailable = false;
 					hasReceivedAllEndOfPartitionEvents = true;
+					markAvailable();
 				}
 
 				currentChannel.notifySubpartitionConsumed();
@@ -578,6 +579,15 @@ public class SingleInputGate extends InputGate {
 
 			return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable, buffer.getSize());
 		}
+	}
+
+	private void markAvailable() {
+		CompletableFuture<?> toNotfiy;
+		synchronized (inputChannelsWithData) {
+			toNotfiy = isAvailable;
+			isAvailable = AVAILABLE;
+		}
+		toNotfiy.complete(null);
 	}
 
 	@Override

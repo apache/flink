@@ -72,6 +72,23 @@ public abstract class InputGateTestBase {
 		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
 	}
 
+	protected void testIsAvailableAfterFinished(
+		InputGate inputGateToTest,
+		Runnable endOfPartitionEvent) throws Exception {
+
+		CompletableFuture<?> available = inputGateToTest.isAvailable();
+		assertFalse(available.isDone());
+		assertFalse(inputGateToTest.pollNext().isPresent());
+
+		endOfPartitionEvent.run();
+
+		assertTrue(inputGateToTest.pollNext().isPresent()); // EndOfPartitionEvent
+
+		assertTrue(available.isDone());
+		assertTrue(inputGateToTest.isAvailable().isDone());
+		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+	}
+
 	protected SingleInputGate createInputGate() {
 		return createInputGate(2);
 	}
