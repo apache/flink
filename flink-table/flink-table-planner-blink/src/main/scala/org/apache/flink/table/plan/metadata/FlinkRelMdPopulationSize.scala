@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.metadata
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
 import org.apache.flink.table.plan.nodes.physical.batch._
-import org.apache.flink.table.plan.util.FlinkRelMdUtil
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.{JArrayList, JDouble}
 
 import org.apache.calcite.plan.volcano.RelSubset
@@ -179,7 +179,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
       rel: Rank,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet): JDouble = {
-    val rankFunColumnIndex = FlinkRelMdUtil.getRankFunctionColumnIndex(rel).getOrElse(-1)
+    val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel).getOrElse(-1)
     if (rankFunColumnIndex < 0 || !groupKey.toArray.contains(rankFunColumnIndex)) {
       mq.getPopulationSize(rel.getInput, groupKey)
     } else {

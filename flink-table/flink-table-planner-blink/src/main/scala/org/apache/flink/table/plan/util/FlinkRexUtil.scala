@@ -300,22 +300,22 @@ object FlinkRexUtil {
   }
 
   /**
-    * Adjust the condition's field indices according to mapOldToNewIndex.
+    * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.
     *
-    * @param c The condition to be adjusted.
+    * @param expr The expression to be adjusted.
     * @param fieldsOldToNewIndexMapping A map containing the mapping the old field indices to new
-    *   field indices.
+    *                                   field indices.
     * @param rowType The row type of the new output.
-    * @return Return new condition with new field indices.
+    * @return Return new expression with new field indices.
     */
-  private[flink] def adjustInputRefs(
-      c: RexNode,
+  private[flink] def adjustInputRef(
+      expr: RexNode,
       fieldsOldToNewIndexMapping: Map[Int, Int],
-      rowType: RelDataType) = c.accept(
+      rowType: RelDataType): RexNode = expr.accept(
     new RexShuttle() {
 
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
-        assert(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
+        require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
         val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
         val ref = RexInputRef.of(newIndex, rowType)
         if (ref.getIndex == inputRef.getIndex && (ref.getType eq inputRef.getType)) {
@@ -324,6 +324,25 @@ object FlinkRexUtil {
           // re-use old object, to prevent needless expr cloning
           ref
         }
+      }
+    })
+
+  /**
+    * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.
+    *
+    * @param expr The expression to be adjusted.
+    * @param fieldsOldToNewIndexMapping A map containing the mapping the old field indices to new
+    *                                   field indices.
+    * @return Return new expression with new field indices.
+    */
+  private[flink] def adjustInputRef(
+      expr: RexNode,
+      fieldsOldToNewIndexMapping: Map[Int, Int]): RexNode = expr.accept(
+    new RexShuttle() {
+      override def visitInputRef(inputRef: RexInputRef): RexNode = {
+        require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
+        val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
+        new RexInputRef(newIndex, inputRef.getType)
       }
     })
 

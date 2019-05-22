@@ -19,9 +19,10 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.flink.table.plan.nodes.logical._
-import org.apache.flink.table.plan.rules.logical.{CalcSnapshotTransposeRule, _}
+import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.plan.rules.physical.stream._
+
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
 import org.apache.calcite.rel.rules._
@@ -271,6 +272,10 @@ object FlinkStreamRuleSets {
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transform over window to topn node
     FlinkLogicalRankRule.INSTANCE,
+    // transpose calc past rank to reduce rank input fields
+    CalcRankTransposeRule.INSTANCE,
+    // remove output of rank number when it is a constant
+    RankNumberColumnRemoveRule.INSTANCE,
     // split distinct aggregate to reduce data skew
     SplitAggregateRule.INSTANCE,
     // transpose calc past snapshot
