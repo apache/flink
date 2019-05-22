@@ -201,7 +201,7 @@ public class UnionInputGate extends InputGate {
 				if (bufferOrEvent.isPresent() && bufferOrEvent.get().moreAvailable()) {
 					// enqueue the inputGate at the end to avoid starvation
 					inputGatesWithData.add(inputGate.get());
-				} else {
+				} else if (!inputGate.get().isFinished()) {
 					inputGate.get().isAvailable().thenRun(() -> queueInputGate(inputGate.get()));
 				}
 
@@ -242,7 +242,19 @@ public class UnionInputGate extends InputGate {
 				throw new IllegalStateException("Couldn't find input gate in set of remaining " +
 					"input gates.");
 			}
+			if (isFinished()) {
+				markAvailable();
+			}
 		}
+	}
+
+	private void markAvailable() {
+		CompletableFuture<?> toNotfiy;
+		synchronized (inputGatesWithData) {
+			toNotfiy = isAvailable;
+			isAvailable = AVAILABLE;
+		}
+		toNotfiy.complete(null);
 	}
 
 	@Override

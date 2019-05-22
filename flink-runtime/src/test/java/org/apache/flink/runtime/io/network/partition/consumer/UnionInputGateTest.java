@@ -115,4 +115,24 @@ public class UnionInputGateTest extends InputGateTestBase {
 
 		testIsAvailable(new UnionInputGate(inputGate1, inputGate2), inputGate1, inputChannel1);
 	}
+
+	@Test
+	public void testIsAvailableAfterFinished() throws Exception {
+		final SingleInputGate inputGate1 = createInputGate(1);
+		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
+		inputGate1.setInputChannel(new IntermediateResultPartitionID(), inputChannel1);
+
+		final SingleInputGate inputGate2 = createInputGate(1);
+		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
+		inputGate2.setInputChannel(new IntermediateResultPartitionID(), inputChannel2);
+
+		testIsAvailableAfterFinished(
+			new UnionInputGate(inputGate1, inputGate2),
+			() -> {
+				inputChannel1.readEndOfPartitionEvent();
+				inputChannel2.readEndOfPartitionEvent();
+				inputGate1.notifyChannelNonEmpty(inputChannel1);
+				inputGate2.notifyChannelNonEmpty(inputChannel2);
+			});
+	}
 }

@@ -129,6 +129,20 @@ public class SingleInputGateTest extends InputGateTestBase {
 	}
 
 	@Test
+	public void testIsAvailableAfterFinished() throws Exception {
+		final SingleInputGate inputGate = createInputGate(1);
+		TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
+		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+
+		testIsAvailableAfterFinished(
+			inputGate,
+			() -> {
+				inputChannel.readEndOfPartitionEvent();
+				inputGate.notifyChannelNonEmpty(inputChannel);
+			});
+	}
+
+	@Test
 	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = createInputGate();
