@@ -179,8 +179,8 @@ run sdist.
             'pyflink.bin': ['*']
         },
         scripts=scripts,
-        url='http://flink.apache.org',
-        license='http://www.apache.org/licenses/LICENSE-2.0',
+        url='https://flink.apache.org',
+        license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Flink Developers',
         author_email='dev@flink.apache.org',
         install_requires=['py4j==0.10.8.1', 'python-dateutil'],
