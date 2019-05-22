@@ -1016,6 +1016,23 @@ public class RemoteInputChannelTest {
 		}
 	}
 
+	/**
+	 * Tests that any exceptions thrown by {@link ConnectionManager#createPartitionRequestClient(ConnectionID)}
+	 * would be wrapped into {@link PartitionConnectionException} during
+	 * {@link RemoteInputChannel#requestSubpartition(int)}.
+	 */
+	@Test
+	public void testPartitionConnectionExceptionWhileRequestingPartition() throws Exception {
+		final RemoteInputChannel inputChannel = InputChannelTestUtils.createRemoteInputChannel(
+			createSingleInputGate(1), 0, new TestingExceptionConnectionManager());
+		try {
+			inputChannel.requestSubpartition(0);
+			fail("Expected PartitionConnectionException.");
+		} catch (PartitionConnectionException ex) {
+			assertThat(inputChannel.getPartitionId(), is(ex.getPartitionId()));
+		}
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
 	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate)
@@ -1177,6 +1194,13 @@ public class RemoteInputChannelTest {
 		}
 		if (throwable != null) {
 			ExceptionUtils.rethrowException(throwable);
+		}
+	}
+
+	private static final class TestingExceptionConnectionManager extends TestingConnectionManager {
+		@Override
+		public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
+			throw new IOException("");
 		}
 	}
 }

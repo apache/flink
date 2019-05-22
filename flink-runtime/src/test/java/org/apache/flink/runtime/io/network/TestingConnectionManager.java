@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
+import java.io.IOException;
+
 /**
  * A dummy implementation of the {@link ConnectionManager} which is mainly used for creating
  * {@link PartitionRequestClient} instance in tests.
@@ -31,7 +33,7 @@ public class TestingConnectionManager implements ConnectionManager {
 	}
 
 	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
 		return new TestingPartitionRequestClient();
 	}
 
