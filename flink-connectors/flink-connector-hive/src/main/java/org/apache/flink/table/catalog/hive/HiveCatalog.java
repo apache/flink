@@ -659,6 +659,8 @@ public class HiveCatalog implements Catalog {
 		Function hiveFunction;
 		if (function instanceof GenericCatalogFunction) {
 			hiveFunction = instantiateHiveFunction(functionPath, (GenericCatalogFunction) function);
+		} else if (function instanceof HiveCatalogFunction) {
+			hiveFunction = instantiateHiveFunction(functionPath, (HiveCatalogFunction) function);
 		} else {
 			throw new CatalogException(
 				String.format("Unsupported catalog function type %s", function.getClass().getName()));
@@ -694,8 +696,10 @@ public class HiveCatalog implements Catalog {
 			}
 
 			Function hiveFunction;
-			if (existingFunction instanceof GenericCatalogFunction && newFunction instanceof GenericCatalogFunction) {
-					hiveFunction = instantiateHiveFunction(functionPath, (GenericCatalogFunction) newFunction);
+			if (newFunction instanceof GenericCatalogFunction) {
+				hiveFunction = instantiateHiveFunction(functionPath, (GenericCatalogFunction) newFunction);
+			} else if (newFunction instanceof HiveCatalogFunction) {
+				hiveFunction = instantiateHiveFunction(functionPath, (HiveCatalogFunction) newFunction);
 			} else {
 				throw new CatalogException(
 					String.format("Unsupported catalog function type %s", newFunction.getClass().getName()));
@@ -758,7 +762,7 @@ public class HiveCatalog implements Catalog {
 			Function function = client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
 
 			if (function.getClassName().startsWith(FLINK_FUNCTION_PREFIX)) {
-				// TODO: extract more properties from Hive function and add to CatalogFunction's properties
+				// TODO: extract more properties from Hive function and add to GenericCatalogFunction's properties
 
 				Map<String, String> properties = new HashMap<>();
 				properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
@@ -766,7 +770,9 @@ public class HiveCatalog implements Catalog {
 				return new GenericCatalogFunction(
 					function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()), properties);
 			} else {
-				throw new CatalogException("Hive function is not supported yet");
+				// TODO: extract more properties from Hive function and add to HiveCatalogFunction's properties
+
+				return new HiveCatalogFunction(function.getClassName());
 			}
 		} catch (NoSuchObjectException e) {
 			throw new FunctionNotExistException(catalogName, functionPath, e);
@@ -795,6 +801,19 @@ public class HiveCatalog implements Catalog {
 			functionPath.getObjectName(),
 			functionPath.getDatabaseName(),
 			FLINK_FUNCTION_PREFIX + function.getClassName(),
+			null,			// Owner name
+			PrincipalType.GROUP,	// Temporarily set to GROUP type because it's required by Hive. May change later
+			(int) (System.currentTimeMillis() / 1000),
+			FunctionType.JAVA,		// FunctionType only has JAVA now
+			new ArrayList<>()		// Resource URIs
+		);
+	}
+
+	private static Function instantiateHiveFunction(ObjectPath functionPath, HiveCatalogFunction function) {
+		return new Function(
+			functionPath.getObjectName(),
+			functionPath.getDatabaseName(),
+			function.getClassName(),
 			null,			// Owner name
 			PrincipalType.GROUP,	// Temporarily set to GROUP type because it's required by Hive. May change later
 			(int) (System.currentTimeMillis() / 1000),
