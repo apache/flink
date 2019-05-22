@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.sources.tsextractors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.`type`.DecimalType
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.descriptors.Rowtime
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.`type`.DecimalType
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.DecimalTypeInfo
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -80,13 +81,17 @@ final class ExistingField(val field: String) extends TimestampExtractor {
         )
         new CallExpression(
           BuiltInFunctionDefinitions.CAST,
-          List(innerDiv, new TypeLiteralExpression(Types.SQL_TIMESTAMP)))
+          List(
+            innerDiv,
+            new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP))))
       case Types.SQL_TIMESTAMP =>
         fieldReferenceExpr
       case Types.STRING =>
         new CallExpression(
           BuiltInFunctionDefinitions.CAST,
-          List(fieldReferenceExpr, new TypeLiteralExpression(Types.SQL_TIMESTAMP)))
+          List(
+            fieldReferenceExpr,
+            new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP))))
     }
   }
 
