@@ -946,14 +946,14 @@ under the License.
 				<repository>
 					<id>HDPReleases</id>
 					<name>HDP Releases</name>
-					<url>http://repo.hortonworks.com/content/repositories/releases/</url>
+					<url>https://repo.hortonworks.com/content/repositories/releases/</url>
 					<snapshots><enabled>false</enabled></snapshots>
 					<releases><enabled>true</enabled></releases>
 				</repository>
 				<repository>
 					<id>HortonworksJettyHadoop</id>
 					<name>HDP Jetty</name>
-					<url>http://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
+					<url>https://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
 					<snapshots><enabled>false</enabled></snapshots>
 					<releases><enabled>true</enabled></releases>
 				</repository>
