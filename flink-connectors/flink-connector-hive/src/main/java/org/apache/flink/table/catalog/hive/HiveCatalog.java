@@ -189,14 +189,7 @@ public class HiveCatalog implements Catalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(database, "database cannot be null");
 
-		Database hiveDatabase;
-		if (database instanceof HiveCatalogDatabase) {
-			hiveDatabase = instantiateHiveDatabase(databaseName, (HiveCatalogDatabase) database);
-		} else if (database instanceof GenericCatalogDatabase) {
-			hiveDatabase = instantiateHiveDatabase(databaseName, (GenericCatalogDatabase) database);
-		} else {
-			throw new CatalogException(String.format("Unsupported catalog database type %s", database.getClass()), null);
-		}
+		Database hiveDatabase = instantiateHiveDatabase(databaseName, database);
 
 		try {
 			client.createDatabase(hiveDatabase);
@@ -209,21 +202,26 @@ public class HiveCatalog implements Catalog {
 		}
 	}
 
-	private static Database instantiateHiveDatabase(String databaseName, HiveCatalogDatabase database) {
-		return new Database(databaseName,
-			database.getComment(),
-			database.getLocation(),
-			database.getProperties());
-	}
+	private static Database instantiateHiveDatabase(String databaseName, CatalogDatabase database) {
+		if (database instanceof HiveCatalogDatabase) {
+			HiveCatalogDatabase db = (HiveCatalogDatabase) database;
+			return new Database(
+				databaseName,
+				db.getComment(),
+				db.getLocation(),
+				db.getProperties());
+		} else if (database instanceof GenericCatalogDatabase) {
+			GenericCatalogDatabase db = (GenericCatalogDatabase) database;
 
-	private static Database instantiateHiveDatabase(String databaseName, GenericCatalogDatabase database) {
-		Map<String, String> properties = database.getProperties();
-
-		return new Database(databaseName,
-			database.getComment(),
-			// HDFS location URI which GenericCatalogDatabase shouldn't care
-			null,
-			maskFlinkProperties(properties));
+			return new Database(
+				databaseName,
+				db.getComment(),
+				// HDFS location URI which GenericCatalogDatabase shouldn't care
+				null,
+				maskFlinkProperties(db.getProperties()));
+		} else {
+			throw new CatalogException(String.format("Unsupported catalog database type %s", database.getClass()), null);
+		}
 	}
 
 	@Override
@@ -232,14 +230,7 @@ public class HiveCatalog implements Catalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
-		Database newHiveDatabase;
-		if (newDatabase instanceof HiveCatalogDatabase) {
-			newHiveDatabase = instantiateHiveDatabase(databaseName, (HiveCatalogDatabase) newDatabase);
-		} else if (newDatabase instanceof GenericCatalogDatabase) {
-			newHiveDatabase = instantiateHiveDatabase(databaseName, (GenericCatalogDatabase) newDatabase);
-		} else {
-			throw new CatalogException(String.format("Unsupported catalog database type %s", newDatabase.getClass()), null);
-		}
+		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
 
 		try {
 			if (databaseExists(databaseName)) {
