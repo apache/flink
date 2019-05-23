@@ -68,6 +68,7 @@ import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -462,7 +463,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					slotRequest.getJobId(),
 					slotRequest.getAllocationId());
 
-				if (failureRater.exceedMaximumFailureRate()) {
+				if (failureRater.exceedFailureRate()) {
 					return FutureUtils.completedExceptionally(new MaximumFailedTaskManagerExceedingException(
 						new RuntimeException(String.format("Maximum number of failed container %d in interval %s "
 							+ " is detected in Resource Manager.", failureRater.getCurrentFailureRate(),
@@ -679,18 +680,36 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @return whether should acquire new container/worker after the failure
 	 */
 	@VisibleForTesting
-	protected boolean recordFailure() {
-		failureRater.recordFailure();
-		if (failureRater.exceedMaximumFailureRate()) {
+	protected void recordFailure() {
+		failureRater.recordFailure(SystemClock.getInstance());
+		if (failureRater.exceedFailureRate()) {
 			rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
 				new RuntimeException(String.format("Maximum number of failed workers %d in interval %s"
 						+ "is detected in Resource Manager", failureRater.getMaximumFailureRate(),
 					failureRater.getFailureInterval().toString()))));
 
-			return false;
+		}
+	}
+
+	protected Collection<ResourceProfile> tryStartNewWorker(ResourceProfile resourceProfile) {
+		if (failureRater.exceedFailureRate()) {
+			return Collections.emptyList();
 		}
 
-		return true;
+		return startNewWorker(resourceProfile);
+	}
+
+	protected void startNewWorkerIfNeeded(ResourceProfile resourceProfile, int pendingSlots) {
+		int currentPendingSlots = pendingSlots;
+		while (currentPendingSlots < getNumberRequiredTaskManagerSlots()) {
+			final Collection<ResourceProfile> slots = tryStartNewWorker(resourceProfile);
+
+			if (slots.isEmpty()) {
+				break;
+			}
+
+			currentPendingSlots += slots.size();
+		}
 	}
 
 	protected void rejectAllPendingSlotRequests(Exception e) {
@@ -1056,6 +1075,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				slotManager.suspend();
 			});
 	}
+
+
 
 	/**
 	 * Handles error occurring in the leader election service.

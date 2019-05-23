@@ -19,29 +19,32 @@
 package org.apache.flink.runtime.failurerate;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.util.clock.Clock;
 
 import java.util.ArrayDeque;
 
 /**
  * A timestamp queue based failure rater implementation.
- *
- *
  */
 public class TimestampBasedFailureRater implements FailureRater {
 	private static final int DEFAULT_TIMESTAMP_SIZE = 300;
+	private static final int MILLISECOND_PER_SECOND = 1000;
 	private final int maximumFailureRate;
 	private final Time failureInterval;
 	private final ArrayDeque<Long> failureTimestamps;
+	private int count;
 
 	public TimestampBasedFailureRater(int maximumFailureRate, Time failureInterval) {
 		this.maximumFailureRate = maximumFailureRate;
 		this.failureInterval = failureInterval;
 		this.failureTimestamps = new ArrayDeque<>(maximumFailureRate > 0 ? maximumFailureRate : DEFAULT_TIMESTAMP_SIZE);
+		this.count = 0;
 	}
 
 	@Override
-	public void recordFailure() {
-		failureTimestamps.add(System.currentTimeMillis());
+	public void recordFailure(Clock clock) {
+		failureTimestamps.add(clock.absoluteTimeMillis());
+		count++;
 	}
 
 	@Override
@@ -55,7 +58,7 @@ public class TimestampBasedFailureRater implements FailureRater {
 	}
 
 	@Override
-	public long getCurrentFailureRate() {
+	public double getCurrentFailureRate() {
 		Long currentTimeStamp = System.currentTimeMillis();
 		while (!failureTimestamps.isEmpty() &&
 			currentTimeStamp - failureTimestamps.peek() > failureInterval.toMilliseconds()) {
@@ -66,11 +69,12 @@ public class TimestampBasedFailureRater implements FailureRater {
 	}
 
 	@Override
-	public boolean exceedMaximumFailureRate() {
+	public boolean exceedFailureRate() {
 		if (maximumFailureRate < 0) {
 			return false;
 		}
-		long currentRate = getCurrentFailureRate();
+
+		double currentRate = getCurrentFailureRate();
 		if (currentRate < maximumFailureRate) {
 			return  false;
 		}
@@ -78,5 +82,25 @@ public class TimestampBasedFailureRater implements FailureRater {
 		Long earliestTimestamp = failureTimestamps.peek();
 
 		return System.currentTimeMillis() - earliestTimestamp < failureInterval.toMilliseconds();
+	}
+
+	@Override
+	public void markEvent() {
+		failureTimestamps.add(System.currentTimeMillis());
+	}
+
+	@Override
+	public void markEvent(long n) {
+		failureTimestamps.add(n);
+		count++;
+	}
+
+	public double getRate() {
+		return (getCurrentFailureRate() / failureInterval.toMilliseconds()) * MILLISECOND_PER_SECOND;
+	}
+
+	@Override
+	public long getCount() {
+		return count;
 	}
 }

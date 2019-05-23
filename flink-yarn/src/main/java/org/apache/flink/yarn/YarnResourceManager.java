@@ -95,9 +95,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	 * Container ID generation may vary across Hadoop versions. */
 	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
-	/** The default initial number of task manager. **/
-	private static final String DEFAULT_INITIAL_NUM_TASK_MANAGER = "2";
-
 	/** Environment variable name of the hostname given by the YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
 	static final String ENV_FLINK_NODE_ID = "_FLINK_NODE_ID";
@@ -406,10 +403,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
-						if (recordFailure()) {
-							// and ask for a new one
-							requestYarnContainerIfRequired();
-						}
+						recordFailure();
+
+						// and ask for a new one
+						requestYarnContainerIfRequired();
 					}
 				} else {
 					// return the excessive containers

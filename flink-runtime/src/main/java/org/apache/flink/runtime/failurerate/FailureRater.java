@@ -19,16 +19,18 @@
 package org.apache.flink.runtime.failurerate;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.runtime.util.clock.Clock;
 
 /**
  * A rater to record the failure rate within a time interval.
  */
-public interface FailureRater {
+public interface FailureRater extends Meter {
 
 	/**
 	 * Record one time of failure.
 	 */
-	public void recordFailure();
+	void recordFailure(Clock clock);
 
 
 	/**
@@ -36,7 +38,7 @@ public interface FailureRater {
 	 *
 	 * @return maximum allow failure rate
 	 */
-	public int getMaximumFailureRate();
+	int getMaximumFailureRate();
 
 	/**
 	 * Get the time interval that is used for failure rate measurement.
@@ -44,14 +46,14 @@ public interface FailureRater {
 	 *
 	 * @return failure interval of the rater
 	 */
-	public Time getFailureInterval();
+	Time getFailureInterval();
 
 	/**
 	 * Get failure rate until current timestamp.
 	 *
 	 * @return current failure rate
 	 */
-	public long getCurrentFailureRate();
+	double getCurrentFailureRate();
 
 
 	/**
@@ -59,5 +61,5 @@ public interface FailureRater {
 	 *
 	 * @return whether maximum failure rate is hit
 	 */
-	public boolean exceedMaximumFailureRate();
+	boolean exceedFailureRate();
 }

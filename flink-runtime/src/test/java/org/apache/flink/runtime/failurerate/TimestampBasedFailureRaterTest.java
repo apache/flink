@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.failurerate;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.util.clock.ManualClock;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
-
 
 /**
  * Test time stamp based failure rater.
@@ -35,24 +35,27 @@ public class TimestampBasedFailureRaterTest {
 	public void testMaximumFailureCheck() {
 		FailureRater rater = new TimestampBasedFailureRater(5, Time.of(10, TimeUnit.SECONDS));
 
+		ManualClock manualClock = new ManualClock();
 		for (int i = 0; i < 6; i++) {
-			rater.recordFailure();
+			rater.recordFailure(manualClock);
 		}
 
 		Assert.assertEquals(6, rater.getCurrentFailureRate());
-		Assert.assertTrue(rater.exceedMaximumFailureRate());
+		Assert.assertTrue(rater.exceedFailureRate());
 	}
 
 	@Test
 	public void testMovingRate() throws InterruptedException {
 		FailureRater rater = new TimestampBasedFailureRater(5, Time.of(500, TimeUnit.MILLISECONDS));
 
+		ManualClock manualClock = new ManualClock();
+
 		for (int i = 0; i < 6; i++) {
-			rater.recordFailure();
-			Thread.sleep(150);
+			rater.recordFailure(manualClock);
+			manualClock.advanceTime(150, TimeUnit.MILLISECONDS);
 		}
 
 		Assert.assertEquals(3, rater.getCurrentFailureRate());
-		Assert.assertFalse(rater.exceedMaximumFailureRate());
+		Assert.assertFalse(rater.exceedFailureRate());
 	}
 }

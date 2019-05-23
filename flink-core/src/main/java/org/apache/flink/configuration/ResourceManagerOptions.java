@@ -64,8 +64,8 @@ public class ResourceManagerOptions {
 		.key("resourcemanager.maximum-workers-failure-rate")
 		.defaultValue(-1)
 		.withDescription("Defines the maximum number of workers (YARN / Mesos) failure can happen in a minute." +
-			"It is to quickly catch external dependency caused workers failure and terminate job" +
-			"accordingly. Be default, -1 is set to disable the feature.");
+			" It is to quickly catch external dependency caused workers failure and terminate job" +
+			" accordingly. Be default, -1 is set to disable the feature.");
 
 	/**
 	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate

@@ -98,14 +98,14 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 			rmRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
+			new TimestampBasedFailureRater(failureRate, Time.of(1, TimeUnit.MINUTES)),
 			configuration,
 			mesosServices,
 			schedulerConfiguration,
 			taskManagerParameters,
 			taskManagerContainerSpec,
 			webInterfaceUrl,
-			jobManagerMetricGroup,
-			new TimestampBasedFailureRater(failureRate, Time.of(1, TimeUnit.MINUTES))
+			jobManagerMetricGroup
 		);
 	}
 }

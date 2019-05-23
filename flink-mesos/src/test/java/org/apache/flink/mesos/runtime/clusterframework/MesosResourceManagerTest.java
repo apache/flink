@@ -172,15 +172,14 @@ public class MesosResourceManagerTest extends TestLogger {
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler,
-
+			FailureRater failureRater,
 			// Mesos specifics
 			Configuration flinkConfig,
 			MesosServices mesosServices,
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
-			JobManagerMetricGroup jobManagerMetricGroup,
-			FailureRater failureRater) {
+			JobManagerMetricGroup jobManagerMetricGroup) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -192,14 +191,14 @@ public class MesosResourceManagerTest extends TestLogger {
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
 				fatalErrorHandler,
+				failureRater,
 				flinkConfig,
 				mesosServices,
 				mesosConfig,
 				taskManagerParameters,
 				taskManagerContainerSpec,
 				null,
-				jobManagerMetricGroup,
-				failureRater);
+				jobManagerMetricGroup);
 		}
 
 		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
@@ -294,6 +293,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				Collections.<ConstraintEvaluator>emptyList(), "", Option.<String>empty(),
 				Option.<String>empty(), Collections.<String>emptyList());
 
+			FailureRater failureRater = new TimestampBasedFailureRater(2, Time.of(1, TimeUnit.MINUTES));
 			// resource manager
 			rmResourceID = ResourceID.generate();
 			resourceManager =
@@ -307,14 +307,14 @@ public class MesosResourceManagerTest extends TestLogger {
 					rmServices.metricRegistry,
 					rmServices.jobLeaderIdService,
 					fatalErrorHandler,
+					failureRater,
 					// Mesos specifics
 					flinkConfig,
 					mesosServices,
 					rmServices.mesosConfig,
 					tmParams,
 					containerSpecification,
-					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-					new TimestampBasedFailureRater(2, Time.of(1, TimeUnit.MINUTES)));
+					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 
 			// TaskExecutors
 			task1Executor = mockTaskExecutor(task1);

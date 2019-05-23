@@ -58,6 +58,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -161,6 +162,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		JobLeaderIdService jobLeaderIdService,
 		ClusterInformation clusterInformation,
 		FatalErrorHandler fatalErrorHandler,
+		FailureRater failureRater,
 		// Mesos specifics
 		Configuration flinkConfig,
 		MesosServices mesosServices,
@@ -168,8 +170,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		MesosTaskManagerParameters taskManagerParameters,
 		ContainerSpecification taskManagerContainerSpec,
 		@Nullable String webUiUrl,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		FailureRater failureRater) {
+		JobManagerMetricGroup jobManagerMetricGroup) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -667,7 +668,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
 				id, status.getState(), status.getReason(), status.getMessage());
 
-			if (recordFailure()) {
+			if (recordFailure(SystemClock.getInstance())) {
 				startNewWorker(launched.profile());
 			}
 		}

@@ -83,8 +83,8 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
 		key("yarn.maximum-failed-containers")
-			.noDefaultValue()
-			.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
+		.noDefaultValue()
+		.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
