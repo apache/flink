@@ -61,6 +61,11 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
+	public void shutDownCluster() {
+
+	}
+
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}

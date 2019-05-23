@@ -145,6 +145,16 @@ under the License.
 				</configuration>
 			</plugin>
 
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<forkMode>always</forkMode>
+					<environmentVariables>
+						<FLINK_CONF_DIR>${project.build.directory}/test-classes</FLINK_CONF_DIR>
+					</environmentVariables>
+				</configuration>
+			</plugin>
+
 			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

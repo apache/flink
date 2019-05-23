@@ -33,6 +33,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -48,6 +51,8 @@ import java.util.concurrent.ExecutionException;
  */
 public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> implements NewClusterClient {
 
+	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterClient.class);
+
 	private final MiniCluster miniCluster;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) {
@@ -59,6 +64,15 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	@Override
 	public void shutdown() throws Exception {
 		super.shutdown();
+	}
+
+	@Override
+	public void shutDownCluster() {
+		try {
+			miniCluster.close();
+		} catch (Exception e) {
+			LOG.warn("Fail to shutdown minicluster", e);
+		}
 	}
 
 	@Override

@@ -499,7 +499,5 @@ public abstract class ClusterClient<T> {
 	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 		throws ProgramInvocationException;
 
-	public void shutDownCluster() {
-		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
-	}
+	public abstract void shutDownCluster();
 }

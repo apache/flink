@@ -21,6 +21,7 @@ package org.apache.flink.api.scala
 import java.io.{BufferedReader, File, FileOutputStream}
 
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
+import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
@@ -34,6 +35,8 @@ class FlinkILoop(
     val port: Int,
     val clientConfig: Configuration,
     val externalJars: Option[Array[String]],
+    val clusterClient: ClusterClient[_],
+    val shouldShutdownCluster: Boolean,
     in0: Option[BufferedReader],
     out0: JPrintWriter)
   extends ILoop(in0, out0) {
@@ -43,26 +46,34 @@ class FlinkILoop(
     port: Int,
     clientConfig: Configuration,
     externalJars: Option[Array[String]],
+    clusterClient: ClusterClient[_],
+    shouldShutdownCluster: Boolean,
     in0: BufferedReader,
     out: JPrintWriter) {
-    this(host, port, clientConfig, externalJars, Some(in0), out)
+    this(host, port, clientConfig, externalJars, clusterClient,
+      shouldShutdownCluster, Some(in0), out)
   }
 
   def this(
     host: String,
     port: Int,
     clientConfig: Configuration,
-    externalJars: Option[Array[String]]) {
-    this(host, port, clientConfig, externalJars, None, new JPrintWriter(Console.out, true))
+    externalJars: Option[Array[String]],
+    clusterClient: ClusterClient[_],
+    shouldShutdownCluster: Boolean) {
+    this(host, port, clientConfig, externalJars, clusterClient, shouldShutdownCluster, None,
+      new JPrintWriter(Console.out, true))
   }
   
   def this(
     host: String,
     port: Int,
     clientConfig: Configuration,
+    clusterClient: ClusterClient[_],
+    shouldShutdownCluster: Boolean,
     in0: BufferedReader,
     out: JPrintWriter){
-    this(host, port, clientConfig, None, in0, out)
+    this(host, port, clientConfig, None, clusterClient, shouldShutdownCluster, in0, out)
   }
 
   // remote environment
@@ -286,5 +297,13 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
   }
 
   def getExternalJars(): Array[String] = externalJars.getOrElse(Array.empty[String])
+
+  override def closeInterpreter(): Unit = {
+    super.closeInterpreter()
+    if (shouldShutdownCluster) {
+      clusterClient.shutDownCluster()
+    }
+    clusterClient.shutdown()
+  }
 }
 

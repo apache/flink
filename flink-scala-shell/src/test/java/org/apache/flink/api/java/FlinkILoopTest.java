@@ -60,7 +60,7 @@ public class FlinkILoopTest extends TestLogger {
 	public void testConfigurationForwarding() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString("foobar", "foobar");
-		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
+		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty(), null, false);
 
 		final TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
 
@@ -106,7 +106,7 @@ public class FlinkILoopTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		configuration.setString("foobar", "foobar");
 
-		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
+		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty(), null, false);
 
 		StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
 

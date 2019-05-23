@@ -20,25 +20,19 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.flink.api.scala.FlinkShell.{Config, ExecutionMode}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.minicluster.MiniCluster
-import org.apache.flink.runtime.testutils.{MiniClusterResource, MiniClusterResourceConfiguration}
+import org.apache.flink.runtime.testutils.MiniClusterResource
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
 import org.apache.flink.util.TestLogger
 import org.junit._
-import org.junit.rules.TemporaryFolder
 
-import scala.tools.nsc.Settings
+import scala.tools.nsc.interpreter.JPrintWriter
 
 class ScalaShellITCase extends TestLogger {
 
   import ScalaShellITCase._
-
-  val _temporaryFolder = new TemporaryFolder
-
-  @Rule
-  def temporaryFolder = _temporaryFolder
 
   /** Prevent re-creation of environment */
   @Test
@@ -51,7 +45,7 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input)
 
-    Assert.assertTrue(output.contains(
+    Assert.assertTrue(output, output.contains(
       "UnsupportedOperationException: Execution Environment is already " +
       "defined for this shell"))
   }
@@ -68,7 +62,7 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input)
 
-    Assert.assertTrue(output.contains(
+    Assert.assertTrue(output, output.contains(
       "UnsupportedOperationException: Execution Environment is already " +
       "defined for this shell"))
   }
@@ -94,9 +88,9 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("error"))
+    Assert.assertFalse(output, output.contains("Exception"))
   }
 
   /** WordCount in Shell */
@@ -114,15 +108,15 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("error"))
+    Assert.assertFalse(output, output.contains("Exception"))
 
     // some of the words that should be included
-    Assert.assertTrue(output.contains("(a,1)"))
-    Assert.assertTrue(output.contains("(whether,1)"))
-    Assert.assertTrue(output.contains("(to,4)"))
-    Assert.assertTrue(output.contains("(arrows,1)"))
+    Assert.assertTrue(output, output.contains("(a,1)"))
+    Assert.assertTrue(output, output.contains("(whether,1)"))
+    Assert.assertTrue(output, output.contains("(to,4)"))
+    Assert.assertTrue(output, output.contains("(arrows,1)"))
   }
 
   /** Sum 1..10, should be 55 */
@@ -137,11 +131,11 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("error"))
+    Assert.assertFalse(output, output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("55"))
+    Assert.assertTrue(output, output.contains("55"))
   }
 
   /** WordCount in Shell with custom case class */
@@ -160,12 +154,12 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("error"))
+    Assert.assertFalse(output, output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("WC(hello,1)"))
-    Assert.assertTrue(output.contains("WC(world,10)"))
+    Assert.assertTrue(output, output.contains("WC(hello,1)"))
+    Assert.assertTrue(output, output.contains("WC(world,10)"))
   }
 
   @Test
@@ -183,11 +177,11 @@ class ScalaShellITCase extends TestLogger {
         |:q
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
-    Assert.assertTrue(output.contains("1,Hi"))
-    Assert.assertTrue(output.contains("3,Hello world"))
+    Assert.assertFalse(output, output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output, output.toLowerCase.contains("error"))
+    Assert.assertFalse(output, output.toLowerCase.contains("exception"))
+    Assert.assertTrue(output, output.contains("1,Hi"))
+    Assert.assertTrue(output, output.contains("3,Hello world"))
   }
 
   @Test
@@ -215,12 +209,12 @@ class ScalaShellITCase extends TestLogger {
         | senv.execute
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("6,1"))
-    Assert.assertTrue(output.contains("1,2"))
-    Assert.assertTrue(output.contains("2,1"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
+    Assert.assertTrue(output, output.contains("6,1"))
+    Assert.assertTrue(output, output.contains("1,2"))
+    Assert.assertTrue(output, output.contains("2,1"))
+    Assert.assertFalse(output, output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output, output.toLowerCase.contains("error"))
+    Assert.assertFalse(output, output.toLowerCase.contains("exception"))
   }
 
   /**
@@ -239,12 +233,11 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("error"))
+    Assert.assertFalse(output, output.contains("Exception"))
 
-
-    Assert.assertTrue(output.contains("\nHELLO 42"))
+    Assert.assertTrue(output, output.contains("\nHELLO 42"))
   }
 
   /**
@@ -264,11 +257,11 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("error"))
+    Assert.assertFalse(output, output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("\nHELLO 42"))
+    Assert.assertTrue(output, output.contains("\nHELLO 42"))
   }
 
 
@@ -319,48 +312,24 @@ class ScalaShellITCase extends TestLogger {
         |:q
       """.stripMargin
 
-    val in: BufferedReader = new BufferedReader(
-      new StringReader(
-        input + "\n"))
-    val out: StringWriter = new StringWriter
-
-    val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-    val oldOut: PrintStream = System.out
-    System.setOut(new PrintStream(baos))
-
-    val dir = temporaryFolder.newFolder()
-    BootstrapTools.writeConfiguration(configuration, new File(dir, "flink-conf.yaml"))
-
     val port: Int = clusterResource.getRestAddres.getPort
     val hostname : String = clusterResource.getRestAddres.getHost
 
-    val args = Array(
-      "remote",
-      hostname,
-      Integer.toString(port),
-      "--configDir",
-      dir.getAbsolutePath)
+    val config = Config(host = Some(hostname), port = Some(port),
+      executionMode = ExecutionMode.REMOTE)
+    val output = processInShell(input, config = config)
 
-    //start scala shell with initialized
-    // buffered reader for testing
-    FlinkShell.bufferedReader = Some(in)
-    FlinkShell.main(args)
-    baos.flush()
+    Assert.assertTrue(output, output.contains("IntCounter: 2"))
+    Assert.assertTrue(output, output.contains("foobar"))
+    Assert.assertTrue(output, output.contains("barfoo"))
 
-    val output: String = baos.toString
-    System.setOut(oldOut)
+    Assert.assertTrue(output, output.contains("foobarStreaming"))
+    Assert.assertTrue(output, output.contains("barfooStreaming"))
 
-    Assert.assertTrue(output.contains("IntCounter: 2"))
-    Assert.assertTrue(output.contains("foobar"))
-    Assert.assertTrue(output.contains("barfoo"))
-
-    Assert.assertTrue(output.contains("foobarStreaming"))
-    Assert.assertTrue(output.contains("barfooStreaming"))
-
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("Error"))
-    Assert.assertFalse(output.contains("ERROR"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assert.assertFalse(output, output.contains("failed"))
+    Assert.assertFalse(output, output.contains("Error"))
+    Assert.assertFalse(output, output.contains("ERROR"))
+    Assert.assertFalse(output, output.contains("Exception"))
   }
 
   @Test
@@ -378,10 +347,10 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertTrue(output.contains("the java list size is: 5"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
+    Assert.assertTrue(output, output.contains("the java list size is: 5"))
+    Assert.assertFalse(output, output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output, output.toLowerCase.contains("error"))
+    Assert.assertFalse(output, output.toLowerCase.contains("exception"))
 
   }
 
@@ -402,10 +371,10 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertTrue(output.contains("sum is: 15"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException"))
+    Assert.assertTrue(output, output.contains("sum is: 15"))
+    Assert.assertFalse(output, output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output, output.toLowerCase.contains("error"))
+    Assert.assertTrue(output, output.contains("java.lang.UnsupportedOperationException"))
   }
 
   @Test
@@ -424,7 +393,8 @@ class ScalaShellITCase extends TestLogger {
       """.stripMargin
 
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("error: object util is not a member of package org.apache." +
+    Assert.assertTrue(output,
+      output.contains("error: object util is not a member of package org.apache." +
       "flink.table.api.java"))
   }
 
@@ -435,10 +405,16 @@ class ScalaShellITCase extends TestLogger {
         |val newEnv = ExecutionEnvironment.getExecutionEnvironment
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException: Execution " +
+    Assert.assertTrue(output,
+      output.contains("java.lang.UnsupportedOperationException: Execution " +
       "Environment is already defined for this shell."))
   }
 
+  @After
+  def afterTest(): Unit = {
+    // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
+    Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
+  }
 }
 
 object ScalaShellITCase {
@@ -455,64 +431,28 @@ object ScalaShellITCase {
   @ClassRule
   def clusterResource = _clusterResource
 
-  @AfterClass
-  def afterAll(): Unit = {
-    // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
-    Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
-  }
-
   /**
    * Run the input using a Scala Shell and return the output of the shell.
-    *
-    * @param input commands to be processed in the shell
+   * By default run it in local mode (MiniCluster).
+   *
+   * @param input commands to be processed in the shell
+   * @param config Config info for scala shell (like execution mode and etc.)
    * @return output of shell
    */
-  def processInShell(input: String, externalJars: Option[String] = None): String = {
+  def processInShell(input: String,
+                     externalJars: Option[String] = None,
+                     config: Config = Config(executionMode = ExecutionMode.LOCAL)): String = {
     val in = new BufferedReader(new StringReader(input + "\n"))
     val out = new StringWriter()
     val baos = new ByteArrayOutputStream()
 
     val oldOut = System.out
     System.setOut(new PrintStream(baos))
+    FlinkShell.startShell(config, Some(in), new JPrintWriter(out))
 
-    val port: Int = clusterResource.getRestAddres.getPort
-    val hostname : String = clusterResource.getRestAddres.getHost
-
-      val repl = externalJars match {
-        case Some(ej) => new FlinkILoop(
-          hostname,
-          port,
-          configuration,
-          Option(Array(ej)),
-          in, new PrintWriter(out))
-
-        case None => new FlinkILoop(
-          hostname,
-          port,
-          configuration,
-          in, new PrintWriter(out))
-      }
-
-      repl.settings = new Settings()
-
-      // enable this line to use scala in intellij
-      repl.settings.usejavacp.value = true
-
-      externalJars match {
-        case Some(ej) => repl.settings.classpath.value = ej
-        case None =>
-      }
-
-      repl.process(repl.settings)
-
-      repl.closeInterpreter()
-
-      System.setOut(oldOut)
-
-      baos.flush()
-
-      val stdout = baos.toString
-
-      out.toString + stdout
+    System.setOut(oldOut)
+    baos.flush()
+    val stdout = baos.toString
+    out.toString + stdout
   }
 }
