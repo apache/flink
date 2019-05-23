@@ -448,8 +448,38 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetColumnIntervalOnOverWindowAgg(): Unit = {
-    Array(flinkLogicalOverWindow, batchOverWindowAgg).foreach {
+  def testGetColumnIntervalOnWindowAgg(): Unit = {
+    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithLocalAgg,
+      batchGlobalWindowAggWithoutLocalAgg, streamWindowAgg).foreach { agg =>
+      assertEquals(ValueInterval(5, 45), mq.getColumnInterval(agg, 0))
+      assertEquals(null, mq.getColumnInterval(agg, 1))
+      assertEquals(RightSemiInfiniteValueInterval(0), mq.getColumnInterval(agg, 2))
+      assertEquals(null, mq.getColumnInterval(agg, 3))
+    }
+    assertEquals(ValueInterval(5, 45), mq.getColumnInterval(batchLocalWindowAgg, 0))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 1))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 2))
+    assertEquals(RightSemiInfiniteValueInterval(0), mq.getColumnInterval(batchLocalWindowAgg, 3))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAgg, 4))
+
+    Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchGlobalWindowAggWithLocalAggWithAuxGroup,
+      batchGlobalWindowAggWithoutLocalAggWithAuxGroup).foreach { agg =>
+      assertEquals(ValueInterval(5, 55), mq.getColumnInterval(agg, 0))
+      assertEquals(ValueInterval(0, 50), mq.getColumnInterval(agg, 1))
+      assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 2))
+      assertEquals(null, mq.getColumnInterval(agg, 3))
+    }
+    assertEquals(ValueInterval(5, 55), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 0))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 1))
+    assertEquals(ValueInterval(0, 50), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 2))
+    assertEquals(ValueInterval(0, null), mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 3))
+    assertEquals(null, mq.getColumnInterval(batchLocalWindowAggWithAuxGroup, 4))
+  }
+
+  @Test
+  def testGetColumnIntervalOnOverAgg(): Unit = {
+    Array(flinkLogicalOverAgg, batchOverAgg).foreach {
       agg =>
         assertEquals(ValueInterval(0, null), mq.getColumnInterval(agg, 0))
         assertEquals(null, mq.getColumnInterval(agg, 1))
@@ -464,14 +494,14 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
         assertNull(mq.getColumnInterval(agg, 10))
     }
 
-    assertEquals(ValueInterval(0, null), mq.getColumnInterval(streamOverWindowAgg, 0))
-    assertEquals(null, mq.getColumnInterval(streamOverWindowAgg, 1))
-    assertEquals(ValueInterval(2.7, 4.8), mq.getColumnInterval(streamOverWindowAgg, 2))
-    assertEquals(ValueInterval(12, 18), mq.getColumnInterval(streamOverWindowAgg, 3))
-    assertNull(mq.getColumnInterval(streamOverWindowAgg, 4))
-    assertNull(mq.getColumnInterval(streamOverWindowAgg, 5))
-    assertNull(mq.getColumnInterval(streamOverWindowAgg, 6))
-    assertNull(mq.getColumnInterval(streamOverWindowAgg, 7))
+    assertEquals(ValueInterval(0, null), mq.getColumnInterval(streamOverAgg, 0))
+    assertEquals(null, mq.getColumnInterval(streamOverAgg, 1))
+    assertEquals(ValueInterval(2.7, 4.8), mq.getColumnInterval(streamOverAgg, 2))
+    assertEquals(ValueInterval(12, 18), mq.getColumnInterval(streamOverAgg, 3))
+    assertNull(mq.getColumnInterval(streamOverAgg, 4))
+    assertNull(mq.getColumnInterval(streamOverAgg, 5))
+    assertNull(mq.getColumnInterval(streamOverAgg, 6))
+    assertNull(mq.getColumnInterval(streamOverAgg, 7))
   }
 
   @Test
@@ -490,7 +520,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     assertEquals(ValueInterval(1L, 800000000L), mq.getColumnInterval(join, 1))
     assertNull(mq.getColumnInterval(join, 2))
     assertNull(mq.getColumnInterval(join, 3))
-    assertEquals(ValueInterval(1L, 100L),mq.getColumnInterval(join, 4))
+    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(join, 4))
     assertNull(mq.getColumnInterval(join, 5))
     assertEquals(ValueInterval(8L, 1000L), mq.getColumnInterval(join, 6))
     assertNull(mq.getColumnInterval(join, 7))

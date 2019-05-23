@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalOverWindow
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalOverAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecOverAggregate
 import org.apache.flink.table.plan.util.{AggregateUtil, OverAggregateUtil, SortUtil}
 
@@ -37,18 +37,18 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Rule that converts [[FlinkLogicalOverWindow]] to one or more [[BatchExecOverAggregate]]s.
+  * Rule that converts [[FlinkLogicalOverAggregate]] to one or more [[BatchExecOverAggregate]]s.
   * If there are more than one [[Group]], this rule will combine adjacent [[Group]]s with the
   * same partition keys and order keys into one BatchExecOverAggregate.
   */
-class BatchExecOverWindowAggRule
+class BatchExecOverAggregateRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalOverWindow],
+    operand(classOf[FlinkLogicalOverAggregate],
       operand(classOf[RelNode], any)),
-    "BatchExecOverWindowAggRule") {
+    "BatchExecOverAggregateRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val logicWindow: FlinkLogicalOverWindow = call.rel(0)
+    val logicWindow: FlinkLogicalOverAggregate = call.rel(0)
     var input: RelNode = call.rel(1)
     var inputRowType = logicWindow.getInput.getRowType
     val typeFactory = logicWindow.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -135,7 +135,7 @@ class BatchExecOverWindowAggRule
   /**
     * Returns true if group1 satisfies group2 on keys and orderKeys, else false.
     */
-  def satisfies(group1: Group, group2: Group, logicWindow: FlinkLogicalOverWindow): Boolean = {
+  def satisfies(group1: Group, group2: Group, logicWindow: FlinkLogicalOverAggregate): Boolean = {
     var isSatisfied = false
     val keyComp = group1.keys.compareTo(group2.keys)
     if (keyComp == 0) {
@@ -176,6 +176,6 @@ class BatchExecOverWindowAggRule
   }
 }
 
-object BatchExecOverWindowAggRule {
-  val INSTANCE: RelOptRule = new BatchExecOverWindowAggRule
+object BatchExecOverAggregateRule {
+  val INSTANCE: RelOptRule = new BatchExecOverAggregateRule
 }

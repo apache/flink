@@ -58,7 +58,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Batch physical RelNode for sort-based over [[Window]].
+  * Batch physical RelNode for sort-based over [[Window]] aggregate.
   */
 class BatchExecOverAggregate(
     cluster: RelOptCluster,

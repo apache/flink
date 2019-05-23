@@ -27,7 +27,7 @@ import org.apache.flink.table.util.TableTestBase
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class OverWindowAggregateTest extends TableTestBase {
+class OverAggregateTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)

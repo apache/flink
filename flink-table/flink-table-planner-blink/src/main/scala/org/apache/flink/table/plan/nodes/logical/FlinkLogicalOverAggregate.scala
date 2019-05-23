@@ -19,16 +19,15 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.logical.LogicalWindow
 import org.apache.calcite.rel.metadata.RelMdCollation
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.sql.SqlRankFunction
 
@@ -42,7 +41,7 @@ import scala.collection.JavaConversions._
   * Sub-class of [[Window]] that is a relational expression
   * which represents a set of over window aggregates in Flink.
   */
-class FlinkLogicalOverWindow(
+class FlinkLogicalOverAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
@@ -53,7 +52,7 @@ class FlinkLogicalOverWindow(
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: JList[RelNode]): RelNode = {
-    new FlinkLogicalOverWindow(
+    new FlinkLogicalOverAggregate(
       cluster,
       traitSet,
       inputs.get(0),
@@ -64,12 +63,12 @@ class FlinkLogicalOverWindow(
 
 }
 
-class FlinkLogicalOverWindowConverter
+class FlinkLogicalOverAggregateConverter
   extends ConverterRule(
     classOf[LogicalWindow],
     Convention.NONE,
     FlinkConventions.LOGICAL,
-    "FlinkLogicalOverWindowConverter") {
+    "FlinkLogicalOverAggregateConverter") {
 
   override def convert(rel: RelNode): RelNode = {
     val window = rel.asInstanceOf[LogicalWindow]
@@ -92,7 +91,7 @@ class FlinkLogicalOverWindowConverter
       }
     }
 
-    new FlinkLogicalOverWindow(
+    new FlinkLogicalOverAggregate(
       rel.getCluster,
       traitSet,
       newInput,
@@ -102,6 +101,6 @@ class FlinkLogicalOverWindowConverter
   }
 }
 
-object FlinkLogicalOverWindow {
-  val CONVERTER = new FlinkLogicalOverWindowConverter
+object FlinkLogicalOverAggregate {
+  val CONVERTER = new FlinkLogicalOverAggregateConverter
 }

@@ -62,7 +62,7 @@ class StreamExecGroupWindowAggregate(
     val aggCalls: Seq[AggregateCall],
     val window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
-    inputTimestampIndex: Int,
+    inputTimeFieldIndex: Int,
     val emitStrategy: WindowEmitStrategy)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
@@ -86,7 +86,7 @@ class StreamExecGroupWindowAggregate(
     case _ => false
   }
 
-  def getGroupings: Array[Int] = grouping
+  def getGrouping: Array[Int] = grouping
 
   def getWindowProperties: Seq[NamedWindowProperty] = namedProperties
 
@@ -103,7 +103,7 @@ class StreamExecGroupWindowAggregate(
       aggCalls,
       window,
       namedProperties,
-      inputTimestampIndex,
+      inputTimeFieldIndex,
       emitStrategy)
   }
 
@@ -177,14 +177,14 @@ class StreamExecGroupWindowAggregate(
       namedProperties)
 
     val timeIdx = if (isRowtimeIndicatorType(window.timeAttribute.getResultType)) {
-      if (inputTimestampIndex < 0) {
+      if (inputTimeFieldIndex < 0) {
         throw new TableException(
           "Group window aggregate must defined on a time attribute, " +
             "but the time attribute can't be found.\n" +
           "This should never happen. Please file an issue."
         )
       }
-      inputTimestampIndex
+      inputTimeFieldIndex
     } else {
       -1
     }
