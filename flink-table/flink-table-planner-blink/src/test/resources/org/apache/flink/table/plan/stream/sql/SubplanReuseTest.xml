@@ -647,4 +647,41 @@ Union(all=[true], union=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuseWithDynamicFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalIntersect(all=[false])
+:  :- LogicalProject(random=[$0])
+:  :  +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:  :     +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:  :        +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+:  +- LogicalProject(random=[$0])
+:     +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:        +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:           +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(random=[$0])
+   +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+      +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random])
+:- Exchange(distribution=[hash[random]])
+:  +- GroupAggregate(groupBy=[random], select=[random])
+:     +- Exchange(distribution=[hash[random]])
+:        +- Join(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random])
+:           :- Exchange(distribution=[hash[random]], reuse_id=[1])
+:           :  +- Calc(select=[random])
+:           :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1])
+:           :        +- Exchange(distribution=[single])
+:           :           +- Calc(select=[a AS random, RAND() AS EXPR$1])
+:           :              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:           +- Reused(reference_id=[1])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

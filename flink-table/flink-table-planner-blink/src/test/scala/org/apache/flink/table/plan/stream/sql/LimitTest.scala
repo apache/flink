@@ -28,7 +28,6 @@ class LimitTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
-  // TODO optimize `limit 0`
 
   @Test
   def testLimitWithoutOffset(): Unit = {
