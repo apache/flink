@@ -120,8 +120,12 @@ public class NetworkEnvironment {
 		checkNotNull(config);
 
 		NettyConfig nettyConfig = config.nettyConfig();
+
+		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
+
 		ConnectionManager connectionManager = nettyConfig != null ?
-			new NettyConnectionManager(nettyConfig, config.isCreditBased()) : new LocalConnectionManager();
+			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig, config.isCreditBased()) :
+			new LocalConnectionManager();
 
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			config.numNetworkBuffers(),
@@ -130,7 +134,6 @@ public class NetworkEnvironment {
 
 		registerNetworkMetrics(metricGroup, networkBufferPool);
 
-		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			resultPartitionManager,
 			ioManager,
@@ -280,7 +283,7 @@ public class NetworkEnvironment {
 
 			try {
 				LOG.debug("Starting network connection manager");
-				connectionManager.start(resultPartitionManager, taskEventPublisher);
+				connectionManager.start();
 			} catch (IOException t) {
 				throw new IOException("Failed to instantiate network connection manager.", t);
 			}
