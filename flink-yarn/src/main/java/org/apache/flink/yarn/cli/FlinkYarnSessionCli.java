@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
@@ -584,6 +585,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	public int run(String[] args) throws CliArgsException, FlinkException {
+		return runWithYarnClusterDescriptor(args, null);
+	}
+
+	@VisibleForTesting
+	public int runWithYarnClusterDescriptor(String[] args, List<File> shipFiles) throws CliArgsException, FlinkException {
 		//
 		//	Command Line Options
 		//
@@ -594,7 +600,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			return 0;
 		}
 
-		final AbstractYarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
+		AbstractYarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
+		if (shipFiles != null && shipFiles.size() > 0) {
+			yarnClusterDescriptor.addShipFiles(shipFiles);
+		}
 
 		try {
 			// Query cluster for metrics

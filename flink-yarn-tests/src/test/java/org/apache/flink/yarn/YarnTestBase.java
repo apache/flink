@@ -77,7 +77,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -308,6 +307,25 @@ public abstract class YarnTestBase extends TestLogger {
 		yarnClusterDescriptor.addShipFiles(shipFiles);
 
 		return yarnClusterDescriptor;
+	}
+
+	List<File> getYarnSiteAndKrb5Files() {
+		List<File> shipFiles = new ArrayList<>(3);
+
+		File yarnSiteFile = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
+		LOG.info("Adding Yarn configuration {} to the ship files.", yarnSiteFile.getAbsolutePath());
+		shipFiles.add(yarnSiteFile);
+
+		String krb5Config = System.getProperty("java.security.krb5.conf");
+		if (krb5Config != null && krb5Config.length() != 0) {
+			File krb5 = new File(krb5Config);
+			LOG.info("Adding KRB5 configuration {} to the ship files.", krb5.getAbsolutePath());
+			shipFiles.add(krb5);
+		}
+
+		shipFiles.add(flinkLibFolder);
+
+		return shipFiles;
 	}
 
 	/**
@@ -708,7 +726,8 @@ public abstract class YarnTestBase extends TestLogger {
 			CliFrontend.getConfigurationDirectoryFromEnv(),
 			type,
 			0,
-			stdinPrintStream);
+			stdinPrintStream,
+			getYarnSiteAndKrb5Files());
 		runner.setName("Frontend (CLI/YARN Client) runner thread (startWithArgs()).");
 		runner.start();
 
@@ -771,7 +790,8 @@ public abstract class YarnTestBase extends TestLogger {
 			CliFrontend.getConfigurationDirectoryFromEnv(),
 			type,
 			expectedReturnValue,
-			stdinPrintStream);
+			stdinPrintStream,
+			getYarnSiteAndKrb5Files());
 		runner.start();
 
 		boolean expectedStringSeen = false;
@@ -869,6 +889,7 @@ public abstract class YarnTestBase extends TestLogger {
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
 		private Throwable runnerError;
+		private List<File> shipFiles;
 
 		public Runner(
 				String[] args,
@@ -876,7 +897,8 @@ public abstract class YarnTestBase extends TestLogger {
 				String configurationDirectory,
 				RunTypes type,
 				int expectedReturnValue,
-				PrintStream stdinPrintStream) {
+				PrintStream stdinPrintStream,
+				List<File> shipFiles) {
 
 			this.args = args;
 			this.configuration = Preconditions.checkNotNull(configuration);
@@ -884,6 +906,7 @@ public abstract class YarnTestBase extends TestLogger {
 			this.type = type;
 			this.expectedReturnValue = expectedReturnValue;
 			this.stdinPrintStream = Preconditions.checkNotNull(stdinPrintStream);
+			this.shipFiles = shipFiles;
 		}
 
 		@Override
@@ -898,7 +921,7 @@ public abstract class YarnTestBase extends TestLogger {
 							"",
 							"",
 							true);
-						returnValue = yCli.run(args);
+						returnValue = yCli.runWithYarnClusterDescriptor(args, shipFiles);
 						break;
 					case CLI_FRONTEND:
 						try {
