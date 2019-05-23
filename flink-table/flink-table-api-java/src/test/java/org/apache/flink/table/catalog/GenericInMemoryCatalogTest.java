@@ -89,6 +89,26 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
 	}
 
+	// ------ partitions ------
+
+	@Test
+	public void testAlterPartition_differentTypedPartition() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		CatalogPartition partition = createPartition();
+		catalog.createPartition(path1, partitionSpec, partition, false);
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage(
+			String.format("Partition types don't match. " +
+				"Existing partition is '%s' and " +
+				"new partition is 'org.apache.flink.table.catalog.CatalogTestBase$TestPartition'.",
+				partition.getClass().getName()));
+		catalog.alterPartition(path1, partitionSpec, new TestPartition(), false);
+	}
+
 	// ------ statistics ------
 
 	@Test
